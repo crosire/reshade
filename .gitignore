@@ -15,14 +15,21 @@ packages/
 *.aps
 *.VC.db
 *.VC.opendb
+
+# Visual Studio user config files
 *.sdf
 *.opensdf
 *.suo
 *.vcxproj.user
+*.Args.json
+*.ArgsCfg.json
 
 # Visual Studio performance profiling
 *.vsp
 *.psess
+
+# Visual Studio Code
+.vscode/
 
 # Code signing
 *.pfx

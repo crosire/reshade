@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_parser.hpp"
@@ -16,8 +16,8 @@ using namespace reshadefx;
 class codegen_glsl final : public codegen
 {
 public:
-	codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
-		: _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types), _flip_vert_y(flip_vert_y)
+	codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
+		: _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types), _flip_vert_y(flip_vert_y)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -42,10 +42,11 @@ private:
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
+	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	bool _enable_16bit_types = false;
-	bool _enable_control_flow_attributes = false;
 	bool _flip_vert_y = false;
+	bool _enable_control_flow_attributes = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 
@@ -59,14 +60,16 @@ private:
 	{
 		module = std::move(_module);
 
+		std::string preamble;
+
 		if (_enable_16bit_types)
 			// GL_NV_gpu_shader5, GL_AMD_gpu_shader_half_float or GL_EXT_shader_16bit_storage
-			module.hlsl += "#extension GL_NV_gpu_shader5 : require\n";
+			preamble += "#extension GL_NV_gpu_shader5 : require\n";
 		if (_enable_control_flow_attributes)
-			module.hlsl += "#extension GL_EXT_control_flow_attributes : enable\n";
+			preamble += "#extension GL_EXT_control_flow_attributes : enable\n";
 
 		if (_uses_fmod)
-			module.hlsl += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
+			preamble += "float fmodHLSL(float x, float y) { return x - y * trunc(x / y); }\n"
 				"vec2 fmodHLSL(vec2 x, vec2 y) { return x - y * trunc(x / y); }\n"
 				"vec3 fmodHLSL(vec3 x, vec3 y) { return x - y * trunc(x / y); }\n"
 				"vec4 fmodHLSL(vec4 x, vec4 y) { return x - y * trunc(x / y); }\n"
@@ -74,17 +77,17 @@ private:
 				"mat3 fmodHLSL(mat3 x, mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }\n"
 				"mat4 fmodHLSL(mat4 x, mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n";
 		if (_uses_componentwise_or)
-			module.hlsl +=
+			preamble +=
 				"bvec2 compOr(bvec2 a, bvec2 b) { return bvec2(a.x || b.x, a.y || b.y); }\n"
 				"bvec3 compOr(bvec3 a, bvec3 b) { return bvec3(a.x || b.x, a.y || b.y, a.z || b.z); }\n"
 				"bvec4 compOr(bvec4 a, bvec4 b) { return bvec4(a.x || b.x, a.y || b.y, a.z || b.z, a.w || b.w); }\n";
 		if (_uses_componentwise_and)
-			module.hlsl +=
+			preamble +=
 				"bvec2 compAnd(bvec2 a, bvec2 b) { return bvec2(a.x && b.x, a.y && b.y); }\n"
 				"bvec3 compAnd(bvec3 a, bvec3 b) { return bvec3(a.x && b.x, a.y && b.y, a.z && b.z); }\n"
 				"bvec4 compAnd(bvec4 a, bvec4 b) { return bvec4(a.x && b.x, a.y && b.y, a.z && b.z, a.w && b.w); }\n";
 		if (_uses_componentwise_cond)
-			module.hlsl +=
+			preamble +=
 				"vec2 compCond(bvec2 cond, vec2 a, vec2 b) { return vec2(cond.x ? a.x : b.x, cond.y ? a.y : b.y); }\n"
 				"vec3 compCond(bvec3 cond, vec3 a, vec3 b) { return vec3(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z); }\n"
 				"vec4 compCond(bvec4 cond, vec4 a, vec4 b) { return vec4(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z, cond.w ? a.w : b.w); }\n"
@@ -98,9 +101,12 @@ private:
 		if (!_ubo_block.empty())
 			// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since GLSL uses column matrices)
 			// TODO: This technically only works with square matrices
-			module.hlsl += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
+			preamble += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
 
-		module.hlsl += _blocks.at(0);
+		module.code.assign(preamble.begin(), preamble.end());
+
+		const std::string &main_block = _blocks.at(0);
+		module.code.insert(module.code.end(), main_block.begin(), main_block.end());
 	}
 
 	template <bool is_param = false, bool is_decl = true, bool is_interface = false>
@@ -216,11 +222,77 @@ private:
 		case type::t_struct:
 			s += id_to_name(type.definition);
 			break;
-		case type::t_sampler:
+		case type::t_sampler1d_int:
+			s += "isampler1D";
+			break;
+		case type::t_sampler2d_int:
+			s += "isampler2D";
+			break;
+		case type::t_sampler3d_int:
+			s += "isampler3D";
+			break;
+		case type::t_sampler1d_uint:
+			s += "usampler1D";
+			break;
+		case type::t_sampler3d_uint:
+			s += "usampler3D";
+			break;
+		case type::t_sampler2d_uint:
+			s += "usampler2D";
+			break;
+		case type::t_sampler1d_float:
+			s += "sampler1D";
+			break;
+		case type::t_sampler2d_float:
 			s += "sampler2D";
 			break;
-		case type::t_storage:
-			s += "writeonly image2D";
+		case type::t_sampler3d_float:
+			s += "sampler3D";
+			break;
+		case type::t_storage1d_int:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "iimage1D";
+			break;
+		case type::t_storage2d_int:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "iimage2D";
+			break;
+		case type::t_storage3d_int:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "iimage3D";
+			break;
+		case type::t_storage1d_uint:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "uimage1D";
+			break;
+		case type::t_storage2d_uint:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "uimage2D";
+			break;
+		case type::t_storage3d_uint:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "uimage3D";
+			break;
+		case type::t_storage1d_float:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "image1D";
+			break;
+		case type::t_storage2d_float:
+			if constexpr (is_param) // Images need a format to be readable, but declaring that on function parameters is not well supported, so can only support write-only images there
+				s += "writeonly ";
+			s += "image2D";
+			break;
+		case type::t_storage3d_float:
+			if constexpr (is_param)
+				s += "writeonly ";
+			s += "image3D";
 			break;
 		default:
 			assert(false);
@@ -301,14 +373,70 @@ private:
 
 		s += "#line " + std::to_string(loc.line) + '\n';
 	}
+	void write_texture_format(std::string &s, texture_format format)
+	{
+		switch (format)
+		{
+		case texture_format::r8:
+			s += "r8";
+			break;
+		case texture_format::r16:
+			s += "r16";
+			break;
+		case texture_format::r16f:
+			s += "r16f";
+			break;
+		case texture_format::r32i:
+			s += "r32i";
+			break;
+		case texture_format::r32u:
+			s += "r32u";
+			break;
+		case texture_format::r32f:
+			s += "r32f";
+			break;
+		case texture_format::rg8:
+			s += "rg8";
+			break;
+		case texture_format::rg16:
+			s += "rg16";
+			break;
+		case texture_format::rg16f:
+			s += "rg16f";
+			break;
+		case texture_format::rg32f:
+			s += "rg32f";
+			break;
+		case texture_format::rgba8:
+			s += "rgba8";
+			break;
+		case texture_format::rgba16:
+			s += "rgba16";
+			break;
+		case texture_format::rgba16f:
+			s += "rgba16f";
+			break;
+		case texture_format::rgba32f:
+			s += "rgba32f";
+			break;
+		case texture_format::rgb10a2:
+			s += "rgb10_a2";
+			break;
+		default:
+			assert(false);
+		}
+	}
 
 	std::string id_to_name(id id) const
 	{
-		if (const auto it = _remapped_sampler_variables.find(id); it != _remapped_sampler_variables.end())
+		if (const auto it = _remapped_sampler_variables.find(id);
+			it != _remapped_sampler_variables.end())
 			id = it->second;
+
 		assert(id != 0);
-		if (const auto it = _names.find(id); it != _names.end())
-			return it->second;
+		if (const auto names_it = _names.find(id);
+			names_it != _names.end())
+			return names_it->second;
 		return '_' + std::to_string(id);
 	}
 
@@ -327,7 +455,7 @@ private:
 		_names[id] = std::move(name);
 	}
 
-	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
+	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_attributes = 1)
 	{
 		if (semantic.compare(0, 5, "COLOR") == 0)
 			return std::strtoul(semantic.c_str() + 5, nullptr, 10);
@@ -343,19 +471,29 @@ private:
 		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
 			digit_index--;
 		digit_index++;
-		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
-		const std::string base_semantic = semantic.substr(0, digit_index);
+
+		const uint32_t semantic_digit = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+		const std::string semantic_base = semantic.substr(0, digit_index);
+
+		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
-		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
-		max_array_length += base_index;
-		for (uint32_t a = 0; a < max_array_length; ++a)
-			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
+		for (uint32_t a = 0; a < semantic_digit + max_attributes; ++a)
+		{
+			const auto insert = _semantic_to_location.emplace(semantic_base + std::to_string(a), location + a);
+			if (!insert.second)
+			{
+				assert(a == 0 || (insert.first->second - a) == location);
 
-		return location + base_index;
+				// Semantic was already created with a different location index, so need to remap to that
+				location = insert.first->second - a;
+			}
+		}
+
+		return location + semantic_digit;
 	}
 
-	static std::string escape_name(std::string name)
+	std::string escape_name(std::string name) const
 	{
 		static const std::unordered_set<std::string> s_reserverd_names = {
 			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
@@ -395,7 +533,7 @@ private:
 
 		return name;
 	}
-	static std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype)
+	std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
@@ -404,7 +542,7 @@ private:
 		if (semantic == "SV_DEPTH")
 			return "gl_FragDepth";
 		if (semantic == "SV_VERTEXID")
-			return "gl_VertexID";
+			return _vulkan_semantics ? "gl_VertexIndex" : "gl_VertexID";
 		if (semantic == "SV_ISFRONTFACE")
 			return "gl_FrontFacing";
 		if (semantic == "SV_GROUPID")
@@ -415,6 +553,7 @@ private:
 			return "gl_LocalInvocationID";
 		if (semantic == "SV_DISPATCHTHREADID")
 			return "gl_GlobalInvocationID";
+
 		return escape_name(std::move(name));
 	}
 
@@ -442,7 +581,7 @@ private:
 
 		code += "struct " + id_to_name(info.definition) + "\n{\n";
 
-		for (const auto &member : info.member_list)
+		for (const struct_member_info &member : info.member_list)
 		{
 			code += '\t';
 			write_type(code, member.type); // GLSL does not allow interpolation attributes on struct members
@@ -469,7 +608,7 @@ private:
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture_info &, sampler_info &info) override
 	{
 		info.id = make_id();
 		info.binding = _module.num_sampler_bindings++;
@@ -481,13 +620,16 @@ private:
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding) + ") uniform sampler2D " + id_to_name(info.id) + ";\n";
+		code += "layout(binding = " + std::to_string(info.binding);
+		code += ") uniform ";
+		write_type(code, info.type);
+		code += ' ' + id_to_name(info.id) + ";\n";
 
 		_module.samplers.push_back(info);
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, storage_info &info) override
+	id   define_storage(const location &loc, const texture_info &tex_info, storage_info &info) override
 	{
 		info.id = make_id();
 		info.binding = _module.num_storage_bindings++;
@@ -498,59 +640,11 @@ private:
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding);
-
-		if (info.format != texture_format::unknown)
-		{
-			code += ", ";
-			switch (info.format)
-			{
-			case texture_format::r8:
-				code += "r8";
-				break;
-			case texture_format::r16f:
-				code += "r16f";
-				break;
-			case texture_format::r32f:
-				code += "r32f";
-				break;
-			case texture_format::rg8:
-				code += "rg8";
-				break;
-			case texture_format::rg16:
-				code += "rg16";
-				break;
-			case texture_format::rg16f:
-				code += "rg16f";
-				break;
-			case texture_format::rg32f:
-				code += "rg32f";
-				break;
-			case texture_format::rgba8:
-				code += "rgba8";
-				break;
-			case texture_format::rgba16:
-				code += "rgba16";
-				break;
-			case texture_format::rgba16f:
-				code += "rgba16f";
-				break;
-			case texture_format::rgba32f:
-				code += "rgba32f";
-				break;
-			case texture_format::rgb10a2:
-				code += "rgb10_a2";
-				break;
-			default:
-				assert(false);
-				break;
-			}
-		}
-
+		code += "layout(binding = " + std::to_string(info.binding) + ", ";
+		write_texture_format(code, tex_info.format);
 		code += ") uniform ";
-		if (info.format == texture_format::unknown)
-			code += "writeonly ";
-		code += "image2D " + id_to_name(info.id) + ";\n";
+		write_type(code, info.type);
+		code += ' ' + id_to_name(info.id) + ";\n";
 
 		_module.storages.push_back(info);
 
@@ -726,7 +820,8 @@ private:
 				'_' + std::to_string(num_threads[2]);
 
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
+				[&func](const auto &ep) { return ep.name == func.unique_name; });
+			it != _module.entry_points.end())
 			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
@@ -741,6 +836,7 @@ private:
 		entry_point.return_type = { type::t_void };
 
 		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
+
 		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int extra_qualifiers, const std::string &name, const std::string &semantic) {
 			// Skip built in variables
 			if (!semantic_to_builtin(std::string(), semantic, stype).empty())
@@ -755,15 +851,14 @@ private:
 			assert((type.has(type::q_in) || type.has(type::q_out)) && !type.has(type::q_inout));
 
 			// OpenGL does not allow varying of type boolean
-			if (type.base == type::t_bool)
-				type.base  = type::t_float;
+			if (type.is_boolean())
+				type.base = type::t_float;
 
 			std::string &code = _blocks.at(_current_block);
 
-			const int array_length = std::max(1, type.array_length);
-			const uint32_t location = semantic_to_location(semantic, array_length);
+			const uint32_t location = semantic_to_location(semantic, std::max(1, type.array_length));
 
-			for (int a = 0; a < array_length; ++a)
+			for (int a = 0; a < std::max(1, type.array_length); ++a)
 			{
 				code += "layout(location = " + std::to_string(location + a) + ") ";
 				write_type<false, false, true>(code, type);
@@ -778,7 +873,7 @@ private:
 		// Translate function parameters to input/output variables
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = find_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.definition);
 
 			for (const struct_member_info &member : definition.member_list)
 				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
@@ -800,7 +895,7 @@ private:
 				// Flatten structure parameters
 				if (param_type.is_struct())
 				{
-					const struct_info &definition = find_struct(param_type.definition);
+					const struct_info &definition = get_struct(param_type.definition);
 
 					for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 						for (const struct_member_info &member : definition.member_list)
@@ -816,7 +911,7 @@ private:
 			{
 				if (param_type.is_struct())
 				{
-					const struct_info &definition = find_struct(param_type.definition);
+					const struct_info &definition = get_struct(param_type.definition);
 
 					for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
 						for (const struct_member_info &member : definition.member_list)
@@ -858,7 +953,7 @@ private:
 						write_type<false, false>(code, param_type);
 						code += '(';
 
-						const struct_info &definition = find_struct(param_type.definition);
+						const struct_info &definition = get_struct(param_type.definition);
 
 						for (const struct_member_info &member : definition.member_list)
 						{
@@ -874,7 +969,17 @@ private:
 
 								for (int b = 0; b < member.type.array_length; b++)
 								{
+									// OpenGL does not allow varying of type boolean, so need to cast here
+									if (member.type.is_boolean())
+									{
+										write_type<false, false>(code, member.type);
+										code += '(';
+									}
+
 									code += escape_name(in_param_name + '_' + std::to_string(b));
+
+									if (member.type.is_boolean())
+										code += ')';
 
 									if (b < member.type.array_length - 1)
 										code += ", ";
@@ -884,7 +989,16 @@ private:
 							}
 							else
 							{
+								if (member.type.is_boolean())
+								{
+									write_type<false, false>(code, member.type);
+									code += '(';
+								}
+
 								code += semantic_to_builtin(std::move(in_param_name), member.semantic, stype);
+
+								if (member.type.is_boolean())
+									code += ')';
 							}
 
 							code += ", ";
@@ -907,9 +1021,20 @@ private:
 							"_in_param" + std::to_string(i) + '_' + std::to_string(a) :
 							"_in_param" + std::to_string(i));
 						code += " = ";
+
+						if (param_type.is_boolean())
+						{
+							write_type<false, false>(code, param_type);
+							code += '(';
+						}
+
 						code += escape_name(param_type.is_array() ?
 							it->second + '_' + std::to_string(a) :
 							it->second);
+
+						if (param_type.is_boolean())
+							code += ')';
+
 						code += ";\n";
 					}
 				}
@@ -937,7 +1062,17 @@ private:
 
 					for (int a = 0; a < param_type.array_length; ++a)
 					{
+						// OpenGL does not allow varying of type boolean, so need to cast here
+						if (param_type.is_boolean())
+						{
+							write_type<false, false>(code, param_type);
+							code += '(';
+						}
+
 						code += escape_name("_in_param" + std::to_string(i) + '_' + std::to_string(a));
+
+						if (param_type.is_boolean())
+							code += ')';
 
 						if (a < param_type.array_length - 1)
 							code += ", ";
@@ -947,7 +1082,16 @@ private:
 				}
 				else
 				{
+					if (param_type.is_boolean())
+					{
+						write_type<false, false>(code, param_type);
+						code += '(';
+					}
+
 					code += semantic_to_builtin("_in_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
+
+					if (param_type.is_boolean())
+						code += ')';
 				}
 			}
 
@@ -990,7 +1134,7 @@ private:
 
 			if (param_type.is_struct())
 			{
-				const struct_info &definition = find_struct(param_type.definition);
+				const struct_info &definition = get_struct(param_type.definition);
 
 				// Split out struct fields into separate output variables again
 				for (int a = 0, array_length = std::max(1, param_type.array_length); a < array_length; a++)
@@ -1004,12 +1148,26 @@ private:
 								code += '\t';
 								code += escape_name("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name + '_' + std::to_string(b));
 								code += " = ";
+
+								// OpenGL does not allow varying of type boolean, so need to cast here
+								if (member.type.is_boolean())
+								{
+									type varying_type = member.type;
+									varying_type.base = type::t_float;
+									write_type<false, false>(code, varying_type);
+									code += '(';
+								}
+
 								code += escape_name("_param" + std::to_string(i));
 								if (param_type.is_array())
 									code += '[' + std::to_string(a) + ']';
 								code += '.';
 								code += member.name;
 								code += '[' + std::to_string(b) + ']';
+
+								if (member.type.is_boolean())
+									code += ')';
+
 								code += ";\n";
 							}
 						}
@@ -1018,11 +1176,24 @@ private:
 							code += '\t';
 							code += semantic_to_builtin("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic, stype);
 							code += " = ";
+
+							if (member.type.is_boolean())
+							{
+								type varying_type = member.type;
+								varying_type.base = type::t_float;
+								write_type<false, false>(code, varying_type);
+								code += '(';
+							}
+
 							code += escape_name("_param" + std::to_string(i));
 							if (param_type.is_array())
 								code += '[' + std::to_string(a) + ']';
 							code += '.';
 							code += member.name;
+
+							if (member.type.is_boolean())
+								code += ')';
+
 							code += ";\n";
 						}
 					}
@@ -1038,8 +1209,22 @@ private:
 						code += '\t';
 						code += escape_name("_out_param" + std::to_string(i) + '_' + std::to_string(a));
 						code += " = ";
+
+						// OpenGL does not allow varying of type boolean, so need to cast here
+						if (param_type.is_boolean())
+						{
+							type varying_type = param_type;
+							varying_type.base = type::t_float;
+							write_type<false, false>(code, varying_type);
+							code += '(';
+						}
+
 						code += escape_name("_param" + std::to_string(i));
 						code += '[' + std::to_string(a) + ']';
+
+						if (param_type.is_boolean())
+							code += ')';
+
 						code += ";\n";
 					}
 				}
@@ -1048,7 +1233,20 @@ private:
 					code += '\t';
 					code += semantic_to_builtin("_out_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
 					code += " = ";
+
+					if (param_type.is_boolean())
+					{
+						type varying_type = param_type;
+						varying_type.base = type::t_float;
+						write_type<false, false>(code, varying_type);
+						code += '(';
+					}
+
 					code += escape_name("_param" + std::to_string(i));
+
+					if (param_type.is_boolean())
+						code += ')';
+
 					code += ";\n";
 				}
 			}
@@ -1057,7 +1255,7 @@ private:
 		// Handle return struct output variables
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = find_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.definition);
 
 			for (const struct_member_info &member : definition.member_list)
 			{
@@ -1099,7 +1297,7 @@ private:
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
-				expr_code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
+				expr_code += escape_name(get_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
 				// For matrices this will extract a column, but that is fine, since they are initialized column-wise too
@@ -1187,7 +1385,7 @@ private:
 			{
 			case expression::operation::op_member:
 				code += '.';
-				code += escape_name(find_struct(op.from.definition).member_list[op.index].name);
+				code += escape_name(get_struct(op.from.definition).member_list[op.index].name);
 				break;
 			case expression::operation::op_dynamic_index:
 				code += "[int(" + id_to_name(op.index) + ")]";
@@ -1946,7 +2144,7 @@ private:
 	}
 };
 
-codegen *reshadefx::create_codegen_glsl(bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
+codegen *reshadefx::create_codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
 {
-	return new codegen_glsl(debug_info, uniforms_to_spec_constants, enable_16bit_types, flip_vert_y);
+	return new codegen_glsl(vulkan_semantics, debug_info, uniforms_to_spec_constants, enable_16bit_types, flip_vert_y);
 }

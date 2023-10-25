@@ -1,14 +1,14 @@
 ﻿/*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -21,6 +21,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Xml;
+using Microsoft.Win32;
 
 static class StringExtensionMethods
 {
@@ -57,18 +58,29 @@ namespace ReShade.Setup.Pages
 				Name = info.FileDescription;
 				if (Name is null || Name.Trim().Length == 0)
 				{
-					Name = System.IO.Path.GetFileNameWithoutExtension(path);
+					Name = System.IO.Path.GetFileName(path);
+
+					int length = Name.LastIndexOf('.');
+					if (length > 1)
+					{
+						Name = path.Substring(0, length);
+					}
+
+					if (char.IsLower(Name.First()))
+					{
+						Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name);
+					}
 				}
 
 				Name += " (" + System.IO.Path.GetFileName(path) + ")";
 
-				using (var ico = System.Drawing.Icon.ExtractAssociatedIcon(path))
-				{
-					Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-				}
-
 				try
 				{
+					using (var ico = System.Drawing.Icon.ExtractAssociatedIcon(path))
+					{
+						Icon = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+					}
+
 					LastAccess = File.GetLastAccessTime(path).ToString("s");
 				}
 				catch
@@ -86,7 +98,8 @@ namespace ReShade.Setup.Pages
 		Thread UpdateThread = null;
 		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
 		bool SuspendUpdateThread = false;
-		public string FileName { get => PathBox.Text; private set => PathBox.Text = value; }
+		bool IgnorePathBoxChanged = false;
+		public string FileName { get => PathBox.Text; set => PathBox.Text = value; }
 		ObservableCollection<ProgramItem> ProgramListItems = new ObservableCollection<ProgramItem>();
 
 		public SelectAppPage()
@@ -109,8 +122,8 @@ namespace ReShade.Setup.Pages
 					{
 						searchPaths.Add(Path.Combine(steamInstallPath, "steamapps", "common"));
 
-						string steamConfig = File.ReadAllText(Path.Combine(steamInstallPath, "config", "config.vdf"));
-						foreach (Match match in new Regex("\"BaseInstallFolder_[1-9]\"\\s+\"(.+)\"").Matches(steamConfig))
+						string steamConfig = File.ReadAllText(Path.Combine(steamInstallPath, "config", "libraryfolders.vdf"));
+						foreach (Match match in new Regex("\"path\"\\s+\"(.+)\"").Matches(steamConfig))
 						{
 							searchPaths.Add(Path.Combine(match.Groups[1].Value.Replace("\\\\", "\\"), "steamapps", "common"));
 						}
@@ -141,14 +154,47 @@ namespace ReShade.Setup.Pages
 				}
 				catch { }
 
-				// Add Epic Games Launcher install location
+				// Add EA Desktop install locations
+				try
 				{
-					string epicGamesInstallPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Epic Games");
-					if (Directory.Exists(epicGamesInstallPath))
+					string eaDesktopConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Electronic Arts", "EA Desktop");
+					if (Directory.Exists(eaDesktopConfigPath))
 					{
-						searchPaths.Add(epicGamesInstallPath);
+						foreach (string userConfigPath in Directory.EnumerateFiles(eaDesktopConfigPath, "user_*.ini"))
+						{
+							var userConfig = new Utilities.IniFile(userConfigPath);
+							var searchPath = userConfig.GetString(string.Empty, "user.downloadinplacedir");
+
+							if (!string.IsNullOrEmpty(searchPath) && Directory.Exists(searchPath))
+							{
+								if (searchPath.Last() == Path.DirectorySeparatorChar)
+								{
+									searchPath = searchPath.Remove(searchPath.Length - 1);
+								}
+
+								searchPaths.Add(searchPath);
+							}
+						}
 					}
 				}
+				catch { }
+
+				// Add Epic Games Launcher install location
+				try
+				{
+					string epicGamesConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EpicGamesLauncher", "Saved", "Config", "Windows", "GameUserSettings.ini");
+					if (File.Exists(epicGamesConfigPath))
+					{
+						var epicGamesConfig = new Utilities.IniFile(epicGamesConfigPath);
+						var searchPath = epicGamesConfig.GetString("Launcher", "DefaultAppInstallLocation");
+
+						if (!string.IsNullOrEmpty(searchPath) && Directory.Exists(searchPath))
+						{
+							searchPaths.Add(searchPath);
+						}
+					}
+				}
+				catch { }
 
 				// Add GOG Galaxy install locations
 				try
@@ -191,15 +237,47 @@ namespace ReShade.Setup.Pages
 #endif
 
 				const int SPLIT_SIZE = 50;
-				var items = new KeyValuePair<string, FileVersionInfo>[SPLIT_SIZE];
 
 #if !RESHADE_SETUP_USE_MUI_CACHE
 				while (searchPaths.Count != 0)
 				{
 					string searchPath = searchPaths.Dequeue();
 
+					if (searchPath.Last() != Path.DirectorySeparatorChar)
+					{
+						searchPath += Path.DirectorySeparatorChar;
+					}
+
+					// Ignore certain folders that are unlikely to contain useful executables
+					if (searchPath.ContainsIgnoreCase("docs") ||
+						searchPath.ContainsIgnoreCase("cache") ||
+						searchPath.ContainsIgnoreCase("support") ||
+						searchPath.Contains("Data") || // AppData, ProgramData, _Data
+						searchPath.Contains("_CommonRedist") ||
+						searchPath.Contains("__Installer") ||
+						searchPath.Contains("\\$") ||
+						searchPath.Contains("\\.") ||
+						searchPath.Contains("\\Windows") ||
+						searchPath.Contains("\\System Volume Information") ||
+						searchPath.ContainsIgnoreCase("java") ||
+						searchPath.ContainsIgnoreCase("steamvr") ||
+						searchPath.Contains("\\Portal\\bin"))
+					{
+						continue;
+					}
+
 					try
 					{
+						if (searchPath != Path.GetPathRoot(searchPath))
+						{
+							// Ignore hidden directories and symlinks
+							var attributes = File.GetAttributes(searchPath);
+							if (attributes.HasFlag(FileAttributes.Hidden) || attributes.HasFlag(FileAttributes.ReparsePoint))
+							{
+								continue;
+							}
+						}
+
 						files = Directory.GetFiles(searchPath, "*.exe", SearchOption.TopDirectoryOnly).ToList();
 					}
 					catch
@@ -216,47 +294,61 @@ namespace ReShade.Setup.Pages
 							SuspendUpdateThreadEvent.WaitOne();
 						}
 
+						var items = new KeyValuePair<string, FileVersionInfo>[SPLIT_SIZE];
+
 						for (int i = 0; i < Math.Min(SPLIT_SIZE, files.Count - offset); ++i)
 						{
 							string path = files[offset + i];
 
-							if (Path.GetExtension(path) != ".exe" || !File.Exists(path))
+							if (!Path.GetExtension(path).Equals(".exe", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
 							{
 								continue;
 							}
 
 							// Exclude common installer, support and launcher executables
-							if (path.ContainsIgnoreCase("redis") ||
-								path.ContainsIgnoreCase("unins") ||
-								path.ContainsIgnoreCase("setup") ||
-								path.ContainsIgnoreCase("patch") ||
-								path.ContainsIgnoreCase("update") ||
-								path.ContainsIgnoreCase("install") ||
-								path.ContainsIgnoreCase("report") ||
-								path.ContainsIgnoreCase("support") ||
-								path.ContainsIgnoreCase("register") ||
-								path.ContainsIgnoreCase("activation") ||
-								path.ContainsIgnoreCase("diagnostics") ||
-								path.ContainsIgnoreCase("tool") ||
-								path.ContainsIgnoreCase("crash") ||
-								path.ContainsIgnoreCase("config") ||
-								path.ContainsIgnoreCase("launch") ||
-								path.ContainsIgnoreCase("plugin") ||
+							if (path.ContainsIgnoreCase("activation") ||
+								path.ContainsIgnoreCase("apputil") ||
 								path.ContainsIgnoreCase("benchmark") ||
-								path.ContainsIgnoreCase("steamvr") ||
 								path.ContainsIgnoreCase("cefprocess") ||
-								path.Contains("svc") ||
-								// Ignore certain folders that are unlikely to contain useful executables
-								path.ContainsIgnoreCase("docs") ||
-								path.ContainsIgnoreCase("cache") ||
+								path.ContainsIgnoreCase("compile") ||
+								path.ContainsIgnoreCase("compress") ||
+								path.ContainsIgnoreCase("config") ||
+								path.ContainsIgnoreCase("console") ||
+								path.ContainsIgnoreCase("convert") ||
+								path.ContainsIgnoreCase("crash") ||
+								path.ContainsIgnoreCase("diagnostics") ||
+								path.ContainsIgnoreCase("download") ||
+								path.ContainsIgnoreCase("helper") ||
+								path.ContainsIgnoreCase("inject") ||
+								path.ContainsIgnoreCase("install") ||
+								path.ContainsIgnoreCase("launch") ||
+								path.ContainsIgnoreCase("openvr") ||
+								path.ContainsIgnoreCase("overlay") ||
+								path.ContainsIgnoreCase("patch") ||
+								path.ContainsIgnoreCase("plugin") ||
+								path.ContainsIgnoreCase("redis") ||
+								path.ContainsIgnoreCase("register") ||
+								path.ContainsIgnoreCase("report") ||
+								path.ContainsIgnoreCase("server") ||
+								path.ContainsIgnoreCase("setup") ||
+								path.ContainsIgnoreCase("steamvr") ||
+								path.ContainsIgnoreCase("subprocess") ||
 								path.ContainsIgnoreCase("support") ||
-								path.Contains("Data") || // AppData, ProgramData, _Data
-								path.Contains("_CommonRedist") ||
-								path.Contains("__Installer") ||
-								path.Contains("\\$") ||
-								path.Contains("\\.") ||
-								path.Contains("\\Windows") ||
-								path.ContainsIgnoreCase("steamvr"))
+								path.ContainsIgnoreCase("tool") ||
+								path.ContainsIgnoreCase("unins") ||
+								path.ContainsIgnoreCase("update") ||
+								path.ContainsIgnoreCase("util") ||
+								path.ContainsIgnoreCase("validate") ||
+								path.ContainsIgnoreCase("wallpaper") ||
+								path.ContainsIgnoreCase("webengine") ||
+								path.ContainsIgnoreCase("webview") ||
+								path.Contains("7za") ||
+								path.Contains("createdump") ||
+								path.Contains("fossilize") ||
+								path.Contains("Rpt") || // CrashRpt, SndRpt
+								path.Contains("svc") ||
+								path.Contains("SystemSoftware") ||
+								path.Contains("TagesClient"))
 							{
 								continue;
 							}
@@ -268,24 +360,32 @@ namespace ReShade.Setup.Pages
 						{
 							foreach (var item in arg)
 							{
-								if (item.Key == null || ProgramListItems.Any(x => x.Path == item.Key))
+								if (string.IsNullOrEmpty(item.Key) || ProgramListItems.Any(x => x.Path == item.Key))
 								{
 									continue;
 								}
 
 								ProgramListItems.Add(new ProgramItem(item.Key, item.Value));
 							}
-						}), DispatcherPriority.Background, (object)items);
+						}), DispatcherPriority.Background, items);
 
 						// Give back control to the OS
 						Thread.Sleep(5);
 					}
 
 #if !RESHADE_SETUP_USE_MUI_CACHE
-					// Continue searching in sub-directories
-					foreach (var path in Directory.GetDirectories(searchPath))
+					try
 					{
-						searchPaths.Add(path);
+						// Continue searching in sub-directories
+						foreach (var path in Directory.GetDirectories(searchPath))
+						{
+							searchPaths.Add(path);
+						}
+					}
+					catch
+					{
+						// Skip permission errors
+						continue;
 					}
 				}
 #endif
@@ -316,6 +416,7 @@ namespace ReShade.Setup.Pages
 			{
 				UpdateThread.Abort();
 
+				PathBox.Focus();
 				FileName = dlg.FileName;
 			}
 			else
@@ -332,6 +433,24 @@ namespace ReShade.Setup.Pages
 
 		private void OnPathTextChanged(object sender, TextChangedEventArgs e)
 		{
+			if (IgnorePathBoxChanged)
+			{
+				return;
+			}
+
+			var invalidChars = Path.GetInvalidPathChars();
+			for (int i = 0; i < PathBox.Text.Length;)
+			{
+				if (invalidChars.Contains(PathBox.Text[i]))
+				{
+					PathBox.Text = PathBox.Text.Remove(i, 1);
+				}
+				else
+				{
+					i++;
+				}
+			}
+
 			OnSortByChanged(sender, null);
 
 			if (PathBox.IsFocused)
@@ -372,7 +491,9 @@ namespace ReShade.Setup.Pages
 		{
 			if (ProgramList.SelectedItem is ProgramItem item)
 			{
+				IgnorePathBoxChanged = true;
 				FileName = item.Path;
+				IgnorePathBoxChanged = false;
 
 				ProgramList.ScrollIntoView(item);
 			}

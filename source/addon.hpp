@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -12,7 +12,7 @@
 template <typename T, size_t STACK_ELEMENTS = 16>
 struct temp_mem
 {
-	temp_mem(size_t elements)
+	explicit temp_mem(size_t elements = STACK_ELEMENTS)
 	{
 		if (elements > STACK_ELEMENTS)
 			p = new T[elements];
@@ -27,6 +27,8 @@ struct temp_mem
 
 	T &operator[](size_t element)
 	{
+		assert(element < STACK_ELEMENTS || p != stack);
+
 		return p[element];
 	}
 
@@ -35,9 +37,6 @@ struct temp_mem
 
 namespace reshade::api
 {
-	class api_object;
-	class effect_runtime;
-
 	template <typename T, typename... api_object_base>
 	class api_object_impl : public api_object_base...
 	{
@@ -47,8 +46,10 @@ namespace reshade::api
 		api_object_impl(const api_object_impl &) = delete;
 		api_object_impl &operator=(const api_object_impl &) = delete;
 
-		void get_private_data(const uint8_t guid[16], uint64_t *data) const override
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const final
 		{
+			assert(data != nullptr);
+
 			for (auto it = _private_data.begin(); it != _private_data.end(); ++it)
 			{
 				if (std::memcmp(it->guid, guid, 16) == 0)
@@ -60,7 +61,7 @@ namespace reshade::api
 
 			*data = 0;
 		}
-		void set_private_data(const uint8_t guid[16], const uint64_t data)  override
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  final
 		{
 			for (auto it = _private_data.begin(); it != _private_data.end(); ++it)
 			{
@@ -82,7 +83,7 @@ namespace reshade::api
 			}
 		}
 
-		uint64_t get_native_object() const override { return (uint64_t)_orig; }
+		uint64_t get_native() const final { return (uint64_t)_orig; }
 
 		T _orig;
 
@@ -104,16 +105,24 @@ namespace reshade::api
 
 		std::vector<private_data> _private_data;
 	};
+
+	struct api_object;
+	struct effect_runtime;
 }
 
 #if RESHADE_ADDON
 
-namespace reshade::addon
+namespace reshade
 {
-	struct info
+	struct addon_info
 	{
-		void *handle = nullptr;
+		struct overlay_callback
+		{
+			std::string title;
+			void(*callback)(api::effect_runtime *) = nullptr;
+		};
 
+		void *handle = nullptr;
 		std::string name;
 		std::string description;
 		std::string file;
@@ -122,26 +131,10 @@ namespace reshade::addon
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI
-		float settings_height = 0.0f;
 		void(*settings_overlay_callback)(api::effect_runtime *) = nullptr;
-		std::vector<std::pair<std::string, void(*)(api::effect_runtime *)>> overlay_callbacks;
+		std::vector<overlay_callback> overlay_callbacks;
 #endif
 	};
-
-	/// <summary>
-	/// Global switch to enable or disable all loaded add-ons.
-	/// </summary>
-	extern bool enabled;
-
-	/// <summary>
-	/// List of add-on event callbacks.
-	/// </summary>
-	extern std::vector<void *> event_list[];
-
-	/// <summary>
-	/// List of currently loaded add-ons.
-	/// </summary>
-	extern std::vector<addon::info> loaded_info;
 }
 
 #endif

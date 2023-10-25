@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -44,5 +44,5 @@ struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGID
 	bool check_and_upgrade_interface(REFIID riid);
 
 	IDXGIDevice1 *_orig;
-	unsigned int _interface_version;
+	unsigned short _interface_version;
 };

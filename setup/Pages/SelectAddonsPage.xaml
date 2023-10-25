@@ -1,0 +1,56 @@
+﻿<Page x:Class="ReShade.Setup.Pages.SelectAddonsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:local="clr-namespace:ReShade.Setup.Pages"
+      mc:Ignorable="d"
+      d:DesignWidth="510" d:DesignHeight="638"
+      Width="Auto" Height="Auto"
+      FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
+  <DockPanel LastChildFill="True">
+    <DockPanel DockPanel.Dock="Top">
+      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select add-ons to install:" />
+    </DockPanel>
+    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+      Check all add-ons you want to install/update. Add-ons not checked here will not be installed or are left untouched when updating.
+    </TextBlock>
+    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <Grid Margin="0,3">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="20" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="35" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <CheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Selected}" IsEnabled="{Binding Enabled}" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center">
+              <Hyperlink NavigateUri="{Binding RepositoryUrl, Mode=OneTime}" RequestNavigate="OnHyperlinkRequestNavigate">
+                <TextBlock Text="{Binding Name, Mode=OneTime}" />
+                <Hyperlink.ToolTip>
+                  <TextBlock Text="{Binding RepositoryUrl, Mode=OneTime}" />                  
+                </Hyperlink.ToolTip>
+              </Hyperlink>
+            </TextBlock>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Description, Mode=OneTime}">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Style.Triggers>
+                    <!-- Hide description row if it is empty -->
+                    <DataTrigger Binding="{Binding Description, Mode=OneTime}" Value="{x:Null}">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</Page>

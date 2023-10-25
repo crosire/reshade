@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -36,9 +36,12 @@ struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 
 
 	static bool is_presenting_entire_surface(const RECT *source_rect, HWND hwnd);
 
+	void handle_device_loss(HRESULT hr);
+
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
 	bool _extended_interface;
 	Direct3DDevice9 *const _device;
+	bool _was_still_drawing_last_frame = false;
 };

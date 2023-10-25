@@ -1,14 +1,12 @@
-/**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+/*
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include "effect_preprocessor.hpp"
 #include "version.h"
-#include <cstdlib>
-#include <cstring>
 #include <fstream>
 #include <iostream>
 
@@ -31,10 +29,11 @@ Options:
   --hlsl                    Print HLSL code for the previously specified entry point.
   --shader-model <value>    HLSL shader model version. Can be 30, 40, 41, 50, ...
 
-  --width                   Value of the 'BUFFER_WIDTH' preprocessor macro.
-  --height                  Value of the 'BUFFER_HEIGHT' preprocessor macro.
+  --width <value>           Value of the 'BUFFER_WIDTH' preprocessor macro.
+  --height <value>          Value of the 'BUFFER_HEIGHT' preprocessor macro.
   --invert-y                Insert code to invert the Y component of the output position in vertex shaders (only applies to SPIR-V).
   --spec-constants          Convert uniform variables to specialization constants.
+  --vulkan-semantics        Generate GLSL/SPIR-V code under Vulkan semantics, instead of OpenGL semantics.
 
   -Zi                       Enable debug information.
 	)", path);
@@ -53,6 +52,7 @@ int main(int argc, char *argv[])
 	bool debug_info = false;
 	bool invert_y_axis = false;
 	bool spec_constants = false;
+	bool vulkan_semantics = false;
 	unsigned int shader_model = 50;
 
 	reshadefx::parser parser;
@@ -101,6 +101,8 @@ int main(int argc, char *argv[])
 				invert_y_axis = true;
 			else if (0 == std::strcmp(arg, "--spec-constants"))
 				spec_constants = true;
+			else if (0 == std::strcmp(arg, "--vulkan-semantics"))
+				vulkan_semantics = true;
 
 			if (i + 1 >= argc)
 				continue;
@@ -160,11 +162,11 @@ int main(int argc, char *argv[])
 
 	std::unique_ptr<reshadefx::codegen> backend;
 	if (print_glsl)
-		backend.reset(reshadefx::create_codegen_glsl(debug_info, spec_constants));
+		backend.reset(reshadefx::create_codegen_glsl(vulkan_semantics, debug_info, spec_constants, invert_y_axis));
 	else if (print_hlsl)
 		backend.reset(reshadefx::create_codegen_hlsl(shader_model, debug_info, spec_constants));
 	else
-		backend.reset(reshadefx::create_codegen_spirv(true, debug_info, spec_constants, invert_y_axis));
+		backend.reset(reshadefx::create_codegen_spirv(vulkan_semantics, debug_info, spec_constants, invert_y_axis));
 
 	if (!parser.parse(pp.output(), backend.get()))
 	{
@@ -180,12 +182,11 @@ int main(int argc, char *argv[])
 
 	if (print_glsl || print_hlsl)
 	{
-		std::cout << module.hlsl << std::endl;
+		std::cout.write(module.code.data(), module.code.size()).flush();
 	}
 	else if (objectfile != nullptr)
 	{
-		std::ofstream(objectfile, std::ios::binary).write(
-			reinterpret_cast<const char *>(module.spirv.data()), module.spirv.size() * sizeof(uint32_t));
+		std::ofstream(objectfile, std::ios::binary).write(module.code.data(), module.code.size());
 	}
 
 	return 0;

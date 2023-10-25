@@ -1,14 +1,13 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_symbol_table.hpp"
 #include <cassert>
 #include <malloc.h> // alloca
 #include <algorithm> // std::upper_bound, std::sort
-
-#pragma region Import intrinsic functions
+#include <functional> // std::greater
 
 enum class intrinsic_id : uint32_t
 {
@@ -24,7 +23,7 @@ struct intrinsic
 		function.return_type = ret_type;
 		function.parameter_list.reserve(arg_types.size());
 		for (const reshadefx::type &arg_type : arg_types)
-			function.parameter_list.push_back({ arg_type, {}, {}, {} });
+			function.parameter_list.push_back({ arg_type });
 	}
 
 	intrinsic_id id;
@@ -76,8 +75,36 @@ struct intrinsic
 #define out_float2 { reshadefx::type::t_float, 2, 1, reshadefx::type::q_out }
 #define out_float3 { reshadefx::type::t_float, 3, 1, reshadefx::type::q_out }
 #define out_float4 { reshadefx::type::t_float, 4, 1, reshadefx::type::q_out }
-#define sampler { reshadefx::type::t_sampler }
-#define storage { reshadefx::type::t_storage }
+#define sampler1d_int { reshadefx::type::t_sampler1d_int, 1, 1 }
+#define sampler2d_int { reshadefx::type::t_sampler2d_int, 1, 1 }
+#define sampler3d_int { reshadefx::type::t_sampler3d_int, 1, 1 }
+#define sampler1d_uint { reshadefx::type::t_sampler1d_uint, 1, 1 }
+#define sampler2d_uint { reshadefx::type::t_sampler2d_uint, 1, 1 }
+#define sampler3d_uint { reshadefx::type::t_sampler3d_uint, 1, 1 }
+#define sampler1d_float { reshadefx::type::t_sampler1d_float, 1, 1 }
+#define sampler2d_float { reshadefx::type::t_sampler2d_float, 1, 1 }
+#define sampler3d_float { reshadefx::type::t_sampler3d_float, 1, 1 }
+#define sampler1d_float4 { reshadefx::type::t_sampler1d_float, 4, 1 }
+#define sampler2d_float4 { reshadefx::type::t_sampler2d_float, 4, 1 }
+#define sampler3d_float4 { reshadefx::type::t_sampler3d_float, 4, 1 }
+#define storage1d_int { reshadefx::type::t_storage1d_int, 1, 1 }
+#define storage2d_int { reshadefx::type::t_storage2d_int, 1, 1 }
+#define storage3d_int { reshadefx::type::t_storage3d_int, 1, 1 }
+#define storage1d_uint { reshadefx::type::t_storage1d_uint, 1, 1 }
+#define storage2d_uint { reshadefx::type::t_storage2d_uint, 1, 1 }
+#define storage3d_uint { reshadefx::type::t_storage3d_uint, 1, 1 }
+#define storage1d_float { reshadefx::type::t_storage1d_float, 1, 1 }
+#define storage2d_float { reshadefx::type::t_storage2d_float, 1, 1 }
+#define storage3d_float { reshadefx::type::t_storage3d_float, 1, 1 }
+#define storage1d_float4 { reshadefx::type::t_storage1d_float, 4, 1 }
+#define storage2d_float4 { reshadefx::type::t_storage2d_float, 4, 1 }
+#define storage3d_float4 { reshadefx::type::t_storage3d_float, 4, 1 }
+#define inout_storage1d_int { reshadefx::type::t_storage1d_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage2d_int { reshadefx::type::t_storage2d_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage3d_int { reshadefx::type::t_storage3d_int, 1, 1, reshadefx::type::q_inout }
+#define inout_storage1d_uint { reshadefx::type::t_storage1d_uint, 1, 1, reshadefx::type::q_inout }
+#define inout_storage2d_uint { reshadefx::type::t_storage2d_uint, 1, 1, reshadefx::type::q_inout }
+#define inout_storage3d_uint { reshadefx::type::t_storage3d_uint, 1, 1, reshadefx::type::q_inout }
 
 // Import intrinsic function definitions
 static const intrinsic s_intrinsics[] =
@@ -110,10 +137,30 @@ static const intrinsic s_intrinsics[] =
 #undef out_float2
 #undef out_float3
 #undef out_float4
-#undef sampler
-#undef storage
-
-#pragma endregion
+#undef sampler1d_int
+#undef sampler2d_int
+#undef sampler3d_int
+#undef sampler1d_uint
+#undef sampler2d_uint
+#undef sampler3d_uint
+#undef sampler1d_float4
+#undef sampler2d_float4
+#undef sampler3d_float4
+#undef storage1d_int
+#undef storage2d_int
+#undef storage3d_int
+#undef storage1d_uint
+#undef storage2d_uint
+#undef storage3d_uint
+#undef storage1d_float4
+#undef storage2d_float4
+#undef storage3d_float4
+#undef inout_storage1d_int
+#undef inout_storage2d_int
+#undef inout_storage3d_int
+#undef inout_storage1d_uint
+#undef inout_storage2d_uint
+#undef inout_storage3d_uint
 
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {
@@ -122,7 +169,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	if (src.is_struct() || dst.is_struct())
 		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
 	if (!src.is_numeric() || !dst.is_numeric())
-		return src.base == dst.base ? 32 : 0; // Numeric values are not compatible with other types
+		return src.base == dst.base && src.rows == dst.rows && src.cols == dst.cols ? 32 : 0; // Numeric values are not compatible with other types
 	if (src.is_matrix() && (!dst.is_matrix() || src.rows != dst.rows || src.cols != dst.cols))
 		return 0; // Matrix truncation or dimensions do not match
 

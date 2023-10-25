@@ -1,19 +1,23 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_lexer.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
+#include <cctype> // std::toupper
+#include <limits>
 #include <cassert>
 #include <functional>
+#include <string_view>
 
 struct on_scope_exit
 {
 	template <typename F>
 	explicit on_scope_exit(F lambda) : leave(lambda) { }
 	~on_scope_exit() { leave(); }
+
 	std::function<void()> leave;
 };
 
@@ -23,6 +27,7 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	// Set backend for subsequent code-generation
 	_codegen = backend;
+	assert(backend != nullptr);
 
 	consume();
 
@@ -30,11 +35,15 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 	bool current_success = true;
 
 	while (!peek(tokenid::end_of_file))
-		if (parse_top(current_success); !current_success)
+	{
+		parse_top(current_success);
+		if (!current_success)
 			parse_success = false;
+	}
 
 	return parse_success;
 }
+
 void reshadefx::parser::parse_top(bool &parse_success)
 {
 	if (accept(tokenid::namespace_))
@@ -61,8 +70,11 @@ void reshadefx::parser::parse_top(bool &parse_success)
 
 		// Recursively parse top level statements until the namespace is closed again
 		while (!peek('}')) // Empty namespaces are valid
-			if (parse_top(current_success); !current_success)
+		{
+			parse_top(current_success);
+			if (!current_success)
 				parse_success_namespace = false;
+		}
 
 		leave_namespace();
 
@@ -132,7 +144,7 @@ void reshadefx::parser::parse_top(bool &parse_success)
 			// Unexpected token in source stream, consume and report an error about it
 			consume();
 			// Only add another error message if succeeded parsing previously
-			// This is done to avoid walls of error messages because of consequential errors following a top-level syntax mistake 
+			// This is done to avoid walls of error messages because of consequential errors following a top-level syntax mistake
 			if (parse_success)
 				error(_token.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token.id) + '\'');
 			parse_success = false;
@@ -202,7 +214,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		const auto location = _token_next.location;
 
-		#pragma region If
 		if (accept(tokenid::if_))
 		{
 			codegen::id true_block = _codegen->create_block(); // Block which contains the statements executed when the condition is true
@@ -245,9 +256,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region Switch
 		if (accept(tokenid::switch_))
 		{
 			const codegen::id merge_block = _codegen->create_block(); // Block that is executed after the switch re-merged with the current control flow
@@ -367,9 +376,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect('}') && parse_success;
 		}
-		#pragma endregion
 
-		#pragma region For
 		if (accept(tokenid::for_))
 		{
 			if (!expect('('))
@@ -389,10 +396,15 @@ bool reshadefx::parser::parse_statement(bool scoped)
 						return false;
 				} while (!peek(';'));
 			}
-			else // Initializer can also contain an expression if not a variable declaration list
+			else
 			{
-				expression expression;
-				parse_expression(expression); // It is valid for there to be no initializer expression, so ignore result
+				// Initializer can also contain an expression if not a variable declaration list and not empty
+				if (!peek(';'))
+				{
+					expression expression;
+					if (!parse_expression(expression))
+						return false;
+				}
 			}
 
 			if (!expect(';'))
@@ -417,8 +429,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Parse condition block
 				_codegen->enter_block(condition_block);
 
-				if (expression condition; parse_expression(condition))
+				if (!peek(';'))
 				{
+					expression condition;
+					if (!parse_expression(condition))
+						return false;
+
 					if (!condition.type.is_scalar())
 						return error(condition.location, 3019, "scalar value expected"), false;
 
@@ -441,8 +457,12 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			{ // Parse loop continue block into separate block so it can be appended to the end down the line
 				_codegen->enter_block(continue_label);
 
-				expression continue_exp;
-				parse_expression(continue_exp); // It is valid for there to be no continue expression, so ignore result
+				if (!peek(')'))
+				{
+					expression continue_exp;
+					if (!parse_expression(continue_exp))
+						return false;
+				}
 
 				if (!expect(')'))
 					return false;
@@ -476,9 +496,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region While
 		if (accept(tokenid::while_))
 		{
 			enter_scope();
@@ -548,9 +566,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region DoWhile
 		if (accept(tokenid::do_))
 		{
 			const codegen::id merge_block = _codegen->create_block();
@@ -610,9 +626,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return true;
 		}
-		#pragma endregion
 
-		#pragma region Break
 		if (accept(tokenid::break_))
 		{
 			if (_loop_break_target_stack.empty())
@@ -623,9 +637,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Continue
 		if (accept(tokenid::continue_))
 		{
 			if (_loop_continue_target_stack.empty())
@@ -636,9 +648,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Return
 		if (accept(tokenid::return_))
 		{
 			const type &ret_type = _current_function->return_type;
@@ -685,9 +695,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 
-		#pragma region Discard
 		if (accept(tokenid::discard_))
 		{
 			// Leave the current function block
@@ -695,10 +703,8 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 			return expect(';');
 		}
-		#pragma endregion
 	}
 
-	#pragma region Declaration
 	// Handle variable declarations
 	if (type type; parse_type(type))
 	{
@@ -713,7 +719,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		return expect(';');
 	}
-	#pragma endregion
 
 	// Handle expression statements
 	if (expression expression; parse_expression(expression))
@@ -929,7 +934,10 @@ bool reshadefx::parser::parse_struct()
 
 				member.semantic = std::move(_token.literal_as_string);
 				// Make semantic upper case to simplify comparison later on
-				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+				std::transform(member.semantic.begin(), member.semantic.end(), member.semantic.begin(),
+					[](std::string::value_type c) {
+						return static_cast<std::string::value_type>(std::toupper(c));
+					});
 
 				if (member.semantic.compare(0, 3, "SV_") != 0)
 				{
@@ -942,6 +950,12 @@ bool reshadefx::parser::parse_struct()
 						member.type.qualifiers |= type::q_nointerpolation; // Integer fields do not interpolate, so make this explicit (to avoid issues with GLSL)
 						warning(member.location, 4568, '\'' + member.name + "': integer fields have the 'nointerpolation' qualifier by default");
 					}
+				}
+				else
+				{
+					// Remove optional trailing zero from system value semantics, so that e.g. SV_POSITION and SV_POSITION0 mean the same thing
+					if (member.semantic.back() == '0' && (member.semantic[member.semantic.size() - 2] < '0' || member.semantic[member.semantic.size() - 2] > '9'))
+						member.semantic.pop_back();
 				}
 			}
 
@@ -1078,7 +1092,10 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 			param.semantic = std::move(_token.literal_as_string);
 			// Make semantic upper case to simplify comparison later on
-			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+			std::transform(param.semantic.begin(), param.semantic.end(), param.semantic.begin(),
+				[](std::string::value_type c) {
+					return static_cast<std::string::value_type>(std::toupper(c));
+				});
 
 			if (param.semantic.compare(0, 3, "SV_") != 0)
 			{
@@ -1091,6 +1108,12 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 					param.type.qualifiers |= type::q_nointerpolation; // Integer parameters do not interpolate, so make this explicit (to avoid issues with GLSL)
 					warning(param.location, 4568, '\'' + param.name + "': integer parameters have the 'nointerpolation' qualifier by default");
 				}
+			}
+			else
+			{
+				// Remove optional trailing zero from system value semantics, so that e.g. SV_POSITION and SV_POSITION0 mean the same thing
+				if (param.semantic.back() == '0' && (param.semantic[param.semantic.size() - 2] < '0' || param.semantic[param.semantic.size() - 2] > '9'))
+					param.semantic.pop_back();
 			}
 		}
 
@@ -1110,7 +1133,10 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 		info.return_semantic = std::move(_token.literal_as_string);
 		// Make semantic upper case to simplify comparison later on
-		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+		std::transform(info.return_semantic.begin(), info.return_semantic.end(), info.return_semantic.begin(),
+			[](std::string::value_type c) {
+				return static_cast<std::string::value_type>(std::toupper(c));
+			});
 	}
 
 	// Check if this is a function declaration without a body
@@ -1122,7 +1148,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 
 	// Insert the function and parameter symbols into the symbol table and update current function pointer to the permanent one
 	symbol symbol = { symbol_type::function, id, { type::t_function } };
-	symbol.function = _current_function = &_codegen->find_function(id);
+	symbol.function = _current_function = &_codegen->get_function(id);
 
 	if (!insert_symbol(name, symbol, true))
 		return error(location, 3003, "redefinition of '" + name + '\''), false;
@@ -1169,7 +1195,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (!type.has(type::q_groupshared))
 		{
 			// Make all global variables 'uniform' by default, since they should be externally visible without the 'static' keyword
-			if (!type.has(type::q_uniform) && !(type.is_texture() || type.is_sampler() || type.is_storage()))
+			if (!type.has(type::q_uniform) && !type.is_object())
 				warning(location, 5000, '\'' + name + "': global variables are considered 'uniform' by default");
 
 			// Global variables that are not 'static' are always 'extern' and 'uniform'
@@ -1193,8 +1219,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (type.has(type::q_groupshared))
 			return error(location, 3010, '\'' + name + "': local variables cannot be declared 'groupshared'"), false;
 
-		if (type.is_texture() || type.is_sampler() || type.is_storage())
-			return error(location, 3038, '\'' + name + "': local variables cannot be textures or samplers"), false;
+		if (type.is_object())
+			return error(location, 3038, '\'' + name + "': local variables cannot be texture, sampler or storage objects"), false;
 	}
 
 	// The variable name may be followed by an optional array size expression
@@ -1218,7 +1244,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		semantic = std::move(_token.literal_as_string);
 
 		// Make semantic upper case to simplify comparison later on
-		std::transform(semantic.begin(), semantic.end(), semantic.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+		std::transform(semantic.begin(), semantic.end(), semantic.begin(),
+			[](std::string::value_type c) {
+				return static_cast<std::string::value_type>(std::toupper(c));
+			});
 	}
 	else
 	{
@@ -1288,9 +1317,12 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				if (accept(tokenid::identifier)) // Handle special enumeration names for property values
 				{
 					// Transform identifier to uppercase to do case-insensitive comparison
-					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+					std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(),
+						[](std::string::value_type c) {
+							return static_cast<std::string::value_type>(std::toupper(c));
+						});
 
-					static const std::unordered_map<std::string, uint32_t> s_values = {
+					static const std::unordered_map<std::string_view, uint32_t> s_enum_values = {
 						{ "NONE", 0 }, { "POINT", 0 },
 						{ "LINEAR", 1 },
 						{ "WRAP", uint32_t(texture_address_mode::wrap) }, { "REPEAT", uint32_t(texture_address_mode::wrap) },
@@ -1298,7 +1330,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						{ "CLAMP", uint32_t(texture_address_mode::clamp) },
 						{ "BORDER", uint32_t(texture_address_mode::border) },
 						{ "R8", uint32_t(texture_format::r8) },
+						{ "R16", uint32_t(texture_format::r16) },
 						{ "R16F", uint32_t(texture_format::r16f) },
+						{ "R32I", uint32_t(texture_format::r32i) },
+						{ "R32U", uint32_t(texture_format::r32u) },
 						{ "R32F", uint32_t(texture_format::r32f) },
 						{ "RG8", uint32_t(texture_format::rg8) }, { "R8G8", uint32_t(texture_format::rg8) },
 						{ "RG16", uint32_t(texture_format::rg16) }, { "R16G16", uint32_t(texture_format::rg16) },
@@ -1312,8 +1347,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					};
 
 					// Look up identifier in list of possible enumeration names
-					if (const auto it = s_values.find(_token.literal_as_string);
-						it != s_values.end())
+					if (const auto it = s_enum_values.find(_token.literal_as_string);
+						it != s_enum_values.end())
 						expression.reset_to_rvalue_constant(_token.location, it->second);
 					else // No match found, so rewind to parser state before the identifier was consumed and try parsing it as a normal expression
 						restore();
@@ -1332,14 +1367,17 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (!expression.type.is_texture())
 						return error(expression.location, 3020, "type mismatch, expected texture name"), consume_until('}'), false;
 
-					reshadefx::texture_info &target_info = _codegen->find_texture(expression.base);
-					if (type.is_storage())
-						// Texture is used as storage
-						target_info.storage_access = true;
+					if (type.is_sampler() || type.is_storage())
+					{
+						reshadefx::texture_info &target_info = _codegen->get_texture(expression.base);
+						if (type.is_storage())
+							// Texture is used as storage
+							target_info.storage_access = true;
 
-					texture_info = target_info;
-					sampler_info.texture_name = target_info.unique_name;
-					storage_info.texture_name = target_info.unique_name;
+						texture_info = target_info;
+						sampler_info.texture_name = target_info.unique_name;
+						storage_info.texture_name = target_info.unique_name;
+					}
 				}
 				else
 				{
@@ -1353,37 +1391,54 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					if (value < 0) // There is little use for negative values, so warn in those cases
 						warning(expression.location, 3571, "negative value specified for property '" + property_name + '\'');
 
-					if (property_name == "Width")
-						texture_info.width  = value > 0 ? value : 1;
-					else if (property_name == "Height")
-						texture_info.height = value > 0 ? value : 1;
-					else if (property_name == "MipLevels")
-						texture_info.levels = value > 0 && value <= std::numeric_limits<uint16_t>::max() ?
-							static_cast<uint16_t>(value) : 1; // Also ensures negative values do not cause problems
-					else if (property_name == "Format")
-						texture_info.format = static_cast<texture_format>(value);
-					else if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
-						sampler_info.srgb = value != 0;
-					else if (property_name == "AddressU")
-						sampler_info.address_u = static_cast<texture_address_mode>(value);
-					else if (property_name == "AddressV")
-						sampler_info.address_v = static_cast<texture_address_mode>(value);
-					else if (property_name == "AddressW")
-						sampler_info.address_w = static_cast<texture_address_mode>(value);
-					else if (property_name == "MinFilter")
-						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
-					else if (property_name == "MagFilter")
-						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
-					else if (property_name == "MipFilter")
-						sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
-					else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
-						sampler_info.min_lod = static_cast<float>(value);
-					else if (property_name == "MaxLOD")
-						sampler_info.max_lod = static_cast<float>(value);
-					else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
-						sampler_info.lod_bias = static_cast<float>(value);
-					else
-						return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					if (type.is_texture())
+					{
+						if (property_name == "Width")
+							texture_info.width = value > 0 ? value : 1;
+						else if (type.texture_dimension() >= 2 && property_name == "Height")
+							texture_info.height = value > 0 ? value : 1;
+						else if (type.texture_dimension() >= 3 && property_name == "Depth")
+							texture_info.depth = value > 0 && value <= std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 1;
+						else if (property_name == "MipLevels")
+							// Also ensures negative values do not cause problems
+							texture_info.levels = value > 0 && value <= std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 1;
+						else if (property_name == "Format")
+							texture_info.format = static_cast<texture_format>(value);
+						else
+							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					}
+					else if (type.is_sampler())
+					{
+						if (property_name == "SRGBTexture" || property_name == "SRGBReadEnable")
+							sampler_info.srgb = value != 0;
+						else if (property_name == "AddressU")
+							sampler_info.address_u = static_cast<texture_address_mode>(value);
+						else if (property_name == "AddressV")
+							sampler_info.address_v = static_cast<texture_address_mode>(value);
+						else if (property_name == "AddressW")
+							sampler_info.address_w = static_cast<texture_address_mode>(value);
+						else if (property_name == "MinFilter")
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
+						else if (property_name == "MagFilter")
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
+						else if (property_name == "MipFilter")
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
+						else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
+							sampler_info.min_lod = static_cast<float>(value);
+						else if (property_name == "MaxLOD")
+							sampler_info.max_lod = static_cast<float>(value);
+						else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
+							sampler_info.lod_bias = static_cast<float>(value);
+						else
+							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					}
+					else if (type.is_storage())
+					{
+						if (property_name == "MipLOD" || property_name == "MipLevel")
+							storage_info.level = value > 0 && value < std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 0;
+						else
+							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+					}
 				}
 
 				if (!expect(';'))
@@ -1413,6 +1468,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		assert(global);
 
 		texture_info.name = name;
+		texture_info.type = static_cast<texture_type>(type.texture_dimension());
+
 		// Add namespace scope to avoid name clashes
 		texture_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(texture_info.unique_name.begin(), texture_info.unique_name.end(), ':', '_');
@@ -1429,16 +1486,27 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (sampler_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+		if (type.texture_dimension() != static_cast<unsigned int>(texture_info.type))
+			return error(location, 3521, '\'' + name + "': type mismatch between texture and sampler type"), false;
 		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
 			return error(location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)"), false;
 
+		if (texture_info.format == texture_format::r32i ?
+				!type.is_integral() || !type.is_signed() :
+			texture_info.format == texture_format::r32u ?
+				!type.is_integral() || !type.is_unsigned() :
+				!type.is_floating_point())
+			return error(location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type"), false;
+
 		sampler_info.name = name;
+		sampler_info.type = type;
+
 		// Add namespace scope to avoid name clashes
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
 
 		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_sampler(location, sampler_info);
+		symbol.id = _codegen->define_sampler(location, texture_info, sampler_info);
 	}
 	else if (type.is_storage())
 	{
@@ -1446,16 +1514,28 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (storage_info.texture_name.empty())
 			return error(location, 3012, '\'' + name + "': missing 'Texture' property"), false;
+		if (type.texture_dimension() != static_cast<unsigned int>(texture_info.type))
+			return error(location, 3521, '\'' + name + "': type mismatch between texture and storage type"), false;
+
+		if (texture_info.format == texture_format::r32i ?
+				!type.is_integral() || !type.is_signed() :
+			texture_info.format == texture_format::r32u ?
+				!type.is_integral() || !type.is_unsigned() :
+				!type.is_floating_point())
+			return error(location, 4582, '\'' + name + "': type mismatch between texture format and storage element type"), false;
 
 		storage_info.name = name;
+		storage_info.type = type;
+
 		// Add namespace scope to avoid name clashes
 		storage_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(storage_info.unique_name.begin(), storage_info.unique_name.end(), ':', '_');
 
-		storage_info.format = texture_info.format;
+		if (storage_info.level > texture_info.levels - 1)
+			storage_info.level = texture_info.levels - 1;
 
 		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_storage(location, storage_info);
+		symbol.id = _codegen->define_storage(location, texture_info, storage_info);
 	}
 	// Uniform variables are put into a global uniform buffer structure
 	else if (type.has(type::q_uniform))
@@ -1518,7 +1598,7 @@ bool reshadefx::parser::parse_technique()
 		}
 	}
 
-	_codegen->define_technique(info);
+	_codegen->define_technique(std::move(info));
 
 	return expect('}') && parse_success;
 }
@@ -1607,7 +1687,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						error(location, 3020, "type mismatch, expected function name");
 					else {
 						// Look up the matching function info for this function definition
-						function_info &function_info = _codegen->find_function(symbol.id);
+						function_info &function_info = _codegen->get_function(symbol.id);
 
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
 						switch (state[0])
@@ -1640,8 +1720,11 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					else if (!symbol.type.is_texture())
 						parse_success = false,
 						error(location, 3020, "type mismatch, expected texture name");
+					else if (symbol.type.texture_dimension() != 2)
+						parse_success = false,
+						error(location, 3020, "cannot use texture" + std::to_string(symbol.type.texture_dimension()) + "D as render target");
 					else {
-						reshadefx::texture_info &target_info = _codegen->find_texture(symbol.id);
+						reshadefx::texture_info &target_info = _codegen->get_texture(symbol.id);
 						// Texture is used as a render target
 						target_info.render_target = true;
 
@@ -1676,30 +1759,33 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			if (accept(tokenid::identifier)) // Handle special enumeration names for pass states
 			{
 				// Transform identifier to uppercase to do case-insensitive comparison
-				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), [](char c) { return static_cast<char>(toupper(c)); });
+				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(),
+					[](std::string::value_type c) {
+						return static_cast<std::string::value_type>(std::toupper(c));
+					});
 
-				static const std::unordered_map<std::string, uint32_t> s_enum_values = {
+				static const std::unordered_map<std::string_view, uint32_t> s_enum_values = {
 					{ "NONE", 0 }, { "ZERO", 0 }, { "ONE", 1 },
 					{ "ADD", uint32_t(pass_blend_op::add) },
 					{ "SUBTRACT", uint32_t(pass_blend_op::subtract) },
-					{ "REVSUBTRACT", uint32_t(pass_blend_op::rev_subtract) },
+					{ "REVSUBTRACT", uint32_t(pass_blend_op::reverse_subtract) },
 					{ "MIN", uint32_t(pass_blend_op::min) },
 					{ "MAX", uint32_t(pass_blend_op::max) },
-					{ "SRCCOLOR", uint32_t(pass_blend_func::src_color) },
-					{ "SRCALPHA", uint32_t(pass_blend_func::src_alpha) },
-					{ "INVSRCCOLOR", uint32_t(pass_blend_func::inv_src_color) },
-					{ "INVSRCALPHA", uint32_t(pass_blend_func::inv_src_alpha) },
-					{ "DESTCOLOR", uint32_t(pass_blend_func::dst_color) },
-					{ "DESTALPHA", uint32_t(pass_blend_func::dst_alpha) },
-					{ "INVDESTCOLOR", uint32_t(pass_blend_func::inv_dst_color) },
-					{ "INVDESTALPHA", uint32_t(pass_blend_func::inv_dst_alpha) },
+					{ "SRCCOLOR", uint32_t(pass_blend_factor::source_color) },
+					{ "INVSRCCOLOR", uint32_t(pass_blend_factor::one_minus_source_color) },
+					{ "DESTCOLOR", uint32_t(pass_blend_factor::dest_color) },
+					{ "INVDESTCOLOR", uint32_t(pass_blend_factor::one_minus_dest_color) },
+					{ "SRCALPHA", uint32_t(pass_blend_factor::source_alpha) },
+					{ "INVSRCALPHA", uint32_t(pass_blend_factor::one_minus_source_alpha) },
+					{ "DESTALPHA", uint32_t(pass_blend_factor::dest_alpha) },
+					{ "INVDESTALPHA", uint32_t(pass_blend_factor::one_minus_dest_alpha) },
 					{ "KEEP", uint32_t(pass_stencil_op::keep) },
 					{ "REPLACE", uint32_t(pass_stencil_op::replace) },
 					{ "INVERT", uint32_t(pass_stencil_op::invert) },
-					{ "INCR", uint32_t(pass_stencil_op::incr) },
-					{ "INCRSAT", uint32_t(pass_stencil_op::incr_sat) },
-					{ "DECR", uint32_t(pass_stencil_op::decr) },
-					{ "DECRSAT", uint32_t(pass_stencil_op::decr_sat) },
+					{ "INCR", uint32_t(pass_stencil_op::increment) },
+					{ "INCRSAT", uint32_t(pass_stencil_op::increment_saturate) },
+					{ "DECR", uint32_t(pass_stencil_op::decrement) },
+					{ "DECRSAT", uint32_t(pass_stencil_op::decrement_saturate) },
 					{ "NEVER", uint32_t(pass_stencil_func::never) },
 					{ "EQUAL", uint32_t(pass_stencil_func::equal) },
 					{ "NEQUAL", uint32_t(pass_stencil_func::not_equal) }, { "NOTEQUAL", uint32_t(pass_stencil_func::not_equal)  },
@@ -1737,32 +1823,35 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			expression.add_cast_operation({ type::t_uint, 1, 1 });
 			const unsigned int value = expression.constant.as_uint[0];
 
+#define SET_STATE_VALUE_INDEXED(name, info_name, value) \
+	else if (constexpr size_t name##_len = sizeof(#name) - 1; state.compare(0, name##_len, #name) == 0 && (state.size() == name##_len || (state[name##_len] >= '0' && state[name##_len] < ('0' + static_cast<char>(std::size(info.info_name)))))) \
+	{ \
+		if (state.size() != name##_len) \
+			info.info_name[state[name##_len] - '0'] = (value); \
+		else \
+			for (int i = 0; i < static_cast<int>(std::size(info.info_name)); ++i) \
+				info.info_name[i] = (value); \
+	}
+
 			if (state == "SRGBWriteEnable")
-				info.srgb_write_enable = value != 0;
-			else if (state == "BlendEnable")
-				info.blend_enable = value != 0;
+				info.srgb_write_enable = (value != 0);
+			SET_STATE_VALUE_INDEXED(BlendEnable, blend_enable, value != 0)
 			else if (state == "StencilEnable")
-				info.stencil_enable = value != 0;
+				info.stencil_enable = (value != 0);
 			else if (state == "ClearRenderTargets")
-				info.clear_render_targets = value != 0;
-			else if (state == "RenderTargetWriteMask" || state == "ColorWriteMask")
-				info.color_write_mask = value & 0xFF;
+				info.clear_render_targets = (value != 0);
+			SET_STATE_VALUE_INDEXED(ColorWriteMask, color_write_mask, value & 0xFF)
+			SET_STATE_VALUE_INDEXED(RenderTargetWriteMask, color_write_mask, value & 0xFF)
 			else if (state == "StencilReadMask" || state == "StencilMask")
 				info.stencil_read_mask = value & 0xFF;
 			else if (state == "StencilWriteMask")
 				info.stencil_write_mask = value & 0xFF;
-			else if (state == "BlendOp")
-				info.blend_op = static_cast<pass_blend_op>(value);
-			else if (state == "BlendOpAlpha")
-				info.blend_op_alpha = static_cast<pass_blend_op>(value);
-			else if (state == "SrcBlend")
-				info.src_blend = static_cast<pass_blend_func>(value);
-			else if (state == "SrcBlendAlpha")
-				info.src_blend_alpha = static_cast<pass_blend_func>(value);
-			else if (state == "DestBlend")
-				info.dest_blend = static_cast<pass_blend_func>(value);
-			else if (state == "DestBlendAlpha")
-				info.dest_blend_alpha = static_cast<pass_blend_func>(value);
+			SET_STATE_VALUE_INDEXED(BlendOp, blend_op, static_cast<pass_blend_op>(value))
+			SET_STATE_VALUE_INDEXED(BlendOpAlpha, blend_op_alpha, static_cast<pass_blend_op>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlend, src_blend, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, src_blend_alpha, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlend, dest_blend, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_blend_alpha, static_cast<pass_blend_factor>(value))
 			else if (state == "StencilFunc")
 				info.stencil_comparison_func = static_cast<pass_stencil_func>(value);
 			else if (state == "StencilRef")
@@ -1783,9 +1872,13 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.viewport_height = value;
 			else if (state == "DispatchSizeZ")
 				info.viewport_dispatch_z = value;
+			else if (state == "GenerateMipmaps" || state == "GenerateMipMaps")
+				info.generate_mipmaps = (value != 0);
 			else
 				parse_success = false,
 				error(location, 3004, "unrecognized pass state '" + state + '\'');
+
+#undef SET_STATE_VALUE_INDEXED
 		}
 
 		if (!expect(';'))
@@ -1808,9 +1901,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				warning(pass_location, 3089,  "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
 
 			for (codegen::id id : cs_info.referenced_samplers)
-				info.samplers.push_back(_codegen->find_sampler(id));
+				info.samplers.push_back(_codegen->get_sampler(id));
 			for (codegen::id id : cs_info.referenced_storages)
-				info.storages.push_back(_codegen->find_storage(id));
+				info.storages.push_back(_codegen->get_storage(id));
 		}
 		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
 		{
@@ -1824,7 +1917,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 		else
 		{
 			// Verify that shader signatures between VS and PS match (both semantics and interpolation qualifiers)
-			std::unordered_map<std::string, type> vs_semantic_mapping;
+			std::unordered_map<std::string_view, type> vs_semantic_mapping;
 			if (vs_info.return_semantic.empty())
 			{
 				if (!vs_info.return_type.is_void() && !vs_info.return_type.is_struct())
@@ -1891,9 +1984,9 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			}
 
 			for (codegen::id id : vs_info.referenced_samplers)
-				info.samplers.push_back(_codegen->find_sampler(id));
+				info.samplers.push_back(_codegen->get_sampler(id));
 			for (codegen::id id : ps_info.referenced_samplers)
-				info.samplers.push_back(_codegen->find_sampler(id));
+				info.samplers.push_back(_codegen->get_sampler(id));
 			if (!vs_info.referenced_storages.empty() || !ps_info.referenced_storages.empty())
 			{
 				parse_success = false;

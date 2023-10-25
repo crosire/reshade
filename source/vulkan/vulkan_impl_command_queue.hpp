@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -17,12 +17,14 @@ namespace reshade::vulkan
 
 		api::device *get_device() final;
 
-		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
+		api::command_queue_type get_type() const final;
 
 		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
-		void flush_immediate_command_list(std::vector<VkSemaphore> &wait_semaphores) const;
+		void flush_immediate_command_list(VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores) const;
+
+		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
@@ -31,5 +33,14 @@ namespace reshade::vulkan
 	private:
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
+		const VkQueueFlags _queue_flags;
+	};
+
+	template <>
+	struct object_data<VK_OBJECT_TYPE_QUEUE> : public command_queue_impl
+	{
+		using Handle = VkQueue;
+
+		object_data(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) : command_queue_impl(device, queue_family_index, queue_family, queue) {}
 	};
 }

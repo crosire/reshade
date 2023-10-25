@@ -9,11 +9,11 @@ extern "C" {
 #endif
 
 extern int stbi_dds_test_memory(stbi_uc const *buffer, int len);
-extern stbi_uc *stbi_dds_load(const char *filename, int *x, int *y, int *comp, int req_comp);
-extern stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *comp, int req_comp);
+extern stbi_uc *stbi_dds_load(const char *filename, int *x, int *y, int *z, int *comp, int req_comp);
+extern stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *z, int *comp, int req_comp);
 #ifndef STBI_NO_STDIO
 extern int stbi_dds_test_file(FILE *f);
-extern stbi_uc *stbi_dds_load_from_file(FILE *f, int *x, int *y, int *comp, int req_comp);
+extern stbi_uc *stbi_dds_load_from_file(FILE *f, int *x, int *y, int *z, int *comp, int req_comp);
 #endif
 
 #ifdef STB_IMAGE_DDS_IMPLEMENTATION
@@ -272,7 +272,7 @@ static int stbi__dds_test(stbi__context *s)
 	return 1;
 }
 
-static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int req_comp)
+static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *comp, int req_comp)
 {
 	// All variables go up front
 	stbi_uc *dds_data = NULL;
@@ -328,6 +328,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 	// Get the image information
 	*x = s->img_x = header.dwWidth;
 	*y = s->img_y = header.dwHeight;
+	*z = (header.dwDepth > 1) ? header.dwDepth : 1;
 	*comp = s->img_n = 4;
 
 	is_compressed = (header.sPixelFormat.dwFlags & DDPF_FOURCC) / DDPF_FOURCC;
@@ -339,6 +340,14 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 	cubemap_faces &= (s->img_x == s->img_y);
 	cubemap_faces *= 5;
 	cubemap_faces += 1;
+
+	if ((header.dwDepth > 1) && cubemap_faces != 1)
+	{
+		return NULL;
+	}
+
+	cubemap_faces *= (*z);
+	*z = cubemap_faces;
 
 	block_pitch = (s->img_x + 3) >> 2;
 	num_blocks = block_pitch * ((s->img_y + 3) >> 2);
@@ -354,13 +363,17 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 		/*	compressed	*/
 		//	note: header.sPixelFormat.dwFourCC is something like (('D'<<0)|('X'<<8)|('T'<<16)|('1'<<24))
 		DXT_family = 1 + (header.sPixelFormat.dwFourCC >> 24) - '1';
-		if ((DXT_family < 1) || (DXT_family > 5)) return NULL;
+		if ((DXT_family < 1) || (DXT_family > 5))
+		{
+			return NULL;
+		}
+
 		/*	check the expected size...oops, nevermind...
 		those non-compliant writers leave
 		dwPitchOrLinearSize == 0	*/
 		//	passed all the tests, get the RAM for decoding
-		sz = (s->img_x)*(s->img_y) * 4 * cubemap_faces;
-		dds_data = (unsigned char*)malloc(sz);
+		sz = (s->img_x) * (s->img_y) * 4 * cubemap_faces;
+		dds_data = (stbi_uc *)malloc(sz);
 		/*	do this once for each face	*/
 		for (cf = 0; cf < cubemap_faces; ++cf)
 		{
@@ -406,16 +419,15 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 				//	now drop our decompressed data into the buffer
 				for (by = 0; by < bh; ++by)
 				{
-					int idx = 4 * ((ref_y + by + cf*s->img_x)*s->img_x + ref_x);
+					int idx = 4 * ((ref_y + by + cf * s->img_x) * s->img_x + ref_x);
 					for (bx = 0; bx < bw * 4; ++bx)
 					{
-
 						dds_data[idx + bx] = block[by * 16 + bx];
 					}
 				}
 			}
-			/*	done reading and decoding the main image...
-			skip MIPmaps if present	*/
+
+			/*	done reading and decoding the main image... skip MIPmaps if present	*/
 			if (has_mipmap)
 			{
 				int block_size = 16;
@@ -435,10 +447,10 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 					{
 						my = 1;
 					}
-					stbi__skip(s, mx*my*block_size);
+					stbi__skip(s, mx * my * block_size);
 				}
 			}
-		}/* per cubemap face */
+		}
 #pragma endregion
 	}
 	else
@@ -459,15 +471,17 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 			}
 		}
 		*comp = s->img_n;
-		sz = s->img_x*s->img_y*s->img_n*cubemap_faces;
-		dds_data = (unsigned char*)malloc(sz);
+
+		sz = (s->img_x) * (s->img_y) * s->img_n * cubemap_faces;
+		dds_data = (stbi_uc *)malloc(sz);
+
 		/*	do this once for each face	*/
 		for (cf = 0; cf < cubemap_faces; ++cf)
 		{
 			/*	read the main image for this face	*/
-			stbi__getn(s, &dds_data[cf*s->img_x*s->img_y*s->img_n], s->img_x*s->img_y*s->img_n);
-			/*	done reading and decoding the main image...
-			skip MIPmaps if present	*/
+			stbi__getn(s, &dds_data[cf * s->img_x * s->img_y * s->img_n], s->img_x * s->img_y * s->img_n);
+
+			/*	done reading and decoding the main image... skip MIPmaps if present	*/
 			if (has_mipmap)
 			{
 				for (i = 1; i < (int)header.dwMipMapCount; ++i)
@@ -482,26 +496,23 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 					{
 						my = 1;
 					}
-					stbi__skip(s, mx*my*s->img_n);
+					stbi__skip(s, mx * my * s->img_n);
 				}
 			}
 		}
+
 		if (s->img_n >= 3)
 		{
 			/*	data was BGR, I need it RGB	*/
 			for (i = 0; i < sz; i += s->img_n)
 			{
-				unsigned char temp = dds_data[i];
+				stbi_uc temp = dds_data[i];
 				dds_data[i] = dds_data[i + 2];
 				dds_data[i + 2] = temp;
 			}
 		}
 #pragma endregion
 	}
-
-	// Finished decompressing into RGBA, adjust the y size if we have a cubemap
-	s->img_y *= cubemap_faces;
-	*y = s->img_y;
 
 	//	Test if all alpha values are 255 (i.e. no transparency)
 	has_alpha = 0;
@@ -518,7 +529,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 	{
 		if (req_comp != s->img_n)
 		{
-			dds_data = stbi__convert_format(dds_data, s->img_n, req_comp, s->img_x, s->img_y);
+			dds_data = stbi__convert_format(dds_data, s->img_n, req_comp, s->img_x, s->img_y * cubemap_faces);
 			*comp = s->img_n;
 		}
 	}
@@ -526,7 +537,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 	{
 		if ((has_alpha == 0) && (s->img_n == 4))
 		{
-			dds_data = stbi__convert_format(dds_data, 4, 3, s->img_x, s->img_y);
+			dds_data = stbi__convert_format(dds_data, 4, 3, s->img_x, s->img_y * cubemap_faces);
 			*comp = 3;
 		}
 	}
@@ -553,28 +564,28 @@ int stbi_dds_test_memory(stbi_uc const *buffer, int len)
 }
 
 #ifndef STBI_NO_STDIO
-stbi_uc *stbi_dds_load_from_file(FILE *f, int *x, int *y, int *comp, int req_comp)
+stbi_uc *stbi_dds_load_from_file(FILE *f, int *x, int *y, int *z, int *comp, int req_comp)
 {
 	stbi__context s;
 	stbi__start_file(&s, f);
-	return stbi__dds_load(&s, x, y, comp, req_comp);
+	return stbi__dds_load(&s, x, y, z, comp, req_comp);
 }
-stbi_uc *stbi_dds_load(const char *filename, int *x, int *y, int *comp, int req_comp)
+stbi_uc *stbi_dds_load(const char *filename, int *x, int *y, int *z, int *comp, int req_comp)
 {
 	stbi_uc *data;
 	FILE *f = stbi__fopen(filename, "rb");
 	if (!f) return NULL;
-	data = stbi_dds_load_from_file(f, x, y, comp, req_comp);
+	data = stbi_dds_load_from_file(f, x, y, z, comp, req_comp);
 	fclose(f);
 	return data;
 }
 #endif
 
-stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *comp, int req_comp)
+stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *z, int *comp, int req_comp)
 {
 	stbi__context s;
 	stbi__start_mem(&s, buffer, len);
-	return stbi__dds_load(&s, x, y, comp, req_comp);
+	return stbi__dds_load(&s, x, y, z, comp, req_comp);
 }
 
 #endif

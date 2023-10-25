@@ -1,12 +1,13 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <cmath> // signbit, isinf, isnan
-#include <cstdio> // snprintf
+#include <cmath> // std::signbit, std::isinf, std::isnan
+#include <cctype> // std::tolower
+#include <cstdio> // std::snprintf
 #include <cassert>
 #include <cstring> // stricmp
 #include <algorithm> // std::find_if, std::max
@@ -39,9 +40,10 @@ private:
 	std::string _current_location;
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
+	unsigned int _shader_model = 0;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	unsigned int _shader_model = 0;
+	std::string _remapped_semantics[15];
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
@@ -50,19 +52,42 @@ private:
 	{
 		module = std::move(_module);
 
+		std::string preamble;
+
 		if (_shader_model >= 40)
 		{
-			module.hlsl += "struct __sampler2D { Texture2D t; SamplerState s; };\n";
+			preamble +=
+				"struct __sampler1D_int { Texture1D<int> t; SamplerState s; };\n"
+				"struct __sampler2D_int { Texture2D<int> t; SamplerState s; };\n"
+				"struct __sampler3D_int { Texture3D<int> t; SamplerState s; };\n"
+				"struct __sampler1D_uint { Texture1D<uint> t; SamplerState s; };\n"
+				"struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n"
+				"struct __sampler3D_uint { Texture3D<uint> t; SamplerState s; };\n"
+				"struct __sampler1D_float { Texture1D<float> t; SamplerState s; };\n"
+				"struct __sampler2D_float { Texture2D<float> t; SamplerState s; };\n"
+				"struct __sampler3D_float { Texture3D<float> t; SamplerState s; };\n"
+				"struct __sampler1D_float4 { Texture1D<float4> t; SamplerState s; };\n"
+				"struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n"
+				"struct __sampler3D_float4 { Texture3D<float4> t; SamplerState s; };\n";
 
 			if (!_cbuffer_block.empty())
-				module.hlsl += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
+			{
+				if (_shader_model >= 60)
+					preamble += "[[vk::binding(0, 0)]] "; // Descriptor set 0
+
+				preamble += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
+			}
 		}
 		else
 		{
-			module.hlsl += "struct __sampler2D { sampler2D s; float2 pixelsize; };\nuniform float2 __TEXEL_SIZE__ : register(c255);\n";
+			preamble +=
+				"struct __sampler1D { sampler1D s; float1 pixelsize; };\n"
+				"struct __sampler2D { sampler2D s; float2 pixelsize; };\n"
+				"struct __sampler3D { sampler3D s; float3 pixelsize; };\n"
+				"uniform float2 __TEXEL_SIZE__ : register(c255);\n";
 
 			if (_uses_bitwise_cast)
-				module.hlsl +=
+				preamble +=
 					"int __asint(float v) {"
 					"	if (v == 0) return 0;" // Zero (does not handle negative zero)
 					//	if (isinf(v)) return v < 0 ? 4286578688 : 2139095040; // Infinity
@@ -95,13 +120,16 @@ private:
 					"float4 __asfloat(int4 v) { return float4(__asfloat(v.x), __asfloat(v.y), __asfloat(v.z), __asfloat(v.w)); }\n";
 
 			if (!_cbuffer_block.empty())
-				module.hlsl += _cbuffer_block;
+				preamble += _cbuffer_block;
 
 			// Offsets were multiplied in 'define_uniform', so adjust total size here accordingly
 			module.total_uniform_size *= 4;
 		}
 
-		module.hlsl += _blocks.at(0);
+		module.code.assign(preamble.begin(), preamble.end());
+
+		const std::string &main_block = _blocks.at(0);
+		module.code.insert(module.code.end(), main_block.begin(), main_block.end());
 	}
 
 	template <bool is_param = false, bool is_decl = true>
@@ -140,7 +168,7 @@ private:
 		{
 		case type::t_void:
 			s += "void";
-			break;
+			return;
 		case type::t_bool:
 			s += "bool";
 			break;
@@ -167,15 +195,82 @@ private:
 			break;
 		case type::t_struct:
 			s += id_to_name(type.definition);
-			break;
-		case type::t_sampler:
+			return;
+		case type::t_sampler1d_int:
+			s += "__sampler1D";
+			if (_shader_model >= 40)
+				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler2d_int:
 			s += "__sampler2D";
-			break;
-		case type::t_storage:
-			s += "RWTexture2D<float4>";
-			break;
+			if (_shader_model >= 40)
+				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler3d_int:
+			s += "__sampler3D";
+			if (_shader_model >= 40)
+				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler1d_uint:
+			s += "__sampler1D";
+			if (_shader_model >= 40)
+				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler2d_uint:
+			s += "__sampler2D";
+			if (_shader_model >= 40)
+				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler3d_uint:
+			s += "__sampler3D";
+			if (_shader_model >= 40)
+				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler1d_float:
+			s += "__sampler1D";
+			if (_shader_model >= 40)
+				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler2d_float:
+			s += "__sampler2D";
+			if (_shader_model >= 40)
+				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_sampler3d_float:
+			s += "__sampler3D";
+			if (_shader_model >= 40)
+				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			return;
+		case type::t_storage1d_int:
+			s += "RWTexture1D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage2d_int:
+			s += "RWTexture2D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage3d_int:
+			s += "RWTexture3D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage1d_uint:
+			s += "RWTexture1D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage2d_uint:
+			s += "RWTexture2D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage3d_uint:
+			s += "RWTexture3D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage1d_float:
+			s += "RWTexture1D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage2d_float:
+			s += "RWTexture2D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
+		case type::t_storage3d_float:
+			s += "RWTexture3D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			return;
 		default:
 			assert(false);
+			return;
 		}
 
 		if (type.rows > 1)
@@ -290,11 +385,46 @@ private:
 
 		s += '\n';
 	}
+	void write_texture_format(std::string &s, texture_format format)
+	{
+		switch (format)
+		{
+		case texture_format::r32i:
+			s += "int";
+			break;
+		case texture_format::r32u:
+			s += "uint";
+			break;
+		case texture_format::r8:
+		case texture_format::r16:
+		case texture_format::r16f:
+		case texture_format::r32f:
+			s += "float";
+			break;
+		default:
+			assert(false);
+			[[fallthrough]];
+		case texture_format::unknown:
+		case texture_format::rg8:
+		case texture_format::rg16:
+		case texture_format::rg16f:
+		case texture_format::rg32f:
+		case texture_format::rgba8:
+		case texture_format::rgba16:
+		case texture_format::rgba16f:
+		case texture_format::rgba32f:
+		case texture_format::rgb10a2:
+			s += "float4";
+			break;
+		}
+	}
 
 	std::string id_to_name(id id) const
 	{
-		if (const auto it = _names.find(id); it != _names.end())
-			return it->second;
+		assert(id != 0);
+		if (const auto names_it = _names.find(id);
+			names_it != _names.end())
+			return names_it->second;
 		return '_' + std::to_string(id);
 	}
 
@@ -312,12 +442,14 @@ private:
 		_names[id] = std::move(name);
 	}
 
-	std::string convert_semantic(const std::string &semantic) const
+	std::string convert_semantic(const std::string &semantic, uint32_t max_attributes = 1)
 	{
 		if (_shader_model < 40)
 		{
 			if (semantic == "SV_POSITION")
 				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
+			if (semantic == "VPOS")
+				return "VPOS";
 			if (semantic == "SV_POINTSIZE")
 				return "PSIZE";
 			if (semantic.compare(0, 9, "SV_TARGET") == 0)
@@ -328,6 +460,42 @@ private:
 				return "TEXCOORD0 /* VERTEXID */";
 			if (semantic == "SV_ISFRONTFACE")
 				return "VFACE";
+
+			size_t digit_index = semantic.size() - 1;
+			while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
+				digit_index--;
+			digit_index++;
+
+			const uint32_t semantic_digit = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+			const std::string semantic_base = semantic.substr(0, digit_index);
+
+			if (semantic_base == "TEXCOORD")
+			{
+				if (semantic_digit < 15)
+				{
+					assert(_remapped_semantics[semantic_digit].empty() || _remapped_semantics[semantic_digit] == semantic); // Mixing custom semantic names and multiple TEXCOORD indices is not supported
+					_remapped_semantics[semantic_digit] = semantic;
+				}
+			}
+			// Shader model 3 only supports a selected list of semantic names, so need to remap custom ones to that
+			else if (
+				semantic_base != "COLOR" &&
+				semantic_base != "NORMAL" &&
+				semantic_base != "TANGENT" &&
+				semantic_base != "BINORMAL")
+			{
+				// Legal semantic indices are between 0 and 15, but skip first entry in case both custom semantic names and the common TEXCOORD0 exist
+				for (int i = 1; i < 15; ++i)
+				{
+					if (_remapped_semantics[i].empty() || _remapped_semantics[i] == semantic)
+					{
+						for (uint32_t a = 0; a < max_attributes && i + a < 15; ++a)
+							_remapped_semantics[i + a] = semantic_base + std::to_string(semantic_digit + a);
+
+						return "TEXCOORD" + std::to_string(i) + " /* " + semantic + " */";
+					}
+				}
+			}
 		}
 		else
 		{
@@ -344,12 +512,13 @@ private:
 #ifdef _WIN32
 			return _stricmp(a.c_str(), b.c_str()) == 0;
 #else
-			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) { return tolower(a) == tolower(b); });
+			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](std::string::value_type a, std::string::value_type b) { return std::tolower(a) == std::tolower(b); });
 #endif
 		};
 
 		// HLSL compiler complains about "technique" and "pass" names in strict mode (no matter the casing)
-		if (stringicmp(name, "pass") ||
+		if (stringicmp(name, "line") ||
+			stringicmp(name, "pass") ||
 			stringicmp(name, "technique"))
 			// This is guaranteed to not clash with user defined names, since those starting with an underscore are filtered out in 'define_name'
 			name = '_' + name;
@@ -381,15 +550,18 @@ private:
 
 		code += "struct " + id_to_name(info.definition) + "\n{\n";
 
-		for (const auto &member : info.member_list)
+		for (const struct_member_info &member : info.member_list)
 		{
 			code += '\t';
 			write_type<true>(code, member.type); // HLSL allows interpolation attributes on struct members, so handle this like a parameter
 			code += ' ' + member.name;
+
 			if (member.type.is_array())
 				code += '[' + std::to_string(member.type.array_length) + ']';
+
 			if (!member.semantic.empty())
-				code += " : " + convert_semantic(member.semantic);
+				code += " : " + convert_semantic(member.semantic, std::max(1, static_cast<int>(member.type.components() / 4)) * std::max(1, member.type.array_length));
+
 			code += ";\n";
 		}
 
@@ -413,23 +585,30 @@ private:
 
 			write_location(code, loc);
 
-			code += "Texture2D __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + ");\n";
-			code += "Texture2D __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + ");\n";
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
+
+			code += "Texture" + std::to_string(static_cast<unsigned int>(info.type)) + "D<";
+			write_texture_format(code, info.format);
+			code += "> __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + "); \n";
+
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
+
+			code += "Texture" + std::to_string(static_cast<unsigned int>(info.type)) + "D<";
+			write_texture_format(code, info.format);
+			code += "> __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + "); \n";
 		}
 
 		_module.textures.push_back(info);
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture_info &tex_info, sampler_info &info) override
 	{
 		info.id = make_id();
 
 		define_name<naming::unique>(info.id, info.unique_name);
-
-		const auto texture = std::find_if(_module.textures.begin(), _module.textures.end(),
-			[&info](const auto &it) { return it.unique_name == info.texture_name; });
-		assert(texture != _module.textures.end());
 
 		std::string &code = _blocks.at(_current_block);
 
@@ -437,7 +616,9 @@ private:
 		{
 			// Try and reuse a sampler binding with the same sampler description
 			const auto existing_sampler = std::find_if(_module.samplers.begin(), _module.samplers.end(),
-				[&info](const auto &it) { return it.filter == info.filter && it.address_u == info.address_u && it.address_v == info.address_v && it.address_w == info.address_w && it.min_lod == info.min_lod && it.max_lod == info.max_lod && it.lod_bias == info.lod_bias; });
+				[&info](const auto &it) {
+					return it.filter == info.filter && it.address_u == info.address_u && it.address_v == info.address_v && it.address_w == info.address_w && it.min_lod == info.min_lod && it.max_lod == info.max_lod && it.lod_bias == info.lod_bias;
+				});
 
 			if (existing_sampler != _module.samplers.end())
 			{
@@ -447,31 +628,49 @@ private:
 			{
 				info.binding = _module.num_sampler_bindings++;
 
+				if (_shader_model >= 60)
+					code += "[[vk::binding(" + std::to_string(info.binding) + ", 1)]] "; // Descriptor set 1
+
 				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
 			}
 
 			assert(info.srgb == 0 || info.srgb == 1);
-			info.texture_binding = texture->binding + info.srgb; // Offset binding by one to choose the SRGB variant
+			info.texture_binding = tex_info.binding + info.srgb; // Offset binding by one to choose the SRGB variant
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += "static const ";
+			write_type(code, info.type);
+			code += ' ' + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
 		}
 		else
 		{
 			info.binding = _module.num_sampler_bindings++;
 			info.texture_binding = ~0u; // Unset texture binding
 
-			code += "sampler2D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			const unsigned int texture_dimension = info.type.texture_dimension();
+
+			code += "sampler" + std::to_string(texture_dimension) + "D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
 			write_location(code, loc);
 
-			code += "static const __sampler2D " + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float2(";
+			code += "static const ";
+			write_type(code, info.type);
+			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float" + std::to_string(texture_dimension) + '(';
 
-			if (texture->semantic.empty())
-				code += "1.0 / " + std::to_string(texture->width) + ", 1.0 / " + std::to_string(texture->height);
+			if (tex_info.semantic.empty())
+			{
+				code += "1.0 / " + std::to_string(tex_info.width);
+				if (texture_dimension >= 2)
+					code += ", 1.0 / " + std::to_string(tex_info.height);
+				if (texture_dimension >= 3)
+					code += ", 1.0 / " + std::to_string(tex_info.depth);
+			}
 			else
-				code += texture->semantic + "_PIXEL_SIZE"; // Expect application to set inverse texture size via a define if it is not known here
+			{
+				// Expect application to set inverse texture size via a define if it is not known here
+				code += tex_info.semantic + "_PIXEL_SIZE";
+			}
 
 			code += ") }; \n";
 		}
@@ -480,7 +679,7 @@ private:
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, storage_info &info) override
+	id   define_storage(const location &loc, const texture_info &, storage_info &info) override
 	{
 		info.id = make_id();
 		info.binding = ~0u;
@@ -495,32 +694,11 @@ private:
 
 			write_location(code, loc);
 
-			code += "RWTexture2D<";
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(info.binding) + ", 3)]] "; // Descriptor set 3
 
-			switch (info.format)
-			{
-			case texture_format::r8:
-			case texture_format::r16f:
-			case texture_format::r32f:
-				code += "float";
-				break;
-			default:
-				assert(false);
-			case texture_format::unknown:
-			case texture_format::rg8:
-			case texture_format::rg16:
-			case texture_format::rg16f:
-			case texture_format::rg32f:
-			case texture_format::rgba8:
-			case texture_format::rgba16:
-			case texture_format::rgba16f:
-			case texture_format::rgba32f:
-			case texture_format::rgb10a2:
-				code += "float4";
-				break;
-			}
-
-			code += "> " + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
+			write_type(code, info.type);
+			code += ' ' + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
 		}
 
 		_module.storages.push_back(info);
@@ -671,7 +849,7 @@ private:
 				code += '[' + std::to_string(param.type.array_length) + ']';
 
 			if (!param.semantic.empty())
-				code += " : " + convert_semantic(param.semantic);
+				code += " : " + convert_semantic(param.semantic, std::max(1, static_cast<int>(param.type.cols / 4)) * std::max(1, param.type.array_length));
 
 			if (i < num_params - 1)
 				code += ',';
@@ -701,7 +879,8 @@ private:
 			func.unique_name = 'E' + func.unique_name;
 
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
+				[&func](const auto &ep) { return ep.name == func.unique_name; });
+			it != _module.entry_points.end())
 			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
@@ -725,7 +904,7 @@ private:
 			if (func.return_type.is_struct() && stype == shader_type::vs)
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
-				for (const struct_member_info &member : find_struct(func.return_type.definition).member_list)
+				for (const struct_member_info &member : get_struct(func.return_type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(ret) + '.' + member.name;
 			}
@@ -746,7 +925,7 @@ private:
 		{
 			if (param.type.is_struct() && stype == shader_type::vs)
 			{
-				for (const struct_member_info &member : find_struct(param.type.definition).member_list)
+				for (const struct_member_info &member : get_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = param.name + '.' + member.name;
 			}
@@ -863,7 +1042,7 @@ private:
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
-				expr_code += find_struct(op.from.definition).member_list[op.index].name;
+				expr_code += get_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
 				expr_code += '[' + id_to_name(op.index) + ']';
@@ -924,7 +1103,7 @@ private:
 			{
 			case expression::operation::op_member:
 				code += '.';
-				code += find_struct(op.from.definition).member_list[op.index].name;
+				code += get_struct(op.from.definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
 				code += '[' + id_to_name(op.index) + ']';
@@ -1184,18 +1363,14 @@ private:
 			#include "effect_symbol_table_intrinsics.inl"
 		};
 
-		if (intrinsic == tex2Dstore0)
-			code += "#pragma warning(disable : 3206)\n";
-
 		write_location(code, loc);
 
 		code += '\t';
 
 		if (_shader_model >= 40 && (
-			intrinsic == tex2Dsize0 || intrinsic == tex2Dsize1 || intrinsic == tex2Dsize2 ||
-			intrinsic == atomicAdd0 || intrinsic == atomicAnd0 || intrinsic == atomicOr0  || intrinsic == atomicXor0 ||
-			intrinsic == atomicMin0 || intrinsic == atomicMin1 || intrinsic == atomicMax0 || intrinsic == atomicMax1 ||
-			intrinsic == atomicExchange0 || intrinsic == atomicCompareExchange0))
+			(intrinsic >= tex1Dsize0 && intrinsic <= tex3Dsize2) ||
+			(intrinsic >= atomicAdd0 && intrinsic <= atomicCompareExchange1) ||
+			(!(res_type.is_floating_point() || _shader_model >= 67) && (intrinsic >= tex1D0 && intrinsic <= tex3Dlod1))))
 		{
 			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
 			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target
@@ -1217,9 +1392,6 @@ private:
 		}
 
 		code += ";\n";
-
-		if (intrinsic == tex2Dstore0)
-			code += "#pragma warning(default : 3206)\n";
 
 		return res;
 	}
@@ -1361,7 +1533,7 @@ private:
 		if (flags & 0x1)
 			attributes += "[unroll] ";
 		if (flags & 0x2)
-			attributes += "[fastopt] ";
+			attributes += _shader_model >= 40 ? "[fastopt] " : "[loop] ";
 
 		// Condition value can be missing in infinite loop constructs like "for (;;)"
 		std::string condition_name = condition_value != 0 ? id_to_name(condition_value) : "true";
@@ -1399,7 +1571,9 @@ private:
 			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
 			bool use_break_statement_for_condition = (_shader_model < 40 && condition_name != "true") &&
 				std::find_if(_module.uniforms.begin(), _module.uniforms.end(),
-					[&](const uniform_info &info) { return condition_data.find(info.name) != std::string::npos || condition_name.find(info.name) != std::string::npos; }) != _module.uniforms.end();
+					[&](const uniform_info &info) {
+						return condition_data.find(info.name) != std::string::npos || condition_name.find(info.name) != std::string::npos;
+					}) != _module.uniforms.end();
 
 			// If the condition data is just a single line, then it is a simple expression, which we can just put into the loop condition as-is
 			if (!use_break_statement_for_condition && std::count(condition_data.begin(), condition_data.end(), '\n') == 1)

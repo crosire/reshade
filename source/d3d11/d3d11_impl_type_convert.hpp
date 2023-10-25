@@ -1,10 +1,13 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
+#include "com_ptr.hpp"
+#include "reshade_api_pipeline.hpp"
+#include <vector>
 #include <d3d11_4.h>
 
 namespace reshade::d3d11
@@ -16,7 +19,7 @@ namespace reshade::d3d11
 
 	struct pipeline_impl
 	{
-		void apply(ID3D11DeviceContext *ctx) const;
+		void apply(ID3D11DeviceContext *ctx, api::pipeline_stage stages) const;
 
 		com_ptr<ID3D11VertexShader> vs;
 		com_ptr<ID3D11HullShader> hs;
@@ -35,10 +38,11 @@ namespace reshade::d3d11
 		FLOAT blend_constant[4];
 	};
 
-	struct descriptor_set_impl
+	struct descriptor_table_impl
 	{
 		api::descriptor_type type;
-		UINT count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
@@ -47,7 +51,7 @@ namespace reshade::d3d11
 		std::vector<api::descriptor_range> ranges;
 	};
 
-	struct query_pool_impl
+	struct query_heap_impl
 	{
 		std::vector<com_ptr<ID3D11Query>> queries;
 	};
@@ -56,6 +60,8 @@ namespace reshade::d3d11
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;
+
+	auto convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space;
 
 	auto convert_access_flags(api::map_access access) -> D3D11_MAP;
 	api::map_access convert_access_flags(D3D11_MAP map_type);
@@ -91,20 +97,21 @@ namespace reshade::d3d11
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
 
-	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3D11_INPUT_ELEMENT_DESC> &element_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_BLEND_DESC &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_BLEND_DESC1 &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC1 &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_RASTERIZER_DESC2 &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D11_DEPTH_STENCIL_DESC &internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_INPUT_ELEMENT_DESC *element_desc, UINT num_elements);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_BLEND_DESC *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_BLEND_DESC1 *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_RASTERIZER_DESC *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_RASTERIZER_DESC1 *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_RASTERIZER_DESC2 *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D11_DEPTH_STENCIL_DESC *internal_desc);
+	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D11_INPUT_ELEMENT_DESC> &internal_elements);
+	std::vector<api::input_element> convert_input_layout_desc(UINT count, const D3D11_INPUT_ELEMENT_DESC *internal_elements);
+
+	void convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC &internal_desc);
+	void convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC1 &internal_desc);
+	api::blend_desc convert_blend_desc(const D3D11_BLEND_DESC *internal_desc);
+	api::blend_desc convert_blend_desc(const D3D11_BLEND_DESC1 *internal_desc);
+	void convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D11_RASTERIZER_DESC &internal_desc);
+	void convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D11_RASTERIZER_DESC1 &internal_desc);
+	void convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D11_RASTERIZER_DESC2 &internal_desc);
+	api::rasterizer_desc convert_rasterizer_desc(const D3D11_RASTERIZER_DESC *internal_desc);
+	api::rasterizer_desc convert_rasterizer_desc(const D3D11_RASTERIZER_DESC1 *internal_desc);
+	api::rasterizer_desc convert_rasterizer_desc(const D3D11_RASTERIZER_DESC2 *internal_desc);
+	void convert_depth_stencil_desc(const api::depth_stencil_desc &desc, D3D11_DEPTH_STENCIL_DESC &internal_desc);
+	api::depth_stencil_desc convert_depth_stencil_desc(const D3D11_DEPTH_STENCIL_DESC *internal_desc);
 
 	auto convert_logic_op(api::logic_op value) -> D3D11_LOGIC_OP;
 	auto convert_logic_op(D3D11_LOGIC_OP value) -> api::logic_op;

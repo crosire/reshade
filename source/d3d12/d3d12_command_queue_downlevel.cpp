@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "d3d12_device.hpp"
@@ -9,7 +9,7 @@
 #include "d3d12_command_queue_downlevel.hpp"
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
-	swapchain_impl(queue->_device, queue, nullptr),
+	swapchain_d3d12on7_impl(queue->_device, queue),
 	_orig(original),
 	_parent_queue(queue)
 {
@@ -43,15 +43,22 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
+	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
+	std::unique_lock<std::shared_mutex> lock(_parent_queue->_mutex);
+
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this);
+	// Do not call 'present' event before 'init_swapchain' event
+	if (_width != 0 && _height != 0)
+		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
 
 	assert(pSourceTex2D != nullptr);
 
-	swapchain_impl::on_present(pSourceTex2D, hWindow);
+	swapchain_d3d12on7_impl::on_present(pSourceTex2D, hWindow);
 
 	_parent_queue->flush_immediate_command_list();
+
+	lock.unlock();
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;

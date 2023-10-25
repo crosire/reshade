@@ -1,18 +1,16 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #if RESHADE_GUI
 
+#include "runtime.hpp"
 #include "version.h"
 #include "dll_log.hpp"
-#include "runtime.hpp"
-#include "hook_manager.hpp"
 #include "dll_resources.hpp"
 #include "imgui_widgets.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
-#include <cassert>
 #include <openvr.h>
 #include <ivrclientcore.h>
 #include <stb_image.h>
@@ -22,13 +20,13 @@ extern vr::IVRClientCore *g_client_core;
 static vr::VROverlayHandle_t s_main_handle = vr::k_ulOverlayHandleInvalid;
 static vr::VROverlayHandle_t s_thumbnail_handle = vr::k_ulOverlayHandleInvalid;
 
-static const uint32_t OVERLAY_WIDTH = 400;
-static const uint32_t OVERLAY_HEIGHT = 400;
+static const uint32_t OVERLAY_WIDTH = 500;
+static const uint32_t OVERLAY_HEIGHT = 500;
 
-void reshade::runtime::init_gui_vr()
+bool reshade::runtime::init_gui_vr()
 {
 	if (s_main_handle != vr::k_ulOverlayHandleInvalid)
-		return;
+		return true;
 
 	if (s_overlay == nullptr)
 	{
@@ -36,14 +34,14 @@ void reshade::runtime::init_gui_vr()
 
 		vr::EVRInitError init_e;
 		if ((s_overlay = static_cast<vr::IVROverlay *>(g_client_core->GetGenericInterface(vr::IVROverlay_Version, &init_e))) == nullptr)
-			return;
+			return false;
 	}
 
 	const vr::EVROverlayError overlay_e = s_overlay->CreateDashboardOverlay("reshade", "ReShade " VERSION_STRING_PRODUCT, &s_main_handle, &s_thumbnail_handle);
 	if (overlay_e != vr::VROverlayError_None)
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay with error code " << static_cast<int>(overlay_e) << '.';
-		return;
+		LOG(ERROR) << "Failed to create VR dashboard overlay with error code " << static_cast<int>(overlay_e) << '!';
+		return false;
 	}
 
 	if (s_thumbnail_handle != vr::k_ulOverlayHandleInvalid)
@@ -67,13 +65,15 @@ void reshade::runtime::init_gui_vr()
 	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_tex))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture!";
-		return;
+		return false;
 	}
 	if (!_device->create_resource_view(_vr_overlay_tex, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay render target!";
-		return;
+		return false;
 	}
+
+	return true;
 }
 
 void reshade::runtime::deinit_gui_vr()
@@ -94,20 +94,21 @@ void reshade::runtime::deinit_gui_vr()
 
 void reshade::runtime::draw_gui_vr()
 {
+#if RESHADE_FX
 	_gather_gpu_statistics = false;
+#endif
 
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_overlay->IsOverlayVisible(s_main_handle))
 		return;
 
-	if (_rebuild_font_atlas)
-		build_font_atlas();
-	if (_font_atlas_srv.handle == 0)
+	build_font_atlas();
+	if (_font_atlas_srv == 0)
 		return; // Cannot render GUI without font atlas
 
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
 
-	auto &imgui_io = ImGui::GetIO();
+	ImGuiIO &imgui_io = ImGui::GetIO();
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.DisplaySize.x = static_cast<float>(OVERLAY_WIDTH);
 	imgui_io.DisplaySize.y = static_cast<float>(OVERLAY_HEIGHT);
@@ -179,6 +180,8 @@ void reshade::runtime::draw_gui_vr()
 
 	ImGui::NewFrame();
 
+	s_overlay->SetOverlayAlpha(s_main_handle, ImGui::GetStyle().Alpha);
+
 	if (imgui_io.WantTextInput && !keyboard_closed)
 	{
 		s_overlay->ShowKeyboardForOverlay(s_main_handle, vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine, vr::KeyboardFlag_Minimal, nullptr, 0, "", 0);
@@ -187,7 +190,7 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 	static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
-#if RESHADE_EFFECTS
+#if RESHADE_FX
 		{ "Home", &runtime::draw_gui_home },
 #endif
 #if RESHADE_ADDON
@@ -215,7 +218,7 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::BeginChild("##overlay", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 
-	for (const auto &widget : overlay_callbacks)
+	for (const std::pair<const char *, void(runtime:: *)()> &widget : overlay_callbacks)
 	{
 		if (bool state = (overlay_index == selected_overlay_index);
 			imgui::toggle_button(widget.first, state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
@@ -225,15 +228,17 @@ void reshade::runtime::draw_gui_vr()
 		++overlay_index;
 	}
 
+#if RESHADE_ADDON == 1
+	if (addon_enabled)
+#endif
 #if RESHADE_ADDON
-	if (addon::enabled)
 	{
-		for (const auto &info : addon::loaded_info)
+		for (const addon_info &info : addon_loaded_info)
 		{
-			for (const auto &widget : info.overlay_callbacks)
+			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
 				if (bool state = (overlay_index == selected_overlay_index);
-					imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+					imgui::toggle_button(widget.title.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
 					selected_overlay_index = overlay_index;
 				ImGui::SameLine();
 
@@ -253,17 +258,19 @@ void reshade::runtime::draw_gui_vr()
 #if RESHADE_ADDON
 	else if (selected_overlay_index < overlay_index)
 	{
-		assert(addon::enabled);
+#if RESHADE_ADDON == 1
+		assert(addon_enabled);
+#endif
 
 		overlay_index = static_cast<int>(std::size(overlay_callbacks));
 
-		for (const auto &info : addon::loaded_info)
+		for (const addon_info &info : addon_loaded_info)
 		{
-			for (const auto &widget : info.overlay_callbacks)
+			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
 				if (selected_overlay_index == overlay_index++)
 				{
-					widget.second(this);
+					widget.callback(this);
 					break;
 				}
 			}
@@ -295,7 +302,11 @@ void reshade::runtime::draw_gui_vr()
 
 	vr::Texture_t texture;
 	texture.eColorSpace = vr::ColorSpace_Auto;
-	vr::VRVulkanTextureData_t vulkan_data;
+	union
+	{
+		vr::D3D12TextureData_t d3d12;
+		vr::VRVulkanTextureData_t vulkan;
+	} texture_data;
 
 	switch (_device->get_api())
 	{
@@ -305,7 +316,10 @@ void reshade::runtime::draw_gui_vr()
 		texture.eType = vr::TextureType_DirectX;
 		break;
 	case api::device_api::d3d12:
-		texture.handle = reinterpret_cast<void *>(_vr_overlay_tex.handle);
+		texture_data.d3d12.m_pResource = reinterpret_cast<ID3D12Resource *>(_vr_overlay_tex.handle);
+		texture_data.d3d12.m_pCommandQueue = reinterpret_cast<ID3D12CommandQueue *>(_graphics_queue->get_native());
+		texture_data.d3d12.m_nNodeMask = 0;
+		texture.handle = &texture_data.d3d12;
 		texture.eType = vr::TextureType_DirectX12;
 		break;
 	case api::device_api::opengl:
@@ -313,18 +327,17 @@ void reshade::runtime::draw_gui_vr()
 		texture.eType = vr::TextureType_OpenGL;
 		break;
 	case api::device_api::vulkan:
-		const auto device_impl = static_cast<vulkan::device_impl *>(_device);
-		vulkan_data.m_nImage = _vr_overlay_tex.handle;
-		vulkan_data.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native_object());
-		vulkan_data.m_pPhysicalDevice = device_impl->_physical_device;
-		vulkan_data.m_pInstance = VK_NULL_HANDLE;
-		vulkan_data.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native_object());
-		vulkan_data.m_nQueueFamilyIndex = device_impl->_graphics_queue_family_index;
-		vulkan_data.m_nWidth = OVERLAY_WIDTH;
-		vulkan_data.m_nHeight = OVERLAY_HEIGHT;
-		vulkan_data.m_nFormat = VK_FORMAT_R8G8B8A8_UNORM;
-		vulkan_data.m_nSampleCount = 1;
-		texture.handle = &vulkan_data;
+		texture_data.vulkan.m_nImage = _vr_overlay_tex.handle;
+		texture_data.vulkan.m_pDevice = reinterpret_cast<VkDevice_T *>(_device->get_native());
+		texture_data.vulkan.m_pPhysicalDevice = static_cast<vulkan::device_impl *>(_device)->_physical_device;
+		texture_data.vulkan.m_pInstance = VK_NULL_HANDLE;
+		texture_data.vulkan.m_pQueue = reinterpret_cast<VkQueue_T *>(_graphics_queue->get_native());
+		texture_data.vulkan.m_nQueueFamilyIndex = static_cast<vulkan::device_impl *>(_device)->_graphics_queue_family_index;
+		texture_data.vulkan.m_nWidth = OVERLAY_WIDTH;
+		texture_data.vulkan.m_nHeight = OVERLAY_HEIGHT;
+		texture_data.vulkan.m_nFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		texture_data.vulkan.m_nSampleCount = 1;
+		texture.handle = &texture_data.vulkan;
 		texture.eType = vr::TextureType_Vulkan;
 		break;
 	}

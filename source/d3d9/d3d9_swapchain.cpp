@@ -1,26 +1,11 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
-
-Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
-	swapchain_impl(device, original),
-	_extended_interface(0),
-	_device(device)
-{
-	assert(_orig != nullptr && _device != nullptr);
-}
-Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
-	swapchain_impl(device, original),
-	_extended_interface(1),
-	_device(device)
-{
-	assert(_orig != nullptr && _device != nullptr);
-}
 
 bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, HWND hwnd)
 {
@@ -31,6 +16,31 @@ bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, H
 	GetClientRect(hwnd, &window_rect);
 	return source_rect->left == window_rect.left && source_rect->top == window_rect.top &&
 	       source_rect->right == window_rect.right && source_rect->bottom == window_rect.bottom;
+}
+
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
+	swapchain_impl(device, original),
+	_extended_interface(0),
+	_device(device)
+{
+	assert(_orig != nullptr && _device != nullptr);
+}
+Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
+	Direct3DSwapChain9(device, static_cast<IDirect3DSwapChain9 *>(original))
+{
+	_extended_interface = 1;
+}
+
+void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
+{
+	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
+
+	// Ignore D3DERR_DEVICELOST, since it can frequently occur when minimizing out of exclusive fullscreen
+	if (hr == D3DERR_DEVICEREMOVED || hr == D3DERR_DEVICEHUNG)
+	{
+		LOG(ERROR) << "Device was lost with " << hr << '!';
+		// Do not clean up resources, since application has to call 'IDirect3DDevice9::Reset' anyway, which will take care of that
+	}
 }
 
 bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
@@ -98,27 +108,46 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Destroying " << "IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ").";
 #endif
-	delete this;
+	this->~Direct3DSwapChain9();
 
 	// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		LOG(WARN) << "Reference count for " << "IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+
+	operator delete(this, sizeof(Direct3DSwapChain9));
 	return 0;
 }
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
-	if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+	// Skip when no presentation is requested
+	if (((dwFlags & D3DPRESENT_DONOTFLIP) == 0) &&
+		// Also skip when the same frame is presented multiple times
+		((dwFlags & D3DPRESENT_DONOTWAIT) == 0 || !_was_still_drawing_last_frame))
 	{
+		assert(!_was_still_drawing_last_frame);
+
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(_device, this);
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			_device,
+			this,
+			reinterpret_cast<const reshade::api::rect *>(pSourceRect),
+			reinterpret_cast<const reshade::api::rect *>(pDestRect),
+			pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
+			pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
 #endif
-		swapchain_impl::on_present();
+
+		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+		if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
+			swapchain_impl::on_present();
 	}
 
-	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+
+	handle_device_loss(hr);
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetFrontBufferData(IDirect3DSurface9 *pDestSurface)
 {

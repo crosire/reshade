@@ -18,8 +18,9 @@ elseif ($(git describe --tags) -match "v(\d+)\.(\d+)\.(\d+)(-\d+-\w+)?") {
 	$version = [int]::Parse($matches[1]), [int]::Parse($matches[2]), [int]::Parse($matches[3]), 0
 }
 
-# Increment build version for Release builds
-if ($config -eq "Release") {
+# Increment build version for release builds
+if (($config -eq "Release") -or
+    ($config -eq "Release Signed")) {
 	$version[3] += 1
 	"Updating version to $([string]::Join('.', $version)) ..."
 }
@@ -32,9 +33,6 @@ $official = Test-Path ($path + "\..\sign.pfx")
 # Update version file with the new version information
 @"
 #pragma once
-
-#define VERSION_DATE "$([DateTimeOffset]::Now.ToString('yyyy-MM-dd'))"
-#define VERSION_TIME "$([DateTimeOffset]::Now.ToString('HH:mm:ss'))"
 
 #define VERSION_FULL $([string]::Join('.', $version))
 #define VERSION_MAJOR $($version[0])

@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -11,7 +11,7 @@
 /// Gets a pointer from the private data of the specified <paramref name="object"/>.
 /// </summary>
 template <typename U, typename T>
-__forceinline U *get_private_pointer(T *object)
+__forceinline U *get_private_pointer_d3dx(T *object)
 {
 	U *result = nullptr;
 	UINT size = sizeof(result);
@@ -31,7 +31,7 @@ __forceinline U *get_private_pointer_d3d9(T *object)
  /// Registers a <paramref name="callback"/> with the specified <paramref name="object"/> that is called when the object is being destroyed.
  /// </summary>
 template <typename T, typename L>
-__forceinline void register_destruction_callback(T *object, L &&callback, const UINT unique_tag = 0)
+inline void register_destruction_callback_d3dx(T *object, L &&callback, const UINT unique_tag = 0)
 {
 	class tracker_instance final : public IUnknown
 	{
@@ -76,7 +76,7 @@ __forceinline void register_destruction_callback(T *object, L &&callback, const 
 	object->SetPrivateDataInterface(private_guid, interface_object);
 }
 template <typename T, typename L>
-__forceinline void register_destruction_callback_d3d9(T *object, L &&callback, const UINT unique_tag = 0)
+inline void register_destruction_callback_d3d9(T *object, L &&callback, const UINT unique_tag = 0)
 {
 	class tracker_instance final : public IUnknown
 	{

@@ -3,11 +3,11 @@ EXPORTS
 	D2D1CreateDevice @7 PRIVATE
 	D2D1CreateFactory @1 PRIVATE
 
-	; d3d9.dll (Uses ordinals in d3d9.lib for 'Direct3DCreate9on12' and 'Direct3DCreate9on12Ex')
+	; d3d9.dll (Uses ordinals in d3d9.lib for 'Direct3DCreate9On12' and 'Direct3DCreate9On12Ex')
 	Direct3DCreate9 PRIVATE
 	Direct3DCreate9Ex PRIVATE
-	Direct3DCreate9on12 @20 PRIVATE
-	Direct3DCreate9on12Ex @21 PRIVATE
+	Direct3DCreate9On12 @20 PRIVATE
+	Direct3DCreate9On12Ex @21 PRIVATE
 
 	D3DPERF_BeginEvent PRIVATE
 	D3DPERF_EndEvent PRIVATE
@@ -36,6 +36,7 @@ EXPORTS
 	; d3d11.dll
 	D3D11CreateDevice PRIVATE
 	D3D11CreateDeviceAndSwapChain PRIVATE
+	D3D11On12CreateDevice PRIVATE
 
 	; d3d12.dll (Uses ordinals in d3d12.lib for 'D3D12CreateDevice' and 'D3D12GetDebugInterface')
 	D3D12CreateDevice @101 PRIVATE
@@ -43,8 +44,13 @@ EXPORTS
 	D3D12CreateRootSignatureDeserializer @107 PRIVATE
 	D3D12CreateVersionedRootSignatureDeserializer @108 PRIVATE
 	D3D12EnableExperimentalFeatures @110 PRIVATE
-	D3D12SerializeRootSignature @115 PRIVATE
-	D3D12SerializeVersionedRootSignature @116 PRIVATE
+	D3D12GetInterface @111 PRIVATE
+	D3D12PIXEventsReplaceBlock PRIVATE
+	D3D12PIXGetThreadInfo PRIVATE
+	D3D12PIXNotifyWakeFromFenceSignal PRIVATE
+	D3D12PIXReportCounter PRIVATE
+	D3D12SerializeRootSignature PRIVATE
+	D3D12SerializeVersionedRootSignature PRIVATE
 
 	; dxgi.dll
 	CreateDXGIFactory PRIVATE
@@ -462,6 +468,11 @@ EXPORTS
 	WSASendTo = HookWSASendTo @99 PRIVATE
 	WSARecv = HookWSARecv @91 PRIVATE
 	WSARecvFrom = HookWSARecvFrom @93 PRIVATE
+
+	; dinput.dll
+	DirectInputCreateA PRIVATE
+	DirectInputCreateW PRIVATE
+	DirectInputCreateEx PRIVATE
 
 	; dinput8.dll
 	DirectInput8Create PRIVATE

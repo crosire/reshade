@@ -1,14 +1,15 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
-#include <mutex>
-#include <vector>
-#include <d3d12.h>
 #include "com_ptr.hpp"
+#include <vector>
+#include <cassert>
+#include <shared_mutex>
+#include <d3d12.h>
 
 namespace reshade::d3d12
 {
@@ -32,7 +33,7 @@ namespace reshade::d3d12
 
 		bool allocate(D3D12_CPU_DESCRIPTOR_HANDLE &handle)
 		{
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			for (int attempt = 0; attempt < 2; ++attempt)
 			{
@@ -60,7 +61,7 @@ namespace reshade::d3d12
 
 		void free(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			for (heap_info &heap_info : _heap_infos)
 			{
@@ -105,7 +106,7 @@ namespace reshade::d3d12
 		std::vector<heap_info> _heap_infos;
 		SIZE_T _increment_size;
 		D3D12_DESCRIPTOR_HEAP_TYPE _type;
-		std::mutex _mutex;
+		std::shared_mutex _mutex;
 	};
 
 	template <D3D12_DESCRIPTOR_HEAP_TYPE type, UINT static_size, UINT transient_size>
@@ -131,13 +132,17 @@ namespace reshade::d3d12
 			_transient_heap_base = _static_heap_base + static_size * _increment_size;
 			_transient_heap_base_gpu = _static_heap_base_gpu + static_size * _increment_size;
 		}
+		~descriptor_heap_gpu()
+		{
+			assert(_count_list.empty());
+		}
 
 		bool allocate_static(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
 		{
 			if (_heap == nullptr)
 				return false;
 
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			// First try to allocate from the list of freed blocks
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
@@ -146,6 +151,8 @@ namespace reshade::d3d12
 				{
 					base_handle.ptr = _static_heap_base + static_cast<SIZE_T>(block->first - _static_heap_base_gpu);
 					base_handle_gpu.ptr = block->first;
+
+					_count_list.emplace_back(base_handle_gpu.ptr, count);
 
 					// Remove the allocated range from the freed block and optionally remove it from the free list if no space is left afterwards
 					block->first += count * _increment_size;
@@ -164,6 +171,8 @@ namespace reshade::d3d12
 			base_handle.ptr = _static_heap_base + offset;
 			base_handle_gpu.ptr = _static_heap_base_gpu + offset;
 
+			_count_list.emplace_back(base_handle_gpu.ptr, count);
+
 			_current_static_index += count;
 
 			return true;
@@ -173,7 +182,7 @@ namespace reshade::d3d12
 			if (_heap == nullptr)
 				return false;
 
-			const std::unique_lock<std::mutex> lock(_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			SIZE_T index = static_cast<SIZE_T>(_current_transient_tail % transient_size);
 
@@ -190,18 +199,31 @@ namespace reshade::d3d12
 			return true;
 		}
 
-		void free(D3D12_GPU_DESCRIPTOR_HANDLE handle, UINT count = 1)
+		void free(D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu)
 		{
 			// Ensure this handle falls into the static range of this heap
-			if (handle.ptr < _static_heap_base_gpu || handle.ptr >= _transient_heap_base_gpu)
+			if (base_handle_gpu.ptr < _static_heap_base_gpu || base_handle_gpu.ptr >= _transient_heap_base_gpu)
 				return;
 
-			const std::unique_lock<std::mutex> lock(_mutex);
+			UINT count = 1;
+
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
+
+			// Find the number of descriptors allocated for this base handle
+			for (auto it = _count_list.begin(); it != _count_list.end(); ++it)
+			{
+				if (base_handle_gpu.ptr == it->first)
+				{
+					count = it->second;
+					_count_list.erase(it);
+					break;
+				}
+			}
 
 			// First try to append to an existing freed block
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
 			{
-				if (handle.ptr == block->second)
+				if (base_handle_gpu.ptr == block->second)
 				{
 					block->second += count * _increment_size;
 
@@ -217,7 +239,7 @@ namespace reshade::d3d12
 					}
 					return;
 				}
-				if (handle.ptr == (block->first - (count * _increment_size)))
+				if (base_handle_gpu.ptr == (block->first - (count * _increment_size)))
 				{
 					block->first -= count * _increment_size;
 
@@ -236,7 +258,7 @@ namespace reshade::d3d12
 			}
 
 			// Otherwise add a new block to the free list
-			_free_list.emplace_back(handle.ptr, handle.ptr + count * _increment_size);
+			_free_list.emplace_back(base_handle_gpu.ptr, base_handle_gpu.ptr + count * _increment_size);
 		}
 
 		bool contains(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu) const
@@ -270,6 +292,7 @@ namespace reshade::d3d12
 		SIZE_T _current_static_index = 0;
 		UINT64 _current_transient_tail = 0;
 		std::vector<std::pair<UINT64, UINT64>> _free_list;
-		std::mutex _mutex;
+		std::vector<std::pair<UINT64, UINT32>> _count_list;
+		std::shared_mutex _mutex;
 	};
 }

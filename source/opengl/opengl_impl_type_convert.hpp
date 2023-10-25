@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
-#include "opengl.hpp"
+#include <GL/glcorearb.h>
 
 namespace reshade::opengl
 {
 	struct pipeline_impl
 	{
-		void apply_compute() const;
-		void apply_graphics() const;
+		void apply(api::pipeline_stage stages) const;
 
 		GLuint program;
 		GLuint vao;
+		std::vector<api::input_element> input_elements;
 
 		// Blend state
 
@@ -48,27 +48,31 @@ namespace reshade::opengl
 		GLboolean depth_mask;
 		GLenum depth_func;
 		GLboolean stencil_test;
-		GLuint stencil_read_mask;
-		GLuint stencil_write_mask;
-		GLint  stencil_reference_value;
+		GLuint front_stencil_read_mask;
+		GLuint front_stencil_write_mask;
+		GLint  front_stencil_reference_value;
+		GLenum front_stencil_func;
 		GLenum front_stencil_op_fail;
 		GLenum front_stencil_op_depth_fail;
 		GLenum front_stencil_op_pass;
-		GLenum front_stencil_func;
+		GLuint back_stencil_read_mask;
+		GLuint back_stencil_write_mask;
+		GLint  back_stencil_reference_value;
+		GLenum back_stencil_func;
 		GLenum back_stencil_op_fail;
 		GLenum back_stencil_op_depth_fail;
 		GLenum back_stencil_op_pass;
-		GLenum back_stencil_func;
 
 		GLbitfield sample_mask;
 		GLenum prim_mode;
 		GLuint patch_vertices;
 	};
 
-	struct descriptor_set_impl
+	struct descriptor_table_impl
 	{
 		api::descriptor_type type;
-		GLuint count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
@@ -77,31 +81,44 @@ namespace reshade::opengl
 		std::vector<api::descriptor_range> ranges;
 	};
 
-	struct query_pool_impl
+	struct query_heap_impl
 	{
 		std::vector<GLuint> queries;
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
+	inline auto make_resource_handle(GLenum target, GLuint object) -> api::resource
+	{
+		if (!object)
+			return { 0 };
+		return { (static_cast<uint64_t>(target) << 40) | object };
+	}
+	inline auto make_resource_view_handle(GLenum target, GLuint object, bool standalone_object = false) -> api::resource_view
+	{
+		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(standalone_object ? 0x1 : 0) << 32) | object };
+	}
+
 	auto convert_format(api::format format, GLint swizzle_mask[4] = nullptr) -> GLenum;
 	auto convert_format(GLenum internal_format, const GLint swizzle_mask[4] = nullptr) -> api::format;
-	auto convert_format(GLenum format, GLenum type) -> api::format;
+	void convert_pixel_format(api::format format, PIXELFORMATDESCRIPTOR &pfd);
+	auto convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> api::format;
+	auto convert_upload_format(api::format format, GLenum &type) -> GLenum;
+	auto convert_upload_format(GLenum format, GLenum type) -> api::format;
 	auto convert_attrib_format(api::format format, GLint &size, GLboolean &normalized) -> GLenum;
-	auto convert_upload_format(GLenum internal_format, GLenum &type) -> GLenum;
+	auto convert_sized_internal_format(GLenum internal_format) -> GLenum;
 
-	bool is_depth_stencil_format(GLenum internal_format, GLenum usage = GL_DEPTH_STENCIL);
+	auto is_depth_stencil_format(api::format format) -> GLenum;
 
-	void convert_memory_heap_to_usage(const api::resource_desc &desc, GLenum &usage);
-	void convert_memory_heap_to_flags(const api::resource_desc &desc, GLbitfield &flags);
-	void convert_memory_heap_from_usage(api::resource_desc &desc, GLenum usage);
-	void convert_memory_heap_from_flags(api::resource_desc &desc, GLbitfield flags);
+	void convert_memory_usage_to_flags(GLenum usage, GLbitfield &flags);
+	void convert_memory_flags_to_usage(GLbitfield flags, GLenum &usage);
 
-	GLbitfield convert_access_flags(api::map_access flags);
+	auto convert_access_flags(api::map_access flags) -> GLbitfield;
 	api::map_access convert_access_flags(GLbitfield flags);
 
+	void convert_resource_desc(const api::resource_desc &desc, GLsizeiptr &buffer_size, GLenum &usage);
 	api::resource_type convert_resource_type(GLenum target);
-	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size);
+	api::resource_desc convert_resource_desc(GLenum target, GLsizeiptr buffer_size, GLenum usage);
 	api::resource_desc convert_resource_desc(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height = 1, GLsizei depth = 1, const GLint swizzle_mask[4] = nullptr);
 
 	api::resource_view_type convert_resource_view_type(GLenum target);
@@ -130,4 +147,10 @@ namespace reshade::opengl
 	GLenum convert_primitive_topology(api::primitive_topology value);
 	GLenum convert_query_type(api::query_type type);
 	GLenum convert_shader_type(api::shader_stage type);
+}
+
+template <typename T>
+inline void hash_combine(size_t &seed, const T &v)
+{
+	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }

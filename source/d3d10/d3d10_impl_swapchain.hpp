@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -18,8 +18,7 @@ namespace reshade::d3d10
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
 		~swapchain_impl();
 
-		api::resource get_back_buffer(uint32_t index) final;
-		api::resource get_back_buffer_resolved(uint32_t index) final;
+		api::resource get_back_buffer(uint32_t index = 0) final;
 
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
@@ -28,17 +27,14 @@ namespace reshade::d3d10
 		void on_reset();
 
 		void on_present();
-		bool on_vr_submit(UINT eye, ID3D10Texture2D *source, const float bounds[4], ID3D10Texture2D **target);
 
-#if RESHADE_EFFECTS
+#if RESHADE_ADDON && RESHADE_FX
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
+		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 #endif
 
 	private:
-		state_block _app_state;
 		com_ptr<ID3D10Texture2D> _backbuffer;
-		com_ptr<ID3D10Texture2D> _backbuffer_resolved;
-		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv;
-		com_ptr<ID3D10ShaderResourceView> _backbuffer_resolved_srv;
+		state_block _app_state;
 	};
 }

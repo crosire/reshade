@@ -1,12 +1,14 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_lexer.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cassert>
+
+#define RESHADEFX_SHORT_CIRCUIT 0
 
 reshadefx::parser::parser()
 {
@@ -134,7 +136,8 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		return false;
 	}
-	else if (accept(tokenid::vector))
+
+	if (accept(tokenid::vector))
 	{
 		type.base = type::t_float; // Default to float4 unless a type is specified (see below)
 		type.rows = 4, type.cols = 1;
@@ -159,7 +162,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 		return true;
 	}
-	else if (accept(tokenid::matrix))
+	if (accept(tokenid::matrix))
 	{
 		type.base = type::t_float; // Default to float4x4 unless a type is specified (see below)
 		type.rows = 4, type.cols = 4;
@@ -187,6 +190,71 @@ bool reshadefx::parser::accept_type_class(type &type)
 
 			if (!expect('>'))
 				return false;
+		}
+
+		return true;
+	}
+
+	if (accept(tokenid::sampler1d) || accept(tokenid::sampler2d) || accept(tokenid::sampler3d))
+	{
+		const unsigned int texture_dimension = static_cast<unsigned int>(_token.id) - static_cast<unsigned int>(tokenid::sampler1d);
+
+		if (accept('<'))
+		{
+			if (!accept_type_class(type))
+				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected sampler element type"), false;
+			if (type.is_object())
+				return error(_token.location, 3124, "object element type cannot be an object type"), false;
+			if (!type.is_numeric() || type.is_matrix())
+				return error(_token.location, 3521, "sampler element type must fit in four 32-bit quantities"), false;
+
+			if (type.is_integral() && type.is_signed())
+				type.base = static_cast<type::datatype>(type::t_sampler1d_int + texture_dimension);
+			else if (type.is_integral() && type.is_unsigned())
+				type.base = static_cast<type::datatype>(type::t_sampler1d_uint + texture_dimension);
+			else
+				type.base = static_cast<type::datatype>(type::t_sampler1d_float + texture_dimension);
+
+			if (!expect('>'))
+				return false;
+		}
+		else
+		{
+			type.base = static_cast<type::datatype>(type::t_sampler1d_float + texture_dimension);
+			type.rows = 4;
+			type.cols = 1;
+		}
+
+		return true;
+	}
+	if (accept(tokenid::storage1d) || accept(tokenid::storage2d) || accept(tokenid::storage3d))
+	{
+		const unsigned int texture_dimension = static_cast<unsigned int>(_token.id) - static_cast<unsigned int>(tokenid::storage1d);
+
+		if (accept('<'))
+		{
+			if (!accept_type_class(type))
+				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected storage element type"), false;
+			if (type.is_object())
+				return error(_token.location, 3124, "object element type cannot be an object type"), false;
+			if (!type.is_numeric() || type.is_matrix())
+				return error(_token.location, 3521, "storage element type must fit in four 32-bit quantities"), false;
+
+			if (type.is_integral() && type.is_signed())
+				type.base = static_cast<type::datatype>(type::t_storage1d_int + texture_dimension);
+			else if (type.is_integral() && type.is_unsigned())
+				type.base = static_cast<type::datatype>(type::t_storage1d_uint + texture_dimension);
+			else
+				type.base = static_cast<type::datatype>(type::t_storage1d_float + texture_dimension);
+
+			if (!expect('>'))
+				return false;
+		}
+		else
+		{
+			type.base = static_cast<type::datatype>(type::t_storage1d_float + texture_dimension);
+			type.rows = 4;
+			type.cols = 1;
 		}
 
 		return true;
@@ -308,14 +376,14 @@ bool reshadefx::parser::accept_type_class(type &type)
 	case tokenid::string_:
 		type.base = type::t_string;
 		break;
-	case tokenid::texture:
-		type.base = type::t_texture;
+	case tokenid::texture1d:
+		type.base = type::t_texture1d;
 		break;
-	case tokenid::sampler:
-		type.base = type::t_sampler;
+	case tokenid::texture2d:
+		type.base = type::t_texture2d;
 		break;
-	case tokenid::storage:
-		type.base = type::t_storage;
+	case tokenid::texture3d:
+		type.base = type::t_texture3d;
 		break;
 	default:
 		return false;
@@ -486,7 +554,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 {
 	auto location = _token_next.location;
 
-	#pragma region Prefix Expression
 	// Check if a prefix operator exists
 	if (accept_unary_op())
 	{
@@ -595,11 +662,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (peek('}'))
 				break;
 
-			// Parse the argument expression
-			if (!parse_expression_assignment(elements.emplace_back()))
-				return consume_until('}'), false;
+			expression &element = elements.emplace_back();
 
-			expression &element = elements.back();
+			// Parse the argument expression
+			if (!parse_expression_assignment(element))
+				return consume_until('}'), false;
 
 			if (element.type.is_array())
 				return error(element.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
@@ -626,13 +693,14 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		}
 		else
 		{
-			composite_type.array_length = static_cast<int>(elements.size());
-
 			// Resolve all access chains
 			for (expression &element : elements)
 			{
-				element.reset_to_rvalue(element.location, _codegen->emit_load(element), element.type);
+				element.add_cast_operation(composite_type);
+				element.reset_to_rvalue(element.location, _codegen->emit_load(element), composite_type);
 			}
+
+			composite_type.array_length = static_cast<int>(elements.size());
 
 			const auto result = _codegen->emit_construct(location, composite_type, elements);
 
@@ -700,11 +768,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (!arguments.empty() && !expect(','))
 				return false;
 
-			// Parse the argument expression
-			if (!parse_expression_assignment(arguments.emplace_back()))
-				return false;
+			expression &argument = arguments.emplace_back();
 
-			expression &argument = arguments.back();
+			// Parse the argument expression
+			if (!parse_expression_assignment(argument))
+				return false;
 
 			// Constructors are only defined for numeric base types
 			if (!argument.type.is_numeric())
@@ -805,8 +873,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (!arguments.empty() && !expect(','))
 					return false;
 
+				expression &argument = arguments.emplace_back();
+
 				// Parse the argument expression
-				if (!parse_expression_assignment(arguments.emplace_back()))
+				if (!parse_expression_assignment(argument))
 					return false;
 			}
 
@@ -841,7 +911,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			{
 				const auto &param_type = symbol.function->parameter_list[i].type;
 
-				if (param_type.has(type::q_out) && (arguments[i].type.has(type::q_const) || !arguments[i].is_lvalue))
+				if (param_type.has(type::q_out) && (!arguments[i].is_lvalue || (arguments[i].type.has(type::q_const) && !arguments[i].type.is_object())))
 					return error(arguments[i].location, 3025, "l-value specifies const object for an 'out' parameter"), false;
 
 				if (arguments[i].type.components() > param_type.components())
@@ -849,7 +919,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				if (symbol.op == symbol_type::function || param_type.has(type::q_out))
 				{
-					if (param_type.is_sampler() || param_type.is_storage() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
+					if (param_type.is_object() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
 					{
 						if (arguments[i].type != param_type)
 							return error(location, 3004, "no matching intrinsic overload for '" + identifier + '\''), false;
@@ -887,7 +957,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			for (size_t i = 0; i < arguments.size(); ++i)
 			{
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_object())
 				{
 					expression arg = arguments[i];
 					arg.add_cast_operation(parameters[i].type);
@@ -906,7 +976,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			for (size_t i = 0; i < arguments.size(); ++i)
 			{
 				// Only do this for pointer parameters as discovered above
-				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_sampler() && !parameters[i].type.is_storage())
+				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_object())
 				{
 					expression arg = parameters[i];
 					arg.add_cast_operation(arguments[i].type);
@@ -953,9 +1023,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			return error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable"), false;
 		}
 	}
-	#pragma endregion
 
-	#pragma region Postfix Expression
 	while (!peek(tokenid::end_of_file))
 	{
 		location = _token_next.location;
@@ -1099,7 +1167,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_struct())
 			{
-				const auto &member_list = _codegen->find_struct(exp.type.definition).member_list;
+				const auto &member_list = _codegen->get_struct(exp.type.definition).member_list;
 
 				// Find member with matching name is structure definition
 				uint32_t member_index = 0;
@@ -1178,7 +1246,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			break;
 		}
 	}
-	#pragma endregion
 
 	return true;
 }
@@ -1206,7 +1273,6 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 		// Check if this is a binary or ternary operation
 		if (op != tokenid::question)
 		{
-			#pragma region Binary Expression
 #if RESHADEFX_SHORT_CIRCUIT
 			codegen::id lhs_block = 0;
 			codegen::id rhs_block = 0;
@@ -1323,11 +1389,9 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			const auto result_value = _codegen->emit_binary_op(lhs.location, op, type, lhs.type, lhs_value, rhs_value);
 
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
-			#pragma endregion
 		}
 		else
 		{
-			#pragma region Ternary Expression
 			// A conditional expression needs a scalar or vector type condition
 			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
 				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
@@ -1411,7 +1475,6 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			const auto result_value = _codegen->emit_ternary_op(lhs.location, op, type, condition_value, true_value, false_value);
 #endif
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
-			#pragma endregion
 		}
 	}
 

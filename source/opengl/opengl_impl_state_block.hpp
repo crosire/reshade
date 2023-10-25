@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
-#include "opengl.hpp"
+#include <GL/gl3w.h>
 
 namespace reshade::opengl
 {
@@ -18,10 +18,15 @@ namespace reshade::opengl
 		void apply(bool compatibility) const;
 
 	private:
+		GLint _copy_read;
+		GLint _copy_write;
+
 		GLint _vao;
 		GLint _vbo;
 		GLint _ibo;
 		GLint _ubo[4];
+		GLintptr _ubo_offsets[4];
+		GLsizeiptr _ubo_sizes[4];
 		GLint _active_ubo;
 		GLint _program;
 		GLint _textures2d[32], _samplers[32];

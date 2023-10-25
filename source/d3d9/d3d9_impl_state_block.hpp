@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
-#include <d3d9.h>
 #include "com_ptr.hpp"
+#include <d3d9.h>
 
 namespace reshade::d3d9
 {
@@ -28,5 +28,7 @@ namespace reshade::d3d9
 		D3DVIEWPORT9 _viewport = {};
 		com_ptr<IDirect3DSurface9> _depth_stencil;
 		com_ptr<IDirect3DSurface9> _render_targets[8];
+		DWORD _srgb_write = FALSE;
+		DWORD _srgb_texture = FALSE;
 	};
 }

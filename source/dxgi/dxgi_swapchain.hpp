@@ -1,17 +1,17 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
 
-#include <mutex>
 #include <dxgi1_5.h>
+#include <shared_mutex>
 
 struct D3D10Device;
 struct D3D11Device;
 struct D3D12CommandQueue;
-namespace reshade { class runtime; }
+namespace reshade::api { struct swapchain; }
 
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
 {
@@ -82,22 +82,24 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
-	void runtime_reset();
-	void runtime_resize();
-	void runtime_present(UINT flags);
+	void on_reset();
+	void on_resize();
+	void on_present(UINT flags, const DXGI_PRESENT_PARAMETERS *params = nullptr);
 	void handle_device_loss(HRESULT hr);
 
 	bool check_and_upgrade_interface(REFIID riid);
 
 	LONG _ref = 1;
 	IDXGISwapChain *_orig;
-	unsigned int _interface_version;
+	unsigned short _interface_version;
 	IUnknown *const _direct3d_device;
 	IUnknown *const _direct3d_command_queue;
 	const unsigned int _direct3d_version;
-	std::mutex _impl_mutex;
-	reshade::runtime *const _impl;
+	std::shared_mutex _impl_mutex;
+	reshade::api::swapchain *const _impl;
+	bool _was_still_drawing_last_frame = false;
+
 	bool _force_vsync = false;
-	bool _force_10_bit_format = false;
-	unsigned int _force_resolution[2] = { 0, 0 };
+	bool _force_windowed = false;
+	bool _force_fullscreen = false;
 };

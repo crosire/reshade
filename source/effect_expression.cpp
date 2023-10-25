@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_lexer.hpp"
@@ -78,24 +78,81 @@ std::string reshadefx::type::description() const
 	case reshadefx::type::t_struct:
 		result = "struct";
 		break;
-	case reshadefx::type::t_sampler:
-		result = "sampler";
+	case reshadefx::type::t_texture1d:
+		result = "texture1D";
 		break;
-	case reshadefx::type::t_storage:
-		result = "storage";
+	case reshadefx::type::t_texture2d:
+		result = "texture2D";
 		break;
-	case reshadefx::type::t_texture:
-		result = "texture";
+	case reshadefx::type::t_texture3d:
+		result = "texture3D";
+		break;
+	case reshadefx::type::t_sampler1d_int:
+		result = "sampler1D<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler2d_int:
+		result = "sampler2D<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler3d_int:
+		result = "sampler3D<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler1d_uint:
+		result = "sampler1D<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler2d_uint:
+		result = "sampler2D<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler3d_uint:
+		result = "sampler3D<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler1d_float:
+		result = "sampler1D<float" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler2d_float:
+		result = "sampler2D<float" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_sampler3d_float:
+		result = "sampler3D<float" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage1d_int:
+		result = "storage1D<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage2d_int:
+		result = "storage2D<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage3d_int:
+		result = "storage3D<int" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage1d_uint:
+		result = "storage1D<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage2d_uint:
+		result = "storage2D<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage3d_uint:
+		result = "storage3D<uint" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage1d_float:
+		result = "storage1D<float" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage2d_float:
+		result = "storage2D<float" + std::to_string(rows) + '>';
+		break;
+	case reshadefx::type::t_storage3d_float:
+		result = "storage3D<float" + std::to_string(rows) + '>';
 		break;
 	case reshadefx::type::t_function:
 		result = "function";
 		break;
 	}
 
-	if (rows > 1 || cols > 1)
-		result += std::to_string(rows);
-	if (cols > 1)
-		result += 'x' + std::to_string(cols);
+	if (is_numeric())
+	{
+		if (rows > 1 || cols > 1)
+			result += std::to_string(rows);
+		if (cols > 1)
+			result += 'x' + std::to_string(cols);
+	}
 
 	if (is_array())
 	{

@@ -5,13 +5,38 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       mc:Ignorable="d" 
       d:DesignWidth="510" d:DesignHeight="638"
-      Width="Auto" Height="Auto">
+      Width="Auto" Height="Auto"
+      FocusManager.FocusedElement="{Binding ElementName=UpdateButton}">
   <DockPanel>
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select the operation to perform:" />
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Text="An existing ReShade installation was found. Choose whether it should be updated to the version from this setup tool, or uninstalled." />
+    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+      An existing ReShade installation was found for the target game. Choose how to proceed with this installation.
+    </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
-      <Button x:Name="UpdateButton" Width="250" Height="35" Margin="5" Content="_Update" IsDefault="True" />
-      <Button x:Name="UninstallButton" Width="250" Height="35" Margin="5" Content="Un_install" />
+      <RadioButton x:Name="ModifyButton" Margin="0,10">
+        <TextBlock Width="290" TextWrapping="Wrap">
+          <Label Content="_Modify" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <LineBreak />
+          <LineBreak />
+          Update ReShade to this version and also download all selected effect files again.
+        </TextBlock>
+      </RadioButton>
+      <RadioButton x:Name="UpdateButton" Margin="0,10" IsChecked="True">
+        <TextBlock Width="290" TextWrapping="Wrap">
+          <Label Content="Up_date" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <LineBreak />
+          <LineBreak />
+          Update ReShade to this version, but keep existing preset and effect files unchanged.
+        </TextBlock>
+      </RadioButton>
+      <RadioButton x:Name="UninstallButton" Margin="0,10" VerticalContentAlignment="Top">
+        <TextBlock Width="290" TextWrapping="Wrap">
+          <Label Content="_Uninstall" Padding="0" Foreground="#FF003399" FontSize="16" />
+          <LineBreak />
+          <LineBreak />
+          Remove ReShade, related configuration, logs and all installed effect files from the target game.
+        </TextBlock>
+      </RadioButton>
     </StackPanel>
   </DockPanel>
 </Page>

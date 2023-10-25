@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "d3d9_impl_state_block.hpp"
@@ -30,12 +30,17 @@ void reshade::d3d9::state_block::capture()
 
 	if (SUCCEEDED(_device->CreateStateBlock(D3DSBT_ALL, &_state_block)))
 		_state_block->Capture();
+	else
+		assert(false);
 
 	_device->GetViewport(&_viewport);
 
 	for (DWORD target = 0; target < _num_simultaneous_rts; target++)
 		_device->GetRenderTarget(target, &_render_targets[target]);
 	_device->GetDepthStencilSurface(&_depth_stencil);
+
+	_device->GetRenderState(D3DRS_SRGBWRITEENABLE, &_srgb_write);
+	_device->GetSamplerState(0, D3DSAMP_SRGBTEXTURE, &_srgb_texture);
 }
 void reshade::d3d9::state_block::apply_and_release()
 {
@@ -44,6 +49,11 @@ void reshade::d3d9::state_block::apply_and_release()
 
 	// Release state block every time, so that all references to captured vertex and index buffers, textures, etc. are released again
 	_state_block.reset();
+
+	// This should technically be captured and applied by the state block already ...
+	// But Steam overlay messes it up somehow and this is neceesary to fix the screen darkening in Portal when the Steam overlay is showing a notification popup and the ReShade overlay is open at the same time
+	_device->SetRenderState(D3DRS_SRGBWRITEENABLE, _srgb_write);
+	_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, _srgb_texture);
 
 	for (DWORD target = 0; target < _num_simultaneous_rts; target++)
 		_device->SetRenderTarget(target, _render_targets[target].get());

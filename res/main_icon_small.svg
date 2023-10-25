@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   width="512.0px"
+   height="512.0px"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape">
+  <defs>
+    <filter
+       id="colorwheel-blur"
+       style="color-interpolation-filters:sRGB;"
+       y="-1.5530415"
+       x="-2.108503"
+       width="5.2142696"
+       height="4.1041338"
+       inkscape:label="Blur">
+      <feGaussianBlur
+         stdDeviation="60 60"
+         result="blur" />
+      <feColorMatrix
+         values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 50 0 "
+         result="colormatrix" />
+      <feComposite
+         in="colormatrix"
+         in2="SourceGraphic"
+         operator="in" />
+    </filter>
+  </defs>
+  <g
+     id="layer"
+     inkscape:groupmode="layer">
+    <g
+       id="colorwheel"
+       transform="matrix(1.7405466,0,0,1.7405466,-189.32054,-189.39516)">
+      <g
+         style="display:inline;filter:url(#colorwheel-blur)">
+         <path
+            id="colorwheel-magenta"
+            style="fill:#ff00ff;fill-opacity:1;stroke:#000000;stroke-opacity:1;filter:url(#colorwheel-blur)"
+            d="m 196.53516,221.76172 -51.42188,-29.6875 A 128,128 0 0 0 128,256 a 128,128 0 0 0 17.50977,64.51562 l 51.40234,-29.67578 A 69,69 0 0 1 187,256 a 69,69 0 0 1 9.53516,-34.23828 z" />
+         <path
+            id="colorwheel-red"
+            style="fill:#ff0100;fill-opacity:1;stroke:#000000;stroke-opacity:1;filter:url(#colorwheel-blur)"
+            d="M 256.54883,128.01758 A 128,128 0 0 0 256,128 128,128 0 0 0 145.11328,192.07422 l 51.42188,29.6875 A 69,69 0 0 1 256,187 a 69,69 0 0 1 0.54883,0.0234 z" />
+         <path
+            id="colorwheel-yellow"
+            style="fill:#ffff00;fill-opacity:1;stroke:#000000;stroke-opacity:1;filter:url(#colorwheel-blur)"
+            d="m 256.54883,128.01758 v 59.00586 a 69,69 0 0 1 59.48242,35.04297 l 51.08398,-29.49219 a 128,128 0 0 0 -110.5664,-64.55664 z" />
+      </g>
+      <g
+         style="display:inline;filter:url(#colorwheel-blur)">
+         <path
+            id="colorwheel-green"
+            style="fill:#00ff00;fill-opacity:1;stroke:#000000;stroke-opacity:1;filter:url(#colorwheel-blur)"
+            d="m 315.37891,290.375 51.42578,29.69141 A 128,128 0 0 0 384,256 128,128 0 0 0 367.11523,192.57422 l -51.08398,29.49219 A 69,69 0 0 1 325,256 a 69,69 0 0 1 -9.62109,34.375 z" />
+         <path
+            id="colorwheel-azure"
+            style="fill:#00ffff;fill-opacity:1;stroke:#000000;stroke-opacity:1;filter:url(#colorwheel-blur)"
+            d="m 256.54883,324.9375 v 59.01367 A 128,128 0 0 0 366.80469,320.06641 L 315.37891,290.375 a 69,69 0 0 1 -58.83008,34.5625 z" />
+         <path
+            id="colorwheel-blue"
+            style="fill:#0000ff;fill-opacity:1;stroke:#000000;stroke-opacity:1;filter:url(#colorwheel-blur)"
+            d="m 196.91211,290.83984 -51.40234,29.67578 A 128,128 0 0 0 256,384 a 128,128 0 0 0 0.54883,-0.0488 V 324.9375 A 69,69 0 0 1 256,325 69,69 0 0 1 196.91211,290.83984 Z" />
+      </g>
+    </g>
+  </g>
+</svg>

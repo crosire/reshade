@@ -1,12 +1,11 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include "dll_resources.hpp"
 #include <algorithm>
 
 extern bool is_windows7();
@@ -14,47 +13,23 @@ extern bool is_windows7();
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	api_object_impl(device)
 {
-	// Create copy pipeline
-	{
-		D3D11_SAMPLER_DESC desc = {};
-		desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-		desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-		desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-
-		const resources::data_resource vs = resources::load_data_resource(IDR_FULLSCREEN_VS);
-		const resources::data_resource ps = resources::load_data_resource(IDR_COPY_PS);
-		if (FAILED(_orig->CreateVertexShader(vs.data, vs.data_size, nullptr, &_copy_vert_shader)) ||
-			FAILED(_orig->CreatePixelShader(ps.data, ps.data_size, nullptr, &_copy_pixel_shader)) ||
-			FAILED(_orig->CreateSamplerState(&desc, &_copy_sampler_state)))
-		{
-			LOG(ERROR) << "Failed to create copy pipeline!";
-		}
-	}
-
 #if RESHADE_ADDON
 	load_addons();
 
 	invoke_addon_event<addon_event::init_device>(this);
 
-	const D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
+	D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
 
-	{	api::pipeline_layout_param global_pipeline_layout_params[4];
-		global_pipeline_layout_params[0].push_descriptors.type = api::descriptor_type::sampler;
-		global_pipeline_layout_params[0].push_descriptors.count = D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT;
-		global_pipeline_layout_params[1].push_descriptors.type = api::descriptor_type::shader_resource_view;
-		global_pipeline_layout_params[1].push_descriptors.count = D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
-		global_pipeline_layout_params[2].push_descriptors.type = api::descriptor_type::constant_buffer;
-		global_pipeline_layout_params[2].push_descriptors.count = D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT;
-		global_pipeline_layout_params[3].push_descriptors.type = api::descriptor_type::unordered_access_view;
-		global_pipeline_layout_params[3].push_descriptors.count =
+	const api::pipeline_layout_param global_pipeline_layout_params[4] = {
+		api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::sampler },
+		api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view },
+		api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::constant_buffer },
+		api::descriptor_range { 0, 0, 0,
 			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
 			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
-			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
-		global_pipeline_layout_params[3].push_descriptors.visibility = api::shader_stage::pixel | api::shader_stage::compute;
-
-		invoke_addon_event<addon_event::init_pipeline_layout>(this, 4, global_pipeline_layout_params, global_pipeline_layout);
-	}
+			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0u, api::shader_stage::pixel | api::shader_stage::compute, 1, api::descriptor_type::unordered_access_view },
+	};
+	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
 #endif
 }
 reshade::d3d11::device_impl::~device_impl()
@@ -114,7 +89,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::copy_buffer_to_texture:
 	case api::device_caps::blit:
 	case api::device_caps::resolve_region:
-	case api::device_caps::copy_query_pool_results:
+	case api::device_caps::copy_query_heap_results:
 		return false;
 	case api::device_caps::sampler_compare:
 	case api::device_caps::sampler_anisotropic:
@@ -125,6 +100,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 		return true;
 	case api::device_caps::shared_resource_nt_handle:
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_1 && !is_windows7();
+	case api::device_caps::resolve_depth_stencil:
 	default:
 		return false;
 	}
@@ -388,7 +364,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 		return false;
 
 	// Cannot create a resource view with a typeless format
-	assert(desc.format != api::format_to_typeless(desc.format));
+	assert(desc.format != api::format_to_typeless(desc.format) || api::format_to_typeless(desc.format) == api::format_to_default_typed(desc.format));
 
 	switch (usage_type)
 	{
@@ -398,7 +374,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 			convert_resource_view_desc(desc, internal_desc);
 
 			if (com_ptr<ID3D11DepthStencilView> object;
-				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;
@@ -414,7 +390,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11RenderTargetView> object;
-					SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(_orig->CreateRenderTargetView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -426,7 +402,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11RenderTargetView1> object;
-					SUCCEEDED(device3->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(device3->CreateRenderTargetView1(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -443,7 +419,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11ShaderResourceView> object;
-					SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(_orig->CreateShaderResourceView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -455,7 +431,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11ShaderResourceView1> object;
-					SUCCEEDED(device3->CreateShaderResourceView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(device3->CreateShaderResourceView1(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -472,7 +448,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11UnorderedAccessView> object;
-					SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -484,7 +460,7 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 				convert_resource_view_desc(desc, internal_desc);
 
 				if (com_ptr<ID3D11UnorderedAccessView1> object;
-					SUCCEEDED(device3->CreateUnorderedAccessView1(reinterpret_cast<ID3D11Resource *>(resource.handle), &internal_desc, &object)))
+					SUCCEEDED(device3->CreateUnorderedAccessView1(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
 				{
 					*out_handle = to_handle(object.release());
 					return true;
@@ -576,13 +552,21 @@ bool reshade::d3d11::device_impl::map_buffer_region(api::resource resource, uint
 
 	assert(resource.handle != 0);
 
+	D3D11_BUFFER_DESC internal_desc = {};
+	reinterpret_cast<ID3D11Buffer *>(resource.handle)->GetDesc(&internal_desc);
+
+	D3D11_MAP map_type = convert_access_flags(access);
+	if ((internal_desc.BindFlags & (D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_INDEX_BUFFER)) != 0 && (internal_desc.BindFlags & D3D11_BIND_CONSTANT_BUFFER) == 0 && map_type == D3D11_MAP_WRITE)
+		// Use no overwrite flag to simulate D3D12 behavior of there only being one allocation that backs a buffer (instead of the runtime managing multiple ones behind the scenes)
+		map_type = D3D11_MAP_WRITE_NO_OVERWRITE;
+
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
-	D3D11_MAPPED_SUBRESOURCE mapped_ptr;
-	if (SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, convert_access_flags(access), 0, &mapped_ptr)))
+	if (D3D11_MAPPED_SUBRESOURCE mapped;
+		SUCCEEDED(immediate_context->Map(reinterpret_cast<ID3D11Buffer *>(resource.handle), 0, map_type, 0, &mapped)))
 	{
-		*out_data = static_cast<uint8_t *>(mapped_ptr.pData) + offset;
+		*out_data = static_cast<uint8_t *>(mapped.pData) + offset;
 		return true;
 	}
 	else
@@ -633,6 +617,7 @@ void reshade::d3d11::device_impl::unmap_texture_region(api::resource resource, u
 void reshade::d3d11::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource.handle != 0);
+	assert(data != nullptr);
 	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	com_ptr<ID3D11DeviceContext> immediate_context;
@@ -645,6 +630,7 @@ void reshade::d3d11::device_impl::update_buffer_region(const void *data, api::re
 void reshade::d3d11::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource.handle != 0);
+	assert(data.data != nullptr);
 
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
@@ -652,69 +638,186 @@ void reshade::d3d11::device_impl::update_texture_region(const api::subresource_d
 	immediate_context->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(resource.handle), subresource, reinterpret_cast<const D3D11_BOX *>(box), data.data, data.row_pitch, data.slice_pitch);
 }
 
-bool reshade::d3d11::device_impl::create_pipeline(const api::pipeline_desc &desc, uint32_t dynamic_state_count, const api::dynamic_state *dynamic_states, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	*out_handle = { 0 };
+	api::shader_desc vertex_shader_desc = {};
+	com_ptr<ID3D11VertexShader> vertex_shader;
+	com_ptr<ID3D11HullShader> hull_shader;
+	com_ptr<ID3D11DomainShader> domain_shader;
+	com_ptr<ID3D11GeometryShader> geometry_shader;
+	com_ptr<ID3D11PixelShader> pixel_shader;
+	api::pipeline_subobject input_layout_desc = {};
+	com_ptr<ID3D11BlendState> blend_state;
+	com_ptr<ID3D11RasterizerState> rasterizer_state;
+	com_ptr<ID3D11DepthStencilState> depth_stencil_state;
+	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	uint32_t sample_mask = UINT32_MAX;
+	uint32_t stencil_reference_value = 0;
+	float blend_constant[4] = {};
 
-	for (uint32_t i = 0; i < dynamic_state_count; ++i)
-		if (dynamic_states[i] != api::dynamic_state::primitive_topology)
-			return false;
-
-	switch (desc.type)
+	if (subobject_count == 1)
 	{
-	case api::pipeline_stage::all_graphics:
-		return create_graphics_pipeline(desc, out_handle);
-	case api::pipeline_stage::input_assembler:
-		return create_input_layout(desc, out_handle);
-	case api::pipeline_stage::vertex_shader:
-		return create_vertex_shader(desc, out_handle);
-	case api::pipeline_stage::hull_shader:
-		return create_hull_shader(desc, out_handle);
-	case api::pipeline_stage::domain_shader:
-		return create_domain_shader(desc, out_handle);
-	case api::pipeline_stage::geometry_shader:
-		return create_geometry_shader(desc, out_handle);
-	case api::pipeline_stage::pixel_shader:
-		return create_pixel_shader(desc, out_handle);
-	case api::pipeline_stage::compute_shader:
-		return create_compute_shader(desc, out_handle);
-	case api::pipeline_stage::rasterizer:
-		return create_rasterizer_state(desc, out_handle);
-	case api::pipeline_stage::depth_stencil:
-		return create_depth_stencil_state(desc, out_handle);
-	case api::pipeline_stage::output_merger:
-		return create_blend_state(desc, out_handle);
-	default:
-		return false;
+		if (subobjects->count != 0)
+		{
+			switch (subobjects->type)
+			{
+			case api::pipeline_subobject_type::vertex_shader:
+				assert(subobjects->count == 1);
+				return create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::hull_shader:
+				assert(subobjects->count == 1);
+				return create_hull_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::domain_shader:
+				assert(subobjects->count == 1);
+				return create_domain_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::geometry_shader:
+				assert(subobjects->count == 1);
+				return create_geometry_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::pixel_shader:
+				assert(subobjects->count == 1);
+				return create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::compute_shader:
+				assert(subobjects->count == 1);
+				return create_compute_shader(*static_cast<const api::shader_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::blend_state:
+				assert(subobjects->count == 1);
+				return create_blend_state(*static_cast<const api::blend_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::rasterizer_state:
+				assert(subobjects->count == 1);
+				return create_rasterizer_state(*static_cast<const api::rasterizer_desc *>(subobjects->data), out_handle);
+			case api::pipeline_subobject_type::depth_stencil_state:
+				assert(subobjects->count == 1);
+				return create_depth_stencil_state(*static_cast<const api::depth_stencil_desc *>(subobjects->data), out_handle);
+			default:
+				assert(false);
+				break;
+			}
+		}
+
+		goto exit_failure;
 	}
-}
-bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_desc &desc, api::pipeline *out_handle)
-{
-	*out_handle = { 0 };
+	else
+	{
+		for (uint32_t i = 0; i < subobject_count; ++i)
+		{
+			if (subobjects[i].count == 0)
+				continue;
 
-	if (desc.graphics.rasterizer_state.conservative_rasterization ||
-		desc.graphics.topology == api::primitive_topology::triangle_fan)
-		return false;
+			api::pipeline temp;
 
-#define create_state_object(name, type, condition) \
-	api::pipeline name##_handle = { 0 }; \
-	if (condition && !create_##name(desc, &name##_handle)) \
-		return false; \
-	com_ptr<type> name(reinterpret_cast<type *>(name##_handle.handle), true)
+			switch (subobjects[i].type)
+			{
+			case api::pipeline_subobject_type::vertex_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				vertex_shader_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+				if (subobject_count == 2 && subobjects[!i].type == api::pipeline_subobject_type::input_layout)
+					break; // Special case for creating an input layout, where the vertex shader pipeline subobject only points to the input signature byte code
+				if (!create_vertex_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				vertex_shader = com_ptr<ID3D11VertexShader>(reinterpret_cast<ID3D11VertexShader *>(temp.handle), true);
+				break;
+			case api::pipeline_subobject_type::hull_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				if (!create_hull_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				hull_shader = com_ptr<ID3D11HullShader>(reinterpret_cast<ID3D11HullShader *>(temp.handle), true);
+				break;
+			case api::pipeline_subobject_type::domain_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				if (!create_domain_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				domain_shader = com_ptr<ID3D11DomainShader>(reinterpret_cast<ID3D11DomainShader *>(temp.handle), true);
+				break;
+			case api::pipeline_subobject_type::geometry_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				if (!create_geometry_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				geometry_shader = com_ptr<ID3D11GeometryShader>(reinterpret_cast<ID3D11GeometryShader *>(temp.handle), true);
+				break;
+			case api::pipeline_subobject_type::pixel_shader:
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				if (!create_pixel_shader(*static_cast<const api::shader_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				pixel_shader = com_ptr<ID3D11PixelShader>(reinterpret_cast<ID3D11PixelShader *>(temp.handle), true);
+				break;
+			case api::pipeline_subobject_type::compute_shader: // Compute shaders cannot be part of a graphics pipeline
+				assert(subobjects[i].count == 1);
+				if (static_cast<const api::shader_desc *>(subobjects[i].data)->code_size == 0)
+					break;
+				goto exit_failure;
+			case api::pipeline_subobject_type::input_layout:
+				input_layout_desc = subobjects[i];
+				break;
+			case api::pipeline_subobject_type::stream_output_state:
+				assert(subobjects[i].count == 1);
+				goto exit_failure; // Not implemented
+			case api::pipeline_subobject_type::blend_state:
+				assert(subobjects[i].count == 1);
+				if (!create_blend_state(*static_cast<const api::blend_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				blend_state = com_ptr<ID3D11BlendState>(reinterpret_cast<ID3D11BlendState *>(temp.handle), true);
+				std::copy_n(static_cast<const api::blend_desc *>(subobjects[i].data)->blend_constant, 4, blend_constant);
+				break;
+			case api::pipeline_subobject_type::rasterizer_state:
+				assert(subobjects[i].count == 1);
+				if (!create_rasterizer_state(*static_cast<const api::rasterizer_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				rasterizer_state = com_ptr<ID3D11RasterizerState>(reinterpret_cast<ID3D11RasterizerState *>(temp.handle), true);
+				break;
+			case api::pipeline_subobject_type::depth_stencil_state:
+				assert(subobjects[i].count == 1);
+				if (!create_depth_stencil_state(*static_cast<const api::depth_stencil_desc *>(subobjects[i].data), &temp))
+					goto exit_failure;
+				depth_stencil_state = com_ptr<ID3D11DepthStencilState>(reinterpret_cast<ID3D11DepthStencilState *>(temp.handle), true);
+				stencil_reference_value = static_cast<const api::depth_stencil_desc *>(subobjects[i].data)->front_stencil_reference_value;
+				break;
+			case api::pipeline_subobject_type::primitive_topology:
+				assert(subobjects[i].count == 1);
+				topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+				if (topology == api::primitive_topology::triangle_fan)
+					goto exit_failure;
+				break;
+			case api::pipeline_subobject_type::depth_stencil_format:
+			case api::pipeline_subobject_type::render_target_formats:
+				break; // Ignored
+			case api::pipeline_subobject_type::sample_mask:
+				assert(subobjects[i].count == 1);
+				sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+				break;
+			case api::pipeline_subobject_type::sample_count:
+			case api::pipeline_subobject_type::viewport_count:
+				assert(subobjects[i].count == 1);
+				break; // Ignored
+			case api::pipeline_subobject_type::dynamic_pipeline_states:
+				for (uint32_t k = 0; k < subobjects[i].count; ++k)
+					if (static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::primitive_topology)
+						goto exit_failure;
+				break;
+			case api::pipeline_subobject_type::max_vertex_count:
+				assert(subobjects[i].count == 1);
+				break; // Ignored
+			default:
+				assert(false);
+				goto exit_failure;
+			}
+		}
+	}
 
-	create_state_object(vertex_shader, ID3D11VertexShader, desc.graphics.vertex_shader.code_size != 0);
-	create_state_object(hull_shader, ID3D11HullShader, desc.graphics.hull_shader.code_size != 0);
-	create_state_object(domain_shader, ID3D11DomainShader, desc.graphics.domain_shader.code_size != 0);
-	create_state_object(geometry_shader, ID3D11GeometryShader, desc.graphics.geometry_shader.code_size != 0);
-	create_state_object(pixel_shader, ID3D11PixelShader, desc.graphics.pixel_shader.code_size != 0);
+	api::pipeline input_layout;
+	if (!create_input_layout(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_shader_desc, &input_layout))
+		goto exit_failure;
 
-	create_state_object(input_layout, ID3D11InputLayout, true);
-	create_state_object(blend_state, ID3D11BlendState, true);
-	create_state_object(rasterizer_state, ID3D11RasterizerState, true);
-	create_state_object(depth_stencil_state, ID3D11DepthStencilState, true);
-#undef create_state_object
-
-	const auto impl = new pipeline_impl();
+	pipeline_impl *const impl = new pipeline_impl();
 
 	impl->vs = std::move(vertex_shader);
 	impl->hs = std::move(hull_shader);
@@ -722,34 +825,38 @@ bool reshade::d3d11::device_impl::create_graphics_pipeline(const api::pipeline_d
 	impl->gs = std::move(geometry_shader);
 	impl->ps = std::move(pixel_shader);
 
-	impl->input_layout = std::move(input_layout);
+	impl->input_layout = com_ptr<ID3D11InputLayout>(reinterpret_cast<ID3D11InputLayout *>(input_layout.handle), true);
 
 	impl->blend_state = std::move(blend_state);
 	impl->rasterizer_state = std::move(rasterizer_state);
 	impl->depth_stencil_state = std::move(depth_stencil_state);
 
-	impl->topology = convert_primitive_topology(desc.graphics.topology);
-	impl->sample_mask = desc.graphics.sample_mask;
-	impl->stencil_reference_value = desc.graphics.depth_stencil_state.stencil_reference_value;
+	impl->topology = convert_primitive_topology(topology);
+	impl->sample_mask = sample_mask;
+	impl->stencil_reference_value = stencil_reference_value;
 
-	std::copy_n(desc.graphics.blend_state.blend_constant, 4, impl->blend_constant);
+	std::copy_n(blend_constant, 4, impl->blend_constant);
 
 	// Set first bit to identify this as a 'pipeline_impl' handle for 'destroy_pipeline'
 	static_assert(alignof(pipeline_impl) >= 2);
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
 	return true;
+
+exit_failure:
+	*out_handle = { 0 };
+	return false;
 }
-bool reshade::d3d11::device_impl::create_input_layout(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, const api::shader_desc &signature, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11InputLayout) >= 2);
 
 	std::vector<D3D11_INPUT_ELEMENT_DESC> internal_elements;
-	convert_pipeline_desc(desc, internal_elements);
+	convert_input_layout_desc(count, desc, internal_elements);
 
 	if (com_ptr<ID3D11InputLayout> object;
 		internal_elements.empty() || // Empty input layout is valid, but generates a warning, so just return success and a zero handle
-		SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, &object)))
+		SUCCEEDED(_orig->CreateInputLayout(internal_elements.data(), static_cast<UINT>(internal_elements.size()), signature.code, signature.code_size, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -760,15 +867,15 @@ bool reshade::d3d11::device_impl::create_input_layout(const api::pipeline_desc &
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11VertexShader) >= 2);
 
-	assert(desc.graphics.vertex_shader.entry_point == nullptr);
-	assert(desc.graphics.vertex_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D11VertexShader> object;
-		SUCCEEDED(_orig->CreateVertexShader(desc.graphics.vertex_shader.code, desc.graphics.vertex_shader.code_size, nullptr, &object)))
+		SUCCEEDED(_orig->CreateVertexShader(desc.code, desc.code_size, nullptr, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -779,15 +886,15 @@ bool reshade::d3d11::device_impl::create_vertex_shader(const api::pipeline_desc 
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_hull_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11HullShader) >= 2);
 
-	assert(desc.graphics.hull_shader.entry_point == nullptr);
-	assert(desc.graphics.hull_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D11HullShader> object;
-		SUCCEEDED(_orig->CreateHullShader(desc.graphics.hull_shader.code, desc.graphics.hull_shader.code_size, nullptr, &object)))
+		SUCCEEDED(_orig->CreateHullShader(desc.code, desc.code_size, nullptr, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -798,15 +905,15 @@ bool reshade::d3d11::device_impl::create_hull_shader(const api::pipeline_desc &d
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_domain_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11DomainShader) >= 2);
 
-	assert(desc.graphics.domain_shader.entry_point == nullptr);
-	assert(desc.graphics.domain_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D11DomainShader> object;
-		SUCCEEDED(_orig->CreateDomainShader(desc.graphics.domain_shader.code, desc.graphics.domain_shader.code_size, nullptr, &object)))
+		SUCCEEDED(_orig->CreateDomainShader(desc.code, desc.code_size, nullptr, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -817,15 +924,15 @@ bool reshade::d3d11::device_impl::create_domain_shader(const api::pipeline_desc 
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_geometry_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11GeometryShader) >= 2);
 
-	assert(desc.graphics.geometry_shader.entry_point == nullptr);
-	assert(desc.graphics.geometry_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D11GeometryShader> object;
-		SUCCEEDED(_orig->CreateGeometryShader(desc.graphics.geometry_shader.code, desc.graphics.geometry_shader.code_size, nullptr, &object)))
+		SUCCEEDED(_orig->CreateGeometryShader(desc.code, desc.code_size, nullptr, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -836,15 +943,15 @@ bool reshade::d3d11::device_impl::create_geometry_shader(const api::pipeline_des
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11PixelShader) >= 2);
 
-	assert(desc.graphics.pixel_shader.entry_point == nullptr);
-	assert(desc.graphics.pixel_shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D11PixelShader> object;
-		SUCCEEDED(_orig->CreatePixelShader(desc.graphics.pixel_shader.code, desc.graphics.pixel_shader.code_size, nullptr, &object)))
+		SUCCEEDED(_orig->CreatePixelShader(desc.code, desc.code_size, nullptr, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -855,15 +962,15 @@ bool reshade::d3d11::device_impl::create_pixel_shader(const api::pipeline_desc &
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_compute_shader(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_compute_shader(const api::shader_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11ComputeShader) >= 2);
 
-	assert(desc.compute.shader.entry_point == nullptr);
-	assert(desc.compute.shader.spec_constants == 0);
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
 
 	if (com_ptr<ID3D11ComputeShader> object;
-		SUCCEEDED(_orig->CreateComputeShader(desc.compute.shader.code, desc.compute.shader.code_size, nullptr, &object)))
+		SUCCEEDED(_orig->CreateComputeShader(desc.code, desc.code_size, nullptr, &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -874,7 +981,7 @@ bool reshade::d3d11::device_impl::create_compute_shader(const api::pipeline_desc
 		return false;
 	}
 }
-bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_blend_state(const api::blend_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11BlendState) >= 2);
 
@@ -882,7 +989,7 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 	if (SUCCEEDED(_orig->QueryInterface(&device1)))
 	{
 		D3D11_BLEND_DESC1 internal_desc = {};
-		convert_pipeline_desc(desc, internal_desc);
+		convert_blend_desc(desc, internal_desc);
 
 		if (com_ptr<ID3D11BlendState1> object;
 			SUCCEEDED(device1->CreateBlendState1(&internal_desc, &object)))
@@ -894,7 +1001,7 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 	else
 	{
 		D3D11_BLEND_DESC internal_desc = {};
-		convert_pipeline_desc(desc, internal_desc);
+		convert_blend_desc(desc, internal_desc);
 
 		if (com_ptr<ID3D11BlendState> object;
 			SUCCEEDED(_orig->CreateBlendState(&internal_desc, &object)))
@@ -907,7 +1014,7 @@ bool reshade::d3d11::device_impl::create_blend_state(const api::pipeline_desc &d
 	*out_handle = { 0 };
 	return false;
 }
-bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_rasterizer_state(const api::rasterizer_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11RasterizerState) >= 2);
 
@@ -915,7 +1022,7 @@ bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_de
 	if (SUCCEEDED(_orig->QueryInterface(&device3)))
 	{
 		D3D11_RASTERIZER_DESC2 internal_desc = {};
-		convert_pipeline_desc(desc, internal_desc);
+		convert_rasterizer_desc(desc, internal_desc);
 
 		if (com_ptr<ID3D11RasterizerState2> object;
 			SUCCEEDED(device3->CreateRasterizerState2(&internal_desc, &object)))
@@ -926,8 +1033,14 @@ bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_de
 	}
 	else
 	{
+		if (desc.conservative_rasterization)
+		{
+			*out_handle = { 0 };
+			return false;
+		}
+
 		D3D11_RASTERIZER_DESC internal_desc = {};
-		convert_pipeline_desc(desc, internal_desc);
+		convert_rasterizer_desc(desc, internal_desc);
 
 		if (com_ptr<ID3D11RasterizerState> object;
 			SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
@@ -940,12 +1053,12 @@ bool reshade::d3d11::device_impl::create_rasterizer_state(const api::pipeline_de
 	*out_handle = { 0 };
 	return false;
 }
-bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline_desc &desc, api::pipeline *out_handle)
+bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::depth_stencil_desc &desc, api::pipeline *out_handle)
 {
 	static_assert(alignof(ID3D11DepthStencilState) >= 2);
 
 	D3D11_DEPTH_STENCIL_DESC internal_desc = {};
-	convert_pipeline_desc(desc, internal_desc);
+	convert_depth_stencil_desc(desc, internal_desc);
 
 	if (com_ptr<ID3D11DepthStencilState> object;
 		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))
@@ -961,7 +1074,7 @@ bool reshade::d3d11::device_impl::create_depth_stencil_state(const api::pipeline
 }
 void reshade::d3d11::device_impl::destroy_pipeline(api::pipeline handle)
 {
-	if (handle.handle & 1)
+	if (handle.handle & 1) // See 'device_impl::create_pipeline'
 		delete reinterpret_cast<pipeline_impl *>(handle.handle ^ 1);
 	else if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
@@ -979,19 +1092,20 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 		switch (params[i].type)
 		{
-		case api::pipeline_layout_param_type::descriptor_set:
-			if (params[i].descriptor_set.count == 0)
+		case api::pipeline_layout_param_type::descriptor_table:
+		case api::pipeline_layout_param_type::push_descriptors_with_ranges:
+			if (params[i].descriptor_table.count == 0)
 				return false;
 
-			merged_range = params[i].descriptor_set.ranges[0];
-			if (merged_range.array_size > 1 || merged_range.dx_register_space != 0)
+			merged_range = params[i].descriptor_table.ranges[0];
+			if (merged_range.count == UINT32_MAX || merged_range.array_size > 1 || merged_range.dx_register_space != 0)
 				return false;
 
-			for (uint32_t k = 1; k < params[i].descriptor_set.count; ++k)
+			for (uint32_t k = 1; k < params[i].descriptor_table.count; ++k)
 			{
-				const api::descriptor_range &range = params[i].descriptor_set.ranges[k];
+				const api::descriptor_range &range = params[i].descriptor_table.ranges[k];
 
-				if (range.type != merged_range.type || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
+				if (range.type != merged_range.type || range.count == UINT32_MAX || range.array_size > 1 || range.dx_register_space != merged_range.dx_register_space)
 					return false;
 
 				if (range.binding >= merged_range.binding)
@@ -1000,8 +1114,9 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 					if ((range.dx_register_index - merged_range.dx_register_index) != distance)
 						return false;
+					assert(merged_range.count <= distance);
 
-					merged_range.count += distance;
+					merged_range.count = distance + range.count;
 					merged_range.visibility |= range.visibility;
 				}
 				else
@@ -1010,6 +1125,7 @@ bool reshade::d3d11::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 					if ((merged_range.dx_register_index - range.dx_register_index) != distance)
 						return false;
+					assert(range.count <= distance);
 
 					merged_range.binding = range.binding;
 					merged_range.dx_register_index = range.dx_register_index;
@@ -1045,7 +1161,7 @@ void reshade::d3d11::device_impl::destroy_pipeline_layout(api::pipeline_layout h
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
-bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_set *out_sets)
+bool reshade::d3d11::device_impl::allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables)
 {
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
@@ -1053,26 +1169,27 @@ bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, api::
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			const auto impl = new descriptor_set_impl();
-			impl->type = layout_impl->ranges[layout_param].type;
-			impl->count = layout_impl->ranges[layout_param].count;
+			const auto table_impl = new descriptor_table_impl();
+			table_impl->type = layout_impl->ranges[layout_param].type;
+			table_impl->count = layout_impl->ranges[layout_param].count;
+			table_impl->base_binding = layout_impl->ranges[layout_param].binding;
 
-			switch(impl->type)
+			switch (table_impl->type)
 			{
 			case api::descriptor_type::sampler:
 			case api::descriptor_type::shader_resource_view:
 			case api::descriptor_type::unordered_access_view:
-				impl->descriptors.resize(impl->count * 1);
+				table_impl->descriptors.resize(table_impl->count * 1);
 				break;
 			case api::descriptor_type::constant_buffer:
-				impl->descriptors.resize(impl->count * 3);
+				table_impl->descriptors.resize(table_impl->count * 3);
 				break;
 			default:
 				assert(false);
 				break;
 			}
 
-			out_sets[i] = { reinterpret_cast<uintptr_t>(impl) };
+			out_tables[i] = { reinterpret_cast<uintptr_t>(table_impl) };
 		}
 
 		return true;
@@ -1080,49 +1197,51 @@ bool reshade::d3d11::device_impl::allocate_descriptor_sets(uint32_t count, api::
 	else
 	{
 		for (uint32_t i = 0; i < count; ++i)
-		{
-			out_sets[i] = { 0 };
-		}
+			out_tables[i] = { 0 };
 
 		return false;
 	}
 }
-void reshade::d3d11::device_impl::free_descriptor_sets(uint32_t count, const api::descriptor_set *sets)
+void reshade::d3d11::device_impl::free_descriptor_tables(uint32_t count, const api::descriptor_table *tables)
 {
 	for (uint32_t i = 0; i < count; ++i)
-		delete reinterpret_cast<descriptor_set_impl *>(sets[i].handle);
+		delete reinterpret_cast<descriptor_table_impl *>(tables[i].handle);
 }
 
-void reshade::d3d11::device_impl::get_descriptor_pool_offset(api::descriptor_set set, uint32_t binding, uint32_t array_offset, api::descriptor_pool *pool, uint32_t *offset) const
+void reshade::d3d11::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
 {
-	assert(set.handle != 0 && array_offset == 0);
+	assert(table.handle != 0 && array_offset == 0 && heap != nullptr && offset != nullptr);
 
-	*pool = { 0 }; // Not implemented
+	*heap = { 0 }; // Not implemented
 	*offset = binding;
 }
 
-void reshade::d3d11::device_impl::copy_descriptor_sets(uint32_t count, const api::descriptor_set_copy *copies)
+void reshade::d3d11::device_impl::copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const api::descriptor_set_copy &copy = copies[i];
+		const api::descriptor_table_copy &copy = copies[i];
+
+		const auto src_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.source_table.handle);
+		const auto dst_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.dest_table.handle);
+		assert(src_table_impl != nullptr && dst_table_impl != nullptr && src_table_impl->type == dst_table_impl->type);
+
+		const uint32_t dst_binding = copy.dest_binding - dst_table_impl->base_binding;
+		assert(dst_binding < dst_table_impl->count && copy.count <= (dst_table_impl->count - dst_binding));
+		const uint32_t src_binding = copy.source_binding - src_table_impl->base_binding;
+		assert(src_binding < src_table_impl->count && copy.count <= (src_table_impl->count - src_binding));
 
 		assert(copy.dest_array_offset == 0 && copy.source_array_offset == 0);
 
-		const auto src_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.source_set.handle);
-		const auto dst_set_impl = reinterpret_cast<descriptor_set_impl *>(copy.dest_set.handle);
-
-		assert(src_set_impl != nullptr && dst_set_impl != nullptr && src_set_impl->type == dst_set_impl->type);
-
-		switch (src_set_impl->type)
+		switch (src_table_impl->type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&dst_set_impl->descriptors[copy.dest_binding * 1], &src_set_impl->descriptors[copy.source_binding * 1], copy.count * sizeof(uint64_t) * 1);
+			std::memcpy(&dst_table_impl->descriptors[dst_binding * 1], &src_table_impl->descriptors[src_binding * 1], copy.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&dst_set_impl->descriptors[copy.dest_binding * 3], &src_set_impl->descriptors[copy.source_binding * 3], copy.count * sizeof(uint64_t) * 3);
+			std::memcpy(&dst_table_impl->descriptors[dst_binding * 3], &src_table_impl->descriptors[src_binding * 3], copy.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);
@@ -1130,27 +1249,29 @@ void reshade::d3d11::device_impl::copy_descriptor_sets(uint32_t count, const api
 		}
 	}
 }
-void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const api::descriptor_set_update *updates)
+void reshade::d3d11::device_impl::update_descriptor_tables(uint32_t count, const api::descriptor_table_update *updates)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const api::descriptor_set_update &update = updates[i];
+		const api::descriptor_table_update &update = updates[i];
+
+		const auto table_impl = reinterpret_cast<descriptor_table_impl *>(update.table.handle);
+		assert(table_impl != nullptr && table_impl->type == update.type);
+
+		const uint32_t update_binding = update.binding - table_impl->base_binding;
+		assert(update_binding < table_impl->count && update.count <= (table_impl->count - update_binding));
 
 		assert(update.array_offset == 0);
-
-		const auto set_impl = reinterpret_cast<descriptor_set_impl *>(update.set.handle);
-
-		assert(set_impl != nullptr && set_impl->type == update.type);
 
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
-			std::memcpy(&set_impl->descriptors[update.binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
+			std::memcpy(&table_impl->descriptors[update_binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::constant_buffer:
-			std::memcpy(&set_impl->descriptors[update.binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
+			std::memcpy(&table_impl->descriptors[update_binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		default:
 			assert(false);
@@ -1159,9 +1280,9 @@ void reshade::d3d11::device_impl::update_descriptor_sets(uint32_t count, const a
 	}
 }
 
-bool reshade::d3d11::device_impl::create_query_pool(api::query_type type, uint32_t size, api::query_pool *out_handle)
+bool reshade::d3d11::device_impl::create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_handle)
 {
-	const auto impl = new query_pool_impl();
+	const auto impl = new query_heap_impl();
 	impl->queries.resize(size);
 
 	D3D11_QUERY_DESC internal_desc = {};
@@ -1181,40 +1302,42 @@ bool reshade::d3d11::device_impl::create_query_pool(api::query_type type, uint32
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
-void reshade::d3d11::device_impl::destroy_query_pool(api::query_pool handle)
+void reshade::d3d11::device_impl::destroy_query_heap(api::query_heap handle)
 {
-	delete reinterpret_cast<query_pool_impl *>(handle.handle);
+	delete reinterpret_cast<query_heap_impl *>(handle.handle);
 }
 
-bool reshade::d3d11::device_impl::get_query_pool_results(api::query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d11::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
-	assert(pool.handle != 0);
+	assert(heap.handle != 0);
 
-	const auto impl = reinterpret_cast<query_pool_impl *>(pool.handle);
+	const auto impl = reinterpret_cast<query_heap_impl *>(heap.handle);
 
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 
 	for (size_t i = 0; i < count; ++i)
 	{
-		if (FAILED(immediate_context->GetData(impl->queries[first + i].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH)))
+		// May return 'S_FALSE' if the data is not yet available
+		if (immediate_context->GetData(impl->queries[first + i].get(), static_cast<uint8_t *>(results) + i * stride, stride, D3D11_ASYNC_GETDATA_DONOTFLUSH) != S_OK)
 			return false;
 	}
 
 	return true;
 }
 
+// WKPDID_D3DDebugObjectName
+static constexpr GUID s_debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} };
+
 void reshade::d3d11::device_impl::set_resource_name(api::resource handle, const char *name)
 {
 	assert(handle.handle != 0);
 
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
 }
 void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
 {
 	assert(handle.handle != 0);
 
-	constexpr GUID debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} }; // WKPDID_D3DDebugObjectName
-	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(debug_object_name_guid, static_cast<UINT>(strlen(name)), name);
+	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
 }

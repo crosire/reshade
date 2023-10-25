@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "d3d12_device.hpp"
@@ -8,7 +8,6 @@
 #include "d3d12_command_queue.hpp"
 #include "d3d12_command_queue_downlevel.hpp"
 #include "dll_log.hpp"
-#include <malloc.h>
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	command_queue_impl(device, original),
@@ -32,7 +31,7 @@ bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12CommandQueue),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;
@@ -150,8 +149,11 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pD
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
+	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
+	std::unique_lock<std::shared_mutex> lock(_mutex);
+
 	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
-	for (UINT i = 0; i < NumCommandLists; i++)
+	for (UINT i = 0; i < NumCommandLists; ++i)
 	{
 		assert(ppCommandLists[i] != nullptr);
 
@@ -173,6 +175,8 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 	}
 
 	flush_immediate_command_list();
+
+	lock.unlock();
 
 	_orig->ExecuteCommandLists(NumCommandLists, command_lists.p);
 }

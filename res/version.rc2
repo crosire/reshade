@@ -1,0 +1,47 @@
+#include "version.h"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_REVISION,VERSION_BUILD
+ PRODUCTVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_REVISION,VERSION_BUILD
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+ FILEFLAGS (VS_FF_PRERELEASE | VS_FF_DEBUG)
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_DLL
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040004b0"
+        BEGIN
+            VALUE "CompanyName", "crosire"
+            VALUE "FileVersion", VERSION_STRING_FILE
+            VALUE "ProductName", "ReShade"
+            VALUE "ProductVersion", VERSION_STRING_PRODUCT
+            VALUE "LegalCopyright", "Copyright © 2014. All rights reserved."
+#ifdef RESHADE_FXC
+            VALUE "FileDescription", "ReShade FX compiler"
+#else
+    #ifndef _WIN64
+            VALUE "FileDescription", "crosire's ReShade post-processing injector for 32-bit"
+            VALUE "OriginalFilename", "ReShade32.dll"
+    #else
+            VALUE "FileDescription", "crosire's ReShade post-processing injector for 64-bit"
+            VALUE "OriginalFilename", "ReShade64.dll"
+    #endif
+#endif
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x400, 0x4b0
+    END
+END

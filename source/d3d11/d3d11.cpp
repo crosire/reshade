@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "d3d11_device.hpp"
@@ -10,7 +10,7 @@
 
 extern thread_local bool g_in_dxgi_runtime;
 
-HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
+extern "C" HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
 	if (g_in_dxgi_runtime)
 		return reshade::hooks::call(D3D11CreateDevice)(
@@ -34,7 +34,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_
 	return D3D11CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, ppImmediateContext);
 }
 
-HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
+extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
 	// Pass on unmodified in case this called from within 'CDXGISwapChain::EnsureChildDeviceInternal' or 'D3D10CreateDeviceAndSwapChain1', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
 	if (g_in_dxgi_runtime)
@@ -59,7 +59,9 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 #ifndef NDEBUG
 	// Remove flag that prevents turning on the debug layer
 	Flags &= ~D3D11_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY;
+#endif
 
+#ifdef RESHADE_TEST_APPLICATION
 	// Perform dummy call to 'CreateDXGIFactory1' to ensure virtual function table hooks are set up correctly
 	// This is done here in case a third party is hooking the factory too, to ensure the call chain of the factory methods is consistent:
 	//    App -> ReShade -> X (some third party that installed hooks) -> driver
@@ -74,7 +76,9 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	// Use local feature level variable in case the application did not pass one in
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
+	g_in_dxgi_runtime = true;
 	HRESULT hr = reshade::hooks::call(D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
+	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "D3D11CreateDeviceAndSwapChain" << " failed with error code " << hr << '.';
@@ -84,7 +88,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	if (pFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
 		*pFeatureLevel = FeatureLevel;
 
-	LOG(INFO) << "> Using feature level " << std::hex << FeatureLevel << std::dec << '.';
+	LOG(INFO) << "Using feature level " << std::hex << FeatureLevel << std::dec << '.';
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
 	if (ppDevice == nullptr)
@@ -94,7 +98,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 	}
 
 	auto device = *ppDevice;
-	// Query for the DXGI device and immediate device context since we need to reference them in the hooked device
+	// Query for the DXGI device and immediate device context since we need to reference them in the proxy device
 	com_ptr<IDXGIDevice1> dxgi_device;
 	hr = device->QueryInterface(&dxgi_device);
 	assert(SUCCEEDED(hr));
@@ -149,7 +153,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(INFO) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
+			LOG(DEBUG) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
 				"IDXGIDevice1" << " object " << static_cast<IDXGIDevice1 *>(device_proxy) << " (" << static_cast<DXGIDevice *>(device_proxy)->_orig << ").";
 #endif
 			*ppDevice = device_proxy;

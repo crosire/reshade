@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "hook_manager.hpp"
@@ -11,7 +11,7 @@
 // Note that the hooks below are sometimes called before the CRT is initialized, so keep logic as simple as possible!
 extern HMODULE g_export_module_handle;
 
-HOOK_EXPORT void WINAPI Direct3D9ForceHybridEnumeration(UINT Mode)
+extern "C" void WINAPI Direct3D9ForceHybridEnumeration(UINT Mode)
 {
 	if (g_export_module_handle != nullptr)
 	{
@@ -22,7 +22,7 @@ HOOK_EXPORT void WINAPI Direct3D9ForceHybridEnumeration(UINT Mode)
 }
 
 // This is called when the 'DXMaximizedWindowedMode' compatibility fix is active (by AcLayers.dll shim), via export ordinal 17
-HOOK_EXPORT void WINAPI Direct3D9SetMaximizedWindowedModeShim(int Unknown, UINT Mode)
+extern "C" void WINAPI Direct3D9SetMaximizedWindowedModeShim(int Unknown, UINT Mode)
 {
 	if (g_export_module_handle != nullptr)
 	{
@@ -32,7 +32,7 @@ HOOK_EXPORT void WINAPI Direct3D9SetMaximizedWindowedModeShim(int Unknown, UINT 
 	}
 }
 
-HOOK_EXPORT void WINAPI Direct3D9SetSwapEffectUpgradeShim(int Unknown)
+extern "C" void WINAPI Direct3D9SetSwapEffectUpgradeShim(int Unknown)
 {
 	if (g_export_module_handle != nullptr)
 	{
@@ -43,7 +43,7 @@ HOOK_EXPORT void WINAPI Direct3D9SetSwapEffectUpgradeShim(int Unknown)
 }
 
 // This is called when the 'D3D9On12Enabler' compatibility fix is active (by AcGenral.dll shim), via export ordinal 19
-HOOK_EXPORT void WINAPI Direct3D9Force9on12(int Unknown)
+extern "C" void WINAPI Direct3D9Force9on12(int Unknown)
 {
 	if (g_export_module_handle != nullptr)
 	{
@@ -54,7 +54,8 @@ HOOK_EXPORT void WINAPI Direct3D9Force9on12(int Unknown)
 }
 
 // This is called when the 'DXMaximizedWindowedHwndOverride' compatibility fix is active (by AcLayers.dll shim), via export ordinal 22
-HOOK_EXPORT void WINAPI Direct3D9SetMaximizedWindowHwndOverride(int Unknown)
+// Enabled for e.g. Star Wars: The Old Republic (can be checked with the Compatibility Administrator tool from the Assessment and Deployment Kit in the Windows SDK)
+extern "C" void WINAPI Direct3D9SetMaximizedWindowHwndOverride(int Unknown)
 {
 	if (g_export_module_handle != nullptr)
 	{
@@ -65,7 +66,7 @@ HOOK_EXPORT void WINAPI Direct3D9SetMaximizedWindowHwndOverride(int Unknown)
 }
 
 // This is called when the 'D3D9On12VendorIDLie' compatibility fix is active (by AcGenral.dll shim), via export ordinal 23
-HOOK_EXPORT void WINAPI Direct3D9SetVendorIDLieFor9on12(int Unknown)
+extern "C" void WINAPI Direct3D9SetVendorIDLieFor9on12(int Unknown)
 {
 	if (g_export_module_handle != nullptr)
 	{
@@ -75,7 +76,7 @@ HOOK_EXPORT void WINAPI Direct3D9SetVendorIDLieFor9on12(int Unknown)
 	}
 }
 
-HOOK_EXPORT void WINAPI Direct3D9EnableMaximizedWindowedModeShim(int Unknown)
+extern "C" void WINAPI Direct3D9EnableMaximizedWindowedModeShim(int Unknown)
 {
 	Direct3D9SetMaximizedWindowedModeShim(Unknown, 1);
 }

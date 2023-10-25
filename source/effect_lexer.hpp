@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -55,20 +55,20 @@ namespace reshadefx
 		}
 
 		/// <summary>
-		/// Get the current position in the input string.
+		/// Gets the current position in the input string.
 		/// </summary>
 		size_t input_offset() const { return _cur - _input.data(); }
 
 		/// <summary>
-		/// Get the input string this lexical analyzer works on.
+		/// Gets the input string this lexical analyzer works on.
 		/// </summary>
-		/// <returns>A constant reference to the input string.</returns>
+		/// <returns>Constant reference to the input string.</returns>
 		const std::string &input_string() const { return _input; }
 
 		/// <summary>
-		/// Perform lexical analysis on the input string and return the next token in sequence.
+		/// Performs lexical analysis on the input string and return the next token in sequence.
 		/// </summary>
-		/// <returns>The next token from the input string.</returns>
+		/// <returns>Next token from the input string.</returns>
 		token lex();
 
 		/// <summary>
@@ -81,7 +81,7 @@ namespace reshadefx
 		void skip_to_next_line();
 
 		/// <summary>
-		/// Reset position to the specified <paramref name="offset"/>.
+		/// Resets position to the specified <paramref name="offset"/>.
 		/// </summary>
 		/// <param name="offset">Offset in characters from the start of the input string.</param>
 		void reset_to_offset(size_t offset);
@@ -90,7 +90,7 @@ namespace reshadefx
 		/// <summary>
 		/// Skips an arbitrary amount of characters in the input string.
 		/// </summary>
-		/// <param name="length">The number of input characters to skip.</param>
+		/// <param name="length">Number of input characters to skip.</param>
 		void skip(size_t length);
 
 		void parse_identifier(token &tok) const;
@@ -101,6 +101,7 @@ namespace reshadefx
 		std::string _input;
 		location _cur_location;
 		const std::string::value_type *_cur, *_end;
+
 		bool _ignore_comments;
 		bool _ignore_whitespace;
 		bool _ignore_pp_directives;

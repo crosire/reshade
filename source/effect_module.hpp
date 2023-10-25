@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
@@ -11,14 +11,27 @@
 namespace reshadefx
 {
 	/// <summary>
-	/// A list of supported image formats.
+	/// A list of supported texture types.
+	/// </summary>
+	enum class texture_type
+	{
+		texture_1d = 1,
+		texture_2d = 2,
+		texture_3d = 3
+	};
+
+	/// <summary>
+	/// A list of supported texture formats.
 	/// </summary>
 	enum class texture_format
 	{
 		unknown,
 
 		r8,
+		r16,
 		r16f,
+		r32i,
+		r32u,
 		r32f,
 		rg8,
 		rg16,
@@ -28,7 +41,7 @@ namespace reshadefx
 		rgba16,
 		rgba16f,
 		rgba32f,
-		rgb10a2,
+		rgb10a2
 	};
 
 	/// <summary>
@@ -64,26 +77,26 @@ namespace reshadefx
 	{
 		add = 1,
 		subtract,
-		rev_subtract,
+		reverse_subtract,
 		min,
-		max,
+		max
 	};
 
 	/// <summary>
 	/// Specifies blend factors, which modulate values between the pixel shader output and render target.
 	/// </summary>
-	enum class pass_blend_func : uint8_t
+	enum class pass_blend_factor : uint8_t
 	{
 		zero = 0,
 		one = 1,
-		src_color,
-		src_alpha,
-		inv_src_color,
-		inv_src_alpha,
-		dst_color,
-		dst_alpha,
-		inv_dst_color,
-		inv_dst_alpha,
+		source_color,
+		one_minus_source_color,
+		dest_color,
+		one_minus_dest_color,
+		source_alpha,
+		one_minus_source_alpha,
+		dest_alpha,
+		one_minus_dest_alpha
 	};
 
 	/// <summary>
@@ -91,14 +104,14 @@ namespace reshadefx
 	/// </summary>
 	enum class pass_stencil_op : uint8_t
 	{
-		zero,
+		zero = 0,
 		keep,
-		invert,
 		replace,
-		incr,
-		incr_sat,
-		decr,
-		decr_sat,
+		increment_saturate,
+		decrement_saturate,
+		invert,
+		increment,
+		decrement
 	};
 
 	/// <summary>
@@ -107,13 +120,13 @@ namespace reshadefx
 	enum class pass_stencil_func : uint8_t
 	{
 		never,
-		equal,
-		not_equal,
 		less,
+		equal,
 		less_equal,
 		greater,
+		not_equal,
 		greater_equal,
-		always,
+		always
 	};
 
 	/// <summary>
@@ -125,7 +138,7 @@ namespace reshadefx
 		line_list,
 		line_strip,
 		triangle_list,
-		triangle_strip,
+		triangle_strip
 	};
 
 	/// <summary>
@@ -172,8 +185,10 @@ namespace reshadefx
 		std::string semantic;
 		std::string unique_name;
 		std::vector<annotation> annotations;
+		texture_type type = texture_type::texture_2d;
 		uint32_t width = 1;
 		uint32_t height = 1;
+		uint16_t depth = 1;
 		uint16_t levels = 1;
 		texture_format format = texture_format::rgba8;
 		bool render_target = false;
@@ -181,7 +196,7 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A texture sampler defined in the effect code.
+	/// A texture sampler object defined in the effect code.
 	/// </summary>
 	struct sampler_info
 	{
@@ -189,6 +204,7 @@ namespace reshadefx
 		uint32_t binding = 0;
 		uint32_t texture_binding = 0;
 		std::string name;
+		reshadefx::type type;
 		std::string unique_name;
 		std::string texture_name;
 		std::vector<annotation> annotations;
@@ -210,13 +226,14 @@ namespace reshadefx
 		uint32_t id = 0;
 		uint32_t binding = 0;
 		std::string name;
+		reshadefx::type type;
 		std::string unique_name;
 		std::string texture_name;
-		texture_format format = texture_format::unknown;
+		uint16_t level = 0;
 	};
 
 	/// <summary>
-	/// An uniform variable defined in the effect code.
+	/// A uniform variable defined in the effect code.
 	/// </summary>
 	struct uniform_info
 	{
@@ -273,19 +290,20 @@ namespace reshadefx
 		std::string vs_entry_point;
 		std::string ps_entry_point;
 		std::string cs_entry_point;
+		uint8_t generate_mipmaps = true;
 		uint8_t clear_render_targets = false;
 		uint8_t srgb_write_enable = false;
-		uint8_t blend_enable = false;
+		uint8_t blend_enable[8] = { false, false, false, false, false, false, false, false };
 		uint8_t stencil_enable = false;
-		uint8_t color_write_mask = 0xF;
+		uint8_t color_write_mask[8] = { 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF };
 		uint8_t stencil_read_mask = 0xFF;
 		uint8_t stencil_write_mask = 0xFF;
-		pass_blend_op blend_op = pass_blend_op::add;
-		pass_blend_op blend_op_alpha = pass_blend_op::add;
-		pass_blend_func src_blend = pass_blend_func::one;
-		pass_blend_func dest_blend = pass_blend_func::zero;
-		pass_blend_func src_blend_alpha = pass_blend_func::one;
-		pass_blend_func dest_blend_alpha = pass_blend_func::zero;
+		pass_blend_op blend_op[8] = { pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add };
+		pass_blend_op blend_op_alpha[8] = { pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add };
+		pass_blend_factor src_blend[8] = { pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one };
+		pass_blend_factor dest_blend[8] = { pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero };
+		pass_blend_factor src_blend_alpha[8] = { pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one };
+		pass_blend_factor dest_blend_alpha[8] = { pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero };
 		pass_stencil_func stencil_comparison_func = pass_stencil_func::always;
 		uint32_t stencil_reference_value = 0;
 		pass_stencil_op stencil_op_pass = pass_stencil_op::keep;
@@ -315,8 +333,7 @@ namespace reshadefx
 	/// </summary>
 	struct module
 	{
-		std::string hlsl;
-		std::vector<uint32_t> spirv;
+		std::vector<char> code;
 
 		std::vector<entry_point> entry_points;
 		std::vector<texture_info> textures;

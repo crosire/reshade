@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2021 Patrick Mours
- * License: https://github.com/crosire/reshade#license
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -41,12 +41,12 @@ namespace reshade { namespace api
 	{
 		/// <summary>
 		/// Specifies whether compute shaders are supported.
-		/// If this feature is not present, the <see cref="pipeline_stage::compute_shader"/> stage must not be used.
+		/// If this feature is not present, the <see cref="pipeline_stage::compute_shader"/> stage and <see cref="command_list::dispatch"/> must not be used.
 		/// </summary>
 		compute_shader = 1,
 		/// <summary>
 		/// Specifies whether geometry shaders are supported.
-		/// If this feature is not present, the <see cref="pipeline_stage::geometry_shader"/>  stage must not be used.
+		/// If this feature is not present, the <see cref="pipeline_stage::geometry_shader"/> stage must not be used.
 		/// </summary>
 		geometry_shader,
 		/// <summary>
@@ -86,7 +86,7 @@ namespace reshade { namespace api
 		bind_render_targets_and_depth_stencil,
 		/// <summary>
 		/// Specifies whther more than one viewport is supported.
-		/// If this feature is not present, the "first" and "count" parameters to <see cref="command_list::bind_viewports"/> must be 0 and 1.
+		/// If this feature is not present, the "first" and "count" parameters to <see cref="command_list::bind_viewports"/> and <see cref="command_list::bind_scissor_rects"/> must be 0 and 1.
 		/// </summary>
 		multi_viewport,
 		/// <summary>
@@ -126,14 +126,14 @@ namespace reshade { namespace api
 		blit,
 		/// <summary>
 		/// Specifies whether resolving a region of a resource rather than its entirety is supported.
-		/// If this feature is not present, the "source_box" and "dest_offset" parameters to <see cref="command_list::resolve_texture_region"/> must be <see langword="nullptr"/>.
+		/// If this feature is not present, the "source_box", "dest_x", "dest_y" and "dest_z" parameters to <see cref="command_list::resolve_texture_region"/> must be <see langword="nullptr"/> and zero.
 		/// </summary>
 		resolve_region,
 		/// <summary>
 		/// Specifies whether copying query results to a buffer is supported.
-		/// If this feature is not present, <see cref="command_list::copy_query_pool_results"/> must not be used.
+		/// If this feature is not present, <see cref="command_list::copy_query_heap_results"/> must not be used.
 		/// </summary>
-		copy_query_pool_results,
+		copy_query_heap_results,
 		/// <summary>
 		/// Specifies whether comparison sampling is supported.
 		/// If this feature is not present, the <see cref="sampler_desc::compare_op"/> field is ignored and the compare filter types have no effect.
@@ -159,27 +159,19 @@ namespace reshade { namespace api
 		/// If this feature is not present, <see cref="resource_flags::shared_nt_handle"/> must not be used.
 		/// </summary>
 		shared_resource_nt_handle,
+		/// <summary>
+		/// Specifies whether resolving depth-stencil resources is supported.
+		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used with depth-stencil resources.
+		/// </summary>
+		resolve_depth_stencil
 	};
 
 	/// <summary>
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
-	class __declspec(novtable) api_object
+	struct __declspec(novtable) api_object
 	{
-	public:
-		/// <summary>
-		/// Gets a user-defined 64-bit value from the object that was previously set via <see cref="set_private_data"/>, or zero if none associated with the specified <paramref name="guid"/> exists.
-		/// </summary>
-		virtual void get_private_data(const uint8_t guid[16], uint64_t *data) const = 0;
-		/// <summary>
-		/// Stores a user-defined 64-bit value in the object and associates it with the specified <paramref name="guid"/>.
-		/// </summary>
-		/// <remarks>
-		/// This function may NOT be called concurrently from multiple threads!
-		/// </remarks>
-		virtual void set_private_data(const uint8_t guid[16], const uint64_t data)  = 0;
-
 		/// <summary>
 		/// Gets the underlying native object for this API object.
 		/// </summary>
@@ -187,9 +179,21 @@ namespace reshade { namespace api
 		/// For <see cref="device"/> this will be be a pointer to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device' or 'ID3D12Device' object or a 'HGLRC' or 'VkDevice' handle.<br/>
 		/// For <see cref="command_list"/> this will be a pointer to a 'ID3D11DeviceContext' (when recording), 'ID3D11CommandList' (when executing) or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.<br/>
 		/// For <see cref="command_queue"/> this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.<br/>
-		/// For <see cref="effect_runtime"/> this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
+		/// For <see cref="swapchain"/> this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
 		/// </remarks>
-		virtual uint64_t get_native_object() const = 0;
+		virtual uint64_t get_native() const = 0;
+
+		/// <summary>
+		/// Gets a user-defined 64-bit value from the object that was previously set via <see cref="set_private_data"/>, or zero if none associated with the specified <paramref name="guid"/> exists.
+		/// </summary>
+		virtual     void get_private_data(const uint8_t guid[16], uint64_t *data) const = 0;
+		/// <summary>
+		/// Stores a user-defined 64-bit value in the object and associates it with the specified <paramref name="guid"/>.
+		/// </summary>
+		/// <remarks>
+		/// This function may NOT be called concurrently from multiple threads!
+		/// </remarks>
+		virtual     void set_private_data(const uint8_t guid[16], const uint64_t data)  = 0;
 
 		/// <summary>
 		/// Gets a reference to user-defined data from the object that was previously allocated via <see cref="create_private_data"/>.
@@ -228,11 +232,10 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class is safe to use concurrently from multiple threads in D3D10+ and Vulkan.
 	/// </remarks>
-	class __declspec(novtable) device : public api_object
+	struct __declspec(novtable) device : public api_object
 	{
-	public:
 		/// <summary>
-		/// Gets the underlying render API used by this device.
+		/// Gets the underlying graphics API used by this device.
 		/// </summary>
 		virtual device_api get_api() const = 0;
 
@@ -295,6 +298,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
 		/// </summary>
+		/// <remarks>
+		/// Resource views may be created without a resource in D3D12, which is used to initialize a null descriptor (reading zeroes, writes are discarded). This may therefore return zero for such views.
+		/// </remarks>
 		virtual resource get_resource_from_view(resource_view view) const = 0;
 		/// <summary>
 		/// Gets the description of the specified resource view.
@@ -353,12 +359,12 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Creates a new pipeline state object.
 		/// </summary>
-		/// <param name="desc">Description of the pipeline state object to create.</param>
-		/// <param name="dynamic_state_count">Number of dynamic pipeline states.</param>
-		/// <param name="dynamic_states">Optional pointer to an array of pipeline states that may be dynamically updated via <see cref="command_list::bind_pipeline_states"/> after binding the created pipeline state object.</param>
+		/// <param name="layout">Pipeline layout to use.</param>
+		/// <param name="subobject_count">Number of sub-objects.</param>
+		/// <param name="subobjects">Pointer to an array of sub-objects that describe this pipeline.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
 		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline(const pipeline_desc &desc, uint32_t dynamic_state_count, const dynamic_state *dynamic_states, pipeline *out_handle) = 0;
+		virtual bool create_pipeline(pipeline_layout layout, uint32_t subobject_count, const pipeline_subobject *subobjects, pipeline *out_handle) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
 		/// </summary>
@@ -378,87 +384,87 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
 
 		/// <summary>
-		/// Allocates a descriptor set from an internal pool.
+		/// Allocates a descriptor table from an internal heap.
 		/// </summary>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
-		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor set.</param>
-		/// <returns><see langword="true"/> if the descriptor set was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
-		inline  bool allocate_descriptor_set(pipeline_layout layout, uint32_t param, descriptor_set *out_handle) { return allocate_descriptor_sets(1, layout, param, out_handle); }
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
+		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor table.</param>
+		/// <returns><see langword="true"/> if the descriptor table was successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
+		inline  bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_handle) { return allocate_descriptor_tables(1, layout, param, out_handle); }
 		/// <summary>
-		/// Allocates one or more descriptor sets from an internal pool.
+		/// Allocates one or more descriptor tables from an internal heap.
 		/// </summary>
-		/// <param name="count">Number of descriptor sets to allocate.</param>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor set.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor set.</param>
-		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor sets.</param>
-		/// <returns><see langword="true"/> if the descriptor sets were successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
-		virtual bool allocate_descriptor_sets(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_set *out_handles) = 0;
+		/// <param name="count">Number of descriptor tables to allocate.</param>
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
+		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor tables.</param>
+		/// <returns><see langword="true"/> if the descriptor tables were successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
+		virtual bool allocate_descriptor_tables(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_table *out_handles) = 0;
 		/// <summary>
-		/// Frees adescriptor set that was previously allocated via <see cref="create_descriptor_set"/>.
+		/// Frees a descriptor table that was previously allocated via <see cref="create_descriptor_table"/>.
 		/// </summary>
-		inline  void free_descriptor_set(descriptor_set handle) { free_descriptor_sets(1, &handle); }
+		inline  void free_descriptor_table(descriptor_table handle) { free_descriptor_tables(1, &handle); }
 		/// <summary>
-		/// Frees one or more descriptor sets that were previously allocated via <see cref="create_descriptor_sets"/>.
+		/// Frees one or more descriptor tables that were previously allocated via <see cref="create_descriptor_tables"/>.
 		/// </summary>
-		virtual void free_descriptor_sets(uint32_t count, const descriptor_set *handles) = 0;
+		virtual void free_descriptor_tables(uint32_t count, const descriptor_table *handles) = 0;
 
 		/// <summary>
-		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor pool.
+		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor heap of a descriptor table.
 		/// </summary>
-		/// <param name="set">Descriptor set to get the offset from.</param>
-		/// <param name="binding">Binding in the descriptor set to get the offset from.</param>
+		/// <param name="table">Descriptor table to get the offset from.</param>
+		/// <param name="binding">Binding in the descriptor table to get the offset from.</param>
 		/// <param name="array_offset">Array index in the specified <paramref name="binding"/>.</param>
-		/// <param name="out_pool">Pointer to a variable that is set to the handle of the underlying descriptor pool the <paramref name="set"/> was allocated from.</param>
-		/// <param name="out_offset">Pointer to a variable that is set to the offset of the descriptor set in the underlying pool.</param>
-		virtual void get_descriptor_pool_offset(descriptor_set set, uint32_t binding, uint32_t array_offset, descriptor_pool *out_pool, uint32_t *out_offset) const = 0;
+		/// <param name="out_heap">Pointer to a variable that is set to the handle of the underlying descriptor heap the <paramref name="table"/> was allocated from.</param>
+		/// <param name="out_offset">Pointer to a variable that is set to the offset of the binding in the underlying descriptor heap.</param>
+		virtual void get_descriptor_heap_offset(descriptor_table table, uint32_t binding, uint32_t array_offset, descriptor_heap *out_heap, uint32_t *out_offset) const = 0;
 
 		/// <summary>
-		/// Copies the contents of a descriptor set to another descriptor set.
+		/// Copies the contents of a descriptor table to another descriptor table.
 		/// </summary>
-		/// <param name="copy">Descriptor set copy to process.</param>
-		inline  void copy_descriptors(const descriptor_set_copy &copy) { copy_descriptor_sets(1, &copy); }
+		/// <param name="copy">Descriptor table copy to process.</param>
+		inline  void copy_descriptors(const descriptor_table_copy &copy) { copy_descriptor_tables(1, &copy); }
 		/// <summary>
-		/// Copies the contents between multiple descriptor sets.
+		/// Copies the contents between multiple descriptor tables.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="copies"/> to process.</param>
-		/// <param name="copies">Pointer to an array of descriptor set copies to process.</param>
-		virtual void copy_descriptor_sets(uint32_t count, const descriptor_set_copy *copies) = 0;
+		/// <param name="copies">Pointer to an array of descriptor table copies to process.</param>
+		virtual void copy_descriptor_tables(uint32_t count, const descriptor_table_copy *copies) = 0;
 		/// <summary>
-		/// Updates the contents of a descriptor set with the specified descriptors.
+		/// Updates the contents of a descriptor table with the specified descriptors.
 		/// </summary>
-		/// <param name="update">Descriptor set update to process.</param>
-		inline  void update_descriptors(const descriptor_set_update &update) { update_descriptor_sets(1, &update); }
+		/// <param name="update">Descriptor table update to process.</param>
+		inline  void update_descriptors(const descriptor_table_update &update) { update_descriptor_tables(1, &update); }
 		/// <summary>
-		/// Updates the contents of multiple descriptor sets with the specified descriptors.
+		/// Updates the contents of multiple descriptor tables with the specified descriptors.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="updates"/> to process.</param>
-		/// <param name="updates">Pointer to an array of descriptor set updates to process.</param>
-		virtual void update_descriptor_sets(uint32_t count, const descriptor_set_update *updates) = 0;
+		/// <param name="updates">Pointer to an array of descriptor table updates to process.</param>
+		virtual void update_descriptor_tables(uint32_t count, const descriptor_table_update *updates) = 0;
 
 		/// <summary>
-		/// Creates a new query pool.
+		/// Creates a new query heap.
 		/// </summary>
-		/// <param name="type">Type of queries that will be used with this pool.</param>
-		/// <param name="size">Number of queries to allocate in the pool.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query pool.</param>
-		/// <returns><see langword="true"/> if the query pool was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_query_pool(query_type type, uint32_t size, query_pool *out_handle) = 0;
+		/// <param name="type">Type of queries that will be used with this query heap.</param>
+		/// <param name="size">Number of queries to allocate in the query heap.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query heap.</param>
+		/// <returns><see langword="true"/> if the query heap was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_query_heap(query_type type, uint32_t size, query_heap *out_handle) = 0;
 		/// <summary>
-		/// Instantly destroys a query pool that was previously created via <see cref="create_query_pool"/>.
+		/// Instantly destroys a query heap that was previously created via <see cref="create_query_heap"/>.
 		/// </summary>
-		virtual void destroy_query_pool(query_pool handle) = 0;
+		virtual void destroy_query_heap(query_heap handle) = 0;
 
 		/// <summary>
-		/// Gets the results of queries in a query pool.
+		/// Gets the results of queries in a query heap.
 		/// </summary>
-		/// <param name="pool">Query pool that contains the queries.</param>
-		/// <param name="first">Index of the first query in the pool to copy the results from.</param>
+		/// <param name="heap">Query heap that contains the queries.</param>
+		/// <param name="first">Index of the first query in the query heap to copy the results from.</param>
 		/// <param name="count">Number of query results to copy.</param>
 		/// <param name="results">Pointer to an array that is filled with the results.</param>
 		/// <param name="stride">Size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
-		virtual bool get_query_pool_results(query_pool pool, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+		virtual bool get_query_heap_results(query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Associates a name with a resource, for easier debugging in external tools.
@@ -477,13 +483,23 @@ namespace reshade { namespace api
 	/// <summary>
 	/// The base class for objects that are children to a logical render <see cref="device"/>.
 	/// </summary>
-	class __declspec(novtable) device_object : public api_object
+	struct __declspec(novtable) device_object : public api_object
 	{
-	public:
 		/// <summary>
 		/// Gets the parent device for this object.
 		/// </summary>
 		virtual device *get_device() = 0;
+	};
+
+	/// <summary>
+	/// The available indirect command types.
+	/// </summary>
+	enum class indirect_command
+	{
+		unknown,
+		draw,
+		draw_indexed,
+		dispatch
 	};
 
 	/// <summary>
@@ -493,9 +509,8 @@ namespace reshade { namespace api
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	class __declspec(novtable) command_list : public device_object
+	struct __declspec(novtable) command_list : public device_object
 	{
-	public:
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
 		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
@@ -530,9 +545,7 @@ namespace reshade { namespace api
 		/// Binds individual render target and depth-stencil resource views.
 		/// This must not be called between <see cref="begin_render_pass"/> and <see cref="end_render_pass"/>.
 		/// </summary>
-		/// <remarks>
-		/// This is not supported (and will do nothing) in Vulkan.
-		/// </remarks>
+		/// <seealso cref="device_caps::bind_render_targets_and_depth_stencil"/>
 		/// <param name="count">Number of render target views to bind.</param>
 		/// <param name="rtvs">Pointer to an array of render target views to bind.</param>
 		/// <param name="dsv">Depth-stencil view to bind, or zero to bind none.</param>
@@ -541,19 +554,19 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Binds a pipeline state object.
 		/// </summary>
-		/// <param name="type">Pipeline stage to bind the pipeline state object to.</param>
+		/// <param name="stages">Pipeline stages to update with state from the pipeline state object.</param>
 		/// <param name="pipeline">Pipeline state object to bind.</param>
-		virtual void bind_pipeline(pipeline_stage type, pipeline pipeline) = 0;
+		virtual void bind_pipeline(pipeline_stage stages, pipeline pipeline) = 0;
 		/// <summary>
 		/// Updates the specfified pipeline <paramref name="state"/> to the specified <paramref name="value"/>.
-		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object.
+		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object (<see cref="pipeline_subobject_type::dynamic_pipeline_states"/>).
 		/// </summary>
 		/// <param name="state">Pipeline state to update.</param>
 		/// <param name="value">Value to update the pipeline state to.</param>
 		inline  void bind_pipeline_state(dynamic_state state, uint32_t value) { bind_pipeline_states(1, &state, &value); }
 		/// <summary>
 		/// Updates the specfified pipeline <paramref name="states"/> to the specified <paramref name="values"/>.
-		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object.
+		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object (<see cref="pipeline_subobject_type::dynamic_pipeline_states"/>).
 		/// </summary>
 		/// <param name="count">Number of pipeline states to update.</param>
 		/// <param name="states">Pointer to an array of pipeline states to update.</param>
@@ -562,15 +575,17 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Binds an array of viewports to the rasterizer stage.
 		/// </summary>
+		/// <seealso cref="device_caps::multi_viewport"/>
 		/// <param name="first">Index of the first viewport to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
-		/// <param name="count">Number of viewports to bind. In D3D9 this has to be 1.</param>
+		/// <param name="count">Number of viewports to bind.</param>
 		/// <param name="viewports">Pointer to an array of viewports.</param>
 		virtual void bind_viewports(uint32_t first, uint32_t count, const viewport *viewports) = 0;
 		/// <summary>
 		/// Binds an array of scissor rectangles to the rasterizer stage.
 		/// </summary>
+		/// <seealso cref="device_caps::multi_viewport"/>
 		/// <param name="first">Index of the first scissor rectangle to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
-		/// <param name="count">Number of scissor rectangles to bind. In D3D9 this has to be 1.</param>
+		/// <param name="count">Number of scissor rectangles to bind.</param>
 		/// <param name="rects">Pointer to an array of scissor rectangles.</param>
 		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const rect *rects) = 0;
 
@@ -578,6 +593,7 @@ namespace reshade { namespace api
 		/// Directly updates constant values in the specified shader pipeline stages.
 		/// <para>In D3D9 this updates the values of uniform registers, in D3D10/11 and OpenGL the constant buffer specified in the pipeline layout, in D3D12 it sets root constants and in Vulkan push constants.</para>
 		/// </summary>
+		/// <seealso cref="device_caps::partial_push_constant_updates"/>
 		/// <param name="stages">Shader stages that will use the updated constants.</param>
 		/// <param name="layout">Pipeline layout that describes where the constants are located.</param>
 		/// <param name="param">Layout parameter index of the constant range in the pipeline <paramref name="layout"/> (root parameter index in D3D12).</param>
@@ -586,30 +602,31 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
 		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t param, uint32_t first, uint32_t count, const void *values) = 0;
 		/// <summary>
-		/// Directly binds a temporary descriptor set for the specfified shader pipeline stage and updates with an array of descriptors.
+		/// Directly binds a temporary descriptor table for the specfified shader pipeline stage and updates with an array of descriptors.
 		/// </summary>
+		/// <seealso cref="device_caps::partial_push_descriptor_updates"/>
 		/// <param name="stages">Shader stages that will use the updated descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="param">Layout parameter index of the descriptor set in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
-		/// <param name="update">Range of descriptors to update in the temporary set (<see cref="descriptor_set_update::set"/> is ignored).</param>
-		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t param, const descriptor_set_update &update) = 0;
+		/// <param name="param">Layout parameter index of the descriptor table in the pipeline <paramref name="layout"/> (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="update">Range of descriptors to update in the temporary descriptor table (<see cref="descriptor_table_update::table"/> is ignored).</param>
+		virtual void push_descriptors(shader_stage stages, pipeline_layout layout, uint32_t param, const descriptor_table_update &update) = 0;
 		/// <summary>
-		/// Binds a single descriptor set.
+		/// Binds a single descriptor table.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="param">Index of the pipeline <paramref name="layout"/> parameter that describes the descriptor set (root parameter index in D3D12, descriptor set index in Vulkan).</param>
-		/// <param name="set">Descriptor set to bind.</param>
-		inline  void bind_descriptor_set(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_set set) { bind_descriptor_sets(stages, layout, param, 1, &set); }
+		/// <param name="param">Index of the pipeline <paramref name="layout"/> parameter that describes the descriptor table (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="table">Descriptor table to bind.</param>
+		inline  void bind_descriptor_table(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_table table) { bind_descriptor_tables(stages, layout, param, 1, &table); }
 		/// <summary>
-		/// Binds an array of descriptor sets.
+		/// Binds an array of descriptor tables.
 		/// </summary>
 		/// <param name="stages">Shader stages that will use the descriptors.</param>
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
-		/// <param name="first">Index of the first pipeline <paramref name="layout"/> parameter that describes the first descriptor set to bind.</param>
-		/// <param name="count">Number of descriptor sets to bind.</param>
-		/// <param name="sets">Pointer to an array of descriptor sets to bind.</param>
-		virtual void bind_descriptor_sets(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_set *sets) = 0;
+		/// <param name="first">Index of the first pipeline <paramref name="layout"/> parameter that describes the first descriptor table to bind (root parameter index in D3D12, descriptor set index in Vulkan).</param>
+		/// <param name="count">Number of descriptor tables to bind.</param>
+		/// <param name="tables">Pointer to an array of descriptor tables to bind.</param>
+		virtual void bind_descriptor_tables(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables) = 0;
 
 		/// <summary>
 		/// Binds an index buffer to the input-assembler stage.
@@ -632,13 +649,26 @@ namespace reshade { namespace api
 		/// <param name="first">First input slot for binding.</param>
 		/// <param name="count">Number of vertex buffers to bind.</param>
 		/// <param name="buffers">Pointer to an array of vertex buffer resources. These resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
-		/// <param name="offsets">Pointer to an array of offset values, with one for each buffer in <paramref name="buffers"/>. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
-		/// <param name="strides">Pointer to an array of stride values, with one for each buffer in <paramref name="strides"/>. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
+		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
+		/// <param name="strides">Pointer to an array of stride values, one for each buffer. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
 		virtual void bind_vertex_buffers(uint32_t first, uint32_t count, const resource *buffers, const uint64_t *offsets, const uint32_t *strides) = 0;
+
+		/// <summary>
+		/// Binds an array of buffers to the stream-output stage.
+		/// </summary>
+		/// <param name="first">First stream-output slot for binding.</param>
+		/// <param name="count">Number of stream-output targets to bind.</param>
+		/// <param name="buffers">Pointer to an array of buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the buffer to the first element to write to.</param>
+		/// <param name="max_sizes">Optional pointer to an array of size values, one for each buffer. Can be <see langword="nullptr"/> or have elements set to UINT64_MAX to use the entire buffer.</param>
+		/// <param name="counter_buffers">Pointer to an array of counter buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="counter_offsets">Pointer to an array of counter offset values, one for each counter buffer. Each offset is the number of bytes from the start of the counter buffer to the first element to write to.</param>
+		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) = 0;
 
 		/// <summary>
 		/// Draws non-indexed primitives.
 		/// </summary>
+		/// <seealso cref="device_caps::draw_instanced"/>
 		/// <param name="vertex_count">Number of vertices to draw.</param>
 		/// <param name="instance_count">Number of instances to draw. In D3D9 this has to be 1.</param>
 		/// <param name="first_vertex">Index of the first vertex.</param>
@@ -647,6 +677,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Draws indexed primitives.
 		/// </summary>
+		/// <seealso cref="device_caps::draw_instanced"/>
 		/// <param name="index_count">Number of indices read from the index buffer for each instance.</param>
 		/// <param name="instance_count">Number of instances to draw. In D3D9 this has to be 1.</param>
 		/// <param name="first_index">Location of the first index read from the index buffer.</param>
@@ -656,9 +687,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Performs a compute shader dispatch.
 		/// </summary>
-		/// <remarks>
-		/// This is not supported (and will do nothing) in D3D9 and D3D10.
-		/// </remarks>
+		/// <seealso cref="device_caps::compute_shader"/>
 		/// <param name="group_count_x">Number of thread groups dispatched in the x direction.</param>
 		/// <param name="group_count_y">Number of thread groups dispatched in the y direction.</param>
 		/// <param name="group_count_z">Number of thread groups dispatched in the z direction.</param>
@@ -666,9 +695,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Executes indirect draw or dispatch commands.
 		/// </summary>
-		/// <remarks>
-		/// This is not supported (and will do nothing) in D3D9 and D3D10.
-		/// </remarks>
+		/// <seealso cref="device_caps::draw_or_dispatch_indirect"/>
 		/// <param name="type">Specifies whether this is an indirect draw, indexed draw or dispatch command.</param>
 		/// <param name="buffer">Buffer resource that contains command arguments.</param>
 		/// <param name="offset">Offset (in bytes) from the start of the argument buffer to the first argument to use.</param>
@@ -690,10 +717,10 @@ namespace reshade { namespace api
 		/// Copies a linear memory region from the <paramref name="source"/> buffer to the <paramref name="dest"/>ination buffer.
 		/// </summary>
 		/// <remarks>
-		/// This is not supported (and will do nothing) in D3D9.
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
+		/// <seealso cref="device_caps::copy_buffer_region"/>
 		/// <param name="source">Buffer resource to copy from.</param>
 		/// <param name="source_offset">Offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
 		/// <param name="dest">Buffer resource to copy to.</param>
@@ -707,6 +734,7 @@ namespace reshade { namespace api
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
+		/// <seealso cref="device_caps::copy_buffer_to_texture"/>
 		/// <param name="source">Buffer resource to copy from.</param>
 		/// <param name="source_offset">Offset (in bytes) into the <paramref name="source"/> buffer to start copying at.</param>
 		/// <param name="row_length">Number of pixels from one row to the next (in the buffer), or zero if data is tightly packed.</param>
@@ -722,6 +750,7 @@ namespace reshade { namespace api
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
+		/// <seealso cref="device_caps::blit"/>
 		/// <param name="source">Texture resource to copy from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
 		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to blit from.</param>
@@ -737,6 +766,7 @@ namespace reshade { namespace api
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::copy_source"/> state.
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
+		/// <seealso cref="device_caps::copy_buffer_to_texture"/>
 		/// <param name="source">Texture resource to copy from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to copy from.</param>
 		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to copy from.</param>
@@ -752,15 +782,18 @@ namespace reshade { namespace api
 		/// The <paramref name="source"/> resource has to be in the <see cref="resource_usage::resolve_source"/> state.
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::resolve_dest"/> state.
 		/// </remarks>
+		/// <seealso cref="device_caps::resolve_region"/>
+		/// <seealso cref="device_caps::resolve_depth_stencil"/>
 		/// <param name="source">Texture resource to resolve from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
-		/// <param name="source_rect">Optional rectangle (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve. In D3D10 and D3D11 this has to be <see langword="nullptr"/>.</param>
+		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve.</param>
 		/// <param name="dest">Texture resource to resolve to.</param>
 		/// <param name="dest_subresource">Index of the subresource of the <paramref name="dest"/>ination texture to resolve to.</param>
-		/// <param name="dest_x">Optional X offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to. In D3D10 and D3D11 this has to be zero.</param>
-		/// <param name="dest_y">Optional Y offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to. In D3D10 and D3D11 this has to be zero.</param>
+		/// <param name="dest_x">Optional X offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to.</param>
+		/// <param name="dest_y">Optional Y offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to.</param>
+		/// <param name="dest_z">Optional Z offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to.</param>
 		/// <param name="format">Format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const rect *source_rect, resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, int32_t dest_z, format format) = 0;
 
 		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.
@@ -810,10 +843,10 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Generates the lower mipmap levels for the specified shader resource view.
-		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mip and stops with the smallest level that is specified by the view.
+		/// Uses the largest mipmap level of the view to recursively generate the lower levels of the mipmap chain and stops with the smallest level that is specified by the view.
 		/// </summary>
 		/// <remarks>
-		/// This will invalidate all previous descriptor bindings, which will need to be reset by calls to <see cref="bind_descriptor_set"/> or <see cref="push_descriptors"/>.
+		/// This will invalidate all previous descriptor and pipeline bindings, which will need to be reset by calls to <see cref="bind_descriptor_tables"/> or <see cref="push_descriptors"/> and <see cref="bind_pipeline"/>.
 		/// The resource the shader resource view points to has to be in the <see cref="resource_usage::shader_resource"/> state and has to have been created with the <see cref="resource_flags::generate_mipmaps"/> flag.
 		/// </remarks>
 		/// <param name="srv">Shader resource view to update.</param>
@@ -822,31 +855,32 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Begins a query.
 		/// </summary>
-		/// <param name="pool">Query pool that will manage the results of the query.</param>
+		/// <param name="heap">Query heap that will manage the results of the query.</param>
 		/// <param name="type">Type of the query to begin.</param>
-		/// <param name="index">Index of the query in the pool.</param>
-		virtual void begin_query(query_pool pool, query_type type, uint32_t index) = 0;
+		/// <param name="index">Index of the query in the query heap.</param>
+		virtual void begin_query(query_heap heap, query_type type, uint32_t index) = 0;
 		/// <summary>
 		/// Ends a query.
 		/// </summary>
-		/// <param name="pool">Query pool that will manage the results of the query.</param>
+		/// <param name="heap">Query heap that will manage the results of the query.</param>
 		/// <param name="type">Type of the query end.</param>
-		/// <param name="index">Index of the query in the pool.</param>
-		virtual void end_query(query_pool pool, query_type type, uint32_t index) = 0;
+		/// <param name="index">Index of the query in the query heap.</param>
+		virtual void end_query(query_heap heap, query_type type, uint32_t index) = 0;
 		/// <summary>
-		/// Copy the results of queries in a query pool to a buffer resource.
+		/// Copies the results of queries in a query heap to a buffer resource.
 		/// </summary>
 		/// <remarks>
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
 		/// </remarks>
-		/// <param name="pool">Query pool that manages the results of the queries.</param>
+		/// <seealso cref="device_caps::copy_query_heap_results"/>
+		/// <param name="heap">Query heap that manages the results of the queries.</param>
 		/// <param name="type">Type of the queries to copy.</param>
-		/// <param name="first">Index of the first query in the pool to copy the result from.</param>
+		/// <param name="first">Index of the first query in the query heap to copy the result from.</param>
 		/// <param name="count">Number of query results to copy.</param>
 		/// <param name="dest">Buffer resource to copy to.</param>
 		/// <param name="dest_offset">Offset (in bytes) into the <paramref name="dest"/>ination buffer to start copying to.</param>
 		/// <param name="stride">Size (in bytes) of each result element.</param>
-		virtual void copy_query_pool_results(query_pool pool, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride) = 0;
+		virtual void copy_query_heap_results(query_heap heap, query_type type, uint32_t first, uint32_t count, resource dest, uint64_t dest_offset, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command list.
@@ -867,19 +901,29 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
+	/// </summary>
+	enum class command_queue_type
+	{
+		graphics = 0x1,
+		compute = 0x2,
+		copy = 0x4
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
+
+	/// <summary>
 	/// A command queue, used to execute command lists on the GPU.
 	/// <para>Functionally equivalent to the immediate 'ID3D11DeviceContext' or a 'ID3D12CommandQueue' or 'VkQueue'.</para>
 	/// </summary>
 	/// <remarks>
 	/// This class may NOT be used concurrently from multiple threads!
 	/// </remarks>
-	class __declspec(novtable) command_queue : public device_object
+	struct __declspec(novtable) command_queue : public device_object
 	{
-	public:
 		/// <summary>
-		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
+		/// Gets the type of the command queue, which specifies what commands can be executed on it.
 		/// </summary>
-		virtual command_list *get_immediate_command_list() = 0;
+		virtual command_queue_type get_type() const = 0;
 
 		/// <summary>
 		/// Waits for all issued GPU operations on this queue to finish before returning.
@@ -891,7 +935,13 @@ namespace reshade { namespace api
 		/// Flushes and executes the special immediate command list returned by <see cref="get_immediate_command_list"/> immediately.
 		/// This can be used to force commands to execute right away instead of waiting for the runtime to flush it automatically at some point.
 		/// </summary>
-		virtual void flush_immediate_command_list() const  = 0;
+		virtual void flush_immediate_command_list() const = 0;
+
+		/// <summary>
+		/// Gets a special command list, on which all issued commands are executed as soon as possible (or right before the application executes its next command list on this queue).
+		/// This only exists on command queues that contain the <see cref="command_queue_type::graphics"/> flag, on other queues <see langword="nullptr"/> is returned.
+		/// </summary>
+		virtual command_list *get_immediate_command_list() = 0;
 
 		/// <summary>
 		/// Opens a debug event region in the command queue.
@@ -912,17 +962,50 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Describes a swap chain and its back buffer resources.
+	/// </summary>
+	struct swapchain_desc
+	{
+		/// <summary>
+		/// Description of the back buffer resources.
+		/// </summary>
+		resource_desc back_buffer;
+
+		/// <summary>
+		/// Number of back buffer resources in the swap chain.
+		/// </summary>
+		uint32_t back_buffer_count = 0;
+
+		/// <summary>
+		/// Defines how the back buffers should be swapped when a present occurs.
+		/// <para>Depending on the render API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT', 'WGL_SWAP_METHOD_ARB' or 'VkPresentModeKHR' value.</para>
+		/// </summary>
+		uint32_t present_mode = 0;
+
+		/// <summary>
+		/// Swap chain creation flags.
+		/// <para>Depending on the render API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
+		/// </summary>
+		uint32_t present_flags = 0;
+	};
+
+	/// <summary>
 	/// A swap chain, used to present images to the screen.
 	/// <para>Functionally equivalent to a 'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR'.</para>
 	/// </summary>
-	class __declspec(novtable) swapchain : public device_object
+	struct __declspec(novtable) swapchain : public device_object
 	{
-	public:
+		/// <summary>
+		/// Gets the handle of the window this swap chain was created with, or <see langword="nullptr"/> if this is an offscreen swap chain.
+		/// </summary>
+		virtual void *get_hwnd() const = 0;
+
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in this swap chain.
 		/// </summary>
 		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
 		virtual resource get_back_buffer(uint32_t index) = 0;
+
 		/// <summary>
 		/// Gets the number of back buffer resources in this swap chain.
 		/// </summary>
@@ -936,10 +1019,5 @@ namespace reshade { namespace api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
-
-		/// <summary>
-		/// Gets the effect runtime associated with this swap chain.
-		/// </summary>
-		inline  class effect_runtime *get_effect_runtime() { return reinterpret_cast<effect_runtime *>(this); }
 	};
 } }

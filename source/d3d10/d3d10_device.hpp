@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -122,12 +122,7 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-#if RESHADE_ADDON
-	static void invoke_map_buffer_region_event(ID3D10Buffer *resource, D3D10_MAP map_type, void **data);
-	static void invoke_unmap_buffer_region_event(ID3D10Buffer *resource);
-	static void invoke_map_texture_region_event(ID3D10Resource *resource, UINT subresource, D3D10_MAP map_type, reshade::api::subresource_data *data);
-	static void invoke_unmap_texture_region_event(ID3D10Resource *resource, UINT subresource);
-
+#if RESHADE_ADDON >= 2
 	void invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects);
 	void invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects);
 	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects);

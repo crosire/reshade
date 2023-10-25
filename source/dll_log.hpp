@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -33,15 +33,10 @@ namespace reshade::log
 	};
 
 	/// <summary>
-	/// Open a log file for writing.
+	/// Opens a log file for writing.
 	/// </summary>
-	/// <param name="path">The path to the log file.</param>
-	bool open_log_file(const std::filesystem::path &path);
-
-	/// <summary>
-	/// The current log line stream.
-	/// </summary>
-	extern std::ostringstream line_stream;
+	/// <param name="path">Path to the log file.</param>
+	bool open_log_file(const std::filesystem::path &path, std::error_code &ec);
 
 	/// <summary>
 	/// Constructs a single log message including current time and level and writes it to the open log file.
@@ -54,7 +49,7 @@ namespace reshade::log
 		template <typename T>
 		message &operator<<(const T &value)
 		{
-			line_stream << value;
+			_line_stream << value;
 			return *this;
 		}
 
@@ -63,8 +58,9 @@ namespace reshade::log
 		message &operator<<(REFIID riid)
 		{
 			OLECHAR riid_string[40];
-			StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
-			return *this << riid_string;
+			if (StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string)))
+				operator<<(riid_string);
+			return *this;
 		}
 #endif
 
@@ -94,6 +90,8 @@ namespace reshade::log
 				return *this << "D3DERR_INVALIDCALL";
 			case 0x88760870:
 				return *this << "D3DERR_DEVICEREMOVED";
+			case 0x88760874:
+				return *this << "D3DERR_DEVICEHUNG";
 			case DXGI_ERROR_INVALID_CALL:
 				return *this << "DXGI_ERROR_INVALID_CALL";
 			case DXGI_ERROR_UNSUPPORTED:
@@ -104,6 +102,8 @@ namespace reshade::log
 				return *this << "DXGI_ERROR_DEVICE_HUNG";
 			case DXGI_ERROR_DEVICE_RESET:
 				return *this << "DXGI_ERROR_DEVICE_RESET";
+			case DXGI_ERROR_DRIVER_INTERNAL_ERROR:
+				return *this << "DXGI_ERROR_DRIVER_INTERNAL_ERROR";
 			default:
 				return *this << std::hex << static_cast<unsigned long>(hresult) << std::dec;
 			}
@@ -114,9 +114,11 @@ namespace reshade::log
 		message &operator<<(const std::wstring &message)
 		{
 			static_assert(sizeof(std::wstring::value_type) == sizeof(uint16_t), "expected 'std::wstring' to use UTF-16 encoding");
+
 			std::string utf8_message;
 			utf8_message.reserve(message.size());
 			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8_message));
+
 			return operator<<(utf8_message);
 		}
 
@@ -129,17 +131,22 @@ namespace reshade::log
 		inline message &operator<<(const char *message)
 		{
 			assert(message != nullptr);
-			line_stream << message;
+			_line_stream << message;
 			return *this;
 		}
 
 		inline message &operator<<(const wchar_t *message)
 		{
-			assert(message != nullptr);
 			static_assert(sizeof(wchar_t) == sizeof(uint16_t), "expected 'wchar_t' to use UTF-16 encoding");
+
+			assert(message != nullptr);
 			std::string utf8_message;
 			utf8::unchecked::utf16to8(message, message + wcslen(message), std::back_inserter(utf8_message));
+
 			return operator<<(utf8_message);
 		}
+
+	private:
+		std::ostringstream _line_stream;
 	};
 }

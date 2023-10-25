@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -45,7 +45,7 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue f
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ULONG _ref = 1;
-	unsigned int _interface_version = 0;
+	unsigned short _interface_version = 0;
 	D3D12Device *const _device;
 	D3D12CommandQueueDownlevel *_downlevel = nullptr;
 };

@@ -1,6 +1,6 @@
 ﻿/*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 using System;
@@ -18,14 +18,21 @@ namespace ReShade.Setup.Pages
 {
 	public class EffectPackage : INotifyPropertyChanged
 	{
-		public bool? Enabled { get; set; } = false;
-		public bool Modifiable { get; set; } = true;
-		public string PackageName { get; set; }
-		public string PackageDescription { get; set; }
-		public string InstallPath { get; set; }
-		public string TextureInstallPath { get; set; }
-		public string DownloadUrl { get; set; }
-		public string RepositoryUrl { get; set; }
+		public bool? Selected { get; set; } = false;
+		public bool  Modifiable { get; set; } = true;
+
+		public string PackageName { get; internal set; }
+		public string PackageDescription { get; internal set; }
+
+		public string InstallPath { get; internal set; }
+		public string TextureInstallPath { get; internal set; }
+		public string DownloadUrl { get; internal set; }
+		public string RepositoryUrl { get; internal set; }
+
+		public string[] EffectFiles { get; internal set; }
+		public string[] DenyEffectFiles { get; internal set; }
+
+		public string EffectFilesList => EffectFiles != null && EffectFiles.Length != 0 ? string.Join("\n", EffectFiles) : "...";
 
 		public event PropertyChangedEventHandler PropertyChanged;
 
@@ -53,31 +60,43 @@ namespace ReShade.Setup.Pages
 
 	public partial class SelectPackagesPage : Page
 	{
-		public SelectPackagesPage(Utilities.IniFile packagesIni)
+		public SelectPackagesPage(Utilities.IniFile packagesIni, List<string> effectFiles)
 		{
 			InitializeComponent();
 			DataContext = this;
 
 			foreach (var package in packagesIni.GetSections())
 			{
-				bool enabled = packagesIni.GetString(package, "Enabled") == "1";
 				bool required = packagesIni.GetString(package, "Required") == "1";
+				bool? enabled = required ? true : (packagesIni.GetString(package, "Enabled") == "1" && effectFiles.Count == 0 ? (bool?)null : false);
+
+				if (packagesIni.GetValue(package, "EffectFiles", out string[] packageEffectFiles))
+				{
+					if (packageEffectFiles.Intersect(effectFiles).Any())
+					{
+						enabled = true;
+					}
+				}
+
+				packagesIni.GetValue(package, "DenyEffectFiles", out string[] packageDenyEffectFiles);
 
 				Items.Add(new EffectPackage
 				{
-					Enabled = required ? true : enabled ? (bool?)null : false,
+					Selected = enabled,
 					Modifiable = !required,
 					PackageName = packagesIni.GetString(package, "PackageName"),
 					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
 					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
 					DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
-					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl")
+					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl"),
+					EffectFiles = packageEffectFiles,
+					DenyEffectFiles = packageDenyEffectFiles
 				});
 			}
 		}
 
-		public IEnumerable<EffectPackage> EnabledItems => Items.Where(x => x.Enabled != false);
+		public IEnumerable<EffectPackage> SelectedItems => Items.Where(x => x.Selected != false);
 		public ObservableCollection<EffectPackage> Items { get; } = new ObservableCollection<EffectPackage>();
 
 		private void OnCheckAllClick(object sender, RoutedEventArgs e)
@@ -102,8 +121,8 @@ namespace ReShade.Setup.Pages
 						continue;
 					}
 
-					item.Enabled = check;
-					item.NotifyPropertyChanged(nameof(item.Enabled));
+					item.Selected = check;
+					item.NotifyPropertyChanged(nameof(item.Selected));
 				}
 			}
 		}
@@ -119,8 +138,9 @@ namespace ReShade.Setup.Pages
 
 			PathBox.Text = string.Empty;
 
-			Items.Add(new EffectPackage {
-				Enabled = true,
+			Items.Add(new EffectPackage
+			{
+				Selected = true,
 				PackageName = Path.GetFileName(url),
 				InstallPath = ".\\reshade-shaders\\Shaders",
 				TextureInstallPath = ".\\reshade-shaders\\Textures",

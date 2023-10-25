@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "hook_manager.hpp"
@@ -11,7 +11,7 @@
 // Therefore can assume that the export module handle points toward the system dxgi.dll
 extern HMODULE g_export_module_handle;
 
-HOOK_EXPORT BOOL    WINAPI CompatValue(LPCSTR szName, UINT64 *pValue)
+extern "C" BOOL    WINAPI CompatValue(LPCSTR szName, UINT64 *pValue)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -22,7 +22,7 @@ HOOK_EXPORT BOOL    WINAPI CompatValue(LPCSTR szName, UINT64 *pValue)
 	else
 		return FALSE;
 }
-HOOK_EXPORT BOOL    WINAPI CompatString(LPCSTR szName, ULONG *pSize, LPSTR lpData, bool Flag)
+extern "C" BOOL    WINAPI CompatString(LPCSTR szName, ULONG *pSize, LPSTR lpData, bool Flag)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -34,7 +34,7 @@ HOOK_EXPORT BOOL    WINAPI CompatString(LPCSTR szName, ULONG *pSize, LPSTR lpDat
 		return FALSE;
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal(void *pfnCallback)
+extern "C" HRESULT WINAPI DXGIDumpJournal(void *pfnCallback)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -46,7 +46,7 @@ HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal(void *pfnCallback)
 		return E_NOTIMPL;
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration(void *pAdapterInfo)
+extern "C" HRESULT WINAPI DXGIReportAdapterConfiguration(void *pAdapterInfo)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -59,7 +59,7 @@ HOOK_EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration(void *pAdapterInfo)
 }
 
 // These are actually called internally by the Direct3D driver on some versions of Windows, so just pass them through
-HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, const void *pFeatureLevels, UINT FeatureLevels, void **ppDevice)
+extern "C" HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, const void *pFeatureLevels, UINT FeatureLevels, void **ppDevice)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -71,7 +71,7 @@ HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *
 		return E_NOTIMPL; // Starting with Windows 8 these are no longer implemented and always return 'E_NOTIMPL' either way
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, REFIID riid, void **ppDevice)
+extern "C" HRESULT WINAPI DXGID3D10CreateLayeredDevice(IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, REFIID riid, void **ppDevice)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -83,11 +83,11 @@ HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(IDXGIAdapter *pAdapter, 
 		return E_NOTIMPL;
 }
 
-HOOK_EXPORT void    WINAPI DXGID3D10ETWRundown()
+extern "C" void    WINAPI DXGID3D10ETWRundown()
 {
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
+extern "C" HRESULT WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);
@@ -99,7 +99,7 @@ HOOK_EXPORT HRESULT WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UI
 		return E_NOTIMPL;
 }
 
-HOOK_EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
+extern "C" HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
 {
 	reshade::hooks::ensure_export_module_loaded();
 	assert(g_export_module_handle != nullptr);

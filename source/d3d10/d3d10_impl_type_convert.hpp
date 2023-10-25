@@ -1,10 +1,13 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
+#include "com_ptr.hpp"
+#include "reshade_api_pipeline.hpp"
+#include <vector>
 #include <d3d10_1.h>
 
 namespace reshade::d3d10
@@ -15,7 +18,7 @@ namespace reshade::d3d10
 
 	struct pipeline_impl
 	{
-		void apply(ID3D10Device *ctx) const;
+		void apply(ID3D10Device *ctx, api::pipeline_stage stages) const;
 
 		com_ptr<ID3D10VertexShader> vs;
 		com_ptr<ID3D10GeometryShader> gs;
@@ -32,10 +35,11 @@ namespace reshade::d3d10
 		FLOAT blend_constant[4];
 	};
 
-	struct descriptor_set_impl
+	struct descriptor_table_impl
 	{
 		api::descriptor_type type;
-		UINT count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
@@ -44,7 +48,7 @@ namespace reshade::d3d10
 		std::vector<api::descriptor_range> ranges;
 	};
 
-	struct query_pool_impl
+	struct query_heap_impl
 	{
 		std::vector<com_ptr<ID3D10Query>> queries;
 	};
@@ -78,16 +82,17 @@ namespace reshade::d3d10
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
-	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3D10_INPUT_ELEMENT_DESC> &element_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_BLEND_DESC1 &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_RASTERIZER_DESC &internal_desc);
-	void convert_pipeline_desc(const api::pipeline_desc &desc, D3D10_DEPTH_STENCIL_DESC &internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D10_INPUT_ELEMENT_DESC *element_desc, UINT num_elements);
-	api::pipeline_desc convert_pipeline_desc(const D3D10_BLEND_DESC *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D10_BLEND_DESC1 *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D10_RASTERIZER_DESC *internal_desc);
-	api::pipeline_desc convert_pipeline_desc(const D3D10_DEPTH_STENCIL_DESC *internal_desc);
+	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D10_INPUT_ELEMENT_DESC> &internal_elements);
+	std::vector<api::input_element> convert_input_layout_desc(UINT count, const D3D10_INPUT_ELEMENT_DESC *internal_elements);
+
+	void convert_blend_desc(const api::blend_desc &desc, D3D10_BLEND_DESC &internal_desc);
+	void convert_blend_desc(const api::blend_desc &desc, D3D10_BLEND_DESC1 &internal_desc);
+	api::blend_desc convert_blend_desc(const D3D10_BLEND_DESC *internal_desc);
+	api::blend_desc convert_blend_desc(const D3D10_BLEND_DESC1 *internal_desc);
+	void convert_rasterizer_desc(const api::rasterizer_desc &desc, D3D10_RASTERIZER_DESC &internal_desc);
+	api::rasterizer_desc convert_rasterizer_desc(const D3D10_RASTERIZER_DESC *internal_desc);
+	void convert_depth_stencil_desc(const api::depth_stencil_desc &desc, D3D10_DEPTH_STENCIL_DESC &internal_desc);
+	api::depth_stencil_desc convert_depth_stencil_desc(const D3D10_DEPTH_STENCIL_DESC *internal_desc);
 
 	auto convert_blend_op(api::blend_op value) -> D3D10_BLEND_OP;
 	auto convert_blend_op(D3D10_BLEND_OP value) -> api::blend_op;

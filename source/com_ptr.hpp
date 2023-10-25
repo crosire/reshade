@@ -1,11 +1,12 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
 
 #include <cassert>
+#include <utility>
 
 template <typename T>
 class com_ptr
@@ -57,11 +58,11 @@ public:
 	/// <param name="object">The new object to manage and take ownership and add a reference to.</param>
 	void reset(T *object = nullptr)
 	{
+		if (object != nullptr)
+			object->AddRef();
 		if (_object != nullptr)
 			_object->Release();
 		_object = object;
-		if (_object != nullptr)
-			_object->AddRef();
 	}
 
 	// Overloaded pointer operators which operate on the managed object.
@@ -119,6 +120,8 @@ private:
 	T *_object;
 };
 
+#if 0
+
 #include <functional> // std::hash
 
 namespace std
@@ -132,3 +135,5 @@ namespace std
 		}
 	};
 }
+
+#endif

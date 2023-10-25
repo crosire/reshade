@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
-#include <d3d12.h>
 #include "addon_manager.hpp"
+#include <d3d12.h>
 
 namespace reshade::d3d12
 {
@@ -14,6 +14,8 @@ namespace reshade::d3d12
 
 	class command_list_impl : public api::api_object_impl<ID3D12GraphicsCommandList *, api::command_list>
 	{
+		friend class swapchain_impl;
+
 	public:
 		command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list);
 		~command_list_impl();
@@ -26,17 +28,18 @@ namespace reshade::d3d12
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
-		void bind_pipeline(api::pipeline_stage type, api::pipeline pipeline) final;
+		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
 		void bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports) final;
 		void bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects) final;
 
 		void push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values) final;
-		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_set_update &update) final;
-		void bind_descriptor_sets(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_set *sets) final;
+		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update) final;
+		void bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
 
 		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
+		void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) final;
 
 		void draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) final;
 		void draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
@@ -48,7 +51,7 @@ namespace reshade::d3d12
 		void copy_buffer_to_texture(api::resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box) final;
 		void copy_texture_region(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box, api::filter_mode filter) final;
 		void copy_texture_to_buffer(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint64_t dest_offset, uint32_t row_length, uint32_t slice_height) final;
-		void resolve_texture_region(api::resource source, uint32_t source_subresource, const api::rect *source_rect, api::resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, api::format format) final;
+		void resolve_texture_region(api::resource source, uint32_t source_subresource, const api::subresource_box *source_box, api::resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, int32_t dest_z, api::format format) final;
 
 		void clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects) final;
 		void clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects) final;
@@ -57,9 +60,9 @@ namespace reshade::d3d12
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void begin_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void end_query(api::query_pool pool, api::query_type type, uint32_t index) final;
-		void copy_query_pool_results(api::query_pool pool, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
+		void begin_query(api::query_heap heap, api::query_type type, uint32_t index);
+		void end_query(api::query_heap heap, api::query_type type, uint32_t index);
+		void copy_query_heap_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
@@ -73,5 +76,8 @@ namespace reshade::d3d12
 		ID3D12RootSignature *_current_root_signature[2] = {};
 		// Currently bound descriptor heaps (there can only be one of each shader visible type, so a maximum of two)
 		ID3D12DescriptorHeap *_current_descriptor_heaps[2] = {};
+#if RESHADE_ADDON >= 2
+		ID3D12DescriptorHeap *_previous_descriptor_heaps[2] = {};
+#endif
 	};
 }

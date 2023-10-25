@@ -1,10 +1,13 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
+#include "com_ptr.hpp"
+#include "reshade_api_pipeline.hpp"
+#include <vector>
 #include <d3d9.h>
 
 namespace reshade::d3d9
@@ -23,10 +26,11 @@ namespace reshade::d3d9
 		D3DPRIMITIVETYPE prim_type;
 	};
 
-	struct descriptor_set_impl
+	struct descriptor_table_impl
 	{
 		api::descriptor_type type;
-		UINT count;
+		uint32_t count;
+		uint32_t base_binding;
 		std::vector<uint64_t> descriptors;
 	};
 
@@ -35,7 +39,7 @@ namespace reshade::d3d9
 		std::vector<api::descriptor_range> ranges;
 	};
 
-	struct query_pool_impl
+	struct query_heap_impl
 	{
 		api::query_type type;
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
@@ -43,8 +47,8 @@ namespace reshade::d3d9
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
-	auto convert_format(api::format format, bool lockable = false) -> D3DFORMAT;
-	auto convert_format(D3DFORMAT d3d_format) -> api::format;
+	auto convert_format(api::format format, BOOL lockable = FALSE) -> D3DFORMAT;
+	auto convert_format(D3DFORMAT d3d_format, BOOL *lockable = nullptr) -> api::format;
 
 	void convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPOOL &d3d_pool);
 	void convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memory_heap &heap);
@@ -56,16 +60,16 @@ namespace reshade::d3d9
 	api::map_access convert_access_flags(DWORD lock_flags);
 
 	void convert_resource_desc(const api::resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps);
-	void convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps);
+	void convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, BOOL *lockable, const D3DCAPS9 &caps);
 	void convert_resource_desc(const api::resource_desc &desc, D3DINDEXBUFFER_DESC &internal_desc);
 	void convert_resource_desc(const api::resource_desc &desc, D3DVERTEXBUFFER_DESC &internal_desc);
 	api::resource_desc convert_resource_desc(const D3DVOLUME_DESC &internal_desc, UINT levels = 1, bool shared_handle = false);
-	api::resource_desc convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, const D3DCAPS9 &caps, bool shared_handle = false);
+	api::resource_desc convert_resource_desc(const D3DSURFACE_DESC &internal_desc, UINT levels, BOOL lockable, const D3DCAPS9 &caps, bool shared_handle = false);
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 
-	void convert_pipeline_desc(const api::pipeline_desc &desc, std::vector<D3DVERTEXELEMENT9> &elements);
-	api::pipeline_desc convert_pipeline_desc(const D3DVERTEXELEMENT9 *elements);
+	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3DVERTEXELEMENT9> &internal_elements);
+	std::vector<api::input_element> convert_input_layout_desc(const D3DVERTEXELEMENT9 *internal_elements);
 
 	auto convert_blend_op(D3DBLENDOP value) -> api::blend_op;
 	auto convert_blend_op(api::blend_op value) -> D3DBLENDOP;

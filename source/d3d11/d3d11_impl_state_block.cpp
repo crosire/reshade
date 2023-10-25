@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "d3d11_impl_state_block.hpp"
@@ -20,6 +20,16 @@ reshade::d3d11::state_block::state_block(ID3D11Device *device)
 	ZeroMemory(this, sizeof(*this));
 
 	_device_feature_level = device->GetFeatureLevel();
+
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
+	// Unfortunately this breaks RTSS, because calling 'ID3D11Device::CreateDeviceContextState' will expose the 'ID3D10Device' interface on the D3D11 device, making RTSS use its D3D10 renderer while the interface is locked out
+	com_ptr<ID3D11Device1> device1;
+	if (SUCCEEDED(device->QueryInterface(&device1)))
+	{
+		const UINT flags = (device->GetCreationFlags() & D3D11_CREATE_DEVICE_SINGLETHREADED) ? D3D11_1_CREATE_DEVICE_CONTEXT_STATE_SINGLETHREADED : 0;
+		device1->CreateDeviceContextState(flags, &_device_feature_level, 1, D3D11_SDK_VERSION, __uuidof(ID3D11Device1), nullptr, &_state);
+	}
+#endif
 }
 reshade::d3d11::state_block::~state_block()
 {
@@ -28,7 +38,18 @@ reshade::d3d11::state_block::~state_block()
 
 void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 {
+	assert(_device_context == nullptr);
+
 	_device_context = device_context;
+
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
+	com_ptr<ID3D11DeviceContext1> device_context1;
+	if (_state != nullptr && _device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE && SUCCEEDED(_device_context->QueryInterface(&device_context1)))
+	{
+		device_context1->SwapDeviceContextState(_state.get(), &_captured_state);
+		return;
+	}
+#endif
 
 	_device_context->IAGetPrimitiveTopology(&_ia_primitive_topology);
 	_device_context->IAGetInputLayout(&_ia_input_layout);
@@ -65,6 +86,7 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 
 		_gs_num_class_instances = ARRAYSIZE(_gs_class_instances);
 		_device_context->GSGetShader(&_gs, _gs_class_instances, &_gs_num_class_instances);
+		_device_context->GSGetShaderResources(0, ARRAYSIZE(_gs_shader_resources), _gs_shader_resources);
 	}
 
 	_ps_num_class_instances = ARRAYSIZE(_ps_class_instances);
@@ -91,6 +113,18 @@ void reshade::d3d11::state_block::capture(ID3D11DeviceContext *device_context)
 }
 void reshade::d3d11::state_block::apply_and_release()
 {
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
+	com_ptr<ID3D11DeviceContext1> device_context1;
+	if (_state != nullptr && _device_context->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE && SUCCEEDED(_device_context->QueryInterface(&device_context1)))
+	{
+		device_context1->SwapDeviceContextState(_captured_state.get(), nullptr);
+
+		_captured_state.reset();
+		_device_context.reset();
+		return;
+	}
+#endif
+
 	_device_context->IASetPrimitiveTopology(_ia_primitive_topology);
 	_device_context->IASetInputLayout(_ia_input_layout);
 
@@ -122,6 +156,7 @@ void reshade::d3d11::state_block::apply_and_release()
 		}
 
 		_device_context->GSSetShader(_gs, _gs_class_instances, _gs_num_class_instances);
+		_device_context->GSSetShaderResources(0, ARRAYSIZE(_gs_shader_resources), _gs_shader_resources);
 	}
 
 	_device_context->PSSetShader(_ps, _ps_class_instances, _ps_num_class_instances);
@@ -175,6 +210,8 @@ void reshade::d3d11::state_block::release_all_device_objects()
 	safe_release(_gs);
 	for (UINT i = 0; i < _gs_num_class_instances; i++)
 		safe_release(_gs_class_instances[i]);
+	for (auto &shader_resource : _gs_shader_resources)
+		safe_release(shader_resource);
 	safe_release(_rs_state);
 	safe_release(_ps);
 	for (UINT i = 0; i < _ps_num_class_instances; i++)

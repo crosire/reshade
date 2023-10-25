@@ -1,10 +1,11 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
 
+#include <cassert>
 #include <vulkan/vk_layer.h>
 
 // Windows SDK headers define these, which breaks the dispatch table
@@ -16,6 +17,7 @@
 struct instance_dispatch_table : public VkLayerInstanceDispatchTable
 {
 	VkInstance instance;
+	uint32_t api_version;
 };
 
 template <typename T>
@@ -37,6 +39,8 @@ static const T *find_in_structure_chain(const void *structure_chain, VkStructure
 
 static inline void *dispatch_key_from_handle(const void *dispatch_handle)
 {
+	assert(dispatch_handle != nullptr);
+
 	// The Vulkan loader writes the dispatch table pointer right to the start of the object, so use that as a key for lookup
 	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
 	return *(void **)dispatch_handle;

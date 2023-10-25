@@ -1,9 +1,11 @@
 ﻿/*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
+using System.Diagnostics;
 using System.Windows.Controls;
+using System.Windows.Navigation;
 
 namespace ReShade.Setup.Pages
 {
@@ -11,6 +13,9 @@ namespace ReShade.Setup.Pages
 	{
 		Unknown,
 		D3D9,
+		D3D10,
+		D3D11,
+		D3D12,
 		DXGI,
 		OpenGL,
 		Vulkan
@@ -23,6 +28,12 @@ namespace ReShade.Setup.Pages
 			InitializeComponent();
 
 			AppName.Text = appName;
+		}
+
+		private void OnHyperlinkNavigate(object sender, RequestNavigateEventArgs e)
+		{
+			Process.Start(e.Uri.ToString());
+			e.Handled = true;
 		}
 	}
 }

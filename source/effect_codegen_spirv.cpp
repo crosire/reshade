@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include "effect_parser.hpp"
@@ -142,6 +142,7 @@ private:
 		spirv_basic_block definition;
 		type return_type;
 		std::vector<type> param_types;
+		bool is_entry_point = false;
 
 		friend bool operator==(const function_blocks &lhs, const function_blocks &rhs)
 		{
@@ -192,13 +193,11 @@ private:
 			return;
 
 		spv::Id file;
+
 		if (const auto it = _string_lookup.find(loc.source);
 			it != _string_lookup.end())
-		{
 			file = it->second;
-		}
-		else
-		{
+		else {
 			add_instruction(spv::OpString, 0, _debug_a, file)
 				.add_string(loc.source.c_str());
 			_string_lookup.emplace(loc.source, file);
@@ -258,65 +257,67 @@ private:
 
 		module = std::move(_module);
 
+		std::vector<spv::Id> spirv;
+
 		// Write SPIRV header info
-		module.spirv.push_back(spv::MagicNumber);
-		module.spirv.push_back(0x10300); // Force SPIR-V 1.3
-		module.spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
-		module.spirv.push_back(_next_id); // Maximum ID
-		module.spirv.push_back(0u); // Reserved for instruction schema
+		spirv.push_back(spv::MagicNumber);
+		spirv.push_back(0x10300); // Force SPIR-V 1.3
+		spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
+		spirv.push_back(_next_id); // Maximum ID
+		spirv.push_back(0u); // Reserved for instruction schema
 
 		// All capabilities
 		spirv_instruction(spv::OpCapability)
 			.add(spv::CapabilityShader) // Implicitly declares the Matrix capability too
-			.write(module.spirv);
+			.write(spirv);
 
 		for (spv::Capability capability : _capabilities)
 			spirv_instruction(spv::OpCapability)
 				.add(capability)
-				.write(module.spirv);
+				.write(spirv);
 
 		// Optional extension instructions
 		spirv_instruction(spv::OpExtInstImport, _glsl_ext)
 			.add_string("GLSL.std.450") // Import GLSL extension
-			.write(module.spirv);
+			.write(spirv);
 
 		// Single required memory model instruction
 		spirv_instruction(spv::OpMemoryModel)
 			.add(spv::AddressingModelLogical)
 			.add(spv::MemoryModelGLSL450)
-			.write(module.spirv);
+			.write(spirv);
 
 		// All entry point declarations
 		for (const auto &node : _entries.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		// All execution mode declarations
 		for (const auto &node : _execution_modes.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		spirv_instruction(spv::OpSource)
 			.add(spv::SourceLanguageUnknown) // ReShade FX is not a reserved token at the moment
 			.add(0) // Language version, TODO: Maybe fill in ReShade version here?
-			.write(module.spirv);
+			.write(spirv);
 
 		if (_debug_info)
 		{
 			// All debug instructions
 			for (const auto &node : _debug_a.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 			for (const auto &node : _debug_b.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 		}
 
 		// All annotation instructions
 		for (const auto &node : _annotations.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		// All type declarations
 		for (const auto &node : _types_and_constants.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 		for (const auto &node : _variables.instructions)
-			node.write(module.spirv);
+			node.write(spirv);
 
 		// All function definitions
 		for (const auto &function : _functions_blocks)
@@ -325,17 +326,19 @@ private:
 				continue;
 
 			for (const auto &node : function.declaration.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 
 			// Grab first label and move it in front of variable declarations
-			function.definition.instructions.front().write(module.spirv);
+			function.definition.instructions.front().write(spirv);
 			assert(function.definition.instructions.front().op == spv::OpLabel);
 
 			for (const auto &node : function.variables.instructions)
-				node.write(module.spirv);
+				node.write(spirv);
 			for (auto it = function.definition.instructions.begin() + 1; it != function.definition.instructions.end(); ++it)
-				it->write(module.spirv);
+				it->write(spirv);
 		}
+
+		module.code.assign(reinterpret_cast<const char *>(spirv.data()), reinterpret_cast<const char *>(spirv.data() + spirv.size()));
 	}
 
 	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, spv::ImageFormat format = spv::ImageFormatUnknown, uint32_t array_stride = 0)
@@ -346,18 +349,23 @@ private:
 		if (is_ptr == false)
 			storage = spv::StorageClassFunction;
 		// There cannot be sampler variables that are local to a function, so always assume uniform storage for them
-		if (info.is_texture() || info.is_sampler() || info.is_storage())
+		if (info.is_object())
 			storage = spv::StorageClassUniformConstant;
 		else
 			assert(format == spv::ImageFormatUnknown);
+
+		if (info.is_sampler() || info.is_storage())
+			info.rows = info.cols = 1;
 
 		// Fall back to 32-bit types and use relaxed precision decoration instead if 16-bit types are not enabled
 		if (!_enable_16bit_types && info.is_numeric() && info.precision() < 32)
 			info.base = static_cast<type::datatype>(info.base + 1); // min16int -> int, min16uint -> uint, min16float -> float
 
-		const type_lookup lookup = { info, is_ptr, array_stride, { storage, format } };
+		const type_lookup lookup { info, is_ptr, array_stride, { storage, format } };
+
 		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-			[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; }); it != _type_lookup.end())
+				[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; });
+			it != _type_lookup.end())
 			return it->second;
 
 		spv::Id type, elem_type;
@@ -475,28 +483,36 @@ private:
 				assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
 				type = info.definition;
 				break;
-			case type::t_sampler:
-				assert(info.rows == 0 && info.cols == 0);
-				elem_type = convert_type({ type::t_texture, 0, 0, type::q_uniform }, false, storage, format);
+			case type::t_sampler1d_int:
+			case type::t_sampler1d_uint:
+			case type::t_sampler1d_float:
+				add_capability(spv::CapabilitySampled1D);
+				[[fallthrough]];
+			case type::t_sampler2d_int:
+			case type::t_sampler2d_uint:
+			case type::t_sampler2d_float:
+			case type::t_sampler3d_int:
+			case type::t_sampler3d_uint:
+			case type::t_sampler3d_float:
+				elem_type = convert_image_type(info, format);
 				add_instruction(spv::OpTypeSampledImage, 0, _types_and_constants, type)
 					.add(elem_type);
 				break;
-			case type::t_storage:
+			case type::t_storage1d_int:
+			case type::t_storage1d_uint:
+			case type::t_storage1d_float:
+				add_capability(spv::CapabilityImage1D);
+				[[fallthrough]];
+			case type::t_storage2d_int:
+			case type::t_storage2d_uint:
+			case type::t_storage2d_float:
+			case type::t_storage3d_int:
+			case type::t_storage3d_uint:
+			case type::t_storage3d_float:
 				// No format specified for the storage image
 				if (format == spv::ImageFormatUnknown)
 					add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
-			case type::t_texture:
-				assert(info.rows == 0 && info.cols == 0);
-				elem_type = convert_type({ type::t_float, 1, 1 });
-				add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
-					.add(elem_type) // Sampled Type
-					.add(spv::Dim2D)
-					.add(0) // Not a depth image
-					.add(0) // Not an array
-					.add(0) // Not multi-sampled
-					.add(info.is_texture() ? 1 : 2) // Used with a sampler or as storage
-					.add(format);
-				break;
+				return convert_image_type(info, format);
 			default:
 				return assert(false), 0;
 			}
@@ -508,8 +524,9 @@ private:
 	}
 	spv::Id convert_type(const function_blocks &info)
 	{
-		if (auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(),
-			[&info](const auto &lookup) { return lookup.first == info; }); it != _function_type_lookup.end())
+		if (const auto it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(),
+				[&lookup = info](const auto &lookup_it) { return lookup_it.first == lookup; });
+			it != _function_type_lookup.end())
 			return it->second;
 
 		auto return_type = convert_type(info.return_type);
@@ -528,8 +545,53 @@ private:
 
 		return inst.result;
 	}
+	spv::Id convert_image_type(type info, spv::ImageFormat format = spv::ImageFormatUnknown)
+	{
+		type_lookup lookup { info, false, 0u, { spv::StorageClassUniformConstant, format } };
 
-	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_array_length = 1)
+		auto elem_info = info;
+		elem_info.rows = 1;
+		elem_info.cols = 1;
+
+		if (!info.is_numeric())
+		{
+			if ((info.is_integral() && info.is_signed()) || (format >= spv::ImageFormatRgba32i && format <= spv::ImageFormatR8i))
+				elem_info.base = type::t_int;
+			else if ((info.is_integral() && info.is_unsigned()) || (format >= spv::ImageFormatRgba32ui && format <= spv::ImageFormatR8ui))
+				elem_info.base = type::t_uint;
+			else
+				elem_info.base = type::t_float;
+		}
+
+		if (!info.is_storage())
+		{
+			lookup.type = elem_info;
+			lookup.type.base = static_cast<type::datatype>(type::t_texture1d + info.texture_dimension() - 1);
+			lookup.type.definition = static_cast<uint32_t>(elem_info.base);
+		}
+
+		if (const auto it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
+				[&lookup](const auto &lookup_it) { return lookup_it.first == lookup; });
+			it != _type_lookup.end())
+			return it->second;
+
+		spv::Id type, elem_type = convert_type(elem_info, false, spv::StorageClassUniformConstant);
+
+		add_instruction(spv::OpTypeImage, 0, _types_and_constants, type)
+			.add(elem_type) // Sampled Type (always a scalar type)
+			.add(spv::Dim1D + info.texture_dimension() - 1)
+			.add(0) // Not a depth image
+			.add(0) // Not an array
+			.add(0) // Not multi-sampled
+			.add(info.is_storage() ? 2 : 1) // Used with a sampler or as storage
+			.add(format);
+
+		_type_lookup.push_back({ lookup, type });
+
+		return type;
+	}
+
+	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_attributes = 1)
 	{
 		if (semantic.compare(0, 5, "COLOR") == 0)
 			return std::strtoul(semantic.c_str() + 5, nullptr, 10);
@@ -545,19 +607,29 @@ private:
 		while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
 			digit_index--;
 		digit_index++;
-		const uint32_t base_index = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
-		const std::string base_semantic = semantic.substr(0, digit_index);
+
+		const uint32_t semantic_digit = std::strtoul(semantic.c_str() + digit_index, nullptr, 10);
+		const std::string semantic_base = semantic.substr(0, digit_index);
+
+		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
 		// Now create adjoining location indices for all possible semantic indices belonging to this semantic name
-		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
-		max_array_length += base_index;
-		for (uint32_t a = 0; a < max_array_length; ++a)
-			_semantic_to_location.emplace(base_semantic + std::to_string(a), location + a);
+		for (uint32_t a = 0; a < semantic_digit + max_attributes; ++a)
+		{
+			const auto insert = _semantic_to_location.emplace(semantic_base + std::to_string(a), location + a);
+			if (!insert.second)
+			{
+				assert(a == 0 || (insert.first->second - a) == location);
 
-		return location + base_index;
+				// Semantic was already created with a different location index, so need to remap to that
+				location = insert.first->second - a;
+			}
+		}
+
+		return location + semantic_digit;
 	}
 
-	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype)
+	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
 			return stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
@@ -585,14 +657,22 @@ private:
 		{
 		default:
 			assert(false);
+			[[fallthrough]];
 		case texture_format::unknown:
 			return spv::ImageFormatUnknown;
 		case texture_format::r8:
 			add_capability(spv::CapabilityStorageImageExtendedFormats);
 			return spv::ImageFormatR8;
+		case texture_format::r16:
+			add_capability(spv::CapabilityStorageImageExtendedFormats);
+			return spv::ImageFormatR16;
 		case texture_format::r16f:
 			add_capability(spv::CapabilityStorageImageExtendedFormats);
 			return spv::ImageFormatR16f;
+		case texture_format::r32i:
+			return spv::ImageFormatR32i;
+		case texture_format::r32u:
+			return spv::ImageFormatR32ui;
 		case texture_format::r32f:
 			return spv::ImageFormatR32f;
 		case texture_format::rg8:
@@ -722,9 +802,9 @@ private:
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture_info &, sampler_info &info) override
 	{
-		info.id = define_variable(loc, { type::t_sampler, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant);
+		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 		info.binding = _module.num_sampler_bindings++;
 		info.texture_binding = ~0u;
 
@@ -735,9 +815,9 @@ private:
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, storage_info &info) override
+	id   define_storage(const location &loc, const texture_info &tex_info, storage_info &info) override
 	{
-		info.id = define_variable(loc, { type::t_storage, 0, 0, type::q_extern | type::q_uniform }, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(info.format));
+		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(tex_info.format));
 		info.binding = _module.num_storage_bindings++;
 
 		add_decoration(info.id, spv::DecorationBinding, { info.binding });
@@ -917,7 +997,7 @@ private:
 
 		if (initializer_value != 0)
 		{
-			if (storage != spv::StorageClassFunction)
+			if (storage != spv::StorageClassFunction || _current_function->is_entry_point)
 			{
 				// The initializer for variables must be a constant
 				inst.add(initializer_value);
@@ -987,7 +1067,8 @@ private:
 				'_' + std::to_string(num_threads[2]);
 
 		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-			[&func](const auto &ep) { return ep.name == func.unique_name; }); it != _module.entry_points.end())
+				[&func](const auto &ep) { return ep.name == func.unique_name; });
+			it != _module.entry_points.end())
 			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
@@ -1003,8 +1084,11 @@ private:
 		define_function({}, entry_point);
 		enter_block(create_block());
 
+		_current_function->is_entry_point = true;
+
 		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
-			const spv::Id variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction);
+			// Initialize all output variables with zero
+			const spv::Id variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction, spv::ImageFormatUnknown, emit_constant(param.type, 0u));
 
 			expression &call_param = call_params.emplace_back();
 			call_param.reset_to_lvalue({}, variable, param.type);
@@ -1059,7 +1143,7 @@ private:
 				// Flatten structure parameters
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 
 					type struct_type = param.type;
 					const int array_length = std::max(1, param.type.array_length);
@@ -1110,7 +1194,7 @@ private:
 			{
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 
 					for (int a = 0, array_length = std::max(1, param.type.array_length); a < array_length; a++)
 					{
@@ -1140,7 +1224,7 @@ private:
 
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 
 					type struct_type = param.type;
 					const int array_length = std::max(1, param.type.array_length);
@@ -1192,7 +1276,7 @@ private:
 				// Input parameters do not need to store anything, but increase the input/output variable index
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = find_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.definition);
 					inputs_and_outputs_index += definition.member_list.size() * std::max(1, param.type.array_length);
 				}
 				else
@@ -1204,7 +1288,7 @@ private:
 
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = find_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.definition);
 
 			for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 			{
@@ -1393,6 +1477,18 @@ private:
 			switch (op.op)
 			{
 			case expression::operation::op_cast:
+				if (op.from.is_scalar() && !op.to.is_scalar())
+				{
+					type cast_type = op.to;
+					cast_type.base = op.from.base;
+
+					std::vector<expression> args;
+					for (unsigned int c = 0; c < op.to.components(); ++c)
+						args.emplace_back().reset_to_rvalue(exp.location, result, op.from);
+
+					result = emit_construct(exp.location, cast_type, args);
+				}
+
 				if (op.from.is_boolean())
 				{
 					const spv::Id true_constant = emit_constant(op.to, 1);
@@ -1700,15 +1796,19 @@ private:
 	id   emit_constant(const type &type, const constant &data, bool spec_constant)
 	{
 		if (!spec_constant) // Specialization constants cannot reuse other constants
-			if (auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(), [&type, &data](auto &x) {
-				if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
-					return false;
-				for (size_t i = 0; i < data.array_data.size(); ++i)
-					if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+		{
+			if (const auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(),
+				[&type, &data](auto &x) {
+					if (!(std::get<0>(x) == type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
 						return false;
-				return true;
-			}); it != _constant_lookup.end())
+					for (size_t i = 0; i < data.array_data.size(); ++i)
+						if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+							return false;
+					return true;
+				});
+				it != _constant_lookup.end())
 				return std::get<2>(*it); // Re-use existing constant instead of duplicating the definition
+		}
 
 		spv::Id result;
 		if (type.is_array())

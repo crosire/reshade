@@ -12,27 +12,36 @@
     <IntermediateOutputPath>$(SolutionDir)\intermediate\$(AssemblyName)\$(Platform)\$(Configuration)\</IntermediateOutputPath>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ReShade.Setup</RootNamespace>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationManifest>Properties\Assembly.manifest</ApplicationManifest>
     <WarningLevel>4</WarningLevel>
     <TargetFrameworkProfile />
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;RESHADE_ADDON</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UseVSHostingProcess>true</UseVSHostingProcess>
     <Prefer32Bit>false</Prefer32Bit>
     <LangVersion>7.3</LangVersion>
     <NoWarn>1633</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>7.3</LangVersion>
+    <NoWarn>1633</NoWarn>
+    <DefineConstants>RESHADE_ADDON</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Signed|AnyCPU'">
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
@@ -59,11 +68,17 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Pages\SelectAddonsPage.xaml.cs">
+      <DependentUpon>SelectAddonsPage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Utilities\AeroGlass.cs" />
     <Compile Include="Utilities\FileOpenDialog.cs" />
     <Compile Include="Utilities\IniFile.cs" />
-    <Compile Include="Utilities\JsonFile.cs" />
     <Compile Include="Utilities\PEInfo.cs" />
+    <Page Include="Pages\SelectAddonsPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Pages\SelectApiPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -92,19 +107,19 @@
     <Compile Include="Pages\SelectPackagesPage.xaml.cs">
       <DependentUpon>SelectPackagesPage.xaml</DependentUpon>
     </Compile>
+    <Page Include="Pages\SelectPresetPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Compile Include="Pages\SelectPresetPage.xaml.cs">
+      <DependentUpon>SelectPresetPage.xaml</DependentUpon>
+    </Compile>
     <Page Include="Pages\SelectUninstallPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Compile Include="Pages\SelectUninstallPage.xaml.cs">
       <DependentUpon>SelectUninstallPage.xaml</DependentUpon>
-    </Compile>
-    <Page Include="Pages\SettingsDialog.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Compile Include="Pages\SettingsDialog.xaml.cs">
-      <DependentUpon>SettingsDialog.xaml</DependentUpon>
     </Compile>
     <Page Include="Pages\StatusPage.xaml">
       <SubType>Designer</SubType>
@@ -122,7 +137,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Properties\AssemblyInfo.cs">
+    <Compile Include="$(IntermediateOutputPath)Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <AppDesigner Include="Properties\" />
@@ -135,44 +150,41 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="Properties\AssemblyInfo.cs.in" />
-    <None Include="ReShade32.json" />
-    <None Include="ReShade32_override.json" />
-    <None Include="ReShade64.json" />
-    <None Include="ReShade64_override.json" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Condition="Exists('Compatibility.ini')" Include="Compatibility.ini" />
-    <EmbeddedResource Condition="Exists('EffectPackages.ini')" Include="EffectPackages.ini" />
+    <Archive Include="ReShade32.json" />
+    <Archive Include="ReShade64.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Pages\Resources\DirectX.png" />
+    <Resource Include="Pages\Resources\OpenGL.png" />
+    <Resource Include="Pages\Resources\Vulkan.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- Update assembly info file -->
+  <UsingTask TaskName="CL" AssemblyFile="$(VCTargetsPath)Microsoft.Build.CppTasks.Common.dll" />
+  <Target Name="GenerateAssemblyInfo" BeforeTargets="BeforeBuild" Inputs="..\res\version.h;Properties\AssemblyInfo.cs.in" Outputs="$(IntermediateOutputPath)Properties\AssemblyInfo.cs">
+    <Message Text="Generating assembly version ..." Importance="high" />
+    <MakeDir Directories="$(IntermediateOutputPath)Properties" />
+    <CL SuppressStartupBanner="true" PreprocessSuppressLineNumbers="true" PreprocessKeepComments="true" PreprocessToFile="true" PreprocessorDefinitions="BUILD_CONFIGURATION=$(Configuration)" AdditionalIncludeDirectories="..\res" Sources="Properties\AssemblyInfo.cs.in" PreprocessOutputPath="$(IntermediateOutputPath)Properties\AssemblyInfo.cs" ToolPath="$(VC_ExecutablePath_x86)" />
+  </Target>
+  <!-- Archive ReShade binaries and append them to the setup executable -->
+  <Target Name="BuildAndAppendSetupArchive" AfterTargets="CopyFilesToOutputDirectory">
+    <Message Text="Compressing ReShade DLLs ..." Importance="high" />
+    <ItemGroup>
+      <Archive Include="$(SolutionDir)bin\*\$(Configuration)\ReShade*.dll" />
+    </ItemGroup>
+    <Exec Command="$(SolutionDir)tools\7za.exe a -y &quot;$(TargetPath).zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
+    <Message Text="Appending archive to setup executable ..." Importance="high" />
+    <Exec Command="copy /b &quot;$(TargetPath)&quot; + &quot;$(TargetPath).zip&quot; &quot;$(TargetPath)&quot;" EchoOff="true" />
+    <Delete Files="$(TargetPath).zip" />
+  </Target>
   <PropertyGroup>
-    <PreBuildEvent>echo Generating assembly version ...
-set PATH=%PATH%;$(VC_ExecutablePath_x86)
-cl.exe /nologo /EP /C /I "$(SolutionDir)res" "$(ProjectDir)Properties\AssemblyInfo.cs.in" &gt; "$(ProjectDir)Properties\AssemblyInfo.cs"
-
-echo Compiling ReShade setup tool ...</PreBuildEvent>
-    <PostBuildEvent Condition=" '$(Configuration)' == 'Debug' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Debug\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(SolutionDir)bin\x64\Debug\ReShade64.dll" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
-
-echo Appending archive to setup executable ...
-copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
-
-echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade Setup.zip"</PostBuildEvent>
-    <PostBuildEvent Condition=" '$(Configuration)' == 'Release' ">echo Compressing ReShade DLLs ...
-"$(SolutionDir)tools\7za.exe" a -y "$(TargetDir)ReShade Setup.zip" "$(SolutionDir)bin\Win32\Release\ReShade32.dll" "$(ProjectDir)ReShade32.json" "$(ProjectDir)ReShade32_override.json" "$(SolutionDir)bin\x64\Release\ReShade64.dll" "$(ProjectDir)ReShade64.json" "$(ProjectDir)ReShade64_override.json" &gt; nul
-
-echo Appending archive to setup executable ...
-copy /b "$(TargetPath)" + "$(TargetDir)ReShade Setup.zip" "$(TargetPath)"
-
-echo Cleaning up and deleting temporary archive ...
-del "$(TargetDir)ReShade Setup.zip"
-
-echo Signing executable ...
+    <PostBuildEvent Condition="('$(Configuration)'=='Release' Or '$(Configuration)'=='Release Signed') and Exists('$(SolutionDir)\res\sign.pfx')">echo Signing executable ...
 set PATH=%PATH%;$(WindowsSDK_ExecutablePath)
-if exist "$(SolutionDir)res\sign.pfx" signtool.exe sign /f "$(SolutionDir)res\sign.pfx" /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
+signtool.exe sign /f "$(SolutionDir)\res\sign.pfx" /fd sha1 /t http://timestamp.digicert.com "$(TargetPath)"</PostBuildEvent>
     <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
   </PropertyGroup>
 </Project>

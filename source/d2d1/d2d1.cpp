@@ -1,15 +1,15 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include <d2d1_3.h>
 #include "dxgi/dxgi_device.hpp"
+#include "com_ptr.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "hook_manager.hpp"
-#include "com_ptr.hpp"
-#include <d2d1_3.h>
 
-#define ID2D1Factory_CreateDevice_Impl(vtable_offset, factory_interface_version, device_interface_version) \
+#define ID2D1Factory_CreateDevice_Impl(vtable_index, factory_interface_version, device_interface_version) \
 	HRESULT STDMETHODCALLTYPE ID2D1Factory##factory_interface_version##_CreateDevice(ID2D1Factory##factory_interface_version *factory, IDXGIDevice *dxgiDevice, ID2D1Device##device_interface_version **d2dDevice) \
 	{ \
 		LOG(INFO) << "Redirecting " << "ID2D1Factory" #factory_interface_version "::CreateDevice" << '(' \
@@ -17,10 +17,12 @@
 			<< ", dxgiDevice = " << dxgiDevice \
 			<< ", d2dDevice = " << d2dDevice \
 			<< ')' << " ..."; \
+		\
 		if (com_ptr<DXGIDevice> device_proxy; \
 			SUCCEEDED(dxgiDevice->QueryInterface(&device_proxy))) \
 			dxgiDevice = device_proxy->_orig; \
-		const HRESULT hr = reshade::hooks::call(ID2D1Factory##factory_interface_version##_CreateDevice, vtable_from_instance(factory) + vtable_offset)(factory, dxgiDevice, d2dDevice); \
+		\
+		const HRESULT hr = reshade::hooks::call(ID2D1Factory##factory_interface_version##_CreateDevice, reshade::hooks::vtable_from_instance(factory) + vtable_index)(factory, dxgiDevice, d2dDevice); \
 		if (FAILED(hr)) \
 			LOG(WARN) << "ID2D1Factory" #factory_interface_version "::CreateDevice" << " failed with error code " << hr << '.'; \
 		return hr; \
@@ -34,7 +36,7 @@ ID2D1Factory_CreateDevice_Impl(30, 5, 4)
 ID2D1Factory_CreateDevice_Impl(31, 6, 5)
 ID2D1Factory_CreateDevice_Impl(32, 7, 6)
 
-HOOK_EXPORT HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_CREATION_PROPERTIES *creationProperties, ID2D1Device **d2dDevice)
+extern "C" HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_CREATION_PROPERTIES *creationProperties, ID2D1Device **d2dDevice)
 {
 	LOG(INFO) << "Redirecting " << "D2D1CreateDevice" << '('
 		<<   "dxgiDevice = " << dxgiDevice
@@ -52,14 +54,11 @@ HOOK_EXPORT HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_
 
 	const HRESULT hr = reshade::hooks::call<D2D1CreateDevice_t>(D2D1CreateDevice)(dxgiDevice, creationProperties, d2dDevice);
 	if (FAILED(hr))
-	{
 		LOG(WARN) << "D2D1CreateDevice" << " failed with error code " << hr << '.';
-	}
-
 	return hr;
 }
 
-HOOK_EXPORT HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, CONST D2D1_FACTORY_OPTIONS *pFactoryOptions, void **ppIFactory)
+extern "C" HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, CONST D2D1_FACTORY_OPTIONS *pFactoryOptions, void **ppIFactory)
 {
 	LOG(INFO) << "Redirecting " << "D2D1CreateFactory" << '('
 		<<   "factoryType = " << factoryType
@@ -82,19 +81,19 @@ HOOK_EXPORT HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFI
 
 	// Check for factory interface version support and install 'CreateDevice' hooks for existing ones
 	if (com_ptr<ID2D1Factory1> factory1; SUCCEEDED(factory->QueryInterface(&factory1)))
-		reshade::hooks::install("ID2D1Factory1::CreateDevice", vtable_from_instance(factory1.get()), 17, reinterpret_cast<reshade::hook::address>(ID2D1Factory1_CreateDevice));
+		reshade::hooks::install("ID2D1Factory1::CreateDevice", reshade::hooks::vtable_from_instance(factory1.get()), 17, reinterpret_cast<reshade::hook::address>(&ID2D1Factory1_CreateDevice));
 	if (com_ptr<ID2D1Factory2> factory2; SUCCEEDED(factory->QueryInterface(&factory2)))
-		reshade::hooks::install("ID2D1Factory2::CreateDevice", vtable_from_instance(factory2.get()), 27, reinterpret_cast<reshade::hook::address>(ID2D1Factory2_CreateDevice));
+		reshade::hooks::install("ID2D1Factory2::CreateDevice", reshade::hooks::vtable_from_instance(factory2.get()), 27, reinterpret_cast<reshade::hook::address>(&ID2D1Factory2_CreateDevice));
 	if (com_ptr<ID2D1Factory3> factory3; SUCCEEDED(factory->QueryInterface(&factory3)))
-		reshade::hooks::install("ID2D1Factory3::CreateDevice", vtable_from_instance(factory3.get()), 28, reinterpret_cast<reshade::hook::address>(ID2D1Factory3_CreateDevice));
+		reshade::hooks::install("ID2D1Factory3::CreateDevice", reshade::hooks::vtable_from_instance(factory3.get()), 28, reinterpret_cast<reshade::hook::address>(&ID2D1Factory3_CreateDevice));
 	if (com_ptr<ID2D1Factory4> factory4; SUCCEEDED(factory->QueryInterface(&factory4)))
-		reshade::hooks::install("ID2D1Factory4::CreateDevice", vtable_from_instance(factory4.get()), 29, reinterpret_cast<reshade::hook::address>(ID2D1Factory4_CreateDevice));
+		reshade::hooks::install("ID2D1Factory4::CreateDevice", reshade::hooks::vtable_from_instance(factory4.get()), 29, reinterpret_cast<reshade::hook::address>(&ID2D1Factory4_CreateDevice));
 	if (com_ptr<ID2D1Factory5> factory5; SUCCEEDED(factory->QueryInterface(&factory5)))
-		reshade::hooks::install("ID2D1Factory5::CreateDevice", vtable_from_instance(factory5.get()), 30, reinterpret_cast<reshade::hook::address>(ID2D1Factory5_CreateDevice));
+		reshade::hooks::install("ID2D1Factory5::CreateDevice", reshade::hooks::vtable_from_instance(factory5.get()), 30, reinterpret_cast<reshade::hook::address>(&ID2D1Factory5_CreateDevice));
 	if (com_ptr<ID2D1Factory6> factory6; SUCCEEDED(factory->QueryInterface(&factory6)))
-		reshade::hooks::install("ID2D1Factory6::CreateDevice", vtable_from_instance(factory6.get()), 31, reinterpret_cast<reshade::hook::address>(ID2D1Factory6_CreateDevice));
+		reshade::hooks::install("ID2D1Factory6::CreateDevice", reshade::hooks::vtable_from_instance(factory6.get()), 31, reinterpret_cast<reshade::hook::address>(&ID2D1Factory6_CreateDevice));
 	if (com_ptr<ID2D1Factory7> factory7; SUCCEEDED(factory->QueryInterface(&factory7)))
-		reshade::hooks::install("ID2D1Factory7::CreateDevice", vtable_from_instance(factory7.get()), 32, reinterpret_cast<reshade::hook::address>(ID2D1Factory7_CreateDevice));
+		reshade::hooks::install("ID2D1Factory7::CreateDevice", reshade::hooks::vtable_from_instance(factory7.get()), 32, reinterpret_cast<reshade::hook::address>(&ID2D1Factory7_CreateDevice));
 
 	return hr;
 }

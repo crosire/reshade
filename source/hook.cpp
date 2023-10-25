@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #include "hook.hpp"
@@ -32,7 +32,7 @@ reshade::hook::status reshade::hook::install()
 		return hook::status::unsupported_function;
 
 	// Only leave MinHook active as long as any hooks exist
-	if (s_reference_count++ == 0)
+	if (InterlockedIncrement(&s_reference_count) == 1)
 		MH_Initialize();
 
 	const MH_STATUS status_code = MH_CreateHook(target, replacement, &trampoline);
@@ -44,7 +44,7 @@ reshade::hook::status reshade::hook::install()
 		return hook::status::success;
 	}
 
-	if (--s_reference_count == 0)
+	if (InterlockedDecrement(&s_reference_count) == 0)
 		MH_Uninitialize();
 
 	return static_cast<hook::status>(status_code);
@@ -63,7 +63,7 @@ reshade::hook::status reshade::hook::uninstall()
 	trampoline = nullptr;
 
 	// MinHook can be uninitialized after all hooks were uninstalled
-	if (--s_reference_count == 0)
+	if (InterlockedDecrement(&s_reference_count) == 0)
 		MH_Uninitialize();
 
 	return hook::status::success;

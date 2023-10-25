@@ -13,7 +13,7 @@
     <Filter Include="core\runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\runtime\widgets">
+    <Filter Include="core\utils">
       <UniqueIdentifier>{ea5f4e2d-9d3f-4db7-8343-08b97e53a2dc}</UniqueIdentifier>
     </Filter>
     <Filter Include="hooks">
@@ -66,6 +66,9 @@
     <ClCompile Include="source\dll_main.cpp">
       <Filter>core</Filter>
     </ClCompile>
+    <ClCompile Include="source\dll_main_test_app.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\dll_resources.cpp">
       <Filter>core</Filter>
     </ClCompile>
@@ -84,16 +87,19 @@
     <ClCompile Include="source\addon_manager.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="examples\10-generic_depth\generic_depth.cpp">
+    <ClCompile Include="examples\09-depth\generic_depth.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\input_freepie.cpp">
+    <ClCompile Include="source\input_gamepad.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\runtime_api.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime_gui.cpp">
@@ -106,13 +112,19 @@
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\imgui_code_editor.cpp">
-      <Filter>core\runtime\widgets</Filter>
+      <Filter>core\utils</Filter>
     </ClCompile>
-    <ClCompile Include="source\imgui_function_table.cpp">
-      <Filter>core\runtime\widgets</Filter>
+    <ClCompile Include="source\imgui_function_table_18600.cpp">
+      <Filter>core\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="source\imgui_function_table_18971.cpp">
+      <Filter>core\utils</Filter>
     </ClCompile>
     <ClCompile Include="source\imgui_widgets.cpp">
-      <Filter>core\runtime\widgets</Filter>
+      <Filter>core\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="source\platform_utils.cpp">
+      <Filter>core\utils</Filter>
     </ClCompile>
     <ClCompile Include="source\d2d1\d2d1.cpp">
       <Filter>hooks\d2d1</Filter>
@@ -144,10 +156,19 @@
     <ClCompile Include="source\d3d9\d3d9_internal.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_profiling.cpp">
+    <ClCompile Include="source\d3d9\d3d9_pix.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_resource.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9on12.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9on12_device.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\d3d10.cpp">
@@ -172,6 +193,9 @@
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d10\d3d10_impl_type_convert.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\d3d10_resource.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\d3d11.cpp">
@@ -202,6 +226,15 @@
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\d3d11_impl_type_convert.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11on12.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11on12_device.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11_resource.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\d3d12.cpp">
@@ -243,6 +276,15 @@
     <ClCompile Include="source\d3d12\d3d12_impl_type_convert.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_pipeline_library.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_pix.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_resource.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\dxgi\dxgi.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
@@ -273,6 +315,9 @@
     <ClCompile Include="source\opengl\opengl_impl_device.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClInclude Include="source\opengl\opengl_impl_render_context.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
     <ClCompile Include="source\opengl\opengl_impl_state_block.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
@@ -283,6 +328,9 @@
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\openvr\openvr.cpp">
+      <Filter>hooks\openvr</Filter>
+    </ClCompile>
+    <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
@@ -315,6 +363,9 @@
     <ClCompile Include="source\vulkan\vulkan_impl_type_convert.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
+    <ClCompile Include="source\windows\dinput.cpp">
+      <Filter>hooks\windows</Filter>
+    </ClCompile>
     <ClCompile Include="source\windows\dinput8.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
@@ -329,12 +380,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\com_ptr.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\com_utils.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\dll_log.hpp">
       <Filter>core</Filter>
     </ClInclude>
@@ -342,9 +387,6 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\ini_file.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\lockfree_linear_map.hpp">
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="include\reshade.hpp">
@@ -386,7 +428,7 @@
     <ClInclude Include="source\input.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\input_freepie.hpp">
+    <ClInclude Include="source\input_gamepad.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime.hpp">
@@ -395,19 +437,31 @@
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="include\imgui_function_table.hpp">
-      <Filter>core\runtime\widgets</Filter>
+    <ClInclude Include="source\com_ptr.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\com_utils.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_code_editor.hpp">
-      <Filter>core\runtime\widgets</Filter>
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\imgui_function_table_18600.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\imgui_function_table_18971.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">
-      <Filter>core\runtime\widgets</Filter>
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\lockfree_linear_map.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\platform_utils.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_impl_device.hpp">
@@ -420,6 +474,18 @@
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_impl_type_convert.hpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9_resource.hpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9_resource_call_vtable.inl">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d9\d3d9on12_device.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_device.hpp">
@@ -435,6 +501,12 @@
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_impl_type_convert.hpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\d3d10_resource.hpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\d3d10_resource_call_vtable.inl">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_command_list.hpp">
@@ -459,6 +531,15 @@
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_impl_type_convert.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11on12_device.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11_resource.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11_resource_call_vtable.inl">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_command_list.hpp">
@@ -497,6 +578,15 @@
     <ClInclude Include="source\d3d12\d3d12_impl_type_convert.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_pipeline_library.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_resource.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_resource_call_vtable.inl">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d12\descriptor_heap.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
@@ -505,9 +595,6 @@
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
-    </ClInclude>
-    <ClInclude Include="source\opengl\opengl.hpp">
-      <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_hooks.hpp">
       <Filter>hooks\opengl</Filter>
@@ -523,6 +610,9 @@
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp">
       <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp">
+      <Filter>hooks\openvr</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp">
       <Filter>hooks\vulkan</Filter>
@@ -567,7 +657,7 @@
     <None Include="res\fonts\forkawesome.inl">
       <Filter>resources\fonts</Filter>
     </None>
-    <None Include="res\resource.rc2">
+    <None Include="res\version.rc2">
       <Filter>resources</Filter>
     </None>
     <None Include="tools\update_version.ps1">
@@ -587,6 +677,9 @@
     <FxCompile Include="res\shaders\imgui_ps_4_0.hlsl">
       <Filter>resources\shaders</Filter>
     </FxCompile>
+    <FxCompile Include="res\shaders\imgui_ps_4_0_hdr.hlsl">
+      <Filter>resources\shaders</Filter>
+    </FxCompile>
     <FxCompile Include="res\shaders\imgui_vs_3_0.hlsl">
       <Filter>resources\shaders</Filter>
     </FxCompile>
@@ -599,6 +692,9 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps.glsl">
+      <Filter>resources\shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="res\shaders\imgui_ps_hdr.glsl">
       <Filter>resources\shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs.glsl">

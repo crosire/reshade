@@ -1,11 +1,13 @@
 /*
- * Copyright (C) 2018 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2017 BalazsJako
+ * Copyright (C) 2018 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <unordered_map>
 
@@ -80,9 +82,9 @@ namespace reshade::imgui
 		/// Performs all input logic and renders this text editor to the current ImGui window.
 		/// </summary>
 		/// <param name="title">Name of the child window the editor is rendered into.</param>
-		/// <param name="palette">The color palette used for syntax highlighting.</param>
-		/// <param name="border">Set to <c>true</c> to surround the child window with a border line.</param>
-		/// <param name="font">The font used for rendering the text (<c>nullptr</c> to use the default).</param>
+		/// <param name="palette">Color palette used for syntax highlighting.</param>
+		/// <param name="border">Set to <see langword="true"/> to surround the child window with a border line.</param>
+		/// <param name="font">Font used for rendering the text (<see langword="nullptr"/> to use the default).</param>
 		void render(const char *title, const uint32_t palette[color_palette_max], bool border = false, ImFont *font = nullptr);
 
 		/// <summary>
@@ -104,16 +106,16 @@ namespace reshade::imgui
 		/// <summary>
 		/// Searches the text of this text editor for the specific search <paramref name="text"/>, starting at the cursor and scrolls to its position when found.
 		/// </summary>
-		/// <param name="text">The text to find.</param>
-		/// <param name="backwards">Set to <c>true</c> to search in reverse direction, otherwise searches forwards.</param>
-		/// <param name="with_selection">Set to <c>true</c> to start search at selection boundaries, rather than the cursor position.</param>
-		/// <returns><c>true</c> when the search <paramref name="text"/> was found, <c>false</c> otherwise.</returns>
-		bool find_and_scroll_to_text(const std::string &text, bool backwards = false, bool with_selection = false);
+		/// <param name="text">Text snippet to find.</param>
+		/// <param name="backwards">Set to <see langword="true"/> to search in reverse direction, otherwise searches forwards.</param>
+		/// <param name="with_selection">Set to <see langword="true"/> to start search at selection boundaries, rather than the cursor position.</param>
+		/// <returns><see langword="true"/> when the search <paramref name="text"/> was found, <see langword="false"/> otherwise.</returns>
+		bool find_and_scroll_to_text(const std::string_view &text, bool backwards = false, bool with_selection = false);
 
 		/// <summary>
 		/// Replaces the text of this text editor with the specified string.
 		/// </summary>
-		void set_text(const std::string &text);
+		void set_text(const std::string_view &text);
 		/// <summary>
 		/// Clears the text of this text editor to an empty string.
 		/// </summary>
@@ -121,7 +123,7 @@ namespace reshade::imgui
 		/// <summary>
 		/// Inserts the specified <paramref name="text"/> at the cursor position.
 		/// </summary>
-		void insert_text(const std::string &text);
+		void insert_text(const std::string_view &text);
 		/// <summary>
 		/// Returns the entire text of this text editor as a string.
 		/// </summary>
@@ -140,7 +142,7 @@ namespace reshade::imgui
 		/// <summary>
 		/// Reverts the last action(s) performed on this text editor.
 		/// </summary>
-		/// <param name="steps">The number of actions to undo.</param>
+		/// <param name="steps">Number of actions to undo.</param>
 		void undo(unsigned int steps = 1);
 		/// <summary>
 		/// Returns whether any actions have been recorded which can be reverted.
@@ -149,7 +151,7 @@ namespace reshade::imgui
 		/// <summary>
 		/// Applies any last action(s) again that were previously reverted.
 		/// </summary>
-		/// <param name="steps">The number of actions to redo.</param>
+		/// <param name="steps">Number of actions to redo.</param>
 		void redo(unsigned int steps = 1);
 		/// <summary>
 		/// Returns whether any actions have been recorded which can be applied again.
@@ -164,9 +166,9 @@ namespace reshade::imgui
 		/// <summary>
 		/// Adds an error to be displayed at the specified <paramref name="line"/>.
 		/// </summary>
-		/// <param name="line">The line that should be highlighted and show an error message when hovered with the mouse.</param>
-		/// <param name="message">The error message that should be displayed.</param>
-		/// <param name="warning">Set to <c>true</c> to indicate that this is a warning instead of an error, which uses different color coding.</param>
+		/// <param name="line">Line that should be highlighted and show an error message when hovered with the mouse.</param>
+		/// <param name="message">Error message that should be displayed.</param>
+		/// <param name="warning">Set to <see langword="true"/> to indicate that this is a warning instead of an error, which uses different color coding.</param>
 		void add_error(size_t line, const std::string &message, bool warning = false) { _errors.emplace(line, std::make_pair(message, warning)); }
 		/// <summary>
 		/// Removes all displayed errors that were previously added via <see cref="add_error"/>.
@@ -179,7 +181,7 @@ namespace reshade::imgui
 
 		/// <summary>
 		/// Changes the read-only state of this text editor.
-		/// Set to <c>true</c> to prevent user from being able to modify the text, <c>false</c> to behave like a normal editor.
+		/// Set to <see langword="true"/> to prevent user from being able to modify the text, or <see langword="false"/> to behave like a normal editor.
 		/// </summary>
 		void set_readonly(bool state) { _readonly = state; }
 		/// <summary>
@@ -259,19 +261,17 @@ namespace reshade::imgui
 		std::string _last_copy_string;
 		bool _last_copy_from_empty_selection = false;
 
-		bool _in_undo_operation = false;
+		bool _undo_operation_active = false;
 		size_t _undo_index = 0;
 		size_t _undo_base_index = 0;
 		std::vector<undo_record> _undo;
 
 		std::unordered_map<size_t, std::pair<std::string, bool>> _errors;
 
+		signed int _search_window_open = 0;
 		char _search_text[256] = "";
 		char _replace_text[256] = "";
-		bool _show_search_popup = false;
 		bool _search_case_sensitive = false;
-		unsigned int _search_window_open = 0;
-		unsigned int _search_window_focus = 0;
 
 		size_t _colorize_line_beg = 0;
 		size_t _colorize_line_end = 0;

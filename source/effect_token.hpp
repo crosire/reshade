@@ -1,12 +1,13 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 namespace reshadefx
 {
@@ -199,9 +200,15 @@ namespace reshadefx
 		vector,
 		matrix,
 		string_,
-		texture,
-		sampler,
-		storage,
+		texture1d,
+		texture2d,
+		texture3d,
+		sampler1d,
+		sampler2d,
+		sampler3d,
+		storage1d,
+		storage2d,
+		storage3d,
 
 		// preprocessor directives
 		hash_def,

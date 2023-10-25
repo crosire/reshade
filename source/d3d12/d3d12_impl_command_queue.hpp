@@ -1,11 +1,12 @@
 /*
- * Copyright (C) 2021 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2021 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
 #include "d3d12_impl_command_list_immediate.hpp"
+#include <shared_mutex>
 
 namespace reshade::d3d12
 {
@@ -17,15 +18,20 @@ namespace reshade::d3d12
 
 		api::device *get_device() final;
 
-		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
+		api::command_queue_type get_type() const final;
 
 		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
 
+		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
+
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
+
+		// 'ID3D12CommandQueue' is thread-safe, so need to lock when accessed from multiple threads
+		std::shared_mutex _mutex;
 
 	private:
 		device_impl *const _device_impl;

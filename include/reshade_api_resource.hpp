@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2021 Patrick Mours
- * License: https://github.com/crosire/reshade#license
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #pragma once
@@ -56,6 +56,7 @@ namespace reshade { namespace api
 		min_linear_mag_point_mip_linear = 0x11,
 		min_mag_linear_mip_point = 0x14,
 		min_mag_mip_linear = 0x15,
+		min_mag_anisotropic_mip_point = 0x54,
 		anisotropic = 0x55,
 		compare_min_mag_mip_point = 0x80,
 		compare_min_mag_point_mip_linear = 0x81,
@@ -65,7 +66,8 @@ namespace reshade { namespace api
 		compare_min_linear_mag_point_mip_linear = 0x91,
 		compare_min_mag_linear_mip_point = 0x94,
 		compare_min_mag_mip_linear = 0x95,
-		compare_anisotropic = 0xd5,
+		compare_min_mag_anisotropic_mip_point = 0xd4,
+		compare_anisotropic = 0xd5
 	};
 
 	/// <summary>
@@ -179,11 +181,12 @@ namespace reshade { namespace api
 	enum class resource_flags : uint32_t
 	{
 		none = 0,
-		dynamic = (1 << 1),
+		dynamic = (1 << 3),
 		cube_compatible = (1 << 2),
 		generate_mipmaps = (1 << 0),
-		shared = (1 << 9),
+		shared = (1 << 1),
 		shared_nt_handle = (1 << 11),
+		structured = (1 << 6),
 		sparse_binding = (1 << 18)
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
@@ -199,6 +202,7 @@ namespace reshade { namespace api
 		index_buffer = 0x2,
 		vertex_buffer = 0x1,
 		constant_buffer = 0x8000,
+		stream_output = 0x100,
 		indirect_argument = 0x200,
 
 		depth_stencil = 0x30,
@@ -226,14 +230,14 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Describes a resource, such as a buffer or texture.
 	/// </summary>
-	struct resource_desc
+	struct [[nodiscard]] resource_desc
 	{
-		resource_desc() : texture() {}
-		resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
+		constexpr resource_desc() : texture() {}
+		constexpr resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
 			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage) {}
-		resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+		constexpr resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
 			type(resource_type::texture_2d), texture({ width, height, layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
-		resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+		constexpr resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
 			type(type), texture({ width, height, depth_or_layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
 
 		/// <summary>
@@ -294,7 +298,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Memory heap the resource allocation is placed in.
 		/// </summary>
-		memory_heap heap = memory_heap::gpu_only;
+		memory_heap heap = memory_heap::unknown;
 		/// <summary>
 		/// Flags that specify how this resource may be used.
 		/// </summary>
@@ -333,16 +337,16 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Describes a resource view, which specifies how to interpret the data of a resource.
 	/// </summary>
-	struct resource_view_desc
+	struct [[nodiscard]] resource_view_desc
 	{
-		resource_view_desc() : texture() {}
-		resource_view_desc(format format, uint64_t offset, uint64_t size) :
+		constexpr resource_view_desc() : texture() {}
+		constexpr resource_view_desc(format format, uint64_t offset, uint64_t size) :
 			type(resource_view_type::buffer), format(format), buffer({ offset, size }) {}
-		resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
+		constexpr resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(resource_view_type::texture_2d), format(format), texture({ first_level, levels, first_layer, layers }) {}
-		resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
+		constexpr resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(type), format(format), texture({ first_level, levels, first_layer, layers }) {}
-		explicit resource_view_desc(format format) : type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
+		constexpr explicit resource_view_desc(format format) : type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
 
 		/// <summary>
 		/// Resource type the view should interpret the resource data to.
@@ -416,6 +420,10 @@ namespace reshade { namespace api
 		int32_t right = 0;
 		int32_t bottom = 0;
 		int32_t back = 0;
+
+		constexpr uint32_t width() const { return right - left; }
+		constexpr uint32_t height() const { return bottom - top; }
+		constexpr uint32_t depth() const { return back - front; }
 	};
 
 	/// <summary>
@@ -447,7 +455,7 @@ namespace reshade { namespace api
 		load,
 		clear,
 		discard,
-		dont_care
+		no_access
 	};
 
 	/// <summary>
@@ -457,7 +465,7 @@ namespace reshade { namespace api
 	{
 		store,
 		discard,
-		dont_care
+		no_access
 	};
 
 	/// <summary>

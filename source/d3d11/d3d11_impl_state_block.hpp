@@ -1,12 +1,14 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #pragma once
 
-#include <d3d11_4.h>
 #include "com_ptr.hpp"
+#include <d3d11_1.h>
+
+#define RESHADE_D3D11_STATE_BLOCK_TYPE 0
 
 namespace reshade::d3d11
 {
@@ -24,6 +26,10 @@ namespace reshade::d3d11
 
 		D3D_FEATURE_LEVEL _device_feature_level;
 		com_ptr<ID3D11DeviceContext> _device_context;
+#if RESHADE_D3D11_STATE_BLOCK_TYPE
+		com_ptr<ID3DDeviceContextState> _state;
+		com_ptr<ID3DDeviceContextState> _captured_state;
+#endif
 		ID3D11InputLayout *_ia_input_layout;
 		D3D11_PRIMITIVE_TOPOLOGY _ia_primitive_topology;
 		ID3D11Buffer *_ia_vertex_buffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
@@ -47,6 +53,7 @@ namespace reshade::d3d11
 		ID3D11GeometryShader *_gs;
 		UINT _gs_num_class_instances;
 		ID3D11ClassInstance *_gs_class_instances[256];
+		ID3D11ShaderResourceView *_gs_shader_resources[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
 		ID3D11RasterizerState *_rs_state;
 		UINT _rs_num_viewports;
 		D3D11_VIEWPORT _rs_viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];

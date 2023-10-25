@@ -1,15 +1,14 @@
 /*
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
+ * Copyright (C) 2014 Patrick Mours
+ * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "version.h"
+#include "vulkan_hooks.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
-#include "vulkan_hooks.hpp"
 
-lockfree_linear_map<void *, instance_dispatch_table, 4> g_instance_dispatch;
+lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
@@ -62,7 +61,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
 	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
-	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
+	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
+		GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
 	assert(enum_instance_extensions != nullptr);
 
 	std::vector<const char *> enabled_extensions;
@@ -80,7 +80,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions](const char *name, bool required) {
 			if (const auto it = std::find_if(extensions.begin(), extensions.end(),
-				[name](const auto &props) { return strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
+					[name](const auto &props) { return std::strncmp(props.extensionName, name, VK_MAX_EXTENSION_NAME_SIZE) == 0; });
 				it != extensions.end())
 			{
 				enabled_extensions.push_back(name);
@@ -107,12 +107,12 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (pCreateInfo->pApplicationInfo != nullptr)
 		app_info = *pCreateInfo->pApplicationInfo;
 
-	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << " ...";
+	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << ".";
 
 	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
 	if (app_info.apiVersion < VK_API_VERSION_1_1)
 	{
-		LOG(INFO) << "> Replacing requested version with 1.1 ...";
+		LOG(INFO) << "> Replacing requested version with 1.1.";
 
 		app_info.apiVersion = VK_API_VERSION_1_1;
 	}
@@ -161,10 +161,10 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 #endif
 	#pragma endregion
 
-	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance });
+	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning Vulkan instance " << instance << '.';
+	LOG(DEBUG) << "Returning Vulkan instance " << instance << '.';
 #endif
 	return VK_SUCCESS;
 }
@@ -210,6 +210,9 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 }
 
 #ifdef VK_EXT_tooling_info
+
+#include "version.h"
+
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
 {
 	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
@@ -231,7 +234,7 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 		return VK_SUCCESS;
 	}
 
-	// Workaround bug in validation layers that cause them to not update "pToolCount" after writing their properties
+	// Workaround bug in validation layers that causes them to not update "pToolCount" after writing their properties
 	if (*pToolCount == available_tool_count && available_tool_count > 1)
 		*pToolCount -= 1;
 
@@ -247,4 +250,5 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 
 	return VK_SUCCESS;
 }
+
 #endif
