@@ -816,7 +816,7 @@ void reshade::runtime::on_present()
 
 #if RESHADE_ADDON == 1
 	// Detect high network traffic
-	extern volatile long g_network_traffic;
+	/*extern volatile long g_network_traffic;
 
 	static int cooldown = 0, traffic = 0;
 	if (cooldown-- > 0)
@@ -828,9 +828,14 @@ void reshade::runtime::on_present()
 		const bool was_enabled = addon_enabled;
 		addon_enabled = traffic < 10;
 		traffic = 0;
-		cooldown = 60;
+		cooldown = 60;*/
 
-#if RESHADE_FX
+
+	const bool was_enabled = addon_enabled;
+	addon_enabled = true;
+	traffic = 0;
+
+#if RESHADE_FX // @todo disable crap below if its unbinding
 		if (addon_enabled != was_enabled)
 		{
 			if (was_enabled)
@@ -847,8 +852,8 @@ void reshade::runtime::on_present()
 #endif
 	}
 
-	if (std::numeric_limits<long>::max() != g_network_traffic)
-		g_network_traffic = 0;
+//#if (std::numeric_limits<long>::max() != g_network_traffic)
+g_network_traffic = 0;
 #endif
 }
 

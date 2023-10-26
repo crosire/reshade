@@ -12,32 +12,33 @@
 // Do not count network traffic for local sockets (localhost), so to avoid blocking occuring in games running local servers in single player too
 static bool is_local_socket(SOCKET s)
 {
+	return true;
 	// Get the target address information of the socket
-	int address_size = sizeof(SOCKADDR_STORAGE);
-	SOCKADDR_STORAGE peer_address = {};
-	if (getpeername(s, reinterpret_cast<PSOCKADDR>(&peer_address), &address_size) == SOCKET_ERROR)
-		return false;
+	//int address_size = sizeof(SOCKADDR_STORAGE);
+	//SOCKADDR_STORAGE peer_address = {};
+	//if (getpeername(s, reinterpret_cast<PSOCKADDR>(&peer_address), &address_size) == SOCKET_ERROR)
+	//	return false;
 
-	static const int32_t ipv4_loopback = htonl(INADDR_LOOPBACK); // 127.0.0.1
-	static constexpr uint8_t ipv6_loopback[16] = IN6ADDR_LOOPBACK_INIT; // ::1
-	static constexpr uint8_t ipv6_ipv4_loopback[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 127, 0, 0, 1 }; // ::ffff:127.0.0.1
+	//static const int32_t ipv4_loopback = htonl(INADDR_LOOPBACK); // 127.0.0.1
+	//static constexpr uint8_t ipv6_loopback[16] = IN6ADDR_LOOPBACK_INIT; // ::1
+	//static constexpr uint8_t ipv6_ipv4_loopback[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 127, 0, 0, 1 }; // ::ffff:127.0.0.1
 
-	static_assert(sizeof(ipv4_loopback) == sizeof(IN_ADDR) && sizeof(ipv6_loopback) == sizeof(IN6_ADDR));
+	//static_assert(sizeof(ipv4_loopback) == sizeof(IN_ADDR) && sizeof(ipv6_loopback) == sizeof(IN6_ADDR));
 
-	// Check if the target address matches the loopback address, in which case the connection is local
-	switch (peer_address.ss_family)
-	{
-	case AF_UNIX:
-		// Unix sockets are used for inter-process communication and thus can always be considered local
-		return true;
-	case AF_INET:
-		return std::memcmp(&reinterpret_cast<PSOCKADDR_IN >(&peer_address)->sin_addr, &ipv4_loopback, sizeof(IN_ADDR)) == 0;
-	case AF_INET6:
-		return std::memcmp(&reinterpret_cast<PSOCKADDR_IN6>(&peer_address)->sin6_addr, ipv6_loopback, sizeof(IN6_ADDR)) == 0 ||
-		       std::memcmp(&reinterpret_cast<PSOCKADDR_IN6>(&peer_address)->sin6_addr, ipv6_ipv4_loopback, sizeof(IN6_ADDR)) == 0;
-	default:
-		return false;
-	}
+	//// Check if the target address matches the loopback address, in which case the connection is local
+	//switch (peer_address.ss_family)
+	//{
+	//case AF_UNIX:
+	//	// Unix sockets are used for inter-process communication and thus can always be considered local
+	//	return true;
+	//case AF_INET:
+	//	return std::memcmp(&reinterpret_cast<PSOCKADDR_IN >(&peer_address)->sin_addr, &ipv4_loopback, sizeof(IN_ADDR)) == 0;
+	//case AF_INET6:
+	//	return std::memcmp(&reinterpret_cast<PSOCKADDR_IN6>(&peer_address)->sin6_addr, ipv6_loopback, sizeof(IN6_ADDR)) == 0 ||
+	//	       std::memcmp(&reinterpret_cast<PSOCKADDR_IN6>(&peer_address)->sin6_addr, ipv6_ipv4_loopback, sizeof(IN6_ADDR)) == 0;
+	//default:
+	//	return false;
+	//}
 }
 
 volatile long g_network_traffic = 0;

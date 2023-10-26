@@ -285,10 +285,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				}
 				else
 				{
-					// Disable network hooks when requested through an environment variable and always disable add-ons in that case
 					extern volatile long g_network_traffic;
-					g_network_traffic = std::numeric_limits<long>::max(); // Special value to indicate that add-ons should never be enabled
-					reshade::addon_enabled = false;
+					g_network_traffic = 0;
+					reshade::addon_enabled = true;
+
+					//// Disable network hooks when requested through an environment variable and always disable add-ons in that case
+					//extern volatile long g_network_traffic;
+					//g_network_traffic = std::numeric_limits<long>::max(); // Special value to indicate that add-ons should never be enabled
+					//reshade::addon_enabled = false;
 				}
 #endif
 
