@@ -204,7 +204,7 @@ namespace ReShade.Setup
 				ResetStatus();
 
 #if RESHADE_ADDON
-				MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+				MessageBox.Show(this, "You can get banned for running this Reshade build in multiplayer games. However, this functionality is enabled. By using this software, you accept that risk.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 #endif
 			}
 		}
