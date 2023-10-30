@@ -11,7 +11,7 @@
 #include <Windows.h>
 
 // Current version of the ReShade API
-#define RESHADE_API_VERSION 8
+#define RESHADE_API_VERSION 9
 
 // Optionally import ReShade API functions when 'RESHADE_API_LIBRARY' is defined instead of using header-only mode
 #if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
@@ -37,6 +37,8 @@ RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterEvent(reshade::addon_event ev
 
 RESHADE_API_LIBRARY_DECLSPEC void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+
+RESHADE_API_LIBRARY_DECLSPEC bool ReShadeActivateOverlay(reshade::api::effect_runtime *runtime, bool activate, reshade::api::input_source source);
 
 #else
 
@@ -358,5 +360,26 @@ namespace reshade
 		UNREFERENCED_PARAMETER(title);
 		UNREFERENCED_PARAMETER(callback);
 #endif
+	}
+	/// <summary>
+	/// Activates ReShade's overlay programatically.
+	/// </summary>
+	/// <param name="runtime">The runtime whose overlay to activate or deactivate.</param>
+	/// <param name="activate">Activation state to request.</param>
+	/// <param name="source">Source of activation request.</param>
+	inline bool activate_overlay(reshade::api::effect_runtime *runtime, bool activate, reshade::api::input_source source)
+	{
+#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON && RESHADE_GUI)
+		return ReShadeActivateOverlay(runtime, activate, source);
+#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+		static const auto func = reinterpret_cast<bool(*)(reshade::api::effect_runtime *, bool, reshade::api::input_source)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeActivateOverlay"));
+		if (func != nullptr)
+			return func(runtime, activate, source);
+#else
+		UNREFERENCED_PARAMETER(title);
+		UNREFERENCED_PARAMETER(callback);
+#endif
+		return false;
 	}
 }

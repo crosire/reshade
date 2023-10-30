@@ -711,12 +711,20 @@ void reshade::runtime::draw_gui()
 {
 	assert(_is_initialized);
 
+	bool show = _show_overlay;
+	api::input_source activation_source = api::input_source::none;
+
 	if (_input != nullptr)
 	{
 		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
-			_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
+			show = false; // Close when pressing the escape button and not currently navigating with the keyboard
 		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
-			_show_overlay = !_show_overlay;
+			show = !_show_overlay;
+
+		if (show != _show_overlay)
+		{
+			activation_source = api::input_source::keyboard;
+		}
 	}
 
 	if (_input_gamepad != nullptr)
@@ -725,10 +733,16 @@ void reshade::runtime::draw_gui()
 			_input_gamepad->is_button_down(input_gamepad::button_right_shoulder) &&
 			_input_gamepad->is_button_pressed(input_gamepad::button_start))
 		{
-			_show_overlay = !_show_overlay;
-			_imgui_context->NavInputSource = ImGuiInputSource_Gamepad;
+			show = !_show_overlay;
+			activation_source = api::input_source::gamepad;
 		}
 	}
+
+	if (show != _show_overlay)
+	{
+		activate_overlay(show, activation_source);
+	}
+	
 
 #if RESHADE_FX
 	const bool show_splash_window = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0 && _input != nullptr));
@@ -4368,6 +4382,29 @@ void reshade::runtime::destroy_imgui_resources()
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};
+}
+
+bool reshade::runtime::activate_overlay(bool activate, reshade::api::input_source source)
+{
+	const bool requested = activate;
+
+	reshade::invoke_addon_event<reshade::addon_event::reshade_overlay_activation>(
+		this,
+		&activate,
+		source
+	);
+
+	if (activate == requested)
+	{
+		_show_overlay = activate;
+
+		if (_show_overlay)
+			_imgui_context->NavInputSource = static_cast<ImGuiInputSource>(source);
+
+		return true;
+	}
+
+	return false;
 }
 
 #endif

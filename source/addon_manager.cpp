@@ -7,6 +7,7 @@
 
 #include "reshade.hpp"
 #include "addon_manager.hpp"
+#include "runtime.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
@@ -550,6 +551,14 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 		[title, callback](const reshade::addon_info::overlay_callback &item) {
 			return item.title == title && item.callback == callback;
 		}), info->overlay_callbacks.end());
+}
+
+bool ReShadeActivateOverlay(reshade::api::effect_runtime *runtime, bool activate, reshade::api::input_source source)
+{
+	if (runtime == nullptr)
+		return false;
+
+	return runtime->activate_overlay (activate, source);
 }
 
 #endif

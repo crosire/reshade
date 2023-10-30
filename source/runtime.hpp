@@ -168,6 +168,7 @@ namespace reshade
 		void set_current_preset_path(const char *path) final;
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
+		bool activate_overlay(bool activate, reshade::api::input_source source) final;
 
 	protected:
 		runtime(api::device *device, api::command_queue *graphics_queue);

@@ -12,7 +12,7 @@ namespace reshade
 	enum class addon_event : uint32_t
 	{
 		/// <summary>
-		/// Called after successfull device creation, from:
+		/// Called after successful device creation, from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3D9::CreateDevice</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx</description></item>
@@ -49,7 +49,7 @@ namespace reshade
 		destroy_device,
 
 		/// <summary>
-		/// Called after successfull command list creation, from:
+		/// Called after successful command list creation, from:
 		/// <list type="bullet">
 		/// <item><description>ID3D11Device::CreateDeferredContext</description></item>
 		/// <item><description>ID3D11Device1::CreateDeferredContext1</description></item>
@@ -78,7 +78,7 @@ namespace reshade
 		destroy_command_list,
 
 		/// <summary>
-		/// Called after successfull command queue creation, from:
+		/// Called after successful command queue creation, from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateCommandQueue</description></item>
 		/// <item><description>vkCreateDevice (for every queue associated with the device)</description></item>
@@ -101,7 +101,7 @@ namespace reshade
 		destroy_command_queue,
 
 		/// <summary>
-		/// Called after successfull swap chain creation, from:
+		/// Called after successful swap chain creation, from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3D9::CreateDevice (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx (for the implicit swap chain)</description></item>
@@ -176,7 +176,7 @@ namespace reshade
 		destroy_effect_runtime,
 
 		/// <summary>
-		/// Called after successfull sampler creation from:
+		/// Called after successful sampler creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D10Device::CreateSamplerState</description></item>
 		/// <item><description>ID3D11Device::CreateSamplerState</description></item>
@@ -223,7 +223,7 @@ namespace reshade
 		destroy_sampler,
 
 		/// <summary>
-		/// Called after successfull resource creation from:
+		/// Called after successful resource creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateVertexBuffer</description></item>
 		/// <item><description>IDirect3DDevice9::CreateIndexBuffer</description></item>
@@ -369,7 +369,7 @@ namespace reshade
 		destroy_resource,
 
 		/// <summary>
-		/// Called after successfull resource view creation from:
+		/// Called after successful resource view creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateTexture</description></item>
 		/// <item><description>IDirect3DDevice9::CreateCubeTexture</description></item>
@@ -555,7 +555,7 @@ namespace reshade
 		update_texture_region,
 
 		/// <summary>
-		/// Called after successfull pipeline creation from:
+		/// Called after successful pipeline creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateVertexShader</description></item>
 		/// <item><description>IDirect3DDevice9::CreatePixelShader</description></item>
@@ -675,7 +675,7 @@ namespace reshade
 		destroy_pipeline,
 
 		/// <summary>
-		/// Called after successfull pipeline layout creation from:
+		/// Called after successful pipeline layout creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateRootSignature</description></item>
 		/// <item><description>vkCreatePipelineLayout</description></item>
@@ -731,7 +731,7 @@ namespace reshade
 		update_descriptor_tables,
 
 		/// <summary>
-		/// Called after successfull query heap creation from:
+		/// Called after successful query heap creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateQueryHeap</description></item>
 		/// <item><description>vkCreateQueryPool</description></item>
@@ -1564,6 +1564,15 @@ namespace reshade
 		/// </remarks>
 		reshade_reorder_techniques,
 
+		/// <summary>
+		/// Called when the ReShade overlay is about to be activated (shown) or deactivated (hidden).
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, bool* activate, ImGuiInputSource source)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent overlay activation, set the value of activate and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_overlay_activation,
+
 #if RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
@@ -1695,4 +1704,6 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_current_preset_path, void, api::effect_runtime *runtime, const char *path);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_activation, bool, api::effect_runtime *runtime, bool* activate, api::input_source source);
 }
