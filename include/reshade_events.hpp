@@ -1566,7 +1566,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called when the ReShade overlay is about to be activated (shown) or deactivated (hidden).
-		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, bool* activate, ImGuiInputSource source)</c></para>
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, bool* activate, api::input_source source)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent overlay activation, set the value of activate and return <see langword="true"/>, otherwise return <see langword="false"/>.
