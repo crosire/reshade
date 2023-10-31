@@ -611,7 +611,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		backup();
 
 		// Check if this is a C-style cast expression
-		if (type cast_type; accept_type_class(cast_type))
+		if (type cast_type = {}; accept_type_class(cast_type))
 		{
 			if (peek('('))
 			{
@@ -687,7 +687,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				res.array_data.push_back(element.constant);
 			}
 
-			composite_type.array_length = static_cast<int>(elements.size());
+			composite_type.array_length = static_cast<unsigned int>(elements.size());
 
 			exp.reset_to_rvalue_constant(location, std::move(res), composite_type);
 		}
@@ -700,7 +700,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				element.reset_to_rvalue(element.location, _codegen->emit_load(element), composite_type);
 			}
 
-			composite_type.array_length = static_cast<int>(elements.size());
+			composite_type.array_length = static_cast<unsigned int>(elements.size());
 
 			const auto result = _codegen->emit_construct(location, composite_type, elements);
 
@@ -746,7 +746,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 		exp.reset_to_rvalue_constant(location, std::move(value));
 	}
-	else if (type type; accept_type_class(type)) // Check if this is a constructor call expression
+	else if (type type = {}; accept_type_class(type)) // Check if this is a constructor call expression
 	{
 		if (!expect('('))
 			return false;
@@ -1129,7 +1129,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
-				const unsigned int set = subscript[1] == 'm';
+				const int set = subscript[1] == 'm';
 				const int coefficient = !set;
 
 				for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
@@ -1224,7 +1224,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (index.is_constant)
 			{
 				// Check array bounds if known
-				if (exp.type.array_length > 0 && index.constant.as_uint[0] >= static_cast<unsigned int>(exp.type.array_length))
+				if (exp.type.is_bounded_array() && index.constant.as_uint[0] >= exp.type.array_length)
 					return error(index.location, 3504, "array index out of bounds"), false;
 
 				exp.add_constant_index_access(index.constant.as_uint[0]);

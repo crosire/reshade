@@ -4292,7 +4292,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 	static const reshadefx::constant zero = {};
 
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
-	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1); i < array_length; ++i)
+	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1u); i < array_length; ++i)
 	{
 		const reshadefx::constant &value = variable.has_initializer_value ? variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value : zero;
 
@@ -4329,7 +4329,7 @@ void reshade::runtime::get_uniform_value_data(const uniform &variable, uint8_t *
 	const std::vector<uint8_t> &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1u);
 	if (assert(base_index < array_length); base_index >= array_length)
 		return;
 
@@ -4430,7 +4430,7 @@ void reshade::runtime::set_uniform_value_data(uniform &variable, const uint8_t *
 	std::vector<uint8_t> &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1u);
 	if (assert(base_index < array_length); base_index >= array_length)
 		return;
 

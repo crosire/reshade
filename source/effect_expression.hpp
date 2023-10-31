@@ -14,7 +14,7 @@ namespace reshadefx
 	/// </summary>
 	struct type
 	{
-		enum datatype : uint8_t
+		enum datatype : unsigned int
 		{
 			t_void,
 			t_bool,
@@ -49,7 +49,7 @@ namespace reshadefx
 			t_storage3d_float,
 			t_function,
 		};
-		enum qualifier : uint32_t
+		enum qualifier : unsigned int
 		{
 			q_extern = 1 << 0,
 			q_static = 1 << 1,
@@ -100,6 +100,8 @@ namespace reshadefx
 		bool is_function() const { return base == t_function; }
 
 		bool is_array() const { return array_length != 0; }
+		bool is_bounded_array() const { return is_array() && array_length != UINT_MAX; }
+		bool is_unbounded_array() const { return array_length == UINT_MAX; }
 		bool is_scalar() const { return is_numeric() && !is_matrix() && !is_vector() && !is_array(); }
 		bool is_vector() const { return is_numeric() && rows > 1 && cols == 1; }
 		bool is_matrix() const { return is_numeric() && rows >= 1 && cols > 1; }
@@ -118,17 +120,17 @@ namespace reshadefx
 		}
 
 		// Underlying base type ('int', 'float', ...)
-		datatype base = t_void;
+		datatype base : 8;
 		// Number of rows if this is a vector type
-		unsigned int rows = 0;
+		unsigned int rows : 4;
 		// Number of columns if this is a matrix type
-		unsigned int cols = 0;
+		unsigned int cols : 4;
 		// Bit mask of all the qualifiers decorating the type
-		unsigned int qualifiers = 0;
-		// Negative if an unsized array, otherwise the number of elements if this is an array type
-		int array_length = 0;
+		unsigned int qualifiers : 16;
+		// Number of elements if this is an array type, UINT_MAX if it is an unsized array
+		unsigned int array_length;
 		// ID of the matching struct if this is a struct type
-		uint32_t definition = 0;
+		uint32_t definition;
 	};
 
 	/// <summary>
@@ -167,8 +169,8 @@ namespace reshadefx
 
 			op_type op;
 			reshadefx::type from, to;
-			uint32_t index = 0;
-			signed char swizzle[4] = {};
+			uint32_t index;
+			signed char swizzle[4];
 		};
 
 		uint32_t base = 0;

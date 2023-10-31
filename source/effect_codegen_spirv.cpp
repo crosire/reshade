@@ -1115,7 +1115,7 @@ private:
 			{
 				assert(stype != shader_type::cs); // Compute shaders cannot have custom inputs or outputs
 
-				const uint32_t location = semantic_to_location(semantic, std::max(1, param_type.array_length));
+				const uint32_t location = semantic_to_location(semantic, std::max(1u, param_type.array_length));
 				add_decoration(variable, spv::DecorationLocation, { location + a });
 			}
 
@@ -1146,13 +1146,13 @@ private:
 					const struct_info &definition = get_struct(param.type.definition);
 
 					type struct_type = param.type;
-					const int array_length = std::max(1, param.type.array_length);
+					const unsigned int array_length = std::max(1u, param.type.array_length);
 					struct_type.array_length = 0;
 
 					// Struct arrays need to be flattened into individual elements as well
 					std::vector<spv::Id> array_elements;
 					array_elements.reserve(array_length);
-					for (int a = 0; a < array_length; a++)
+					for (unsigned int a = 0; a < array_length; a++)
 					{
 						std::vector<spv::Id> struct_elements;
 						struct_elements.reserve(definition.member_list.size());
@@ -1196,7 +1196,7 @@ private:
 				{
 					const struct_info &definition = get_struct(param.type.definition);
 
-					for (int a = 0, array_length = std::max(1, param.type.array_length); a < array_length; a++)
+					for (unsigned int a = 0, array_length = std::max(1u, param.type.array_length); a < array_length; a++)
 					{
 						for (const struct_member_info &member : definition.member_list)
 						{
@@ -1227,7 +1227,7 @@ private:
 					const struct_info &definition = get_struct(param.type.definition);
 
 					type struct_type = param.type;
-					const int array_length = std::max(1, param.type.array_length);
+					const unsigned int array_length = std::max(1u, param.type.array_length);
 					struct_type.array_length = 0;
 
 					// Skip input variables if this is an "inout" parameter
@@ -1235,7 +1235,7 @@ private:
 						inputs_and_outputs_index += definition.member_list.size() * array_length;
 
 					// Split up struct array into individual struct elements again
-					for (int a = 0; a < array_length; a++)
+					for (unsigned int a = 0; a < array_length; a++)
 					{
 						spv::Id element_value = value;
 						if (param.type.is_array())
@@ -1277,7 +1277,7 @@ private:
 				if (param.type.is_struct())
 				{
 					const struct_info &definition = get_struct(param.type.definition);
-					inputs_and_outputs_index += definition.member_list.size() * std::max(1, param.type.array_length);
+					inputs_and_outputs_index += definition.member_list.size() * std::max(1u, param.type.array_length);
 				}
 				else
 				{

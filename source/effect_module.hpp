@@ -157,7 +157,7 @@ namespace reshadefx
 	/// </summary>
 	struct struct_member_info
 	{
-		reshadefx::type type;
+		reshadefx::type type = {};
 		std::string name;
 		std::string semantic;
 		reshadefx::location location;
@@ -169,9 +169,9 @@ namespace reshadefx
 	/// </summary>
 	struct annotation
 	{
-		reshadefx::type type;
+		reshadefx::type type = {};
 		std::string name;
-		reshadefx::constant value;
+		reshadefx::constant value = {};
 	};
 
 	/// <summary>
@@ -204,7 +204,7 @@ namespace reshadefx
 		uint32_t binding = 0;
 		uint32_t texture_binding = 0;
 		std::string name;
-		reshadefx::type type;
+		reshadefx::type type = {};
 		std::string unique_name;
 		std::string texture_name;
 		std::vector<annotation> annotations;
@@ -226,7 +226,7 @@ namespace reshadefx
 		uint32_t id = 0;
 		uint32_t binding = 0;
 		std::string name;
-		reshadefx::type type;
+		reshadefx::type type = {};
 		std::string unique_name;
 		std::string texture_name;
 		uint16_t level = 0;
@@ -238,7 +238,7 @@ namespace reshadefx
 	struct uniform_info
 	{
 		std::string name;
-		reshadefx::type type;
+		reshadefx::type type = {};
 		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::vector<annotation> annotations;
@@ -336,6 +336,7 @@ namespace reshadefx
 		std::vector<char> code;
 
 		std::vector<entry_point> entry_points;
+
 		std::vector<texture_info> textures;
 		std::vector<sampler_info> samplers;
 		std::vector<storage_info> storages;

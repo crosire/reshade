@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "effect_lexer.hpp"
-#include "effect_codegen.hpp"
+#include "effect_expression.hpp"
 #include <cmath> // fmod
 #include <cassert>
 #include <cstring> // memcpy, memset
@@ -157,7 +156,7 @@ std::string reshadefx::type::description() const
 	if (is_array())
 	{
 		result += '[';
-		if (array_length > 0)
+		if (is_bounded_array())
 			result += std::to_string(array_length);
 		result += ']';
 	}
@@ -290,7 +289,7 @@ void reshadefx::expression::add_cast_operation(const reshadefx::type &cast_type)
 					constant.as_float[i] = static_cast<float>(constant.as_int[i]);
 		};
 
-		for (auto &element : constant.array_data)
+		for (reshadefx::constant &element : constant.array_data)
 			cast_constant(element, type, cast_type);
 
 		cast_constant(constant, type, cast_type);
@@ -320,7 +319,7 @@ void reshadefx::expression::add_dynamic_index_access(uint32_t index_expression)
 	assert(!is_constant); // Cannot have dynamic indexing into constant in SPIR-V
 	assert(type.is_array() || (type.is_numeric() && !type.is_scalar()));
 
-	auto prev_type = type;
+	reshadefx::type prev_type = type;
 
 	if (type.is_array())
 	{
@@ -342,11 +341,11 @@ void reshadefx::expression::add_constant_index_access(unsigned int index)
 {
 	assert(type.is_array() || (type.is_numeric() && !type.is_scalar()));
 
-	auto prev_type = type;
+	reshadefx::type prev_type = type;
 
 	if (type.is_array())
 	{
-		assert(type.array_length < 0 || index < static_cast<unsigned int>(type.array_length));
+		assert(index < type.array_length);
 
 		type.array_length = 0;
 	}
@@ -389,7 +388,7 @@ void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], uns
 {
 	assert(type.is_numeric() && !type.is_array());
 
-	const auto prev_type = type;
+	const reshadefx::type prev_type = type;
 
 	type.rows = length;
 	type.cols = 1;

@@ -126,7 +126,7 @@ static const intrinsic s_intrinsics[] =
 #undef uint2
 #undef uint3
 #undef uint4
-#undef float1
+#undef float
 #undef float2
 #undef float3
 #undef float4
@@ -164,7 +164,7 @@ static const intrinsic s_intrinsics[] =
 
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {
-	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
+	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.is_bounded_array() && dst.is_bounded_array()))
 		return 0; // Arrays of different sizes are not compatible
 	if (src.is_struct() || dst.is_struct())
 		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
@@ -177,7 +177,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	//  - Floating point has a higher rank than integer types
 	//  - Integer to floating point promotion has a higher rank than floating point to integer conversion
 	//  - Signed to unsigned integer conversion has a higher rank than unsigned to signed integer conversion
-	static const int ranks[7][7] = {
+	static const unsigned int ranks[7][7] = {
 		{ 5, 4, 4, 4, 4, 4, 4 }, // bool
 		{ 3, 5, 5, 2, 2, 4, 4 }, // min16int
 		{ 3, 5, 5, 2, 2, 4, 4 }, // int
@@ -190,7 +190,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	assert(src.base > 0 && src.base <= 7); // bool - float
 	assert(dst.base > 0 && dst.base <= 7);
 
-	const int rank = ranks[src.base - 1][dst.base - 1] << 2;
+	const unsigned int rank = ranks[src.base - 1][dst.base - 1] << 2;
 
 	if ((src.is_scalar() && dst.is_vector()))
 		return rank >> 1; // Scalar to vector promotion has a lower rank

@@ -91,7 +91,7 @@ void reshadefx::parser::parse_top(bool &parse_success)
 	}
 	else
 	{
-		if (type type; parse_type(type)) // Type found, this can be either a variable or a function declaration
+		if (type type = {}; parse_type(type)) // Type found, this can be either a variable or a function declaration
 		{
 			parse_success = expect(tokenid::identifier);
 			if (!parse_success)
@@ -386,7 +386,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 			on_scope_exit _([this]() { leave_scope(); });
 
 			// Parse initializer first
-			if (type type; parse_type(type))
+			if (type type = {}; parse_type(type))
 			{
 				unsigned int count = 0;
 				do { // There may be multiple declarations behind a type, so loop through them
@@ -706,7 +706,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	}
 
 	// Handle variable declarations
-	if (type type; parse_type(type))
+	if (type type = {}; parse_type(type))
 	{
 		unsigned int count = 0;
 		do { // There may be multiple declarations behind a type, so loop through them
@@ -801,7 +801,7 @@ bool reshadefx::parser::parse_array_size(type &type)
 		if (accept(']'))
 		{
 			// No length expression, so this is an unsized array
-			type.array_length = -1;
+			type.array_length = UINT_MAX;
 		}
 		else if (expression expression; parse_expression(expression) && expect(']'))
 		{
@@ -836,7 +836,7 @@ bool reshadefx::parser::parse_annotations(std::vector<annotation> &annotations)
 
 	while (!peek('>'))
 	{
-		if (type type; accept_type_class(type))
+		if (type type /* = {} */; accept_type_class(type))
 			warning(_token.location, 4717, "type prefixes for annotations are deprecated and ignored");
 
 		if (!expect(tokenid::identifier))
@@ -921,10 +921,16 @@ bool reshadefx::parser::parse_struct()
 
 			// Modify member specific type, so that following members in the declaration list are not affected by this
 			if (!parse_array_size(member.type))
-				return consume_until('}'), accept(';'), false;
-			else if (member.type.array_length < 0)
-				parse_success = false,
+			{
+				consume_until('}');
+				accept(';');
+				return false;
+			}
+			else if (member.type.is_unbounded_array())
+			{
+				parse_success = false;
 				error(member.location, 3072, '\'' + member.name + "': array dimensions of struct members must be explicit");
+			}
 
 			// Structure members may have semantics to use them as input/output types
 			if (accept(':'))
@@ -1073,7 +1079,7 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 			consume_until(')');
 			break;
 		}
-		else if (param.type.array_length < 0)
+		else if (param.type.is_unbounded_array())
 		{
 			parse_success = false;
 			error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit");
@@ -1268,7 +1274,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				return error(initializer.location, 3011, '\'' + name + "': initial value must be a literal expression"), false;
 
 			// Check type compatibility
-			if ((type.array_length >= 0 && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))
+			if ((!type.is_unbounded_array() && initializer.type.array_length != type.array_length) || !type::rank(initializer.type, type))
 				return error(initializer.location, 3017, '\'' + name + "': initial value (" + initializer.type.description() + ") does not match variable type (" + type.description() + ')'), false;
 			if ((initializer.type.rows < type.rows || initializer.type.cols < type.cols) && !initializer.type.is_scalar())
 				return error(initializer.location, 3017, '\'' + name + "': cannot implicitly convert these vector types (from " + initializer.type.description() + " to " + type.description() + ')'), false;
@@ -1451,7 +1457,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	}
 
 	// At this point the array size should be known (either from the declaration or the initializer)
-	if (type.array_length < 0)
+	if (type.is_unbounded_array())
 		return error(location, 3074, '\'' + name + "': implicit array missing initial value"), false;
 
 	symbol symbol;
@@ -1736,7 +1742,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						info.viewport_width = target_info.width;
 						info.viewport_height = target_info.height;
 
-						const auto target_index = state.size() > 12 ? (state[12] - '0') : 0;
+						const int target_index = state.size() > 12 ? (state[12] - '0') : 0;
 						info.render_target_names[target_index] = target_info.unique_name;
 
 						// Only RGBA8 format supports sRGB writes across all APIs
