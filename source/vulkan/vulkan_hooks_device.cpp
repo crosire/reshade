@@ -16,7 +16,7 @@
 extern thread_local bool g_in_dxgi_runtime;
 
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
-extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
+extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
@@ -76,7 +76,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
-	const instance_dispatch_table &instance_dispatch = g_instance_dispatch.at(dispatch_key_from_handle(physicalDevice));
+	const instance_dispatch_table &instance_dispatch = g_vulkan_instances.at(dispatch_key_from_handle(physicalDevice));
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
 	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(

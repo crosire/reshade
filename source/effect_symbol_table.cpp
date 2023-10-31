@@ -130,37 +130,6 @@ static const intrinsic s_intrinsics[] =
 #undef float2
 #undef float3
 #undef float4
-#undef float2x2
-#undef float3x3
-#undef float4x4
-#undef out_float
-#undef out_float2
-#undef out_float3
-#undef out_float4
-#undef sampler1d_int
-#undef sampler2d_int
-#undef sampler3d_int
-#undef sampler1d_uint
-#undef sampler2d_uint
-#undef sampler3d_uint
-#undef sampler1d_float4
-#undef sampler2d_float4
-#undef sampler3d_float4
-#undef storage1d_int
-#undef storage2d_int
-#undef storage3d_int
-#undef storage1d_uint
-#undef storage2d_uint
-#undef storage3d_uint
-#undef storage1d_float4
-#undef storage2d_float4
-#undef storage3d_float4
-#undef inout_storage1d_int
-#undef inout_storage2d_int
-#undef inout_storage3d_int
-#undef inout_storage1d_uint
-#undef inout_storage2d_uint
-#undef inout_storage3d_uint
 
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {
@@ -280,7 +249,7 @@ bool reshadefx::symbol_table::insert_symbol(const std::string &name, const symbo
 		{
 			// Extract scope name
 			scope.name = _current_scope.name.substr(0, pos += 2);
-			const auto previous_scope_name = _current_scope.name.substr(pos);
+			const std::string previous_scope_name = _current_scope.name.substr(pos);
 
 			// Insert symbol into this scope
 			insert_sorted(_symbol_stack[previous_scope_name + name], scoped_symbol { symbol, scope });

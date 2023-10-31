@@ -65,7 +65,7 @@ namespace reshadefx
 		bool parse_technique();
 		bool parse_technique_pass(pass_info &info);
 		bool parse_type(type &type);
-		bool parse_array_size(type &type);
+		bool parse_array_length(type &type);
 		bool parse_expression(expression &expression);
 		bool parse_expression_unary(expression &expression);
 		bool parse_expression_multary(expression &expression, unsigned int precedence = 0);

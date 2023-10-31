@@ -24,7 +24,7 @@ unsigned int reshade::runtime::s_latest_version[3] = {};
 
 void reshade::runtime::check_for_update()
 {
-#ifdef NDEBUG
+#if defined(NDEBUG) && !defined(RESHADE_TEST_APPLICATION)
 	if (s_latest_version[0] != 0)
 		return;
 
