@@ -32,13 +32,36 @@ namespace reshade
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
 	/// </summary>
-	class __declspec(novtable) runtime : public api::effect_runtime
+	class runtime : public api::api_object_impl<uintptr_t, api::effect_runtime>
 	{
 	public:
+		runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr);
+		~runtime();
+
+		bool on_init();
+		void on_reset();
+		void on_present(api::command_queue *present_queue);
+
 		/// <summary>
-		/// Gets the handle of the window the swap chain associated with this effect runtime was created with.
+		/// Gets the handle of the window associated with this effect runtime.
 		/// </summary>
-		void *get_hwnd() const override;
+		void *get_hwnd() const final;
+
+		/// <summary>
+		/// Gets the back buffer resource at the specified <paramref name="index"/> in the swap chain associated with this effect runtime.
+		/// </summary>
+		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
+		api::resource get_back_buffer(uint32_t index) final { return _swapchain->get_back_buffer(index); }
+
+		/// <summary>
+		/// Gets the number of back buffer resources in the swap chain associated with this effect runtime.
+		/// </summary>
+		uint32_t get_back_buffer_count() const final { return _swapchain->get_back_buffer_count(); }
+
+		/// <summary>
+		/// Gets the index of the back buffer resource that can currently be rendered into.
+		/// </summary>
+		uint32_t get_current_back_buffer_index() const final { return _swapchain->get_current_back_buffer_index(); }
 
 		/// <summary>
 		/// Gets the parent device for this effect runtime.
@@ -76,7 +99,7 @@ namespace reshade
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::string_view &postfix = std::string_view());
-		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
+		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
 
 		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
 
@@ -167,14 +190,8 @@ namespace reshade
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
 
-	protected:
-		runtime(api::device *device, api::command_queue *graphics_queue);
-		~runtime();
-
-		bool on_init(void *window);
-		void on_reset();
-		void on_present(api::command_queue *present_queue);
-
+	private:
+		api::swapchain *const _swapchain;
 		api::device *const _device;
 		api::command_queue *const _graphics_queue;
 		unsigned int _width = 0;
@@ -184,7 +201,6 @@ namespace reshade
 		unsigned int _renderer_id = 0;
 		uint16_t _back_buffer_samples = 1;
 		api::format  _back_buffer_format = api::format::unknown;
-		api::color_space _back_buffer_color_space = api::color_space::srgb_nonlinear;
 		bool _is_vr = false;
 
 #if RESHADE_ADDON
@@ -192,7 +208,6 @@ namespace reshade
 		bool _is_in_present_call = false;
 #endif
 
-	private:
 		static void check_for_update();
 
 		void load_config();

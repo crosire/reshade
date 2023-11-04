@@ -11,9 +11,11 @@
 #define gl gl3wProcs.gl
 
 reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC initial_hglrc, bool compatibility_context) :
-	device_impl(hdc, initial_hglrc, compatibility_context), render_context_impl(this, initial_hglrc), swapchain_base(this, this)
+	device_impl(hdc, initial_hglrc, compatibility_context), render_context_impl(this, initial_hglrc), swapchain_base(this)
 {
 	_hdcs.insert(hdc);
+
+	create_effect_runtime(this, this);
 
 	GLint scissor_box[4] = {};
 	gl.GetIntegerv(GL_SCISSOR_BOX, scissor_box);
@@ -26,6 +28,8 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC initial_hglrc, bo
 reshade::opengl::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
+
+	destroy_effect_runtime(this);
 }
 
 reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index)
@@ -35,10 +39,13 @@ reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer(uint32_t
 	return make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 }
 
-bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
+void reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, unsigned int height)
 {
 	assert(width != 0 && height != 0);
 
+	_hwnd = hwnd;
+	_width = width;
+	_height = height;
 	_default_fbo_desc.texture.width = width;
 	_default_fbo_desc.texture.height = _current_window_height = height;
 
@@ -58,14 +65,14 @@ bool reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 	invoke_addon_event<addon_event::bind_render_targets_and_depth_stencil>(this, 1, &default_rtv, default_dsv);
 #endif
 
-	return runtime::on_init(hwnd);
+	init_effect_runtime(this);
 }
 void reshade::opengl::swapchain_impl::on_reset()
 {
 	if (_width == 0 && _height == 0)
 		return;
 
-	runtime::on_reset();
+	reset_effect_runtime(this);
 
 #if RESHADE_ADDON
 	api::resource_view default_dsv = { 0 };
@@ -78,11 +85,34 @@ void reshade::opengl::swapchain_impl::on_reset()
 
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
+
+	_hwnd = nullptr;
 }
 
-void reshade::opengl::swapchain_impl::on_present()
+bool reshade::opengl::swapchain_impl::on_present(HDC hdc)
 {
-	runtime::on_present(this);
+	// The window handle can be invalid if the window was already destroyed
+	const HWND hwnd = WindowFromDC(hdc);
+	if (hwnd == nullptr)
+		return false;
+
+	assert(hwnd == _hwnd);
+
+	RECT rect = { 0, 0, 0, 0 };
+	GetClientRect(hwnd, &rect);
+
+	const auto width = static_cast<unsigned int>(rect.right);
+	const auto height = static_cast<unsigned int>(rect.bottom);
+
+	if (width != _width || height != _height)
+	{
+		LOG(INFO) << "Resizing device context " << GetDC(hwnd) << " to " << width << "x" << height << " ...";
+
+		on_reset();
+
+		if (width != 0 && height != 0)
+			on_init(hwnd, width, height);
+	}
 
 #ifndef NDEBUG
 	GLenum type = GL_NONE; char message[512] = "";
@@ -90,6 +120,8 @@ void reshade::opengl::swapchain_impl::on_present()
 		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
 			OutputDebugStringA(message), OutputDebugStringA("\n");
 #endif
+
+	return true;
 }
 
 void reshade::opengl::swapchain_impl::destroy_resource_view(api::resource_view handle)

@@ -645,10 +645,6 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		if (const auto it = s_opengl_devices.find(hglrc);
 			it != s_opengl_devices.end())
 		{
-#if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "> Cleaning up runtime " << static_cast<reshade::runtime *>(it->second) << " ...";
-#endif
-
 			// Set the render context current so its resources can be cleaned up
 			const HGLRC prev_hglrc = wglGetCurrentContext();
 			if (prev_hglrc == hglrc)
@@ -687,7 +683,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 					DestroyWindow(dummy_window_handle);
 			}
 
-			// Ensure the effect runtime is not still current after deleting
+			// Ensure the render context is not still current after deleting
 			if (it->second == g_current_context)
 				g_current_context = nullptr;
 
@@ -786,14 +782,10 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		if (it->second != g_current_context)
 		{
 			g_current_context = it->second;
-
-#if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Switched to existing runtime " << static_cast<reshade::runtime *>(it->second) << '.';
-#endif
 		}
 
 		// Keep track of all device contexts that were used with this render context
-		// Do this outside the above if statement since the application may change the device context without changing the render context and thus the current effect runtime
+		// Do this outside the above if statement since the application may change the device context without changing the render context
 		it->second->_hdcs.insert(hdc);
 	}
 	else
@@ -841,10 +833,6 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end());
 
 			g_current_context = s_opengl_devices[shared_hglrc] = device;
-
-#if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Switched to new runtime " << static_cast<reshade::runtime *>(device) << '.';
-#endif
 		}
 		else
 		{
@@ -993,53 +981,32 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 
-	reshade::opengl::swapchain_impl *runtime = reshade::opengl::swapchain_impl::from_context(g_current_context);
-	if (runtime == nullptr || runtime->_hdcs.find(hdc) == runtime->_hdcs.end())
+	reshade::opengl::swapchain_impl *swapchain = reshade::opengl::swapchain_impl::from_context(g_current_context);
+	if (swapchain == nullptr || swapchain->_hdcs.find(hdc) == swapchain->_hdcs.end())
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
 
-		// Find the runtime that is associated with this device context
+		// Find the swap chain that is associated with this device context
 		const auto it = std::find_if(s_opengl_devices.cbegin(), s_opengl_devices.cend(),
 			[hdc](const std::pair<HGLRC, reshade::opengl::swapchain_impl *> &it) {
 				return it.second->_hdcs.find(hdc) != it.second->_hdcs.end();
 			});
-		runtime = (it != s_opengl_devices.cend()) ? it->second : nullptr;
+		swapchain = (it != s_opengl_devices.cend()) ? it->second : nullptr;
 	}
 
-	// The window handle can be invalid if the window was already destroyed
-	if (const HWND hwnd = WindowFromDC(hdc);
-		hwnd != nullptr && runtime != nullptr)
+	if (swapchain != nullptr && swapchain->on_present(hdc))
 	{
-		RECT rect = { 0, 0, 0, 0 };
-		GetClientRect(hwnd, &rect);
-
-		uint32_t runtime_width = 0, runtime_height = 0;
-		runtime->get_screenshot_width_and_height(&runtime_width, &runtime_height);
-
-		const auto width = static_cast<unsigned int>(rect.right);
-		const auto height = static_cast<unsigned int>(rect.bottom);
-
-		if (width != runtime_width || height != runtime_height)
-		{
-			LOG(INFO) << "Resizing runtime " << static_cast<reshade::runtime *>(runtime) << " on device context " << hdc << " to " << width << "x" << height << " ...";
-
-			runtime->on_reset();
-
-			if (width != 0 && height != 0)
-				runtime->on_init(hwnd, width, height);
-		}
+		reshade::opengl::render_context_impl *const queue = (g_current_context != nullptr) ? g_current_context : swapchain;
 
 #if RESHADE_ADDON
-		reshade::opengl::render_context_impl *const queue = (g_current_context != nullptr) ? g_current_context : runtime;
-
 		// Behave as if immediate command list is flushed
 		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue, queue);
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(queue, runtime, nullptr, nullptr, 0, nullptr);
+		reshade::invoke_addon_event<reshade::addon_event::present>(queue, swapchain, nullptr, nullptr, 0, nullptr);
 #endif
 
 		// Assume that the correct OpenGL context is still current here
-		runtime->on_present();
+		reshade::present_effect_runtime(swapchain, queue);
 	}
 
 	return trampoline(hdc);

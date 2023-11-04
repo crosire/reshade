@@ -35,8 +35,29 @@ namespace reshade { namespace api
 	/// A post-processing effect runtime, used to control effects.
 	/// <para>ReShade associates an independent post-processing effect runtime with most swap chains.</para>
 	/// </summary>
-	struct __declspec(novtable) effect_runtime : public swapchain
+	struct __declspec(novtable) effect_runtime : public device_object
 	{
+		/// <summary>
+		/// Gets the handle of the window associated with this effect runtime.
+		/// </summary>
+		virtual void *get_hwnd() const = 0;
+
+		/// <summary>
+		/// Gets the back buffer resource at the specified <paramref name="index"/> in the swap chain associated with this effect runtime.
+		/// </summary>
+		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
+		virtual resource get_back_buffer(uint32_t index) = 0;
+
+		/// <summary>
+		/// Gets the number of back buffer resources in the swap chain associated with this effect runtime.
+		/// </summary>
+		virtual uint32_t get_back_buffer_count() const = 0;
+
+		/// <summary>
+		/// Gets the index of the back buffer resource that can currently be rendered into.
+		/// </summary>
+		virtual uint32_t get_current_back_buffer_index() const = 0;
+
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// This may potentially be different from the presentation queue and should be used to execute graphics commands on.

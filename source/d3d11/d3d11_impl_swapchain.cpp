@@ -10,13 +10,31 @@
 #include "addon_manager.hpp"
 
 reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
-	api_object_impl(swapchain, device, immediate_context)
+	api_object_impl(swapchain),
+	_device_impl(device)
 {
+	create_effect_runtime(this, immediate_context);
+
 	on_init();
 }
 reshade::d3d11::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
+
+	destroy_effect_runtime(this);
+}
+
+reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+
+void *reshade::d3d11::swapchain_impl::get_hwnd() const
+{
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	return swap_desc.OutputWindow;
 }
 
 reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t index)
@@ -46,37 +64,37 @@ void reshade::d3d11::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
 	_back_buffer_color_space = convert_color_space(type);
 }
 
-bool reshade::d3d11::swapchain_impl::on_init()
+void reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
-	DXGI_SWAP_CHAIN_DESC swap_desc;
-	if (FAILED(_orig->GetDesc(&swap_desc)))
-		return false;
-
 	// Get back buffer texture
 	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_back_buffer))))
-		return false;
+		return;
 	assert(_back_buffer != nullptr);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
+#ifndef NDEBUG
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
+#endif
 
 	// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
 	_back_buffer->Release();
 	assert(_back_buffer.ref_count() == 0);
 
-	return runtime::on_init(swap_desc.OutputWindow);
+	init_effect_runtime(this);
 }
 void reshade::d3d11::swapchain_impl::on_reset()
 {
 	if (_back_buffer == nullptr)
 		return;
 
-	runtime::on_reset();
+	reset_effect_runtime(this);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);

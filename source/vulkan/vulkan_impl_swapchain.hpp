@@ -5,18 +5,20 @@
 
 #pragma once
 
-#include "runtime.hpp"
-
 namespace reshade::vulkan
 {
 	class device_impl;
 	class command_queue_impl;
 
-	class swapchain_impl : public api::api_object_impl<VkSwapchainKHR, runtime>
+	class swapchain_impl : public api::api_object_impl<VkSwapchainKHR, api::swapchain>
 	{
 	public:
 		swapchain_impl(device_impl *device, command_queue_impl *graphics_queue);
 		~swapchain_impl();
+
+		api::device *get_device() final;
+
+		void *get_hwnd() const final { return _hwnd; }
 
 		api::resource get_back_buffer(uint32_t index) final;
 
@@ -28,15 +30,15 @@ namespace reshade::vulkan
 
 		api::color_space get_color_space() const final;
 
-		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd);
+		void on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd);
 		void on_reset();
 
-		using runtime::on_present;
-
 	private:
+		device_impl *const _device_impl;
 		uint32_t _swap_index = 0;
 		std::vector<VkImage> _swapchain_images;
 		VkSwapchainCreateInfoKHR _create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+		HWND _hwnd = nullptr;
 	};
 
 	template <>

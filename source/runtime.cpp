@@ -211,10 +211,65 @@ static inline int format_color_bit_depth(reshade::api::format value)
 #endif
 
 static std::atomic<unsigned int> s_runtime_index = 0;
+constexpr uint8_t s_runtime_id[16] = { 0x77, 0xFF, 0x82, 0x02, 0x5B, 0xEC, 0x42, 0xAD, 0x8C, 0xE0, 0x39, 0x7F, 0x3E, 0x84, 0xEA, 0xA6 };
 
-reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
-	_device(device),
+bool reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
+{
+	if (graphics_queue == nullptr)
+		return false;
+
+	swapchain->set_private_data(s_runtime_id, reinterpret_cast<uintptr_t>(new runtime(swapchain, graphics_queue, is_vr)));
+
+	return true;
+}
+void reshade::destroy_effect_runtime(api::swapchain *swapchain)
+{
+	uint64_t runtime_handle;
+	swapchain->get_private_data(s_runtime_id, &runtime_handle);
+	if (runtime_handle != 0)
+	{
+		reinterpret_cast<runtime *>(runtime_handle)->on_reset();
+
+		delete reinterpret_cast<runtime *>(runtime_handle);
+
+		swapchain->set_private_data(s_runtime_id, 0);
+	}
+}
+
+void reshade::init_effect_runtime(api::swapchain *swapchain)
+{
+	uint64_t runtime_handle;
+	swapchain->get_private_data(s_runtime_id, &runtime_handle);
+	if (runtime_handle != 0)
+	{
+		reinterpret_cast<runtime *>(runtime_handle)->on_init();
+	}
+}
+void reshade::reset_effect_runtime(api::swapchain *swapchain)
+{
+	uint64_t runtime_handle;
+	swapchain->get_private_data(s_runtime_id, &runtime_handle);
+	if (runtime_handle != 0)
+	{
+		reinterpret_cast<runtime *>(runtime_handle)->on_reset();
+	}
+}
+void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
+{
+	uint64_t runtime_handle;
+	swapchain->get_private_data(s_runtime_id, &runtime_handle);
+	if (runtime_handle != 0)
+	{
+		reinterpret_cast<runtime *>(runtime_handle)->on_present(present_queue);
+	}
+}
+
+reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr) :
+	api_object_impl(0),
+	_swapchain(swapchain),
+	_device(swapchain->get_device()),
 	_graphics_queue(graphics_queue),
+	_is_vr(is_vr),
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(_start_time),
 	_last_frame_duration(std::chrono::milliseconds(1)),
@@ -228,7 +283,7 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
-	assert(device != nullptr && graphics_queue != nullptr);
+	assert(swapchain != nullptr && graphics_queue != nullptr);
 
 	const api::device_properties props = _device->get_properties();
 	_vendor_id = props.vendor_id;
@@ -314,7 +369,7 @@ reshade::runtime::~runtime()
 	--s_runtime_index;
 }
 
-bool reshade::runtime::on_init(input::window_handle window)
+bool reshade::runtime::on_init()
 {
 	assert(!_is_initialized);
 
@@ -331,7 +386,6 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_height = back_buffer_desc.texture.height;
 	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
 	_back_buffer_samples = back_buffer_desc.texture.samples;
-	_back_buffer_color_space = get_color_space();
 
 	// Create resolve texture and copy pipeline (do this before creating effect resources, to ensure correct back buffer format is set up)
 	if (back_buffer_desc.texture.samples > 1
@@ -508,6 +562,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 		goto exit_failure;
 #endif
 
+	const input::window_handle window = _swapchain->get_hwnd();
 	if (window != nullptr && !_is_vr)
 		_input = input::register_window(window);
 	else
@@ -1446,7 +1501,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
 	attributes += "width=" + std::to_string(_effect_width) + ';';
 	attributes += "height=" + std::to_string(_effect_height) + ';';
-	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_back_buffer_color_space)) + ';';
+	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_swapchain->get_color_space())) + ';';
 	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_effect_color_format)) + ';';
 	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
 	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
@@ -1560,7 +1615,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_effect_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
+		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_swapchain->get_color_space())));
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
 		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)

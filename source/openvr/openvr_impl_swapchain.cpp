@@ -38,26 +38,35 @@ reshade::openvr::swapchain_impl::swapchain_impl(D3D12CommandQueue *queue, vr::IV
 }
 
 reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor) :
-	api_object_impl(compositor, device, graphics_queue)
+	api_object_impl(compositor),
+	_device(device)
 {
-	_is_vr = true;
-	_renderer_id = static_cast<unsigned int>(device->get_api());
+	_is_opengl = device->get_api() == api::device_api::opengl;
+
+	create_effect_runtime(this, graphics_queue, true);
 }
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
 	extern thread_local reshade::opengl::render_context_impl *g_current_context;
 	// Do not access '_device' object to check the device API, in case it was already destroyed
-	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl && g_current_context == nullptr)
+	if (_is_opengl && g_current_context == nullptr)
 	{
 		return; // Cannot clean up if OpenGL context was already destroyed
 	}
 
 	on_reset();
 
+	destroy_effect_runtime(this);
+
 	// Release the explicit reference to the device now that the effect runtime was destroyed and is longer referencing it
 	if (_direct3d_device != nullptr)
 		static_cast<IUnknown *>(_direct3d_device)->Release();
+}
+
+reshade::api::device *reshade::openvr::swapchain_impl::get_device()
+{
+	return _device;
 }
 
 reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer(uint32_t index)
@@ -86,16 +95,20 @@ void reshade::openvr::swapchain_impl::set_color_space(vr::EColorSpace color_spac
 
 reshade::api::rect reshade::openvr::swapchain_impl::get_eye_rect(vr::EVREye eye) const
 {
+	const api::resource_desc desc = _device->get_resource_desc(_side_by_side_texture);
+
 	return api::rect {
-		static_cast<int32_t>(eye * (_width / 2)), 0,
-		static_cast<int32_t>((eye + 1) * (_width / 2)), static_cast<int32_t>(_height)
+		static_cast<int32_t>(eye * (desc.texture.width / 2)), 0,
+		static_cast<int32_t>((eye + 1) * (desc.texture.width / 2)), static_cast<int32_t>(desc.texture.height)
 	};
 }
 reshade::api::subresource_box reshade::openvr::swapchain_impl::get_eye_subresource_box(vr::EVREye eye) const
 {
+	const api::resource_desc desc = _device->get_resource_desc(_side_by_side_texture);
+
 	return api::subresource_box {
-		static_cast<int32_t>(eye * (_width / 2)), 0, 0,
-		static_cast<int32_t>((eye + 1) * (_width / 2)), static_cast<int32_t>(_height), 1
+		static_cast<int32_t>(eye * (desc.texture.width / 2)), 0, 0,
+		static_cast<int32_t>((eye + 1) * (desc.texture.width / 2)), static_cast<int32_t>(desc.texture.height), 1
 	};
 }
 
@@ -108,14 +121,16 @@ bool reshade::openvr::swapchain_impl::on_init()
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	return runtime::on_init(nullptr);
+	init_effect_runtime(this);
+
+	return true;
 }
 void reshade::openvr::swapchain_impl::on_reset()
 {
 	if (_side_by_side_texture == 0)
 		return;
 
-	runtime::on_reset();
+	reset_effect_runtime(this);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
@@ -125,7 +140,7 @@ void reshade::openvr::swapchain_impl::on_reset()
 	_side_by_side_texture = {};
 }
 
-bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer)
+bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer)
 {
 	assert(eye < 2 && eye_texture != 0);
 
@@ -163,11 +178,13 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 	set_color_space(color_space);
 
-	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
-	const  int32_t width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(_width));
-	const  int32_t height_difference = std::abs(static_cast<int32_t>(region_height) - static_cast<int32_t>(_height));
+	const api::resource_desc target_desc = _side_by_side_texture != 0 ? _device->get_resource_desc(_side_by_side_texture) : api::resource_desc();
 
-	if (width_difference > 2 || height_difference > 2 || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(_back_buffer_format))
+	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
+	const  int32_t width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(target_desc.texture.width));
+	const  int32_t height_difference = std::abs(static_cast<int32_t>(region_height) - static_cast<int32_t>(target_desc.texture.height));
+
+	if (width_difference > 2 || height_difference > 2 || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(target_desc.texture.format))
 	{
 		LOG(INFO) << "Resizing runtime " << this << " in VR to " << target_width << "x" << region_height << " ...";
 
@@ -185,7 +202,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 			return false;
 	}
 
-	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+	api::command_list *const cmd_list = queue->get_immediate_command_list();
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
 	const api::subresource_box dest_box = get_eye_subresource_box(eye);

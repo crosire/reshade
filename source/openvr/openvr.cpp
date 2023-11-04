@@ -50,7 +50,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	else if (s_vr_swapchain->get_device() != device_proxy)
 		return vr::VRCompositorError_InvalidTexture;
 
-	if (!s_vr_swapchain->on_vr_submit(eye, { reinterpret_cast<uintptr_t>(texture) }, color_space, bounds, eye))
+	if (!s_vr_swapchain->on_vr_submit(device_proxy, eye, { reinterpret_cast<uintptr_t>(texture) }, color_space, bounds, eye))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -75,7 +75,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present(device_proxy);
+		reshade::present_effect_runtime(s_vr_swapchain, device_proxy);
 
 		const auto target_texture = reinterpret_cast<ID3D10Texture2D *>(s_vr_swapchain->get_back_buffer().handle);
 
@@ -112,7 +112,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	else if (s_vr_swapchain->get_device() != device_proxy)
 		return vr::VRCompositorError_InvalidTexture;
 
-	if (!s_vr_swapchain->on_vr_submit(eye, { reinterpret_cast<uintptr_t>(texture) }, color_space, bounds, eye))
+	if (!s_vr_swapchain->on_vr_submit(device_proxy->_immediate_context, eye, { reinterpret_cast<uintptr_t>(texture) }, color_space, bounds, eye))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -137,7 +137,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy->_immediate_context, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present(device_proxy->_immediate_context);
+		reshade::present_effect_runtime(s_vr_swapchain, device_proxy->_immediate_context);
 
 		const auto target_texture = reinterpret_cast<ID3D11Texture2D *>(s_vr_swapchain->get_back_buffer().handle);
 
@@ -160,7 +160,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		return vr::VRCompositorError_InvalidTexture;
 
 	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
-	if (!s_vr_swapchain->on_vr_submit(eye, { reinterpret_cast<uintptr_t>(texture->m_pResource) }, color_space, bounds, eye))
+	if (!s_vr_swapchain->on_vr_submit(command_queue_proxy.get(), eye, { reinterpret_cast<uintptr_t>(texture->m_pResource) }, color_space, bounds, eye))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -188,7 +188,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present(command_queue_proxy.get());
+		reshade::present_effect_runtime(s_vr_swapchain, command_queue_proxy.get());
 
 		command_queue_proxy->flush_immediate_command_list();
 
@@ -218,7 +218,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 	const reshade::api::resource eye_texture = reshade::opengl::make_resource_handle(
 		(flags & vr::Submit_GlRenderBuffer) != 0 ? GL_RENDERBUFFER : ((flags & vr::Submit_GlArrayTexture) != 0 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D), object);
 
-	if (!s_vr_swapchain->on_vr_submit(eye, eye_texture, color_space, bounds, eye))
+	if (!s_vr_swapchain->on_vr_submit(g_current_context, eye, eye_texture, color_space, bounds, eye))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -243,7 +243,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(g_current_context, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present(g_current_context);
+		reshade::present_effect_runtime(s_vr_swapchain, g_current_context);
 
 		const GLuint target_texture = s_vr_swapchain->get_back_buffer().handle & 0xFFFFFFFF;
 
@@ -280,7 +280,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 		return vr::VRCompositorError_InvalidTexture;
 
 	// Image should be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL layout at this point
-	if (!s_vr_swapchain->on_vr_submit(eye, { (uint64_t)(VkImage)texture->m_nImage }, color_space, bounds, (flags & vr::Submit_VulkanTextureWithArrayData) != 0 ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0))
+	if (!s_vr_swapchain->on_vr_submit(queue, eye, { (uint64_t)(VkImage)texture->m_nImage }, color_space, bounds, (flags & vr::Submit_VulkanTextureWithArrayData) != 0 ? static_cast<const vr::VRVulkanTextureArrayData_t *>(texture)->m_unArrayIndex : 0))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -305,7 +305,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(queue, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present(queue);
+		reshade::present_effect_runtime(s_vr_swapchain, queue);
 
 		queue->flush_immediate_command_list();
 

@@ -11,14 +11,41 @@
 #include <CoreWindow.h>
 
 reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
-	api_object_impl(swapchain, device, queue)
+	api_object_impl(swapchain),
+	_device_impl(device)
 {
+	create_effect_runtime(this, queue);
+
 	if (_orig != nullptr)
 		on_init();
 }
 reshade::d3d12::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
+
+	destroy_effect_runtime(this);
+}
+
+reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+
+void *reshade::d3d12::swapchain_impl::get_hwnd() const
+{
+	assert(_orig != nullptr);
+
+	if (HWND hwnd = nullptr;
+		SUCCEEDED(_orig->GetHwnd(&hwnd)))
+		return hwnd;
+	else if (com_ptr<ICoreWindowInterop> window_interop; // Get window handle of the core window
+		SUCCEEDED(_orig->GetCoreWindow(IID_PPV_ARGS(&window_interop))) && SUCCEEDED(window_interop->get_WindowHandle(&hwnd)))
+		return hwnd;
+
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	return swap_desc.OutputWindow;
 }
 
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index)
@@ -48,28 +75,21 @@ void reshade::d3d12::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
 	_back_buffer_color_space = convert_color_space(type);
 }
 
-bool reshade::d3d12::swapchain_impl::on_init()
+void reshade::d3d12::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
 	DXGI_SWAP_CHAIN_DESC swap_desc;
 	// Get description from 'IDXGISwapChain' interface, since later versions are slightly different
 	if (FAILED(_orig->GetDesc(&swap_desc)))
-		return false;
-
-	// Update window handle in swap chain description for UWP applications
-	if (HWND hwnd = nullptr; SUCCEEDED(_orig->GetHwnd(&hwnd)))
-		swap_desc.OutputWindow = hwnd;
-	else if (com_ptr<ICoreWindowInterop> window_interop; // Get window handle of the core window
-		SUCCEEDED(_orig->GetCoreWindow(IID_PPV_ARGS(&window_interop))) && SUCCEEDED(window_interop->get_WindowHandle(&hwnd)))
-		swap_desc.OutputWindow = hwnd;
+		return;
 
 	// Get back buffer textures
 	_back_buffers.resize(swap_desc.BufferCount);
 	for (UINT i = 0; i < swap_desc.BufferCount; ++i)
 	{
 		if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_back_buffers[i]))))
-			return false;
+			return;
 		assert(_back_buffers[i] != nullptr);
 	}
 
@@ -79,14 +99,14 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	return runtime::on_init(swap_desc.OutputWindow);
+	init_effect_runtime(this);
 }
 void reshade::d3d12::swapchain_impl::on_reset()
 {
 	if (_back_buffers.empty())
 		return;
 
-	runtime::on_reset();
+	reset_effect_runtime(this);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
@@ -101,27 +121,19 @@ reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *de
 	_back_buffers.resize(3);
 }
 
-uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index() const
-{
-	return _swap_index;
-}
-
-bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(command_queue_impl *queue, ID3D12Resource *source, HWND hwnd)
+bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source, HWND hwnd)
 {
 	assert(source != nullptr);
 
+	_hwnd = hwnd;
 	_swap_index = (_swap_index + 1) % static_cast<UINT>(_back_buffers.size());
 
 	// Update source texture render target view
 	if (_back_buffers[_swap_index] != source)
 	{
-		runtime::on_reset();
-
 #if RESHADE_ADDON
 		if (_back_buffers[0] != nullptr)
-		{
 			invoke_addon_event<addon_event::destroy_swapchain>(this);
-		}
 #endif
 
 		// Reduce number of back buffers if less are used than predicted
@@ -132,18 +144,11 @@ bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(command_queue_impl *que
 
 		// Do not initialize before all back buffers have been set
 		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
-		if (_back_buffers[0] != nullptr)
-		{
 #if RESHADE_ADDON
+		if (_back_buffers[0] != nullptr)
 			invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
-
-			if (!runtime::on_init(hwnd))
-				return false;
-		}
 	}
 
-	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
-	runtime::on_present(queue);
-	return true;
+	return _back_buffers[0] != nullptr;
 }

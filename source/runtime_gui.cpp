@@ -4287,7 +4287,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			api::color_space hdr_overlay_overwrite_color_space;
 		} hdr_push_constants = {
 			_back_buffer_format,
-			_back_buffer_color_space,
+			_swapchain->get_color_space(),
 			_hdr_overlay_brightness,
 			_hdr_overlay_overwrite_color_space
 		};

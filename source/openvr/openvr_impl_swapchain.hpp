@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "runtime.hpp"
+#include "reshade_api_object_impl.hpp"
 #include <openvr.h>
 
 struct D3D10Device;
@@ -14,7 +14,7 @@ struct D3D12CommandQueue;
 
 namespace reshade::openvr
 {
-	class swapchain_impl : public api::api_object_impl<vr::IVRCompositor *, runtime>
+	class swapchain_impl : public api::api_object_impl<vr::IVRCompositor *, api::swapchain>
 	{
 	public:
 		swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor);
@@ -22,6 +22,10 @@ namespace reshade::openvr
 		swapchain_impl(D3D12CommandQueue *queue, vr::IVRCompositor *compositor);
 		swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor);
 		~swapchain_impl();
+
+		api::device *get_device() final;
+
+		void *get_hwnd() const final { return nullptr; }
 
 		api::resource get_back_buffer(uint32_t index = 0) final;
 
@@ -39,12 +43,13 @@ namespace reshade::openvr
 		bool on_init();
 		void on_reset();
 
-		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
-
-		using runtime::on_present;
+		bool on_vr_submit(api::command_queue *queue, vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
 
 	private:
+		api::device *const _device;
 		api::resource _side_by_side_texture = {};
 		void *_direct3d_device = nullptr;
+		bool _is_opengl = false;
+		api::color_space _back_buffer_color_space = api::color_space::unknown;
 	};
 }

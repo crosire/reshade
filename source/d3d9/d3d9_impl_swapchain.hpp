@@ -5,17 +5,19 @@
 
 #pragma once
 
-#include "runtime.hpp"
-
 namespace reshade::d3d9
 {
 	class device_impl;
 
-	class swapchain_impl : public api::api_object_impl<IDirect3DSwapChain9 *, runtime>
+	class swapchain_impl : public api::api_object_impl<IDirect3DSwapChain9 *, api::swapchain>
 	{
 	public:
 		swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
 		~swapchain_impl();
+
+		api::device *get_device() final;
+
+		void *get_hwnd() const final;
 
 		api::resource get_back_buffer(uint32_t index = 0) final;
 
@@ -26,12 +28,14 @@ namespace reshade::d3d9
 
 		api::color_space get_color_space() const final { return api::color_space::unknown; }
 
-		bool on_init();
+		void on_init();
 		void on_reset();
 
-		void on_present();
-
 	private:
+		device_impl *const _device_impl;
 		com_ptr<IDirect3DSurface9> _back_buffer;
+
+	protected:
+		HWND _window_override = nullptr;
 	};
 }

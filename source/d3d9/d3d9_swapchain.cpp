@@ -32,6 +32,32 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_extended_interface = 1;
 }
 
+void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
+{
+	if (SUCCEEDED(_device->_orig->BeginScene()))
+	{
+		_window_override = window_override;
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			_device,
+			this,
+			reinterpret_cast<const reshade::api::rect *>(source_rect),
+			reinterpret_cast<const reshade::api::rect *>(dest_rect),
+			dirty_region != nullptr ? dirty_region->rdh.nCount : 0,
+			dirty_region != nullptr ? reinterpret_cast<const reshade::api::rect *>(dirty_region->Buffer) : nullptr);
+#endif
+
+		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+		if (is_presenting_entire_surface(source_rect, window_override))
+			reshade::present_effect_runtime(this, _device);
+
+		_window_override = nullptr;
+
+		_device->_orig->EndScene();
+	}
+}
+
 void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
 {
 	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
@@ -129,19 +155,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 	{
 		assert(!_was_still_drawing_last_frame);
 
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			_device,
-			this,
-			reinterpret_cast<const reshade::api::rect *>(pSourceRect),
-			reinterpret_cast<const reshade::api::rect *>(pDestRect),
-			pDirtyRegion != nullptr ? pDirtyRegion->rdh.nCount : 0,
-			pDirtyRegion != nullptr ? reinterpret_cast<const reshade::api::rect *>(pDirtyRegion->Buffer) : nullptr);
-#endif
-
-		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
-		if (is_presenting_entire_surface(pSourceRect, hDestWindowOverride))
-			swapchain_impl::on_present();
+		on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	}
 
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);

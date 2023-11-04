@@ -5,18 +5,20 @@
 
 #pragma once
 
-#include "runtime.hpp"
-
 namespace reshade::d3d11
 {
 	class device_impl;
 	class device_context_impl;
 
-	class swapchain_impl : public api::api_object_impl<IDXGISwapChain *, runtime>
+	class swapchain_impl : public api::api_object_impl<IDXGISwapChain *, api::swapchain>
 	{
 	public:
 		swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
 		~swapchain_impl();
+
+		api::device *get_device() final;
+
+		void *get_hwnd() const final;
 
 		api::resource get_back_buffer(uint32_t index = 0) final;
 
@@ -28,12 +30,12 @@ namespace reshade::d3d11
 		api::color_space get_color_space() const final { return _back_buffer_color_space; }
 		void set_color_space(DXGI_COLOR_SPACE_TYPE type);
 
-		bool on_init();
+		void on_init();
 		void on_reset();
 
-		using runtime::on_present;
-
 	private:
+		device_impl *const _device_impl;
 		com_ptr<ID3D11Texture2D> _back_buffer;
+		api::color_space _back_buffer_color_space = api::color_space::unknown;
 	};
 }

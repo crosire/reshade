@@ -47,15 +47,17 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
 	std::unique_lock<std::shared_mutex> lock(_parent_queue->_mutex);
 
-#if RESHADE_ADDON
+	assert(pSourceTex2D != nullptr);
+
 	// Do not call 'present' event before 'init_swapchain' event
-	if (_width != 0 && _height != 0)
+	if (swapchain_d3d12on7_impl::on_present(pSourceTex2D, hWindow))
+	{
+#if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
 
-	assert(pSourceTex2D != nullptr);
-
-	swapchain_d3d12on7_impl::on_present(_parent_queue, pSourceTex2D, hWindow);
+		reshade::present_effect_runtime(this, _parent_queue);
+	}
 
 	_parent_queue->flush_immediate_command_list();
 
