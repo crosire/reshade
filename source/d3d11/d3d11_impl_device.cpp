@@ -1390,6 +1390,18 @@ bool reshade::d3d11::device_impl::create_fence(uint64_t initial_value, api::fenc
 		const auto impl = new fence_impl();
 		impl->current_value = initial_value;
 
+		D3D11_QUERY_DESC internal_desc = {};
+		internal_desc.Query = D3D11_QUERY_EVENT;
+
+		for (size_t i = 0; i < std::size(impl->event_queries); ++i)
+		{
+			if (FAILED(_orig->CreateQuery(&internal_desc, &impl->event_queries[i])))
+			{
+				delete impl;
+				return false;
+			}
+		}
+
 		// Set first bit to identify this as a 'fence_impl' handle for 'destroy_fence'
 		static_assert(alignof(fence_impl) >= 2);
 
@@ -1417,19 +1429,127 @@ void reshade::d3d11::device_impl::destroy_fence(api::fence handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-uint64_t reshade::d3d11::device_impl::get_completed_fence_value(api::fence fence)
+uint64_t reshade::d3d11::device_impl::get_completed_fence_value(api::fence fence) const
 {
 	if (fence.handle & 1)
 	{
-		// TODO: wait_idle()
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
 
-		return reinterpret_cast<fence_impl *>(fence.handle ^ 1)->current_value;
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		for (uint64_t value = impl->current_value, offset = 0; value > 0 && offset < std::size(impl->event_queries); --value, ++offset)
+		{
+			if (immediate_context->GetData(impl->event_queries[value % std::size(impl->event_queries)].get(), nullptr, 0, 0) == S_OK)
+				return value;
+		}
+
+		return 0;
 	}
 
 	if (com_ptr<ID3D11Fence> fence_object;
 		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
 		return fence_object->GetCompletedValue();
+	}
 
 	assert(false);
 	return 0;
+}
+
+bool reshade::d3d11::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	DWORD timeout_ms = (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF;
+
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value > impl->current_value)
+			return false;
+
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		while (true)
+		{
+			const HRESULT hr = immediate_context->GetData(impl->event_queries[value % std::size(impl->event_queries)].get(), nullptr, 0, 0);
+			if (hr == S_OK)
+				return true;
+			if (hr != S_FALSE)
+				break;
+
+			if (timeout_ms != INFINITE)
+			{
+				if (timeout_ms == 0)
+					break;
+				timeout_ms -= 1;
+			}
+
+			Sleep(1);
+		}
+
+		return false;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		if (value <= fence_object->GetCompletedValue())
+			return true;
+
+		DWORD res = WAIT_FAILED;
+
+		const HANDLE temp_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (SUCCEEDED(fence_object->SetEventOnCompletion(value, temp_event)))
+			res = WaitForSingleObject(temp_event, timeout_ms);
+
+		CloseHandle(temp_event);
+		return res == WAIT_OBJECT_0;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->AcquireSync(value, timeout_ms));
+	}
+
+	return false;
+}
+bool reshade::d3d11::device_impl::signal(api::fence fence, uint64_t value)
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value < impl->current_value)
+			return false;
+		impl->current_value = value;
+
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		return immediate_context->End(impl->event_queries[value % std::size(impl->event_queries)].get()), true;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		if (com_ptr<ID3D11DeviceContext4> immediate_context4;
+			SUCCEEDED(immediate_context->QueryInterface(&immediate_context4)))
+		{
+			return SUCCEEDED(immediate_context4->Signal(fence_object.get(), value));
+		}
+
+		return false;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
+	}
+
+	return false;
 }

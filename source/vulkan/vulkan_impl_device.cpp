@@ -1875,12 +1875,32 @@ void reshade::vulkan::device_impl::destroy_fence(api::fence handle)
 	vk.DestroySemaphore(_orig, (VkSemaphore)handle.handle, nullptr);
 }
 
-uint64_t reshade::vulkan::device_impl::get_completed_fence_value(api::fence fence)
+uint64_t reshade::vulkan::device_impl::get_completed_fence_value(api::fence fence) const
 {
 	uint64_t value = 0;
-	if (vk.GetSemaphoreCounterValue != nullptr)
-		vk.GetSemaphoreCounterValue(_orig, (VkSemaphore)fence.handle, &value);
+	vk.GetSemaphoreCounterValue(_orig, (VkSemaphore)fence.handle, &value);
 	return value;
+}
+
+bool reshade::vulkan::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	const VkSemaphore wait_semaphore = (VkSemaphore)fence.handle;
+
+	VkSemaphoreWaitInfo wait_info { VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO };
+	wait_info.semaphoreCount = 1;
+	wait_info.pSemaphores = &wait_semaphore;
+	wait_info.pValues = &value;
+
+	return vk.WaitSemaphores(_orig, &wait_info, timeout) == VK_SUCCESS;
+}
+
+bool reshade::vulkan::device_impl::signal(api::fence fence, uint64_t value)
+{
+	VkSemaphoreSignalInfo signal_info { VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO };
+	signal_info.semaphore = (VkSemaphore)fence.handle;
+	signal_info.value = value;
+
+	return vk.SignalSemaphore(_orig, &signal_info) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()

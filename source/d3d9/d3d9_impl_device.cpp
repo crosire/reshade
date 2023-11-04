@@ -1952,6 +1952,15 @@ bool reshade::d3d9::device_impl::create_fence(uint64_t initial_value, api::fence
 	const auto impl = new fence_impl();
 	impl->current_value = initial_value;
 
+	for (size_t i = 0; i < std::size(impl->event_queries); ++i)
+	{
+		if (FAILED(_orig->CreateQuery(D3DQUERYTYPE_EVENT, &impl->event_queries[i])))
+		{
+			delete impl;
+			return false;
+		}
+	}
+
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
@@ -1963,11 +1972,55 @@ void reshade::d3d9::device_impl::destroy_fence(api::fence handle)
 	delete reinterpret_cast<fence_impl *>(handle.handle);
 }
 
-uint64_t reshade::d3d9::device_impl::get_completed_fence_value(api::fence fence)
+uint64_t reshade::d3d9::device_impl::get_completed_fence_value(api::fence fence) const
 {
-	wait_idle();
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 
-	return reinterpret_cast<fence_impl *>(fence.handle)->current_value;
+	for (uint64_t value = impl->current_value, offset = 0; value > 0 && offset < std::size(impl->event_queries); --value, ++offset)
+	{
+		if (impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, D3DGETDATA_FLUSH) == S_OK)
+			return value;
+	}
+
+	return 0;
+}
+
+bool reshade::d3d9::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	DWORD timeout_ms = (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF;
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value > impl->current_value)
+		return false;
+
+	while (true)
+	{
+		const HRESULT hr = impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, 0);
+		if (hr == S_OK)
+			return true;
+		if (hr != S_FALSE)
+			break;
+
+		if (timeout_ms != INFINITE)
+		{
+			if (timeout_ms == 0)
+				break;
+			timeout_ms -= 1;
+		}
+
+		Sleep(1);
+	}
+
+	return false;
+}
+bool reshade::d3d9::device_impl::signal(api::fence fence, uint64_t value)
+{
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value < impl->current_value)
+		return false;
+	impl->current_value = value;
+
+	return impl->event_queries[value % std::size(impl->event_queries)]->Issue(D3DISSUE_END), true;
 }
 
 HRESULT reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)

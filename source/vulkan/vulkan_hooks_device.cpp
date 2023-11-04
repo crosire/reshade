@@ -489,6 +489,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(CmdNextSubpass2);
 		INIT_DISPATCH_PTR(CmdEndRenderPass2);
 		INIT_DISPATCH_PTR(GetSemaphoreCounterValue);
+		INIT_DISPATCH_PTR(WaitSemaphores);
+		INIT_DISPATCH_PTR(SignalSemaphore);
 	}
 
 	// Core 1_3
@@ -559,6 +561,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// VK_KHR_timeline_semaphore
 	INIT_DISPATCH_PTR_EXTENSION(GetSemaphoreCounterValue, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(WaitSemaphores, KHR);
+	INIT_DISPATCH_PTR_EXTENSION(SignalSemaphore, KHR);
 
 	// VK_KHR_synchronization2
 	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);

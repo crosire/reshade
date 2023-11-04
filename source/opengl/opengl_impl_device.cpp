@@ -2354,7 +2354,7 @@ void reshade::opengl::device_impl::destroy_fence(api::fence handle)
 	delete impl;
 }
 
-uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fence)
+uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fence) const
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
@@ -2376,11 +2376,53 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 	{
 		const GLsync sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
 		if (sync_object == 0)
-			break;
+			continue;
 
 		if (gl.ClientWaitSync(sync_object, 0, 0) == GL_ALREADY_SIGNALED)
 			return value;
 	}
 
 	return 0;
+}
+
+bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	{
+		return false;
+	}
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value > impl->current_value)
+		return false;
+
+	const GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	if (sync_object != 0)
+	{
+		const GLenum res = gl.ClientWaitSync(sync_object, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
+		return res == GL_ALREADY_SIGNALED || res == GL_CONDITION_SATISFIED;
+	}
+	else
+	{
+		return false;
+	}
+}
+bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
+{
+	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	{
+		return false;
+	}
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value < impl->current_value)
+		return false;
+	impl->current_value = value;
+
+	GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	gl.DeleteSync(sync_object);
+
+	sync_object = gl.FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	gl.Finish();
+	return sync_object != 0;
 }

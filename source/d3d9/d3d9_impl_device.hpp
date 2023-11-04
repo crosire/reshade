@@ -74,7 +74,11 @@ namespace reshade::d3d9
 		bool create_fence(uint64_t, api::fence_flags, api::fence *out_handle, HANDLE *) final;
 		void destroy_fence(api::fence) final;
 
-		uint64_t get_completed_fence_value(api::fence) final;
+		uint64_t get_completed_fence_value(api::fence) const final;
+
+		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
+		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
+		bool signal(api::fence fence, uint64_t value) final;
 
 		api::device *get_device() final { return this; }
 
@@ -131,9 +135,6 @@ namespace reshade::d3d9
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
-
-		bool wait(api::fence fence, uint64_t value) final;
-		bool signal(api::fence fence, uint64_t value) final;
 
 	protected:
 		void on_init();

@@ -104,10 +104,15 @@ bool reshade::opengl::render_context_impl::wait(api::fence fence, uint64_t value
 		return false;
 
 	const GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
-	assert(sync_object != 0);
-
-	gl.WaitSync(sync_object, 0, GL_TIMEOUT_IGNORED);
-	return true;
+	if (sync_object != 0)
+	{
+		gl.WaitSync(sync_object, 0, GL_TIMEOUT_IGNORED);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 bool reshade::opengl::render_context_impl::signal(api::fence fence, uint64_t value)
 {

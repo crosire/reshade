@@ -74,7 +74,10 @@ namespace reshade::opengl
 		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle = nullptr) final;
 		void destroy_fence(api::fence handle) final;
 
-		uint64_t get_completed_fence_value(api::fence fence) final;
+		uint64_t get_completed_fence_value(api::fence fence) const final;
+
+		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
+		bool signal(api::fence fence, uint64_t value) final;
 
 	protected:
 		// Cached context information for quick access

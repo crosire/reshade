@@ -4,7 +4,6 @@
  */
 
 #include "d3d9_impl_device.hpp"
-#include "d3d9_impl_type_convert.hpp"
 
 void reshade::d3d9::device_impl::wait_idle() const
 {
@@ -24,26 +23,5 @@ void reshade::d3d9::device_impl::flush_immediate_command_list() const
 	{
 		temp_query->Issue(D3DISSUE_END);
 		temp_query->GetData(nullptr, 0, D3DGETDATA_FLUSH);
-	}
-}
-
-bool reshade::d3d9::device_impl::wait(api::fence fence, uint64_t value)
-{
-	wait_idle();
-
-	return value <= reinterpret_cast<fence_impl *>(fence.handle)->current_value;
-}
-bool reshade::d3d9::device_impl::signal(api::fence fence, uint64_t value)
-{
-	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
-
-	if (value >= impl->current_value)
-	{
-		impl->current_value = value;
-		return true;
-	}
-	else
-	{
-		return false;
 	}
 }

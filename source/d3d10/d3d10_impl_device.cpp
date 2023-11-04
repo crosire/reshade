@@ -1129,6 +1129,18 @@ bool reshade::d3d10::device_impl::create_fence(uint64_t initial_value, api::fenc
 	const auto impl = new fence_impl();
 	impl->current_value = initial_value;
 
+	D3D10_QUERY_DESC internal_desc = {};
+	internal_desc.Query = D3D10_QUERY_EVENT;
+
+	for (size_t i = 0; i < std::size(impl->event_queries); ++i)
+	{
+		if (FAILED(_orig->CreateQuery(&internal_desc, &impl->event_queries[i])))
+		{
+			delete impl;
+			return false;
+		}
+	}
+
 	// Set first bit to identify this as a 'fence_impl' handle for 'destroy_fence'
 	static_assert(alignof(fence_impl) >= 2);
 
@@ -1143,15 +1155,81 @@ void reshade::d3d10::device_impl::destroy_fence(api::fence handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-uint64_t reshade::d3d10::device_impl::get_completed_fence_value(api::fence fence)
+uint64_t reshade::d3d10::device_impl::get_completed_fence_value(api::fence fence) const
 {
 	if (fence.handle & 1)
 	{
-		wait_idle();
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
 
-		return reinterpret_cast<fence_impl *>(fence.handle ^ 1)->current_value;
+		for (uint64_t value = impl->current_value, offset = 0; value > 0 && offset < std::size(impl->event_queries); --value, ++offset)
+		{
+			if (impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, 0) == S_OK)
+				return value;
+		}
+
+		return 0;
 	}
 
 	assert(false);
 	return 0;
+}
+
+bool reshade::d3d10::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	DWORD timeout_ms = (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF;
+
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value > impl->current_value)
+			return false;
+
+		while (true)
+		{
+			const HRESULT hr = impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, 0);
+			if (hr == S_OK)
+				return true;
+			if (hr != S_FALSE)
+				break;
+
+			if (timeout_ms != INFINITE)
+			{
+				if (timeout_ms == 0)
+					break;
+				timeout_ms -= 1;
+			}
+
+			Sleep(1);
+		}
+
+		return false;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->AcquireSync(value, timeout_ms));
+	}
+
+	return false;
+}
+bool reshade::d3d10::device_impl::signal(api::fence fence, uint64_t value)
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value < impl->current_value)
+			return false;
+		impl->current_value = value;
+
+		return impl->event_queries[value % std::size(impl->event_queries)]->End(), true;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
+	}
+
+	return false;
 }

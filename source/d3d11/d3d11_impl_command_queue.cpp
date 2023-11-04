@@ -67,9 +67,22 @@ bool reshade::d3d11::device_context_impl::wait(api::fence fence, uint64_t value)
 {
 	if (fence.handle & 1)
 	{
-		wait_idle();
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value > impl->current_value)
+			return false;
 
-		return value <= reinterpret_cast<fence_impl *>(fence.handle ^ 1)->current_value;
+		while (true)
+		{
+			const HRESULT hr = _orig->GetData(impl->event_queries[value % std::size(impl->event_queries)].get(), nullptr, 0, 0);
+			if (hr == S_OK)
+				return true;
+			if (hr != S_FALSE)
+				break;
+
+			Sleep(0);
+		}
+
+		return false;
 	}
 
 	if (com_ptr<ID3D11Fence> fence_object;
@@ -77,34 +90,25 @@ bool reshade::d3d11::device_context_impl::wait(api::fence fence, uint64_t value)
 	{
 		if (com_ptr<ID3D11DeviceContext4> device_context4;
 			SUCCEEDED(_orig->QueryInterface(&device_context4)))
+		{
 			return SUCCEEDED(device_context4->Wait(fence_object.get(), value));
-		else
-			return false;
+		}
+
+		return false;
 	}
 
-	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
-		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
-	{
-		return SUCCEEDED(keyed_mutex->AcquireSync(value, INFINITE));
-	}
-
-	return false;
+	return _device_impl->wait(fence, value, UINT64_MAX);
 }
 bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t value)
 {
 	if (fence.handle & 1)
 	{
 		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
-
-		if (value >= impl->current_value)
-		{
-			impl->current_value = value;
-			return true;
-		}
-		else
-		{
+		if (value < impl->current_value)
 			return false;
-		}
+		impl->current_value = value;
+
+		return _orig->End(impl->event_queries[value % std::size(impl->event_queries)].get()), true;
 	}
 
 	if (com_ptr<ID3D11Fence> fence_object;
@@ -112,16 +116,12 @@ bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t valu
 	{
 		if (com_ptr<ID3D11DeviceContext4> device_context4;
 			SUCCEEDED(_orig->QueryInterface(&device_context4)))
+		{
 			return SUCCEEDED(device_context4->Signal(fence_object.get(), value));
-		else
-			return false;
+		}
+
+		return false;
 	}
 
-	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
-		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
-	{
-		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
-	}
-
-	return false;
+	return _device_impl->signal(fence, value);
 }

@@ -506,7 +506,23 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the current value of the specified fence.
 		/// </summary>
-		virtual uint64_t get_completed_fence_value(fence fence) = 0;
+		virtual uint64_t get_completed_fence_value(fence fence) const = 0;
+
+		/// <summary>
+		/// Wait until the specified fence reached the specified value.
+		/// </summary>
+		/// <param name="fence">Fence to wait on.</param>
+		/// <param name="value">Value the fence has to each or exceed.</param>
+		/// <param name="timeout">Return early after the specified time in nanoseconds, or set to UINT64_MAX to never time out.</param>
+		/// <returns><see langword="true"/> if the wait operation was successful, <see langword="false"/> otherwise.</returns>
+		virtual bool wait(fence fence, uint64_t value, uint64_t timeout = UINT64_MAX) = 0;
+		/// <summary>
+		/// Updates the specified fence to the specified value.
+		/// </summary>
+		/// <param name="fence">Fence to update.</param>
+		/// <param name="value">Value the fence should be set to.</param>
+		/// <returns><see langword="true"/> if the signal operation was successful, <see langword="false"/> otherwise.</returns>
+		virtual bool signal(fence fence, uint64_t value) = 0;
 	};
 
 	/// <summary>
@@ -1000,7 +1016,7 @@ namespace reshade { namespace api
 		/// Queues a GPU-side update of the specified fence to the specified value after previous operations finished executing.
 		/// </summary>
 		/// <param name="fence">Fence to update.</param>
-		/// <param name="value">Value the fence should be updated to.</param>
+		/// <param name="value">Value the fence should be set to.</param>
 		/// <returns><see langword="true"/> if the signal operation was successfully enqueued, <see langword="false"/> otherwise.</returns>
 		virtual bool signal(fence fence, uint64_t value) = 0;
 	};

@@ -59,6 +59,7 @@ namespace reshade::d3d11
 	struct fence_impl
 	{
 		uint64_t current_value;
+		com_ptr<ID3D11Query> event_queries[8];
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };

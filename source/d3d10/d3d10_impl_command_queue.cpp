@@ -4,7 +4,6 @@
  */
 
 #include "d3d10_impl_device.hpp"
-#include "d3d10_impl_type_convert.hpp"
 
 void reshade::d3d10::device_impl::wait_idle() const
 {
@@ -24,47 +23,4 @@ void reshade::d3d10::device_impl::wait_idle() const
 void reshade::d3d10::device_impl::flush_immediate_command_list() const
 {
 	_orig->Flush();
-}
-
-bool reshade::d3d10::device_impl::wait(api::fence fence, uint64_t value)
-{
-	if (fence.handle & 1)
-	{
-		wait_idle();
-
-		return value <= reinterpret_cast<fence_impl *>(fence.handle ^ 1)->current_value;
-	}
-
-	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
-		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
-	{
-		return SUCCEEDED(keyed_mutex->AcquireSync(value, INFINITE));
-	}
-
-	return false;
-}
-bool reshade::d3d10::device_impl::signal(api::fence fence, uint64_t value)
-{
-	if (fence.handle & 1)
-	{
-		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
-
-		if (value >= impl->current_value)
-		{
-			impl->current_value = value;
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
-
-	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
-		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
-	{
-		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
-	}
-
-	return false;
 }

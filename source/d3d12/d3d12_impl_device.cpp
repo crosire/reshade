@@ -1367,9 +1367,28 @@ void reshade::d3d12::device_impl::destroy_fence(api::fence handle)
 	reinterpret_cast<ID3D12Fence *>(handle.handle)->Release();
 }
 
-uint64_t reshade::d3d12::device_impl::get_completed_fence_value(api::fence fence)
+uint64_t reshade::d3d12::device_impl::get_completed_fence_value(api::fence fence) const
 {
 	return reinterpret_cast<ID3D12Fence *>(fence.handle)->GetCompletedValue();
+}
+
+bool reshade::d3d12::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	if (value <= reinterpret_cast<ID3D12Fence *>(fence.handle)->GetCompletedValue())
+		return true;
+
+	DWORD res = WAIT_FAILED;
+
+	const HANDLE temp_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->SetEventOnCompletion(value, temp_event)))
+		res = WaitForSingleObject(temp_event, (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF);
+
+	CloseHandle(temp_event);
+	return res == WAIT_OBJECT_0;
+}
+bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
+{
+	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
