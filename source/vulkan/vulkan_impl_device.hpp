@@ -33,6 +33,7 @@ namespace reshade::vulkan
 			const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 			bool push_descriptors_ext = false,
 			bool dynamic_rendering_ext = false,
+			bool timeline_semaphore_ext = false,
 			bool custom_border_color_ext = false,
 			bool extended_dynamic_state_ext = false,
 			bool conservative_rasterization_ext = false);
@@ -87,6 +88,11 @@ namespace reshade::vulkan
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
+		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle = nullptr) final;
+		void destroy_fence(api::fence handle) final;
+
+		uint64_t get_completed_fence_value(api::fence fence) final;
+
 		void advance_transient_descriptor_pool();
 
 		command_list_immediate_impl *get_first_immediate_command_list();
@@ -138,6 +144,7 @@ namespace reshade::vulkan
 
 		const bool _push_descriptor_ext;
 		const bool _dynamic_rendering_ext;
+		const bool _timeline_semaphore_ext;
 		const bool _custom_border_color_ext;
 		const bool _extended_dynamic_state_ext;
 		const bool _conservative_rasterization_ext;

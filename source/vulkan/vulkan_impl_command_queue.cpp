@@ -133,3 +133,36 @@ void reshade::vulkan::command_queue_impl::insert_debug_marker(const char *label,
 
 	vk.QueueInsertDebugUtilsLabelEXT(_orig, &label_info);
 }
+
+bool reshade::vulkan::command_queue_impl::wait(api::fence fence, uint64_t value)
+{
+	if (vk.QueueSubmit2 == nullptr)
+		return false;
+
+	VkSemaphoreSubmitInfo wait_semaphore_info { VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+	wait_semaphore_info.semaphore = (VkSemaphore)fence.handle;
+	wait_semaphore_info.value = value;
+	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+	VkSubmitInfo2 submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+	submit_info.waitSemaphoreInfoCount = 1;
+	submit_info.pWaitSemaphoreInfos = &wait_semaphore_info;
+
+	return vk.QueueSubmit2(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
+}
+bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t value)
+{
+	if (vk.QueueSubmit2 == nullptr)
+		return false;
+
+	VkSemaphoreSubmitInfo signal_semaphore_info { VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
+	signal_semaphore_info.semaphore = (VkSemaphore)fence.handle;
+	signal_semaphore_info.value = value;
+	signal_semaphore_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+	VkSubmitInfo2 submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+	submit_info.signalSemaphoreInfoCount = 1;
+	submit_info.pSignalSemaphoreInfos = &signal_semaphore_info;
+
+	return vk.QueueSubmit2(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
+}

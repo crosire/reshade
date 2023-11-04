@@ -75,6 +75,11 @@ namespace reshade::d3d10
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
+		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle = nullptr) final;
+		void destroy_fence(api::fence handle) final;
+
+		uint64_t get_completed_fence_value(api::fence fence) final;
+
 		api::device *get_device() final { return this; }
 
 		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }
@@ -134,6 +139,9 @@ namespace reshade::d3d10
 		void begin_debug_event(const char *, const float[4]) final {}
 		void end_debug_event() final {}
 		void insert_debug_marker(const char *, const float[4]) final {}
+
+		bool wait(api::fence fence, uint64_t value) final;
+		bool signal(api::fence fence, uint64_t value) final;
 
 	private:
 		com_ptr<ID3D10Buffer> _push_constants;

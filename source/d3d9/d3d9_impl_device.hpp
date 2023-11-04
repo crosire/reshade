@@ -71,6 +71,11 @@ namespace reshade::d3d9
 		void set_resource_name(api::resource, const char *) final {}
 		void set_resource_view_name(api::resource_view, const char *) final {}
 
+		bool create_fence(uint64_t, api::fence_flags, api::fence *out_handle, HANDLE *) final { *out_handle = { 0 }; return false;}
+		void destroy_fence(api::fence) final {}
+
+		uint64_t get_completed_fence_value(api::fence) final { assert(false); return 0; }
+
 		api::device *get_device() final { return this; }
 
 		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }
@@ -126,6 +131,9 @@ namespace reshade::d3d9
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
+
+		bool wait(api::fence, uint64_t) final { assert(false); return false; }
+		bool signal(api::fence, uint64_t) final { assert(false); return false; }
 
 	protected:
 		void on_init();

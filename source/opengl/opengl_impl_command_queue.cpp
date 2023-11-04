@@ -83,3 +83,28 @@ void reshade::opengl::render_context_impl::wait_idle() const
 {
 	gl.Finish();
 }
+
+bool reshade::opengl::render_context_impl::wait(api::fence /* fence */, uint64_t /* value */)
+{
+#if 0
+	const GLuint object = fence.handle & 0xFFFFFFFF;
+	glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+	glWaitSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
+	return true;
+#else
+	assert(false);
+	return false;
+#endif
+}
+bool reshade::opengl::render_context_impl::signal(api::fence /* fence */, uint64_t /* value */)
+{
+#if 0
+	const GLuint object = fence.handle & 0xFFFFFFFF;
+	glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+	glSignalSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
+	return true;
+#else
+	assert(false);
+	return false;
+#endif
+}

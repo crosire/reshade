@@ -136,6 +136,9 @@ namespace reshade::d3d11
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
+		bool wait(api::fence fence, uint64_t value) final;
+		bool signal(api::fence fence, uint64_t value) final;
+
 	private:
 		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;

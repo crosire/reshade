@@ -1715,3 +1715,13 @@ auto reshade::d3d12::convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCES
 		return reshade::api::render_pass_store_op::no_access;
 	}
 }
+
+auto reshade::d3d12::convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_FLAGS
+{
+	D3D12_FENCE_FLAGS result = D3D12_FENCE_FLAG_NONE;
+	if ((value & api::fence_flags::shared) != 0)
+		result |= D3D12_FENCE_FLAG_SHARED;
+	if ((value & api::fence_flags::non_monitored) != 0)
+		result |= D3D12_FENCE_FLAG_NON_MONITORED;
+	return result;
+}

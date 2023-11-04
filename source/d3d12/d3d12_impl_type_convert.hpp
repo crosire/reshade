@@ -141,12 +141,15 @@ namespace reshade::d3d12
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> D3D12_RENDER_PASS_ENDING_ACCESS_TYPE;
 	auto convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE value) -> api::render_pass_store_op;
 
+	auto convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_FLAGS;
+
 	inline auto to_handle(ID3D12Resource *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) { return api::resource_view { static_cast<uint64_t>(handle.ptr) }; }
 	inline auto to_handle(ID3D12PipelineState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D12RootSignature *ptr) { return api::pipeline_layout { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D12QueryHeap *ptr) { return api::query_heap { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D12DescriptorHeap *ptr) { return api::descriptor_heap { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D12Fence *ptr) { return api::fence { reinterpret_cast<uintptr_t>(ptr) }; }
 }
 
 #pragma warning(push)

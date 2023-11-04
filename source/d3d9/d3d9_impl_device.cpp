@@ -225,6 +225,9 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 		return false;
 	case api::device_caps::resolve_depth_stencil:
 		return SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, static_cast<D3DFORMAT>(MAKEFOURCC('R', 'E', 'S', 'Z'))));
+	case api::device_caps::fence:
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
 	default:
 		return false;
 	}

@@ -130,6 +130,7 @@ namespace reshade::d3d11
 	auto convert_primitive_topology(api::primitive_topology value)-> D3D11_PRIMITIVE_TOPOLOGY;
 	auto convert_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY value)-> api::primitive_topology;
 	auto convert_query_type(api::query_type value) -> D3D11_QUERY;
+	auto convert_fence_flags(api::fence_flags value) -> D3D11_FENCE_FLAG;
 
 	inline auto to_handle(ID3D11SamplerState *ptr) { return api::sampler { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D11Resource *ptr) { return api::resource { reinterpret_cast<uintptr_t>(ptr) }; }
@@ -144,4 +145,6 @@ namespace reshade::d3d11
 	inline auto to_handle(ID3D11BlendState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D11RasterizerState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D11DepthStencilState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(ID3D11Fence *ptr) { return api::fence { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDXGIKeyedMutex *ptr) { return api::fence { reinterpret_cast<uintptr_t>(ptr) }; }
 }

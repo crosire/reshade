@@ -148,6 +148,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	#pragma endregion
 	#pragma region Core 1_1
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
 	#pragma endregion
 	#pragma region VK_KHR_surface
 	INIT_DISPATCH_PTR(DestroySurfaceKHR);

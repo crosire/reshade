@@ -195,6 +195,11 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return false;
 	case api::device_caps::resolve_depth_stencil:
 		return true;
+	case api::device_caps::fence:
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
+		// TODO: Implement using 'GL_EXT_semaphore' and 'GL_EXT_semaphore_win32' extensions
+		return false;
 	default:
 		return false;
 	}
@@ -2290,4 +2295,54 @@ void reshade::opengl::device_impl::set_resource_view_name(api::resource_view han
 		return; // This is not a standalone object, so name may have already been set via 'set_resource_name' before
 
 	gl.ObjectLabel(GL_TEXTURE, handle.handle & 0xFFFFFFFF, -1, name);
+}
+
+bool reshade::opengl::device_impl::create_fence(uint64_t, api::fence_flags /* flags */, api::fence *out_handle, HANDLE * /* shared_handle */)
+{
+	*out_handle = { 0 };
+
+#if 0
+	if ((flags & api::fence_flags::shared) != 0)
+	{
+		// Only import is supported
+		if (shared_handle == nullptr || *shared_handle == nullptr)
+			return false;
+
+		GLuint object = 0;
+		glGenSemaphoresEXT(1, &object);
+
+		GLenum shared_handle_type;
+		if ((flags & api::fence_flags::shared_nt_handle) != 0)
+			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
+		else
+			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
+
+		glImportSemaphoreWin32HandleEXT(object, shared_handle_type, *shared_handle);
+
+		return true;
+	}
+#endif
+
+	return false;
+}
+void reshade::opengl::device_impl::destroy_fence(api::fence /* handle */) 
+{
+#if 0
+	const GLuint object = handle.handle & 0xFFFFFFFF;
+	glDeleteSemaphoresEXT(1, &object);
+#endif
+}
+
+uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence /* fence */)
+{
+#if 0
+	const GLuint object = fence.handle & 0xFFFFFFFF;
+
+	GLuint64 value = 0;
+	glGetSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+	return value;
+#else
+	assert(false);
+	return 0;
+#endif
 }

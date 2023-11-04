@@ -78,6 +78,9 @@ namespace reshade::opengl
 		void end_debug_event() final;
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
+		bool wait(api::fence fence, uint64_t value) final;
+		bool signal(api::fence fence, uint64_t value) final;
+
 		GLuint _current_ibo = 0;
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;

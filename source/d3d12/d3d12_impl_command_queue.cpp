@@ -135,3 +135,12 @@ void reshade::d3d12::command_queue_impl::insert_debug_marker(const char *label, 
 	_orig->SetMarker(2, pix3blob, sizeof(pix3blob));
 #endif
 }
+
+bool reshade::d3d12::command_queue_impl::wait(api::fence fence, uint64_t value)
+{
+	return SUCCEEDED(_orig->Wait(reinterpret_cast<ID3D12Fence *>(fence.handle), value));
+}
+bool reshade::d3d12::command_queue_impl::signal(api::fence fence, uint64_t value)
+{
+	return SUCCEEDED(_orig->Signal(reinterpret_cast<ID3D12Fence *>(fence.handle), value));
+}

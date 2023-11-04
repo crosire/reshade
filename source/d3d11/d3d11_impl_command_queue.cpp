@@ -44,3 +44,44 @@ void reshade::d3d11::device_context_impl::flush_immediate_command_list() const
 
 	_orig->Flush();
 }
+
+bool reshade::d3d11::device_context_impl::wait(api::fence handle, uint64_t value)
+{
+	if (com_ptr<ID3D11Fence> fence;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(handle.handle)->QueryInterface(&fence)))
+	{
+		if (com_ptr<ID3D11DeviceContext4> device_context4;
+			SUCCEEDED(_orig->QueryInterface(&device_context4)))
+			return SUCCEEDED(device_context4->Wait(fence.get(), value));
+		else
+			return false;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(handle.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->AcquireSync(value, INFINITE));
+	}
+
+	return false;
+}
+bool reshade::d3d11::device_context_impl::signal(api::fence handle, uint64_t value)
+{
+	if (com_ptr<ID3D11Fence> fence;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(handle.handle)->QueryInterface(&fence)))
+	{
+		if (com_ptr<ID3D11DeviceContext4> device_context4;
+			SUCCEEDED(_orig->QueryInterface(&device_context4)))
+			return SUCCEEDED(device_context4->Signal(fence.get(), value));
+		else
+			return false;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(handle.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
+	}
+
+	return false;
+}

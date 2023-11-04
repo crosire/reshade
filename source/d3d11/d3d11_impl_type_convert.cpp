@@ -1578,3 +1578,12 @@ auto reshade::d3d11::convert_query_type(api::query_type value) -> D3D11_QUERY
 		return static_cast<D3D11_QUERY>(UINT_MAX);
 	}
 }
+auto reshade::d3d11::convert_fence_flags(api::fence_flags value) -> D3D11_FENCE_FLAG
+{
+	D3D11_FENCE_FLAG result = D3D11_FENCE_FLAG_NONE;
+	if ((value & api::fence_flags::shared) != 0)
+		result |= D3D11_FENCE_FLAG_SHARED;
+	if ((value & api::fence_flags::non_monitored) != 0)
+		result |= D3D11_FENCE_FLAG_NON_MONITORED;
+	return result;
+}

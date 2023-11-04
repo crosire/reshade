@@ -90,6 +90,9 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 		return true;
 	case api::device_caps::shared_resource_nt_handle:
 	case api::device_caps::resolve_depth_stencil:
+	case api::device_caps::fence:
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
 	default:
 		return false;
 	}
@@ -1098,4 +1101,42 @@ void reshade::d3d10::device_impl::set_resource_view_name(api::resource_view hand
 	assert(handle.handle != 0);
 
 	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
+}
+
+bool reshade::d3d10::device_impl::create_fence(uint64_t, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared)
+	{
+		// NT handles are not supported
+		if (shared_handle == nullptr || (flags & reshade::api::fence_flags::shared_nt_handle) != 0)
+			return false;
+
+		if (*shared_handle != nullptr)
+		{
+			if (com_ptr<IDXGIKeyedMutex> object;
+				open_shared_resource(*shared_handle, _orig, IID_PPV_ARGS(&object)))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+void reshade::d3d10::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle == 0)
+		return;
+
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+uint64_t reshade::d3d10::device_impl::get_completed_fence_value(api::fence)
+{
+	assert(false);
+	return 0;
 }

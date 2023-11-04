@@ -159,6 +159,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	bool push_descriptor_ext = false;
 	bool dynamic_rendering_ext = false;
+	bool timeline_semaphore_ext = false;
 	bool custom_border_color_ext = false;
 	bool extended_dynamic_state_ext = false;
 	bool conservative_rasterization_ext = false;
@@ -288,6 +289,19 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			dynamic_rendering_feature.dynamicRendering = VK_TRUE;
 
 			create_info.pNext = &dynamic_rendering_feature;
+		}
+
+		if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
+		{
+			assert(instance_dispatch.api_version >= VK_API_VERSION_1_2);
+
+			timeline_semaphore_ext = existing_vulkan_12_features->timelineSemaphore;
+		}
+		else if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES))
+		{
+			timeline_semaphore_ext = existing_timeline_semaphore_features->timelineSemaphore;
 		}
 	}
 
@@ -461,6 +475,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(CmdBeginRenderPass2);
 		INIT_DISPATCH_PTR(CmdNextSubpass2);
 		INIT_DISPATCH_PTR(CmdEndRenderPass2);
+		INIT_DISPATCH_PTR(GetSemaphoreCounterValue);
 	}
 
 	// Core 1_3
@@ -529,6 +544,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndirectCount, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndexedIndirectCount, KHR);
 
+	// VK_KHR_timeline_semaphore
+	INIT_DISPATCH_PTR_EXTENSION(GetSemaphoreCounterValue, KHR);
+
 	// VK_KHR_synchronization2
 	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
 	INIT_DISPATCH_PTR_EXTENSION(CmdWriteTimestamp2, KHR);
@@ -580,6 +598,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
 	INIT_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
 
+	// VK_KHR_external_semaphore_win32
+	INIT_DISPATCH_PTR(ImportSemaphoreWin32HandleKHR);
+	INIT_DISPATCH_PTR(GetSemaphoreWin32HandleKHR);
+
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
 		device,
@@ -591,6 +613,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features,
 		push_descriptor_ext,
 		dynamic_rendering_ext,
+		timeline_semaphore_ext,
 		custom_border_color_ext,
 		extended_dynamic_state_ext,
 		conservative_rasterization_ext);

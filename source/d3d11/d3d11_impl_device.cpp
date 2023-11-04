@@ -101,6 +101,15 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_resource_nt_handle:
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_1 && !is_windows7();
 	case api::device_caps::resolve_depth_stencil:
+		return false;
+	case api::device_caps::fence:
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
+		if (com_ptr<ID3D11Device5> device5;
+			SUCCEEDED(_orig->QueryInterface(&device5)))
+			return true;
+		else
+			return false;
 	default:
 		return false;
 	}
@@ -149,9 +158,9 @@ void reshade::d3d11::device_impl::destroy_sampler(api::sampler handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-static bool get_shared_resource(reshade::api::resource_flags flags, ID3D11Resource *object, HANDLE *shared_handle)
+static bool get_shared_resource(bool nt_handle, ID3D11Resource *object, HANDLE *shared_handle)
 {
-	if ((flags & reshade::api::resource_flags::shared_nt_handle) == 0)
+	if (!nt_handle)
 	{
 		com_ptr<IDXGIResource> object_dxgi;
 		return SUCCEEDED(object->QueryInterface(&object_dxgi)) && SUCCEEDED(object_dxgi->GetSharedHandle(shared_handle));
@@ -162,9 +171,9 @@ static bool get_shared_resource(reshade::api::resource_flags flags, ID3D11Resour
 		return SUCCEEDED(object->QueryInterface(&object_dxgi)) && SUCCEEDED(object_dxgi->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, shared_handle));
 	}
 }
-static bool open_shared_resource(reshade::api::resource_flags flags, HANDLE shared_handle, ID3D11Device *device, REFIID iid, void **out_object)
+static bool open_shared_resource(bool nt_handle, HANDLE shared_handle, ID3D11Device *device, REFIID iid, void **out_object)
 {
-	if ((flags & reshade::api::resource_flags::shared_nt_handle) == 0)
+	if (!nt_handle)
 	{
 		return SUCCEEDED(device->OpenSharedResource(shared_handle, iid, out_object));
 	}
@@ -190,7 +199,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			assert(initial_data == nullptr);
 
 			if (com_ptr<ID3D11Resource> object;
-				open_shared_resource(desc.flags, *shared_handle, _orig, IID_PPV_ARGS(&object)))
+				open_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, *shared_handle, _orig, IID_PPV_ARGS(&object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;
@@ -212,7 +221,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D11Buffer> object;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+				if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 					break;
 
 				*out_handle = to_handle(object.release());
@@ -228,7 +237,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D11Texture1D> object;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+				if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 					break;
 
 				*out_handle = to_handle(object.release());
@@ -247,7 +256,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture2D> object;
 					SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -262,7 +271,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture2D1> object;
 					SUCCEEDED(device3->CreateTexture2D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -282,7 +291,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture3D> object;
 					SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -297,7 +306,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture3D1> object;
 					SUCCEEDED(device3->CreateTexture3D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -1340,4 +1349,75 @@ void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view hand
 	assert(handle.handle != 0);
 
 	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
+}
+
+bool reshade::d3d11::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared)
+	{
+		if (shared_handle == nullptr)
+			return false;
+	}
+
+	com_ptr<ID3D11Device5> device5;
+	if (SUCCEEDED(_orig->QueryInterface(&device5)))
+	{
+		com_ptr<ID3D11Fence> object;
+
+		if (is_shared && *shared_handle != nullptr)
+		{
+			// Only NT handles are supported
+			if ((flags & api::fence_flags::shared_nt_handle) != 0 &&
+				SUCCEEDED(device5->OpenSharedFence(*shared_handle, IID_PPV_ARGS(&object))))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+		}
+		else
+		{
+			if (SUCCEEDED(device5->CreateFence(initial_value, convert_fence_flags(flags), IID_PPV_ARGS(&object))))
+			{
+				if (is_shared && FAILED(object->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, shared_handle)))
+					return false;
+
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+		}
+	}
+
+	if (is_shared && *shared_handle != nullptr)
+	{
+		if (com_ptr<IDXGIKeyedMutex> object;
+			open_shared_resource((flags & api::fence_flags::shared_nt_handle) != 0, *shared_handle, _orig, IID_PPV_ARGS(&object)))
+		{
+			*out_handle = to_handle(object.release());
+			return true;
+		}
+	}
+
+	return false;
+}
+void reshade::d3d11::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle == 0)
+		return;
+
+	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+uint64_t reshade::d3d11::device_impl::get_completed_fence_value(api::fence handle)
+{
+	if (com_ptr<ID3D11Fence> fence;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(handle.handle)->QueryInterface(&fence)))
+	{
+		return fence->GetCompletedValue();
+	}
+
+	assert(false);
+	return 0;
 }

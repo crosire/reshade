@@ -11,8 +11,6 @@
 
 #define vk _dispatch_table
 
-extern bool is_windows7();
-
 reshade::vulkan::device_impl::device_impl(
 	VkDevice device,
 	VkPhysicalDevice physical_device,
@@ -21,6 +19,7 @@ reshade::vulkan::device_impl::device_impl(
 	const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 	bool push_descriptors_ext,
 	bool dynamic_rendering_ext,
+	bool timeline_semaphore_ext,
 	bool custom_border_color_ext,
 	bool extended_dynamic_state_ext,
 	bool conservative_rasterization_ext) :
@@ -30,6 +29,7 @@ reshade::vulkan::device_impl::device_impl(
 	_instance_dispatch_table(instance_table),
 	_push_descriptor_ext(push_descriptors_ext),
 	_dynamic_rendering_ext(dynamic_rendering_ext),
+	_timeline_semaphore_ext(timeline_semaphore_ext),
 	_custom_border_color_ext(custom_border_color_ext),
 	_extended_dynamic_state_ext(extended_dynamic_state_ext),
 	_conservative_rasterization_ext(conservative_rasterization_ext),
@@ -205,12 +205,46 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::sampler_with_resource_view:
 		return true;
 	case api::device_caps::shared_resource:
-		return true;
+	{
+		VkPhysicalDeviceExternalBufferInfo external_buffer_info { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO };
+		external_buffer_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+
+		VkExternalBufferProperties external_buffer_properties { VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES };
+		_instance_dispatch_table.GetPhysicalDeviceExternalBufferProperties(_physical_device, &external_buffer_info, &external_buffer_properties);
+		return (external_buffer_properties.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
+	}
 	case api::device_caps::shared_resource_nt_handle:
-		return !is_windows7();
+	{
+		VkPhysicalDeviceExternalBufferInfo external_buffer_info { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO };
+		external_buffer_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+
+		VkExternalBufferProperties external_buffer_properties { VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES };
+		_instance_dispatch_table.GetPhysicalDeviceExternalBufferProperties(_physical_device, &external_buffer_info, &external_buffer_properties);
+		return (external_buffer_properties.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
+	}
 	case api::device_caps::resolve_depth_stencil:
 		// VK_KHR_dynamic_rendering has VK_KHR_depth_stencil_resolve as a dependency
 		return _dynamic_rendering_ext;
+	case api::device_caps::fence:
+		return _timeline_semaphore_ext;
+	case api::device_caps::shared_fence:
+	{
+		VkPhysicalDeviceExternalSemaphoreInfo external_semaphore_info { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO };
+		external_semaphore_info.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+
+		VkExternalSemaphoreProperties external_semaphore_properties { VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES };
+		_instance_dispatch_table.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
+		return (external_semaphore_properties.externalSemaphoreFeatures & (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT);
+	}
+	case api::device_caps::shared_fence_nt_handle:
+	{
+		VkPhysicalDeviceExternalSemaphoreInfo external_semaphore_info { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO };
+		external_semaphore_info.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+
+		VkExternalSemaphoreProperties external_semaphore_properties { VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES };
+		_instance_dispatch_table.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
+		return (external_semaphore_properties.externalSemaphoreFeatures & (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT);
+	}
 	default:
 		return false;
 	}
@@ -373,9 +407,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
-					if (vk.GetMemoryWin32HandleKHR == nullptr)
-						break;
-
 					VkMemoryRequirements reqs = {};
 					vk.GetBufferMemoryRequirements(_orig, object, &reqs);
 
@@ -463,9 +494,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (is_shared)
 				{
-					if (vk.GetMemoryWin32HandleKHR == nullptr)
-						break;
-
 					VkMemoryRequirements reqs = {};
 					vk.GetImageMemoryRequirements(_orig, object, &reqs);
 
@@ -1758,6 +1786,102 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view han
 
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
 #endif
+}
+
+bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	VkSemaphoreTypeCreateInfo type_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO };
+	type_create_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+	type_create_info.initialValue = initial_value;
+
+	VkExternalSemaphoreHandleTypeFlagBits handle_type = {};
+	VkExportSemaphoreCreateInfo export_info;
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared)
+	{
+		if (shared_handle == nullptr)
+			return false;
+
+		if ((flags & api::fence_flags::shared_nt_handle) != 0)
+			handle_type = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		else
+			handle_type = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+
+		if (*shared_handle != nullptr)
+		{
+			if (vk.ImportSemaphoreWin32HandleKHR == nullptr)
+				return false;
+		}
+		else
+		{
+			if (vk.GetSemaphoreWin32HandleKHR == nullptr)
+				return false;
+
+			export_info = { VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO };
+			export_info.handleTypes = handle_type;
+
+			type_create_info.pNext = &export_info;
+		}
+	}
+
+	VkSemaphoreCreateInfo create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &type_create_info };
+
+	if (VkSemaphore semaphore = VK_NULL_HANDLE;
+		vk.CreateSemaphore(_orig, &create_info, nullptr, &semaphore) == VK_SUCCESS)
+	{
+		if (is_shared)
+		{
+			if (*shared_handle != nullptr)
+			{
+				VkImportSemaphoreWin32HandleInfoKHR import_info { VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR };
+				import_info.semaphore = semaphore;
+				import_info.handleType = handle_type;
+				import_info.handle = *shared_handle;
+
+				if (vk.ImportSemaphoreWin32HandleKHR(_orig, &import_info) != VK_SUCCESS)
+				{
+					vk.DestroySemaphore(_orig, semaphore, nullptr);
+					return false;
+				}
+			}
+			else
+			{
+				VkSemaphoreGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR };
+				handle_info.semaphore = semaphore;
+				handle_info.handleType = handle_type;
+
+				if (vk.GetSemaphoreWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+				{
+					vk.DestroySemaphore(_orig, semaphore, nullptr);
+					return false;
+				}
+			}
+		}
+
+		*out_handle = { (uint64_t)semaphore };
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+void reshade::vulkan::device_impl::destroy_fence(api::fence handle)
+{
+	vk.DestroySemaphore(_orig, (VkSemaphore)handle.handle, nullptr);
+}
+
+uint64_t reshade::vulkan::device_impl::get_completed_fence_value(api::fence fence)
+{
+	if (vk.GetSemaphoreCounterValue == nullptr)
+		return 0;
+
+	uint64_t value = 0;
+	vk.GetSemaphoreCounterValue(_orig, (VkSemaphore)fence.handle, &value);
+	return value;
 }
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()

@@ -146,7 +146,11 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_resource_nt_handle:
 		return !is_windows7();
 	case api::device_caps::resolve_depth_stencil:
+	case api::device_caps::fence:
 		return true;
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
+		return !is_windows7();
 	default:
 		return false;
 	}
@@ -203,27 +207,26 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::general || initial_state == api::resource_usage::cpu_access);
 
+	com_ptr<ID3D12Resource> object;
+
 	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		// Only NT handles are supported
-		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == 0)
+		if (shared_handle == nullptr || (desc.flags & api::resource_flags::shared_nt_handle) == 0)
 			return false;
 
 		if (*shared_handle != nullptr)
 		{
 			assert(initial_data == nullptr);
 
-			if (com_ptr<ID3D12Resource> object;
-				SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
+			if (SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
 			{
-				*out_handle = to_handle(object.get());
+				*out_handle = to_handle(object.release());
 				return true;
 			}
-			else
-			{
-				return false;
-			}
+
+			return false;
 		}
 	}
 
@@ -275,8 +278,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	else
 		use_default_clear_value = false;
 
-	if (com_ptr<ID3D12Resource> object;
-		SUCCEEDED(desc.heap == api::memory_heap::unknown ?
+	if (SUCCEEDED(desc.heap == api::memory_heap::unknown ?
 			_orig->CreateReservedResource(&internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
 			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
@@ -319,10 +321,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 void reshade::d3d12::device_impl::destroy_resource(api::resource handle)
 {
@@ -1322,6 +1322,55 @@ void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const 
 	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
 
 	reinterpret_cast<ID3D12Resource *>(handle.handle)->SetName(debug_name_wide.c_str());
+}
+
+bool reshade::d3d12::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	com_ptr<ID3D12Fence> object;
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared)
+	{
+		// Only NT handles are supported
+		if (shared_handle == nullptr || (flags & api::fence_flags::shared_nt_handle) == 0)
+			return false;
+
+		if (*shared_handle != nullptr)
+		{
+			if (SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+
+			return false;
+		}
+	}
+
+	if (SUCCEEDED(_orig->CreateFence(initial_value, convert_fence_flags(flags), IID_PPV_ARGS(&object))))
+	{
+		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
+			return false;
+
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+
+	return false;
+}
+void reshade::d3d12::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle == 0)
+		return;
+
+	reinterpret_cast<ID3D12Fence *>(handle.handle)->Release();
+}
+
+uint64_t reshade::d3d12::device_impl::get_completed_fence_value(api::fence fence)
+{
+	return reinterpret_cast<ID3D12Fence *>(fence.handle)->GetCompletedValue();
 }
 
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)

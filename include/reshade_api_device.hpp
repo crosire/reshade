@@ -163,7 +163,22 @@ namespace reshade { namespace api
 		/// Specifies whether resolving depth-stencil resources is supported.
 		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used with depth-stencil resources.
 		/// </summary>
-		resolve_depth_stencil
+		resolve_depth_stencil,
+		/// <summary>
+		/// Specfies whether synchronization via fences is supported.
+		/// If this feature is not present, <see cref="device::create_fence"/>, <see cref="device::destroy_fence"/>, <see cref="device::get_completed_fence_value"/>, <see cref="command_queue::wait"/> and <see cref="command_queue::signal"/> must not be used.
+		/// </summary>
+		fence,
+		/// <summary>
+		/// Specifies whether fence sharing is supported.
+		/// If this feature is not present, <see cref="fence_flags::shared"/> must not be used.
+		/// </summary>
+		shared_fence,
+		/// <summary>
+		/// Specifies whether fence sharing with NT handles is supported.
+		/// If this feature is not present, <see cref="fence_flags::shared_nt_handle"/> must not be used.
+		/// </summary>
+		shared_fence_nt_handle,
 	};
 
 	/// <summary>
@@ -478,6 +493,25 @@ namespace reshade { namespace api
 		/// <param name="handle">Resource view to associate a name with.</param>
 		/// <param name="name">Null-terminated name string.</param>
 		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
+
+		/// <summary>
+		/// Creates a new fence synchronization object.
+		/// </summary>
+		/// <param name="initial_value">The initial value for the fence.</param>
+		/// <param name="flags">Fence creation options.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created fence.</param>
+		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <paramref name="flags"/> contains <see cref="fence_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created fence. When that variable is a valid handle, the fence is imported from that shared handle.</param>
+		/// <returns><see langword="true"/> if the fence was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_fence(uint64_t initial_value, fence_flags flags, fence *out_handle, void **shared_handle = nullptr) = 0;
+		/// <summary>
+		/// Instantly destroys a fence that was previously created via <see cref="create_fence"/>.
+		/// </summary>
+		virtual void destroy_fence(fence handle) = 0;
+
+		/// <summary>
+		/// Gets the current value of the specified fence.
+		/// </summary>
+		virtual uint64_t get_completed_fence_value(fence fence) = 0;
 	};
 
 	/// <summary>
@@ -959,6 +993,21 @@ namespace reshade { namespace api
 		/// <param name="label">Null-terminated string containing the label of the debug marker.</param>
 		/// <param name="color">Optional RGBA color value associated with the debug marker.</param>
 		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+
+		/// <summary>
+		/// Queues a GPU-side wait until the specified fence reaches the specified value and returns immediately.
+		/// </summary>
+		/// <param name="fence">Fence to wait on.</param>
+		/// <param name="value">Value the fence has to reach or exceed.</param>
+		/// <returns><see langword="true"/> if the wait operation was successfully enqueued, <see langword="false"/> otherwise.</returns>
+		virtual bool wait(fence fence, uint64_t value) = 0;
+		/// <summary>
+		/// Queues a GPU-side update of the specified fence to the specified value after previous operations finished executing.
+		/// </summary>
+		/// <param name="fence">Fence to update.</param>
+		/// <param name="value">Value the fence should be updated to.</param>
+		/// <returns><see langword="true"/> if the signal operation was successfully enqueued, <see langword="false"/> otherwise.</returns>
+		virtual bool signal(fence fence, uint64_t value) = 0;
 	};
 
 	/// <summary>
