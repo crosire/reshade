@@ -136,33 +136,29 @@ void reshade::vulkan::command_queue_impl::insert_debug_marker(const char *label,
 
 bool reshade::vulkan::command_queue_impl::wait(api::fence fence, uint64_t value)
 {
-	if (vk.QueueSubmit2 == nullptr)
-		return false;
+	const VkSemaphore wait_semaphore = (VkSemaphore)fence.handle;
 
-	VkSemaphoreSubmitInfo wait_semaphore_info { VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
-	wait_semaphore_info.semaphore = (VkSemaphore)fence.handle;
-	wait_semaphore_info.value = value;
-	wait_semaphore_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+	VkTimelineSemaphoreSubmitInfo wait_semaphore_info { VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO };
+	wait_semaphore_info.waitSemaphoreValueCount = 1;
+	wait_semaphore_info.pWaitSemaphoreValues = &value;
 
-	VkSubmitInfo2 submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
-	submit_info.waitSemaphoreInfoCount = 1;
-	submit_info.pWaitSemaphoreInfos = &wait_semaphore_info;
+	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO, &wait_semaphore_info };
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = &wait_semaphore;
 
-	return vk.QueueSubmit2(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
+	return vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
 }
 bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t value)
 {
-	if (vk.QueueSubmit2 == nullptr)
-		return false;
+	const VkSemaphore signal_semaphore = (VkSemaphore)fence.handle;
 
-	VkSemaphoreSubmitInfo signal_semaphore_info { VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO };
-	signal_semaphore_info.semaphore = (VkSemaphore)fence.handle;
-	signal_semaphore_info.value = value;
-	signal_semaphore_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+	VkTimelineSemaphoreSubmitInfo signal_semaphore_info { VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO };
+	signal_semaphore_info.signalSemaphoreValueCount = 1;
+	signal_semaphore_info.pSignalSemaphoreValues = &value;
 
-	VkSubmitInfo2 submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
-	submit_info.signalSemaphoreInfoCount = 1;
-	submit_info.pSignalSemaphoreInfos = &signal_semaphore_info;
+	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO, &signal_semaphore_info };
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &signal_semaphore;
 
-	return vk.QueueSubmit2(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
+	return vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
 }

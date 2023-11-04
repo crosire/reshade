@@ -86,6 +86,12 @@ namespace reshade::opengl
 		std::vector<GLuint> queries;
 	};
 
+	struct fence_impl
+	{
+		uint64_t current_value;
+		GLsync sync_objects[8];
+	};
+
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
 	inline auto make_resource_handle(GLenum target, GLuint object) -> api::resource

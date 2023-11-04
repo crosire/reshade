@@ -165,11 +165,6 @@ namespace reshade { namespace api
 		/// </summary>
 		resolve_depth_stencil,
 		/// <summary>
-		/// Specfies whether synchronization via fences is supported.
-		/// If this feature is not present, <see cref="device::create_fence"/>, <see cref="device::destroy_fence"/>, <see cref="device::get_completed_fence_value"/>, <see cref="command_queue::wait"/> and <see cref="command_queue::signal"/> must not be used.
-		/// </summary>
-		fence,
-		/// <summary>
 		/// Specifies whether fence sharing is supported.
 		/// If this feature is not present, <see cref="fence_flags::shared"/> must not be used.
 		/// </summary>

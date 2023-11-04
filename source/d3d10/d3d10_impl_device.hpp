@@ -84,7 +84,7 @@ namespace reshade::d3d10
 
 		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }
 
-		void wait_idle() const final { /* no-op */ }
+		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
 

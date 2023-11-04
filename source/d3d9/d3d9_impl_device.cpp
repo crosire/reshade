@@ -225,7 +225,6 @@ bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) c
 		return false;
 	case api::device_caps::resolve_depth_stencil:
 		return SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE, static_cast<D3DFORMAT>(MAKEFOURCC('R', 'E', 'S', 'Z'))));
-	case api::device_caps::fence:
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
 	default:
@@ -1940,6 +1939,35 @@ bool reshade::d3d9::device_impl::get_query_heap_results(api::query_heap heap, ui
 	}
 
 	return true;
+}
+
+bool reshade::d3d9::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *)
+{
+	if ((flags & api::fence_flags::shared) != 0)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	const auto impl = new fence_impl();
+	impl->current_value = initial_value;
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
+	return true;
+}
+void reshade::d3d9::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle == 0)
+		return;
+
+	delete reinterpret_cast<fence_impl *>(handle.handle);
+}
+
+uint64_t reshade::d3d9::device_impl::get_completed_fence_value(api::fence fence)
+{
+	wait_idle();
+
+	return reinterpret_cast<fence_impl *>(fence.handle)->current_value;
 }
 
 HRESULT reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)

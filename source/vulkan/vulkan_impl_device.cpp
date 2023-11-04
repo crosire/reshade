@@ -225,8 +225,6 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::resolve_depth_stencil:
 		// VK_KHR_dynamic_rendering has VK_KHR_depth_stencil_resolve as a dependency
 		return _dynamic_rendering_ext;
-	case api::device_caps::fence:
-		return _timeline_semaphore_ext;
 	case api::device_caps::shared_fence:
 	{
 		VkPhysicalDeviceExternalSemaphoreInfo external_semaphore_info { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO };
@@ -1792,6 +1790,9 @@ bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fen
 {
 	*out_handle = { 0 };
 
+	if (!_timeline_semaphore_ext)
+		return false;
+
 	VkSemaphoreTypeCreateInfo type_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO };
 	type_create_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
 	type_create_info.initialValue = initial_value;
@@ -1876,11 +1877,9 @@ void reshade::vulkan::device_impl::destroy_fence(api::fence handle)
 
 uint64_t reshade::vulkan::device_impl::get_completed_fence_value(api::fence fence)
 {
-	if (vk.GetSemaphoreCounterValue == nullptr)
-		return 0;
-
 	uint64_t value = 0;
-	vk.GetSemaphoreCounterValue(_orig, (VkSemaphore)fence.handle, &value);
+	if (vk.GetSemaphoreCounterValue != nullptr)
+		vk.GetSemaphoreCounterValue(_orig, (VkSemaphore)fence.handle, &value);
 	return value;
 }
 

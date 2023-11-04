@@ -232,6 +232,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
 			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
 		}
+		timeline_semaphore_ext = instance_dispatch.api_version >= VK_API_VERSION_1_2 || add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
@@ -256,6 +257,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	VkPhysicalDevicePrivateDataFeatures private_data_feature;
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature;
+	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_feature;
 
 	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
 		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
@@ -290,18 +292,29 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			create_info.pNext = &dynamic_rendering_feature;
 		}
+	}
 
-		if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
-		{
-			assert(instance_dispatch.api_version >= VK_API_VERSION_1_2);
+	if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
+	{
+		assert(instance_dispatch.api_version >= VK_API_VERSION_1_2);
 
-			timeline_semaphore_ext = existing_vulkan_12_features->timelineSemaphore;
-		}
-		else if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
+		timeline_semaphore_ext = existing_vulkan_12_features->timelineSemaphore;
+	}
+	else
+	{
+		if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES))
 		{
 			timeline_semaphore_ext = existing_timeline_semaphore_features->timelineSemaphore;
+		}
+		else if (timeline_semaphore_ext)
+		{
+			timeline_semaphore_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES };
+			timeline_semaphore_feature.pNext = const_cast<void *>(create_info.pNext);
+			timeline_semaphore_feature.timelineSemaphore = VK_TRUE;
+
+			create_info.pNext = &timeline_semaphore_feature;
 		}
 	}
 

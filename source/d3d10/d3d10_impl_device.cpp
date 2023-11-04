@@ -90,7 +90,6 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 		return true;
 	case api::device_caps::shared_resource_nt_handle:
 	case api::device_caps::resolve_depth_stencil:
-	case api::device_caps::fence:
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
 	default:
@@ -1103,7 +1102,7 @@ void reshade::d3d10::device_impl::set_resource_view_name(api::resource_view hand
 	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
 }
 
-bool reshade::d3d10::device_impl::create_fence(uint64_t, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+bool reshade::d3d10::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
 {
 	*out_handle = { 0 };
 
@@ -1123,20 +1122,36 @@ bool reshade::d3d10::device_impl::create_fence(uint64_t, api::fence_flags flags,
 				return true;
 			}
 		}
+
+		return false;
 	}
 
-	return false;
+	const auto impl = new fence_impl();
+	impl->current_value = initial_value;
+
+	// Set first bit to identify this as a 'fence_impl' handle for 'destroy_fence'
+	static_assert(alignof(fence_impl) >= 2);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
+	return true;
 }
 void reshade::d3d10::device_impl::destroy_fence(api::fence handle)
 {
-	if (handle.handle == 0)
-		return;
-
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle & 1) // See 'device_impl::create_fence'
+		delete reinterpret_cast<fence_impl *>(handle.handle ^ 1);
+	else if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-uint64_t reshade::d3d10::device_impl::get_completed_fence_value(api::fence)
+uint64_t reshade::d3d10::device_impl::get_completed_fence_value(api::fence fence)
 {
+	if (fence.handle & 1)
+	{
+		wait_idle();
+
+		return reinterpret_cast<fence_impl *>(fence.handle ^ 1)->current_value;
+	}
+
 	assert(false);
 	return 0;
 }

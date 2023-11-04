@@ -102,7 +102,6 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_1 && !is_windows7();
 	case api::device_caps::resolve_depth_stencil:
 		return false;
-	case api::device_caps::fence:
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
 		if (com_ptr<ID3D11Device5> device5;
@@ -1356,11 +1355,8 @@ bool reshade::d3d11::device_impl::create_fence(uint64_t initial_value, api::fenc
 	*out_handle = { 0 };
 
 	const bool is_shared = (flags & api::fence_flags::shared) != 0;
-	if (is_shared)
-	{
-		if (shared_handle == nullptr)
-			return false;
-	}
+	if (is_shared && shared_handle == nullptr)
+		return false;
 
 	com_ptr<ID3D11Device5> device5;
 	if (SUCCEEDED(_orig->QueryInterface(&device5)))
@@ -1381,13 +1377,24 @@ bool reshade::d3d11::device_impl::create_fence(uint64_t initial_value, api::fenc
 		{
 			if (SUCCEEDED(device5->CreateFence(initial_value, convert_fence_flags(flags), IID_PPV_ARGS(&object))))
 			{
-				if (is_shared && FAILED(object->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, shared_handle)))
+				if (is_shared && ((flags & api::fence_flags::shared_nt_handle) == 0 || FAILED(object->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, shared_handle))))
 					return false;
 
 				*out_handle = to_handle(object.release());
 				return true;
 			}
 		}
+	}
+	else
+	{
+		const auto impl = new fence_impl();
+		impl->current_value = initial_value;
+
+		// Set first bit to identify this as a 'fence_impl' handle for 'destroy_fence'
+		static_assert(alignof(fence_impl) >= 2);
+
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
+		return true;
 	}
 
 	if (is_shared && *shared_handle != nullptr)
@@ -1404,19 +1411,24 @@ bool reshade::d3d11::device_impl::create_fence(uint64_t initial_value, api::fenc
 }
 void reshade::d3d11::device_impl::destroy_fence(api::fence handle)
 {
-	if (handle.handle == 0)
-		return;
-
-	reinterpret_cast<IUnknown *>(handle.handle)->Release();
+	if (handle.handle & 1) // See 'device_impl::create_fence'
+		delete reinterpret_cast<fence_impl *>(handle.handle ^ 1);
+	else if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-uint64_t reshade::d3d11::device_impl::get_completed_fence_value(api::fence handle)
+uint64_t reshade::d3d11::device_impl::get_completed_fence_value(api::fence fence)
 {
-	if (com_ptr<ID3D11Fence> fence;
-		SUCCEEDED(reinterpret_cast<IUnknown *>(handle.handle)->QueryInterface(&fence)))
+	if (fence.handle & 1)
 	{
-		return fence->GetCompletedValue();
+		// TODO: wait_idle()
+
+		return reinterpret_cast<fence_impl *>(fence.handle ^ 1)->current_value;
 	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+		return fence_object->GetCompletedValue();
 
 	assert(false);
 	return 0;

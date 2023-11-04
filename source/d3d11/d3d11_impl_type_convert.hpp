@@ -56,6 +56,11 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11Query>> queries;
 	};
 
+	struct fence_impl
+	{
+		uint64_t current_value;
+	};
+
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;

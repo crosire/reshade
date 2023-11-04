@@ -5,6 +5,7 @@
 
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_render_context.hpp"
+#include "opengl_impl_type_convert.hpp"
 
 #define gl gl3wProcs.gl
 
@@ -84,27 +85,52 @@ void reshade::opengl::render_context_impl::wait_idle() const
 	gl.Finish();
 }
 
-bool reshade::opengl::render_context_impl::wait(api::fence /* fence */, uint64_t /* value */)
+bool reshade::opengl::render_context_impl::wait(api::fence fence, uint64_t value)
 {
+	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	{
 #if 0
-	const GLuint object = fence.handle & 0xFFFFFFFF;
-	glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
-	glWaitSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
-	return true;
+		const GLuint object = fence.handle & 0xFFFFFFFF;
+		glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+		glWaitSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
+		return true;
 #else
-	assert(false);
-	return false;
+		return false;
 #endif
+	}
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value > impl->current_value)
+		return false;
+
+	const GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	assert(sync_object != 0);
+
+	gl.WaitSync(sync_object, 0, GL_TIMEOUT_IGNORED);
+	return true;
 }
-bool reshade::opengl::render_context_impl::signal(api::fence /* fence */, uint64_t /* value */)
+bool reshade::opengl::render_context_impl::signal(api::fence fence, uint64_t value)
 {
+	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	{
 #if 0
-	const GLuint object = fence.handle & 0xFFFFFFFF;
-	glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
-	glSignalSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
-	return true;
+		const GLuint object = fence.handle & 0xFFFFFFFF;
+		glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+		glSignalSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
+		return true;
 #else
-	assert(false);
-	return false;
+		return false;
 #endif
+	}
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value < impl->current_value)
+		return false;
+	impl->current_value = value;
+
+	GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	gl.DeleteSync(sync_object);
+
+	sync_object = gl.FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	return sync_object != 0;
 }
