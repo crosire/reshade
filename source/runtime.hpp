@@ -268,7 +268,7 @@ namespace reshade
 		static unsigned int s_latest_version[3];
 
 		bool _is_initialized = false;
-		bool _preset_save_successfull = true;
+		bool _preset_save_successful = true;
 		std::filesystem::path _config_path;
 
 		bool _ignore_shortcuts = false;
@@ -376,7 +376,7 @@ namespace reshade
 		bool _screenshot_post_save_command_no_window = false;
 
 		bool _should_save_screenshot = false;
-		std::atomic<bool> _last_screenshot_save_successfull = true;
+		std::atomic<bool> _last_screenshot_save_successful = true;
 		bool _screenshot_directory_creation_successfull = true;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;

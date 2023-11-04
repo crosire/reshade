@@ -737,13 +737,13 @@ void reshade::runtime::draw_gui()
 #endif
 
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
-	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successfull) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successfull ? 3 : 5);
+	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successful) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successful ? 3 : 5);
 #if RESHADE_FX
 	const bool show_preset_transition_message = _show_preset_transition_message && _is_in_preset_transition;
 #else
 	const bool show_preset_transition_message = false;
 #endif
-	const bool show_message_window = show_screenshot_message || show_preset_transition_message || !_preset_save_successfull;
+	const bool show_message_window = show_screenshot_message || show_preset_transition_message || !_preset_save_successful;
 
 	const bool show_clock = _show_clock == 1 || (_show_overlay && _show_clock > 1);
 	const bool show_fps = _show_fps == 1 || (_show_overlay && _show_fps > 1);
@@ -966,7 +966,7 @@ void reshade::runtime::draw_gui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		if (!_preset_save_successfull)
+		if (!_preset_save_successful)
 		{
 #if RESHADE_FX
 			ImGui::TextColored(COLOR_RED, "Unable to save configuration and/or current preset. Make sure file permissions are set up to allow writing to these paths and their parent directories:\n%s\n%s", _config_path.u8string().c_str(), _current_preset_path.u8string().c_str());
@@ -976,7 +976,7 @@ void reshade::runtime::draw_gui()
 		}
 		else if (show_screenshot_message)
 		{
-			if (!_last_screenshot_save_successfull)
+			if (!_last_screenshot_save_successful)
 				if (_screenshot_directory_creation_successfull)
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported or the drive may be full).");
 				else

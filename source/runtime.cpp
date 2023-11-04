@@ -491,8 +491,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now(); // Intentionally set to current time, so that duration to last reload is valid even when there is no reload on init
 
-	_preset_save_successfull = true;
-	_last_screenshot_save_successfull = true;
+	_preset_save_successful = true;
+	_last_screenshot_save_successful = true;
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
@@ -812,7 +812,7 @@ void reshade::runtime::on_present()
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
-		_preset_save_successfull = false;
+		_preset_save_successful = false;
 
 #if RESHADE_ADDON == 1
 	// Detect high network traffic
@@ -1023,7 +1023,7 @@ void reshade::runtime::save_config() const
 #if RESHADE_FX
 void reshade::runtime::load_current_preset()
 {
-	_preset_save_successfull = true;
+	_preset_save_successful = true;
 
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
@@ -4180,7 +4180,7 @@ void reshade::runtime::save_texture(const texture &tex)
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
-	_last_screenshot_save_successfull = true;
+	_last_screenshot_save_successful = true;
 
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
 		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data()))
@@ -4220,11 +4220,11 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = false;
 			}
 
-			if (_last_screenshot_save_successfull)
+			if (_last_screenshot_save_successful)
 			{
 				_last_screenshot_time = std::chrono::high_resolution_clock::now();
 				_last_screenshot_file = screenshot_path;
-				_last_screenshot_save_successfull = save_success;
+				_last_screenshot_save_successful = save_success;
 			}
 		});
 	}
@@ -4649,7 +4649,7 @@ void reshade::runtime::save_screenshot(const std::string_view &postfix)
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << '.';
 
-	_last_screenshot_save_successfull = true;
+	_last_screenshot_save_successful = true;
 
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
 		capture_screenshot(pixels.data()))
@@ -4739,11 +4739,11 @@ void reshade::runtime::save_screenshot(const std::string_view &postfix)
 				LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 			}
 
-			if (_last_screenshot_save_successfull)
+			if (_last_screenshot_save_successful)
 			{
 				_last_screenshot_time = std::chrono::high_resolution_clock::now();
 				_last_screenshot_file = screenshot_path;
-				_last_screenshot_save_successfull = save_success;
+				_last_screenshot_save_successful = save_success;
 			}
 		});
 	}
