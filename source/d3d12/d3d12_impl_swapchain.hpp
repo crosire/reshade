@@ -29,7 +29,7 @@ namespace reshade::d3d12
 		bool on_init();
 		void on_reset();
 
-		void on_present();
+		using runtime::on_present;
 
 	protected:
 		std::vector<com_ptr<ID3D12Resource>> _back_buffers;

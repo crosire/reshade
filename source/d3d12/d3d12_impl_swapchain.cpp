@@ -120,14 +120,6 @@ void reshade::d3d12::swapchain_impl::on_reset()
 	_back_buffers.clear();
 }
 
-void reshade::d3d12::swapchain_impl::on_present()
-{
-	if (!is_initialized())
-		return;
-
-	runtime::on_present();
-}
-
 reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue) : swapchain_impl(device, queue, nullptr)
 {
 	// Default to three back buffers for d3d12on7
@@ -177,6 +169,6 @@ bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source,
 	}
 
 	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
-	swapchain_impl::on_present();
+	runtime::on_present();
 	return true;
 }

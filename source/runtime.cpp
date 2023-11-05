@@ -468,6 +468,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 	}
 
+	create_state_block(_device, &_app_state);
+
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		goto exit_failure;
@@ -538,6 +540,9 @@ exit_failure:
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
 
+	destroy_state_block(_device, _app_state);
+	_app_state = {};
+
 #if RESHADE_GUI
 	if (_is_vr)
 		deinit_gui_vr();
@@ -598,6 +603,9 @@ void reshade::runtime::on_reset()
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
 
+	destroy_state_block(_device, _app_state);
+	_app_state = {};
+
 	_width = _height = 0;
 
 #if RESHADE_GUI
@@ -615,7 +623,8 @@ void reshade::runtime::on_reset()
 }
 void reshade::runtime::on_present()
 {
-	assert(is_initialized());
+	if (!_is_initialized)
+		return;
 
 #if RESHADE_ADDON
 	_is_in_present_call = true;
@@ -625,6 +634,8 @@ void reshade::runtime::on_present()
 #endif
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+
+	capture_state(cmd_list, _app_state);
 
 	uint32_t back_buffer_index = get_current_back_buffer_index();
 	const api::resource back_buffer_resource = get_back_buffer(back_buffer_index);
@@ -803,6 +814,9 @@ void reshade::runtime::on_present()
 #if RESHADE_FX
 	_effects_rendered_this_frame = false;
 #endif
+
+	// Apply previous state from application
+	apply_state(cmd_list, _app_state);
 
 	// Update input status
 	if (_input != nullptr)
@@ -3892,6 +3906,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 			return;
 	}
 
+	if (!_is_in_present_call)
+		capture_state(cmd_list, _app_state);
+
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 
@@ -3931,6 +3948,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+		apply_state(cmd_list, _app_state);
 #endif
 }
 void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)

@@ -18,6 +18,10 @@ reshade::d3d9::state_block::state_block(IDirect3DDevice9 *device) :
 	if (_num_simultaneous_rts > ARRAYSIZE(_render_targets))
 		_num_simultaneous_rts = ARRAYSIZE(_render_targets);
 #endif
+
+	D3DDEVICE_CREATION_PARAMETERS cp = {};
+	device->GetCreationParameters(&cp);
+	_vertex_processing = cp.BehaviorFlags & (D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_MIXED_VERTEXPROCESSING);
 }
 reshade::d3d9::state_block::~state_block()
 {
@@ -41,6 +45,12 @@ void reshade::d3d9::state_block::capture()
 
 	_device->GetRenderState(D3DRS_SRGBWRITEENABLE, &_srgb_write);
 	_device->GetSamplerState(0, D3DSAMP_SRGBTEXTURE, &_srgb_texture);
+
+	if ((_vertex_processing & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+	{
+		_vertex_processing |= _device->GetSoftwareVertexProcessing();
+		_device->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
+	}
 }
 void reshade::d3d9::state_block::apply_and_release()
 {
@@ -49,6 +59,12 @@ void reshade::d3d9::state_block::apply_and_release()
 
 	// Release state block every time, so that all references to captured vertex and index buffers, textures, etc. are released again
 	_state_block.reset();
+
+	if ((_vertex_processing & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+	{
+		_device->SetSoftwareVertexProcessing(_vertex_processing & (TRUE | FALSE));
+		_vertex_processing &= ~(TRUE | FALSE);
+	}
 
 	// This should technically be captured and applied by the state block already ...
 	// But Steam overlay messes it up somehow and this is neceesary to fix the screen darkening in Portal when the Steam overlay is showing a notification popup and the ReShade overlay is open at the same time

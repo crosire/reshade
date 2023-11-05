@@ -7,6 +7,7 @@
 
 #include "reshade_api.hpp"
 #include "reshade_api_object.hpp"
+#include "state_block.hpp"
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"
 #endif
@@ -60,10 +61,6 @@ namespace reshade
 		/// </summary>
 		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty() || (!_textures_loaded && _is_initialized); }
 #endif
-		/// <summary>
-		/// Gets a boolean indicating whether the runtime is initialized.
-		/// </summary>
-		bool is_initialized() const { return _is_initialized; }
 
 #if RESHADE_FX
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
@@ -353,6 +350,8 @@ namespace reshade
 		api::resource _back_buffer_resolved = {};
 		api::resource_view _back_buffer_resolved_srv = {};
 		std::vector<api::resource_view> _back_buffer_targets;
+
+		api::state_block _app_state = {};
 		#pragma endregion
 
 		#pragma region Screenshot

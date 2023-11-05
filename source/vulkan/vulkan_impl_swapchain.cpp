@@ -131,9 +131,6 @@ void reshade::vulkan::swapchain_impl::on_reset()
 
 void reshade::vulkan::swapchain_impl::on_present(VkQueue queue, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
 {
-	if (!is_initialized())
-		return;
-
 	runtime::on_present();
 
 #ifndef NDEBUG

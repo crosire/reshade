@@ -30,5 +30,6 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DSurface9> _render_targets[8];
 		DWORD _srgb_write = FALSE;
 		DWORD _srgb_texture = FALSE;
+		DWORD _vertex_processing = 0;
 	};
 }

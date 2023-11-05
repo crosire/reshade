@@ -111,6 +111,9 @@
     <ClCompile Include="source\runtime_update_check.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\state_block.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\imgui_code_editor.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
@@ -432,6 +435,9 @@
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\state_block.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">

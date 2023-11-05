@@ -605,6 +605,7 @@
     <ClCompile Include="source\runtime_gui.cpp" />
     <ClCompile Include="source\runtime_gui_vr.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
+    <ClCompile Include="source\state_block.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
@@ -706,6 +707,7 @@
     <ClInclude Include="source\reshade_api_object.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
+    <ClInclude Include="source\state_block.hpp" />
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />
     <ClInclude Include="source\vulkan\vulkan_impl_command_list.hpp" />
     <ClInclude Include="source\vulkan\vulkan_impl_command_list_immediate.hpp" />

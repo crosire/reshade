@@ -10,8 +10,7 @@
 #include "addon_manager.hpp"
 
 reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
-	api_object_impl(swapchain, device, device),
-	_app_state(device->_orig)
+	api_object_impl(swapchain, device, device)
 {
 	_renderer_id = 0x9000;
 
@@ -78,68 +77,10 @@ void reshade::d3d9::swapchain_impl::on_present()
 {
 	const auto device = static_cast<device_impl *>(_device);
 
-	if (!is_initialized() || FAILED(device->_orig->BeginScene()))
+	if (FAILED(device->_orig->BeginScene()))
 		return;
-
-	_app_state.capture();
-	BOOL software_rendering_enabled = FALSE;
-	if ((device->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		software_rendering_enabled = device->_orig->GetSoftwareVertexProcessing(),
-		device->_orig->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
 
 	runtime::on_present();
 
-	// Apply previous state from application
-	_app_state.apply_and_release();
-	if ((device->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		device->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
-
 	device->_orig->EndScene();
 }
-
-#if RESHADE_ADDON && RESHADE_FX
-void reshade::d3d9::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	if (_is_in_present_call)
-	{
-		runtime::render_effects(cmd_list, rtv, rtv_srgb);
-		return;
-	}
-
-	const auto device = static_cast<device_impl *>(_device);
-
-	_app_state.capture();
-	BOOL software_rendering_enabled = FALSE;
-	if ((device->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		software_rendering_enabled = device->_orig->GetSoftwareVertexProcessing(),
-		device->_orig->SetSoftwareVertexProcessing(FALSE);
-
-	runtime::render_effects(cmd_list, rtv, rtv_srgb);
-
-	_app_state.apply_and_release();
-	if ((device->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		device->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
-}
-void reshade::d3d9::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	if (_is_in_present_call)
-	{
-		runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
-		return;
-	}
-
-	const auto device = static_cast<device_impl *>(_device);
-
-	_app_state.capture();
-	BOOL software_rendering_enabled = FALSE;
-	if ((device->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		software_rendering_enabled = device->_orig->GetSoftwareVertexProcessing(),
-		device->_orig->SetSoftwareVertexProcessing(FALSE);
-
-	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
-
-	_app_state.apply_and_release();
-	if ((device->_cp.BehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
-		device->_orig->SetSoftwareVertexProcessing(software_rendering_enabled);
-}
-#endif

@@ -5,22 +5,17 @@
 
 #include "openvr_impl_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
-#include "d3d10/d3d10_impl_state_block.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d11/d3d11_device_context.hpp"
-#include "d3d11/d3d11_impl_state_block.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "opengl/opengl_impl_swapchain.hpp"
-#include "opengl/opengl_impl_state_block.hpp"
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
 
 reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device, compositor)
 {
-	_app_state = new d3d10::state_block(device->_orig);
-
 	_direct3d_device = static_cast<ID3D10Device *>(device);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	static_cast<IUnknown *>(_direct3d_device)->AddRef();
@@ -29,8 +24,6 @@ reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRComp
 reshade::openvr::swapchain_impl::swapchain_impl(D3D11Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device->_immediate_context, compositor)
 {
-	_app_state = new d3d11::state_block(device->_orig);
-
 	_direct3d_device = static_cast<ID3D11Device *>(device);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	static_cast<IUnknown *>(_direct3d_device)->AddRef();
@@ -49,9 +42,6 @@ reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 {
 	_is_vr = true;
 	_renderer_id = static_cast<unsigned int>(device->get_api());
-
-	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl)
-		_app_state = new opengl::state_block();
 }
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
@@ -60,24 +50,10 @@ reshade::openvr::swapchain_impl::~swapchain_impl()
 	// Do not access '_device' object to check the device API, in case it was already destroyed
 	if (static_cast<api::device_api>(_renderer_id) == api::device_api::opengl && g_current_context == nullptr)
 	{
-		delete static_cast<opengl::state_block *>(_app_state);
 		return; // Cannot clean up if OpenGL context was already destroyed
 	}
 
 	on_reset();
-
-	switch (_device->get_api())
-	{
-	case api::device_api::d3d10:
-		delete static_cast<d3d10::state_block *>(_app_state);
-		break;
-	case api::device_api::d3d11:
-		delete static_cast<d3d11::state_block *>(_app_state);
-		break;
-	case api::device_api::opengl:
-		delete static_cast<opengl::state_block *>(_app_state);
-		break;
-	}
 
 	// Release the explicit reference to the device now that the effect runtime was destroyed and is longer referencing it
 	if (_direct3d_device != nullptr)
@@ -133,40 +109,6 @@ void reshade::openvr::swapchain_impl::on_reset()
 
 	_device->destroy_resource(_side_by_side_texture);
 	_side_by_side_texture = {};
-}
-
-void reshade::openvr::swapchain_impl::on_present()
-{
-	if (!is_initialized())
-		return;
-
-	switch (_device->get_api())
-	{
-	case api::device_api::d3d10:
-		static_cast<d3d10::state_block *>(_app_state)->capture();
-		break;
-	case api::device_api::d3d11:
-		static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
-		break;
-	case api::device_api::opengl:
-		static_cast<opengl::state_block *>(_app_state)->capture(false);
-		break;
-	}
-
-	runtime::on_present();
-
-	switch (_device->get_api())
-	{
-	case api::device_api::d3d10:
-		static_cast<d3d10::state_block *>(_app_state)->apply_and_release();
-		break;
-	case api::device_api::d3d11:
-		static_cast<d3d11::state_block *>(_app_state)->apply_and_release();
-		break;
-	case api::device_api::opengl:
-		static_cast<opengl::state_block *>(_app_state)->apply(false);
-		break;
-	}
 }
 
 bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource eye_texture, const vr::VRTextureBounds_t *bounds, uint32_t layer)
@@ -265,78 +207,3 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 	return true;
 }
-
-#if RESHADE_ADDON && RESHADE_FX
-void reshade::openvr::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	if (!_is_in_present_call)
-	{
-		switch (_device->get_api())
-		{
-		case api::device_api::d3d10:
-			static_cast<d3d10::state_block *>(_app_state)->capture();
-			break;
-		case api::device_api::d3d11:
-			static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
-			break;
-		case api::device_api::opengl:
-			static_cast<opengl::state_block *>(_app_state)->capture(false);
-			break;
-		}
-	}
-
-	runtime::render_effects(cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-	{
-		switch (_device->get_api())
-		{
-		case api::device_api::d3d10:
-			static_cast<d3d10::state_block *>(_app_state)->apply_and_release();
-			break;
-		case api::device_api::d3d11:
-			static_cast<d3d11::state_block *>(_app_state)->apply_and_release();
-			break;
-		case api::device_api::opengl:
-			static_cast<opengl::state_block *>(_app_state)->apply(false);
-			break;
-		}
-	}
-}
-void reshade::openvr::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	if (!_is_in_present_call)
-	{
-		switch (_device->get_api())
-		{
-		case api::device_api::d3d10:
-			static_cast<d3d10::state_block *>(_app_state)->capture();
-			break;
-		case api::device_api::d3d11:
-			static_cast<d3d11::state_block *>(_app_state)->capture(reinterpret_cast<ID3D11DeviceContext *>(_graphics_queue->get_native()));
-			break;
-		case api::device_api::opengl:
-			static_cast<opengl::state_block *>(_app_state)->capture(false);
-			break;
-		}
-	}
-
-	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-	{
-		switch (_device->get_api())
-		{
-		case api::device_api::d3d10:
-			static_cast<d3d10::state_block *>(_app_state)->apply_and_release();
-			break;
-		case api::device_api::d3d11:
-			static_cast<d3d11::state_block *>(_app_state)->apply_and_release();
-			break;
-		case api::device_api::opengl:
-			static_cast<opengl::state_block *>(_app_state)->apply(false);
-			break;
-		}
-	}
-}
-#endif

@@ -11,8 +11,7 @@
 #include "addon_manager.hpp"
 
 reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
-	api_object_impl(swapchain, device, immediate_context),
-	_app_state(device->_orig)
+	api_object_impl(swapchain, device, immediate_context)
 {
 	_renderer_id = device->_orig->GetFeatureLevel();
 
@@ -94,42 +93,3 @@ void reshade::d3d11::swapchain_impl::on_reset()
 	assert(_back_buffer.ref_count() == 0);
 	_back_buffer.release();
 }
-
-void reshade::d3d11::swapchain_impl::on_present()
-{
-	if (!is_initialized())
-		return;
-
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(_graphics_queue)->_orig;
-	_app_state.capture(immediate_context);
-
-	runtime::on_present();
-
-	// Apply previous state from application
-	_app_state.apply_and_release();
-}
-
-#if RESHADE_ADDON && RESHADE_FX
-void reshade::d3d11::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
-	if (!_is_in_present_call)
-		_app_state.capture(immediate_context);
-
-	runtime::render_effects(cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-		_app_state.apply_and_release();
-}
-void reshade::d3d11::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
-	if (!_is_in_present_call)
-		_app_state.capture(immediate_context);
-
-	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-		_app_state.apply_and_release();
-}
-#endif
