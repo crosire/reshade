@@ -45,12 +45,12 @@ reshade::d3d12::swapchain_impl::~swapchain_impl()
 
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index)
 {
-	return to_handle(_backbuffers[index].get());
+	return to_handle(_back_buffers[index].get());
 }
 
 uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
 {
-	return static_cast<uint32_t>(_backbuffers.size());
+	return static_cast<uint32_t>(_back_buffers.size());
 }
 uint32_t reshade::d3d12::swapchain_impl::get_current_back_buffer_index() const
 {
@@ -87,12 +87,12 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	}
 
 	// Get back buffer textures
-	_backbuffers.resize(swap_desc.BufferCount);
+	_back_buffers.resize(swap_desc.BufferCount);
 	for (UINT i = 0; i < swap_desc.BufferCount; ++i)
 	{
-		if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_backbuffers[i]))))
+		if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_back_buffers[i]))))
 			return false;
-		assert(_backbuffers[i] != nullptr);
+		assert(_back_buffers[i] != nullptr);
 	}
 
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
@@ -105,7 +105,7 @@ bool reshade::d3d12::swapchain_impl::on_init()
 }
 void reshade::d3d12::swapchain_impl::on_reset()
 {
-	if (_backbuffers.empty())
+	if (_back_buffers.empty())
 		return;
 
 	runtime::on_reset();
@@ -117,7 +117,7 @@ void reshade::d3d12::swapchain_impl::on_reset()
 	// Make sure none of the resources below are currently in use (in case the runtime was initialized previously)
 	_graphics_queue->wait_idle();
 
-	_backbuffers.clear();
+	_back_buffers.clear();
 }
 
 void reshade::d3d12::swapchain_impl::on_present()
@@ -131,7 +131,7 @@ void reshade::d3d12::swapchain_impl::on_present()
 reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue) : swapchain_impl(device, queue, nullptr)
 {
 	// Default to three back buffers for d3d12on7
-	_backbuffers.resize(3);
+	_back_buffers.resize(3);
 }
 
 uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index() const
@@ -143,29 +143,29 @@ bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source,
 {
 	assert(source != nullptr);
 
-	_swap_index = (_swap_index + 1) % static_cast<UINT>(_backbuffers.size());
+	_swap_index = (_swap_index + 1) % static_cast<UINT>(_back_buffers.size());
 
 	// Update source texture render target view
-	if (_backbuffers[_swap_index] != source)
+	if (_back_buffers[_swap_index] != source)
 	{
 		runtime::on_reset();
 
 #if RESHADE_ADDON
-		if (_backbuffers[0] != nullptr)
+		if (_back_buffers[0] != nullptr)
 		{
 			invoke_addon_event<addon_event::destroy_swapchain>(this);
 		}
 #endif
 
 		// Reduce number of back buffers if less are used than predicted
-		if (const auto it = std::find(_backbuffers.begin(), _backbuffers.end(), source); it != _backbuffers.end())
-			_backbuffers.erase(it);
+		if (const auto it = std::find(_back_buffers.begin(), _back_buffers.end(), source); it != _back_buffers.end())
+			_back_buffers.erase(it);
 		else
-			_backbuffers[_swap_index] = source;
+			_back_buffers[_swap_index] = source;
 
 		// Do not initialize before all back buffers have been set
 		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
-		if (_backbuffers[0] != nullptr)
+		if (_back_buffers[0] != nullptr)
 		{
 #if RESHADE_ADDON
 			invoke_addon_event<addon_event::init_swapchain>(this);

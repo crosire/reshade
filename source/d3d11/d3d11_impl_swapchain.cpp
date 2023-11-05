@@ -44,7 +44,7 @@ reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t 
 {
 	assert(index == 0);
 
-	return to_handle(_backbuffer.get());
+	return to_handle(_back_buffer.get());
 }
 
 void reshade::d3d11::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
@@ -61,9 +61,9 @@ bool reshade::d3d11::swapchain_impl::on_init()
 		return false;
 
 	// Get back buffer texture
-	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
+	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_back_buffer))))
 		return false;
-	assert(_backbuffer != nullptr);
+	assert(_back_buffer != nullptr);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
@@ -72,14 +72,14 @@ bool reshade::d3d11::swapchain_impl::on_init()
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 
 	// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
-	_backbuffer->Release();
-	assert(_backbuffer.ref_count() == 0);
+	_back_buffer->Release();
+	assert(_back_buffer.ref_count() == 0);
 
 	return runtime::on_init(swap_desc.OutputWindow);
 }
 void reshade::d3d11::swapchain_impl::on_reset()
 {
-	if (_backbuffer == nullptr)
+	if (_back_buffer == nullptr)
 		return;
 
 	runtime::on_reset();
@@ -91,8 +91,8 @@ void reshade::d3d11::swapchain_impl::on_reset()
 	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
 	// Releasing any references ReShade owns would then make the count negative, which consequently breaks DXGI validation
 	// But the only reference was already released above because of Unreal Engine 4 anyway, so can simply clear out the pointer here without touching the reference count
-	assert(_backbuffer.ref_count() == 0);
-	_backbuffer.release();
+	assert(_back_buffer.ref_count() == 0);
+	_back_buffer.release();
 }
 
 void reshade::d3d11::swapchain_impl::on_present()

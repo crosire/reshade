@@ -32,7 +32,7 @@ namespace reshade::d3d12
 		void on_present();
 
 	protected:
-		std::vector<com_ptr<ID3D12Resource>> _backbuffers;
+		std::vector<com_ptr<ID3D12Resource>> _back_buffers;
 	};
 
 	class swapchain_d3d12on7_impl : public swapchain_impl

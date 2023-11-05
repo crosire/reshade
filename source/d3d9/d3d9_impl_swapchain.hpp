@@ -34,7 +34,7 @@ namespace reshade::d3d9
 #endif
 
 	private:
-		com_ptr<IDirect3DSurface9> _backbuffer;
+		com_ptr<IDirect3DSurface9> _back_buffer;
 		state_block _app_state;
 	};
 }

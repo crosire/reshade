@@ -37,7 +37,7 @@ namespace reshade::d3d11
 #endif
 
 	private:
-		com_ptr<ID3D11Texture2D> _backbuffer;
+		com_ptr<ID3D11Texture2D> _back_buffer;
 		state_block _app_state;
 	};
 }

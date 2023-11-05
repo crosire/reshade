@@ -38,15 +38,15 @@ reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t i
 {
 	assert(index == 0);
 
-	return to_handle(static_cast<IDirect3DResource9 *>(_backbuffer.get()));
+	return to_handle(static_cast<IDirect3DResource9 *>(_back_buffer.get()));
 }
 
 bool reshade::d3d9::swapchain_impl::on_init()
 {
 	// Get back buffer surface
-	if (FAILED(_orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer)))
+	if (FAILED(_orig->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_back_buffer)))
 		return false;
-	assert(_backbuffer != nullptr);
+	assert(_back_buffer != nullptr);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);
@@ -62,7 +62,7 @@ bool reshade::d3d9::swapchain_impl::on_init()
 }
 void reshade::d3d9::swapchain_impl::on_reset()
 {
-	if (_backbuffer == nullptr)
+	if (_back_buffer == nullptr)
 		return;
 
 	runtime::on_reset();
@@ -71,7 +71,7 @@ void reshade::d3d9::swapchain_impl::on_reset()
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
-	_backbuffer.reset();
+	_back_buffer.reset();
 }
 
 void reshade::d3d9::swapchain_impl::on_present()
