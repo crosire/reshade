@@ -115,13 +115,9 @@ void reshade::vulkan::swapchain_impl::on_reset()
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
-	if (_orig == VK_NULL_HANDLE)
-		for (VkImage image : _swapchain_images)
-			static_cast<device_impl *>(_device)->destroy_resource({ (uint64_t)image });
-	else
-		// Remove swap chain images from the image list
-		for (VkImage image : _swapchain_images)
-			static_cast<device_impl *>(_device)->unregister_object<VK_OBJECT_TYPE_IMAGE>(image);
+	// Remove swap chain images from the image list
+	for (VkImage image : _swapchain_images)
+		static_cast<device_impl *>(_device)->unregister_object<VK_OBJECT_TYPE_IMAGE>(image);
 	_swapchain_images.clear();
 
 	for (VkSemaphore &semaphore : _queue_sync_semaphores)
