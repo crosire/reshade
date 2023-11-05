@@ -1077,12 +1077,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 {
 	assert(pPresentInfo != nullptr);
 
-	temp_mem<VkSemaphore> wait_semaphores(pPresentInfo->waitSemaphoreCount + 1); // Add space for one additional wait semaphore that may get appended in 'swapchain_impl::on_present'
-	std::copy_n(pPresentInfo->pWaitSemaphores, pPresentInfo->waitSemaphoreCount, wait_semaphores.p);
-
 	VkPresentInfoKHR present_info = *pPresentInfo;
-	present_info.pWaitSemaphores = wait_semaphores.p;
-	present_info.waitSemaphoreCount = pPresentInfo->waitSemaphoreCount;
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(queue));
 	reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
@@ -1144,12 +1139,46 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				dirty_rect_count,
 				dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
-			swapchain_impl->on_present(queue, const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
+			swapchain_impl->on_present(queue_impl);
+
 		}
 	}
 
-	// Override wait semaphores based on the last queue submit
-	queue_impl->flush_immediate_command_list(const_cast<VkSemaphore *>(present_info.pWaitSemaphores), present_info.waitSemaphoreCount);
+#ifndef NDEBUG
+	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
+	if (device_impl->_wait_for_idle_happened)
+	{
+		temp_mem<VkPipelineStageFlags> wait_stages(present_info.waitSemaphoreCount);
+		std::fill_n(wait_stages.p, present_info.waitSemaphoreCount, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		submit_info.waitSemaphoreCount = present_info.waitSemaphoreCount;
+		submit_info.pWaitSemaphores = present_info.pWaitSemaphores;
+		submit_info.pWaitDstStageMask = wait_stages.p;
+		submit_info.signalSemaphoreCount = present_info.waitSemaphoreCount;
+		submit_info.pSignalSemaphores = present_info.pWaitSemaphores;
+		device_impl->_dispatch_table.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+
+		device_impl->_wait_for_idle_happened = false;
+	}
+#endif
+
+	// Synchronize immediate command list flush
+	{
+		temp_mem<VkPipelineStageFlags> wait_stages(present_info.waitSemaphoreCount);
+		std::fill_n(wait_stages.p, present_info.waitSemaphoreCount, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		submit_info.waitSemaphoreCount = present_info.waitSemaphoreCount;
+		submit_info.pWaitSemaphores = present_info.pWaitSemaphores;
+		submit_info.pWaitDstStageMask = wait_stages.p;
+
+		queue_impl->flush_immediate_command_list(submit_info);
+
+		// Override wait semaphores based on the last queue submit
+		present_info.waitSemaphoreCount = submit_info.waitSemaphoreCount;
+		present_info.pWaitSemaphores = submit_info.pWaitSemaphores;
+	}
 
 	device_impl->advance_transient_descriptor_pool();
 

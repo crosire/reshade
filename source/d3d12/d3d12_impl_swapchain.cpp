@@ -131,7 +131,7 @@ uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index(
 	return _swap_index;
 }
 
-bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source, HWND hwnd)
+bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(command_queue_impl *queue, ID3D12Resource *source, HWND hwnd)
 {
 	assert(source != nullptr);
 
@@ -169,6 +169,6 @@ bool reshade::d3d12::swapchain_d3d12on7_impl::on_present(ID3D12Resource *source,
 	}
 
 	// Is not initialized the first few frames, but that is fine, since 'on_present' does an 'is_initialized' check
-	runtime::on_present();
+	runtime::on_present(queue);
 	return true;
 }

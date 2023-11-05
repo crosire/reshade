@@ -55,7 +55,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 
 	assert(pSourceTex2D != nullptr);
 
-	swapchain_d3d12on7_impl::on_present(pSourceTex2D, hWindow);
+	swapchain_d3d12on7_impl::on_present(_parent_queue, pSourceTex2D, hWindow);
 
 	_parent_queue->flush_immediate_command_list();
 

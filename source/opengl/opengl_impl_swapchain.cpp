@@ -103,7 +103,7 @@ void reshade::opengl::swapchain_impl::on_reset()
 
 void reshade::opengl::swapchain_impl::on_present()
 {
-	runtime::on_present();
+	runtime::on_present(this);
 
 #ifndef NDEBUG
 	GLenum type = GL_NONE; char message[512] = "";

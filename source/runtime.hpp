@@ -173,7 +173,7 @@ namespace reshade
 
 		bool on_init(void *window);
 		void on_reset();
-		void on_present();
+		void on_present(api::command_queue *present_queue);
 
 		api::device *const _device;
 		api::command_queue *const _graphics_queue;
@@ -352,6 +352,9 @@ namespace reshade
 		std::vector<api::resource_view> _back_buffer_targets;
 
 		api::state_block _app_state = {};
+
+		api::fence _queue_sync_fence = {};
+		uint64_t _queue_sync_value = 0;
 		#pragma endregion
 
 		#pragma region Screenshot

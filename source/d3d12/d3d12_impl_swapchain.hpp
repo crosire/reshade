@@ -42,7 +42,7 @@ namespace reshade::d3d12
 
 		uint32_t get_current_back_buffer_index() const final;
 
-		bool on_present(ID3D12Resource *source, HWND hwnd);
+		bool on_present(command_queue_impl *queue, ID3D12Resource *source, HWND hwnd);
 
 	private:
 		UINT _swap_index = 0;

@@ -30,7 +30,7 @@ namespace reshade::vulkan
 		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
 		void on_reset();
 
-		void on_present(VkQueue queue, VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores);
+		using runtime::on_present;
 
 	private:
 		uint32_t _swap_index = 0;

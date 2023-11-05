@@ -80,7 +80,7 @@ void reshade::d3d9::swapchain_impl::on_present()
 	if (FAILED(device->_orig->BeginScene()))
 		return;
 
-	runtime::on_present();
+	runtime::on_present(device);
 
 	device->_orig->EndScene();
 }

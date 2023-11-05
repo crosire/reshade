@@ -78,7 +78,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present();
+		s_vr_swapchain->on_present(device_proxy);
 
 		const auto target_texture = reinterpret_cast<ID3D10Texture2D *>(s_vr_swapchain->get_back_buffer().handle);
 
@@ -140,7 +140,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(device_proxy->_immediate_context, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present();
+		s_vr_swapchain->on_present(device_proxy->_immediate_context);
 
 		const auto target_texture = reinterpret_cast<ID3D11Texture2D *>(s_vr_swapchain->get_back_buffer().handle);
 
@@ -191,9 +191,8 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(command_queue_proxy.get(), s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present();
+		s_vr_swapchain->on_present(command_queue_proxy.get());
 
-		assert(command_queue_proxy.get() == s_vr_swapchain->get_command_queue());
 		command_queue_proxy->flush_immediate_command_list();
 
 		lock.unlock();
@@ -247,7 +246,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 		const reshade::api::rect right_rect = s_vr_swapchain->get_eye_rect(eye);
 		reshade::invoke_addon_event<reshade::addon_event::present>(g_current_context, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present();
+		s_vr_swapchain->on_present(g_current_context);
 
 		const GLuint target_texture = s_vr_swapchain->get_back_buffer().handle & 0xFFFFFFFF;
 
@@ -309,9 +308,8 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(queue, s_vr_swapchain, &right_rect, &right_rect, 0, nullptr);
 #endif
-		s_vr_swapchain->on_present();
+		s_vr_swapchain->on_present(queue);
 
-		assert(queue == s_vr_swapchain->get_command_queue());
 		queue->flush_immediate_command_list();
 
 		vr::VRVulkanTextureData_t target_texture = *texture;

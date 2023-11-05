@@ -84,7 +84,7 @@ reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 	_orig = VK_NULL_HANDLE;
 }
 
-bool reshade::vulkan::command_list_immediate_impl::flush(VkSemaphore *wait_semaphores, uint32_t &num_wait_semaphores)
+bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_info)
 {
 	if (!_has_commands)
 		return true;
@@ -105,17 +105,12 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSemaphore *wait_semap
 		return false;
 	}
 
-	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	assert(submit_info.sType == VK_STRUCTURE_TYPE_SUBMIT_INFO && submit_info.commandBufferCount == 0);
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &_orig;
 
-	temp_mem<VkPipelineStageFlags> wait_stages(num_wait_semaphores);
-	std::fill_n(wait_stages.p, num_wait_semaphores, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-	if (num_wait_semaphores != 0)
+	if (submit_info.waitSemaphoreCount != 0 && submit_info.signalSemaphoreCount == 0)
 	{
-		submit_info.waitSemaphoreCount = num_wait_semaphores;
-		submit_info.pWaitSemaphores = wait_semaphores;
-		submit_info.pWaitDstStageMask = wait_stages.p;
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
 	}
@@ -132,14 +127,15 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSemaphore *wait_semap
 		return false;
 	}
 
-	// Only signal and wait on a semaphore if the submit this flush is executed in originally did
-	if (num_wait_semaphores != 0)
-	{
-		// This queue submit now waits on the requested wait semaphores
-		// The next queue submit should therefore wait on the semaphore that was signaled by this submit
-		wait_semaphores[0] = _cmd_semaphores[_cmd_index];
-		num_wait_semaphores = 1;
-	}
+	// This queue submit now waits on the requested wait semaphores
+	// The next queue submit should therefore wait on the semaphore that was signaled by this submit
+	submit_info.waitSemaphoreCount = submit_info.signalSemaphoreCount;
+	submit_info.pWaitSemaphores = submit_info.pSignalSemaphores;
+	submit_info.pWaitDstStageMask = nullptr;
+	submit_info.commandBufferCount = 0;
+	submit_info.pCommandBuffers = nullptr;
+	submit_info.signalSemaphoreCount = 0;
+	submit_info.pSignalSemaphores = nullptr;
 
 	// Continue with next command buffer now that the current one was submitted
 	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
@@ -166,8 +162,8 @@ bool reshade::vulkan::command_list_immediate_impl::flush_and_wait()
 	// Index is updated during flush below, so keep track of the current one to wait on
 	const uint32_t cmd_index_to_wait_on = _cmd_index;
 
-	uint32_t num_wait_semaphores = 0; // No semaphores to wait on
-	if (!flush(nullptr, num_wait_semaphores))
+	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	if (!flush(submit_info))
 		return false;
 
 	// Wait for the submitted work to finish and reset fence again for next use

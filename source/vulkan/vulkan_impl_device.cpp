@@ -579,8 +579,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						}
 
 						// Always flush right away, in case resource is destroyed again before an explicit flush of the immediate command list
-						uint32_t num_wait_semaphores = 0;
-						immediate_command_list->flush(nullptr, num_wait_semaphores);
+						VkSubmitInfo semaphore_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+						immediate_command_list->flush(semaphore_info);
 					}
 				}
 				return true;
@@ -1720,8 +1720,8 @@ bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint3
 
 			immediate_command_list->_has_commands = true;
 
-			uint32_t num_wait_semaphores = 0;
-			immediate_command_list->flush(nullptr, num_wait_semaphores);
+			VkSubmitInfo semaphore_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+			immediate_command_list->flush(semaphore_info);
 		}
 #else
 		vk.ResetQueryPool(_orig, pool, 0, count);
