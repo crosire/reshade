@@ -1144,25 +1144,6 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		}
 	}
 
-#ifndef NDEBUG
-	// Some operations force a wait for idle in ReShade, which invalidates the wait semaphores, so signal them again (keeps the validation layers happy)
-	if (device_impl->_wait_for_idle_happened)
-	{
-		temp_mem<VkPipelineStageFlags> wait_stages(present_info.waitSemaphoreCount);
-		std::fill_n(wait_stages.p, present_info.waitSemaphoreCount, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-
-		VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-		submit_info.waitSemaphoreCount = present_info.waitSemaphoreCount;
-		submit_info.pWaitSemaphores = present_info.pWaitSemaphores;
-		submit_info.pWaitDstStageMask = wait_stages.p;
-		submit_info.signalSemaphoreCount = present_info.waitSemaphoreCount;
-		submit_info.pSignalSemaphores = present_info.pWaitSemaphores;
-		device_impl->_dispatch_table.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-
-		device_impl->_wait_for_idle_happened = false;
-	}
-#endif
-
 	// Synchronize immediate command list flush
 	{
 		temp_mem<VkPipelineStageFlags> wait_stages(present_info.waitSemaphoreCount);

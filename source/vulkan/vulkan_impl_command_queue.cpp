@@ -68,10 +68,6 @@ void reshade::vulkan::command_queue_impl::wait_idle() const
 	flush_immediate_command_list();
 
 	vk.QueueWaitIdle(_orig);
-
-#ifndef NDEBUG
-	_device_impl->_wait_for_idle_happened = true;
-#endif
 }
 
 void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const

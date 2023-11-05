@@ -153,10 +153,6 @@ namespace reshade::vulkan
 		const bool _conservative_rasterization_ext;
 		const VkPhysicalDeviceFeatures _enabled_features;
 
-#ifndef NDEBUG
-		mutable bool _wait_for_idle_happened = false;
-#endif
-
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
 
