@@ -35,9 +35,6 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queu
 		}
 	}
 
-	// Default to three back buffers for d3d12on7
-	_backbuffers.resize(3);
-
 	if (_orig != nullptr)
 		on_init();
 }
@@ -133,6 +130,8 @@ void reshade::d3d12::swapchain_impl::on_present()
 
 reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue) : swapchain_impl(device, queue, nullptr)
 {
+	// Default to three back buffers for d3d12on7
+	_backbuffers.resize(3);
 }
 
 uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index() const
