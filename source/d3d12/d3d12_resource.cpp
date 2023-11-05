@@ -7,6 +7,7 @@
 #include "d3d12_resource.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 extern std::shared_mutex g_adapter_mutex;
 

@@ -10,6 +10,7 @@
 #include "d3d9_impl_type_convert.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 Direct3DDepthStencilSurface9::Direct3DDepthStencilSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc) :
 	_orig(original),

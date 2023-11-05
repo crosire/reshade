@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "reshade_api_pipeline.hpp"
-#include <vector>
-#include <limits>
 #include "opengl_impl_type_convert.hpp"
+#include <limits>
 #include <cassert>
 
 auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) -> GLenum

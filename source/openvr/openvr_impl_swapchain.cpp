@@ -14,6 +14,7 @@
 #include "opengl/opengl_impl_swapchain.hpp"
 #include "opengl/opengl_impl_state_block.hpp"
 #include "dll_log.hpp"
+#include "addon_manager.hpp"
 
 reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device, compositor)

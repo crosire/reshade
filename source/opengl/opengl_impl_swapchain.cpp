@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include "addon_manager.hpp"
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 

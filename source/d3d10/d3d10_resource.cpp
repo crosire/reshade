@@ -7,6 +7,7 @@
 #include "d3d10_resource.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D10Device **ppDevice)
 {

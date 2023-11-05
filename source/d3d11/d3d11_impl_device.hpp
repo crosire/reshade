@@ -6,7 +6,7 @@
 #pragma once
 
 #include "com_ptr.hpp"
-#include "addon_manager.hpp"
+#include "reshade_api_object.hpp"
 #include <d3d11_4.h>
 
 namespace reshade::d3d11

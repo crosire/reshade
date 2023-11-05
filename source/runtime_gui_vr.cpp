@@ -10,6 +10,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "imgui_widgets.hpp"
+#include "addon_manager.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include <openvr.h>
 #include <ivrclientcore.h>

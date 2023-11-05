@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
+#include "reshade_api_object.hpp"
 #include <d3d12.h>
 
 namespace reshade::d3d12

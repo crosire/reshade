@@ -8,6 +8,7 @@
 #include "d3d9_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 #include <algorithm>
 
 const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)

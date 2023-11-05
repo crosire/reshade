@@ -11,6 +11,7 @@
 #include "ini_file.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 extern bool is_windows7();
 

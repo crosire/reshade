@@ -11,6 +11,7 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d11::to_handle;
 

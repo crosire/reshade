@@ -6,6 +6,7 @@
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "addon_manager.hpp"
 
 bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, HWND hwnd)
 {

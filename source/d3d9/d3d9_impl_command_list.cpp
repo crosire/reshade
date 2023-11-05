@@ -5,6 +5,7 @@
 
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
+#include <string>
 #include <algorithm>
 #include <utf8/unchecked.h>
 

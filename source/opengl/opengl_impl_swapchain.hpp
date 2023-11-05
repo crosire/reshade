@@ -9,6 +9,7 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_render_context.hpp"
 #include "opengl_impl_state_block.hpp"
+#include <unordered_set>
 
 namespace reshade::opengl
 {

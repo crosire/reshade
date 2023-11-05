@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
+#include "reshade_api_object.hpp"
 #include "descriptor_heap.hpp"
 #include <unordered_map>
 #include <concurrent_vector.h>

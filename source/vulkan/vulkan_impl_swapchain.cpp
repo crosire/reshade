@@ -8,6 +8,7 @@
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_swapchain.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include "addon_manager.hpp"
 
 #define vk static_cast<device_impl *>(_device)->_dispatch_table
 

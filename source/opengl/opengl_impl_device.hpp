@@ -5,10 +5,9 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
+#include "reshade_api_object.hpp"
 #include <GL/gl3w.h>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace reshade::opengl
 {

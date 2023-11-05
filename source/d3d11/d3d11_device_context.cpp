@@ -8,6 +8,7 @@
 #include "d3d11_command_list.hpp"
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d11::to_handle;
 

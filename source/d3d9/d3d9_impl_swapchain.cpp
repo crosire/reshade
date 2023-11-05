@@ -7,6 +7,7 @@
 #include "d3d9_impl_swapchain.hpp"
 #include "d3d9_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "addon_manager.hpp"
 
 reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
 	api_object_impl(swapchain, device, device),

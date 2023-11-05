@@ -458,6 +458,9 @@
     <ClInclude Include="source\platform_utils.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
+    <ClInclude Include="source\reshade_api_object.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>

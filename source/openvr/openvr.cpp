@@ -17,6 +17,7 @@
 #include "dll_log.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 #include "lockfree_linear_map.hpp"
 #include <functional>
 #include <ivrclientcore.h>

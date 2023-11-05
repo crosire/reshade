@@ -8,6 +8,7 @@
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
 #include "dll_log.hpp"
+#include "addon_manager.hpp"
 #include "lockfree_linear_map.hpp"
 #include <algorithm>
 

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
+#include "reshade_api_object.hpp"
 #include <shared_mutex>
 #include <unordered_map>
 #pragma warning(push)

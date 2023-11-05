@@ -6,7 +6,6 @@
 #pragma once
 
 #include "runtime.hpp"
-#include "addon_manager.hpp"
 #include <openvr.h>
 
 struct D3D10Device;

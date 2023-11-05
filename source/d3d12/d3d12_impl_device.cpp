@@ -11,6 +11,7 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 #include <algorithm>
 
 extern bool is_windows7();

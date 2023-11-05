@@ -703,6 +703,7 @@
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />
     <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp" />
     <ClInclude Include="source\platform_utils.hpp" />
+    <ClInclude Include="source\reshade_api_object.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />
