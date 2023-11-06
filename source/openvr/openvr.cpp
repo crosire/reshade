@@ -60,9 +60,6 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 		return submit(eye, texture, bounds, flags);
 	}
 
-	uint32_t target_width, target_height;
-	s_vr_swapchain->get_screenshot_width_and_height(&target_width, &target_height);
-
 	// Skip submission of the first eye and instead submit both left and right eye in one step after application submitted both
 	if (eye != vr::Eye_Right)
 	{

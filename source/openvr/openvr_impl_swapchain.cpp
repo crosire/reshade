@@ -104,9 +104,6 @@ void reshade::openvr::swapchain_impl::on_reset()
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
-	// Make sure none of the resources below are currently in use
-	_graphics_queue->wait_idle();
-
 	_device->destroy_resource(_side_by_side_texture);
 	_side_by_side_texture = {};
 }

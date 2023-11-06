@@ -1140,7 +1140,6 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
 			swapchain_impl->on_present(queue_impl);
-
 		}
 	}
 

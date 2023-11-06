@@ -2333,7 +2333,7 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
 }
-void reshade::opengl::device_impl::destroy_fence(api::fence handle) 
+void reshade::opengl::device_impl::destroy_fence(api::fence handle)
 {
 	if ((handle.handle >> 40) == 0xFFFFFFFF)
 	{

@@ -114,9 +114,6 @@ void reshade::d3d12::swapchain_impl::on_reset()
 	invoke_addon_event<addon_event::destroy_swapchain>(this);
 #endif
 
-	// Make sure none of the resources below are currently in use (in case the runtime was initialized previously)
-	_graphics_queue->wait_idle();
-
 	_back_buffers.clear();
 }
 
