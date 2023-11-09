@@ -1756,23 +1756,32 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						error(state_location, 3020, "cannot use texture" + std::to_string(symbol.type.texture_dimension()) + "D as render target");
 					else {
 						struct texture_info &target_info = _codegen->get_texture(symbol.id);
-						// Texture is used as a render target
-						target_info.render_target = true;
 
-						// Verify that all render targets in this pass have the same dimensions
-						if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
-							parse_success = false,
-							error(state_location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')');
+						if (target_info.semantic.empty())
+						{
+							// Texture is used as a render target
+							target_info.render_target = true;
 
-						info.viewport_width = target_info.width;
-						info.viewport_height = target_info.height;
+							// Verify that all render targets in this pass have the same dimensions
+							if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
+								parse_success = false,
+								error(state_location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')');
 
-						const int target_index = state_name.size() > 12 ? (state_name[12] - '0') : 0;
-						info.render_target_names[target_index] = target_info.unique_name;
+							info.viewport_width = target_info.width;
+							info.viewport_height = target_info.height;
 
-						// Only RGBA8 format supports sRGB writes across all APIs
-						if (target_info.format != texture_format::rgba8)
-							targets_support_srgb = false;
+							const int target_index = state_name.size() > 12 ? (state_name[12] - '0') : 0;
+							info.render_target_names[target_index] = target_info.unique_name;
+
+							// Only RGBA8 format supports sRGB writes across all APIs
+							if (target_info.format != texture_format::rgba8)
+								targets_support_srgb = false;
+						}
+						else
+						{
+							parse_success = false;
+							error(state_location, 3020, "cannot use texture with semantic as render target");
+						}
 					}
 				}
 			}
