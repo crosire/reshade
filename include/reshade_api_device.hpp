@@ -1019,6 +1019,11 @@ namespace reshade { namespace api
 		/// <param name="value">Value the fence should be set to.</param>
 		/// <returns><see langword="true"/> if the signal operation was successfully enqueued, <see langword="false"/> otherwise.</returns>
 		virtual bool signal(fence fence, uint64_t value) = 0;
+
+		/// <summary>
+		/// Queries the GPU timestamp frequency in ticks per second.
+		/// </summary>
+		virtual uint64_t get_timestamp_frequency() const = 0;
 	};
 
 	/// <summary>

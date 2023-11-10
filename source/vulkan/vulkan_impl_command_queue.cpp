@@ -166,3 +166,11 @@ bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t valu
 
 	return vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
 }
+
+uint64_t reshade::vulkan::command_queue_impl::get_timestamp_frequency() const
+{
+	VkPhysicalDeviceProperties device_props = {};
+	_device_impl->_instance_dispatch_table.GetPhysicalDeviceProperties(_device_impl->_physical_device, &device_props);
+
+	return static_cast<uint64_t>(1000000000ull * device_props.limits.timestampPeriod);
+}

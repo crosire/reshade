@@ -230,6 +230,10 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 {
 	assert(device != nullptr && graphics_queue != nullptr);
 
+#if RESHADE_GUI && RESHADE_FX
+	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
+#endif
+
 	check_for_update();
 
 	// Default shortcut PrtScrn
@@ -3995,7 +3999,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
 			_device->get_query_heap_results(effect.query_heap, tech.query_base_index + (_frame_count % 4) * 2, 2, timestamps, sizeof(uint64_t)))
-			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
+			tech.average_gpu_duration.append((timestamps[1] - timestamps[0]) * 1000000000ull / _timestamp_frequency);
 
 		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2);
 	}

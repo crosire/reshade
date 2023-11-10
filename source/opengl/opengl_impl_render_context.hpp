@@ -81,6 +81,8 @@ namespace reshade::opengl
 		bool wait(api::fence fence, uint64_t value) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
+		uint64_t get_timestamp_frequency() const final { return 1000000000; /* Assume nanoseconds */ }
+
 		GLuint _current_ibo = 0;
 		GLenum _current_prim_mode = GL_NONE;
 		GLenum _current_index_type = GL_UNSIGNED_INT;

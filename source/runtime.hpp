@@ -521,6 +521,7 @@ namespace reshade
 		bool _gather_gpu_statistics = false;
 		api::resource_view _preview_texture = {};
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
+		uint64_t _timestamp_frequency = 0;
 #endif
 		#pragma endregion
 

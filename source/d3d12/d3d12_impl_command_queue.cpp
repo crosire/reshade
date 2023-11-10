@@ -20,12 +20,6 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-		UINT64 frequency = 0;
-		if (FAILED(queue->GetTimestampFrequency(&frequency)) || frequency != 1000000000)
-		{
-			LOG(WARN) << "GPU has an unexpected timestamp frequency of " << frequency << ". GPU times will be inaccurate.";
-		}
-
 		_immediate_cmd_list = new command_list_immediate_impl(device, queue);
 		// Ensure the immediate command list was initialized successfully, otherwise disable it
 		if (_immediate_cmd_list->_orig == nullptr)
@@ -146,4 +140,13 @@ bool reshade::d3d12::command_queue_impl::signal(api::fence fence, uint64_t value
 	flush_immediate_command_list();
 
 	return SUCCEEDED(_orig->Signal(reinterpret_cast<ID3D12Fence *>(fence.handle), value));
+}
+
+uint64_t reshade::d3d12::command_queue_impl::get_timestamp_frequency() const
+{
+	UINT64 frequency;
+	if (SUCCEEDED(_orig->GetTimestampFrequency(&frequency)))
+		return frequency;
+
+	return 1000000000;
 }

@@ -139,6 +139,8 @@ namespace reshade::d3d11
 		bool wait(api::fence fence, uint64_t value) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
+		uint64_t get_timestamp_frequency() const final;
+
 	private:
 		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;

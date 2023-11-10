@@ -80,6 +80,8 @@ namespace reshade::d3d9
 		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
 		bool signal(api::fence fence, uint64_t value) final;
 
+		uint64_t get_timestamp_frequency() const final;
+
 		api::device *get_device() final { return this; }
 
 		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }

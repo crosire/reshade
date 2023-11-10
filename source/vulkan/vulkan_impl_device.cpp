@@ -77,15 +77,6 @@ reshade::vulkan::device_impl::device_impl(
 		vmaCreateAllocator(&create_info, &_alloc);
 	}
 
-	{	VkPhysicalDeviceProperties device_props = {};
-		instance_table.GetPhysicalDeviceProperties(physical_device, &device_props);
-
-		if (device_props.limits.timestampPeriod != 1.0f)
-		{
-			LOG(WARN) << "GPU has an unexpected timestamp frequency of " << static_cast<UINT>(1000000000 / device_props.limits.timestampPeriod) << ". GPU times will be inaccurate.";
-		}
-	}
-
 	const VkDescriptorPoolSize pool_sizes[] = {
 		{ VK_DESCRIPTOR_TYPE_SAMPLER, 128 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024 },

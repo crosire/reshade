@@ -33,6 +33,8 @@ namespace reshade::vulkan
 		bool wait(api::fence fence, uint64_t value) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
+		uint64_t get_timestamp_frequency() const final;
+
 	private:
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;

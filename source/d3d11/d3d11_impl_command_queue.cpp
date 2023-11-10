@@ -126,3 +126,25 @@ bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t valu
 
 	return _device_impl->signal(fence, value);
 }
+
+uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
+{
+	D3D11_QUERY_DESC temp_query_desc;
+	temp_query_desc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+	temp_query_desc.MiscFlags = 0;
+
+	com_ptr<ID3D11Query> temp_query;
+	if (SUCCEEDED(_device_impl->_orig->CreateQuery(&temp_query_desc, &temp_query)))
+	{
+		_orig->Begin(temp_query.get());
+		_orig->End(temp_query.get());
+
+		wait_idle();
+
+		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT temp_query_data;
+		if (_orig->GetData(temp_query.get(), &temp_query_data, sizeof(temp_query_data), 0) == S_OK)
+			return temp_query_data.Frequency;
+	}
+
+	return 1000000000;
+}
