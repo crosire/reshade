@@ -89,19 +89,6 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 	invoke_addon_event<addon_event::init_swapchain>(this);
 #endif
 
-	for (uint32_t i = 0; i < NUM_SYNC_SEMAPHORES; ++i)
-	{
-		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-
-		if (vk.CreateSemaphore(static_cast<device_impl *>(_device)->_orig, &sem_create_info, nullptr, &_queue_sync_semaphores[i]) != VK_SUCCESS)
-		{
-			LOG(ERROR) << "Failed to create queue synchronization semaphore!";
-			return false;
-		}
-	}
-
-	_back_buffer_color_space = convert_color_space(desc.imageColorSpace);
-
 	return runtime::on_init(hwnd);
 }
 void reshade::vulkan::swapchain_impl::on_reset()
@@ -119,8 +106,4 @@ void reshade::vulkan::swapchain_impl::on_reset()
 	for (VkImage image : _swapchain_images)
 		static_cast<device_impl *>(_device)->unregister_object<VK_OBJECT_TYPE_IMAGE>(image);
 	_swapchain_images.clear();
-
-	for (VkSemaphore &semaphore : _queue_sync_semaphores)
-		vk.DestroySemaphore(static_cast<device_impl *>(_device)->_orig, semaphore, nullptr),
-		semaphore = VK_NULL_HANDLE;
 }

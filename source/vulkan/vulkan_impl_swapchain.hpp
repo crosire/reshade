@@ -14,8 +14,6 @@ namespace reshade::vulkan
 
 	class swapchain_impl : public api::api_object_impl<VkSwapchainKHR, runtime>
 	{
-		static const uint32_t NUM_SYNC_SEMAPHORES = 4;
-
 	public:
 		swapchain_impl(device_impl *device, command_queue_impl *graphics_queue);
 		~swapchain_impl();
@@ -35,8 +33,7 @@ namespace reshade::vulkan
 	private:
 		uint32_t _swap_index = 0;
 		std::vector<VkImage> _swapchain_images;
-		uint32_t _queue_sync_index = 0;
-		VkSemaphore _queue_sync_semaphores[NUM_SYNC_SEMAPHORES] = {};
+		VkSwapchainCreateInfoKHR _create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	};
 
 	template <>
