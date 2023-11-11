@@ -39,7 +39,26 @@ void reshade::vulkan::swapchain_impl::set_current_back_buffer_index(uint32_t ind
 	_swap_index = index;
 }
 
-bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd)
+bool reshade::vulkan::swapchain_impl::check_color_space_support(api::color_space color_space) const
+{
+	uint32_t num_formats = 0;
+	static_cast<device_impl *>(_device)->_instance_dispatch_table.GetPhysicalDeviceSurfaceFormatsKHR(static_cast<device_impl *>(_device)->_physical_device, _create_info.surface, &num_formats, nullptr);
+	std::vector<VkSurfaceFormatKHR> formats(num_formats);
+	static_cast<device_impl *>(_device)->_instance_dispatch_table.GetPhysicalDeviceSurfaceFormatsKHR(static_cast<device_impl *>(_device)->_physical_device, _create_info.surface, &num_formats, formats.data());
+
+	for (const VkSurfaceFormatKHR &format : formats)
+		if (format.format == _create_info.imageFormat && format.colorSpace == convert_color_space(color_space))
+			return true;
+
+	return false;
+}
+
+reshade::api::color_space reshade::vulkan::swapchain_impl::get_color_space() const
+{
+	return convert_color_space(_create_info.imageColorSpace);
+}
+
+bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd)
 {
 	_orig = swapchain;
 
@@ -56,19 +75,21 @@ bool reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 	data.allocation = VK_NULL_HANDLE;
 	data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	data.create_info.imageType = VK_IMAGE_TYPE_2D;
-	data.create_info.format = desc.imageFormat;
-	data.create_info.extent = { desc.imageExtent.width, desc.imageExtent.height, 1 };
+	data.create_info.format = create_info.imageFormat;
+	data.create_info.extent = { create_info.imageExtent.width, create_info.imageExtent.height, 1 };
 	data.create_info.mipLevels = 1;
-	data.create_info.arrayLayers = desc.imageArrayLayers;
+	data.create_info.arrayLayers = create_info.imageArrayLayers;
 	data.create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	data.create_info.usage = desc.imageUsage;
-	data.create_info.sharingMode = desc.imageSharingMode;
+	data.create_info.usage = create_info.imageUsage;
+	data.create_info.sharingMode = create_info.imageSharingMode;
 	data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	for (uint32_t i = 0; i < num_images; ++i)
 		static_cast<device_impl *>(_device)->register_object<VK_OBJECT_TYPE_IMAGE>(_swapchain_images[i], std::move(data));
 
-	assert(desc.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+	assert(create_info.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+
+	_create_info = create_info;
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_swapchain>(this);

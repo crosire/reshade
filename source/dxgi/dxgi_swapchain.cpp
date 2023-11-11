@@ -616,10 +616,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	switch (_direct3d_version)
 	{
 	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
+		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_color_space(ColorSpace);
 		break;
 	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
+		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_color_space(ColorSpace);
 		break;
 	}
 

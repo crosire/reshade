@@ -22,10 +22,13 @@ namespace reshade::vulkan
 
 		uint32_t get_back_buffer_count() const final;
 		uint32_t get_current_back_buffer_index() const final;
-
 		void set_current_back_buffer_index(uint32_t index);
 
-		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &desc, HWND hwnd);
+		bool check_color_space_support(api::color_space color_space) const final;
+
+		api::color_space get_color_space() const final;
+
+		bool on_init(VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd);
 		void on_reset();
 
 		using runtime::on_present;

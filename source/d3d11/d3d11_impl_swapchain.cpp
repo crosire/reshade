@@ -26,7 +26,22 @@ reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t 
 	return to_handle(_back_buffer.get());
 }
 
-void reshade::d3d11::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
+bool reshade::d3d11::swapchain_impl::check_color_space_support(api::color_space color_space) const
+{
+	if (color_space != api::color_space::unknown)
+	{
+		com_ptr<IDXGISwapChain3> swapchain3;
+		if (SUCCEEDED(_orig->QueryInterface(&swapchain3)))
+		{
+			UINT support;
+			return SUCCEEDED(swapchain3->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
+		}
+	}
+
+	return color_space == api::color_space::srgb_nonlinear;
+}
+
+void reshade::d3d11::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
 {
 	_back_buffer_color_space = convert_color_space(type);
 }

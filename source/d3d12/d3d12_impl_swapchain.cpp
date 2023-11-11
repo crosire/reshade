@@ -37,7 +37,13 @@ uint32_t reshade::d3d12::swapchain_impl::get_current_back_buffer_index() const
 	return _orig->GetCurrentBackBufferIndex();
 }
 
-void reshade::d3d12::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
+bool reshade::d3d12::swapchain_impl::check_color_space_support(api::color_space color_space) const
+{
+	UINT support;
+	return color_space != api::color_space::unknown && SUCCEEDED(_orig->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
+}
+
+void reshade::d3d12::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
 {
 	_back_buffer_color_space = convert_color_space(type);
 }

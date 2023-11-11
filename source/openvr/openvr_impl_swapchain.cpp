@@ -67,6 +67,23 @@ reshade::api::resource reshade::openvr::swapchain_impl::get_back_buffer(uint32_t
 	return _side_by_side_texture;
 }
 
+void reshade::openvr::swapchain_impl::set_color_space(vr::EColorSpace color_space)
+{
+	switch (color_space)
+	{
+	default:
+	case vr::ColorSpace_Auto:
+		_back_buffer_color_space = api::color_space::unknown;
+		break;
+	case vr::ColorSpace_Gamma:
+		_back_buffer_color_space = api::color_space::srgb_nonlinear;
+		break;
+	case vr::ColorSpace_Linear:
+		_back_buffer_color_space = api::color_space::extended_srgb_linear;
+		break;
+	}
+}
+
 reshade::api::rect reshade::openvr::swapchain_impl::get_eye_rect(vr::EVREye eye) const
 {
 	return api::rect {
@@ -108,7 +125,7 @@ void reshade::openvr::swapchain_impl::on_reset()
 	_side_by_side_texture = {};
 }
 
-bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource eye_texture, const vr::VRTextureBounds_t *bounds, uint32_t layer)
+bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer)
 {
 	assert(eye < 2 && eye_texture != 0);
 
@@ -143,6 +160,8 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 	if (region_width == 0 || region_height == 0)
 		return false;
+
+	set_color_space(color_space);
 
 	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
 	const  int32_t width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(_width));

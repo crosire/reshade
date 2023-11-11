@@ -28,13 +28,18 @@ namespace reshade::openvr
 		uint32_t get_back_buffer_count() const final { return 1; }
 		uint32_t get_current_back_buffer_index() const final { return 0; }
 
+		bool check_color_space_support(api::color_space color_space) const final { return color_space == api::color_space::srgb_nonlinear || color_space == api::color_space::extended_srgb_linear; }
+
+		api::color_space get_color_space() const final { return _back_buffer_color_space; }
+		void set_color_space(vr::EColorSpace color_space);
+
 		api::rect get_eye_rect(vr::EVREye eye) const;
 		api::subresource_box get_eye_subresource_box(vr::EVREye eye) const;
 
 		bool on_init();
 		void on_reset();
 
-		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, const vr::VRTextureBounds_t *bounds, uint32_t layer);
+		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
 
 		using runtime::on_present;
 

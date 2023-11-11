@@ -1100,5 +1100,15 @@ namespace reshade { namespace api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
+
+		/// <summary>
+		/// Checks whether the specified color space is supported for presentation.
+		/// </summary>
+		virtual bool check_color_space_support(color_space color_space) const = 0;
+
+		/// <summary>
+		/// Gets the color space used for presentation.
+		/// </summary>
+		virtual color_space get_color_space() const = 0;
 	};
 } }
