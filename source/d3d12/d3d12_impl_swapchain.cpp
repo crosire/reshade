@@ -7,34 +7,12 @@
 #include "d3d12_impl_command_queue.hpp"
 #include "d3d12_impl_swapchain.hpp"
 #include "d3d12_impl_type_convert.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "addon_manager.hpp"
 #include <CoreWindow.h>
 
 reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain) :
 	api_object_impl(swapchain, device, queue)
 {
-	_renderer_id = D3D_FEATURE_LEVEL_12_0;
-
-	// There is no swap chain in d3d12on7
-	if (com_ptr<IDXGIFactory4> factory;
-		_orig != nullptr && SUCCEEDED(_orig->GetParent(IID_PPV_ARGS(&factory))))
-	{
-		const LUID luid = device->_orig->GetAdapterLuid();
-
-		if (com_ptr<IDXGIAdapter> dxgi_adapter;
-			SUCCEEDED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
-		{
-			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
-			{
-				_vendor_id = desc.VendorId;
-				_device_id = desc.DeviceId;
-
-				LOG(INFO) << "Running on " << desc.Description << '.';
-			}
-		}
-	}
-
 	if (_orig != nullptr)
 		on_init();
 }
@@ -79,12 +57,6 @@ bool reshade::d3d12::swapchain_impl::on_init()
 	else if (com_ptr<ICoreWindowInterop> window_interop; // Get window handle of the core window
 		SUCCEEDED(_orig->GetCoreWindow(IID_PPV_ARGS(&window_interop))) && SUCCEEDED(window_interop->get_WindowHandle(&hwnd)))
 		swap_desc.OutputWindow = hwnd;
-
-	if (swap_desc.SampleDesc.Count > 1)
-	{
-		LOG(WARN) << "Multisampled swap chains are unsupported with D3D12.";
-		return false;
-	}
 
 	// Get back buffer textures
 	_back_buffers.resize(swap_desc.BufferCount);

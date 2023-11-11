@@ -15,27 +15,6 @@ reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC initial_hglrc, bo
 {
 	_hdcs.insert(hdc);
 
-	GLint major = 0, minor = 0;
-	gl.GetIntegerv(GL_MAJOR_VERSION, &major);
-	gl.GetIntegerv(GL_MINOR_VERSION, &minor);
-	_renderer_id = 0x10000 | (major << 12) | (minor << 8);
-
-	const GLubyte *const name = gl.GetString(GL_RENDERER);
-	const GLubyte *const version = gl.GetString(GL_VERSION);
-	LOG(INFO) << "Running on " << name << " using OpenGL " << version << '.';
-
-	// Query vendor and device ID from Windows assuming we are running on the primary display device
-	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
-	DISPLAY_DEVICEA dd = { sizeof(dd) };
-	for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
-	{
-		if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
-		{
-			std::sscanf(dd.DeviceID, "PCI\\VEN_%x&DEV_%x", &_vendor_id, &_device_id);
-			break;
-		}
-	}
-
 	GLint scissor_box[4] = {};
 	gl.GetIntegerv(GL_SCISSOR_BOX, scissor_box);
 	assert(scissor_box[0] == 0 && scissor_box[1] == 0);

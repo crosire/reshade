@@ -143,6 +143,33 @@ reshade::opengl::device_impl::~device_impl()
 	gl.DeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 }
 
+reshade::api::device_properties reshade::opengl::device_impl::get_properties() const
+{
+	api::device_properties props;
+
+	GLint major = 0, minor = 0;
+	gl.GetIntegerv(GL_MAJOR_VERSION, &major);
+	gl.GetIntegerv(GL_MINOR_VERSION, &minor);
+	props.api_version = (major << 12) | (minor << 8);
+
+	const GLubyte *const name = gl.GetString(GL_RENDERER);
+	std::strncpy(props.description, reinterpret_cast<const char *>(name), sizeof(props.description));
+
+	// Query vendor and device ID from Windows assuming we are running on the primary display device
+	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
+	DISPLAY_DEVICEA dd = { sizeof(dd) };
+	for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
+	{
+		if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
+		{
+			std::sscanf(dd.DeviceID, "PCI\\VEN_%x&DEV_%x", &props.vendor_id, &props.device_id);
+			break;
+		}
+	}
+
+	return props;
+}
+
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
 {
 	GLint value;

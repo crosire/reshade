@@ -47,6 +47,38 @@ reshade::d3d10::device_impl::~device_impl()
 #endif
 }
 
+reshade::api::device_properties reshade::d3d10::device_impl::get_properties() const
+{
+	api::device_properties props;
+	props.api_version = _orig->GetFeatureLevel();
+
+	if (com_ptr<IDXGIDevice> dxgi_device;
+		SUCCEEDED(_orig->QueryInterface(&dxgi_device)))
+	{
+		if (com_ptr<IDXGIAdapter> dxgi_adapter;
+			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		{
+			LARGE_INTEGER umd_version;
+			if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
+			{
+				props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+			}
+
+			DXGI_ADAPTER_DESC adapter_desc;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
+			{
+				props.vendor_id = adapter_desc.VendorId;
+				props.device_id = adapter_desc.DeviceId;
+
+				static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
+				utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
+			}
+		}
+	}
+
+	return props;
+}
+
 bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) const
 {
 	switch (capability)

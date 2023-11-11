@@ -230,6 +230,31 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 {
 	assert(device != nullptr && graphics_queue != nullptr);
 
+	const api::device_properties props = _device->get_properties();
+	_vendor_id = props.vendor_id;
+	_device_id = props.device_id;
+
+	_renderer_id = props.api_version;
+	switch (_device->get_api())
+	{
+	case api::device_api::d3d9:
+	case api::device_api::d3d10:
+	case api::device_api::d3d11:
+	case api::device_api::d3d12:
+		break;
+	case api::device_api::opengl:
+		_renderer_id |= 0x10000;
+		break;
+	case api::device_api::vulkan:
+		_renderer_id |= 0x20000;
+		break;
+	}
+
+	if (props.driver_version != 0)
+		LOG(INFO) << "Running on " << props.description << " Driver " << (props.driver_version / 100) << '.' << (props.driver_version % 100) << '.';
+	else
+		LOG(INFO) << "Running on " << props.description << '.';
+
 #if RESHADE_GUI && RESHADE_FX
 	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
 #endif

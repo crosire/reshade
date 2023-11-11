@@ -177,6 +177,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Describes an adapter/physical device.
+	/// </summary>
+	struct device_properties
+	{
+		unsigned int api_version = 0;
+		unsigned int driver_version = 0;
+		unsigned int vendor_id = 0, device_id = 0;
+		char description[256] = "";
+	};
+
+	/// <summary>
 	/// The base class for objects provided by the ReShade API.
 	/// <para>This lets you store and retrieve custom data with objects, e.g. to be able to communicate persistent information between event callbacks.</para>
 	/// </summary>
@@ -523,6 +534,11 @@ namespace reshade { namespace api
 		/// <param name="value">Value the fence should be set to.</param>
 		/// <returns><see langword="true"/> if the signal operation was successful, <see langword="false"/> otherwise.</returns>
 		virtual bool signal(fence fence, uint64_t value) = 0;
+
+		/// <summary>
+		/// Gets information about the primary adapter associated with this logical render device.
+		/// </summary>
+		virtual device_properties get_properties() const = 0;
 	};
 
 	/// <summary>

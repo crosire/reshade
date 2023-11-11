@@ -6,26 +6,11 @@
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_swapchain.hpp"
 #include "d3d9_impl_type_convert.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "addon_manager.hpp"
 
 reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain) :
 	api_object_impl(swapchain, device, device)
 {
-	_renderer_id = 0x9000;
-
-	if (D3DADAPTER_IDENTIFIER9 adapter_desc;
-		SUCCEEDED(device->_d3d->GetAdapterIdentifier(device->_cp.AdapterOrdinal, 0, &adapter_desc)))
-	{
-		_vendor_id = adapter_desc.VendorId;
-		_device_id = adapter_desc.DeviceId;
-
-		// Only the last 5 digits represents the version specific to a driver
-		// See https://docs.microsoft.com/windows-hardware/drivers/display/version-numbers-for-display-drivers
-		const DWORD driver_version = LOWORD(adapter_desc.DriverVersion.LowPart) + (HIWORD(adapter_desc.DriverVersion.LowPart) % 10) * 10000;
-		LOG(INFO) << "Running on " << adapter_desc.Description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100) << '.';
-	}
-
 	on_init();
 }
 reshade::d3d9::swapchain_impl::~swapchain_impl()

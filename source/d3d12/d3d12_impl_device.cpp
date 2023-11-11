@@ -12,6 +12,7 @@
 #include "dll_resources.hpp"
 #include "addon_manager.hpp"
 #include <algorithm>
+#include <dxgi1_4.h>
 
 extern bool is_windows7();
 
@@ -96,6 +97,52 @@ reshade::d3d12::device_impl::~device_impl()
 
 	assert(_descriptor_heaps.empty());
 #endif
+}
+
+reshade::api::device_properties reshade::d3d12::device_impl::get_properties() const
+{
+	api::device_properties props;
+	props.api_version = D3D_FEATURE_LEVEL_12_0;
+
+	const LUID luid = _orig->GetAdapterLuid();
+	com_ptr<IDXGIAdapter> dxgi_adapter;
+
+	if (com_ptr<IDXGIFactory4> factory4;
+		SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
+	{
+		factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter));
+	}
+	else if (com_ptr<IDXGIFactory1> factory1;
+		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
+	{
+		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
+		{
+			DXGI_ADAPTER_DESC adapter_desc;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)) && std::memcmp(&adapter_desc.AdapterLuid, &luid, sizeof(luid)) == 0)
+				break;
+		}
+	}
+
+	if (dxgi_adapter != nullptr)
+	{
+		LARGE_INTEGER umd_version;
+		if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
+		{
+			props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+		}
+
+		DXGI_ADAPTER_DESC adapter_desc;
+		if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
+		{
+			props.vendor_id = adapter_desc.VendorId;
+			props.device_id = adapter_desc.DeviceId;
+
+			static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
+			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
+		}
+	}
+
+	return props;
 }
 
 bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) const

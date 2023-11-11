@@ -12,13 +12,13 @@ namespace reshade::d3d9
 {
 	class device_impl : public api::api_object_impl<IDirect3DDevice9 *, api::device, api::command_queue, api::command_list>
 	{
-		friend class swapchain_impl;
-
 	public:
 		explicit device_impl(IDirect3DDevice9 *device);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::d3d9; }
+
+		api::device_properties get_properties() const;
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;

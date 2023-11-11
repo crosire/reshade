@@ -6,30 +6,11 @@
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_swapchain.hpp"
 #include "d3d10_impl_type_convert.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "addon_manager.hpp"
 
 reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain, device, device)
 {
-	_renderer_id = device->_orig->GetFeatureLevel();
-
-	if (com_ptr<IDXGIDevice> dxgi_device;
-		SUCCEEDED(device->_orig->QueryInterface(&dxgi_device)))
-	{
-		if (com_ptr<IDXGIAdapter> dxgi_adapter;
-			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
-		{
-			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
-			{
-				_vendor_id = desc.VendorId;
-				_device_id = desc.DeviceId;
-
-				LOG(INFO) << "Running on " << desc.Description << '.';
-			}
-		}
-	}
-
 	on_init();
 }
 reshade::d3d10::swapchain_impl::~swapchain_impl()

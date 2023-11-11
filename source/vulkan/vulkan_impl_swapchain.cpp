@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "dll_log.hpp"
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_swapchain.hpp"
@@ -15,20 +14,6 @@
 reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
 	api_object_impl(VK_NULL_HANDLE, device, graphics_queue) // Swap chain object is later set in 'on_init' below
 {
-	VkPhysicalDeviceProperties device_props = {};
-	device->_instance_dispatch_table.GetPhysicalDeviceProperties(device->_physical_device, &device_props);
-
-	_renderer_id = 0x20000 |
-		VK_VERSION_MAJOR(device_props.apiVersion) << 12 |
-		VK_VERSION_MINOR(device_props.apiVersion) <<  8;
-
-	_vendor_id = device_props.vendorID;
-	_device_id = device_props.deviceID;
-
-	// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
-	const uint32_t driver_minor_version = _vendor_id == 0x10DE ?
-		(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
-	LOG(INFO) << "Running on " << device_props.deviceName << " Driver " << VK_VERSION_MAJOR(device_props.driverVersion) << '.' << driver_minor_version << '.';
 }
 reshade::vulkan::swapchain_impl::~swapchain_impl()
 {
