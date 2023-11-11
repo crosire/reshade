@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "dll_log.hpp"
-#include "hook_manager.hpp"
-#include "addon_manager.hpp"
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
+#include "dll_log.hpp"
+#include "hook_manager.hpp"
+#include "addon_manager.hpp"
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>

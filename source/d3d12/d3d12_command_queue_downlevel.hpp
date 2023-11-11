@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "d3d12_impl_swapchain.hpp"
 #include <D3D12Downlevel.h>
+#include "d3d12_impl_swapchain.hpp"
 
 struct D3D12CommandQueue;
 

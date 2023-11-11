@@ -6,7 +6,7 @@
 #pragma once
 
 #include "reshade_api.hpp"
-#include "reshade_api_object.hpp"
+#include "reshade_api_object_impl.hpp"
 #include "state_block.hpp"
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"

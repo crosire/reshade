@@ -14,9 +14,12 @@ Direct3DDevice9On12::Direct3DDevice9On12(Direct3DDevice9 *device_9, D3D12Device 
 	_parent_device_12(device_12)
 {
 	assert(_orig != nullptr && _parent_device_9 != nullptr && _parent_device_12 != nullptr);
+
+	_parent_device_12->AddRef();
 }
 Direct3DDevice9On12::~Direct3DDevice9On12()
 {
+	_parent_device_12->Release();
 }
 
 bool Direct3DDevice9On12::check_and_upgrade_interface(REFIID riid)

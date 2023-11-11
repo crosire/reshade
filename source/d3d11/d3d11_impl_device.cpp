@@ -5,9 +5,9 @@
 
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
-#include "dll_log.hpp"
 #include "addon_manager.hpp"
 #include <algorithm>
+#include <utf8/unchecked.h>
 
 extern bool is_windows7();
 

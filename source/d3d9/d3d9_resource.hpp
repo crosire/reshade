@@ -7,8 +7,6 @@
 
 #if RESHADE_ADDON
 
-#include <d3d9.h>
-
 struct Direct3DDevice9;
 
 struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStencilSurface9 final : IDirect3DSurface9

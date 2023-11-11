@@ -31,8 +31,7 @@ reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_conte
 		}
 	}
 
-	if (_orig != nullptr)
-		on_init();
+	on_init();
 }
 reshade::d3d11::swapchain_impl::~swapchain_impl()
 {

@@ -5,6 +5,7 @@
 
 #include "d3d10_impl_type_convert.hpp"
 #include <limits>
+#include <cassert>
 
 auto reshade::d3d10::convert_format(api::format format) -> DXGI_FORMAT
 {

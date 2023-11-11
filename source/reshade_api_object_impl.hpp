@@ -79,9 +79,6 @@ namespace reshade::api
 
 		std::vector<private_data> _private_data;
 	};
-
-	struct api_object;
-	struct effect_runtime;
 }
 
 template <typename T, size_t STACK_ELEMENTS = 16>

@@ -5,9 +5,9 @@
 
 #pragma once
 
+#include <GL/glcorearb.h>
 #include "reshade_api_pipeline.hpp"
 #include <vector>
-#include <GL/glcorearb.h>
 
 namespace reshade::opengl
 {

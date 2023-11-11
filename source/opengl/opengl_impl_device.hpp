@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "reshade_api_object.hpp"
 #include <GL/gl3w.h>
+#include "reshade_api_object_impl.hpp"
 #include <unordered_map>
 
 namespace reshade::opengl

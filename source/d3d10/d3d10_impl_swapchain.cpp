@@ -30,8 +30,7 @@ reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 		}
 	}
 
-	if (_orig != nullptr)
-		on_init();
+	on_init();
 }
 reshade::d3d10::swapchain_impl::~swapchain_impl()
 {

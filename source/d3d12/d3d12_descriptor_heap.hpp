@@ -7,8 +7,6 @@
 
 #if RESHADE_ADDON >= 2
 
-#include <d3d12.h>
-
 struct D3D12Device;
 
 struct DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap final : ID3D12DescriptorHeap

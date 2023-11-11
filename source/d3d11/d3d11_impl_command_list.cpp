@@ -8,6 +8,7 @@
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
+#include <utf8/unchecked.h>
 
 void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipeline_stage stages) const
 {

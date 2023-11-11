@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "reshade_api_object.hpp"
 #include "descriptor_heap.hpp"
+#include "reshade_api_object_impl.hpp"
 #include <unordered_map>
 #include <concurrent_vector.h>
 

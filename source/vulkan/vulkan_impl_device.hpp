@@ -5,14 +5,15 @@
 
 #pragma once
 
-#include "reshade_api_object.hpp"
-#include <shared_mutex>
-#include <unordered_map>
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703 4189) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
+
+#include "reshade_api_object_impl.hpp"
+#include <shared_mutex>
+#include <unordered_map>
 
 namespace reshade::vulkan
 {

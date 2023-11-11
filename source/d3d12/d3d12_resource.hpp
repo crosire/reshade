@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <d3d12.h>
-
 HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, REFIID riid, void **ppvDevice);
 
 #if RESHADE_ADDON >= 2

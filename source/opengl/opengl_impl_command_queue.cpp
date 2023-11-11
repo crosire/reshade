@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "addon_manager.hpp"
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_render_context.hpp"
 #include "opengl_impl_type_convert.hpp"
+#include "addon_manager.hpp"
 
 #define gl gl3wProcs.gl
 

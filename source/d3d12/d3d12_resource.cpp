@@ -7,7 +7,6 @@
 #include "d3d12_resource.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
-#include "addon_manager.hpp"
 
 extern std::shared_mutex g_adapter_mutex;
 
@@ -39,6 +38,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 #if RESHADE_ADDON >= 2
 
 #include "d3d12_impl_type_convert.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d12::to_handle;
 

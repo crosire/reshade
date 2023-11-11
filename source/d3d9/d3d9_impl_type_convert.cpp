@@ -5,6 +5,7 @@
 
 #include "d3d9_impl_type_convert.hpp"
 #include <limits>
+#include <cassert>
 
 auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORMAT
 {

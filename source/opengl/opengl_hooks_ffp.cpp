@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "hook_manager.hpp"
-#include "addon_manager.hpp"
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
+#include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 extern thread_local reshade::opengl::render_context_impl *g_current_context;
 

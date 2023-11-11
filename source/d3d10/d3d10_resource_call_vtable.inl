@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include "hook_manager.hpp"
+
 #define ID3D10Resource_GetDevice reshade::hooks::call_vtable<3, HRESULT, ID3D10Resource, ID3D10Device **>
 
 #if RESHADE_ADDON >= 2

@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
-#include "reshade_api_object.hpp"
 #include <d3d11_4.h>
+#include "com_ptr.hpp"
+#include "reshade_api_object_impl.hpp"
 
 namespace reshade::d3d11
 {

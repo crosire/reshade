@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
 #include <d3d9on12.h>
 
 struct Direct3DDevice9;
@@ -34,5 +33,5 @@ struct DECLSPEC_UUID("C09BBC5E-FC80-4D9A-A46E-F67542343008") Direct3DDevice9On12
 
 	IDirect3DDevice9On12 *_orig;
 	Direct3DDevice9 *const _parent_device_9;
-	const com_ptr<D3D12Device> _parent_device_12;
+	D3D12Device *const _parent_device_12;
 };

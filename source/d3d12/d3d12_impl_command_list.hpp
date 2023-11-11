@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "reshade_api_object.hpp"
 #include <d3d12.h>
+#include "reshade_api_object_impl.hpp"
 
 namespace reshade::d3d12
 {

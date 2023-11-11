@@ -6,10 +6,9 @@
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
 #include "d3d10_resource_call_vtable.inl"
-#include "dll_log.hpp"
-#include "hook_manager.hpp"
 #include "addon_manager.hpp"
 #include <algorithm>
+#include <utf8/unchecked.h>
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	api_object_impl(device)

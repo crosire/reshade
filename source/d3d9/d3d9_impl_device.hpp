@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "reshade_api_object.hpp"
 #include "d3d9_impl_state_block.hpp"
+#include "reshade_api_object_impl.hpp"
 
 namespace reshade::d3d9
 {
@@ -107,7 +107,7 @@ namespace reshade::d3d9
 		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update) final;
 		void bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
 
-		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
+		void bind_index_buffer(api::resource buffer, [[maybe_unused]] uint64_t offset, [[maybe_unused]] uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
 		void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) final;
 

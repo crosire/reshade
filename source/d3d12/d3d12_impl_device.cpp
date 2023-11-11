@@ -10,7 +10,6 @@
 #include "d3d12_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "hook_manager.hpp"
 #include "addon_manager.hpp"
 #include <algorithm>
 

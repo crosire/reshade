@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "dll_log.hpp"
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_list_immediate.hpp"
+#include "dll_log.hpp"
 
 #define vk _device_impl->_dispatch_table
 
