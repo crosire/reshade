@@ -643,6 +643,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		LOG(WARN) << "Failed to register Vulkan device " << device << '.';
 	}
 
+#if RESHADE_ADDON
+	reshade::load_addons();
+
+	reshade::invoke_addon_event<reshade::addon_event::init_device>(device_impl);
+#endif
+
 	// Initialize all queues associated with this device
 	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; ++i)
 	{
@@ -665,6 +671,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 				queue);
 
 			device_impl->register_object(VK_OBJECT_TYPE_QUEUE, (uint64_t)queue, queue_impl);
+
+#if RESHADE_ADDON
+			reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(queue_impl);
+#endif
 		}
 	}
 
@@ -688,12 +698,20 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 	const std::vector<reshade::vulkan::command_queue_impl *> queues = device_impl->_queues;
 	for (reshade::vulkan::command_queue_impl *queue_impl : queues)
 	{
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(queue_impl);
+#endif
+
 		device_impl->unregister_object(VK_OBJECT_TYPE_QUEUE, (uint64_t)queue_impl->_orig);
 
 		delete queue_impl; // This will remove the queue from the queue list of the device too (see 'command_queue_impl' destructor)
 	}
 
-	assert(device_impl->_queues.empty());
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(device_impl);
+
+	reshade::unload_addons();
+#endif
 
 	// Finally destroy the device
 	delete device_impl;
@@ -892,12 +910,16 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (nullptr != swapchain_impl)
 	{
+		// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
+		reshade::reset_effect_runtime(swapchain_impl);
+
 #if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl);
+
 		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 			destroy_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
 #endif
 
-		// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 		swapchain_impl->on_reset();
 
 		device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)create_info.oldSwapchain);
@@ -925,7 +947,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 	if (nullptr == swapchain_impl)
-		swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, queue_impl);
+	{
+		swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl);
+
+		reshade::create_effect_runtime(swapchain_impl, queue_impl);
+	}
 
 	device_impl->register_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)*pSwapchain, swapchain_impl);
 
@@ -935,7 +961,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	// Create default views for swap chain images
 	for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 		create_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
+
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(swapchain_impl);
 #endif
+
+	reshade::init_effect_runtime(swapchain_impl);
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning Vulkan swap chain " << *pSwapchain << '.';
@@ -955,13 +985,19 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	// Remove swap chain from global list
 	reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
 
-#if RESHADE_ADDON
 	if (swapchain_impl != nullptr)
 	{
+		reshade::reset_effect_runtime(swapchain_impl);
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl);
+
 		for (uint32_t i = 0; i < swapchain_impl->get_back_buffer_count(); ++i)
 			destroy_default_view(device_impl, (VkImage)swapchain_impl->get_back_buffer(i).handle);
-	}
 #endif
+
+		reshade::destroy_effect_runtime(swapchain_impl);
+	}
 
 	delete swapchain_impl;
 
@@ -2479,7 +2515,11 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
-		device_impl->register_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i], device_impl, pCommandBuffers[i]);
+	{
+		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->register_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i], device_impl, pCommandBuffers[i]);
+
+		reshade::invoke_addon_event<reshade::addon_event::init_command_list>(cmd_impl);
+	}
 #endif
 
 	return result;
@@ -2496,6 +2536,10 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 	{
 		if (pCommandBuffers[i] == VK_NULL_HANDLE)
 			continue;
+
+		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i]);
+
+		reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(cmd_impl);
 
 		device_impl->unregister_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i]);
 	}

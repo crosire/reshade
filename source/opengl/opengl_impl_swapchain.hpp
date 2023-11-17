@@ -35,7 +35,6 @@ namespace reshade::opengl
 		static inline swapchain_impl *from_context(render_context_impl *render_context) { return render_context != nullptr ? static_cast<swapchain_impl *>(render_context->get_device()) : nullptr; }
 
 		swapchain_impl(HDC hdc, HGLRC initial_hglrc, bool compatibility_context = false);
-		~swapchain_impl();
 
 		void *get_hwnd() const final { return _hwnd; }
 
@@ -52,7 +51,7 @@ namespace reshade::opengl
 
 		void on_init(HWND hwnd, unsigned int width, unsigned int height);
 		void on_reset();
-		bool on_present(HDC hdc);
+		void on_present(HDC hdc);
 
 		void destroy_resource_view(api::resource_view handle) final;
 

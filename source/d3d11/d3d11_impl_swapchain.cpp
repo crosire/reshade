@@ -4,24 +4,18 @@
  */
 
 #include "d3d11_impl_device.hpp"
-#include "d3d11_impl_device_context.hpp"
 #include "d3d11_impl_swapchain.hpp"
 #include "d3d11_impl_type_convert.hpp"
-#include "addon_manager.hpp"
 
-reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
+reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain),
 	_device_impl(device)
 {
-	create_effect_runtime(this, immediate_context);
-
 	on_init();
 }
 reshade::d3d11::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
-
-	destroy_effect_runtime(this);
 }
 
 reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
@@ -46,17 +40,15 @@ reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t 
 
 bool reshade::d3d11::swapchain_impl::check_color_space_support(api::color_space color_space) const
 {
-	if (color_space != api::color_space::unknown)
-	{
-		com_ptr<IDXGISwapChain3> swapchain3;
-		if (SUCCEEDED(_orig->QueryInterface(&swapchain3)))
-		{
-			UINT support;
-			return SUCCEEDED(swapchain3->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
-		}
-	}
+	if (color_space == api::color_space::unknown)
+		return false;
 
-	return color_space == api::color_space::srgb_nonlinear;
+	com_ptr<IDXGISwapChain3> swapchain3;
+	if (FAILED(_orig->QueryInterface(&swapchain3)))
+		return color_space == api::color_space::srgb_nonlinear;
+
+	UINT support;
+	return SUCCEEDED(swapchain3->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
 }
 
 void reshade::d3d11::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
@@ -68,14 +60,13 @@ void reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
+	if (_back_buffer != nullptr)
+		return;
+
 	// Get back buffer texture
 	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_back_buffer))))
 		return;
 	assert(_back_buffer != nullptr);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
 
 #ifndef NDEBUG
 	DXGI_SWAP_CHAIN_DESC swap_desc = {};
@@ -86,19 +77,11 @@ void reshade::d3d11::swapchain_impl::on_init()
 	// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
 	_back_buffer->Release();
 	assert(_back_buffer.ref_count() == 0);
-
-	init_effect_runtime(this);
 }
 void reshade::d3d11::swapchain_impl::on_reset()
 {
 	if (_back_buffer == nullptr)
 		return;
-
-	reset_effect_runtime(this);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_swapchain>(this);
-#endif
 
 	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
 	// Releasing any references ReShade owns would then make the count negative, which consequently breaks DXGI validation

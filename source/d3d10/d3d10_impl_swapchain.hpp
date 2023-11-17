@@ -13,7 +13,6 @@ namespace reshade::d3d10
 	{
 	public:
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
-		~swapchain_impl();
 
 		api::device *get_device() final;
 

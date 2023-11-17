@@ -7,7 +7,6 @@
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include "addon_manager.hpp"
 #include <algorithm>
 
 #define vk _device_impl->_dispatch_table
@@ -24,17 +23,6 @@ reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCom
 	api_object_impl(cmd_list),
 	_device_impl(device)
 {
-#if RESHADE_ADDON
-	if (_orig != VK_NULL_HANDLE) // Do not call add-on event for immediate command list (since it is internal and not used by the application)
-		invoke_addon_event<addon_event::init_command_list>(this);
-#endif
-}
-reshade::vulkan::command_list_impl::~command_list_impl()
-{
-#if RESHADE_ADDON
-	if (_orig != VK_NULL_HANDLE)
-		invoke_addon_event<addon_event::destroy_command_list>(this);
-#endif
 }
 
 reshade::api::device *reshade::vulkan::command_list_impl::get_device()

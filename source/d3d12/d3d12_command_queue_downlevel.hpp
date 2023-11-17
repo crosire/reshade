@@ -13,6 +13,7 @@ struct D3D12CommandQueue;
 struct DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDownlevel final : ID3D12CommandQueueDownlevel, public reshade::d3d12::swapchain_d3d12on7_impl
 {
 	D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original);
+	~D3D12CommandQueueDownlevel();
 
 	D3D12CommandQueueDownlevel(const D3D12CommandQueueDownlevel &) = delete;
 	D3D12CommandQueueDownlevel &operator=(const D3D12CommandQueueDownlevel &) = delete;

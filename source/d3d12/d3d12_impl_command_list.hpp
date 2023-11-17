@@ -18,7 +18,6 @@ namespace reshade::d3d12
 
 	public:
 		command_list_impl(device_impl *device, ID3D12GraphicsCommandList *cmd_list);
-		~command_list_impl();
 
 		api::device *get_device() final;
 

@@ -23,6 +23,43 @@ D3D11Device::D3D11Device(IDXGIDevice1 *original_dxgi_device, ID3D11Device *origi
 	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available (as is the case in the OpenVR hooks)
 	D3D11Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D11Device), sizeof(device_proxy), &device_proxy);
+
+#if RESHADE_ADDON
+	reshade::load_addons();
+
+	reshade::invoke_addon_event<reshade::addon_event::init_device>(this);
+
+	D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
+
+	const reshade::api::pipeline_layout_param global_pipeline_layout_params[4] = {
+		reshade::api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::sampler },
+		reshade::api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::shader_resource_view },
+		reshade::api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::constant_buffer },
+		reshade::api::descriptor_range { 0, 0, 0,
+			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
+			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
+			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0u, reshade::api::shader_stage::pixel | reshade::api::shader_stage::compute, 1, reshade::api::descriptor_type::unordered_access_view },
+	};
+	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, reshade::d3d11::global_pipeline_layout);
+#endif
+}
+D3D11Device::~D3D11Device()
+{
+#if RESHADE_ADDON
+	// The '_immediate_context' field has already been deleted by this point
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	_orig->GetImmediateContext(&immediate_context);
+
+	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
+	immediate_context->ClearState();
+	immediate_context->Flush();
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::d3d11::global_pipeline_layout);
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(this);
+
+	reshade::unload_addons();
+#endif
 }
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)

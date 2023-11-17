@@ -213,14 +213,12 @@ static inline int format_color_bit_depth(reshade::api::format value)
 static std::atomic<unsigned int> s_runtime_index = 0;
 constexpr uint8_t s_runtime_id[16] = { 0x77, 0xFF, 0x82, 0x02, 0x5B, 0xEC, 0x42, 0xAD, 0x8C, 0xE0, 0x39, 0x7F, 0x3E, 0x84, 0xEA, 0xA6 };
 
-bool reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
+void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
 {
 	if (graphics_queue == nullptr)
-		return false;
+		return;
 
 	swapchain->set_private_data(s_runtime_id, reinterpret_cast<uintptr_t>(new runtime(swapchain, graphics_queue, is_vr)));
-
-	return true;
 }
 void reshade::destroy_effect_runtime(api::swapchain *swapchain)
 {

@@ -6,45 +6,12 @@
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
 #include "d3d10_resource_call_vtable.inl"
-#include "addon_manager.hpp"
 #include <algorithm>
 #include <utf8/unchecked.h>
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	api_object_impl(device)
 {
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<addon_event::init_device>(this);
-
-	const api::pipeline_layout_param global_pipeline_layout_params[3] = {
-		api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::sampler },
-		api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view },
-		api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::constant_buffer },
-	};
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::init_command_list>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
-}
-reshade::d3d10::device_impl::~device_impl()
-{
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-
-	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
-	_orig->ClearState();
-	_orig->Flush();
-
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
-#endif
 }
 
 reshade::api::device_properties reshade::d3d10::device_impl::get_properties() const

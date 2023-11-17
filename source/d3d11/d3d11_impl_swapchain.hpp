@@ -8,12 +8,11 @@
 namespace reshade::d3d11
 {
 	class device_impl;
-	class device_context_impl;
 
 	class swapchain_impl : public api::api_object_impl<IDXGISwapChain *, api::swapchain>
 	{
 	public:
-		swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain);
+		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
 		~swapchain_impl();
 
 		api::device *get_device() final;

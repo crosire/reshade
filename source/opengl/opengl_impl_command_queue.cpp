@@ -6,7 +6,6 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_render_context.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include "addon_manager.hpp"
 
 #define gl gl3wProcs.gl
 
@@ -46,19 +45,9 @@ reshade::opengl::render_context_impl::render_context_impl(device_impl *device, H
 
 	// Generate push constants buffer name
 	gl.GenBuffers(1, &_push_constants);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_command_list>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 reshade::opengl::render_context_impl::~render_context_impl()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-#endif
-
 	// Destroy framebuffers
 	for (const auto &fbo_data : _fbo_lookup)
 		gl.DeleteFramebuffers(1, &fbo_data.second);

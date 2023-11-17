@@ -7,7 +7,6 @@
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include "addon_manager.hpp"
 #include <algorithm>
 
 #define vk _dispatch_table
@@ -120,22 +119,10 @@ reshade::vulkan::device_impl::device_impl(
 			LOG(ERROR) << "Failed to create private data slot!";
 		}
 	}
-
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<reshade::addon_event::init_device>(this);
-#endif
 }
 reshade::vulkan::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed at this point
-
-#if RESHADE_ADDON
-	invoke_addon_event<reshade::addon_event::destroy_device>(this);
-
-	unload_addons();
-#endif
 
 	for (const auto &render_pass_data : _render_pass_lookup)
 	{

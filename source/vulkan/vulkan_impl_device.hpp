@@ -104,11 +104,12 @@ namespace reshade::vulkan
 		command_list_immediate_impl *get_first_immediate_command_list();
 
 		template <VkObjectType type, typename... Args>
-		void register_object(typename object_data<type>::Handle object, Args... args)
+		object_data<type> *register_object(typename object_data<type>::Handle object, Args... args)
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = reinterpret_cast<uint64_t>(new object_data<type>(std::forward<Args>(args)...));
 			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, private_data);
+			return reinterpret_cast<object_data<type> *>(private_data);
 		}
 		void register_object(VkObjectType type, uint64_t object, void *private_data)
 		{

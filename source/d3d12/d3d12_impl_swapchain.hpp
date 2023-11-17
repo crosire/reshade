@@ -10,13 +10,11 @@
 namespace reshade::d3d12
 {
 	class device_impl;
-	class command_queue_impl;
 
 	class swapchain_impl : public api::api_object_impl<IDXGISwapChain3 *, api::swapchain>
 	{
 	public:
-		swapchain_impl(device_impl *device, command_queue_impl *queue, IDXGISwapChain3 *swapchain);
-		~swapchain_impl();
+		swapchain_impl(device_impl *device, IDXGISwapChain3 *swapchain);
 
 		api::device *get_device() final;
 
@@ -44,15 +42,13 @@ namespace reshade::d3d12
 	class swapchain_d3d12on7_impl : public swapchain_impl
 	{
 	public:
-		swapchain_d3d12on7_impl(device_impl *device, command_queue_impl *queue);
+		swapchain_d3d12on7_impl(device_impl *device);
 
 		void *get_hwnd() const final { return _hwnd; }
 
 		uint32_t get_current_back_buffer_index() const final { return _swap_index; }
 
-		bool on_present(ID3D12Resource *source, HWND hwnd);
-
-	private:
+	protected:
 		HWND _hwnd = nullptr;
 		UINT _swap_index = 0;
 	};

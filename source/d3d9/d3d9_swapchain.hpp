@@ -13,6 +13,7 @@ struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 
 {
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original);
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original);
+	~Direct3DSwapChain9();
 
 	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -36,6 +37,8 @@ struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 
 
 	static bool is_presenting_entire_surface(const RECT *source_rect, HWND hwnd);
 
+	void on_init();
+	void on_reset();
 	void on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region);
 	void handle_device_loss(HRESULT hr);
 

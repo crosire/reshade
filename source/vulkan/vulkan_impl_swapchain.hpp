@@ -8,12 +8,11 @@
 namespace reshade::vulkan
 {
 	class device_impl;
-	class command_queue_impl;
 
 	class swapchain_impl : public api::api_object_impl<VkSwapchainKHR, api::swapchain>
 	{
 	public:
-		swapchain_impl(device_impl *device, command_queue_impl *graphics_queue);
+		swapchain_impl(device_impl *device);
 		~swapchain_impl();
 
 		api::device *get_device() final;
@@ -46,6 +45,6 @@ namespace reshade::vulkan
 	{
 		using Handle = VkSwapchainKHR;
 
-		object_data(device_impl *device, command_queue_impl *graphics_queue) : swapchain_impl(device, graphics_queue) {}
+		object_data(device_impl *device) : swapchain_impl(device) {}
 	};
 }

@@ -4,23 +4,18 @@
  */
 
 #include "vulkan_impl_device.hpp"
-#include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_swapchain.hpp"
 #include "vulkan_impl_type_convert.hpp"
-#include "addon_manager.hpp"
 
 #define vk _device_impl->_dispatch_table
 
-reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, command_queue_impl *graphics_queue) :
+reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device) :
 	api_object_impl(VK_NULL_HANDLE), // Swap chain object is later set in 'on_init' below
 	_device_impl(device)
 {
-	create_effect_runtime(this, graphics_queue);
 }
 reshade::vulkan::swapchain_impl::~swapchain_impl()
 {
-	destroy_effect_runtime(this);
-
 	on_reset();
 }
 
@@ -100,24 +95,9 @@ void reshade::vulkan::swapchain_impl::on_init(VkSwapchainKHR swapchain, const Vk
 
 	_hwnd = hwnd;
 	_create_info = create_info;
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
-
-	init_effect_runtime(this);
 }
 void reshade::vulkan::swapchain_impl::on_reset()
 {
-	if (_swapchain_images.empty())
-		return;
-
-	reset_effect_runtime(this);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_swapchain>(this);
-#endif
-
 	// Remove swap chain images from the image list
 	for (VkImage image : _swapchain_images)
 		_device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(image);

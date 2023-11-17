@@ -13,7 +13,6 @@ namespace reshade::d3d11
 	{
 	public:
 		command_list_impl(device_impl *device, ID3D11CommandList *cmd_list);
-		~command_list_impl();
 
 		api::device *get_device() final;
 
@@ -73,7 +72,6 @@ namespace reshade::d3d11
 
 	public:
 		device_context_impl(device_impl *device, ID3D11DeviceContext *context);
-		~device_context_impl();
 
 		api::device *get_device() final;
 

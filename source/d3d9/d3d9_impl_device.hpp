@@ -14,7 +14,6 @@ namespace reshade::d3d9
 	{
 	public:
 		explicit device_impl(IDirect3DDevice9 *device);
-		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::d3d9; }
 

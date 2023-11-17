@@ -6,7 +6,6 @@
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_queue.hpp"
 #include "dll_log.hpp"
-#include "addon_manager.hpp"
 
 extern void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4]);
 
@@ -38,17 +37,9 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	{
 		LOG(ERROR) << "Failed to create wait for idle resources for queue " << _orig << '!';
 	}
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-#endif
-
 	if (_wait_idle_fence_event != nullptr)
 		CloseHandle(_wait_idle_fence_event);
 

@@ -238,5 +238,13 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr
 			cmd_list->barrier(eye_texture, api::resource_usage::resolve_source, api::resource_usage::shader_resource_pixel);
 	}
 
+#if RESHADE_ADDON
+	const reshade::api::rect eye_rect = get_eye_rect(eye);
+	invoke_addon_event<reshade::addon_event::present>(queue, this, &eye_rect, &eye_rect, 0, nullptr);
+#endif
+
+	if (eye == vr::Eye_Right)
+		reshade::present_effect_runtime(this, queue);
+
 	return true;
 }

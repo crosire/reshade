@@ -7,7 +7,6 @@
 #include "d3d9_impl_type_convert.hpp"
 #include "d3d9_resource_call_vtable.inl"
 #include "dll_log.hpp"
-#include "addon_manager.hpp"
 #include <algorithm>
 
 const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
@@ -55,23 +54,14 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 	// Maximum simultaneous number of render targets is typically 4 in D3D9
 	_caps.NumSimultaneousRTs = std::min(_caps.NumSimultaneousRTs, 8ul);
 
-#if RESHADE_ADDON
-	load_addons();
-#endif
-
 	on_init();
-}
-reshade::d3d9::device_impl::~device_impl()
-{
-	on_reset();
-
-#if RESHADE_ADDON
-	unload_addons();
-#endif
 }
 
 void reshade::d3d9::device_impl::on_init()
 {
+	if (_copy_state != nullptr)
+		return;
+
 	// Create state block used for resource copying
 	HRESULT hr = _orig->BeginStateBlock();
 	if (SUCCEEDED(hr))
@@ -134,51 +124,9 @@ void reshade::d3d9::device_impl::on_init()
 	{
 		LOG(ERROR) << "Failed to create copy pipeline!";
 	}
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_device>(this);
-
-	const api::pipeline_layout_param global_pipeline_layout_params[8] = {
-		/* s# */ api::descriptor_range { 0, 0, 0, 4, api::shader_stage::vertex, 1, api::descriptor_type::sampler_with_resource_view }, // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-		/* s# */ api::descriptor_range { 0, 0, 0, _caps.MaxSimultaneousTextures, api::shader_stage::pixel, 1, api::descriptor_type::sampler_with_resource_view },
-		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-		/* vs_3_0 c# */ api::constant_range { 0, 0, 0, _caps.MaxVertexShaderConst * 4, api::shader_stage::vertex },
-		/* vs_3_0 i# */ api::constant_range { 0, 0, 0, 16 * 4, api::shader_stage::vertex },
-		/* vs_3_0 b# */ api::constant_range { 0, 0, 0, 16 * 1, api::shader_stage::vertex },
-		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-		/* ps_3_0 c# */ api::constant_range { 0, 0, 0, 224 * 4, api::shader_stage::pixel },
-		/* ps_3_0 i# */ api::constant_range { 0, 0, 0,  16 * 4, api::shader_stage::pixel },
-		/* ps_3_0 b# */ api::constant_range { 0, 0, 0,  16 * 1, api::shader_stage::pixel },
-	};
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::init_command_list>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 void reshade::d3d9::device_impl::on_reset()
 {
-#if RESHADE_ADDON
-	// Force add-ons to release all resources associated with this device before performing reset
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-
-	for (DWORD i = 0; i < _caps.MaxSimultaneousTextures; ++i)
-		_orig->SetTexture(i, nullptr);
-	for (DWORD i = 0; i < _caps.MaxStreams; ++i)
-		_orig->SetStreamSource(0, nullptr, 0, 0);
-	_orig->SetIndices(nullptr);
-
-	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, nullptr);
-	// Release reference to the potentially replaced auto depth-stencil resource
-	_orig->SetDepthStencilSurface(nullptr);
-
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::destroy_device>(this);
-#endif
-
 	_copy_state.reset();
 	_default_input_stream.reset();
 	_default_input_layout.reset();

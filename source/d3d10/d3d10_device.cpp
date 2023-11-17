@@ -21,6 +21,39 @@ D3D10Device::D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *orig
 	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
 	D3D10Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D10Device), sizeof(device_proxy), &device_proxy);
+
+#if RESHADE_ADDON
+	reshade::load_addons();
+
+	reshade::invoke_addon_event<reshade::addon_event::init_device>(this);
+
+	const reshade::api::pipeline_layout_param global_pipeline_layout_params[3] = {
+		reshade::api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::sampler },
+		reshade::api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::shader_resource_view },
+		reshade::api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::constant_buffer },
+	};
+	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, reshade::d3d10::global_pipeline_layout);
+
+	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
+	reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
+#endif
+}
+D3D10Device::~D3D10Device()
+{
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
+
+	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
+	_orig->ClearState();
+	_orig->Flush();
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::d3d10::global_pipeline_layout);
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(this);
+
+	reshade::unload_addons();
+#endif
 }
 
 bool D3D10Device::check_and_upgrade_interface(REFIID riid)

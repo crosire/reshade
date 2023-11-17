@@ -25,11 +25,38 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+
+	on_init();
 }
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
 	Direct3DSwapChain9(device, static_cast<IDirect3DSwapChain9 *>(original))
 {
 	_extended_interface = 1;
+}
+Direct3DSwapChain9::~Direct3DSwapChain9()
+{
+	on_reset();
+}
+
+void Direct3DSwapChain9::on_init()
+{
+	swapchain_impl::on_init();
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+#endif
+
+	reshade::init_effect_runtime(this);
+}
+void Direct3DSwapChain9::on_reset()
+{
+	reshade::reset_effect_runtime(this);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+#endif
+
+	swapchain_impl::on_reset();
 }
 
 void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)

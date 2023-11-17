@@ -18,27 +18,35 @@ D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext 
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
+#endif
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
-	device_context_impl(device, original),
-	_interface_version(1),
-	_device(device)
+	D3D11DeviceContext(device, static_cast<ID3D11DeviceContext *>(original))
 {
-	assert(_orig != nullptr && _device != nullptr);
+	_interface_version = 1;
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
-	device_context_impl(device, original),
-	_interface_version(2),
-	_device(device)
+	D3D11DeviceContext(device, static_cast<ID3D11DeviceContext *>(original))
 {
-	assert(_orig != nullptr && _device != nullptr);
+	_interface_version = 2;
 }
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
-	device_context_impl(device, original),
-	_interface_version(3),
-	_device(device)
+	D3D11DeviceContext(device, static_cast<ID3D11DeviceContext *>(original))
 {
-	assert(_orig != nullptr && _device != nullptr);
+	_interface_version = 3;
+}
+D3D11DeviceContext::~D3D11DeviceContext()
+{
+#if RESHADE_ADDON
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
+#endif
 }
 
 bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)

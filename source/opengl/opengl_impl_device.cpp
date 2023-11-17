@@ -8,7 +8,6 @@
 #include "opengl_impl_type_convert.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
-#include "addon_manager.hpp"
 
 #define gl gl3wProcs.gl
 
@@ -100,42 +99,9 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	_reserved_texture_names.resize(num_reserve_texture_names);
 	if (!_reserved_texture_names.empty())
 		gl.GenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
-
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<addon_event::init_device>(this);
-
-	GLint max_combined_texture_image_units = 0;
-	gl.GetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_combined_texture_image_units);
-	GLint max_shader_storage_buffer_bindings = 0;
-	gl.GetIntegerv(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS, &max_shader_storage_buffer_bindings);
-	GLint max_uniform_buffer_bindings = 0;
-	gl.GetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &max_uniform_buffer_bindings);
-	GLint max_image_units = 0;
-	gl.GetIntegerv(GL_MAX_IMAGE_UNITS, &max_image_units);
-
-	const api::pipeline_layout_param global_pipeline_layout_params[6] = {
-		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_combined_texture_image_units), api::shader_stage::all, 1, api::descriptor_type::sampler_with_resource_view },
-		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_shader_storage_buffer_bindings), api::shader_stage::all, 1, api::descriptor_type::shader_storage_buffer },
-		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_uniform_buffer_bindings), api::shader_stage::all, 1, api::descriptor_type::constant_buffer },
-		api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_image_units), api::shader_stage::all, 1, api::descriptor_type::unordered_access_view },
-		/* Float uniforms */ api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), api::shader_stage::all },
-		/* Integer uniforms */ api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), api::shader_stage::all },
-	};
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
-#endif
 }
 reshade::opengl::device_impl::~device_impl()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
-#endif
-
 	assert(_map_lookup.empty());
 
 	// Free range of reserved resource names

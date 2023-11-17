@@ -15,6 +15,7 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 {
 	Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering);
 	Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering);
+	~Direct3DDevice9();
 
 	#pragma region IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -158,6 +159,9 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	#pragma endregion
 
 #if RESHADE_ADDON
+	void on_init();
+	void on_reset();
+
 	void init_auto_depth_stencil();
 	void reset_auto_depth_stencil();
 #endif

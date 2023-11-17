@@ -28,6 +28,20 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
 	D3D12Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D12Device), sizeof(device_proxy), &device_proxy);
+
+#if RESHADE_ADDON
+	reshade::load_addons();
+
+	reshade::invoke_addon_event<reshade::addon_event::init_device>(this);
+#endif
+}
+D3D12Device::~D3D12Device()
+{
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(this);
+
+	reshade::unload_addons();
+#endif
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)

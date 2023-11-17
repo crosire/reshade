@@ -17,7 +17,6 @@ namespace reshade::d3d10
 
 	public:
 		explicit device_impl(ID3D10Device1 *device);
-		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::d3d10; }
 

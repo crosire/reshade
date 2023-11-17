@@ -6,7 +6,6 @@
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_queue.hpp"
 #include "dll_log.hpp"
-#include "addon_manager.hpp"
 
 #define vk _device_impl->_dispatch_table
 
@@ -31,17 +30,9 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 			_immediate_cmd_list = nullptr;
 		}
 	}
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 reshade::vulkan::command_queue_impl::~command_queue_impl()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-#endif
-
 	delete _immediate_cmd_list;
 
 	// Unregister queue from device

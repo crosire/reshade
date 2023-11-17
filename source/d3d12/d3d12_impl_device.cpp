@@ -10,7 +10,6 @@
 #include "d3d12_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "addon_manager.hpp"
 #include <algorithm>
 #include <dxgi1_4.h>
 
@@ -70,22 +69,10 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 			}
 		}
 	}
-
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<addon_event::init_device>(this);
-#endif
 }
 reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
-#endif
 
 #if RESHADE_ADDON >= 2
 	const auto gpu_view_heap = _descriptor_heaps[0];
