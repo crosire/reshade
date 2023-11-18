@@ -25,8 +25,8 @@
 
 #define XR_USE_PLATFORM_WIN32
 #define XR_USE_GRAPHICS_API_VULKAN
-#include <openxr.h>
-#include "openxr_platform.h"
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 
 static auto constexpr OXR_EYE_COUNT = 2u;
 

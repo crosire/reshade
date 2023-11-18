@@ -9,7 +9,7 @@
 
 #include "runtime.hpp"
 #include "addon_manager.hpp"
-#include <openxr.h>
+#include <openxr/openxr.h>
 
 namespace reshade::openxr {
 
