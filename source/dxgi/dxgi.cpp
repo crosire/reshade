@@ -163,7 +163,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 
 	return modified;
 }
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]] HWND hwnd)
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]] HWND window)
 {
 	bool modified = false;
 
@@ -178,10 +178,10 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
-	if (hwnd != nullptr)
+	if (window != nullptr)
 	{
 		RECT window_rect = {};
-		GetClientRect(hwnd, &window_rect);
+		GetClientRect(window, &window_rect);
 		if (internal_desc.Width == 0)
 			desc.back_buffer.texture.width = window_rect.right;
 		if (internal_desc.Height == 0)
@@ -201,7 +201,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
 	desc.present_flags = internal_desc.Flags;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
 	{
 		internal_desc.Width = desc.back_buffer.texture.width;
 		internal_desc.Height = desc.back_buffer.texture.height;
@@ -291,7 +291,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
 
 	modify_swapchain_desc(desc, nullptr);
 }
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND hwnd = nullptr)
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND window = nullptr)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -313,7 +313,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	modify_swapchain_desc(desc, hwnd);
+	modify_swapchain_desc(desc, window);
 
 	ini_file &config = reshade::global_config();
 
@@ -408,7 +408,8 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 	}
 	else if (direct3d_version == 12)
 	{
-		if (com_ptr<IDXGISwapChain3> swapchain3; SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
+		if (com_ptr<IDXGISwapChain3> swapchain3;
+			SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
 			const com_ptr<D3D12CommandQueue> &command_queue = reinterpret_cast<const com_ptr<D3D12CommandQueue> &>(device_proxy);
 

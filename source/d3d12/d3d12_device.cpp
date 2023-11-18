@@ -42,6 +42,9 @@ D3D12Device::~D3D12Device()
 
 	reshade::unload_addons();
 #endif
+
+	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
+	_orig->SetPrivateData(__uuidof(D3D12Device), 0, nullptr);
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -144,9 +147,6 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		_downlevel->_orig->Release();
 		delete _downlevel;
 	}
-
-	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
-	_orig->SetPrivateData(__uuidof(D3D12Device), 0, nullptr);
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;

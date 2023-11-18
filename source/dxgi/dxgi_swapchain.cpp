@@ -16,7 +16,7 @@
 #include "addon_manager.hpp"
 
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc);
-extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND hwnd);
+extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND window);
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
@@ -146,6 +146,9 @@ void DXGISwapChain::on_init()
 }
 void DXGISwapChain::on_reset()
 {
+	if (!is_initialized())
+		return;
+
 	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 	reshade::reset_effect_runtime(_impl);
@@ -179,6 +182,8 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	if ((flags & DXGI_PRESENT_DO_NOT_WAIT) != 0 && _was_still_drawing_last_frame)
 		return;
 	assert(!_was_still_drawing_last_frame);
+
+	assert(is_initialized());
 
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
@@ -233,6 +238,21 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 		reshade::present_effect_runtime(_impl, static_cast<D3D12CommandQueue *>(_direct3d_command_queue));
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
+	}
+}
+
+bool DXGISwapChain::is_initialized() const
+{
+	switch (_direct3d_version)
+	{
+	case 10:
+		return static_cast<reshade::d3d10::swapchain_impl *>(_impl)->is_initialized();
+	case 11:
+		return static_cast<reshade::d3d11::swapchain_impl *>(_impl)->is_initialized();
+	case 12:
+		return static_cast<reshade::d3d12::swapchain_impl *>(_impl)->is_initialized();
+	default:
+		return false;
 	}
 }
 

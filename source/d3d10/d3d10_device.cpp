@@ -54,6 +54,9 @@ D3D10Device::~D3D10Device()
 
 	reshade::unload_addons();
 #endif
+
+	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
+	_orig->SetPrivateData(__uuidof(D3D10Device), 0, nullptr);
 }
 
 bool D3D10Device::check_and_upgrade_interface(REFIID riid)
@@ -113,9 +116,6 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 		_orig->Release();
 		return ref;
 	}
-
-	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
-	_orig->SetPrivateData(__uuidof(D3D10Device), 0, nullptr);
 
 	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG

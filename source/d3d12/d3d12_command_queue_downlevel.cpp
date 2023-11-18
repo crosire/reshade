@@ -20,7 +20,7 @@ D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue,
 }
 D3D12CommandQueueDownlevel::~D3D12CommandQueueDownlevel()
 {
-	if (_back_buffers[0] != nullptr)
+	if (is_initialized())
 	{
 		reshade::reset_effect_runtime(this);
 
@@ -59,10 +59,10 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
 {
+	assert(pSourceTex2D != nullptr);
+
 	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
 	std::unique_lock<std::shared_mutex> lock(_parent_queue->_mutex);
-
-	assert(pSourceTex2D != nullptr);
 
 	_hwnd = hWindow;
 	_swap_index = (_swap_index + 1) % static_cast<UINT>(_back_buffers.size());
@@ -96,7 +96,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	}
 
 	// Do not call 'present' event before 'init_swapchain' event
-	if (_back_buffers[0] != nullptr)
+	if (is_initialized())
 	{
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);

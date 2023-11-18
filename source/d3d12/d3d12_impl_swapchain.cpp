@@ -72,7 +72,7 @@ void reshade::d3d12::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
-	if (!_back_buffers.empty())
+	if (is_initialized())
 		return;
 
 	DXGI_SWAP_CHAIN_DESC swap_desc;

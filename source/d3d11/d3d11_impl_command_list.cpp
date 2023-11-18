@@ -39,7 +39,8 @@ void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipelin
 }
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
-	api_object_impl(cmd_list), _device_impl(device)
+	api_object_impl(cmd_list),
+	_device_impl(device)
 {
 }
 

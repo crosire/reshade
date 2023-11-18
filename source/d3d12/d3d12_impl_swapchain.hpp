@@ -32,6 +32,7 @@ namespace reshade::d3d12
 
 		void on_init();
 		void on_reset();
+		bool is_initialized() const { return !_back_buffers.empty() && _back_buffers[0] != nullptr; }
 
 	protected:
 		device_impl *const _device_impl;

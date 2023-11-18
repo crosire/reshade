@@ -59,7 +59,7 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 
 void reshade::d3d9::device_impl::on_init()
 {
-	if (_copy_state != nullptr)
+	if (is_initialized())
 		return;
 
 	// Create state block used for resource copying

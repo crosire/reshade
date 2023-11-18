@@ -43,7 +43,7 @@ reshade::api::resource reshade::d3d9::swapchain_impl::get_back_buffer(uint32_t i
 
 void reshade::d3d9::swapchain_impl::on_init()
 {
-	if (_back_buffer != nullptr)
+	if (is_initialized())
 		return;
 
 	// Get back buffer surface

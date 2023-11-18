@@ -38,7 +38,7 @@ void reshade::d3d10::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
-	if (_back_buffer != nullptr)
+	if (is_initialized())
 		return;
 
 	// Get back buffer texture

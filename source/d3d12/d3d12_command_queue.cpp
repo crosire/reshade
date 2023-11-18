@@ -27,6 +27,8 @@ D3D12CommandQueue::~D3D12CommandQueue()
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
 #endif
+
+	// Release the device reference below at the end of 'D3D12CommandQueue::Release' rather than here, since the '~command_queue_impl' destructor still has to run with the device alive
 }
 
 bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)

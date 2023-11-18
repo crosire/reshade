@@ -30,6 +30,7 @@ namespace reshade::d3d9
 	protected:
 		void on_init();
 		void on_reset();
+		bool is_initialized() const { return _back_buffer != nullptr; }
 
 		HWND _window_override = nullptr;
 

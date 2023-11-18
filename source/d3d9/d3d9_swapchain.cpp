@@ -52,6 +52,10 @@ void Direct3DSwapChain9::on_init()
 }
 void Direct3DSwapChain9::on_reset()
 {
+	// May be called without a previous call to 'on_init' if a device reset had failed
+	if (!is_initialized())
+		return;
+
 	reshade::reset_effect_runtime(this);
 
 #if RESHADE_ADDON
@@ -63,6 +67,8 @@ void Direct3DSwapChain9::on_reset()
 
 void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
 {
+	assert(is_initialized());
+
 	if (SUCCEEDED(_device->_orig->BeginScene()))
 	{
 		_window_override = window_override;

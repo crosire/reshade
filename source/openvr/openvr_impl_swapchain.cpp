@@ -127,7 +127,7 @@ bool reshade::openvr::swapchain_impl::on_init()
 }
 void reshade::openvr::swapchain_impl::on_reset()
 {
-	if (_side_by_side_texture == 0)
+	if (!is_initialized())
 		return;
 
 	reset_effect_runtime(this);

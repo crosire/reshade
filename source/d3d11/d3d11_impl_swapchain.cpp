@@ -60,7 +60,7 @@ void reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
-	if (_back_buffer != nullptr)
+	if (is_initialized())
 		return;
 
 	// Get back buffer texture
@@ -80,7 +80,7 @@ void reshade::d3d11::swapchain_impl::on_init()
 }
 void reshade::d3d11::swapchain_impl::on_reset()
 {
-	if (_back_buffer == nullptr)
+	if (!is_initialized())
 		return;
 
 	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own

@@ -140,6 +140,7 @@ namespace reshade::d3d9
 	protected:
 		void on_init();
 		void on_reset();
+		bool is_initialized() const { return _copy_state != nullptr; }
 
 		HRESULT create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 

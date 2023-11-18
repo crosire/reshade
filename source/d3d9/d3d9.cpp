@@ -83,12 +83,12 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	else
 		desc.back_buffer.texture.samples = 1;
 
-	const HWND hwnd = (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : focus_window;
+	const HWND window = (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : focus_window;
 
 	if (pp.Windowed)
 	{
 		RECT window_rect = {};
-		GetClientRect(hwnd, &window_rect);
+		GetClientRect(window, &window_rect);
 		if (pp.BackBufferWidth == 0)
 			desc.back_buffer.texture.width = window_rect.right;
 		if (pp.BackBufferHeight == 0)
@@ -108,7 +108,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	desc.present_mode = pp.SwapEffect;
 	desc.present_flags = pp.Flags;
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
 	{
 		pp.BackBufferWidth = desc.back_buffer.texture.width;
 		pp.BackBufferHeight = desc.back_buffer.texture.height;

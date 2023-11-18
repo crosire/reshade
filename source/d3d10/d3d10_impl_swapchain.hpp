@@ -29,6 +29,7 @@ namespace reshade::d3d10
 
 		void on_init();
 		void on_reset();
+		bool is_initialized() const { return _back_buffer != nullptr; }
 
 	private:
 		device_impl *const _device_impl;
