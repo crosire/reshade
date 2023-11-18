@@ -10,14 +10,6 @@
 
 extern bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec);
 
-reshade::input::window_handle reshade::runtime::get_hwnd() const
-{
-	if (_input == nullptr)
-		return nullptr;
-
-	return _input->get_window_handle();
-}
-
 bool reshade::runtime::is_key_down(uint32_t keycode) const
 {
 	return _input != nullptr && _input->is_key_down(keycode);

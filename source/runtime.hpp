@@ -52,7 +52,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the handle of the window associated with this effect runtime.
 		/// </summary>
-		void *get_hwnd() const final;
+		void *get_hwnd() const final { return _swapchain->get_hwnd(); }
 
 		/// <summary>
 		/// Gets the back buffer resource at the specified <paramref name="index"/> in the swap chain associated with this effect runtime.
