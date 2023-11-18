@@ -44,6 +44,9 @@ namespace reshade
 		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
 		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
 
+		/// <summary>
+		/// Gets the native swap chain object associated with this effect runtime.
+		/// </summary>
 		uint64_t get_native() const final { return _swapchain->get_native(); }
 
 		/// <summary>

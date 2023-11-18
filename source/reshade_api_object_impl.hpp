@@ -9,6 +9,16 @@
 #include <vector>
 #include <cassert>
 
+namespace reshade
+{
+	void create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr = false);
+	void destroy_effect_runtime(api::swapchain *swapchain);
+
+	bool init_effect_runtime(api::swapchain *swapchain);
+	void reset_effect_runtime(api::swapchain *swapchain);
+	void present_effect_runtime(api::swapchain *swapchain, api::command_queue *present_queue);
+}
+
 namespace reshade::api
 {
 	template <typename T, typename... api_object_base>
@@ -79,16 +89,6 @@ namespace reshade::api
 
 		std::vector<private_data> _private_data;
 	};
-}
-
-namespace reshade
-{
-	void create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr = false);
-	void destroy_effect_runtime(api::swapchain *swapchain);
-
-	void init_effect_runtime(api::swapchain *swapchain);
-	void reset_effect_runtime(api::swapchain *swapchain);
-	void present_effect_runtime(api::swapchain *swapchain, api::command_queue *present_queue);
 }
 
 template <typename T, size_t STACK_ELEMENTS = 16>
