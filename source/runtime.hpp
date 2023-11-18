@@ -202,6 +202,12 @@ namespace reshade
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
 
+#if RESHADE_GUI
+		bool open_overlay(bool open, api::input_source source) final;
+#else
+		bool open_overlay(bool, api::input_source) final { return false; }
+#endif
+
 	private:
 		api::swapchain *const _swapchain;
 		api::device *const _device;

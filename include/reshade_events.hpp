@@ -1564,6 +1564,15 @@ namespace reshade
 		/// </remarks>
 		reshade_reorder_techniques,
 
+		/// <summary>
+		/// Called when the ReShade overlay is about to be opened or closed.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, bool open, api::input_source source)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent the overlay state from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_open_overlay,
+
 #if RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
 #endif
@@ -1695,4 +1704,6 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_current_preset_path, void, api::effect_runtime *runtime, const char *path);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_open_overlay, bool, api::effect_runtime *runtime, bool open, api::input_source source);
 }

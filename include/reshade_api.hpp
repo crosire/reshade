@@ -32,6 +32,18 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
 
 	/// <summary>
+	/// Input source for events triggered by user input.
+	/// </summary>
+	enum class input_source
+	{
+		none = 0,
+		mouse = 1,
+		keyboard = 2,
+		gamepad = 3,
+		clipboard = 4,
+	};
+
+	/// <summary>
 	/// A post-processing effect runtime, used to control effects.
 	/// <para>ReShade associates an independent post-processing effect runtime with most swap chains.</para>
 	/// </summary>
@@ -764,5 +776,13 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition_for_effect(const char *effect_name, const char *name, const char *value) = 0;
+
+		/// <summary>
+		/// Open or close the ReShade overlay.
+		/// </summary>
+		/// <param name="open">Requested overlay state.</param>
+		/// <param name="source">Source of this request.</param>
+		/// <returns><see langword="true"/> if the overlay state was changed, <see langword="false"/> otherwise.</returns>
+		virtual bool open_overlay(bool open, api::input_source source) = 0;
 	};
 } }
