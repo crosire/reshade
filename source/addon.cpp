@@ -103,13 +103,13 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 #include "vulkan/vulkan_impl_command_queue.hpp"
 #include "vulkan/vulkan_impl_swapchain.hpp"
 
-bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, reshade::api::effect_runtime **out_runtime)
+bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime)
 {
 	if (out_runtime == nullptr)
 		return false;
 	*out_runtime = nullptr;
 
-	if (opaque_swapchain == nullptr)
+	if (opaque_swapchain == nullptr || config_path == nullptr)
 		return false;
 
 	reshade::api::swapchain *swapchain_impl = nullptr;
@@ -209,7 +209,7 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapc
 		return false;
 	}
 
-	const auto runtime = new reshade::runtime(swapchain_impl, graphics_queue_impl, false);
+	const auto runtime = new reshade::runtime(swapchain_impl, graphics_queue_impl, std::filesystem::u8path(config_path), false);
 	if (!runtime->on_init())
 	{
 		ReShadeDestroyEffectRuntime(runtime);

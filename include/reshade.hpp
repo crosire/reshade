@@ -39,7 +39,7 @@ RESHADE_API_LIBRARY_DECL void ReShadeUnregisterEvent(reshade::addon_event ev, vo
 RESHADE_API_LIBRARY_DECL void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 RESHADE_API_LIBRARY_DECL void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 
-RESHADE_API_LIBRARY_DECL bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, reshade::api::effect_runtime **out_runtime);
+RESHADE_API_LIBRARY_DECL bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime);
 RESHADE_API_LIBRARY_DECL void ReShadeDestroyEffectRuntime(reshade::api::effect_runtime *runtime);
 RESHADE_API_LIBRARY_DECL void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime);
 
@@ -353,21 +353,22 @@ namespace reshade
 	/// </summary>
 	/// <param name="api">Underlying graphics API used.</param>
 	/// <param name="swapchain">'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR', depending on the graphics API.</param>
+	/// <param name="config_path">Path to the configuration file the effect runtime should use.</param>
 	/// <param name="out_runtime">Pointer to a variable that is set to the pointer of the created effect runtime.</param>
 	/// <returns><see langword="true"/> if the effect_runtime was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_runtime"/> is set to <see langword="nullptr"/>).</returns>
-	inline bool create_effect_runtime(reshade::api::device_api api, void *swapchain, reshade::api::effect_runtime **out_runtime)
+	inline bool create_effect_runtime(reshade::api::device_api api, void *swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime)
 	{
 #if defined(RESHADE_API_LIBRARY)
-		return ReShadeCreateEffectRuntime(api, swapchain, out_runtime);
+		return ReShadeCreateEffectRuntime(api, swapchain, config_path, out_runtime);
 #else
-		static const auto func = reinterpret_cast<bool(*)(reshade::api::device_api, void *, reshade::api::effect_runtime **)>(
+		static const auto func = reinterpret_cast<bool(*)(reshade::api::device_api, void *, const char *, reshade::api::effect_runtime **)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeCreateEffectRuntime"));
 		if (func == nullptr)
 		{
 			*out_runtime = nullptr;
 			return false;
 		}
-		return func(api, swapchain, out_runtime);
+		return func(api, swapchain, config_path, out_runtime);
 #endif
 	}
 	/// <summary>

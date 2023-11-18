@@ -212,58 +212,58 @@ static inline int format_color_bit_depth(reshade::api::format value)
 #endif
 
 static std::atomic<unsigned int> s_runtime_index = 0;
-constexpr uint8_t s_runtime_id[16] = { 0x77, 0xFF, 0x82, 0x02, 0x5B, 0xEC, 0x42, 0xAD, 0x8C, 0xE0, 0x39, 0x7F, 0x3E, 0x84, 0xEA, 0xA6 };
 
 void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
 {
+	// Increase global runtime index
+	const unsigned int runtime_index = s_runtime_index++;
+
 	if (graphics_queue == nullptr)
 		return;
 
-	swapchain->set_private_data(s_runtime_id, reinterpret_cast<uintptr_t>(new runtime(swapchain, graphics_queue, is_vr)));
+	// Add an index to the config file name in case there are multiple runtimes
+	std::filesystem::path config_path = g_reshade_base_path / L"ReShade.ini";
+	if (runtime_index != 0)
+	{
+		std::filesystem::path config_path_alt = config_path;
+		config_path_alt.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
+
+		std::error_code ec;
+		if (std::filesystem::exists(config_path_alt, ec) || !std::filesystem::exists(config_path, ec) || std::filesystem::copy_file(config_path, config_path_alt, ec))
+			config_path = std::move(config_path_alt);
+	}
+
+	const ini_file &config = ini_file::load_cache(config_path);
+	if (config.get("GENERAL", "Disable"))
+		return;
+
+	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config_path, is_vr);
 }
 void reshade::destroy_effect_runtime(api::swapchain *swapchain)
 {
-	uint64_t runtime_handle;
-	swapchain->get_private_data(s_runtime_id, &runtime_handle);
-	if (runtime_handle != 0)
-	{
-		reinterpret_cast<runtime *>(runtime_handle)->on_reset();
+	swapchain->destroy_private_data<reshade::runtime>();
 
-		delete reinterpret_cast<runtime *>(runtime_handle);
-
-		swapchain->set_private_data(s_runtime_id, 0);
-	}
+	// Decrease global runtime index
+	--s_runtime_index;
 }
 
 void reshade::init_effect_runtime(api::swapchain *swapchain)
 {
-	uint64_t runtime_handle;
-	swapchain->get_private_data(s_runtime_id, &runtime_handle);
-	if (runtime_handle != 0)
-	{
-		reinterpret_cast<runtime *>(runtime_handle)->on_init();
-	}
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+		runtime->on_init();
 }
 void reshade::reset_effect_runtime(api::swapchain *swapchain)
 {
-	uint64_t runtime_handle;
-	swapchain->get_private_data(s_runtime_id, &runtime_handle);
-	if (runtime_handle != 0)
-	{
-		reinterpret_cast<runtime *>(runtime_handle)->on_reset();
-	}
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+		runtime->on_reset();
 }
 void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
 {
-	uint64_t runtime_handle;
-	swapchain->get_private_data(s_runtime_id, &runtime_handle);
-	if (runtime_handle != 0)
-	{
-		reinterpret_cast<runtime *>(runtime_handle)->on_present(present_queue);
-	}
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+		runtime->on_present(present_queue);
 }
 
-reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr) :
+reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr) :
 	_swapchain(swapchain),
 	_device(swapchain->get_device()),
 	_graphics_queue(graphics_queue),
@@ -275,7 +275,7 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	_effect_search_paths({ L".\\" }),
 	_texture_search_paths({ L".\\" }),
 #endif
-	_config_path(g_reshade_base_path / L"ReShade.ini"),
+	_config_path(config_path),
 	_screenshot_path(L".\\"),
 	_screenshot_name("%AppName% %Date% %Time%"),
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
@@ -308,37 +308,17 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	else
 		LOG(INFO) << "Running on " << props.description << '.';
 
-#if RESHADE_GUI && RESHADE_FX
-	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
-#endif
-
 	check_for_update();
 
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
-	// Increase global runtime index
-	const unsigned int runtime_index = s_runtime_index++;
-
-	// Fall back to alternative configuration file name if it exists
-	std::error_code ec;
-	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
-		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
-	{
-		_config_path = std::move(config_path_alt);
-	}
-	// Add an index to the config file name in case there are multiple runtimes
-	else if (runtime_index != 0)
-	{
-		config_path_alt.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
-
-		if (std::filesystem::exists(config_path_alt, ec) || !std::filesystem::exists(_config_path, ec) || std::filesystem::copy_file(_config_path, config_path_alt, ec))
-			_config_path = std::move(config_path_alt);
-
 #if RESHADE_GUI && RESHADE_FX
+	if (s_runtime_index != 0)
 		_tutorial_index = 4;
+
+	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
 #endif
-	}
 
 #if RESHADE_GUI
 	init_gui();
@@ -362,17 +342,11 @@ reshade::runtime::~runtime()
 
 	deinit_gui();
 #endif
-
-	// Decrease global runtime index
-	--s_runtime_index;
 }
 
 bool reshade::runtime::on_init()
 {
 	assert(!_is_initialized);
-
-	if (_config_path.empty())
-		return false;
 
 	const api::resource_desc back_buffer_desc = _device->get_resource_desc(get_back_buffer(0));
 
@@ -709,6 +683,8 @@ void reshade::runtime::on_reset()
 }
 void reshade::runtime::on_present(api::command_queue *present_queue)
 {
+	assert(present_queue != nullptr);
+
 	if (!_is_initialized)
 		return;
 
@@ -985,13 +961,6 @@ void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_config_path);
 
-	if (config.get("GENERAL", "Disable"))
-	{
-		// Indicate that this effect runtime should never initialize
-		_config_path.clear();
-		return;
-	}
-
 	if (config.get("INPUT", "GamepadNavigation"))
 		_input_gamepad = input_gamepad::load();
 	else
@@ -1078,9 +1047,6 @@ void reshade::runtime::load_config()
 }
 void reshade::runtime::save_config() const
 {
-	if (_config_path.empty())
-		return;
-
 	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);

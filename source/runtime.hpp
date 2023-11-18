@@ -31,10 +31,10 @@ namespace reshade
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
 	/// </summary>
-	class runtime : public api::effect_runtime
+	class __declspec(uuid("77FF8202-5BEC-42AD-8CE0-397F3E84EAA6")) runtime : public api::effect_runtime
 	{
 	public:
-		runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr);
+		runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr);
 		~runtime();
 
 		bool on_init();
