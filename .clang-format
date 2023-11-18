@@ -1,9 +1,0 @@
----
-BasedOnStyle: Mozilla
-BreakBeforeBinaryOperators: All
-ColumnLimit: '120'
-SortIncludes: 'false'
-AllowAllParametersOfDeclarationOnNextLine: 'false'
-UseTab: Never
-...
-
