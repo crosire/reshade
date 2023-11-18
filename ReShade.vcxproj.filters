@@ -58,6 +58,12 @@
     <Filter Include="hooks\openvr\impl">
       <UniqueIdentifier>{3acbcdd4-b108-4c50-bbc3-a6a351066ace}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\openxr">
+      <UniqueIdentifier>{6e1dc50f-a845-48b7-bc1c-852c22956b19}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hooks\openxr\impl">
+      <UniqueIdentifier>{a4073383-3a25-4a59-af5d-398775efff97}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\vulkan">
       <UniqueIdentifier>{40ae025e-f912-4ebf-9a43-69d7c1a96d3e}</UniqueIdentifier>
     </Filter>
@@ -357,6 +363,9 @@
     <ClCompile Include="source\openxr\openxr.cpp">
       <Filter>hooks\openxr</Filter>
     </ClCompile>
+    <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp">
+      <Filter>hooks\openxr\impl</Filter>
+    </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
@@ -486,9 +495,6 @@
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\platform_utils.hpp">
-      <Filter>core\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\reshade_api_object.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
@@ -646,6 +652,9 @@
     </ClInclude>
     <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp">
       <Filter>hooks\openvr\impl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\openxr\openxr_impl_swapchain.hpp">
+      <Filter>hooks\openxr\impl</Filter>
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp">
       <Filter>hooks\vulkan</Filter>
