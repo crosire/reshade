@@ -7,48 +7,46 @@
 
 #pragma once
 
-#include "runtime.hpp"
-#include "addon_manager.hpp"
+#include "reshade_api_object_impl.hpp"
 #include <openxr/openxr.h>
 
-namespace reshade::openxr {
-
-enum class eye
+namespace reshade::openxr
 {
-  left = 0,
-  right
-};
+	enum class eye
+	{
+		left = 0,
+		right
+	};
 
-class swapchain_impl : public api::api_object_impl<XrSession, runtime> // TODO_OXR: Or XrInstance, or?
-{
-public:
-  swapchain_impl(api::device* device, api::command_queue* graphics_queue, XrSession session);
-  ~swapchain_impl();
+	class swapchain_impl : public api::api_object_impl<XrSession, api::swapchain> // TODO_OXR: Or XrInstance, or?
+	{
+	public:
+		swapchain_impl(api::device *device, api::command_queue *graphics_queue, XrSession session);
+		~swapchain_impl();
 
-  api::resource get_back_buffer(uint32_t index = 0) final;
+		api::device *get_device() final;
 
-  uint32_t get_back_buffer_count() const final { return 1; }
-  uint32_t get_current_back_buffer_index() const final { return 0; }
+		void *get_hwnd() const final { return nullptr; }
 
-  api::rect get_eye_rect(reshade::openxr::eye eye) const;
-  api::subresource_box get_eye_subresource_box(reshade::openxr::eye eye) const;
+		api::resource get_back_buffer(uint32_t index = 0) final;
 
-  bool on_init();
-  void on_reset();
+		uint32_t get_back_buffer_count() const final { return 1; }
+		uint32_t get_current_back_buffer_index() const final { return 0; }
 
-  void on_present(api::resource left_texture, api::resource right_texture);
+		bool check_color_space_support(api::color_space color_space) const final { return color_space == api::color_space::srgb_nonlinear || color_space == api::color_space::extended_srgb_linear; }
 
-#if RESHADE_ADDON && RESHADE_FX
-  void render_effects(api::command_list* cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
-  void render_technique(api::effect_technique handle,
-                        api::command_list* cmd_list,
-                        api::resource_view rtv,
-                        api::resource_view rtv_srgb) final;
-#endif
+		api::color_space get_color_space() const final { return api::color_space::unknown; }
 
-private:
-  api::resource _side_by_side_texture = {};
-  void* _app_state = nullptr;
-  void* _direct3d_device = nullptr;
-};
+		api::rect get_eye_rect(eye eye) const;
+		api::subresource_box get_eye_subresource_box(eye eye) const;
+
+		bool on_init();
+		void on_reset();
+
+		void on_present(api::command_queue *queue, api::resource left_texture, api::resource right_texture);
+
+	private:
+		api::device *const _device;
+		api::resource _side_by_side_texture = {};
+	};
 }

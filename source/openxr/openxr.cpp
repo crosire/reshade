@@ -27,226 +27,203 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
-static auto constexpr OXR_EYE_COUNT = 2u;
-
-struct CapturedSwapchain
+struct captured_swapchain
 {
-  // TODO_OXR: why deque?
-  std::deque<uint32_t> acquiredIndex;
-  uint32_t lastReleasedIndex{ 0 };
+	// TODO_OXR: why deque?
+	std::deque<uint32_t> acquired_index;
+	uint32_t last_released_index { 0 };
 
-  XrSwapchainCreateInfo createInfo{};
-  std::vector<XrSwapchainImageVulkanKHR> surfaceImages;
+	XrSwapchainCreateInfo create_info {};
+	std::vector<XrSwapchainImageVulkanKHR> surface_images;
 };
 
-std::unordered_map<XrSwapchain, CapturedSwapchain> gCapturedSwapchains;
-VkDevice gVKDevice = VK_NULL_HANDLE;
-uint32_t gVKQueueIndex = 0u;
+static std::unordered_map<XrSwapchain, captured_swapchain> g_captured_swapchains;
+static VkDevice g_oxr_vulkan_device = VK_NULL_HANDLE;
+static uint32_t g_oxr_vulkan_queue_index = 0u;
 
-reshade::openxr::swapchain_impl* s_vr_swapchain = nullptr;
+static reshade::openxr::swapchain_impl *s_vr_swapchain = nullptr;
 
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrCreateSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session)
+XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateInfo *createInfo, XrSession *session)
 {
-  static auto const Orig_xrCreateSession = reshade::hooks::call(Hook_xrCreateSession);
+	static const auto trampoline = reshade::hooks::call(xrCreateSession);
 
-  auto const ret = Orig_xrCreateSession(instance, createInfo, session);
-  if (XR_SUCCEEDED(ret)) {
-    auto const gbv = reinterpret_cast<XrGraphicsBindingVulkanKHR const*>(createInfo->next);
-    gVKDevice = gbv->device;
-    gVKQueueIndex = gbv->queueIndex;
-  }
-  return ret;
+	const XrResult result = trampoline(instance, createInfo, session);
+	if (XR_SUCCEEDED(result))
+	{
+		auto const gbv = reinterpret_cast<XrGraphicsBindingVulkanKHR const *>(createInfo->next);
+		g_oxr_vulkan_device = gbv->device;
+		g_oxr_vulkan_queue_index = gbv->queueIndex;
+	}
+	return result;
 }
 
-// DESTROY
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrDestroySession(XrSession session)
+XrResult XRAPI_CALL xrDestroySession(XrSession session)
 {
-  static auto const Orig_xrDestroySession = reshade::hooks::call(Hook_xrDestroySession);
+	delete s_vr_swapchain;
 
-  delete s_vr_swapchain;
-  return Orig_xrDestroySession(session);
+	static const auto trampoline = reshade::hooks::call(xrDestroySession);
+	return trampoline(session);
 }
 
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
+XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo *createInfo, XrSwapchain *swapchain)
 {
-  static auto const Orig_xrCreateSwapchain = reshade::hooks::call(Hook_xrCreateSwapchain);
+	const_cast<XrSwapchainCreateInfo *>(createInfo)->usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT;
 
-  const_cast<XrSwapchainCreateInfo*>(createInfo)->usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT;
-  auto const ret = Orig_xrCreateSwapchain(session, createInfo, swapchain);
-  if (XR_SUCCEEDED(ret)) {
-    CapturedSwapchain newEntry{};
-    newEntry.createInfo = *createInfo;
+	static const auto trampoline = reshade::hooks::call(xrCreateSwapchain);
 
-    uint32_t numSurfaces = 0u;
-    static auto const pfnxrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(
-      ::GetProcAddress(::GetModuleHandle(L"openxr_loader.dll"), "xrEnumerateSwapchainImages"));
-    assert(pfnxrEnumerateSwapchainImages != nullptr);
-    auto rv = pfnxrEnumerateSwapchainImages(*swapchain, 0u, &numSurfaces, nullptr);
-    assert(XR_SUCCEEDED(rv));
-    if (!XR_SUCCEEDED(rv))
-      return ret;
+	const XrResult result = trampoline(session, createInfo, swapchain);
+	if (XR_SUCCEEDED(result))
+	{
+		captured_swapchain csd {};
+		csd.create_info = *createInfo;
 
-    // Track our own information about the swapchain, so we can draw stuff onto it.
-    newEntry.surfaceImages.resize(numSurfaces, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
-    rv = pfnxrEnumerateSwapchainImages(*swapchain,
-                                       numSurfaces,
-                                       &numSurfaces,
-                                       reinterpret_cast<XrSwapchainImageBaseHeader*>(newEntry.surfaceImages.data()));
-    assert(XR_SUCCEEDED(rv));
-    if (!XR_SUCCEEDED(rv))
-      return ret;
+		static auto const xrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(
+		  ::GetProcAddress(::GetModuleHandle(L"openxr_loader.dll"), "xrEnumerateSwapchainImages"));
+		assert(xrEnumerateSwapchainImages != nullptr);
 
-    gCapturedSwapchains.insert_or_assign(*swapchain, std::move(newEntry));
-  }
-  return ret;
+		uint32_t numSurfaces = 0u;
+		auto rv = xrEnumerateSwapchainImages(*swapchain, 0u, &numSurfaces, nullptr);
+		assert(XR_SUCCEEDED(rv));
+		if (!XR_SUCCEEDED(rv))
+			return result;
+
+		// Track our own information about the swapchain, so we can draw stuff onto it.
+		csd.surface_images.resize(numSurfaces, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
+		rv = xrEnumerateSwapchainImages(*swapchain, numSurfaces, &numSurfaces, reinterpret_cast<XrSwapchainImageBaseHeader *>(csd.surface_images.data()));
+		assert(XR_SUCCEEDED(rv));
+		if (!XR_SUCCEEDED(rv))
+			return result;
+
+		g_captured_swapchains.insert_or_assign(*swapchain, std::move(csd));
+	}
+	return result;
 }
 
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrDestroySwapchain(XrSwapchain swapchain)
+XrResult XRAPI_CALL xrDestroySwapchain(XrSwapchain swapchain)
 {
-  static auto const Orig_xrDestroySwapchain = reshade::hooks::call(Hook_xrDestroySwapchain);
+	static const auto trampoline = reshade::hooks::call(xrDestroySwapchain);
 
-  auto const ret = Orig_xrDestroySwapchain(swapchain);
-  if (XR_SUCCEEDED(ret)) {
-    auto it = gCapturedSwapchains.find(swapchain);
-    if (it != gCapturedSwapchains.end())
-      gCapturedSwapchains.erase(it);
-  }
-  return ret;
+	const XrResult result = trampoline(swapchain);
+	if (XR_SUCCEEDED(result))
+	{
+		if (const auto it = g_captured_swapchains.find(swapchain);
+			it != g_captured_swapchains.end())
+		{
+			g_captured_swapchains.erase(it);
+		}
+	}
+	return result;
 }
 
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index)
+XrResult XRAPI_CALL xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo *acquireInfo, uint32_t *index)
 {
-  static auto const Orig_xrAcquireSwapchainImage = reshade::hooks::call(Hook_xrAcquireSwapchainImage);
+	static const auto trampoline = reshade::hooks::call(xrAcquireSwapchainImage);
 
-  auto const ret = Orig_xrAcquireSwapchainImage(swapchain, acquireInfo, index);
-  if (XR_SUCCEEDED(ret)) {
-    auto it = gCapturedSwapchains.find(swapchain);
-    if (it != gCapturedSwapchains.end()) {
-      auto& csd = it->second;
-      csd.acquiredIndex.push_back(*index);
-    }
-  }
-  return ret;
+	const XrResult result = trampoline(swapchain, acquireInfo, index);
+	if (XR_SUCCEEDED(result))
+	{
+		if (const auto it = g_captured_swapchains.find(swapchain);
+			it != g_captured_swapchains.end())
+		{
+			captured_swapchain &csd = it->second;
+			csd.acquired_index.push_back(*index);
+		}
+	}
+	return result;
 }
 
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo* releaseInfo)
+XrResult XRAPI_CALL xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo *releaseInfo)
 {
-  static auto const Orig_xrReleaseSwapchainImage = reshade::hooks::call(Hook_xrReleaseSwapchainImage);
+	static const auto trampoline = reshade::hooks::call(xrReleaseSwapchainImage);
 
-  auto const ret = Orig_xrReleaseSwapchainImage(swapchain, releaseInfo);
-  if (XR_SUCCEEDED(ret)) {
-    auto it = gCapturedSwapchains.find(swapchain);
-    if (it != gCapturedSwapchains.end()) {
-      auto& csd = it->second;
-      csd.lastReleasedIndex = csd.acquiredIndex.front();
-      csd.acquiredIndex.pop_front();
-    }
-  }
-  return ret;
+	const XrResult result = trampoline(swapchain, releaseInfo);
+	if (XR_SUCCEEDED(result))
+	{
+		if (const auto it = g_captured_swapchains.find(swapchain);
+			it != g_captured_swapchains.end())
+		{
+			captured_swapchain &csd = it->second;
+			csd.last_released_index = csd.acquired_index.front();
+			csd.acquired_index.pop_front();
+		}
+	}
+	return result;
 }
 
-XRAPI_ATTR XrResult XRAPI_CALL
-Hook_xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
+XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEndInfo)
 {
-  static auto const Orig_xrEndFrame = reshade::hooks::call(Hook_xrEndFrame);
+	XrSwapchainImageVulkanKHR left_image { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR };
+	XrSwapchainImageVulkanKHR right_image { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR };
 
-  XrSwapchainImageVulkanKHR leftImage{ XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR };
-  XrSwapchainCreateInfo leftCI{};
-  XrSwapchainImageVulkanKHR rightImage{ XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR };
-  XrSwapchainCreateInfo rightCI{};
-  auto applyEffects = false;
-  for (auto i = 0u; i < frameEndInfo->layerCount; ++i) {
-    // We don't care about overlays.
-    if (frameEndInfo->layers[i]->type != XR_TYPE_COMPOSITION_LAYER_PROJECTION)
-      continue;
+	for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i)
+	{
+		// We don't care about overlays.
+		if (frameEndInfo->layers[i]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION)
+		{
+			auto const proj = reinterpret_cast<const XrCompositionLayerProjection *>(frameEndInfo->layers[i]);
 
-    applyEffects = true;
+			auto const itLeft = g_captured_swapchains.find(proj->views[static_cast<int>(reshade::openxr::eye::left)].subImage.swapchain);
+			assert(itLeft != g_captured_swapchains.end());
+			auto const llri = itLeft->second.last_released_index;
+			left_image = itLeft->second.surface_images[llri];
 
-    auto const* proj = reinterpret_cast<const XrCompositionLayerProjection*>(frameEndInfo->layers[i]);
-    auto const itLeft
-      = gCapturedSwapchains.find(proj->views[static_cast<int>(reshade::openxr::eye::left)].subImage.swapchain);
-    assert(itLeft != gCapturedSwapchains.end());
-    auto const llri = itLeft->second.lastReleasedIndex;
-    leftImage = itLeft->second.surfaceImages[llri];
-    leftCI = itLeft->second.createInfo;
+			auto const itRight = g_captured_swapchains.find(proj->views[static_cast<int>(reshade::openxr::eye::right)].subImage.swapchain);
+			assert(itRight != g_captured_swapchains.end());
+			auto const rlri = itRight->second.last_released_index;
+			right_image = itRight->second.surface_images[rlri];
+			break;
+		}
+	}
 
-    auto const itRight
-      = gCapturedSwapchains.find(proj->views[static_cast<int>(reshade::openxr::eye::right)].subImage.swapchain);
-    assert(itRight != gCapturedSwapchains.end());
-    auto const rlri = itRight->second.lastReleasedIndex;
-    rightImage = itRight->second.surfaceImages[rlri];
-    rightCI = itRight->second.createInfo;
+	if (left_image.image != VK_NULL_HANDLE && right_image.image != VK_NULL_HANDLE)
+	{
+		extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
+		reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(g_oxr_vulkan_device));
 
-    break;
-  }
+		VkQueue graphicsQueue = VK_NULL_HANDLE;
+		device->_dispatch_table.GetDeviceQueue(g_oxr_vulkan_device, device->_graphics_queue_family_index, 0, &graphicsQueue);
 
-  if (applyEffects) {
-    extern lockfree_linear_map<void*, reshade::vulkan::device_impl*, 8> g_vulkan_devices;
-    auto* device = g_vulkan_devices.at(dispatch_key_from_handle(gVKDevice));
+		reshade::vulkan::command_queue_impl *queue = nullptr;
+		if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
+				[graphicsQueue](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == graphicsQueue; });
+			queue_it != device->_queues.cend())
+			queue = *queue_it;
 
-    VkQueue graphicsQueue = VK_NULL_HANDLE;
-    device->_dispatch_table.GetDeviceQueue(gVKDevice, device->_graphics_queue_family_index, 0, &graphicsQueue);
+		if (nullptr == s_vr_swapchain)
+			s_vr_swapchain = new reshade::openxr::swapchain_impl(device, queue, session);
 
-    reshade::vulkan::command_queue_impl* queue = nullptr;
-    if (const auto queue_it = std::find_if(
-          device->_queues.cbegin(),
-          device->_queues.cend(),
-          [graphicsQueue](reshade::vulkan::command_queue_impl* queue) { return queue->_orig == graphicsQueue; });
-        queue_it != device->_queues.cend())
-      queue = *queue_it;
+		s_vr_swapchain->on_present(queue, { (uint64_t)left_image.image }, { (uint64_t)right_image.image });
 
-    if (s_vr_swapchain == nullptr)
-      s_vr_swapchain = new reshade::openxr::swapchain_impl(device, queue, session);
+		queue->flush_immediate_command_list();
+	}
 
-    s_vr_swapchain->on_present({ static_cast<uint64_t>(leftImage.image) }, { static_cast<uint64_t>(rightImage.image) });
-    assert(queue == s_vr_swapchain->get_command_queue());
-    queue->flush_immediate_command_list();
-  }
-
-  return Orig_xrEndFrame(session, frameEndInfo);
+	static const auto trampoline = reshade::hooks::call(xrEndFrame);
+	return trampoline(session, frameEndInfo);
 }
 
-bool g_oxr_hooks_init_attempted = false;
-void
-init_oxr_hooks()
+static bool g_oxr_hooks_init_attempted = false;
+
+void check_and_init_openxr_hooks()
 {
+	if (g_oxr_hooks_init_attempted)
+		return;
+
 #ifndef _WIN64
-  auto const oxrlh = GetModuleHandleW(L"openxr_loader.dll");
+	const HMODULE module = GetModuleHandleW(L"openxr_loader.dll");
 #else
-  auto const oxrlh = GetModuleHandleW(L"openxr_loader64.dll");
+	// TODO_OXR: not tested
+	const HMODULE module = GetModuleHandleW(L"openxr_loader64.dll");
 #endif
-  assert(oxrlh != NULL);
+	if (module == nullptr)
+		return;
 
-  reshade::hooks::install("xrCreateSession", GetProcAddress(oxrlh, "xrCreateSession"), Hook_xrCreateSession);
-  reshade::hooks::install("xrDestroySession", GetProcAddress(oxrlh, "xrDestroySession"), Hook_xrDestroySession);
-  reshade::hooks::install(
-    "xrAcquireSwapchainImage", GetProcAddress(oxrlh, "xrAcquireSwapchainImage"), Hook_xrAcquireSwapchainImage);
-  reshade::hooks::install(
-    "xrReleaseSwapchainImage", GetProcAddress(oxrlh, "xrReleaseSwapchainImage"), Hook_xrReleaseSwapchainImage);
-  reshade::hooks::install("xrCreateSwapchain", GetProcAddress(oxrlh, "xrCreateSwapchain"), Hook_xrCreateSwapchain);
-  reshade::hooks::install("xrDestroySwapchain", GetProcAddress(oxrlh, "xrDestroySwapchain"), Hook_xrDestroySwapchain);
-  reshade::hooks::install("xrEndFrame", GetProcAddress(oxrlh, "xrEndFrame"), Hook_xrEndFrame);
-}
+	reshade::hooks::install("xrCreateSession", GetProcAddress(module, "xrCreateSession"), xrCreateSession);
+	reshade::hooks::install("xrDestroySession", GetProcAddress(module, "xrDestroySession"), xrDestroySession);
+	reshade::hooks::install("xrAcquireSwapchainImage", GetProcAddress(module, "xrAcquireSwapchainImage"), xrAcquireSwapchainImage);
+	reshade::hooks::install("xrReleaseSwapchainImage", GetProcAddress(module, "xrReleaseSwapchainImage"), xrReleaseSwapchainImage);
+	reshade::hooks::install("xrCreateSwapchain", GetProcAddress(module, "xrCreateSwapchain"), xrCreateSwapchain);
+	reshade::hooks::install("xrDestroySwapchain", GetProcAddress(module, "xrDestroySwapchain"), xrDestroySwapchain);
+	reshade::hooks::install("xrEndFrame", GetProcAddress(module, "xrEndFrame"), xrEndFrame);
 
-void
-check_and_init_openxr_hooks()
-{
-  if (!g_oxr_hooks_init_attempted) {
-    g_oxr_hooks_init_attempted = true;
-#ifndef _WIN64
-    if (GetModuleHandleW(L"openxr_loader.dll") == nullptr)
-      return;
-#else
-    // TODO_OXR: not tested
-    if (GetModuleHandleW(L"openxr_loader64.dll") == nullptr)
-      return;
-#endif
-    init_oxr_hooks();
-  }
+	g_oxr_hooks_init_attempted = true;
 }
