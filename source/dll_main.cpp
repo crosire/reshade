@@ -19,6 +19,7 @@ static PVOID s_exception_handler_handle = nullptr;
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
 
+HANDLE g_exit_event = nullptr;
 HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
@@ -266,6 +267,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			{
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_INPUT_HOOK", nullptr, 0))
 				{
+					g_exit_event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+
 					reshade::hooks::register_module(L"user32.dll");
 
 					// Always register DirectInput 1-7 module (to overwrite cooperative level)
@@ -341,10 +344,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			// This is necessary since a different thread may have called into the 'GetMessage' hook from ReShade, but may not receive a message until after the ReShade module was unloaded
 			// At that point it would return to code that was already unloaded and crash
 			// Hooks were already uninstalled now, so after returning from any existing 'GetMessage' hook call, application will call the real one next and things continue to work
-			g_module_handle = nullptr;
-			// This duration has to be slightly larger than the timeout in 'HookGetMessage' to ensure success
-			// It should also be large enough to cover any potential other calls to previous hooks that may still be in flight from other threads
-			Sleep(1000);
+			if (g_exit_event != nullptr)
+			{
+				SetEvent(g_exit_event);
+				Sleep(1000);
+				CloseHandle(g_exit_event);
+			}
 
 #ifndef NDEBUG
 			if (s_exception_handler_handle != nullptr)

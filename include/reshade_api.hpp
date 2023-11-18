@@ -32,11 +32,44 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
 
 	/// <summary>
-	/// A ReShade effect runtime, used to control effects.
-	/// <para>A separate runtime is instantiated for every swap chain.</para>
+	/// Input source for events triggered by user input.
 	/// </summary>
-	struct __declspec(novtable) effect_runtime : public swapchain
+	enum class input_source
 	{
+		none = 0,
+		mouse = 1,
+		keyboard = 2,
+		gamepad = 3,
+		clipboard = 4,
+	};
+
+	/// <summary>
+	/// A post-processing effect runtime, used to control effects.
+	/// <para>ReShade associates an independent post-processing effect runtime with most swap chains.</para>
+	/// </summary>
+	struct __declspec(novtable) effect_runtime : public device_object
+	{
+		/// <summary>
+		/// Gets the handle of the window associated with this effect runtime.
+		/// </summary>
+		virtual void *get_hwnd() const = 0;
+
+		/// <summary>
+		/// Gets the back buffer resource at the specified <paramref name="index"/> in the swap chain associated with this effect runtime.
+		/// </summary>
+		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
+		virtual resource get_back_buffer(uint32_t index) = 0;
+
+		/// <summary>
+		/// Gets the number of back buffer resources in the swap chain associated with this effect runtime.
+		/// </summary>
+		virtual uint32_t get_back_buffer_count() const = 0;
+
+		/// <summary>
+		/// Gets the index of the back buffer resource that can currently be rendered into.
+		/// </summary>
+		virtual uint32_t get_current_back_buffer_index() const = 0;
+
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// This may potentially be different from the presentation queue and should be used to execute graphics commands on.
@@ -53,9 +86,9 @@ namespace reshade { namespace api
 		/// Calling this with <paramref name="rtv"/> set to zero will cause nothing to be rendered, but uniform variables to still be updated.
 		/// </remarks>
 		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
-		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="false"/>.</param>
-		/// <param name="rtv_srgb">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="true"/>, or zero in which case the view from <paramref name="rtv"/> is used.</param>
-		virtual void render_effects(command_list *cmd_list, resource_view rtv, resource_view rtv_srgb = { 0 }) = 0;
+		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="false"/> (this should be a render target view of the target resource, created with a non-sRGB format variant).</param>
+		/// <param name="rtv_srgb">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="true"/> (this should be a render target view of the target resource, created with a sRGB format variant).</param>
+		virtual void render_effects(command_list *cmd_list, resource_view rtv, resource_view rtv_srgb) = 0;
 
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
@@ -137,6 +170,9 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
 		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
 		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
+		/// <remarks>
+		/// This will not find uniform variables when performance mode is enabled, since in that case uniform variables are replaced with constants during effect compilation.
+		/// </remarks>
 		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
 
 		/// <summary>
@@ -171,6 +207,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the uniform variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_bool_from_uniform_variable(effect_uniform_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as floating-point values.
@@ -180,6 +217,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the uniform variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_float_from_uniform_variable(effect_uniform_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as signed integer values.
@@ -189,6 +227,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the uniform variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_int_from_uniform_variable(effect_uniform_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified uniform <paramref name="variable"/> as unsigned integer values.
@@ -198,6 +237,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the uniform variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_uint_from_uniform_variable(effect_uniform_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from a string annotation attached to the specified uniform <paramref name="variable"/>.
@@ -206,6 +246,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation, or <see langword="nullptr"/> to query the necessary size.</param>
 		/// <param name="value_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the uniform variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
 		inline  bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char(&value)[SIZE]) const
@@ -254,8 +295,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of booleans that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_bool(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of boolean values.
@@ -265,8 +308,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_bool(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0))
 		{
 			const bool values[4] = { x, y, z, w };
@@ -279,8 +320,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of floating-points that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_float(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of floating-point values.
@@ -290,8 +333,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_float(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0))
 		{
 			const float values[4] = { x, y, z, w };
@@ -304,8 +345,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of signed integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_int(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of signed integer values.
@@ -315,8 +358,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_int(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0))
 		{
 			const int32_t values[4] = { x, y, z, w };
@@ -329,8 +370,10 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of unsigned integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// </remarks>
 		virtual void set_uniform_value_uint(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of unsigned integer values.
@@ -340,8 +383,6 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		///	<remarks>Setting the uniform value won't result in a save of the current preset. To make sure the current preset with the changed value
-		///	is saved to disk, call <see cref="save_current_preset"/></remarks>
 		inline  void set_uniform_value_uint(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0))
 		{
 			const uint32_t values[4] = { x, y, z, w };
@@ -396,6 +437,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the texture variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_bool_from_texture_variable(effect_texture_variable variable, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as floating-point values.
@@ -405,6 +447,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the texture variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_float_from_texture_variable(effect_texture_variable variable, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as signed integer values.
@@ -414,6 +457,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the texture variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_int_from_texture_variable(effect_texture_variable variable, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified texture <paramref name="variable"/> as unsigned integer values.
@@ -423,6 +467,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the texture variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_uint_from_texture_variable(effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from a string annotation attached to the specified texture <paramref name="variable"/>.
@@ -431,6 +476,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation, or <see langword="nullptr"/> to query the necessary size.</param>
 		/// <param name="value_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the texture variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
 		inline  bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char(&value)[SIZE]) const
@@ -454,18 +500,18 @@ namespace reshade { namespace api
 		/// <param name="variable">Opaque handle to the texture variable.</param>
 		/// <param name="out_srv">Pointer to a variable that is set to the shader resource view.</param>
 		/// <param name="out_srv_srgb">Pointer to a variable that is set to the sRGB shader resource view.</param>
-		virtual void get_texture_binding(effect_texture_variable variable, resource_view *out_srv, resource_view *out_srv_srgb = nullptr) const = 0;
+		virtual void get_texture_binding(effect_texture_variable variable, resource_view *out_srv, resource_view *out_srv_srgb) const = 0;
 
 		/// <summary>
-		/// Binds a new shader resource view to all texture variables that use the specified <paramref name="semantic"/>.
+		/// Binds new shader resource views to all texture variables that use the specified <paramref name="semantic"/>.
 		/// </summary>
 		/// <remarks>
 		/// The resource the shader resource views point to has to be in the <see cref="resource_usage::shader_resource"/> state at the time <see cref="render_effects"/> is executed.
 		/// </remarks>
 		/// <param name="semantic">ReShade FX semantic to filter textures to update by (<c>texture name : SEMANTIC</c>).</param>
-		/// <param name="srv">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <see langword="false"/>.</param>
-		/// <param name="srv_srgb">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <see langword="true"/>, or zero in which case the view from <paramref name="srv"/> is used.</param>
-		virtual void update_texture_bindings(const char *semantic, resource_view srv, resource_view srv_srgb = { 0 }) = 0;
+		/// <param name="srv">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <see langword="false"/> (this should be a shader resource view of the target resource, created with a non-sRGB format variant).</param>
+		/// <param name="srv_srgb">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <see langword="true"/> (this should be a shader resource view of the target resource, created with a sRGB format variant).</param>
+		virtual void update_texture_bindings(const char *semantic, resource_view srv, resource_view srv_srgb) = 0;
 
 		/// <summary>
 		/// Enumerates all techniques of loaded effects and calls the specified <paramref name="callback"/> function with a handle for each one.
@@ -515,6 +561,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of booleans that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the technique, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_bool_from_technique(effect_technique technique, const char *name, bool *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as floating-point values.
@@ -524,6 +571,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of floating-points that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the technique, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_float_from_technique(effect_technique technique, const char *name, float *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as signed integer values.
@@ -533,6 +581,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of signed integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the technique, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_int_from_technique(effect_technique technique, const char *name, int32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from an annotation attached to the specified <paramref name="technique"/> as unsigned integer values.
@@ -542,6 +591,7 @@ namespace reshade { namespace api
 		/// <param name="values">Pointer to an array of unsigned integers that is filled with the values of the annotation.</param>
 		/// <param name="count">Number of values to read.</param>
 		/// <param name="array_index">Array offset to start reading values from when the annotation is an array.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the technique, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_uint_from_technique(effect_technique technique, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const = 0;
 		/// <summary>
 		/// Gets the value from a string annotation attached to the specified <paramref name="technique"/>.
@@ -550,6 +600,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the annotation.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the annotation, or <see langword="nullptr"/> to query the necessary size.</param>
 		/// <param name="value_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
+		/// <returns><see langword="true"/> if the annotation exists on the technique, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_string_from_technique(effect_technique technique, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
 		inline  bool get_annotation_string_from_technique(effect_technique technique, const char *name, char(&value)[SIZE]) const
@@ -562,6 +613,7 @@ namespace reshade { namespace api
 		/// Gets the state of a <paramref name="technique"/>.
 		/// </summary>
 		/// <param name="technique">Opaque handle to the technique.</param>
+		/// <returns><see langword="true"/> if the technique is enabled, or <see langword="false"/> if it is disabled.</returns>
 		virtual bool get_technique_state(effect_technique technique) const = 0;
 		/// <summary>
 		/// Enables or disables the specified <paramref name="technique"/>.
@@ -576,6 +628,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the definition, or <see langword="nullptr"/> to query the necessary size.</param>
 		/// <param name="value_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
+		/// <returns><see langword="true"/> if the preprocessor definition is defined, <see langword="false"/> otherwise.</returns>
 		virtual bool get_preprocessor_definition(const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
 		inline  bool get_preprocessor_definition(const char *name, char(&value)[SIZE]) const
@@ -605,7 +658,7 @@ namespace reshade { namespace api
 		virtual void render_technique(effect_technique technique, command_list *cmd_list, resource_view rtv, resource_view rtv_srgb = { 0 }) = 0;
 
 		/// <summary>
-		/// Gets whether effects are enabled or disabled.
+		/// Gets whether rendering of effects is enabled or disabled.
 		/// </summary>
 		virtual bool get_effects_state() const = 0;
 		/// <summary>
@@ -708,6 +761,7 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Pointer to a string buffer that is filled with the value of the definition, or <see langword="nullptr"/> to query the necessary size.</param>
 		/// <param name="value_size">Pointer to an integer that contains the size of the string buffer and upon completion is set to the actual length of the string, including the null-terminator.</param>
+		/// <returns><see langword="true"/> if the preprocessor definition is defined, <see langword="false"/> otherwise.</returns>
 		virtual bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
 		inline  bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char(&value)[SIZE]) const
@@ -722,5 +776,13 @@ namespace reshade { namespace api
 		/// <param name="name">Name of the definition.</param>
 		/// <param name="value">Value of the definition.</param>
 		virtual void set_preprocessor_definition_for_effect(const char *effect_name, const char *name, const char *value) = 0;
+
+		/// <summary>
+		/// Open or close the ReShade overlay.
+		/// </summary>
+		/// <param name="open">Requested overlay state.</param>
+		/// <param name="source">Source of this request.</param>
+		/// <returns><see langword="true"/> if the overlay state was changed, <see langword="false"/> otherwise.</returns>
+		virtual bool open_overlay(bool open, api::input_source source) = 0;
 	};
 } }

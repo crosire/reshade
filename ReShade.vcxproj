@@ -54,6 +54,7 @@
     <PlatformToolset>v141</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioVersion)'=='16.0'">v142</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioVersion)'=='17.0'">v143</PlatformToolset>
+    <VcpkgEnabled>false</VcpkgEnabled>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Platform)'=='Win32'">
     <TargetName>ReShade32</TargetName>
@@ -608,6 +609,7 @@
     <ClCompile Include="source\runtime_gui.cpp" />
     <ClCompile Include="source\runtime_gui_vr.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
+    <ClCompile Include="source\state_block.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
@@ -706,8 +708,10 @@
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />
     <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp" />
     <ClInclude Include="source\platform_utils.hpp" />
+    <ClInclude Include="source\reshade_api_object_impl.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
+    <ClInclude Include="source\state_block.hpp" />
     <ClInclude Include="source\vulkan\vulkan_hooks.hpp" />
     <ClInclude Include="source\vulkan\vulkan_impl_command_list.hpp" />
     <ClInclude Include="source\vulkan\vulkan_impl_command_list_immediate.hpp" />
@@ -722,7 +726,7 @@
   <ItemGroup>
     <None Include="res\exports.def" />
     <None Include="res\fonts\forkawesome.inl" />
-    <None Include="res\resource.rc2" />
+    <None Include="res\version.rc2" />
     <None Include="tools\update_version.ps1" />
   </ItemGroup>
   <ItemGroup>

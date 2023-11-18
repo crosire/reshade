@@ -6,6 +6,8 @@
 #pragma once
 
 #include <GL/glcorearb.h>
+#include "reshade_api_pipeline.hpp"
+#include <vector>
 
 namespace reshade::opengl
 {
@@ -84,6 +86,12 @@ namespace reshade::opengl
 	struct query_heap_impl
 	{
 		std::vector<GLuint> queries;
+	};
+
+	struct fence_impl
+	{
+		uint64_t current_value;
+		GLsync sync_objects[8];
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };

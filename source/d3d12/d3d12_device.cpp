@@ -14,6 +14,7 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d12::to_handle;
 
@@ -27,6 +28,23 @@ D3D12Device::D3D12Device(ID3D12Device *original) :
 	// Add proxy object to the private data of the device, so that it can be retrieved again when only the original device is available
 	D3D12Device *const device_proxy = this;
 	_orig->SetPrivateData(__uuidof(D3D12Device), sizeof(device_proxy), &device_proxy);
+
+#if RESHADE_ADDON
+	reshade::load_addons();
+
+	reshade::invoke_addon_event<reshade::addon_event::init_device>(this);
+#endif
+}
+D3D12Device::~D3D12Device()
+{
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(this);
+
+	reshade::unload_addons();
+#endif
+
+	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
+	_orig->SetPrivateData(__uuidof(D3D12Device), 0, nullptr);
 }
 
 bool D3D12Device::check_and_upgrade_interface(REFIID riid)
@@ -129,9 +147,6 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		_downlevel->_orig->Release();
 		delete _downlevel;
 	}
-
-	// Remove pointer to this proxy object from the private data of the device (in case the device unexpectedly survives)
-	_orig->SetPrivateData(__uuidof(D3D12Device), 0, nullptr);
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;

@@ -158,7 +158,33 @@ namespace reshade { namespace api
 		/// Specifies whether resource sharing with NT handles is supported.
 		/// If this feature is not present, <see cref="resource_flags::shared_nt_handle"/> must not be used.
 		/// </summary>
-		shared_resource_nt_handle
+		shared_resource_nt_handle,
+		/// <summary>
+		/// Specifies whether resolving depth-stencil resources is supported.
+		/// If this feature is not present, <see cref="command_list::resolve_texture_region"/> must not be used with depth-stencil resources.
+		/// </summary>
+		resolve_depth_stencil,
+		/// <summary>
+		/// Specifies whether fence sharing is supported.
+		/// If this feature is not present, <see cref="fence_flags::shared"/> must not be used.
+		/// </summary>
+		shared_fence,
+		/// <summary>
+		/// Specifies whether fence sharing with NT handles is supported.
+		/// If this feature is not present, <see cref="fence_flags::shared_nt_handle"/> must not be used.
+		/// </summary>
+		shared_fence_nt_handle,
+	};
+
+	/// <summary>
+	/// Describes an adapter/physical device.
+	/// </summary>
+	struct device_properties
+	{
+		unsigned int api_version = 0;
+		unsigned int driver_version = 0;
+		unsigned int vendor_id = 0, device_id = 0;
+		char description[256] = "";
 	};
 
 	/// <summary>
@@ -202,9 +228,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Allocates user-defined data and stores it in the object.
 		/// </summary>
-		template <typename T> inline T &create_private_data()
+		template <typename T, typename... Args> inline T &create_private_data(Args... args)
 		{
-			uint64_t res = reinterpret_cast<uintptr_t>(new T());
+			uint64_t res = reinterpret_cast<uintptr_t>(new T(std::forward<Args>(args)...));
 			set_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)),  res);
 			return *reinterpret_cast<T *>(static_cast<uintptr_t>(res));
 		}
@@ -473,6 +499,46 @@ namespace reshade { namespace api
 		/// <param name="handle">Resource view to associate a name with.</param>
 		/// <param name="name">Null-terminated name string.</param>
 		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
+
+		/// <summary>
+		/// Creates a new fence synchronization object.
+		/// </summary>
+		/// <param name="initial_value">The initial value for the fence.</param>
+		/// <param name="flags">Fence creation options.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created fence.</param>
+		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <paramref name="flags"/> contains <see cref="fence_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created fence. When that variable is a valid handle, the fence is imported from that shared handle.</param>
+		/// <returns><see langword="true"/> if the fence was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_fence(uint64_t initial_value, fence_flags flags, fence *out_handle, void **shared_handle = nullptr) = 0;
+		/// <summary>
+		/// Instantly destroys a fence that was previously created via <see cref="create_fence"/>.
+		/// </summary>
+		virtual void destroy_fence(fence handle) = 0;
+
+		/// <summary>
+		/// Gets the current value of the specified fence.
+		/// </summary>
+		virtual uint64_t get_completed_fence_value(fence fence) const = 0;
+
+		/// <summary>
+		/// Wait until the specified fence reached the specified value.
+		/// </summary>
+		/// <param name="fence">Fence to wait on.</param>
+		/// <param name="value">Value the fence has to each or exceed.</param>
+		/// <param name="timeout">Return early after the specified time in nanoseconds, or set to UINT64_MAX to never time out.</param>
+		/// <returns><see langword="true"/> if the wait operation was successful, <see langword="false"/> otherwise.</returns>
+		virtual bool wait(fence fence, uint64_t value, uint64_t timeout = UINT64_MAX) = 0;
+		/// <summary>
+		/// Updates the specified fence to the specified value.
+		/// </summary>
+		/// <param name="fence">Fence to update.</param>
+		/// <param name="value">Value the fence should be set to.</param>
+		/// <returns><see langword="true"/> if the signal operation was successful, <see langword="false"/> otherwise.</returns>
+		virtual bool signal(fence fence, uint64_t value) = 0;
+
+		/// <summary>
+		/// Gets information about the primary adapter associated with this logical render device.
+		/// </summary>
+		virtual device_properties get_properties() const = 0;
 	};
 
 	/// <summary>
@@ -778,6 +844,7 @@ namespace reshade { namespace api
 		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::resolve_dest"/> state.
 		/// </remarks>
 		/// <seealso cref="device_caps::resolve_region"/>
+		/// <seealso cref="device_caps::resolve_depth_stencil"/>
 		/// <param name="source">Texture resource to resolve from.</param>
 		/// <param name="source_subresource">Index of the subresource of the <paramref name="source"/> texture to resolve from.</param>
 		/// <param name="source_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="source"/> texture to resolve.</param>
@@ -953,6 +1020,26 @@ namespace reshade { namespace api
 		/// <param name="label">Null-terminated string containing the label of the debug marker.</param>
 		/// <param name="color">Optional RGBA color value associated with the debug marker.</param>
 		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+
+		/// <summary>
+		/// Queues a GPU-side wait until the specified fence reaches the specified value and returns immediately.
+		/// </summary>
+		/// <param name="fence">Fence to wait on.</param>
+		/// <param name="value">Value the fence has to reach or exceed.</param>
+		/// <returns><see langword="true"/> if the wait operation was successfully enqueued, <see langword="false"/> otherwise.</returns>
+		virtual bool wait(fence fence, uint64_t value) = 0;
+		/// <summary>
+		/// Queues a GPU-side update of the specified fence to the specified value after previous operations finished executing.
+		/// </summary>
+		/// <param name="fence">Fence to update.</param>
+		/// <param name="value">Value the fence should be set to.</param>
+		/// <returns><see langword="true"/> if the signal operation was successfully enqueued, <see langword="false"/> otherwise.</returns>
+		virtual bool signal(fence fence, uint64_t value) = 0;
+
+		/// <summary>
+		/// Queries the GPU timestamp frequency in ticks per second.
+		/// </summary>
+		virtual uint64_t get_timestamp_frequency() const = 0;
 	};
 
 	/// <summary>
@@ -1013,5 +1100,15 @@ namespace reshade { namespace api
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
+
+		/// <summary>
+		/// Checks whether the specified color space is supported for presentation.
+		/// </summary>
+		virtual bool check_color_space_support(color_space color_space) const = 0;
+
+		/// <summary>
+		/// Gets the color space used for presentation.
+		/// </summary>
+		virtual color_space get_color_space() const = 0;
 	};
 } }

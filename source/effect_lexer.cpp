@@ -999,6 +999,9 @@ void reshadefx::lexer::parse_string_literal(token &tok, bool escape)
 
 	tok.id = tokenid::string_literal;
 	tok.length = end - begin + 1;
+
+	// Free up unused memory
+	tok.literal_as_string.shrink_to_fit();
 }
 void reshadefx::lexer::parse_numeric_literal(token &tok) const
 {

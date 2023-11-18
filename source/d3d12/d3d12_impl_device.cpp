@@ -10,8 +10,8 @@
 #include "d3d12_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include "hook_manager.hpp"
 #include <algorithm>
+#include <dxgi1_4.h>
 
 extern bool is_windows7();
 
@@ -69,22 +69,10 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 			}
 		}
 	}
-
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<addon_event::init_device>(this);
-#endif
 }
 reshade::d3d12::device_impl::~device_impl()
 {
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_device>(this);
-
-	unload_addons();
-#endif
 
 #if RESHADE_ADDON >= 2
 	const auto gpu_view_heap = _descriptor_heaps[0];
@@ -96,6 +84,52 @@ reshade::d3d12::device_impl::~device_impl()
 
 	assert(_descriptor_heaps.empty());
 #endif
+}
+
+reshade::api::device_properties reshade::d3d12::device_impl::get_properties() const
+{
+	api::device_properties props;
+	props.api_version = D3D_FEATURE_LEVEL_12_0;
+
+	const LUID luid = _orig->GetAdapterLuid();
+	com_ptr<IDXGIAdapter> dxgi_adapter;
+
+	if (com_ptr<IDXGIFactory4> factory4;
+		SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
+	{
+		factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter));
+	}
+	else if (com_ptr<IDXGIFactory1> factory1;
+		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
+	{
+		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
+		{
+			DXGI_ADAPTER_DESC adapter_desc;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)) && std::memcmp(&adapter_desc.AdapterLuid, &luid, sizeof(luid)) == 0)
+				break;
+		}
+	}
+
+	if (dxgi_adapter != nullptr)
+	{
+		LARGE_INTEGER umd_version;
+		if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
+		{
+			props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+		}
+
+		DXGI_ADAPTER_DESC adapter_desc;
+		if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
+		{
+			props.vendor_id = adapter_desc.VendorId;
+			props.device_id = adapter_desc.DeviceId;
+
+			static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
+			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
+		}
+	}
+
+	return props;
 }
 
 bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) const
@@ -144,6 +178,11 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::shared_resource:
 	case api::device_caps::shared_resource_nt_handle:
+		return !is_windows7();
+	case api::device_caps::resolve_depth_stencil:
+		return true;
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
 		return !is_windows7();
 	default:
 		return false;
@@ -201,27 +240,26 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::general || initial_state == api::resource_usage::cpu_access);
 
+	com_ptr<ID3D12Resource> object;
+
 	const bool is_shared = (desc.flags & api::resource_flags::shared) != 0;
 	if (is_shared)
 	{
 		// Only NT handles are supported
-		if (shared_handle == nullptr || (desc.flags & reshade::api::resource_flags::shared_nt_handle) == 0)
+		if (shared_handle == nullptr || (desc.flags & api::resource_flags::shared_nt_handle) == 0)
 			return false;
 
 		if (*shared_handle != nullptr)
 		{
 			assert(initial_data == nullptr);
 
-			if (com_ptr<ID3D12Resource> object;
-				SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
+			if (SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
 			{
-				*out_handle = to_handle(object.get());
+				*out_handle = to_handle(object.release());
 				return true;
 			}
-			else
-			{
-				return false;
-			}
+
+			return false;
 		}
 	}
 
@@ -273,8 +311,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	else
 		use_default_clear_value = false;
 
-	if (com_ptr<ID3D12Resource> object;
-		SUCCEEDED(desc.heap == api::memory_heap::unknown ?
+	if (SUCCEEDED(desc.heap == api::memory_heap::unknown ?
 			_orig->CreateReservedResource(&internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object)) :
 			_orig->CreateCommittedResource(&heap_props, heap_flags, &internal_desc, convert_usage_to_resource_states(initial_state), use_default_clear_value ? &default_clear_value : nullptr, IID_PPV_ARGS(&object))))
 	{
@@ -317,10 +354,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 void reshade::d3d12::device_impl::destroy_resource(api::resource handle)
 {
@@ -1320,6 +1355,74 @@ void reshade::d3d12::device_impl::set_resource_name(api::resource handle, const 
 	utf8::unchecked::utf8to16(name, name + debug_name_len, std::back_inserter(debug_name_wide));
 
 	reinterpret_cast<ID3D12Resource *>(handle.handle)->SetName(debug_name_wide.c_str());
+}
+
+bool reshade::d3d12::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	com_ptr<ID3D12Fence> object;
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared)
+	{
+		// Only NT handles are supported
+		if (shared_handle == nullptr || (flags & api::fence_flags::shared_nt_handle) == 0)
+			return false;
+
+		if (*shared_handle != nullptr)
+		{
+			if (SUCCEEDED(_orig->OpenSharedHandle(*shared_handle, IID_PPV_ARGS(&object))))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+
+			return false;
+		}
+	}
+
+	if (SUCCEEDED(_orig->CreateFence(initial_value, convert_fence_flags(flags), IID_PPV_ARGS(&object))))
+	{
+		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
+			return false;
+
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+
+	return false;
+}
+void reshade::d3d12::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle == 0)
+		return;
+
+	reinterpret_cast<ID3D12Fence *>(handle.handle)->Release();
+}
+
+uint64_t reshade::d3d12::device_impl::get_completed_fence_value(api::fence fence) const
+{
+	return reinterpret_cast<ID3D12Fence *>(fence.handle)->GetCompletedValue();
+}
+
+bool reshade::d3d12::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	if (value <= reinterpret_cast<ID3D12Fence *>(fence.handle)->GetCompletedValue())
+		return true;
+
+	DWORD res = WAIT_FAILED;
+
+	const HANDLE temp_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->SetEventOnCompletion(value, temp_event)))
+		res = WaitForSingleObject(temp_event, (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF);
+
+	CloseHandle(temp_event);
+	return res == WAIT_OBJECT_0;
+}
+bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
+{
+	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)

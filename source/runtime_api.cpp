@@ -10,14 +10,6 @@
 
 extern bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec);
 
-reshade::input::window_handle reshade::runtime::get_hwnd() const
-{
-	if (_input == nullptr)
-		return nullptr;
-
-	return _input->get_window_handle();
-}
-
 bool reshade::runtime::is_key_down(uint32_t keycode) const
 {
 	return _input != nullptr && _input->is_key_down(keycode);
@@ -1179,6 +1171,9 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 			return;
 	}
 
+	if (!_is_in_present_call)
+		capture_state(cmd_list, _app_state);
+
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 
 	const bool was_is_in_api_call = _is_in_api_call;
@@ -1191,6 +1186,9 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	_is_in_api_call = was_is_in_api_call;
 
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+		apply_state(cmd_list, _app_state);
 #endif
 }
 #endif

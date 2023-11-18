@@ -6,45 +6,44 @@
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
 #include "d3d10_resource_call_vtable.inl"
-#include "dll_log.hpp"
-#include "hook_manager.hpp"
 #include <algorithm>
+#include <utf8/unchecked.h>
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 	api_object_impl(device)
 {
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<addon_event::init_device>(this);
-
-	const api::pipeline_layout_param global_pipeline_layout_params[3] = {
-		api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::sampler },
-		api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view },
-		api::descriptor_range { 0, 0, 0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::constant_buffer },
-	};
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
-
-	invoke_addon_event<addon_event::init_command_list>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
-reshade::d3d10::device_impl::~device_impl()
+
+reshade::api::device_properties reshade::d3d10::device_impl::get_properties() const
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
+	api::device_properties props;
+	props.api_version = _orig->GetFeatureLevel();
 
-	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
-	_orig->ClearState();
-	_orig->Flush();
+	if (com_ptr<IDXGIDevice> dxgi_device;
+		SUCCEEDED(_orig->QueryInterface(&dxgi_device)))
+	{
+		if (com_ptr<IDXGIAdapter> dxgi_adapter;
+			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		{
+			LARGE_INTEGER umd_version;
+			if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
+			{
+				props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+			}
 
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
+			DXGI_ADAPTER_DESC adapter_desc;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
+			{
+				props.vendor_id = adapter_desc.VendorId;
+				props.device_id = adapter_desc.DeviceId;
 
-	invoke_addon_event<addon_event::destroy_device>(this);
+				static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
+				utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
+			}
+		}
+	}
 
-	unload_addons();
-#endif
+	return props;
 }
 
 bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) const
@@ -89,6 +88,9 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_resource:
 		return true;
 	case api::device_caps::shared_resource_nt_handle:
+	case api::device_caps::resolve_depth_stencil:
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
 	default:
 		return false;
 	}
@@ -1097,4 +1099,136 @@ void reshade::d3d10::device_impl::set_resource_view_name(api::resource_view hand
 	assert(handle.handle != 0);
 
 	reinterpret_cast<ID3D10DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
+}
+
+bool reshade::d3d10::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared)
+	{
+		// NT handles are not supported
+		if (shared_handle == nullptr || (flags & reshade::api::fence_flags::shared_nt_handle) != 0)
+			return false;
+
+		if (*shared_handle != nullptr)
+		{
+			if (com_ptr<IDXGIKeyedMutex> object;
+				open_shared_resource(*shared_handle, _orig, IID_PPV_ARGS(&object)))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	const auto impl = new fence_impl();
+	impl->current_value = initial_value;
+
+	D3D10_QUERY_DESC internal_desc = {};
+	internal_desc.Query = D3D10_QUERY_EVENT;
+
+	for (size_t i = 0; i < std::size(impl->event_queries); ++i)
+	{
+		if (FAILED(_orig->CreateQuery(&internal_desc, &impl->event_queries[i])))
+		{
+			delete impl;
+			return false;
+		}
+	}
+
+	// Set first bit to identify this as a 'fence_impl' handle for 'destroy_fence'
+	static_assert(alignof(fence_impl) >= 2);
+
+	*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
+	return true;
+}
+void reshade::d3d10::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle & 1) // See 'device_impl::create_fence'
+		delete reinterpret_cast<fence_impl *>(handle.handle ^ 1);
+	else if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+uint64_t reshade::d3d10::device_impl::get_completed_fence_value(api::fence fence) const
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+
+		for (uint64_t value = impl->current_value, offset = 0; value > 0 && offset < std::size(impl->event_queries); --value, ++offset)
+		{
+			if (impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, 0) == S_OK)
+				return value;
+		}
+
+		return 0;
+	}
+
+	assert(false);
+	return 0;
+}
+
+bool reshade::d3d10::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	DWORD timeout_ms = (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF;
+
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value > impl->current_value)
+			return false;
+
+		while (true)
+		{
+			const HRESULT hr = impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, 0);
+			if (hr == S_OK)
+				return true;
+			if (hr != S_FALSE)
+				break;
+
+			if (timeout_ms != INFINITE)
+			{
+				if (timeout_ms == 0)
+					break;
+				timeout_ms -= 1;
+			}
+
+			Sleep(1);
+		}
+
+		return false;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->AcquireSync(value, timeout_ms));
+	}
+
+	return false;
+}
+bool reshade::d3d10::device_impl::signal(api::fence fence, uint64_t value)
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value < impl->current_value)
+			return false;
+		impl->current_value = value;
+
+		return impl->event_queries[value % std::size(impl->event_queries)]->End(), true;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
+	}
+
+	return false;
 }

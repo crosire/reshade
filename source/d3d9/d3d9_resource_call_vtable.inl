@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include "hook_manager.hpp"
+
 #if RESHADE_ADDON >= 2
 
 #undef IDirect3DSurface9_LockRect

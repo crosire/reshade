@@ -5,11 +5,13 @@
 
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_render_context.hpp"
+#include "opengl_impl_type_convert.hpp"
 
 #define gl gl3wProcs.gl
 
 reshade::opengl::render_context_impl::render_context_impl(device_impl *device, HGLRC hglrc) :
-	api_object_impl(hglrc), _device_impl(device)
+	api_object_impl(hglrc),
+	_device_impl(device)
 {
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{
@@ -44,19 +46,9 @@ reshade::opengl::render_context_impl::render_context_impl(device_impl *device, H
 
 	// Generate push constants buffer name
 	gl.GenBuffers(1, &_push_constants);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_command_list>(this);
-	invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
 }
 reshade::opengl::render_context_impl::~render_context_impl()
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-#endif
-
 	// Destroy framebuffers
 	for (const auto &fbo_data : _fbo_lookup)
 		gl.DeleteFramebuffers(1, &fbo_data.second);
@@ -82,4 +74,59 @@ void reshade::opengl::render_context_impl::flush_immediate_command_list() const
 void reshade::opengl::render_context_impl::wait_idle() const
 {
 	gl.Finish();
+}
+
+bool reshade::opengl::render_context_impl::wait(api::fence fence, uint64_t value)
+{
+	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	{
+#if 0
+		const GLuint object = fence.handle & 0xFFFFFFFF;
+		glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+		glWaitSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
+		return true;
+#else
+		return false;
+#endif
+	}
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value > impl->current_value)
+		return false;
+
+	const GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	if (sync_object != 0)
+	{
+		gl.WaitSync(sync_object, 0, GL_TIMEOUT_IGNORED);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+bool reshade::opengl::render_context_impl::signal(api::fence fence, uint64_t value)
+{
+	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	{
+#if 0
+		const GLuint object = fence.handle & 0xFFFFFFFF;
+		glSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+		glSignalSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
+		return true;
+#else
+		return false;
+#endif
+	}
+
+	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
+	if (value < impl->current_value)
+		return false;
+	impl->current_value = value;
+
+	GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	gl.DeleteSync(sync_object);
+
+	sync_object = gl.FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	return sync_object != 0;
 }

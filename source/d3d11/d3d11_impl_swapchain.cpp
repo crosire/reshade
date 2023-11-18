@@ -4,131 +4,88 @@
  */
 
 #include "d3d11_impl_device.hpp"
-#include "d3d11_impl_device_context.hpp"
 #include "d3d11_impl_swapchain.hpp"
 #include "d3d11_impl_type_convert.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
 
-reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, device_context_impl *immediate_context, IDXGISwapChain *swapchain) :
-	api_object_impl(swapchain, device, immediate_context),
-	_app_state(device->_orig)
+reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain *swapchain) :
+	api_object_impl(swapchain),
+	_device_impl(device)
 {
-	_renderer_id = device->_orig->GetFeatureLevel();
-
-	if (com_ptr<IDXGIDevice> dxgi_device;
-		SUCCEEDED(device->_orig->QueryInterface(&dxgi_device)))
-	{
-		if (com_ptr<IDXGIAdapter> dxgi_adapter;
-			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
-		{
-			if (DXGI_ADAPTER_DESC desc; SUCCEEDED(dxgi_adapter->GetDesc(&desc)))
-			{
-				_vendor_id = desc.VendorId;
-				_device_id = desc.DeviceId;
-
-				LOG(INFO) << "Running on " << desc.Description << '.';
-			}
-		}
-	}
-
-	if (_orig != nullptr)
-		on_init();
+	on_init();
 }
 reshade::d3d11::swapchain_impl::~swapchain_impl()
 {
 	on_reset();
 }
 
+reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+
+void *reshade::d3d11::swapchain_impl::get_hwnd() const
+{
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	return swap_desc.OutputWindow;
+}
+
 reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t index)
 {
 	assert(index == 0);
 
-	return to_handle(_backbuffer.get());
+	return to_handle(_back_buffer.get());
 }
 
-void reshade::d3d11::swapchain_impl::set_back_buffer_color_space(DXGI_COLOR_SPACE_TYPE type)
+bool reshade::d3d11::swapchain_impl::check_color_space_support(api::color_space color_space) const
+{
+	if (color_space == api::color_space::unknown)
+		return false;
+
+	com_ptr<IDXGISwapChain3> swapchain3;
+	if (FAILED(_orig->QueryInterface(&swapchain3)))
+		return color_space == api::color_space::srgb_nonlinear;
+
+	UINT support;
+	return SUCCEEDED(swapchain3->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
+}
+
+void reshade::d3d11::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
 {
 	_back_buffer_color_space = convert_color_space(type);
 }
 
-bool reshade::d3d11::swapchain_impl::on_init()
+void reshade::d3d11::swapchain_impl::on_init()
 {
 	assert(_orig != nullptr);
 
-	DXGI_SWAP_CHAIN_DESC swap_desc;
-	if (FAILED(_orig->GetDesc(&swap_desc)))
-		return false;
-
-	// Get back buffer texture
-	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_backbuffer))))
-		return false;
-	assert(_backbuffer != nullptr);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
-#endif
-
-	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
-
-	// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
-	_backbuffer->Release();
-	assert(_backbuffer.ref_count() == 0);
-
-	return runtime::on_init(swap_desc.OutputWindow);
-}
-void reshade::d3d11::swapchain_impl::on_reset()
-{
-	if (_backbuffer == nullptr)
+	if (is_initialized())
 		return;
 
-	runtime::on_reset();
+	// Get back buffer texture
+	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_back_buffer))))
+		return;
+	assert(_back_buffer != nullptr);
 
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_swapchain>(this);
+#ifndef NDEBUG
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 #endif
 
-	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
-	// Releasing any references ReShade owns would then make the count negative, which consequently breaks DXGI validation
-	// But the only reference was already released above because of Unreal Engine 4 anyway, so can simply clear out the pointer here without touching the reference count
-	assert(_backbuffer.ref_count() == 0);
-	_backbuffer.release();
+	// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
+	_back_buffer->Release();
+	assert(_back_buffer.ref_count() == 0);
 }
-
-void reshade::d3d11::swapchain_impl::on_present()
+void reshade::d3d11::swapchain_impl::on_reset()
 {
 	if (!is_initialized())
 		return;
 
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(_graphics_queue)->_orig;
-	_app_state.capture(immediate_context);
-
-	runtime::on_present();
-
-	// Apply previous state from application
-	_app_state.apply_and_release();
+	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
+	// Releasing any references ReShade owns would then make the count negative, which consequently breaks DXGI validation
+	// But the only reference was already released above because of Unreal Engine 4 anyway, so can simply clear out the pointer here without touching the reference count
+	assert(_back_buffer.ref_count() == 0);
+	_back_buffer.release();
 }
-
-#if RESHADE_ADDON && RESHADE_FX
-void reshade::d3d11::swapchain_impl::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
-	if (!_is_in_present_call)
-		_app_state.capture(immediate_context);
-
-	runtime::render_effects(cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-		_app_state.apply_and_release();
-}
-void reshade::d3d11::swapchain_impl::render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
-{
-	ID3D11DeviceContext *const immediate_context = static_cast<device_context_impl *>(cmd_list)->_orig;
-	if (!_is_in_present_call)
-		_app_state.capture(immediate_context);
-
-	runtime::render_technique(handle, cmd_list, rtv, rtv_srgb);
-
-	if (!_is_in_present_call)
-		_app_state.apply_and_release();
-}
-#endif

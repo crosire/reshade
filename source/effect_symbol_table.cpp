@@ -126,45 +126,14 @@ static const intrinsic s_intrinsics[] =
 #undef uint2
 #undef uint3
 #undef uint4
-#undef float1
+#undef float
 #undef float2
 #undef float3
 #undef float4
-#undef float2x2
-#undef float3x3
-#undef float4x4
-#undef out_float
-#undef out_float2
-#undef out_float3
-#undef out_float4
-#undef sampler1d_int
-#undef sampler2d_int
-#undef sampler3d_int
-#undef sampler1d_uint
-#undef sampler2d_uint
-#undef sampler3d_uint
-#undef sampler1d_float4
-#undef sampler2d_float4
-#undef sampler3d_float4
-#undef storage1d_int
-#undef storage2d_int
-#undef storage3d_int
-#undef storage1d_uint
-#undef storage2d_uint
-#undef storage3d_uint
-#undef storage1d_float4
-#undef storage2d_float4
-#undef storage3d_float4
-#undef inout_storage1d_int
-#undef inout_storage2d_int
-#undef inout_storage3d_int
-#undef inout_storage1d_uint
-#undef inout_storage2d_uint
-#undef inout_storage3d_uint
 
 unsigned int reshadefx::type::rank(const type &src, const type &dst)
 {
-	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
+	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.is_bounded_array() && dst.is_bounded_array()))
 		return 0; // Arrays of different sizes are not compatible
 	if (src.is_struct() || dst.is_struct())
 		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
@@ -177,7 +146,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	//  - Floating point has a higher rank than integer types
 	//  - Integer to floating point promotion has a higher rank than floating point to integer conversion
 	//  - Signed to unsigned integer conversion has a higher rank than unsigned to signed integer conversion
-	static const int ranks[7][7] = {
+	static const unsigned int ranks[7][7] = {
 		{ 5, 4, 4, 4, 4, 4, 4 }, // bool
 		{ 3, 5, 5, 2, 2, 4, 4 }, // min16int
 		{ 3, 5, 5, 2, 2, 4, 4 }, // int
@@ -190,7 +159,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	assert(src.base > 0 && src.base <= 7); // bool - float
 	assert(dst.base > 0 && dst.base <= 7);
 
-	const int rank = ranks[src.base - 1][dst.base - 1] << 2;
+	const unsigned int rank = ranks[src.base - 1][dst.base - 1] << 2;
 
 	if ((src.is_scalar() && dst.is_vector()))
 		return rank >> 1; // Scalar to vector promotion has a lower rank
@@ -280,7 +249,7 @@ bool reshadefx::symbol_table::insert_symbol(const std::string &name, const symbo
 		{
 			// Extract scope name
 			scope.name = _current_scope.name.substr(0, pos += 2);
-			const auto previous_scope_name = _current_scope.name.substr(pos);
+			const std::string previous_scope_name = _current_scope.name.substr(pos);
 
 			// Insert symbol into this scope
 			insert_sorted(_symbol_stack[previous_scope_name + name], scoped_symbol { symbol, scope });

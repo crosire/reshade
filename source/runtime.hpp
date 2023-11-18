@@ -6,6 +6,7 @@
 #pragma once
 
 #include "reshade_api.hpp"
+#include "state_block.hpp"
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"
 #endif
@@ -30,18 +31,54 @@ namespace reshade
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
 	/// </summary>
-	class __declspec(novtable) runtime : public api::effect_runtime
+	class __declspec(uuid("77FF8202-5BEC-42AD-8CE0-397F3E84EAA6")) runtime : public api::effect_runtime
 	{
 	public:
+		runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr);
+		~runtime();
+
+		bool on_init();
+		void on_reset();
+		void on_present(api::command_queue *present_queue);
+
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
+
 		/// <summary>
-		/// Gets the handle of the window the swap chain associated with this effect runtime was created with.
+		/// Gets the native swap chain object associated with this effect runtime.
 		/// </summary>
-		void *get_hwnd() const override;
+		uint64_t get_native() const final { return _swapchain->get_native(); }
+
+		/// <summary>
+		/// Gets the handle of the window associated with this effect runtime.
+		/// </summary>
+		void *get_hwnd() const final { return _swapchain->get_hwnd(); }
+
+		/// <summary>
+		/// Gets the back buffer resource at the specified <paramref name="index"/> in the swap chain associated with this effect runtime.
+		/// </summary>
+		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
+		api::resource get_back_buffer(uint32_t index) final { return _swapchain->get_back_buffer(index); }
+
+		/// <summary>
+		/// Gets the number of back buffer resources in the swap chain associated with this effect runtime.
+		/// </summary>
+		uint32_t get_back_buffer_count() const final { return _swapchain->get_back_buffer_count(); }
+
+		/// <summary>
+		/// Gets the index of the back buffer resource that can currently be rendered into.
+		/// </summary>
+		uint32_t get_current_back_buffer_index() const final { return _swapchain->get_current_back_buffer_index(); }
 
 		/// <summary>
 		/// Gets the parent device for this effect runtime.
 		/// </summary>
 		api::device *get_device() final { return _device; }
+
+		/// <summary>
+		/// Gets the swap chain associated with this effect runtime.
+		/// </summary>
+		api::swapchain *get_swapchain() { return _swapchain; }
 
 		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
@@ -59,10 +96,6 @@ namespace reshade
 		/// </summary>
 		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty() || (!_textures_loaded && _is_initialized); }
 #endif
-		/// <summary>
-		/// Gets a boolean indicating whether the runtime is initialized.
-		/// </summary>
-		bool is_initialized() const { return _is_initialized; }
 
 #if RESHADE_FX
 		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
@@ -78,7 +111,7 @@ namespace reshade
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const std::string_view &postfix = std::string_view());
-		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
+		bool capture_screenshot(uint8_t *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels); }
 
 		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
 
@@ -169,14 +202,14 @@ namespace reshade
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
 
-	protected:
-		runtime(api::device *device, api::command_queue *graphics_queue);
-		~runtime();
+#if RESHADE_GUI
+		bool open_overlay(bool open, api::input_source source) final;
+#else
+		bool open_overlay(bool, api::input_source) final { return false; }
+#endif
 
-		bool on_init(void *window);
-		void on_reset();
-		void on_present();
-
+	private:
+		api::swapchain *const _swapchain;
 		api::device *const _device;
 		api::command_queue *const _graphics_queue;
 		unsigned int _width = 0;
@@ -186,7 +219,6 @@ namespace reshade
 		unsigned int _renderer_id = 0;
 		uint16_t _back_buffer_samples = 1;
 		api::format  _back_buffer_format = api::format::unknown;
-		api::color_space _back_buffer_color_space = api::color_space::srgb_nonlinear;
 		bool _is_vr = false;
 
 #if RESHADE_ADDON
@@ -194,7 +226,6 @@ namespace reshade
 		bool _is_in_present_call = false;
 #endif
 
-	private:
 		static void check_for_update();
 
 		void load_config();
@@ -268,7 +299,7 @@ namespace reshade
 		static unsigned int s_latest_version[3];
 
 		bool _is_initialized = false;
-		bool _preset_save_successfull = true;
+		bool _preset_save_successful = true;
 		std::filesystem::path _config_path;
 
 		bool _ignore_shortcuts = false;
@@ -352,6 +383,11 @@ namespace reshade
 		api::resource _back_buffer_resolved = {};
 		api::resource_view _back_buffer_resolved_srv = {};
 		std::vector<api::resource_view> _back_buffer_targets;
+
+		api::state_block _app_state = {};
+
+		api::fence _queue_sync_fence = {};
+		uint64_t _queue_sync_value = 0;
 		#pragma endregion
 
 		#pragma region Screenshot
@@ -376,7 +412,7 @@ namespace reshade
 		bool _screenshot_post_save_command_no_window = false;
 
 		bool _should_save_screenshot = false;
-		std::atomic<bool> _last_screenshot_save_successfull = true;
+		std::atomic<bool> _last_screenshot_save_successful = true;
 		bool _screenshot_directory_creation_successfull = true;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
@@ -518,6 +554,7 @@ namespace reshade
 		bool _gather_gpu_statistics = false;
 		api::resource_view _preview_texture = {};
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
+		uint64_t _timestamp_frequency = 0;
 #endif
 		#pragma endregion
 

@@ -209,6 +209,12 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		desc.heap = memory_heap::gpu_only;
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
 
+		if (desc.texture.samples > 1)
+		{
+			desc.texture.samples = 1;
+			desc.usage |= resource_usage::resolve_dest;
+		}
+
 		if (api == device_api::d3d9)
 			desc.texture.format = format::r32_float; // D3DFMT_R32F, since INTZ does not support D3DUSAGE_RENDERTARGET which is required for copying
 		// Use depth format as-is in OpenGL and Vulkan, since those are valid for shader resource views there
@@ -366,7 +372,7 @@ static void update_effect_runtime(effect_runtime *runtime)
 {
 	const generic_depth_data &instance = runtime->get_private_data<generic_depth_data>();
 
-	runtime->update_texture_bindings("DEPTH", instance.selected_shader_resource);
+	runtime->update_texture_bindings("DEPTH", instance.selected_shader_resource, instance.selected_shader_resource);
 
 	runtime->enumerate_uniform_variables(nullptr, [&instance](effect_runtime *runtime, effect_uniform_variable variable) {
 		char source[32];
@@ -444,13 +450,14 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 {
 	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
 		return false; // Skip resources that are not 2D textures
-	if (desc.texture.samples != 1 || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
+
+	if ((desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil)) || (desc.usage & resource_usage::depth_stencil) == 0 || desc.texture.format == format::s8_uint)
 		return false; // Skip MSAA textures and resources that are not used as depth buffers
 
 	switch (device->get_api())
 	{
 	case device_api::d3d9:
-		if (s_disable_intz)
+		if (s_disable_intz || desc.texture.samples > 1)
 			return false;
 		// Skip textures that are sampled as PCF shadow maps (see https://aras-p.info/texts/D3D9GPUHacks.html#shadowmap) using hardware support, since changing format would break that
 		if (desc.type == resource_type::texture_2d && (desc.texture.format == format::d16_unorm || desc.texture.format == format::d24_unorm_x8_uint || desc.texture.format == format::d24_unorm_s8_uint))
@@ -458,6 +465,8 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		// Skip small textures that are likely just shadow maps too (fixes a hang in Dragon's Dogma: Dark Arisen when changing areas)
 		if (desc.texture.width <= 512)
 			return false;
+		if (desc.texture.format == format::d32_float || desc.texture.format == format::d32_float_s8_uint)
+			reshade::log_message(reshade::log_level::warning, "Replacing high bit depth depth-stencil format with a lower bit depth format");
 		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;
 		desc.usage |= resource_usage::shader_resource;
@@ -471,7 +480,10 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 	case device_api::d3d12:
 	case device_api::vulkan:
 		// D3D12 and Vulkan always use backup texture, but need to be able to copy to it
-		desc.usage |= resource_usage::copy_source;
+		if (desc.texture.samples > 1)
+			desc.usage |= resource_usage::resolve_source;
+		else
+			desc.usage |= resource_usage::copy_source;
 		break;
 	case device_api::opengl:
 		// No need to change anything in OpenGL
@@ -488,7 +500,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 
 	const resource_desc texture_desc = device->get_resource_desc(resource);
 	// Only non-MSAA textures where modified, so skip all others
-	if (texture_desc.texture.samples != 1 || (texture_desc.usage & resource_usage::depth_stencil) == 0)
+	if ((texture_desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil)) || (texture_desc.usage & resource_usage::depth_stencil) == 0)
 		return false;
 
 	switch (usage_type)
@@ -795,7 +807,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			continue;
 
 		const resource_desc desc = device->get_resource_desc(resource);
-		if (desc.texture.samples > 1)
+		if (desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0))
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
@@ -849,7 +861,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 			// Need to create backup texture only if doing backup copies or original resource does not support shader access (which is necessary for binding it to effects)
 			// Also always create a backup texture in D3D12 or Vulkan to circument problems in case application makes use of resource aliasing
-			if (s_preserve_depth_buffers || (best_match_desc.usage & resource_usage::shader_resource) == 0 || (api == device_api::d3d12 || api == device_api::vulkan))
+			if (s_preserve_depth_buffers || (best_match_desc.usage & resource_usage::shader_resource) == 0 || best_match_desc.texture.samples > 1 || (api == device_api::d3d12 || api == device_api::vulkan))
 			{
 				depth_stencil_backup = device_data.track_depth_stencil_for_backup(device, best_match, best_match_desc);
 
@@ -894,7 +906,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			const resource backup_texture = depth_stencil_backup->backup_texture;
 
 			// Copy to backup texture unless already copied during the current frame
-			if (!best_snapshot->copied_during_frame && (best_match_desc.usage & resource_usage::copy_source) != 0 && (s_preserve_depth_buffers != 2 || !(api == device_api::d3d12 || api == device_api::vulkan)))
+			if (!best_snapshot->copied_during_frame && (best_match_desc.usage & (resource_usage::copy_source | resource_usage::resolve_source)) != 0 && (s_preserve_depth_buffers != 2 || !(api == device_api::d3d12 || api == device_api::vulkan)))
 			{
 				bool do_copy = true;
 				// Ensure barriers are not created with 'D3D12_RESOURCE_STATE_[...]_SHADER_RESOURCE' when resource has 'D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE' flag set
@@ -912,9 +924,20 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 				if (do_copy)
 				{
-					cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
-					cmd_list->copy_resource(best_match, backup_texture);
-					cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
+					if (best_match_desc.texture.samples > 1)
+					{
+						assert(device->check_capability(device_caps::resolve_depth_stencil));
+
+						cmd_list->barrier(best_match, old_state, resource_usage::resolve_source);
+						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, best_match_desc.texture.format);
+						cmd_list->barrier(best_match, resource_usage::resolve_source, old_state);
+					}
+					else
+					{
+						cmd_list->barrier(best_match, old_state, resource_usage::copy_source);
+						cmd_list->copy_resource(best_match, backup_texture);
+						cmd_list->barrier(best_match, resource_usage::copy_source, old_state);
+					}
 				}
 			}
 
@@ -1089,7 +1112,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
 
 		bool disabled = item.unusable;
-		if (item.desc.texture.samples > 1) // Disable widget for MSAA textures
+		if (item.desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0)) // Disable widget for MSAA textures
 			has_msaa_depth_stencil = disabled = true;
 
 		if (disabled)

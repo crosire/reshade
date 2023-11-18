@@ -5,20 +5,20 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
 #include "d3d9_impl_state_block.hpp"
+#include "reshade_api_object_impl.hpp"
 
 namespace reshade::d3d9
 {
 	class device_impl : public api::api_object_impl<IDirect3DDevice9 *, api::device, api::command_queue, api::command_list>
 	{
-		friend class swapchain_impl;
-
 	public:
 		explicit device_impl(IDirect3DDevice9 *device);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::d3d9; }
+
+		api::device_properties get_properties() const;
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
@@ -71,11 +71,22 @@ namespace reshade::d3d9
 		void set_resource_name(api::resource, const char *) final {}
 		void set_resource_view_name(api::resource_view, const char *) final {}
 
+		bool create_fence(uint64_t, api::fence_flags, api::fence *out_handle, HANDLE *) final;
+		void destroy_fence(api::fence) final;
+
+		uint64_t get_completed_fence_value(api::fence) const final;
+
+		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
+		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
+		bool signal(api::fence fence, uint64_t value) final;
+
+		uint64_t get_timestamp_frequency() const final;
+
 		api::device *get_device() final { return this; }
 
 		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }
 
-		void wait_idle() const final { /* no-op */ }
+		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
 
@@ -96,7 +107,7 @@ namespace reshade::d3d9
 		void push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update) final;
 		void bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables) final;
 
-		void bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size) final;
+		void bind_index_buffer(api::resource buffer, [[maybe_unused]] uint64_t offset, [[maybe_unused]] uint32_t index_size) final;
 		void bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides) final;
 		void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) final;
 
@@ -130,6 +141,7 @@ namespace reshade::d3d9
 	protected:
 		void on_init();
 		void on_reset();
+		bool is_initialized() const { return _copy_state != nullptr; }
 
 		HRESULT create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
 

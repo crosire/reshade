@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
 #include <d3d11_1.h>
+#include "com_ptr.hpp"
 
 #define RESHADE_D3D11_STATE_BLOCK_TYPE 0
 

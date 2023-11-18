@@ -32,6 +32,21 @@ extern std::filesystem::path get_module_path(HMODULE module);
 #define VK_CALL_DEVICE(name, device, ...) reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(device, #name))(device, __VA_ARGS__)
 #define VK_CALL_INSTANCE(name, instance, ...) reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))(__VA_ARGS__)
 
+struct scoped_module_handle
+{
+	scoped_module_handle(LPCWSTR name) : module(LoadLibraryW(name))
+	{
+		assert(module != nullptr);
+		reshade::hooks::register_module(name);
+	}
+	~scoped_module_handle()
+	{
+		FreeLibrary(module);
+	}
+
+	const HMODULE module;
+};
+
 static LONG APIENTRY HookD3DKMTQueryAdapterInfo(const void *pData)
 {
 	struct D3DKMT_QUERYADAPTERINFO { UINT hAdapter; UINT Type; VOID *pPrivateDriverData; UINT PrivateDriverDataSize; };
@@ -135,9 +150,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	#pragma region D3D9 Implementation
 	case reshade::api::device_api::d3d9:
 	{
-		const auto d3d9_module = LoadLibraryW(L"d3d9.dll");
-		assert(d3d9_module != nullptr);
-		reshade::hooks::register_module(L"d3d9.dll");
+		const scoped_module_handle d3d9_module(L"d3d9.dll");
 
 		D3DPRESENT_PARAMETERS pp = {};
 		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -171,20 +184,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			HR_CHECK(device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF7F7F7F, 0, 0));
 			HR_CHECK(device->Present(nullptr, nullptr, nullptr, nullptr));
 		}
-
-		FreeLibrary(d3d9_module);
 	}
 	#pragma endregion
 		break;
 	#pragma region D3D11 Implementation
 	case reshade::api::device_api::d3d11:
 	{
-		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
-		const auto d3d11_module = LoadLibraryW(L"d3d11.dll");
-		assert(dxgi_module != nullptr);
-		assert(d3d11_module != nullptr);
-		reshade::hooks::register_module(L"dxgi.dll");
-		reshade::hooks::register_module(L"d3d11.dll");
+		const scoped_module_handle dxgi_module(L"dxgi.dll");
+		const scoped_module_handle d3d11_module(L"d3d11.dll");
 
 		// Initialize Direct3D 11
 		com_ptr<ID3D11Device> device;
@@ -238,21 +245,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 			HR_CHECK(swapchain->Present(1, 0));
 		}
-
-		FreeLibrary(dxgi_module);
-		FreeLibrary(d3d11_module);
 	}
 	#pragma endregion
 		break;
 	#pragma region D3D12 Implementation
 	case reshade::api::device_api::d3d12:
 	{
-		const auto dxgi_module = LoadLibraryW(L"dxgi.dll");
-		const auto d3d12_module = LoadLibraryW(L"d3d12.dll");
-		assert(dxgi_module != nullptr);
-		assert(d3d12_module != nullptr);
-		reshade::hooks::register_module(L"dxgi.dll");
-		reshade::hooks::register_module(L"d3d12.dll");
+		const scoped_module_handle dxgi_module(L"dxgi.dll");
+		const scoped_module_handle d3d12_module(L"d3d12.dll");
 
 #ifndef NDEBUG
 		// Enable D3D debug layer if it is available
@@ -415,18 +415,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				HR_CHECK(swapchain->Present(1, 0));
 			}
 		}
-
-		FreeLibrary(dxgi_module);
-		FreeLibrary(d3d12_module);
 	}
 	#pragma endregion
 		break;
 	#pragma region OpenGL Implementation
 	case reshade::api::device_api::opengl:
 	{
-		const auto opengl_module = LoadLibraryW(L"opengl32.dll");
-		assert(opengl_module != nullptr);
-		reshade::hooks::register_module(L"opengl32.dll");
+		const scoped_module_handle opengl_module(L"opengl32.dll");
 
 		// Initialize OpenGL
 		const HWND temp_window_handle = CreateWindow(TEXT("STATIC"), nullptr, WS_POPUP, 0, 0, 0, 0, window_handle, nullptr, hInstance, nullptr);
@@ -515,17 +510,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		wglMakeCurrent(nullptr, nullptr);
 		wglDeleteContext(hglrc2);
-
-		FreeLibrary(opengl_module);
 	}
 	#pragma endregion
 		break;
 	#pragma region Vulkan Implementation
 	case reshade::api::device_api::vulkan:
 	{
-		const auto vulkan_module = LoadLibraryW(L"vulkan-1.dll");
-		assert(vulkan_module != nullptr);
-		reshade::hooks::register_module(L"vulkan-1.dll");
+		const scoped_module_handle vulkan_module(L"vulkan-1.dll");
 
 		VkDevice device = VK_NULL_HANDLE;
 		VkInstance instance = VK_NULL_HANDLE;
@@ -773,8 +764,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		VK_CALL_INSTANCE(vkDestroySurfaceKHR, instance, instance, surface, nullptr);
 		VK_CALL_DEVICE(vkDestroyDevice, device, nullptr);
 		VK_CALL_INSTANCE(vkDestroyInstance, instance, instance, nullptr);
-
-		FreeLibrary(vulkan_module);
 	}
 	#pragma endregion
 		break;

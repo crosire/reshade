@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include "com_ptr.hpp"
-#include "addon_manager.hpp"
 #include <d3d10_1.h>
+#include "com_ptr.hpp"
+#include "reshade_api_object_impl.hpp"
 
 namespace reshade::d3d10
 {
@@ -17,9 +17,10 @@ namespace reshade::d3d10
 
 	public:
 		explicit device_impl(ID3D10Device1 *device);
-		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::d3d10; }
+
+		api::device_properties get_properties() const;
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
@@ -75,11 +76,22 @@ namespace reshade::d3d10
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
+		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle = nullptr) final;
+		void destroy_fence(api::fence handle) final;
+
+		uint64_t get_completed_fence_value(api::fence fence) const final;
+
+		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
+		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
+		bool signal(api::fence fence, uint64_t value) final;
+
+		uint64_t get_timestamp_frequency() const final;
+
 		api::device *get_device() final { return this; }
 
 		api::command_queue_type get_type() const final { return api::command_queue_type::graphics | api::command_queue_type::copy; }
 
-		void wait_idle() const final { /* no-op */ }
+		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
 

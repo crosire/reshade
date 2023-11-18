@@ -8,7 +8,7 @@
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
 
-extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
+extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #define HOOK_PROC(name) \
@@ -267,7 +267,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
 
-	const auto trampoline = g_instance_dispatch.at(dispatch_key_from_handle(instance)).GetInstanceProcAddr;
+	const auto trampoline = g_vulkan_instances.at(dispatch_key_from_handle(instance)).GetInstanceProcAddr;
 #endif
 	return trampoline(instance, pName);
 }

@@ -215,7 +215,7 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 			num_installed_hooks++;
 	}
 
-	// Status is successfull if at least one match was found and hooked
+	// Status is successful if at least one match was found and hooked
 	return num_installed_hooks != 0;
 }
 static bool uninstall_internal(const char *name, reshade::hook &hook, hook_method method)

@@ -17,6 +17,7 @@
 #include "input_gamepad.hpp"
 #include "com_ptr.hpp"
 #include "platform_utils.hpp"
+#include "reshade_api_object_impl.hpp"
 #include <set>
 #include <thread>
 #include <cctype>
@@ -212,9 +213,61 @@ static inline int format_color_bit_depth(reshade::api::format value)
 
 static std::atomic<unsigned int> s_runtime_index = 0;
 
-reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queue) :
-	_device(device),
+void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
+{
+	// Increase global runtime index
+	const unsigned int runtime_index = s_runtime_index++;
+
+	if (graphics_queue == nullptr)
+		return;
+
+	// Add an index to the config file name in case there are multiple runtimes
+	std::filesystem::path config_path = g_reshade_base_path / L"ReShade.ini";
+	if (runtime_index != 0)
+	{
+		std::filesystem::path config_path_alt = config_path;
+		config_path_alt.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
+
+		std::error_code ec;
+		if (std::filesystem::exists(config_path_alt, ec) || !std::filesystem::exists(config_path, ec) || std::filesystem::copy_file(config_path, config_path_alt, ec))
+			config_path = std::move(config_path_alt);
+	}
+
+	const ini_file &config = ini_file::load_cache(config_path);
+	if (config.get("GENERAL", "Disable"))
+		return;
+
+	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config_path, is_vr);
+}
+void reshade::destroy_effect_runtime(api::swapchain *swapchain)
+{
+	swapchain->destroy_private_data<reshade::runtime>();
+
+	// Decrease global runtime index
+	--s_runtime_index;
+}
+
+void reshade::init_effect_runtime(api::swapchain *swapchain)
+{
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+		runtime->on_init();
+}
+void reshade::reset_effect_runtime(api::swapchain *swapchain)
+{
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+		runtime->on_reset();
+}
+void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
+{
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+		runtime->on_present(present_queue);
+}
+
+reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr) :
+	_swapchain(swapchain),
+	_device(swapchain->get_device()),
 	_graphics_queue(graphics_queue),
+	_is_vr(is_vr),
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(_start_time),
 	_last_frame_duration(std::chrono::milliseconds(1)),
@@ -222,41 +275,50 @@ reshade::runtime::runtime(api::device *device, api::command_queue *graphics_queu
 	_effect_search_paths({ L".\\" }),
 	_texture_search_paths({ L".\\" }),
 #endif
-	_config_path(g_reshade_base_path / L"ReShade.ini"),
+	_config_path(config_path),
 	_screenshot_path(L".\\"),
 	_screenshot_name("%AppName% %Date% %Time%"),
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
-	assert(device != nullptr && graphics_queue != nullptr);
+	assert(swapchain != nullptr && graphics_queue != nullptr);
+
+	const api::device_properties props = _device->get_properties();
+	_vendor_id = props.vendor_id;
+	_device_id = props.device_id;
+
+	_renderer_id = props.api_version;
+	switch (_device->get_api())
+	{
+	case api::device_api::d3d9:
+	case api::device_api::d3d10:
+	case api::device_api::d3d11:
+	case api::device_api::d3d12:
+		break;
+	case api::device_api::opengl:
+		_renderer_id |= 0x10000;
+		break;
+	case api::device_api::vulkan:
+		_renderer_id |= 0x20000;
+		break;
+	}
+
+	if (props.driver_version != 0)
+		LOG(INFO) << "Running on " << props.description << " Driver " << (props.driver_version / 100) << '.' << (props.driver_version % 100) << '.';
+	else
+		LOG(INFO) << "Running on " << props.description << '.';
 
 	check_for_update();
 
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
-	// Increase global runtime index
-	const unsigned int runtime_index = s_runtime_index++;
-
-	// Fall back to alternative configuration file name if it exists
-	std::error_code ec;
-	if (std::filesystem::path config_path_alt = g_reshade_base_path / g_reshade_dll_path.filename().replace_extension(L".ini");
-		std::filesystem::exists(config_path_alt, ec) && !std::filesystem::exists(_config_path, ec))
-	{
-		_config_path = std::move(config_path_alt);
-	}
-	// Add an index to the config file name in case there are multiple runtimes
-	else if (runtime_index != 0)
-	{
-		config_path_alt.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
-
-		if (std::filesystem::exists(config_path_alt, ec) || !std::filesystem::exists(_config_path, ec) || std::filesystem::copy_file(_config_path, config_path_alt, ec))
-			_config_path = std::move(config_path_alt);
-
 #if RESHADE_GUI && RESHADE_FX
+	if (s_runtime_index != 0)
 		_tutorial_index = 4;
+
+	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
 #endif
-	}
 
 #if RESHADE_GUI
 	init_gui();
@@ -280,17 +342,11 @@ reshade::runtime::~runtime()
 
 	deinit_gui();
 #endif
-
-	// Decrease global runtime index
-	--s_runtime_index;
 }
 
-bool reshade::runtime::on_init(input::window_handle window)
+bool reshade::runtime::on_init()
 {
 	assert(!_is_initialized);
-
-	if (_config_path.empty())
-		return false;
 
 	const api::resource_desc back_buffer_desc = _device->get_resource_desc(get_back_buffer(0));
 
@@ -468,6 +524,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 		}
 	}
 
+	create_state_block(_device, &_app_state);
+
 #if RESHADE_GUI
 	if (!init_imgui_resources())
 		goto exit_failure;
@@ -476,6 +534,7 @@ bool reshade::runtime::on_init(input::window_handle window)
 		goto exit_failure;
 #endif
 
+	const input::window_handle window = _swapchain->get_hwnd();
 	if (window != nullptr && !_is_vr)
 		_input = input::register_window(window);
 	else
@@ -491,8 +550,8 @@ bool reshade::runtime::on_init(input::window_handle window)
 	_is_initialized = true;
 	_last_reload_time = std::chrono::high_resolution_clock::now(); // Intentionally set to current time, so that duration to last reload is valid even when there is no reload on init
 
-	_preset_save_successfull = true;
-	_last_screenshot_save_successfull = true;
+	_preset_save_successful = true;
+	_last_screenshot_save_successful = true;
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
@@ -537,6 +596,9 @@ exit_failure:
 	for (const api::resource_view view : _back_buffer_targets)
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
+
+	destroy_state_block(_device, _app_state);
+	_app_state = {};
 
 #if RESHADE_GUI
 	if (_is_vr)
@@ -598,6 +660,12 @@ void reshade::runtime::on_reset()
 		_device->destroy_resource_view(view);
 	_back_buffer_targets.clear();
 
+	destroy_state_block(_device, _app_state);
+	_app_state = {};
+
+	_device->destroy_fence(_queue_sync_fence);
+	_queue_sync_fence = {};
+
 	_width = _height = 0;
 
 #if RESHADE_GUI
@@ -613,9 +681,33 @@ void reshade::runtime::on_reset()
 
 	LOG(INFO) << "Destroyed runtime environment on runtime " << this << " (" << _config_path << ").";
 }
-void reshade::runtime::on_present()
+void reshade::runtime::on_present(api::command_queue *present_queue)
 {
-	assert(is_initialized());
+	assert(present_queue != nullptr);
+
+	if (!_is_initialized)
+		return;
+
+	// If the application is presenting with a different queue than rendering, synchronize these two queues first
+	// This ensures that it has finished rendering before ReShade applies its own rendering
+	if (present_queue != _graphics_queue)
+	{
+		if (_queue_sync_fence == 0)
+		{
+			if (!_device->create_fence(_queue_sync_value, api::fence_flags::none, &_queue_sync_fence))
+				LOG(ERROR) << "Failed to create queue synchronization fence!";
+		}
+
+		if (_queue_sync_fence != 0)
+		{
+			_queue_sync_value++;
+
+			// Signal from the queue the application is presenting with
+			if (present_queue->signal(_queue_sync_fence, _queue_sync_value))
+				// Wait on that before the immediate command list flush below
+				_graphics_queue->wait(_queue_sync_fence, _queue_sync_value);
+		}
+	}
 
 #if RESHADE_ADDON
 	_is_in_present_call = true;
@@ -625,6 +717,8 @@ void reshade::runtime::on_present()
 #endif
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+
+	capture_state(cmd_list, _app_state);
 
 	uint32_t back_buffer_index = get_current_back_buffer_index();
 	const api::resource back_buffer_resource = get_back_buffer(back_buffer_index);
@@ -804,6 +898,17 @@ void reshade::runtime::on_present()
 	_effects_rendered_this_frame = false;
 #endif
 
+	// Apply previous state from application
+	apply_state(cmd_list, _app_state);
+
+	if (present_queue != _graphics_queue && _queue_sync_fence != 0)
+	{
+		_queue_sync_value++;
+
+		if (_graphics_queue->signal(_queue_sync_fence, _queue_sync_value))
+			present_queue->wait(_queue_sync_fence, _queue_sync_value);
+	}
+
 	// Update input status
 	if (_input != nullptr)
 		_input->next_frame();
@@ -812,7 +917,7 @@ void reshade::runtime::on_present()
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
-		_preset_save_successfull = false;
+		_preset_save_successful = false;
 
 #if RESHADE_ADDON == 1
 	// Detect high network traffic
@@ -855,13 +960,6 @@ void reshade::runtime::on_present()
 void reshade::runtime::load_config()
 {
 	const ini_file &config = ini_file::load_cache(_config_path);
-
-	if (config.get("GENERAL", "Disable"))
-	{
-		// Indicate that this effect runtime should never initialize
-		_config_path.clear();
-		return;
-	}
 
 	if (config.get("INPUT", "GamepadNavigation"))
 		_input_gamepad = input_gamepad::load();
@@ -949,9 +1047,6 @@ void reshade::runtime::load_config()
 }
 void reshade::runtime::save_config() const
 {
-	if (_config_path.empty())
-		return;
-
 	ini_file &config = ini_file::load_cache(_config_path);
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
@@ -1023,7 +1118,7 @@ void reshade::runtime::save_config() const
 #if RESHADE_FX
 void reshade::runtime::load_current_preset()
 {
-	_preset_save_successfull = true;
+	_preset_save_successful = true;
 
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
 
@@ -1184,15 +1279,6 @@ void reshade::runtime::load_current_preset()
 			enable_technique(tech);
 		else
 			disable_technique(tech);
-
-		if (!preset.get({}, "Key" + unique_name, tech.toggle_key_data) &&
-			!preset.get({}, "Key" + tech.name, tech.toggle_key_data))
-		{
-			tech.toggle_key_data[0] = tech.annotation_as_int("toggle");
-			tech.toggle_key_data[1] = tech.annotation_as_int("togglectrl");
-			tech.toggle_key_data[2] = tech.annotation_as_int("toggleshift");
-			tech.toggle_key_data[3] = tech.annotation_as_int("togglealt");
-		}
 	}
 
 	// Reverse queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
@@ -1225,8 +1311,6 @@ void reshade::runtime::save_current_preset() const
 
 		if (tech.toggle_key_data[0] != 0)
 			preset.set({}, "Key" + unique_name, tech.toggle_key_data);
-		else if (tech.annotation_as_int("toggle") != 0)
-			preset.set({}, "Key" + unique_name, 0); // Overwrite default toggle key to none
 		else
 			preset.remove_key({}, "Key" + unique_name);
 	}
@@ -1381,7 +1465,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "app=" + g_target_executable_path.stem().u8string() + ';';
 	attributes += "width=" + std::to_string(_effect_width) + ';';
 	attributes += "height=" + std::to_string(_effect_height) + ';';
-	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_back_buffer_color_space)) + ';';
+	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_swapchain->get_color_space())) + ';';
 	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_effect_color_format)) + ';';
 	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
 	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
@@ -1495,7 +1579,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_effect_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
-		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
+		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_swapchain->get_color_space())));
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
 
 		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
@@ -3903,6 +3987,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 			return;
 	}
 
+	if (!_is_in_present_call)
+		capture_state(cmd_list, _app_state);
+
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
 
@@ -3942,6 +4029,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
+
+	if (!_is_in_present_call)
+		apply_state(cmd_list, _app_state);
 #endif
 }
 void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb)
@@ -3954,7 +4044,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
 			_device->get_query_heap_results(effect.query_heap, tech.query_base_index + (_frame_count % 4) * 2, 2, timestamps, sizeof(uint64_t)))
-			tech.average_gpu_duration.append(timestamps[1] - timestamps[0]);
+			tech.average_gpu_duration.append((timestamps[1] - timestamps[0]) * 1000000000ull / _timestamp_frequency);
 
 		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2);
 	}
@@ -4191,7 +4281,7 @@ void reshade::runtime::save_texture(const texture &tex)
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
-	_last_screenshot_save_successfull = true;
+	_last_screenshot_save_successful = true;
 
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
 		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data()))
@@ -4231,11 +4321,11 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = false;
 			}
 
-			if (_last_screenshot_save_successfull)
+			if (_last_screenshot_save_successful)
 			{
 				_last_screenshot_time = std::chrono::high_resolution_clock::now();
 				_last_screenshot_file = screenshot_path;
-				_last_screenshot_save_successfull = save_success;
+				_last_screenshot_save_successful = save_success;
 			}
 		});
 	}
@@ -4303,7 +4393,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 	static const reshadefx::constant zero = {};
 
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
-	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1); i < array_length; ++i)
+	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1u); i < array_length; ++i)
 	{
 		const reshadefx::constant &value = variable.has_initializer_value ? variable.type.is_array() ? variable.initializer_value.array_data[i] : variable.initializer_value : zero;
 
@@ -4340,7 +4430,7 @@ void reshade::runtime::get_uniform_value_data(const uniform &variable, uint8_t *
 	const std::vector<uint8_t> &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1u);
 	if (assert(base_index < array_length); base_index >= array_length)
 		return;
 
@@ -4441,7 +4531,7 @@ void reshade::runtime::set_uniform_value_data(uniform &variable, const uint8_t *
 	std::vector<uint8_t> &data_storage = _effects[variable.effect_index].uniform_data_storage;
 	assert(variable.offset + size <= data_storage.size());
 
-	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1);
+	const size_t array_length = (variable.type.is_array() ? variable.type.array_length : 1u);
 	if (assert(base_index < array_length); base_index >= array_length)
 		return;
 
@@ -4660,7 +4750,7 @@ void reshade::runtime::save_screenshot(const std::string_view &postfix)
 
 	LOG(INFO) << "Saving screenshot to " << screenshot_path << '.';
 
-	_last_screenshot_save_successfull = true;
+	_last_screenshot_save_successful = true;
 
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
 		capture_screenshot(pixels.data()))
@@ -4750,11 +4840,11 @@ void reshade::runtime::save_screenshot(const std::string_view &postfix)
 				LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
 			}
 
-			if (_last_screenshot_save_successfull)
+			if (_last_screenshot_save_successful)
 			{
 				_last_screenshot_time = std::chrono::high_resolution_clock::now();
 				_last_screenshot_file = screenshot_path;
-				_last_screenshot_save_successfull = save_success;
+				_last_screenshot_save_successful = save_success;
 			}
 		});
 	}

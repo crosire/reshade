@@ -5,25 +5,13 @@
 
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_device_context.hpp"
+#include "d3d11_impl_type_convert.hpp"
 
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
-	api_object_impl(context), _device_impl(device)
+	api_object_impl(context),
+	_device_impl(device)
 {
 	context->QueryInterface(&_annotations);
-
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_command_list>(this);
-	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
-		invoke_addon_event<addon_event::init_command_queue>(this);
-#endif
-}
-reshade::d3d11::device_context_impl::~device_context_impl()
-{
-#if RESHADE_ADDON
-	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
-		invoke_addon_event<addon_event::destroy_command_queue>(this);
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-#endif
 }
 
 reshade::api::device *reshade::d3d11::device_context_impl::get_device()
@@ -38,9 +26,111 @@ reshade::api::command_list *reshade::d3d11::device_context_impl::get_immediate_c
 	return this;
 }
 
+void reshade::d3d11::device_context_impl::wait_idle() const
+{
+	assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE);
+
+	D3D11_QUERY_DESC temp_query_desc;
+	temp_query_desc.Query = D3D11_QUERY_EVENT;
+	temp_query_desc.MiscFlags = 0;
+
+	com_ptr<ID3D11Query> temp_query;
+	if (SUCCEEDED(_device_impl->_orig->CreateQuery(&temp_query_desc, &temp_query)))
+	{
+		_orig->End(temp_query.get());
+		while (_orig->GetData(temp_query.get(), nullptr, 0, 0) == S_FALSE)
+			Sleep(0);
+	}
+}
+
 void reshade::d3d11::device_context_impl::flush_immediate_command_list() const
 {
 	assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE);
 
 	_orig->Flush();
+}
+
+bool reshade::d3d11::device_context_impl::wait(api::fence fence, uint64_t value)
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value > impl->current_value)
+			return false;
+
+		while (true)
+		{
+			const HRESULT hr = _orig->GetData(impl->event_queries[value % std::size(impl->event_queries)].get(), nullptr, 0, 0);
+			if (hr == S_OK)
+				return true;
+			if (hr != S_FALSE)
+				break;
+
+			Sleep(0);
+		}
+
+		return false;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		if (com_ptr<ID3D11DeviceContext4> device_context4;
+			SUCCEEDED(_orig->QueryInterface(&device_context4)))
+		{
+			return SUCCEEDED(device_context4->Wait(fence_object.get(), value));
+		}
+
+		return false;
+	}
+
+	return _device_impl->wait(fence, value, UINT64_MAX);
+}
+bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t value)
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value < impl->current_value)
+			return false;
+		impl->current_value = value;
+
+		return _orig->End(impl->event_queries[value % std::size(impl->event_queries)].get()), true;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		if (com_ptr<ID3D11DeviceContext4> device_context4;
+			SUCCEEDED(_orig->QueryInterface(&device_context4)))
+		{
+			return SUCCEEDED(device_context4->Signal(fence_object.get(), value));
+		}
+
+		return false;
+	}
+
+	return _device_impl->signal(fence, value);
+}
+
+uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
+{
+	D3D11_QUERY_DESC temp_query_desc;
+	temp_query_desc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+	temp_query_desc.MiscFlags = 0;
+
+	com_ptr<ID3D11Query> temp_query;
+	if (SUCCEEDED(_device_impl->_orig->CreateQuery(&temp_query_desc, &temp_query)))
+	{
+		_orig->Begin(temp_query.get());
+		_orig->End(temp_query.get());
+
+		wait_idle();
+
+		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT temp_query_data;
+		if (_orig->GetData(temp_query.get(), &temp_query_data, sizeof(temp_query_data), 0) == S_OK)
+			return temp_query_data.Frequency;
+	}
+
+	return 1000000000;
 }

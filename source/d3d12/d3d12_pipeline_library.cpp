@@ -8,9 +8,10 @@
 #include "d3d12_device.hpp"
 #include "d3d12_pipeline_library.hpp"
 #include "d3d12_impl_type_convert.hpp"
-#include "dll_log.hpp"
+#include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d12::to_handle;
 

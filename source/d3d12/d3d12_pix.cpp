@@ -4,7 +4,7 @@
  */
 
 #include "hook_manager.hpp"
-#include <d3d12.h>
+#include <Windows.h>
 #include <cassert>
 
 // The following hooks can only be called when installed as d3d12.dll, since they are skipped otherwise (see hook_manager.cpp)

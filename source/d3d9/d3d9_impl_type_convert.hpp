@@ -5,10 +5,10 @@
 
 #pragma once
 
+#include <d3d9.h>
 #include "com_ptr.hpp"
 #include "reshade_api_pipeline.hpp"
 #include <vector>
-#include <d3d9.h>
 
 namespace reshade::d3d9
 {
@@ -43,6 +43,12 @@ namespace reshade::d3d9
 	{
 		api::query_type type;
 		std::vector<com_ptr<IDirect3DQuery9>> queries;
+	};
+
+	struct fence_impl
+	{
+		uint64_t current_value;
+		com_ptr<IDirect3DQuery9> event_queries[8];
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };

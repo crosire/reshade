@@ -5,49 +5,46 @@
 
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
-#include "dll_log.hpp"
 #include <algorithm>
+#include <utf8/unchecked.h>
 
 extern bool is_windows7();
 
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	api_object_impl(device)
 {
-#if RESHADE_ADDON
-	load_addons();
-
-	invoke_addon_event<addon_event::init_device>(this);
-
-	D3D_FEATURE_LEVEL feature_level = _orig->GetFeatureLevel();
-
-	const api::pipeline_layout_param global_pipeline_layout_params[4] = {
-		api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::sampler },
-		api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::shader_resource_view },
-		api::descriptor_range { 0, 0, 0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, api::shader_stage::all, 1, api::descriptor_type::constant_buffer },
-		api::descriptor_range { 0, 0, 0,
-			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
-			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
-			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0u, api::shader_stage::pixel | api::shader_stage::compute, 1, api::descriptor_type::unordered_access_view },
-	};
-	invoke_addon_event<addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, global_pipeline_layout);
-#endif
 }
-reshade::d3d11::device_impl::~device_impl()
+
+reshade::api::device_properties reshade::d3d11::device_impl::get_properties() const
 {
-#if RESHADE_ADDON
-	com_ptr<ID3D11DeviceContext> immediate_context;
-	_orig->GetImmediateContext(&immediate_context);
+	api::device_properties props;
+	props.api_version = _orig->GetFeatureLevel();
 
-	// Ensure all objects referenced by the device are destroyed before the 'destroy_device' event is called
-	immediate_context->ClearState();
-	immediate_context->Flush();
+	if (com_ptr<IDXGIDevice> dxgi_device;
+		SUCCEEDED(_orig->QueryInterface(&dxgi_device)))
+	{
+		if (com_ptr<IDXGIAdapter> dxgi_adapter;
+			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		{
+			LARGE_INTEGER umd_version;
+			if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
+			{
+				props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+			}
 
-	invoke_addon_event<addon_event::destroy_pipeline_layout>(this, global_pipeline_layout);
+			DXGI_ADAPTER_DESC adapter_desc;
+			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
+			{
+				props.vendor_id = adapter_desc.VendorId;
+				props.device_id = adapter_desc.DeviceId;
 
-	invoke_addon_event<addon_event::destroy_device>(this);
+				static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
+				utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
+			}
+		}
+	}
 
-	unload_addons();
-#endif
+	return props;
 }
 
 bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) const
@@ -100,6 +97,15 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 		return true;
 	case api::device_caps::shared_resource_nt_handle:
 		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_11_1 && !is_windows7();
+	case api::device_caps::resolve_depth_stencil:
+		return false;
+	case api::device_caps::shared_fence:
+	case api::device_caps::shared_fence_nt_handle:
+		if (com_ptr<ID3D11Device5> device5;
+			SUCCEEDED(_orig->QueryInterface(&device5)))
+			return true;
+		else
+			return false;
 	default:
 		return false;
 	}
@@ -148,9 +154,9 @@ void reshade::d3d11::device_impl::destroy_sampler(api::sampler handle)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
 
-static bool get_shared_resource(reshade::api::resource_flags flags, ID3D11Resource *object, HANDLE *shared_handle)
+static bool get_shared_resource(bool nt_handle, ID3D11Resource *object, HANDLE *shared_handle)
 {
-	if ((flags & reshade::api::resource_flags::shared_nt_handle) == 0)
+	if (!nt_handle)
 	{
 		com_ptr<IDXGIResource> object_dxgi;
 		return SUCCEEDED(object->QueryInterface(&object_dxgi)) && SUCCEEDED(object_dxgi->GetSharedHandle(shared_handle));
@@ -161,9 +167,9 @@ static bool get_shared_resource(reshade::api::resource_flags flags, ID3D11Resour
 		return SUCCEEDED(object->QueryInterface(&object_dxgi)) && SUCCEEDED(object_dxgi->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, shared_handle));
 	}
 }
-static bool open_shared_resource(reshade::api::resource_flags flags, HANDLE shared_handle, ID3D11Device *device, REFIID iid, void **out_object)
+static bool open_shared_resource(bool nt_handle, HANDLE shared_handle, ID3D11Device *device, REFIID iid, void **out_object)
 {
-	if ((flags & reshade::api::resource_flags::shared_nt_handle) == 0)
+	if (!nt_handle)
 	{
 		return SUCCEEDED(device->OpenSharedResource(shared_handle, iid, out_object));
 	}
@@ -189,7 +195,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			assert(initial_data == nullptr);
 
 			if (com_ptr<ID3D11Resource> object;
-				open_shared_resource(desc.flags, *shared_handle, _orig, IID_PPV_ARGS(&object)))
+				open_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, *shared_handle, _orig, IID_PPV_ARGS(&object)))
 			{
 				*out_handle = to_handle(object.release());
 				return true;
@@ -211,7 +217,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D11Buffer> object;
 				SUCCEEDED(_orig->CreateBuffer(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+				if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 					break;
 
 				*out_handle = to_handle(object.release());
@@ -227,7 +233,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 			if (com_ptr<ID3D11Texture1D> object;
 				SUCCEEDED(_orig->CreateTexture1D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 			{
-				if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+				if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 					break;
 
 				*out_handle = to_handle(object.release());
@@ -246,7 +252,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture2D> object;
 					SUCCEEDED(_orig->CreateTexture2D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -261,7 +267,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture2D1> object;
 					SUCCEEDED(device3->CreateTexture2D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -281,7 +287,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture3D> object;
 					SUCCEEDED(_orig->CreateTexture3D(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -296,7 +302,7 @@ bool reshade::d3d11::device_impl::create_resource(const api::resource_desc &desc
 				if (com_ptr<ID3D11Texture3D1> object;
 					SUCCEEDED(device3->CreateTexture3D1(&internal_desc, reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data), &object)))
 				{
-					if (is_shared && !get_shared_resource(desc.flags, object.get(), shared_handle))
+					if (is_shared && !get_shared_resource((desc.flags & api::resource_flags::shared_nt_handle) != 0, object.get(), shared_handle))
 						break;
 
 					*out_handle = to_handle(object.release());
@@ -1339,4 +1345,208 @@ void reshade::d3d11::device_impl::set_resource_view_name(api::resource_view hand
 	assert(handle.handle != 0);
 
 	reinterpret_cast<ID3D11DeviceChild *>(handle.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
+}
+
+bool reshade::d3d11::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+{
+	*out_handle = { 0 };
+
+	const bool is_shared = (flags & api::fence_flags::shared) != 0;
+	if (is_shared && shared_handle == nullptr)
+		return false;
+
+	com_ptr<ID3D11Device5> device5;
+	if (SUCCEEDED(_orig->QueryInterface(&device5)))
+	{
+		com_ptr<ID3D11Fence> object;
+
+		if (is_shared && *shared_handle != nullptr)
+		{
+			// Only NT handles are supported
+			if ((flags & api::fence_flags::shared_nt_handle) != 0 &&
+				SUCCEEDED(device5->OpenSharedFence(*shared_handle, IID_PPV_ARGS(&object))))
+			{
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+		}
+		else
+		{
+			if (SUCCEEDED(device5->CreateFence(initial_value, convert_fence_flags(flags), IID_PPV_ARGS(&object))))
+			{
+				if (is_shared && ((flags & api::fence_flags::shared_nt_handle) == 0 || FAILED(object->CreateSharedHandle(nullptr, GENERIC_ALL, nullptr, shared_handle))))
+					return false;
+
+				*out_handle = to_handle(object.release());
+				return true;
+			}
+		}
+	}
+	else
+	{
+		const auto impl = new fence_impl();
+		impl->current_value = initial_value;
+
+		D3D11_QUERY_DESC internal_desc = {};
+		internal_desc.Query = D3D11_QUERY_EVENT;
+
+		for (size_t i = 0; i < std::size(impl->event_queries); ++i)
+		{
+			if (FAILED(_orig->CreateQuery(&internal_desc, &impl->event_queries[i])))
+			{
+				delete impl;
+				return false;
+			}
+		}
+
+		// Set first bit to identify this as a 'fence_impl' handle for 'destroy_fence'
+		static_assert(alignof(fence_impl) >= 2);
+
+		*out_handle = { reinterpret_cast<uintptr_t>(impl) | 1 };
+		return true;
+	}
+
+	if (is_shared && *shared_handle != nullptr)
+	{
+		if (com_ptr<IDXGIKeyedMutex> object;
+			open_shared_resource((flags & api::fence_flags::shared_nt_handle) != 0, *shared_handle, _orig, IID_PPV_ARGS(&object)))
+		{
+			*out_handle = to_handle(object.release());
+			return true;
+		}
+	}
+
+	return false;
+}
+void reshade::d3d11::device_impl::destroy_fence(api::fence handle)
+{
+	if (handle.handle & 1) // See 'device_impl::create_fence'
+		delete reinterpret_cast<fence_impl *>(handle.handle ^ 1);
+	else if (handle.handle != 0)
+		reinterpret_cast<IUnknown *>(handle.handle)->Release();
+}
+
+uint64_t reshade::d3d11::device_impl::get_completed_fence_value(api::fence fence) const
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		for (uint64_t value = impl->current_value, offset = 0; value > 0 && offset < std::size(impl->event_queries); --value, ++offset)
+		{
+			if (immediate_context->GetData(impl->event_queries[value % std::size(impl->event_queries)].get(), nullptr, 0, 0) == S_OK)
+				return value;
+		}
+
+		return 0;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		return fence_object->GetCompletedValue();
+	}
+
+	assert(false);
+	return 0;
+}
+
+bool reshade::d3d11::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
+{
+	DWORD timeout_ms = (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF;
+
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value > impl->current_value)
+			return false;
+
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		while (true)
+		{
+			const HRESULT hr = immediate_context->GetData(impl->event_queries[value % std::size(impl->event_queries)].get(), nullptr, 0, 0);
+			if (hr == S_OK)
+				return true;
+			if (hr != S_FALSE)
+				break;
+
+			if (timeout_ms != INFINITE)
+			{
+				if (timeout_ms == 0)
+					break;
+				timeout_ms -= 1;
+			}
+
+			Sleep(1);
+		}
+
+		return false;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		if (value <= fence_object->GetCompletedValue())
+			return true;
+
+		DWORD res = WAIT_FAILED;
+
+		const HANDLE temp_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (SUCCEEDED(fence_object->SetEventOnCompletion(value, temp_event)))
+			res = WaitForSingleObject(temp_event, timeout_ms);
+
+		CloseHandle(temp_event);
+		return res == WAIT_OBJECT_0;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->AcquireSync(value, timeout_ms));
+	}
+
+	return false;
+}
+bool reshade::d3d11::device_impl::signal(api::fence fence, uint64_t value)
+{
+	if (fence.handle & 1)
+	{
+		const auto impl = reinterpret_cast<fence_impl *>(fence.handle ^ 1);
+		if (value < impl->current_value)
+			return false;
+		impl->current_value = value;
+
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		return immediate_context->End(impl->event_queries[value % std::size(impl->event_queries)].get()), true;
+	}
+
+	if (com_ptr<ID3D11Fence> fence_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&fence_object)))
+	{
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		_orig->GetImmediateContext(&immediate_context);
+
+		if (com_ptr<ID3D11DeviceContext4> immediate_context4;
+			SUCCEEDED(immediate_context->QueryInterface(&immediate_context4)))
+		{
+			return SUCCEEDED(immediate_context4->Signal(fence_object.get(), value));
+		}
+
+		return false;
+	}
+
+	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
+	{
+		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
+	}
+
+	return false;
 }

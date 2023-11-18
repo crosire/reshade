@@ -16,9 +16,12 @@ D3D11On12Device::D3D11On12Device(D3D11Device *device_11, D3D12Device *device_12,
 	_parent_device_12(device_12)
 {
 	assert(_orig != nullptr && _parent_device_11 != nullptr && _parent_device_12 != nullptr);
+
+	_parent_device_12->AddRef();
 }
 D3D11On12Device::~D3D11On12Device()
 {
+	_parent_device_12->Release();
 }
 
 bool D3D11On12Device::check_and_upgrade_interface(REFIID riid)

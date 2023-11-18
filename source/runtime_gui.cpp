@@ -711,12 +711,15 @@ void reshade::runtime::draw_gui()
 {
 	assert(_is_initialized);
 
+	bool show_overlay = _show_overlay;
+	api::input_source show_overlay_source = api::input_source::keyboard;
+
 	if (_input != nullptr)
 	{
 		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
-			_show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
+			show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
 		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
-			_show_overlay = !_show_overlay;
+			show_overlay = !_show_overlay;
 	}
 
 	if (_input_gamepad != nullptr)
@@ -725,10 +728,13 @@ void reshade::runtime::draw_gui()
 			_input_gamepad->is_button_down(input_gamepad::button_right_shoulder) &&
 			_input_gamepad->is_button_pressed(input_gamepad::button_start))
 		{
-			_show_overlay = !_show_overlay;
-			_imgui_context->NavInputSource = ImGuiInputSource_Gamepad;
+			show_overlay = !_show_overlay;
+			show_overlay_source = api::input_source::gamepad;
 		}
 	}
+
+	if (show_overlay != _show_overlay)
+		open_overlay(show_overlay, show_overlay_source);
 
 #if RESHADE_FX
 	const bool show_splash_window = _show_splash && (is_loading() || (_reload_count <= 1 && (_last_present_time - _last_reload_time) < std::chrono::seconds(5)) || (!_show_overlay && _tutorial_index == 0 && _input != nullptr));
@@ -737,13 +743,13 @@ void reshade::runtime::draw_gui()
 #endif
 
 	// Do not show this message in the same frame the screenshot is taken (so that it won't show up on the GUI screenshot)
-	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successfull) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successfull ? 3 : 5);
+	const bool show_screenshot_message = (_show_screenshot_message || !_last_screenshot_save_successful) && !_should_save_screenshot && (_last_present_time - _last_screenshot_time) < std::chrono::seconds(_last_screenshot_save_successful ? 3 : 5);
 #if RESHADE_FX
 	const bool show_preset_transition_message = _show_preset_transition_message && _is_in_preset_transition;
 #else
 	const bool show_preset_transition_message = false;
 #endif
-	const bool show_message_window = show_screenshot_message || show_preset_transition_message || !_preset_save_successfull;
+	const bool show_message_window = show_screenshot_message || show_preset_transition_message || !_preset_save_successful;
 
 	const bool show_clock = _show_clock == 1 || (_show_overlay && _show_clock > 1);
 	const bool show_fps = _show_fps == 1 || (_show_overlay && _show_fps > 1);
@@ -966,7 +972,7 @@ void reshade::runtime::draw_gui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		if (!_preset_save_successfull)
+		if (!_preset_save_successful)
 		{
 #if RESHADE_FX
 			ImGui::TextColored(COLOR_RED, "Unable to save configuration and/or current preset. Make sure file permissions are set up to allow writing to these paths and their parent directories:\n%s\n%s", _config_path.u8string().c_str(), _current_preset_path.u8string().c_str());
@@ -976,7 +982,7 @@ void reshade::runtime::draw_gui()
 		}
 		else if (show_screenshot_message)
 		{
-			if (!_last_screenshot_save_successfull)
+			if (!_last_screenshot_save_successful)
 				if (_screenshot_directory_creation_successfull)
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported or the drive may be full).");
 				else
@@ -3120,8 +3126,11 @@ void reshade::runtime::draw_variable_editor()
 				{
 					std::string category_label = current_category;
 					if (!_variable_editor_tabs)
+					{
 						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
 							category_label.insert(0, " ");
+						category_label += "###" + current_category; // Ensure widget ID does not change with varying width
+					}
 
 					ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
 					if (!variable.annotation_as_int("ui_category_closed"))
@@ -3358,8 +3367,11 @@ void reshade::runtime::draw_variable_editor()
 		{
 			std::string category_label = "Preprocessor definitions";
 			if (!_variable_editor_tabs)
+			{
 				for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.c_str()).x - 45) / 2; x < width; x += space_x)
 					category_label.insert(0, " ");
+				category_label += "###ppdefinitions";
+			}
 
 			if (ImGui::TreeNodeEx(category_label.c_str(), ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_DefaultOpen))
 			{
@@ -3474,7 +3486,7 @@ void reshade::runtime::draw_technique_editor()
 {
 	if (_reload_count != 0 && _effects.empty())
 	{
-		ImGui::TextColored(COLOR_YELLOW, "No effect files (.fx) found in the effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
+		ImGui::TextColored(COLOR_YELLOW, "No effect files (.fx) found in the following effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
 		for (const std::filesystem::path &search_path : _effect_search_paths)
 			ImGui::TextColored(COLOR_YELLOW, "  %s", (g_reshade_base_path / search_path).lexically_normal().u8string().c_str());
 		ImGui::Spacing();
@@ -4164,20 +4176,18 @@ bool reshade::runtime::init_imgui_resources()
 }
 void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv)
 {
-#ifndef NDEBUG
-	cmd_list->begin_debug_event("ReShade overlay");
-#endif
-
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
 	const size_t buffer_index = _frame_count % std::size(_imgui_vertices);
 
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)
 	{
-		_graphics_queue->wait_idle(); // Be safe and ensure nothing still uses this buffer
-
 		if (_imgui_indices[buffer_index] != 0)
+		{
+			_graphics_queue->wait_idle(); // Be safe and ensure nothing still uses this buffer
+
 			_device->destroy_resource(_imgui_indices[buffer_index]);
+		}
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
@@ -4192,10 +4202,12 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 	if (_imgui_num_vertices[buffer_index] < draw_data->TotalVtxCount)
 	{
-		_graphics_queue->wait_idle();
-
 		if (_imgui_vertices[buffer_index] != 0)
+		{
+			_graphics_queue->wait_idle();
+
 			_device->destroy_resource(_imgui_vertices[buffer_index]);
+		}
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
@@ -4208,6 +4220,10 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 
 		_imgui_num_vertices[buffer_index] = new_size;
 	}
+
+#ifndef NDEBUG
+	cmd_list->begin_debug_event("ReShade overlay");
+#endif
 
 	if (ImDrawIdx *idx_dst;
 		_device->map_buffer_region(_imgui_indices[buffer_index], 0, UINT64_MAX, api::map_access::write_only, reinterpret_cast<void **>(&idx_dst)))
@@ -4277,7 +4293,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			api::color_space hdr_overlay_overwrite_color_space;
 		} hdr_push_constants = {
 			_back_buffer_format,
-			_back_buffer_color_space,
+			_swapchain->get_color_space(),
 			_hdr_overlay_brightness,
 			_hdr_overlay_overwrite_color_space
 		};
@@ -4358,6 +4374,27 @@ void reshade::runtime::destroy_imgui_resources()
 	_imgui_pipeline = {};
 	_device->destroy_pipeline_layout(_imgui_pipeline_layout);
 	_imgui_pipeline_layout = {};
+}
+
+bool reshade::runtime::open_overlay(bool open, api::input_source source)
+{
+#if RESHADE_ADDON
+	if (!_is_in_api_call)
+	{
+		_is_in_api_call = true;
+		const bool skip = invoke_addon_event<addon_event::reshade_open_overlay>(this, open, source);
+		_is_in_api_call = false;
+		if (skip)
+			return false;
+	}
+#endif
+
+	_show_overlay = open;
+
+	if (open)
+		_imgui_context->NavInputSource = static_cast<ImGuiInputSource>(source);
+
+	return true;
 }
 
 #endif

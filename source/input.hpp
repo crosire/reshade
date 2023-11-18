@@ -44,8 +44,6 @@ namespace reshade
 		/// <returns>Pointer to the input manager registered for this <paramref name="window"/>.</returns>
 		static std::shared_ptr<input> register_window(window_handle window);
 
-		window_handle get_window_handle() const { return _window; }
-
 		// Before accessing input data with any of the member functions below, first call "lock()" and keep the returned object alive while accessing it.
 
 		bool is_key_down(unsigned int keycode) const;

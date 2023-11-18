@@ -15,7 +15,6 @@ namespace reshade::vulkan
 
 	public:
 		command_list_impl(device_impl *device, VkCommandBuffer cmd_list);
-		~command_list_impl();
 
 		api::device *get_device() final;
 

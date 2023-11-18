@@ -12,7 +12,7 @@ namespace reshade
 	enum class addon_event : uint32_t
 	{
 		/// <summary>
-		/// Called after successfull device creation, from:
+		/// Called after successful device creation, from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3D9::CreateDevice</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx</description></item>
@@ -49,7 +49,7 @@ namespace reshade
 		destroy_device,
 
 		/// <summary>
-		/// Called after successfull command list creation, from:
+		/// Called after successful command list creation, from:
 		/// <list type="bullet">
 		/// <item><description>ID3D11Device::CreateDeferredContext</description></item>
 		/// <item><description>ID3D11Device1::CreateDeferredContext1</description></item>
@@ -78,7 +78,7 @@ namespace reshade
 		destroy_command_list,
 
 		/// <summary>
-		/// Called after successfull command queue creation, from:
+		/// Called after successful command queue creation, from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateCommandQueue</description></item>
 		/// <item><description>vkCreateDevice (for every queue associated with the device)</description></item>
@@ -101,7 +101,7 @@ namespace reshade
 		destroy_command_queue,
 
 		/// <summary>
-		/// Called after successfull swap chain creation, from:
+		/// Called after successful swap chain creation, from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3D9::CreateDevice (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx (for the implicit swap chain)</description></item>
@@ -176,7 +176,7 @@ namespace reshade
 		destroy_effect_runtime,
 
 		/// <summary>
-		/// Called after successfull sampler creation from:
+		/// Called after successful sampler creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D10Device::CreateSamplerState</description></item>
 		/// <item><description>ID3D11Device::CreateSamplerState</description></item>
@@ -223,7 +223,7 @@ namespace reshade
 		destroy_sampler,
 
 		/// <summary>
-		/// Called after successfull resource creation from:
+		/// Called after successful resource creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateVertexBuffer</description></item>
 		/// <item><description>IDirect3DDevice9::CreateIndexBuffer</description></item>
@@ -369,7 +369,7 @@ namespace reshade
 		destroy_resource,
 
 		/// <summary>
-		/// Called after successfull resource view creation from:
+		/// Called after successful resource view creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateTexture</description></item>
 		/// <item><description>IDirect3DDevice9::CreateCubeTexture</description></item>
@@ -555,7 +555,7 @@ namespace reshade
 		update_texture_region,
 
 		/// <summary>
-		/// Called after successfull pipeline creation from:
+		/// Called after successful pipeline creation from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::CreateVertexShader</description></item>
 		/// <item><description>IDirect3DDevice9::CreatePixelShader</description></item>
@@ -675,7 +675,7 @@ namespace reshade
 		destroy_pipeline,
 
 		/// <summary>
-		/// Called after successfull pipeline layout creation from:
+		/// Called after successful pipeline layout creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateRootSignature</description></item>
 		/// <item><description>vkCreatePipelineLayout</description></item>
@@ -731,7 +731,7 @@ namespace reshade
 		update_descriptor_tables,
 
 		/// <summary>
-		/// Called after successfull query heap creation from:
+		/// Called after successful query heap creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateQueryHeap</description></item>
 		/// <item><description>vkCreateQueryPool</description></item>
@@ -794,7 +794,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/>.
+		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/> (which indicates that no depth-stencil is used).
 		/// </remarks>
 		begin_render_pass,
 
@@ -1194,7 +1194,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/> (which indicates the entire subresource is referenced).
 		/// </remarks>
 		copy_buffer_to_texture,
 
@@ -1226,7 +1226,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// The subresource box arguments are optional and may be <see langword="nullptr"/>.
+		/// The subresource box arguments are optional and may be <see langword="nullptr"/> (which indicates the entire subresource is used).
 		/// </remarks>
 		copy_texture_region,
 
@@ -1243,7 +1243,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::copy_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::copy_dest"/> state.
-		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/> (which indicates the entire subresource is used).
 		/// </remarks>
 		copy_texture_to_buffer,
 
@@ -1266,7 +1266,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// Source resource will be in the <see cref="api::resource_usage::resolve_source"/> state.
 		/// Destination resource will be in the <see cref="api::resource_usage::resolve_dest"/> state.
-		/// The subresource box argument is optional and may be <see langword="nullptr"/>.
+		/// The subresource box argument is optional and may be <see langword="nullptr"/> (which indicates the entire subresource is used).
 		/// </remarks>
 		resolve_texture_region,
 
@@ -1478,7 +1478,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/>.
+		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/> (which indicates the swap chain is presented in its entirety).
 		/// </remarks>
 		present,
 
@@ -1503,24 +1503,26 @@ namespace reshade
 		/// <summary>
 		/// Called right after all ReShade effects were reloaded.
 		/// This occurs during effect runtime initialization or because the user pressed the "Reload" button in the overlay.
+		/// Any <see cref="api::effect_technique"/>, <see cref="api::effect_texture_variable"/> and <see cref="api::effect_uniform_variable"/> handles are invalidated when this event occurs and need to be queried again.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime)</c></para>
 		/// </summary>
 		reshade_reloaded_effects,
 
 		/// <summary>
-		/// Called before a uniform variable is changed.
-		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *data, size_t size)</c></para>
+		/// Called before a uniform variable is changed, with the new value.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_uniform_variable variable, const void *new_value, size_t new_value_size)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent the variable from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// To prevent the variable value from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// The new value has the data type reported by <see cref="api::effect_runtime::get_uniform_variable_type"/> and the new value size is in bytes.
 		/// </remarks>
 		reshade_set_uniform_value,
 		/// <summary>
-		/// Called before a technique is enabled or disabled.
+		/// Called before a technique is enabled or disabled, with the new state.
 		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_technique technique, bool enabled)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To prevent the technique from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// To prevent the technique state from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		reshade_set_technique_state,
 
@@ -1535,7 +1537,7 @@ namespace reshade
 		reshade_overlay,
 
 		/// <summary>
-		/// Called after a screenshot was taken and saved to disk.
+		/// Called after a screenshot was taken and saved to disk, with the path to the saved image file.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *path)</c></para>
 		/// </summary>
 		reshade_screenshot,
@@ -1548,19 +1550,28 @@ namespace reshade
 
 		/// <summary>
 		/// Called after a preset was loaded and applied.
-		/// This occurs during reloading or when the user chooses a new preset in the overlay.
+		/// This occurs after effect reloading or when the user chooses a new preset in the overlay.
 		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, const char *path)</c></para>
 		/// </summary>
 		reshade_set_current_preset_path,
 
 		/// <summary>
-		/// Called when the rendering order of loaded techniques is changed.
+		/// Called when the rendering order of loaded techniques is changed, with a handle array specifying the new order.
 		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, size_t count, api::effect_technique *techniques)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent the order from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		reshade_reorder_techniques,
+
+		/// <summary>
+		/// Called when the ReShade overlay is about to be opened or closed.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, bool open, api::input_source source)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent the overlay state from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_open_overlay,
 
 #if RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
@@ -1693,4 +1704,6 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_set_current_preset_path, void, api::effect_runtime *runtime, const char *path);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_open_overlay, bool, api::effect_runtime *runtime, bool open, api::input_source source);
 }

@@ -8,6 +8,7 @@
 #include "d3d12_descriptor_heap.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d12::to_handle;
 
@@ -16,6 +17,16 @@ D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12Gr
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
+#endif
+}
+D3D12GraphicsCommandList::~D3D12GraphicsCommandList()
+{
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
+#endif
 }
 
 bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
@@ -150,6 +161,10 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::Reset(ID3D12CommandAllocator
 	_current_root_signature[1] = nullptr;
 	_current_descriptor_heaps[0] = nullptr;
 	_current_descriptor_heaps[1] = nullptr;
+#if RESHADE_ADDON >= 2
+	_previous_descriptor_heaps[0] = nullptr;
+	_previous_descriptor_heaps[1] = nullptr;
+#endif
 
 	const HRESULT hr = _orig->Reset(pAllocator, pInitialState);
 #if RESHADE_ADDON >= 2
@@ -470,19 +485,42 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetDescriptorHeaps(UINT NumDesc
 	_orig->SetDescriptorHeaps(NumDescriptorHeaps, ppDescriptorHeaps);
 
 	for (UINT i = 0; i < 2; ++i)
+	{
 		_current_descriptor_heaps[i] = i < NumDescriptorHeaps ? ppDescriptorHeaps[i] : nullptr;
+#if RESHADE_ADDON >= 2
+		_previous_descriptor_heaps[i] = _current_descriptor_heaps[i];
+#endif
+	}
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12RootSignature *pRootSignature)
 {
 	_orig->SetComputeRootSignature(pRootSignature);
 
 	_current_root_signature[1] = pRootSignature;
+
+#if RESHADE_ADDON >= 2
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+		this,
+		reshade::api::shader_stage::all_compute,
+		to_handle(_current_root_signature[1]),
+		0,
+		0, nullptr);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootSignature(ID3D12RootSignature *pRootSignature)
 {
 	_orig->SetGraphicsRootSignature(pRootSignature);
 
 	_current_root_signature[0] = pRootSignature;
+
+#if RESHADE_ADDON >= 2
+	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
+		this,
+		reshade::api::shader_stage::all_graphics,
+		to_handle(_current_root_signature[0]),
+		0,
+		0, nullptr);
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(UINT RootParameterIndex, D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {

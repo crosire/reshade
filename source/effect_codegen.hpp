@@ -341,7 +341,7 @@ namespace reshadefx
 			return align_up(size, alignment) * (elements - 1) + size;
 		}
 
-		reshadefx::module _module;
+		module _module;
 		std::vector<struct_info> _structs;
 		std::vector<std::unique_ptr<function_info>> _functions;
 		id _next_id = 1;

@@ -7,9 +7,6 @@
 
 #include "d3d9_device.hpp"
 #include "d3d9_resource.hpp"
-#include "d3d9_impl_type_convert.hpp"
-#include "com_utils.hpp"
-#include "hook_manager.hpp"
 
 Direct3DDepthStencilSurface9::Direct3DDepthStencilSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc) :
 	_orig(original),
@@ -148,6 +145,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::ReleaseDC(HDC hdc)
 #endif
 
 #if RESHADE_ADDON >= 2
+
+#include "d3d9_impl_type_convert.hpp"
+#include "com_utils.hpp"
+#include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d9::to_handle;
 

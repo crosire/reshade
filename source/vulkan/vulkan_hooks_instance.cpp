@@ -8,11 +8,11 @@
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
 
-lockfree_linear_map<void *, instance_dispatch_table, 16> g_instance_dispatch;
+lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
-	PFN_vk##name trampoline = g_instance_dispatch.at(dispatch_key_from_handle(object)).name; \
+	PFN_vk##name trampoline = g_vulkan_instances.at(dispatch_key_from_handle(object)).name; \
 	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_instance_proc(instance, "vk" #name))
@@ -148,6 +148,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	#pragma endregion
 	#pragma region Core 1_1
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
+	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
 	#pragma endregion
 	#pragma region VK_KHR_surface
 	INIT_DISPATCH_PTR(DestroySurfaceKHR);
@@ -161,7 +163,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 #endif
 	#pragma endregion
 
-	g_instance_dispatch.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
+	g_vulkan_instances.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning Vulkan instance " << instance << '.';
@@ -177,7 +179,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	GET_DISPATCH_PTR(DestroyInstance, instance);
 
 	// Remove instance dispatch table since this instance is being destroyed
-	g_instance_dispatch.erase(dispatch_key_from_handle(instance));
+	g_vulkan_instances.erase(dispatch_key_from_handle(instance));
 
 	trampoline(instance, pAllocator);
 }

@@ -13,9 +13,10 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "addon_manager.hpp"
 
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc);
-extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND hwnd);
+extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND window);
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
@@ -33,6 +34,9 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	_direct3d_device->AddRef();
+
+	reshade::create_effect_runtime(_impl, device);
+	on_init();
 }
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_orig(original),
@@ -44,6 +48,9 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
+
+	reshade::create_effect_runtime(_impl, device);
+	on_init();
 }
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_orig(original),
@@ -51,10 +58,13 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(11),
-	_impl(new reshade::d3d11::swapchain_impl(device, device->_immediate_context, original))
+	_impl(new reshade::d3d11::swapchain_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
+
+	reshade::create_effect_runtime(_impl, device->_immediate_context);
+	on_init();
 }
 DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_orig(original),
@@ -62,10 +72,13 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(11),
-	_impl(new reshade::d3d11::swapchain_impl(device, device->_immediate_context, original))
+	_impl(new reshade::d3d11::swapchain_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
+
+	reshade::create_effect_runtime(_impl, device->_immediate_context);
+	on_init();
 }
 DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original) :
 	_orig(original),
@@ -73,32 +86,42 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_direct3d_device(static_cast<ID3D12Device *>(command_queue->_device)), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_command_queue(command_queue),
 	_direct3d_version(12),
-	_impl(new reshade::d3d12::swapchain_impl(command_queue->_device, command_queue, original))
+	_impl(new reshade::d3d12::swapchain_impl(command_queue->_device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _direct3d_command_queue != nullptr);
 	_direct3d_device->AddRef();
 	// Add reference to command queue as well to ensure it is kept alive for the lifetime of the effect runtime
 	_direct3d_command_queue->AddRef();
+
+	reshade::create_effect_runtime(_impl, command_queue);
+	on_init();
 }
-
-void DXGISwapChain::on_reset()
+DXGISwapChain::~DXGISwapChain()
 {
-	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	on_reset();
+	reshade::destroy_effect_runtime(_impl);
 
+	// Destroy effect runtime first to release all internal references to device objects
 	switch (_direct3d_version)
 	{
 	case 10:
-		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_reset();
+		delete static_cast<reshade::d3d10::swapchain_impl *>(_impl);
 		break;
 	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_reset();
+		delete static_cast<reshade::d3d11::swapchain_impl *>(_impl);
 		break;
 	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_reset();
+		delete static_cast<reshade::d3d12::swapchain_impl *>(_impl);
 		break;
 	}
+
+	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
+	if (_direct3d_command_queue != nullptr)
+		_direct3d_command_queue->Release();
+	_direct3d_device->Release();
 }
-void DXGISwapChain::on_resize()
+
+void DXGISwapChain::on_init()
 {
 	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
@@ -114,7 +137,40 @@ void DXGISwapChain::on_resize()
 		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_init();
 		break;
 	}
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl);
+#endif
+
+	reshade::init_effect_runtime(_impl);
 }
+void DXGISwapChain::on_reset()
+{
+	if (!is_initialized())
+		return;
+
+	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+
+	reshade::reset_effect_runtime(_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl);
+#endif
+
+	switch (_direct3d_version)
+	{
+	case 10:
+		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_reset();
+		break;
+	case 11:
+		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_reset();
+		break;
+	case 12:
+		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_reset();
+		break;
+	}
+}
+
 void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
 {
 	// Some D3D11 games test presentation for timing and composition purposes
@@ -126,6 +182,8 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	if ((flags & DXGI_PRESENT_DO_NOT_WAIT) != 0 && _was_still_drawing_last_frame)
 		return;
 	assert(!_was_still_drawing_last_frame);
+
+	assert(is_initialized());
 
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
@@ -149,7 +207,7 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 			params != nullptr ? params->DirtyRectsCount : 0,
 			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
-		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_present();
+		reshade::present_effect_runtime(_impl, static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)));
 		break;
 	case 11:
 #if RESHADE_ADDON
@@ -165,7 +223,7 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 			params != nullptr ? params->DirtyRectsCount : 0,
 			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_present();
+		reshade::present_effect_runtime(_impl, static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context);
 		break;
 	case 12:
 #if RESHADE_ADDON
@@ -177,9 +235,24 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 			params != nullptr ? params->DirtyRectsCount : 0,
 			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_present();
+		reshade::present_effect_runtime(_impl, static_cast<D3D12CommandQueue *>(_direct3d_command_queue));
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
+	}
+}
+
+bool DXGISwapChain::is_initialized() const
+{
+	switch (_direct3d_version)
+	{
+	case 10:
+		return static_cast<reshade::d3d10::swapchain_impl *>(_impl)->is_initialized();
+	case 11:
+		return static_cast<reshade::d3d11::swapchain_impl *>(_impl)->is_initialized();
+	case 12:
+		return static_cast<reshade::d3d12::swapchain_impl *>(_impl)->is_initialized();
+	default:
+		return false;
 	}
 }
 
@@ -280,44 +353,27 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		return ref;
 	}
 
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
 #endif
-
-	// Destroy effect runtime first to release all internal references to device objects
-	switch (_direct3d_version)
-	{
-	case 10:
-		delete static_cast<reshade::d3d10::swapchain_impl *>(_impl);
-		break;
-	case 11:
-		delete static_cast<reshade::d3d11::swapchain_impl *>(_impl);
-		break;
-	case 12:
-		delete static_cast<reshade::d3d12::swapchain_impl *>(_impl);
-		break;
-	}
+	delete this;
 
 	// Resident Evil 3 releases the swap chain without first leaving fullscreen, which causes the DXGI runtime to throw an exception
 	if (BOOL fullscreen = FALSE;
-		SUCCEEDED(_orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
+		SUCCEEDED(orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
 	{
 		LOG(WARN) << "Attempted to destroy swap chain while still in fullscreen mode.";
 	}
 	else
 	{
 		// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
-		const ULONG ref_orig = _orig->Release();
+		const ULONG ref_orig = orig->Release();
 		if (ref_orig != 0) // Verify internal reference count
-			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent (" << ref_orig << ").";
+			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	}
 
-	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
-	if (_direct3d_command_queue != nullptr)
-		_direct3d_command_queue->Release();
-	_direct3d_device->Release();
-
-	delete this;
 	return 0;
 }
 
@@ -434,12 +490,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
-		on_resize();
+		on_init();
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
 		LOG(WARN) << "IDXGISwapChain::ResizeBuffers" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
-		on_resize();
+		on_init();
 	}
 	else
 	{
@@ -615,10 +671,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	switch (_direct3d_version)
 	{
 	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
+		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_color_space(ColorSpace);
 		break;
 	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_back_buffer_color_space(ColorSpace);
+		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_color_space(ColorSpace);
 		break;
 	}
 
@@ -678,12 +734,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
-		on_resize();
+		on_init();
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL)
 	{
 		LOG(WARN) << "IDXGISwapChain3::ResizeBuffers1" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
-		on_resize();
+		on_init();
 	}
 	else
 	{

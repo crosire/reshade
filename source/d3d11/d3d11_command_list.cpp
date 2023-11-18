@@ -6,12 +6,23 @@
 #include "d3d11_device.hpp"
 #include "d3d11_command_list.hpp"
 #include "dll_log.hpp"
+#include "addon_manager.hpp"
 
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
 	command_list_impl(device, original),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
+#endif
+}
+D3D11CommandList::~D3D11CommandList()
+{
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
+#endif
 }
 
 bool D3D11CommandList::check_and_upgrade_interface(REFIID riid)

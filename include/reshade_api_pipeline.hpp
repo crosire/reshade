@@ -998,4 +998,22 @@ namespace reshade { namespace api
 		float min_depth = 0.0f;
 		float max_depth = 1.0f;
 	};
+
+	/// <summary>
+	/// A list of flags that describe fence creation options.
+	/// </summary>
+	enum class fence_flags : uint32_t
+	{
+		none = 0,
+		shared = (1 << 1),
+		shared_nt_handle = (1 << 11),
+		non_monitored = (1 << 3)
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(fence_flags);
+
+	/// <summary>
+	/// An opaque handle to a fence synchronization object.
+	/// <para>In D3D11 or D3D12 this is a pointer to a 'ID3D11Fence' or 'ID3D12Fence' object, in Vulkan a 'VkSemaphore' handle.</para>
+	/// </summary>
+	RESHADE_DEFINE_HANDLE(fence);
 } }

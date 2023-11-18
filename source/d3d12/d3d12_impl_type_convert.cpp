@@ -22,6 +22,23 @@ auto reshade::d3d12::convert_format(DXGI_FORMAT format) -> api::format
 	return static_cast<api::format>(format);
 }
 
+auto reshade::d3d12::convert_color_space(api::color_space type) -> DXGI_COLOR_SPACE_TYPE
+{
+	switch (type)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case api::color_space::srgb_nonlinear:
+		return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+	case api::color_space::extended_srgb_linear:
+		return DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+	case api::color_space::hdr10_st2084:
+		return DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+	case api::color_space::hdr10_hlg:
+		return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020;
+	}
+}
 auto reshade::d3d12::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space
 {
 	switch (type)
@@ -1714,4 +1731,14 @@ auto reshade::d3d12::convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCES
 	case D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS:
 		return reshade::api::render_pass_store_op::no_access;
 	}
+}
+
+auto reshade::d3d12::convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_FLAGS
+{
+	D3D12_FENCE_FLAGS result = D3D12_FENCE_FLAG_NONE;
+	if ((value & api::fence_flags::shared) != 0)
+		result |= D3D12_FENCE_FLAG_SHARED;
+	if ((value & api::fence_flags::non_monitored) != 0)
+		result |= D3D12_FENCE_FLAG_NON_MONITORED;
+	return result;
 }

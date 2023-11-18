@@ -29,6 +29,9 @@ struct state_block
 	std::unordered_map<reshade::api::pipeline_stage, reshade::api::pipeline> pipelines;
 	reshade::api::primitive_topology primitive_topology = reshade::api::primitive_topology::undefined;
 	uint32_t blend_constant = 0;
+	uint32_t sample_mask = 0xFFFFFFFF;
+	uint32_t front_stencil_reference_value = 0;
+	uint32_t back_stencil_reference_value = 0;
 	std::vector<reshade::api::viewport> viewports;
 	std::vector<reshade::api::rect> scissor_rects;
 	std::unordered_map<reshade::api::shader_stage, std::pair<reshade::api::pipeline_layout, std::vector<reshade::api::descriptor_table>>> descriptor_tables;

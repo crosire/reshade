@@ -20,6 +20,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original);
 	DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original);
+	~DXGISwapChain();
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
@@ -82,9 +83,10 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
+	void on_init();
 	void on_reset();
-	void on_resize();
-	void on_present(UINT flags, const DXGI_PRESENT_PARAMETERS *params = nullptr);
+	void on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params = nullptr);
+	bool is_initialized() const;
 	void handle_device_loss(HRESULT hr);
 
 	bool check_and_upgrade_interface(REFIID riid);

@@ -11,32 +11,37 @@
 #include <Windows.h>
 
 // Current version of the ReShade API
-#define RESHADE_API_VERSION 8
+#define RESHADE_API_VERSION 10
 
 // Optionally import ReShade API functions when 'RESHADE_API_LIBRARY' is defined instead of using header-only mode
 #if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
 
-#ifdef RESHADE_API_LIBRARY_EXPORT
-	#define RESHADE_API_LIBRARY_DECLSPEC extern "C" __declspec(dllexport)
+#if defined(RESHADE_API_LIBRARY_EXPORT)
+	#define RESHADE_API_LIBRARY 1
+	#define RESHADE_API_LIBRARY_DECL extern "C" __declspec(dllexport)
 #else
-	#define RESHADE_API_LIBRARY_DECLSPEC extern "C" __declspec(dllimport)
+	#define RESHADE_API_LIBRARY_DECL extern "C" __declspec(dllimport)
 #endif
 
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeLogMessage(HMODULE module, int level, const char *message);
+RESHADE_API_LIBRARY_DECL void ReShadeLogMessage(HMODULE module, int level, const char *message);
 
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeGetBasePath(char *path, size_t *path_size);
+RESHADE_API_LIBRARY_DECL void ReShadeGetBasePath(char *path, size_t *path_size);
 
-RESHADE_API_LIBRARY_DECLSPEC bool ReShadeGetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *value_size);
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value);
+RESHADE_API_LIBRARY_DECL bool ReShadeGetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *value_size);
+RESHADE_API_LIBRARY_DECL void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value);
 
-RESHADE_API_LIBRARY_DECLSPEC bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterAddon(HMODULE module);
+RESHADE_API_LIBRARY_DECL bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
+RESHADE_API_LIBRARY_DECL void ReShadeUnregisterAddon(HMODULE module);
 
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeRegisterEvent(reshade::addon_event ev, void *callback);
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback);
+RESHADE_API_LIBRARY_DECL void ReShadeRegisterEvent(reshade::addon_event ev, void *callback);
+RESHADE_API_LIBRARY_DECL void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback);
 
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
-RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+RESHADE_API_LIBRARY_DECL void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+RESHADE_API_LIBRARY_DECL void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+
+RESHADE_API_LIBRARY_DECL bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime);
+RESHADE_API_LIBRARY_DECL void ReShadeDestroyEffectRuntime(reshade::api::effect_runtime *runtime);
+RESHADE_API_LIBRARY_DECL void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime);
 
 #else
 
@@ -92,9 +97,21 @@ namespace reshade
 	/// </summary>
 	enum class log_level
 	{
+		/// <summary>
+		/// | [ERROR] | ...
+		/// </summary>
 		error = 1,
+		/// <summary>
+		/// | [WARN]  | ...
+		/// </summary>
 		warning = 2,
+		/// <summary>
+		/// | [INFO]  | ...
+		/// </summary>
 		info = 3,
+		/// <summary>
+		/// | [DEBUG] | ...
+		/// </summary>
 		debug = 4
 	};
 
@@ -105,7 +122,7 @@ namespace reshade
 	/// <param name="message">A null-terminated message string.</param>
 	inline void log_message(log_level level, const char *message)
 	{
-#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeLogMessage(nullptr, static_cast<int>(level), message);
 #else
 		static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
@@ -115,13 +132,13 @@ namespace reshade
 	}
 
 	/// <summary>
-	/// Gets the file path ReShade uses to resolve relative paths.
+	/// Gets the base path ReShade uses to resolve relative paths.
 	/// </summary>
-	/// <param name="path">Pointer to a string buffer that is filled with the file path to the preset, or <see langword="nullptr"/> to query the necessary size.</param>
+	/// <param name="path">Pointer to a string buffer that is filled with the base path, or <see langword="nullptr"/> to query the necessary size.</param>
 	/// <param name="path_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 	inline void get_reshade_base_path(char *path, size_t *path_size)
 	{
-#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeGetBasePath(path, path_size);
 #else
 		static const auto func = reinterpret_cast<bool(*)(char *, size_t *)>(
@@ -132,6 +149,7 @@ namespace reshade
 
 	/// <summary>
 	/// Gets a value from one of ReShade's config files.
+	/// This can use either the global config file (ReShade.ini next to the application executable), or one local to an effect runtime (ReShade[index].ini in the base path).
 	/// </summary>
 	/// <param name="runtime">Optional effect runtime to use the config file from, or <see langword="nullptr"/> to use the global config file.</param>
 	/// <param name="section">Name of the config section.</param>
@@ -141,7 +159,7 @@ namespace reshade
 	/// <returns><see langword="true"/> if the specified config value exists, <see cref="false"/> otherwise.</returns>
 	inline bool get_config_value(api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *value_size)
 	{
-#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
+#if defined(RESHADE_API_LIBRARY)
 		return ReShadeGetConfigValue(nullptr, runtime, section, key, value, value_size);
 #else
 		static const auto func = reinterpret_cast<bool(*)(HMODULE, api::effect_runtime *, const char *, const char *, char *, size_t *)>(
@@ -171,6 +189,7 @@ namespace reshade
 
 	/// <summary>
 	/// Sets and saves a value in one of ReShade's config files.
+	/// This can use either the global config file (ReShade.ini next to the application executable), or one local to an effect runtime (ReShade[index].ini in the base path).
 	/// </summary>
 	/// <param name="runtime">Optional effect runtime to use the config file from, or <see langword="nullptr"/> to use the global config file.</param>
 	/// <param name="section">Name of the config section.</param>
@@ -178,7 +197,7 @@ namespace reshade
 	/// <param name="value">Config value to set.</param>
 	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 	{
-#if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeSetConfigValue(nullptr, runtime, section, key, value);
 #else
 		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *)>(
@@ -209,9 +228,9 @@ namespace reshade
 	/// <param name="reshade_module">Handle of the ReShade module in the process, or <see langword="nullptr"/> to find it automatically.</param>
 	inline bool register_addon(HMODULE addon_module, [[maybe_unused]] HMODULE reshade_module = nullptr)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY)
 		return ReShadeRegisterAddon(addon_module, RESHADE_API_VERSION);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+#else
 		addon_module = internal::get_current_module_handle(addon_module);
 		reshade_module = internal::get_reshade_module_handle(reshade_module);
 
@@ -233,23 +252,19 @@ namespace reshade
 #endif
 
 		return true;
-#else
-		UNREFERENCED_PARAMETER(addon_module);
-		UNREFERENCED_PARAMETER(reshade_module);
-		return false;
 #endif
 	}
 	/// <summary>
-	/// Unregisters this module.
+	/// Unregisters this module as an add-on.
 	/// Call this in 'AddonUninit' or 'DllMain' during process detach, after any of the other API functions.
 	/// </summary>
 	/// <param name="addon_module">Handle of the current module.</param>
 	/// <param name="reshade_module">Handle of the ReShade module in the process, or <see langword="nullptr"/> to find it automatically.</param>
 	inline void unregister_addon(HMODULE addon_module, [[maybe_unused]] HMODULE reshade_module = nullptr)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeUnregisterAddon(addon_module);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+#else
 		addon_module = internal::get_current_module_handle(addon_module);
 		reshade_module = internal::get_reshade_module_handle(reshade_module);
 
@@ -260,47 +275,42 @@ namespace reshade
 			GetProcAddress(reshade_module, "ReShadeUnregisterAddon"));
 		if (func != nullptr)
 			func(addon_module);
-#else
-		UNREFERENCED_PARAMETER(addon_module);
-		UNREFERENCED_PARAMETER(reshade_module);
 #endif
 	}
 
 	/// <summary>
-	/// Registers a callback for the specified event (via template) with ReShade.
+	/// Registers a callback for the specified event with ReShade.
 	/// <para>The callback function is then called whenever the application performs a task associated with this event (see also the <see cref="addon_event"/> enumeration).</para>
 	/// </summary>
 	/// <param name="callback">Pointer to the callback function.</param>
-	template <reshade::addon_event ev>
-	inline void register_event(typename reshade::addon_event_traits<ev>::decl callback)
+	/// <typeparam name="ev">Event to register the callback for.</typeparam>
+	template <addon_event ev>
+	inline void register_event(typename addon_event_traits<ev>::decl callback)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeRegisterEvent(ev, static_cast<void *>(callback));
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
-		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
+#else
+		static const auto func = reinterpret_cast<void(*)(addon_event, void *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterEvent"));
 		if (func != nullptr)
 			func(ev, static_cast<void *>(callback));
-#else
-		UNREFERENCED_PARAMETER(callback);
 #endif
 	}
 	/// <summary>
-	/// Unregisters a callback for the specified event (via template) that was previously registered via <see cref="register_event"/>.
+	/// Unregisters a callback from the specified event that was previously registered via <see cref="register_event"/>.
 	/// </summary>
 	/// <param name="callback">Pointer to the callback function.</param>
-	template <reshade::addon_event ev>
-	inline void unregister_event(typename reshade::addon_event_traits<ev>::decl callback)
+	/// <typeparam name="ev">Event to unregister the callback from.</typeparam>
+	template <addon_event ev>
+	inline void unregister_event(typename addon_event_traits<ev>::decl callback)
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeUnregisterEvent(ev, static_cast<void *>(callback));
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
-		static const auto func = reinterpret_cast<void(*)(reshade::addon_event, void *)>(
+#else
+		static const auto func = reinterpret_cast<void(*)(addon_event, void *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterEvent"));
 		if (func != nullptr)
 			func(ev, static_cast<void *>(callback));
-#else
-		UNREFERENCED_PARAMETER(callback);
 #endif
 	}
 
@@ -310,18 +320,15 @@ namespace reshade
 	/// </summary>
 	/// <param name="title">Null-terminated title string, or <see langword="nullptr"/> to register a settings overlay for this add-on.</param>
 	/// <param name="callback">Pointer to the callback function.</param>
-	inline void register_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
+	inline void register_overlay(const char *title, void(*callback)(api::effect_runtime *runtime))
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON && RESHADE_GUI)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeRegisterOverlay(title, callback);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
-		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *))>(
+#else
+		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(api::effect_runtime *))>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterOverlay"));
 		if (func != nullptr)
 			func(title, callback);
-#else
-		UNREFERENCED_PARAMETER(title);
-		UNREFERENCED_PARAMETER(callback);
 #endif
 	}
 	/// <summary>
@@ -329,18 +336,69 @@ namespace reshade
 	/// </summary>
 	/// <param name="title">Null-terminated title string.</param>
 	/// <param name="callback">Pointer to the callback function.</param>
-	inline void unregister_overlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
+	inline void unregister_overlay(const char *title, void(*callback)(api::effect_runtime *runtime))
 	{
-#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON && RESHADE_GUI)
+#if defined(RESHADE_API_LIBRARY)
 		ReShadeUnregisterOverlay(title, callback);
-#elif !defined(RESHADE_API_LIBRARY_EXPORT)
-		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(reshade::api::effect_runtime *))>(
+#else
+		static const auto func = reinterpret_cast<void(*)(const char *, void(*)(api::effect_runtime *))>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterOverlay"));
 		if (func != nullptr)
 			func(title, callback);
+#endif
+	}
+
+	/// <summary>
+	/// Creates a new effect runtime for an existing swapchain, for when it was not already hooked by ReShade (e.g. because the RESHADE_DISABLE_GRAPHICS_HOOK environment variable is set).
+	/// </summary>
+	/// <param name="api">Underlying graphics API used.</param>
+	/// <param name="swapchain">'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR', depending on the graphics API.</param>
+	/// <param name="config_path">Path to the configuration file the effect runtime should use.</param>
+	/// <param name="out_runtime">Pointer to a variable that is set to the pointer of the created effect runtime.</param>
+	/// <returns><see langword="true"/> if the effect_runtime was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_runtime"/> is set to <see langword="nullptr"/>).</returns>
+	inline bool create_effect_runtime(reshade::api::device_api api, void *swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		return ReShadeCreateEffectRuntime(api, swapchain, config_path, out_runtime);
 #else
-		UNREFERENCED_PARAMETER(title);
-		UNREFERENCED_PARAMETER(callback);
+		static const auto func = reinterpret_cast<bool(*)(reshade::api::device_api, void *, const char *, reshade::api::effect_runtime **)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeCreateEffectRuntime"));
+		if (func == nullptr)
+		{
+			*out_runtime = nullptr;
+			return false;
+		}
+		return func(api, swapchain, config_path, out_runtime);
+#endif
+	}
+	/// <summary>
+	/// Instantly destroys an effect runtime that was previously created via <see cref="create_effect_runtime"/>.
+	/// Do not call this with effect runtimes that were automatically created by ReShade!
+	/// </summary>
+	inline void destroy_effect_runtime(api::effect_runtime *runtime)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		ReShadeDestroyEffectRuntime(runtime);
+#else
+		static const auto func = reinterpret_cast<void(*)(reshade::api::effect_runtime *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeDestroyEffectRuntime"));
+		if (func != nullptr)
+			func(runtime);
+#endif
+	}
+	/// <summary>
+	/// Updates and renders an effect runtime onto the current back buffer of the swap chain it was created with.
+	/// Do not call this with effect runtimes that were automatically created by ReShade!
+	/// </summary>
+	inline void update_and_present_effect_runtime(api::effect_runtime *runtime)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		ReShadeUpdateAndPresentEffectRuntime(runtime);
+#else
+		static const auto func = reinterpret_cast<void(*)(reshade::api::effect_runtime *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUpdateAndPresentEffectRuntime"));
+		if (func != nullptr)
+			func(runtime);
 #endif
 	}
 }

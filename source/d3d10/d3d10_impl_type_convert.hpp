@@ -5,10 +5,10 @@
 
 #pragma once
 
+#include <d3d10_1.h>
 #include "com_ptr.hpp"
 #include "reshade_api_pipeline.hpp"
 #include <vector>
-#include <d3d10_1.h>
 
 namespace reshade::d3d10
 {
@@ -51,6 +51,12 @@ namespace reshade::d3d10
 	struct query_heap_impl
 	{
 		std::vector<com_ptr<ID3D10Query>> queries;
+	};
+
+	struct fence_impl
+	{
+		uint64_t current_value;
+		com_ptr<ID3D10Query> event_queries[8];
 	};
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
@@ -120,4 +126,5 @@ namespace reshade::d3d10
 	inline auto to_handle(ID3D10BlendState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D10RasterizerState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
 	inline auto to_handle(ID3D10DepthStencilState *ptr) { return api::pipeline { reinterpret_cast<uintptr_t>(ptr) }; }
+	inline auto to_handle(IDXGIKeyedMutex *ptr) { return api::fence { reinterpret_cast<uintptr_t>(ptr) }; }
 }

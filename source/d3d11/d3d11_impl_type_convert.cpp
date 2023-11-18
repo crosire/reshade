@@ -5,6 +5,7 @@
 
 #include "d3d11_impl_type_convert.hpp"
 #include <limits>
+#include <cassert>
 
 auto reshade::d3d11::convert_format(api::format format) -> DXGI_FORMAT
 {
@@ -18,6 +19,23 @@ auto reshade::d3d11::convert_format(DXGI_FORMAT format) -> api::format
 	return static_cast<api::format>(format);
 }
 
+auto reshade::d3d11::convert_color_space(api::color_space type) -> DXGI_COLOR_SPACE_TYPE
+{
+	switch (type)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case api::color_space::srgb_nonlinear:
+		return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+	case api::color_space::extended_srgb_linear:
+		return DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+	case api::color_space::hdr10_st2084:
+		return DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+	case api::color_space::hdr10_hlg:
+		return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020;
+	}
+}
 auto reshade::d3d11::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space
 {
 	switch (type)
@@ -1577,4 +1595,13 @@ auto reshade::d3d11::convert_query_type(api::query_type value) -> D3D11_QUERY
 		assert(false);
 		return static_cast<D3D11_QUERY>(UINT_MAX);
 	}
+}
+auto reshade::d3d11::convert_fence_flags(api::fence_flags value) -> D3D11_FENCE_FLAG
+{
+	D3D11_FENCE_FLAG result = D3D11_FENCE_FLAG_NONE;
+	if ((value & api::fence_flags::shared) != 0)
+		result |= D3D11_FENCE_FLAG_SHARED;
+	if ((value & api::fence_flags::non_monitored) != 0)
+		result |= D3D11_FENCE_FLAG_NON_MONITORED;
+	return result;
 }

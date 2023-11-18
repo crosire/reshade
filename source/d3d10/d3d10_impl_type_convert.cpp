@@ -5,6 +5,7 @@
 
 #include "d3d10_impl_type_convert.hpp"
 #include <limits>
+#include <cassert>
 
 auto reshade::d3d10::convert_format(api::format format) -> DXGI_FORMAT
 {
@@ -762,13 +763,18 @@ reshade::api::blend_desc reshade::d3d10::convert_blend_desc(const D3D10_BLEND_DE
 		for (UINT i = 0; i < 8; ++i)
 		{
 			desc.blend_enable[i] = internal_desc->BlendEnable[i];
-			desc.source_color_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlend);
-			desc.dest_color_blend_factor[i] = convert_blend_factor(internal_desc->DestBlend);
-			desc.color_blend_op[i] = convert_blend_op(internal_desc->BlendOp);
-			desc.source_alpha_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlendAlpha);
-			desc.dest_alpha_blend_factor[i] = convert_blend_factor(internal_desc->DestBlendAlpha);
-			desc.alpha_blend_op[i] = convert_blend_op(internal_desc->BlendOpAlpha);
-			desc.render_target_write_mask[i] = internal_desc->RenderTargetWriteMask[i];
+
+			// Only convert blend state if blending is enabled (since some applications leave these uninitialized in this case)
+			if (internal_desc->BlendEnable[i])
+			{
+				desc.source_color_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlend);
+				desc.dest_color_blend_factor[i] = convert_blend_factor(internal_desc->DestBlend);
+				desc.color_blend_op[i] = convert_blend_op(internal_desc->BlendOp);
+				desc.source_alpha_blend_factor[i] = convert_blend_factor(internal_desc->SrcBlendAlpha);
+				desc.dest_alpha_blend_factor[i] = convert_blend_factor(internal_desc->DestBlendAlpha);
+				desc.alpha_blend_op[i] = convert_blend_op(internal_desc->BlendOpAlpha);
+				desc.render_target_write_mask[i] = internal_desc->RenderTargetWriteMask[i];
+			}
 		}
 	}
 	else

@@ -1238,6 +1238,7 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 			yoffset += layer;
 			[[fallthrough]];
 		case GL_TEXTURE_2D:
+		case GL_TEXTURE_RECTANGLE:
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:

@@ -150,6 +150,7 @@ namespace reshade::vulkan
 	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
 	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
 
+	auto convert_color_space(api::color_space color_space) -> VkColorSpaceKHR;
 	auto convert_color_space(VkColorSpaceKHR color_space) -> api::color_space;
 
 	inline VkImageAspectFlags aspect_flags_from_format(VkFormat format)

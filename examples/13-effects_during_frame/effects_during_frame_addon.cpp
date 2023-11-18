@@ -85,7 +85,9 @@ static void on_end_render_pass(command_list *cmd_list)
 	{
 		const auto &current_state = cmd_list->get_private_data<state_tracking>();
 
-		dev_data.main_runtime->render_effects(cmd_list, data.current_main_rtv);
+		// This does not handle sRGB correctly, since it would need to pass in separate render target views created with a non-sRGB and a sRGB format variant of the target resource
+		// For simplicity and demonstration purposes the same render target view (which can be either non-sRGB or sRGB, depending on what the application created it with) for both cases is passed in here, but this should be fixed in a proper implementation
+		dev_data.main_runtime->render_effects(cmd_list, data.current_main_rtv, data.current_main_rtv);
 
 		// Re-apply state to the command list, as it may have been modified by the call to 'render_effects'
 		current_state.apply(cmd_list);

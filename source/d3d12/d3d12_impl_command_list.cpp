@@ -24,17 +24,6 @@ reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12
 	api_object_impl(cmd_list),
 	_device_impl(device)
 {
-#if RESHADE_ADDON
-	if (_orig != nullptr) // Do not call add-on event for immediate command list (since it is internal and not used by the application)
-		invoke_addon_event<addon_event::init_command_list>(this);
-#endif
-}
-reshade::d3d12::command_list_impl::~command_list_impl()
-{
-#if RESHADE_ADDON
-	if (_orig != nullptr)
-		invoke_addon_event<addon_event::destroy_command_list>(this);
-#endif
 }
 
 reshade::api::device *reshade::d3d12::command_list_impl::get_device()
@@ -395,7 +384,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 {
 	assert(tables != nullptr || count == 0);
 
-	// Change descriptor heaps to internal ones if descriptor tables were allocated from them
+	// Change current descriptor heaps to the ones the descriptor tables were allocated from
 	ID3D12DescriptorHeap *heaps[2];
 	std::copy_n(_current_descriptor_heaps, 2, heaps);
 
@@ -420,6 +409,17 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 			}
 		}
 	}
+
+#if RESHADE_ADDON >= 2
+	if ((heaps[0] == _previous_descriptor_heaps[0] || heaps[0] == _previous_descriptor_heaps[1] || heaps[1] == _previous_descriptor_heaps[0] || heaps[1] == _previous_descriptor_heaps[1] || count == 0) &&
+		_previous_descriptor_heaps[0] != nullptr && _previous_descriptor_heaps[1] != nullptr &&
+		_previous_descriptor_heaps[0] != _current_descriptor_heaps[0] && _previous_descriptor_heaps[1] != _current_descriptor_heaps[1])
+	{
+		// Attempt to keep combination of descriptor heaps set by the application if one of them is restored
+		// An application may set both descriptor heaps, but then only bind descriptor tables allocated from one of them, causing add-ons to be unable to restore the other descriptor heap
+		std::copy_n(_previous_descriptor_heaps, 2, heaps);
+	}
+#endif
 
 	if (_current_descriptor_heaps[0] != heaps[0] || _current_descriptor_heaps[1] != heaps[1])
 	{

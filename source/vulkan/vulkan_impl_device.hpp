@@ -5,14 +5,15 @@
 
 #pragma once
 
-#include "addon_manager.hpp"
-#include <shared_mutex>
-#include <unordered_map>
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4703 4189) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include <vk_layer_dispatch_table.h>
+
+#include "reshade_api_object_impl.hpp"
+#include <shared_mutex>
+#include <unordered_map>
 
 namespace reshade::vulkan
 {
@@ -33,12 +34,15 @@ namespace reshade::vulkan
 			const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
 			bool push_descriptors_ext = false,
 			bool dynamic_rendering_ext = false,
+			bool timeline_semaphore_ext = false,
 			bool custom_border_color_ext = false,
 			bool extended_dynamic_state_ext = false,
 			bool conservative_rasterization_ext = false);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }
+
+		api::device_properties get_properties() const;
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
@@ -87,16 +91,25 @@ namespace reshade::vulkan
 		void set_resource_name(api::resource handle, const char *name) final;
 		void set_resource_view_name(api::resource_view handle, const char *name) final;
 
+		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle = nullptr) final;
+		void destroy_fence(api::fence handle) final;
+
+		uint64_t get_completed_fence_value(api::fence fence) const final;
+
+		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
+		bool signal(api::fence fence, uint64_t value) final;
+
 		void advance_transient_descriptor_pool();
 
 		command_list_immediate_impl *get_first_immediate_command_list();
 
 		template <VkObjectType type, typename... Args>
-		void register_object(typename object_data<type>::Handle object, Args... args)
+		object_data<type> *register_object(typename object_data<type>::Handle object, Args... args)
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = reinterpret_cast<uint64_t>(new object_data<type>(std::forward<Args>(args)...));
 			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, private_data);
+			return reinterpret_cast<object_data<type> *>(private_data);
 		}
 		void register_object(VkObjectType type, uint64_t object, void *private_data)
 		{
@@ -138,14 +151,11 @@ namespace reshade::vulkan
 
 		const bool _push_descriptor_ext;
 		const bool _dynamic_rendering_ext;
+		const bool _timeline_semaphore_ext;
 		const bool _custom_border_color_ext;
 		const bool _extended_dynamic_state_ext;
 		const bool _conservative_rasterization_ext;
 		const VkPhysicalDeviceFeatures _enabled_features;
-
-#ifndef NDEBUG
-		mutable bool _wait_for_idle_happened = false;
-#endif
 
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);

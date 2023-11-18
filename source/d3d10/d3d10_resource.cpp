@@ -28,6 +28,7 @@ void STDMETHODCALLTYPE ID3D10Resource_GetDevice(ID3D10Resource *pResource, ID3D1
 #if RESHADE_ADDON >= 2
 
 #include "d3d10_impl_type_convert.hpp"
+#include "addon_manager.hpp"
 
 using reshade::d3d10::to_handle;
 

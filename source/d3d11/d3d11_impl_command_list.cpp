@@ -7,6 +7,7 @@
 #include "d3d11_impl_device_context.hpp"
 #include "d3d11_impl_type_convert.hpp"
 #include "dll_log.hpp"
+#include <utf8/unchecked.h>
 
 void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipeline_stage stages) const
 {
@@ -38,17 +39,9 @@ void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipelin
 }
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
-	api_object_impl(cmd_list), _device_impl(device)
+	api_object_impl(cmd_list),
+	_device_impl(device)
 {
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_command_list>(this);
-#endif
-}
-reshade::d3d11::command_list_impl::~command_list_impl()
-{
-#if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_command_list>(this);
-#endif
 }
 
 reshade::api::device *reshade::d3d11::command_list_impl::get_device()

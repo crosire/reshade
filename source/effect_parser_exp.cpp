@@ -103,8 +103,9 @@ bool reshadefx::parser::accept_symbol(std::string &identifier, scoped_symbol &sy
 	}
 
 	// Figure out which scope to start searching in
-	struct scope scope = { "::", 0, 0 };
-	if (!exclusive) scope = current_scope();
+	scope scope = { "::", 0, 0 };
+	if (!exclusive)
+		scope = current_scope();
 
 	// Lookup name in the symbol table
 	symbol = find_symbol(identifier, scope, exclusive);
@@ -578,10 +579,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			constant one = {};
 			for (unsigned int i = 0; i < exp.type.components(); ++i)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
+			const codegen::id constant_one = _codegen->emit_constant(exp.type, one);
 
-			const auto value = _codegen->emit_load(exp);
-			const auto result = _codegen->emit_binary_op(location, op, exp.type, value,
-				_codegen->emit_constant(exp.type, one));
+			const codegen::id value = _codegen->emit_load(exp);
+			const codegen::id result = _codegen->emit_binary_op(location, op, exp.type, value, constant_one);
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
 			_codegen->emit_store(exp, result);
@@ -598,8 +599,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Constant expressions can be evaluated at compile time
 			if (!exp.evaluate_constant_expression(op))
 			{
-				const auto value = _codegen->emit_load(exp);
-				const auto result = _codegen->emit_unary_op(location, op, exp.type, value);
+				const codegen::id value = _codegen->emit_load(exp);
+				const codegen::id result = _codegen->emit_unary_op(location, op, exp.type, value);
 
 				exp.reset_to_rvalue(location, result, exp.type);
 			}
@@ -611,7 +612,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		backup();
 
 		// Check if this is a C-style cast expression
-		if (type cast_type; accept_type_class(cast_type))
+		if (type cast_type = {}; accept_type_class(cast_type))
 		{
 			if (peek('('))
 			{
@@ -662,48 +663,48 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (peek('}'))
 				break;
 
-			expression &element = elements.emplace_back();
+			expression &element_exp = elements.emplace_back();
 
 			// Parse the argument expression
-			if (!parse_expression_assignment(element))
+			if (!parse_expression_assignment(element_exp))
 				return consume_until('}'), false;
 
-			if (element.type.is_array())
-				return error(element.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
-			if (composite_type.base != type::t_void && element.type.definition != composite_type.definition)
-				return error(element.location, 3017, "cannot convert these types (from " + element.type.description() + " to " + composite_type.description() + ')'), false;
+			if (element_exp.type.is_array())
+				return error(element_exp.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
+			if (composite_type.base != type::t_void && element_exp.type.definition != composite_type.definition)
+				return error(element_exp.location, 3017, "cannot convert these types (from " + element_exp.type.description() + " to " + composite_type.description() + ')'), false;
 
-			is_constant &= element.is_constant; // Result is only constant if all arguments are constant
-			composite_type = type::merge(composite_type, element.type);
+			is_constant &= element_exp.is_constant; // Result is only constant if all arguments are constant
+			composite_type = type::merge(composite_type, element_exp.type);
 		}
 
 		// Constant arrays can be constructed at compile time
 		if (is_constant)
 		{
-			constant res = {};
-			for (expression &element : elements)
+			constant result = {};
+			for (expression &element_exp : elements)
 			{
-				element.add_cast_operation(composite_type);
-				res.array_data.push_back(element.constant);
+				element_exp.add_cast_operation(composite_type);
+				result.array_data.push_back(element_exp.constant);
 			}
 
-			composite_type.array_length = static_cast<int>(elements.size());
+			composite_type.array_length = static_cast<unsigned int>(elements.size());
 
-			exp.reset_to_rvalue_constant(location, std::move(res), composite_type);
+			exp.reset_to_rvalue_constant(location, std::move(result), composite_type);
 		}
 		else
 		{
 			// Resolve all access chains
-			for (expression &element : elements)
+			for (expression &element_exp : elements)
 			{
-				element.add_cast_operation(composite_type);
-				element.reset_to_rvalue(element.location, _codegen->emit_load(element), composite_type);
+				element_exp.add_cast_operation(composite_type);
+				const codegen::id element_value = _codegen->emit_load(element_exp);
+				element_exp.reset_to_rvalue(element_exp.location, element_value, composite_type);
 			}
 
-			composite_type.array_length = static_cast<int>(elements.size());
+			composite_type.array_length = static_cast<unsigned int>(elements.size());
 
-			const auto result = _codegen->emit_construct(location, composite_type, elements);
-
+			const codegen::id result = _codegen->emit_construct(location, composite_type, elements);
 			exp.reset_to_rvalue(location, result, composite_type);
 		}
 
@@ -746,7 +747,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 		exp.reset_to_rvalue_constant(location, std::move(value));
 	}
-	else if (type type; accept_type_class(type)) // Check if this is a constructor call expression
+	else if (type type = {}; accept_type_class(type)) // Check if this is a constructor call expression
 	{
 		if (!expect('('))
 			return false;
@@ -768,18 +769,18 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			if (!arguments.empty() && !expect(','))
 				return false;
 
-			expression &argument = arguments.emplace_back();
+			expression &argument_exp = arguments.emplace_back();
 
 			// Parse the argument expression
-			if (!parse_expression_assignment(argument))
+			if (!parse_expression_assignment(argument_exp))
 				return false;
 
 			// Constructors are only defined for numeric base types
-			if (!argument.type.is_numeric())
-				return error(argument.location, 3017, "cannot convert non-numeric types"), false;
+			if (!argument_exp.type.is_numeric())
+				return error(argument_exp.location, 3017, "cannot convert non-numeric types"), false;
 
-			is_constant &= argument.is_constant; // Result is only constant if all arguments are constant
-			num_components += argument.type.components();
+			is_constant &= argument_exp.is_constant; // Result is only constant if all arguments are constant
+			num_components += argument_exp.type.components();
 		}
 
 		// The list should be terminated with a parenthesis
@@ -794,16 +795,16 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 		if (is_constant) // Constants can be converted at compile time
 		{
-			constant res = {};
+			constant result = {};
 			unsigned int i = 0;
-			for (expression &argument : arguments)
+			for (expression &argument_exp : arguments)
 			{
-				argument.add_cast_operation({ type.base, argument.type.rows, argument.type.cols });
-				for (unsigned int k = 0; k < argument.type.components(); ++k)
-					res.as_uint[i++] = argument.constant.as_uint[k];
+				argument_exp.add_cast_operation({ type.base, argument_exp.type.rows, argument_exp.type.cols });
+				for (unsigned int k = 0; k < argument_exp.type.components(); ++k)
+					result.as_uint[i++] = argument_exp.constant.as_uint[k];
 			}
 
-			exp.reset_to_rvalue_constant(location, std::move(res), type);
+			exp.reset_to_rvalue_constant(location, std::move(result), type);
 		}
 		else if (arguments.size() > 1)
 		{
@@ -813,31 +814,31 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				// Argument is a scalar already, so only need to cast it
 				if (it->type.is_scalar())
 				{
-					expression &argument = *it++;
+					expression &argument_exp = *it++;
 
-					auto scalar_type = argument.type;
+					struct type scalar_type = argument_exp.type;
 					scalar_type.base = type.base;
-					argument.add_cast_operation(scalar_type);
+					argument_exp.add_cast_operation(scalar_type);
 
-					argument.reset_to_rvalue(argument.location, _codegen->emit_load(argument), scalar_type);
+					argument_exp.reset_to_rvalue(argument_exp.location, _codegen->emit_load(argument_exp), scalar_type);
 				}
 				else
 				{
-					const expression argument = *it;
+					const expression argument_exp = std::move(*it);
 					it = arguments.erase(it);
 
 					// Convert to a scalar value and re-enter the loop in the next iteration (in case a cast is necessary too)
-					for (unsigned int i = argument.type.components(); i > 0; --i)
+					for (unsigned int i = argument_exp.type.components(); i > 0; --i)
 					{
-						expression scalar = argument;
-						scalar.add_constant_index_access(i - 1);
+						expression argument_scalar_exp = argument_exp;
+						argument_scalar_exp.add_constant_index_access(i - 1);
 
-						it = arguments.insert(it, scalar);
+						it = arguments.insert(it, argument_scalar_exp);
 					}
 				}
 			}
 
-			const auto result = _codegen->emit_construct(location, type, arguments);
+			const codegen::id result = _codegen->emit_construct(location, type, arguments);
 
 			exp.reset_to_rvalue(location, result, type);
 		}
@@ -873,10 +874,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				if (!arguments.empty() && !expect(','))
 					return false;
 
-				expression &argument = arguments.emplace_back();
+				expression &argument_exp = arguments.emplace_back();
 
 				// Parse the argument expression
-				if (!parse_expression_assignment(argument))
+				if (!parse_expression_assignment(argument_exp))
 					return false;
 			}
 
@@ -928,7 +929,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 						// Do not shadow object or pointer parameters to function calls
 						size_t chain_index = 0;
-						const auto access_chain = _codegen->emit_access_chain(arguments[i], chain_index);
+						const codegen::id access_chain = _codegen->emit_access_chain(arguments[i], chain_index);
 						parameters[i].reset_to_lvalue(arguments[i].location, access_chain, param_type);
 						assert(chain_index == arguments[i].chain.size());
 
@@ -938,18 +939,19 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					else
 					{
 						// All user-defined functions actually accept pointers as arguments, same applies to intrinsics with 'out' parameters
-						const auto temp_variable = _codegen->define_variable(arguments[i].location, param_type);
+						const codegen::id temp_variable = _codegen->define_variable(arguments[i].location, param_type);
 						parameters[i].reset_to_lvalue(arguments[i].location, temp_variable, param_type);
 					}
 				}
 				else
 				{
-					expression arg = arguments[i];
-					arg.add_cast_operation(param_type);
-					parameters[i].reset_to_rvalue(arg.location, _codegen->emit_load(arg), param_type);
+					expression argument_exp = arguments[i];
+					argument_exp.add_cast_operation(param_type);
+					const codegen::id argument_value = _codegen->emit_load(argument_exp);
+					parameters[i].reset_to_rvalue(argument_exp.location, argument_value, param_type);
 
 					// Keep track of whether the parameter is a constant for code generation (this makes the expression invalid for all other uses)
-					parameters[i].is_constant = arg.is_constant;
+					parameters[i].is_constant = argument_exp.is_constant;
 				}
 			}
 
@@ -959,14 +961,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				// Only do this for pointer parameters as discovered above
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_in) && !parameters[i].type.is_object())
 				{
-					expression arg = arguments[i];
-					arg.add_cast_operation(parameters[i].type);
-					_codegen->emit_store(parameters[i], _codegen->emit_load(arg));
+					expression argument_exp = arguments[i];
+					argument_exp.add_cast_operation(parameters[i].type);
+					const codegen::id argument_value = _codegen->emit_load(argument_exp);
+					_codegen->emit_store(parameters[i], argument_value);
 				}
 			}
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
-			const auto result = symbol.op == symbol_type::function ?
+			const codegen::id result = symbol.op == symbol_type::function ?
 				_codegen->emit_call(location, symbol.id, symbol.type, parameters) :
 				_codegen->emit_call_intrinsic(location, symbol.id, symbol.type, parameters);
 
@@ -978,9 +981,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				// Only do this for pointer parameters as discovered above
 				if (parameters[i].is_lvalue && parameters[i].type.has(type::q_out) && !parameters[i].type.is_object())
 				{
-					expression arg = parameters[i];
-					arg.add_cast_operation(arguments[i].type);
-					_codegen->emit_store(arguments[i], _codegen->emit_load(arg));
+					expression argument_exp = parameters[i];
+					argument_exp.add_cast_operation(arguments[i].type);
+					const codegen::id argument_value = _codegen->emit_load(argument_exp);
+					_codegen->emit_store(arguments[i], argument_value);
 				}
 			}
 
@@ -1041,9 +1045,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			constant one = {};
 			for (unsigned int i = 0; i < exp.type.components(); ++i)
 				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
+			const codegen::id constant_one = _codegen->emit_constant(exp.type, one);
 
-			const auto value = _codegen->emit_load(exp, true);
-			const auto result = _codegen->emit_binary_op(location, _token.id, exp.type, value, _codegen->emit_constant(exp.type, one));
+			const codegen::id value = _codegen->emit_load(exp, true);
+			const codegen::id result = _codegen->emit_binary_op(location, _token.id, exp.type, value, constant_one);
 
 			// The "++" and "--" operands modify the source variable, so store result back into it
 			_codegen->emit_store(exp, result);
@@ -1057,7 +1062,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				return false;
 
 			location = std::move(_token.location);
-			const auto subscript = std::move(_token.literal_as_string);
+			const std::string subscript = std::move(_token.literal_as_string);
 
 			if (accept('(')) // Methods (function calls on types) are not supported right now
 			{
@@ -1129,7 +1134,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
-				const unsigned int set = subscript[1] == 'm';
+				const int set = subscript[1] == 'm';
 				const int coefficient = !set;
 
 				for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
@@ -1167,7 +1172,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_struct())
 			{
-				const auto &member_list = _codegen->get_struct(exp.type.definition).member_list;
+				const std::vector<struct_member_info> &member_list = _codegen->get_struct(exp.type.definition).member_list;
 
 				// Find member with matching name is structure definition
 				uint32_t member_index = 0;
@@ -1214,31 +1219,32 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				return error(_token.location, 3121, "array, matrix, vector, or indexable object type expected in index expression"), false;
 
 			// Parse index expression
-			expression index;
-			if (!parse_expression(index) || !expect(']'))
+			expression index_exp;
+			if (!parse_expression(index_exp) || !expect(']'))
 				return false;
-			else if (!index.type.is_scalar() || !index.type.is_integral())
-				return error(index.location, 3120, "invalid type for index - index must be an integer scalar"), false;
+
+			if (!index_exp.type.is_scalar() || !index_exp.type.is_integral())
+				return error(index_exp.location, 3120, "invalid type for index - index must be an integer scalar"), false;
 
 			// Add index expression to current access chain
-			if (index.is_constant)
+			if (index_exp.is_constant)
 			{
 				// Check array bounds if known
-				if (exp.type.array_length > 0 && index.constant.as_uint[0] >= static_cast<unsigned int>(exp.type.array_length))
-					return error(index.location, 3504, "array index out of bounds"), false;
+				if (exp.type.is_bounded_array() && index_exp.constant.as_uint[0] >= exp.type.array_length)
+					return error(index_exp.location, 3504, "array index out of bounds"), false;
 
-				exp.add_constant_index_access(index.constant.as_uint[0]);
+				exp.add_constant_index_access(index_exp.constant.as_uint[0]);
 			}
 			else
 			{
 				if (exp.is_constant)
 				{
 					// To handle a dynamic index into a constant means we need to create a local variable first or else any of the indexing instructions do not work
-					const auto temp_variable = _codegen->define_variable(location, exp.type, std::string(), false, _codegen->emit_constant(exp.type, exp.constant));
+					const codegen::id temp_variable = _codegen->define_variable(location, exp.type, std::string(), false, _codegen->emit_constant(exp.type, exp.constant));
 					exp.reset_to_lvalue(exp.location, temp_variable, exp.type);
 				}
 
-				exp.add_dynamic_index_access(_codegen->emit_load(index));
+				exp.add_dynamic_index_access(_codegen->emit_load(index_exp));
 			}
 		}
 		else
@@ -1353,7 +1359,7 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			if (rhs.is_constant && lhs.evaluate_constant_expression(op, rhs.constant))
 				continue;
 
-			const auto lhs_value = _codegen->emit_load(lhs);
+			const codegen::id lhs_value = _codegen->emit_load(lhs);
 
 #if RESHADEFX_SHORT_CIRCUIT
 			// Short circuit for logical && and || operators
@@ -1369,24 +1375,24 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 
 				_codegen->set_block(rhs_block);
 				// Only load value of right hand side expression after entering the second block
-				const auto rhs_value = _codegen->emit_load(rhs);
+				const codegen::id rhs_value = _codegen->emit_load(rhs);
 				_codegen->leave_block_and_branch(merge_block);
 
 				_codegen->enter_block(merge_block);
 
-				const auto result_value = _codegen->emit_phi(lhs.location, condition_value, lhs_block, rhs_value, rhs_block, lhs_value, lhs_block, type);
+				const codegen::id result_value = _codegen->emit_phi(lhs.location, condition_value, lhs_block, rhs_value, rhs_block, lhs_value, lhs_block, type);
 
 				lhs.reset_to_rvalue(lhs.location, result_value, type);
 				continue;
 			}
 #endif
-			const auto rhs_value = _codegen->emit_load(rhs);
+			const codegen::id rhs_value = _codegen->emit_load(rhs);
 
 			// Certain operations return a boolean type instead of the type of the input expressions
 			if (is_bool_result)
 				type = { type::t_bool, type.rows, type.cols };
 
-			const auto result_value = _codegen->emit_binary_op(lhs.location, op, type, lhs.type, lhs_value, rhs_value);
+			const codegen::id result_value = _codegen->emit_binary_op(lhs.location, op, type, lhs.type, lhs_value, rhs_value);
 
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
 		}
@@ -1450,29 +1456,29 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			false_exp.add_cast_operation(type);
 
 			// Load condition value from expression
-			const auto condition_value = _codegen->emit_load(lhs);
+			const codegen::id condition_value = _codegen->emit_load(lhs);
 
 #if RESHADEFX_SHORT_CIRCUIT
 			_codegen->leave_block_and_branch_conditional(condition_value, true_block, false_block);
 
 			_codegen->set_block(true_block);
 			// Only load true expression value after entering the first block
-			const auto true_value = _codegen->emit_load(true_exp);
+			const codegen::id true_value = _codegen->emit_load(true_exp);
 			true_block = _codegen->leave_block_and_branch(merge_block);
 
 			_codegen->set_block(false_block);
 			// Only load false expression value after entering the second block
-			const auto false_value = _codegen->emit_load(false_exp);
+			const codegen::id false_value = _codegen->emit_load(false_exp);
 			false_block = _codegen->leave_block_and_branch(merge_block);
 
 			_codegen->enter_block(merge_block);
 
-			const auto result_value = _codegen->emit_phi(lhs.location, condition_value, condition_block, true_value, true_block, false_value, false_block, type);
+			const codegen::id result_value = _codegen->emit_phi(lhs.location, condition_value, condition_block, true_value, true_block, false_value, false_block, type);
 #else
-			const auto true_value = _codegen->emit_load(true_exp);
-			const auto false_value = _codegen->emit_load(false_exp);
+			const codegen::id true_value = _codegen->emit_load(true_exp);
+			const codegen::id false_value = _codegen->emit_load(false_exp);
 
-			const auto result_value = _codegen->emit_ternary_op(lhs.location, op, type, condition_value, true_value, false_value);
+			const codegen::id result_value = _codegen->emit_ternary_op(lhs.location, op, type, condition_value, true_value, false_value);
 #endif
 			lhs.reset_to_rvalue(lhs.location, result_value, type);
 		}
@@ -1515,13 +1521,13 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 
 		rhs.add_cast_operation(lhs.type);
 
-		auto result = _codegen->emit_load(rhs);
+		codegen::id result = _codegen->emit_load(rhs);
 
 		// Check if this is an assignment with an additional arithmetic instruction
 		if (op != tokenid::equal)
 		{
 			// Load value for modification
-			const auto value = _codegen->emit_load(lhs);
+			const codegen::id value = _codegen->emit_load(lhs);
 
 			// Handle arithmetic assignment operation
 			result = _codegen->emit_binary_op(lhs.location, op, lhs.type, value, result);

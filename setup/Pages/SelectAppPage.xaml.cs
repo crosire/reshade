@@ -58,8 +58,15 @@ namespace ReShade.Setup.Pages
 				Name = info.FileDescription;
 				if (Name is null || Name.Trim().Length == 0)
 				{
-					Name = System.IO.Path.GetFileNameWithoutExtension(path);
-					if (char.IsLower(Name[0]))
+					Name = System.IO.Path.GetFileName(path);
+
+					int length = Name.LastIndexOf('.');
+					if (length > 1)
+					{
+						Name = path.Substring(0, length);
+					}
+
+					if (char.IsLower(Name.First()))
 					{
 						Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(Name);
 					}
@@ -230,7 +237,6 @@ namespace ReShade.Setup.Pages
 #endif
 
 				const int SPLIT_SIZE = 50;
-				var items = new KeyValuePair<string, FileVersionInfo>[SPLIT_SIZE];
 
 #if !RESHADE_SETUP_USE_MUI_CACHE
 				while (searchPaths.Count != 0)
@@ -287,6 +293,8 @@ namespace ReShade.Setup.Pages
 						{
 							SuspendUpdateThreadEvent.WaitOne();
 						}
+
+						var items = new KeyValuePair<string, FileVersionInfo>[SPLIT_SIZE];
 
 						for (int i = 0; i < Math.Min(SPLIT_SIZE, files.Count - offset); ++i)
 						{
@@ -352,14 +360,14 @@ namespace ReShade.Setup.Pages
 						{
 							foreach (var item in arg)
 							{
-								if (item.Key == null || ProgramListItems.Any(x => x.Path == item.Key))
+								if (string.IsNullOrEmpty(item.Key) || ProgramListItems.Any(x => x.Path == item.Key))
 								{
 									continue;
 								}
 
 								ProgramListItems.Add(new ProgramItem(item.Key, item.Value));
 							}
-						}), DispatcherPriority.Background, (object)items);
+						}), DispatcherPriority.Background, items);
 
 						// Give back control to the OS
 						Thread.Sleep(5);
