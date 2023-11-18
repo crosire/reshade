@@ -96,6 +96,30 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	reshade::create_effect_runtime(_impl, command_queue);
 	on_init();
 }
+DXGISwapChain::~DXGISwapChain()
+{
+	on_reset();
+	reshade::destroy_effect_runtime(_impl);
+
+	// Destroy effect runtime first to release all internal references to device objects
+	switch (_direct3d_version)
+	{
+	case 10:
+		delete static_cast<reshade::d3d10::swapchain_impl *>(_impl);
+		break;
+	case 11:
+		delete static_cast<reshade::d3d11::swapchain_impl *>(_impl);
+		break;
+	case 12:
+		delete static_cast<reshade::d3d12::swapchain_impl *>(_impl);
+		break;
+	}
+
+	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
+	if (_direct3d_command_queue != nullptr)
+		_direct3d_command_queue->Release();
+	_direct3d_device->Release();
+}
 
 void DXGISwapChain::on_init()
 {
@@ -309,47 +333,27 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 		return ref;
 	}
 
+	const auto orig = _orig;
+	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ").";
+	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
 #endif
-
-	on_reset();
-	reshade::destroy_effect_runtime(_impl);
-
-	// Destroy effect runtime first to release all internal references to device objects
-	switch (_direct3d_version)
-	{
-	case 10:
-		delete static_cast<reshade::d3d10::swapchain_impl *>(_impl);
-		break;
-	case 11:
-		delete static_cast<reshade::d3d11::swapchain_impl *>(_impl);
-		break;
-	case 12:
-		delete static_cast<reshade::d3d12::swapchain_impl *>(_impl);
-		break;
-	}
+	delete this;
 
 	// Resident Evil 3 releases the swap chain without first leaving fullscreen, which causes the DXGI runtime to throw an exception
 	if (BOOL fullscreen = FALSE;
-		SUCCEEDED(_orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
+		SUCCEEDED(orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
 	{
 		LOG(WARN) << "Attempted to destroy swap chain while still in fullscreen mode.";
 	}
 	else
 	{
 		// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
-		const ULONG ref_orig = _orig->Release();
+		const ULONG ref_orig = orig->Release();
 		if (ref_orig != 0) // Verify internal reference count
-			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << _interface_version << " object " << this << " (" << _orig << ") is inconsistent (" << ref_orig << ").";
+			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
 	}
 
-	// Release the explicit reference to the device that was added in the 'DXGISwapChain' constructor above now that the effect runtime was destroyed and is longer referencing it
-	if (_direct3d_command_queue != nullptr)
-		_direct3d_command_queue->Release();
-	_direct3d_device->Release();
-
-	delete this;
 	return 0;
 }
 

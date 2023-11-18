@@ -20,6 +20,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original);
 	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original);
 	DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original);
+	~DXGISwapChain();
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
