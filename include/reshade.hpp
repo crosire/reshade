@@ -11,7 +11,7 @@
 #include <Windows.h>
 
 // Current version of the ReShade API
-#define RESHADE_API_VERSION 9
+#define RESHADE_API_VERSION 10
 
 // Optionally import ReShade API functions when 'RESHADE_API_LIBRARY' is defined instead of using header-only mode
 #if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
@@ -37,6 +37,10 @@ RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterEvent(reshade::addon_event ev
 
 RESHADE_API_LIBRARY_DECLSPEC void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
 RESHADE_API_LIBRARY_DECLSPEC void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime));
+
+RESHADE_API_LIBRARY_DECLSPEC bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, reshade::api::effect_runtime **out_runtime);
+RESHADE_API_LIBRARY_DECLSPEC void ReShadeDestroyEffectRuntime(reshade::api::effect_runtime *runtime);
+RESHADE_API_LIBRARY_DECLSPEC void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime);
 
 #else
 
@@ -357,6 +361,52 @@ namespace reshade
 #else
 		UNREFERENCED_PARAMETER(title);
 		UNREFERENCED_PARAMETER(callback);
+#endif
+	}
+
+	/// <summary>
+	/// Creates a new effect runtime for an existing swapchain, for when it was not already hooked by ReShade (e.g. because the RESHADE_DISABLE_GRAPHICS_HOOK environment variable is set).
+	/// </summary>
+	/// <param name="api">Underlying graphics API used.</param>
+	/// <param name="swapchain">'IDirect3DSwapChain9', 'IDXGISwapChain', 'HDC' or 'VkSwapchainKHR', depending on the graphics API.</param>
+	/// <param name="out_runtime">Pointer to a variable that is set to the pointer of the created effect runtime.</param>
+	/// <returns><see langword="true"/> if the effect_runtime was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_runtime"/> is set to <see langword="nullptr"/>).</returns>
+	inline bool create_effect_runtime(reshade::api::device_api api, void *swapchain, reshade::api::effect_runtime **out_runtime)
+	{
+#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && defined(RESHADE_FX))
+		return ReShadeCreateEffectRuntime(api, swapchain, out_runtime);
+#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+		static const auto func = reinterpret_cast<bool(*)(reshade::api::device_api, void *, reshade::api::effect_runtime **)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeCreateEffectRuntime"));
+		return func(api, swapchain, out_runtime);
+#endif
+	}
+	/// <summary>
+	/// Instantly destroys an effect runtime that was previously created via <see cref="create_effect_runtime"/>.
+	/// Do not call this with effect runtimes that were automatically created by ReShade!
+	/// </summary>
+	inline void destroy_effect_runtime(api::effect_runtime *runtime)
+	{
+#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && defined(RESHADE_FX))
+		ReShadeDestroyEffectRuntime(runtime);
+#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+		static const auto func = reinterpret_cast<void(*)(reshade::api::effect_runtime *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeDestroyEffectRuntime"));
+		func(runtime);
+#endif
+	}
+	/// <summary>
+	/// Updates and renders an effect runtime onto the current back buffer of the swap chain it was created with.
+	/// Do not call this with effect runtimes that were automatically created by ReShade!
+	/// </summary>
+	inline void update_and_present_effect_runtime(api::effect_runtime *runtime)
+	{
+#if defined(RESHADE_API_LIBRARY) || (defined(RESHADE_API_LIBRARY_EXPORT) && defined(RESHADE_FX))
+		ReShadeUpdateAndPresentEffectRuntime(runtime);
+#elif !defined(RESHADE_API_LIBRARY_EXPORT)
+		static const auto func = reinterpret_cast<void(*)(reshade::api::effect_runtime *)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUpdateAndPresentEffectRuntime"));
+		func(runtime);
 #endif
 	}
 }

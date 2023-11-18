@@ -26,6 +26,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 {
 	assert(_orig != nullptr && _device != nullptr);
 
+	reshade::create_effect_runtime(this, device);
 	on_init();
 }
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
@@ -36,6 +37,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 Direct3DSwapChain9::~Direct3DSwapChain9()
 {
 	on_reset();
+	reshade::destroy_effect_runtime(this);
 }
 
 void Direct3DSwapChain9::on_init()

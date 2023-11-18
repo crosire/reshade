@@ -69,6 +69,11 @@ namespace reshade
 		api::device *get_device() final { return _device; }
 
 		/// <summary>
+		/// Gets the swap chain associated with this effect runtime.
+		/// </summary>
+		api::swapchain *get_swapchain() { return _swapchain; }
+
+		/// <summary>
 		/// Gets the main graphics command queue associated with this effect runtime.
 		/// </summary>
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
