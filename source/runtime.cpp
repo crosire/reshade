@@ -17,6 +17,7 @@
 #include "input_gamepad.hpp"
 #include "com_ptr.hpp"
 #include "platform_utils.hpp"
+#include "reshade_api_object_impl.hpp"
 #include <set>
 #include <thread>
 #include <cctype>
@@ -263,7 +264,6 @@ void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::co
 }
 
 reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr) :
-	api_object_impl(0),
 	_swapchain(swapchain),
 	_device(swapchain->get_device()),
 	_graphics_queue(graphics_queue),

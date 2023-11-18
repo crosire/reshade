@@ -6,7 +6,6 @@
 #pragma once
 
 #include "reshade_api.hpp"
-#include "reshade_api_object_impl.hpp"
 #include "state_block.hpp"
 #if RESHADE_GUI
 #include "imgui_code_editor.hpp"
@@ -32,7 +31,7 @@ namespace reshade
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
 	/// </summary>
-	class runtime : public api::api_object_impl<uintptr_t, api::effect_runtime>
+	class runtime : public api::effect_runtime
 	{
 	public:
 		runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr);
@@ -41,6 +40,11 @@ namespace reshade
 		bool on_init();
 		void on_reset();
 		void on_present(api::command_queue *present_queue);
+
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
+
+		uint64_t get_native() const final { return _swapchain->get_native(); }
 
 		/// <summary>
 		/// Gets the handle of the window associated with this effect runtime.
