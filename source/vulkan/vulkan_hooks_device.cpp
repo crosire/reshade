@@ -1355,10 +1355,8 @@ VkResult VKAPI_CALL vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateIn
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_QUERY_POOL> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_QUERY_POOL> &data = *device_impl->register_object<VK_OBJECT_TYPE_QUERY_POOL>(*pQueryPool);
 	data.type = create_info.queryType;
-
-	device_impl->register_object<VK_OBJECT_TYPE_QUERY_POOL>(*pQueryPool, std::move(data));
 
 	reshade::invoke_addon_event<reshade::addon_event::init_query_heap>(
 		device_impl, reshade::vulkan::convert_query_type(create_info.queryType), create_info.queryCount, reshade::api::query_heap { (uint64_t)*pQueryPool });
@@ -1427,12 +1425,10 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER> &data = *device_impl->register_object<VK_OBJECT_TYPE_BUFFER>(*pBuffer);
 	data.allocation = VK_NULL_HANDLE;
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
-
-	device_impl->register_object<VK_OBJECT_TYPE_BUFFER>(*pBuffer, std::move(data));
 #endif
 
 	return result;
@@ -1446,7 +1442,7 @@ void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAl
 	GET_DISPATCH_PTR_FROM(DestroyBuffer, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource{ (uint64_t)buffer });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)buffer });
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_BUFFER>(buffer);
 #endif
@@ -1482,11 +1478,9 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER_VIEW> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER_VIEW> &data = *device_impl->register_object<VK_OBJECT_TYPE_BUFFER_VIEW>(*pView);
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
-
-	device_impl->register_object<VK_OBJECT_TYPE_BUFFER_VIEW>(*pView, std::move(data));
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
@@ -1540,12 +1534,10 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(*pImage);
 	data.allocation = VK_NULL_HANDLE;
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
-
-	device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(*pImage, std::move(data));
 #endif
 
 	return result;
@@ -1559,7 +1551,7 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	GET_DISPATCH_PTR_FROM(DestroyImage, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource{ (uint64_t)image });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
 
 	destroy_default_view(device_impl, image);
 
@@ -1597,7 +1589,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE_VIEW> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE_VIEW> &data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(*pView);
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
@@ -1607,8 +1599,6 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 		data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels;
 	if (VK_REMAINING_ARRAY_LAYERS == data.create_info.subresourceRange.layerCount)
 		data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
-
-	device_impl->register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(*pView, std::move(data));
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
@@ -1625,7 +1615,7 @@ void     VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView imageView, c
 	GET_DISPATCH_PTR_FROM(DestroyImageView, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view{ (uint64_t)imageView });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)imageView });
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE_VIEW>(imageView);
 #endif
@@ -1650,10 +1640,8 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 	}
 
 #if RESHADE_ADDON >= 2
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_SHADER_MODULE> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_SHADER_MODULE> &data = *device_impl->register_object<VK_OBJECT_TYPE_SHADER_MODULE>(*pShaderModule);
 	data.spirv.assign(reinterpret_cast<const uint8_t *>(pCreateInfo->pCode), reinterpret_cast<const uint8_t *>(pCreateInfo->pCode) + pCreateInfo->codeSize);
-
-	device_impl->register_object<VK_OBJECT_TYPE_SHADER_MODULE>(*pShaderModule, std::move(data));
 #endif
 
 	return result;
@@ -1923,7 +1911,7 @@ void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, cons
 	GET_DISPATCH_PTR_FROM(DestroyPipeline, device_impl);
 
 #if RESHADE_ADDON >= 2
-	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_impl, reshade::api::pipeline{ (uint64_t)pipeline });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_impl, reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 
 	trampoline(device, pipeline, pAllocator);
@@ -1949,7 +1937,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	const uint32_t set_desc_count = pCreateInfo->setLayoutCount;
 	const uint32_t total_param_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
 
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout);
 	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
 
 	std::vector<reshade::api::pipeline_layout_param> params(total_param_count);
@@ -1989,8 +1977,6 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
 
-	device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout, data);
-
 	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, total_param_count, params.data(), reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
 #endif
 
@@ -2005,7 +1991,7 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 	GET_DISPATCH_PTR_FROM(DestroyPipelineLayout, device_impl);
 
 #if RESHADE_ADDON >= 2
-	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout{ (uint64_t)pipelineLayout });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
 #endif
@@ -2078,7 +2064,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	}
 
 #if RESHADE_ADDON >= 2
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*pSetLayout);
 	data.ranges.resize(pCreateInfo->bindingCount);
 	data.num_descriptors = 0;
 	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
@@ -2111,8 +2097,6 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		for (size_t i = 1; i < data.binding_to_offset.size(); ++i)
 			data.binding_to_offset[i] += data.binding_to_offset[i - 1];
 	}
-
-	device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*pSetLayout, std::move(data));
 #endif
 
 	return result;
@@ -2149,7 +2133,7 @@ VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPo
 	}
 
 #if RESHADE_ADDON >= 2
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_POOL> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_POOL> &data = *device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(*pDescriptorPool);
 	data.max_sets = pCreateInfo->maxSets;
 	data.max_descriptors = 0;
 	data.next_set = 0;
@@ -2158,8 +2142,6 @@ VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPo
 
 	for (uint32_t i = 0; i < pCreateInfo->poolSizeCount; ++i)
 		data.max_descriptors += pCreateInfo->pPoolSizes[i].descriptorCount;
-
-	device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_POOL>(*pDescriptorPool, std::move(data));
 #endif
 
 	return result;
@@ -2359,10 +2341,8 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 
 #if RESHADE_ADDON
 	// Keep track of the frame buffer attachments
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_FRAMEBUFFER> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_FRAMEBUFFER> &data = *device_impl->register_object<VK_OBJECT_TYPE_FRAMEBUFFER>(*pFramebuffer);
 	data.attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
-
-	device_impl->register_object<VK_OBJECT_TYPE_FRAMEBUFFER>(*pFramebuffer, std::move(data));
 #endif
 
 	return result;
@@ -2406,7 +2386,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS> &data = *device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass);
 	data.subpasses.resize(pCreateInfo->subpassCount);
 	data.attachments.assign(pCreateInfo->pAttachments, pCreateInfo->pAttachments + pCreateInfo->attachmentCount);
 
@@ -2423,8 +2403,6 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 
 		dst_subpass.depth_stencil_attachment = (src_subpass.pDepthStencilAttachment != nullptr) ? src_subpass.pDepthStencilAttachment->attachment : VK_ATTACHMENT_UNUSED;
 	}
-
-	device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass, std::move(data));
 #endif
 
 	return result;
@@ -2446,7 +2424,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	}
 
 #if RESHADE_ADDON
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS> data;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS> &data = *device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass);
 	data.subpasses.resize(pCreateInfo->subpassCount);
 	data.attachments.resize(pCreateInfo->attachmentCount);
 
@@ -2478,8 +2456,6 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 		dst_attachment.initialLayout = src_attachment.initialLayout;
 		dst_attachment.finalLayout = src_attachment.finalLayout;
 	}
-
-	device_impl->register_object<VK_OBJECT_TYPE_RENDER_PASS>(*pRenderPass, std::move(data));
 #endif
 
 	return result;
