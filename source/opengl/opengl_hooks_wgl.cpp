@@ -111,8 +111,6 @@ void reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 	assert(width != 0 && height != 0);
 
 	_hwnd = hwnd;
-	_width = width;
-	_height = height;
 	_default_fbo_desc.texture.width = width;
 	_default_fbo_desc.texture.height = _current_window_height = height;
 
@@ -136,7 +134,7 @@ void reshade::opengl::swapchain_impl::on_init(HWND hwnd, unsigned int width, uns
 }
 void reshade::opengl::swapchain_impl::on_reset()
 {
-	if (_width == 0 && _height == 0)
+	if (_default_fbo_desc.texture.width == 0 && _default_fbo_desc.texture.height == 0)
 		return;
 
 	reset_effect_runtime(this);
@@ -154,6 +152,8 @@ void reshade::opengl::swapchain_impl::on_reset()
 #endif
 
 	_hwnd = nullptr;
+	_default_fbo_desc.texture.width = 0;
+	_default_fbo_desc.texture.height = 0;
 }
 void reshade::opengl::swapchain_impl::on_present(HDC hdc)
 {
@@ -170,7 +170,7 @@ void reshade::opengl::swapchain_impl::on_present(HDC hdc)
 	const auto width = static_cast<unsigned int>(rect.right);
 	const auto height = static_cast<unsigned int>(rect.bottom);
 
-	if (width != _width || height != _height)
+	if (width != _default_fbo_desc.texture.width || height != _default_fbo_desc.texture.height)
 	{
 		LOG(INFO) << "Resizing device context " << hdc << " to " << width << "x" << height << " ...";
 

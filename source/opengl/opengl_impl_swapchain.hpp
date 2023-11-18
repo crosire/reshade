@@ -57,6 +57,5 @@ namespace reshade::opengl
 
 	private:
 		HWND _hwnd = nullptr;
-		unsigned int _width = 0, _height = 0;
 	};
 }
