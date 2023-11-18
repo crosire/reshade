@@ -13,6 +13,7 @@ namespace reshade::d3d9
 	{
 	public:
 		swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
+		~swapchain_impl();
 
 		api::device *get_device() final;
 

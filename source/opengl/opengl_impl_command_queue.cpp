@@ -10,7 +10,8 @@
 #define gl gl3wProcs.gl
 
 reshade::opengl::render_context_impl::render_context_impl(device_impl *device, HGLRC hglrc) :
-	api_object_impl(hglrc), _device_impl(device)
+	api_object_impl(hglrc),
+	_device_impl(device)
 {
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{

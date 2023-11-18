@@ -8,7 +8,8 @@
 #include "d3d11_impl_type_convert.hpp"
 
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
-	api_object_impl(context), _device_impl(device)
+	api_object_impl(context),
+	_device_impl(device)
 {
 	context->QueryInterface(&_annotations);
 }

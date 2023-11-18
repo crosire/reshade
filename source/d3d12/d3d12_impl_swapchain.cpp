@@ -15,6 +15,10 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	if (_orig != nullptr)
 		on_init();
 }
+reshade::d3d12::swapchain_impl::~swapchain_impl()
+{
+	on_reset();
+}
 
 reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
 {

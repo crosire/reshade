@@ -56,6 +56,10 @@ reshade::d3d9::device_impl::device_impl(IDirect3DDevice9 *device) :
 
 	on_init();
 }
+reshade::d3d9::device_impl::~device_impl()
+{
+	on_reset();
+}
 
 void reshade::d3d9::device_impl::on_init()
 {

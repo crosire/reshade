@@ -13,6 +13,10 @@ reshade::d3d9::swapchain_impl::swapchain_impl(device_impl *device, IDirect3DSwap
 {
 	on_init();
 }
+reshade::d3d9::swapchain_impl::~swapchain_impl()
+{
+	on_reset();
+}
 
 reshade::api::device *reshade::d3d9::swapchain_impl::get_device()
 {
