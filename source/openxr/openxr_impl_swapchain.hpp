@@ -1,6 +1,4 @@
 /*
- * Vulkan impl by The Iron Wolf, based on OpenVR code.
- *
  * Copyright (C) 2022 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -8,6 +6,7 @@
 #pragma once
 
 #include "reshade_api_object_impl.hpp"
+#include <Unknwn.h>
 #include <openxr/openxr.h>
 
 namespace reshade::openxr
@@ -43,10 +42,11 @@ namespace reshade::openxr
 		bool on_init();
 		void on_reset();
 
-		void on_present(api::command_queue *queue, api::resource left_texture, api::resource right_texture);
+		void on_present(api::resource left_texture, api::resource right_texture);
 
 	private:
 		api::device *const _device;
+		api::command_queue *const _graphics_queue;
 		api::resource _side_by_side_texture = {};
 	};
 }
