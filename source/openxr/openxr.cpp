@@ -108,7 +108,7 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 
 		uint32_t num_images = 0;
 		enum_swapchain_images(*swapchain, num_images, &num_images, nullptr);
-		std::vector<XrSwapchainImageVulkanKHR> images(num_images);
+		std::vector<XrSwapchainImageVulkanKHR> images(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
 		enum_swapchain_images(*swapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images.data()));
 
 		// Track our own information about the swapchain, so we can draw stuff onto it.
