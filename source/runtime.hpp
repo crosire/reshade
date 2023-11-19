@@ -208,6 +208,8 @@ namespace reshade
 		bool open_overlay(bool, api::input_source) final { return false; }
 #endif
 
+		void set_color_space(api::color_space color_space) final { _back_buffer_color_space = color_space; }
+
 	private:
 		api::swapchain *const _swapchain;
 		api::device *const _device;
@@ -218,7 +220,8 @@ namespace reshade
 		unsigned int _device_id = 0;
 		unsigned int _renderer_id = 0;
 		uint16_t _back_buffer_samples = 1;
-		api::format  _back_buffer_format = api::format::unknown;
+		api::format _back_buffer_format = api::format::unknown;
+		api::color_space _back_buffer_color_space = api::color_space::unknown;
 		bool _is_vr = false;
 
 #if RESHADE_ADDON
