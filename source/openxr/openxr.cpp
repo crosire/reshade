@@ -97,11 +97,7 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 	const XrResult result = trampoline(session, &create_info, swapchain);
 	if (XR_SUCCEEDED(result))
 	{
-#ifndef _WIN64
 		const HMODULE module = GetModuleHandleW(L"openxr_loader.dll");
-#else
-		const HMODULE module = GetModuleHandleW(L"openxr_loader64.dll");
-#endif
 		assert(module != nullptr);
 		auto enum_swapchain_images = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(GetProcAddress(module, "xrEnumerateSwapchainImages"));
 		assert(enum_swapchain_images != nullptr);
@@ -196,11 +192,7 @@ void check_and_init_openxr_hooks()
 	if (s_hooks_installed)
 		return;
 
-#ifndef _WIN64
 	const HMODULE module = GetModuleHandleW(L"openxr_loader.dll");
-#else
-	const HMODULE module = GetModuleHandleW(L"openxr_loader64.dll");
-#endif
 	if (module == nullptr)
 		return;
 
