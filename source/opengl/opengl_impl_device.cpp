@@ -332,7 +332,7 @@ void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 	gl.DeleteSamplers(1, &object);
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE * /* shared_handle */)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE * /*shared_handle*/)
 {
 	*out_handle = { 0 };
 

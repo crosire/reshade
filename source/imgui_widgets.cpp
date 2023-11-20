@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "input.hpp" // input::key_name
 #include "imgui_widgets.hpp"
+#include "input.hpp" // input::key_name
 #include "fonts/forkawesome.h"
 #include <cassert>
 

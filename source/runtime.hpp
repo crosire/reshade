@@ -7,17 +7,12 @@
 
 #include "reshade_api.hpp"
 #include "state_block.hpp"
-#if RESHADE_GUI
 #include "imgui_code_editor.hpp"
-#endif
 #include <chrono>
 #include <memory>
 #include <filesystem>
 #include <atomic>
 #include <shared_mutex>
-#include <string>
-#include <vector>
-#include <unordered_map>
 
 class ini_file;
 
@@ -41,49 +36,20 @@ namespace reshade
 		void on_reset();
 		void on_present(api::command_queue *present_queue);
 
-		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
-		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
-
-		/// <summary>
-		/// Gets the native swap chain object associated with this effect runtime.
-		/// </summary>
 		uint64_t get_native() const final { return _swapchain->get_native(); }
 
-		/// <summary>
-		/// Gets the handle of the window associated with this effect runtime.
-		/// </summary>
+		api::device *get_device() final { return _device; }
+		api::swapchain *get_swapchain() { return _swapchain; }
+		api::command_queue *get_command_queue() final { return _graphics_queue; }
+
 		void *get_hwnd() const final { return _swapchain->get_hwnd(); }
 
-		/// <summary>
-		/// Gets the back buffer resource at the specified <paramref name="index"/> in the swap chain associated with this effect runtime.
-		/// </summary>
-		/// <param name="index">Index of the back buffer. This has to be between zero and the value returned by <see cref="get_back_buffer_count"/>.</param>
 		api::resource get_back_buffer(uint32_t index) final { return _swapchain->get_back_buffer(index); }
-
-		/// <summary>
-		/// Gets the number of back buffer resources in the swap chain associated with this effect runtime.
-		/// </summary>
 		uint32_t get_back_buffer_count() const final { return _swapchain->get_back_buffer_count(); }
-
-		/// <summary>
-		/// Gets the index of the back buffer resource that can currently be rendered into.
-		/// </summary>
 		uint32_t get_current_back_buffer_index() const final { return _swapchain->get_current_back_buffer_index(); }
 
-		/// <summary>
-		/// Gets the parent device for this effect runtime.
-		/// </summary>
-		api::device *get_device() final { return _device; }
-
-		/// <summary>
-		/// Gets the swap chain associated with this effect runtime.
-		/// </summary>
-		api::swapchain *get_swapchain() { return _swapchain; }
-
-		/// <summary>
-		/// Gets the main graphics command queue associated with this effect runtime.
-		/// </summary>
-		api::command_queue *get_command_queue() final { return _graphics_queue; }
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
 
 		/// <summary>
 		/// Gets the path to the configuration file used by this effect runtime.
@@ -97,15 +63,8 @@ namespace reshade
 		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty() || (!_textures_loaded && _is_initialized); }
 #endif
 
-#if RESHADE_FX
-		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
-		virtual void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) override;
-#else
-		virtual void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final { cmd_list; rtv; rtv_srgb; }
-		virtual void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final { handle; cmd_list; rtv; rtv_srgb; }
-
-		void save_current_preset() const final {}
-#endif
+		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
+		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
@@ -202,33 +161,11 @@ namespace reshade
 
 		void reorder_techniques(size_t count, const api::effect_technique *techniques) final;
 
-#if RESHADE_GUI
 		bool open_overlay(bool open, api::input_source source) final;
-#else
-		bool open_overlay(bool, api::input_source) final { return false; }
-#endif
 
 		void set_color_space(api::color_space color_space) final { _back_buffer_color_space = color_space; }
 
 	private:
-		api::swapchain *const _swapchain;
-		api::device *const _device;
-		api::command_queue *const _graphics_queue;
-		unsigned int _width = 0;
-		unsigned int _height = 0;
-		unsigned int _vendor_id = 0;
-		unsigned int _device_id = 0;
-		unsigned int _renderer_id = 0;
-		uint16_t _back_buffer_samples = 1;
-		api::format _back_buffer_format = api::format::unknown;
-		api::color_space _back_buffer_color_space = api::color_space::unknown;
-		bool _is_vr = false;
-
-#if RESHADE_ADDON
-		bool _is_in_api_call = false;
-		bool _is_in_present_call = false;
-#endif
-
 		static void check_for_update();
 
 		void load_config();
@@ -291,11 +228,31 @@ namespace reshade
 		}
 
 		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
+#else
+		void save_current_preset() const final {}
 #endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
 
 		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count);
+
+		api::swapchain *const _swapchain;
+		api::device *const _device;
+		api::command_queue *const _graphics_queue;
+		unsigned int _width = 0;
+		unsigned int _height = 0;
+		unsigned int _vendor_id = 0;
+		unsigned int _device_id = 0;
+		unsigned int _renderer_id = 0;
+		uint16_t _back_buffer_samples = 1;
+		api::format _back_buffer_format = api::format::unknown;
+		api::color_space _back_buffer_color_space = api::color_space::unknown;
+		bool _is_vr = false;
+
+#if RESHADE_ADDON
+		bool _is_in_api_call = false;
+		bool _is_in_present_call = false;
+#endif
 
 		#pragma region Status
 		static bool s_needs_update;

@@ -67,7 +67,7 @@ D3D11Device::~D3D11Device()
 
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 {
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(ID3D11Device),
 		__uuidof(ID3D11Device1),
 		__uuidof(ID3D11Device2),

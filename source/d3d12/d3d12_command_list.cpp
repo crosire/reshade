@@ -38,7 +38,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 		riid == __uuidof(ID3D12CommandList))
 		return true;
 
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(ID3D12GraphicsCommandList),
 		__uuidof(ID3D12GraphicsCommandList1),
 		__uuidof(ID3D12GraphicsCommandList2),

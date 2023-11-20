@@ -11,7 +11,7 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
-void ReShadeLogMessage(HMODULE module, int level, const char *message)
+void ReShadeLogMessage([[maybe_unused]] HMODULE module, int level, const char *message)
 {
 	std::string prefix;
 #if RESHADE_ADDON
@@ -21,8 +21,6 @@ void ReShadeLogMessage(HMODULE module, int level, const char *message)
 		if (info != nullptr)
 			prefix = "[" + info->name + "] ";
 	}
-#else
-	UNREFERENCED_PARAMETER(module);
 #endif
 
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;

@@ -611,6 +611,9 @@
     <ClInclude Include="source\lockfree_linear_map.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
+    <ClInclude Include="source\moving_average.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
     <ClInclude Include="source\opengl\opengl_hooks.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>

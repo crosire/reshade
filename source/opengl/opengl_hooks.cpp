@@ -4264,7 +4264,7 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 		trampoline(target, format, length, string);
 
 		GLuint program = 0;
-		static const auto glGetProgramivARB = reinterpret_cast<void(APIENTRY *)(GLenum target, GLenum pname, GLint *params)>(wglGetProcAddress("glGetProgramivARB"));
+		const auto glGetProgramivARB = reinterpret_cast<void(APIENTRY *)(GLenum target, GLenum pname, GLint *params)>(wglGetProcAddress("glGetProgramivARB"));
 		assert(glGetProgramivARB != nullptr);
 		glGetProgramivARB(target, 0x8677 /* GL_PROGRAM_BINDING_ARB */, reinterpret_cast<GLint *>(&program));
 
