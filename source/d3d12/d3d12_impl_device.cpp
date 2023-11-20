@@ -94,8 +94,15 @@ reshade::api::device_properties reshade::d3d12::device_impl::get_properties() co
 	const LUID luid = _orig->GetAdapterLuid();
 	com_ptr<IDXGIAdapter> dxgi_adapter;
 
+	const auto CreateDXGIFactory1 = reinterpret_cast<HRESULT(WINAPI *)(REFIID riid, void **ppFactory)>(
+		GetProcAddress(GetModuleHandleW(L"dxgi.dll"), "CreateDXGIFactory1"));
+	assert(CreateDXGIFactory1 != nullptr);
+	const auto CreateDXGIFactory2 = reinterpret_cast<HRESULT(WINAPI *)(UINT Flags, REFIID riid, void **ppFactory)>(
+		GetProcAddress(GetModuleHandleW(L"dxgi.dll"), "CreateDXGIFactory2"));
+	assert(CreateDXGIFactory2 != nullptr || is_windows7());
+
 	if (com_ptr<IDXGIFactory4> factory4;
-		SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
+		CreateDXGIFactory2 != nullptr && SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
 	{
 		factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter));
 	}
@@ -969,6 +976,10 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			break;
 		}
 	}
+
+	const auto D3D12SerializeRootSignature = reinterpret_cast<HRESULT(WINAPI *)(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)>(
+		GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeRootSignature"));
+	assert(D3D12SerializeRootSignature != nullptr);
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
 	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;

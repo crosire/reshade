@@ -92,18 +92,10 @@ extern "C" HRESULT WINAPI D3D12GetInterface(REFCLSID rclsid, REFIID riid, void *
 
 extern "C" HRESULT WINAPI D3D12SerializeRootSignature(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)
 {
-	static auto trampoline = reshade::hooks::call(D3D12SerializeRootSignature);
-	if (nullptr == trampoline) // Alternatively try loading export directly, in case it wasn't hooked
-		trampoline = reinterpret_cast<decltype(&D3D12SerializeRootSignature)>(
-			GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeRootSignature"));
-	return trampoline(pRootSignature, Version, ppBlob, ppErrorBlob);
+	return reshade::hooks::call(D3D12SerializeRootSignature)(pRootSignature, Version, ppBlob, ppErrorBlob);
 }
 
 extern "C" HRESULT WINAPI D3D12SerializeVersionedRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC *pRootSignature, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)
 {
-	static auto trampoline = reshade::hooks::call(D3D12SerializeVersionedRootSignature);
-	if (nullptr == trampoline) // Alternatively try loading export directly, in case it wasn't hooked
-		trampoline = reinterpret_cast<decltype(&D3D12SerializeVersionedRootSignature)>(
-			GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeVersionedRootSignature"));
-	return trampoline(pRootSignature, ppBlob, ppErrorBlob);
+	return reshade::hooks::call(D3D12SerializeVersionedRootSignature)(pRootSignature, ppBlob, ppErrorBlob);
 }
