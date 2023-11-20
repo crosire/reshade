@@ -4,16 +4,10 @@
  */
 
 #include "state_block.hpp"
-#include "d3d9/d3d9_impl_device.hpp"
 #include "d3d9/d3d9_impl_state_block.hpp"
-#include "d3d10/d3d10_device.hpp"
 #include "d3d10/d3d10_impl_state_block.hpp"
-#include "d3d11/d3d11_device.hpp"
-#include "d3d11/d3d11_device_context.hpp"
 #include "d3d11/d3d11_impl_state_block.hpp"
-#include "d3d12/d3d12_device.hpp"
-#include "d3d12/d3d12_command_queue.hpp"
-#include "opengl/opengl_impl_swapchain.hpp"
+#include "opengl/opengl_impl_device.hpp"
 #include "opengl/opengl_impl_state_block.hpp"
 
 void reshade::api::create_state_block(api::device *device, state_block *out_state_block)

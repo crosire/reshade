@@ -88,14 +88,14 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 
 #if RESHADE_ADDON && RESHADE_FX
 
-#include "d3d9/d3d9_device.hpp"
+#include "d3d9/d3d9_impl_device.hpp"
 #include "d3d9/d3d9_impl_swapchain.hpp"
-#include "d3d10/d3d10_device.hpp"
+#include "d3d10/d3d10_impl_device.hpp"
 #include "d3d10/d3d10_impl_swapchain.hpp"
-#include "d3d11/d3d11_device.hpp"
+#include "d3d11/d3d11_impl_device.hpp"
 #include "d3d11/d3d11_impl_device_context.hpp"
 #include "d3d11/d3d11_impl_swapchain.hpp"
-#include "d3d12/d3d12_device.hpp"
+#include "d3d12/d3d12_impl_device.hpp"
 #include "d3d12/d3d12_impl_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "opengl/opengl_impl_swapchain.hpp"
@@ -126,10 +126,6 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 		if (FAILED(swapchain->GetDevice(&device)) || device.get() != opaque_device)
 			return false;
 
-		if (com_ptr<Direct3DDevice9> device_proxy;
-			SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&device_proxy))))
-			return false; // Cannot create new effect runtime for devices that were already proxied
-
 		const auto device_impl = new reshade::d3d9::device_impl(device.get());
 		swapchain_impl = new reshade::d3d9::swapchain_impl(device_impl, swapchain.get());
 		break;
@@ -143,10 +139,6 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
 			return false;
 
-		if (com_ptr<D3D10Device> device_proxy;
-			SUCCEEDED(device->QueryInterface(&device_proxy)))
-			return false; // Cannot create new effect runtime for devices that were already proxied
-
 		const auto device_impl = new reshade::d3d10::device_impl(device.get());
 		swapchain_impl = new reshade::d3d10::swapchain_impl(device_impl, swapchain.get());
 		break;
@@ -159,10 +151,6 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 			return false;
 		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
 			return false;
-
-		if (com_ptr<D3D11Device> device_proxy;
-			SUCCEEDED(device->QueryInterface(&device_proxy)))
-			return false; // Cannot create new effect runtime for devices that were already proxied
 
 		com_ptr<ID3D11DeviceContext> device_context;
 		if (opaque_command_queue != nullptr)
@@ -188,10 +176,6 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 			return false;
 		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
 			return false;
-
-		if (com_ptr<D3D12Device> device_proxy;
-			SUCCEEDED(device->QueryInterface(&device_proxy)))
-			return false; // Cannot create new effect runtime for devices that were already proxied
 
 		com_ptr<ID3D12CommandQueue> command_queue;
 		if (opaque_command_queue == nullptr ||

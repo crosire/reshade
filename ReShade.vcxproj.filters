@@ -636,7 +636,7 @@
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\reshade_api_object_impl.hpp">
-      <Filter>core\api</Filter>
+      <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime.hpp">
       <Filter>core\runtime</Filter>
