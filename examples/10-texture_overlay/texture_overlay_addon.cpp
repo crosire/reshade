@@ -329,6 +329,8 @@ static void draw_overlay(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
 	auto &data = device->get_private_data<device_data>();
+	if (std::addressof(data) == nullptr)
+		return;
 
 	ImGui::Checkbox("Show only used this frame", &data.filter);
 

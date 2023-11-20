@@ -228,9 +228,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Allocates user-defined data and stores it in the object.
 		/// </summary>
-		template <typename T, typename... Args> inline T &create_private_data(Args... args)
+		template <typename T, typename... Args> inline T &create_private_data(Args &&... args)
 		{
-			uint64_t res = reinterpret_cast<uintptr_t>(new T(std::forward<Args>(args)...));
+			uint64_t res = reinterpret_cast<uintptr_t>(new T(static_cast<Args &&>(args)...));
 			set_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)),  res);
 			return *reinterpret_cast<T *>(static_cast<uintptr_t>(res));
 		}

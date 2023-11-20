@@ -66,6 +66,10 @@ namespace reshade { namespace api
 		virtual uint32_t get_back_buffer_count() const = 0;
 
 		/// <summary>
+		/// Gets the current back buffer resource.
+		/// </summary>
+		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
+		/// <summary>
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;

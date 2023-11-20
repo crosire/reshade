@@ -46,12 +46,18 @@ static void on_destroy_command_list(command_list *cmd_list)
 static void on_init_effect_runtime(effect_runtime *runtime)
 {
 	auto &dev_data = runtime->get_device()->get_private_data<device_data>();
+	if (std::addressof(dev_data) == nullptr)
+		return;
+
 	// Assume last created effect runtime is the main one
 	dev_data.main_runtime = runtime;
 }
 static void on_destroy_effect_runtime(effect_runtime *runtime)
 {
 	auto &dev_data = runtime->get_device()->get_private_data<device_data>();
+	if (std::addressof(dev_data) == nullptr)
+		return;
+
 	if (runtime == dev_data.main_runtime)
 		dev_data.main_runtime = nullptr;
 }
@@ -131,7 +137,7 @@ static void on_present(effect_runtime *runtime)
 	device *const device = runtime->get_device();
 	auto &dev_data = device->get_private_data<device_data>();
 
-	if (runtime != dev_data.main_runtime)
+	if (std::addressof(dev_data) == nullptr || runtime != dev_data.main_runtime)
 		return;
 
 	// The 'reset_command_list' event is not called for immediate command lists, so call it manually here in D3D9/10/11/OpenGL to reset the current render pass index every frame
@@ -151,7 +157,7 @@ static void on_draw_settings(effect_runtime *runtime)
 	device *const device = runtime->get_device();
 	auto &dev_data = device->get_private_data<device_data>();
 
-	if (runtime != dev_data.main_runtime)
+	if (std::addressof(dev_data) == nullptr || runtime != dev_data.main_runtime)
 	{
 		ImGui::TextUnformatted("This is not the main effect runtime.");
 		return;
