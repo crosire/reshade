@@ -700,6 +700,7 @@
     <ClInclude Include="source\input.hpp" />
     <ClInclude Include="source\input_gamepad.hpp" />
     <ClInclude Include="source\lockfree_linear_map.hpp" />
+    <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_render_context.hpp" />

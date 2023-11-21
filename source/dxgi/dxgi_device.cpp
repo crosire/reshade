@@ -20,7 +20,7 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 		riid == __uuidof(IDXGIObject))
 		return true;
 
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(IDXGIDevice),
 		__uuidof(IDXGIDevice1),
 		__uuidof(IDXGIDevice2),

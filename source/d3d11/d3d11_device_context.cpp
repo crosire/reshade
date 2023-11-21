@@ -56,7 +56,7 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 		riid == __uuidof(ID3D11DeviceChild))
 		return true;
 
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(ID3D11DeviceContext),
 		__uuidof(ID3D11DeviceContext1),
 		__uuidof(ID3D11DeviceContext2),

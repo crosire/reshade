@@ -68,8 +68,6 @@ namespace reshade::d3d11
 
 	class device_context_impl : public api::api_object_impl<ID3D11DeviceContext *, api::command_queue, api::command_list>
 	{
-		friend class swapchain_impl;
-
 	public:
 		device_context_impl(device_impl *device, ID3D11DeviceContext *context);
 

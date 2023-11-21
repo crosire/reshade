@@ -195,16 +195,16 @@ static void encode_frame(AVCodecContext *enc, AVFormatContext *s, AVFrame *frame
 	}
 }
 
-static void on_init(reshade::api::swapchain *swapchain)
+static void on_init(reshade::api::effect_runtime *runtime)
 {
-	swapchain->create_private_data<video_capture>();
+	runtime->create_private_data<video_capture>();
 }
-static void on_destroy(reshade::api::swapchain *swapchain)
+static void on_destroy(reshade::api::effect_runtime *runtime)
 {
-	video_capture &data = swapchain->get_private_data<video_capture>();
+	video_capture &data = runtime->get_private_data<video_capture>();
 
 	if (data.host_resource != 0)
-		swapchain->get_device()->destroy_resource(data.host_resource);
+		runtime->get_device()->destroy_resource(data.host_resource);
 
 	// Flush the encoder
 	if (data.output_ctx != nullptr)
@@ -212,7 +212,7 @@ static void on_destroy(reshade::api::swapchain *swapchain)
 
 	data.destroy_format_ctx(); data.destroy_codec_ctx();
 
-	swapchain->destroy_private_data<video_capture>();
+	runtime->destroy_private_data<video_capture>();
 }
 
 static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, reshade::api::command_list *, reshade::api::resource_view rtv, reshade::api::resource_view)
@@ -329,8 +329,8 @@ extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon_module, HMODULE re
 	if (!reshade::register_addon(addon_module, reshade_module))
 		return false;
 
-	reshade::register_event<reshade::addon_event::init_swapchain>(on_init);
-	reshade::register_event<reshade::addon_event::destroy_swapchain>(on_destroy);
+	reshade::register_event<reshade::addon_event::init_effect_runtime>(on_init);
+	reshade::register_event<reshade::addon_event::destroy_effect_runtime>(on_destroy);
 	reshade::register_event<reshade::addon_event::reshade_finish_effects>(on_reshade_finish_effects);
 
 	return true;

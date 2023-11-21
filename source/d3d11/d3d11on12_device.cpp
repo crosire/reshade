@@ -29,7 +29,7 @@ bool D3D11On12Device::check_and_upgrade_interface(REFIID riid)
 	if (riid == __uuidof(this))
 		return true;
 
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(ID3D11On12Device),
 		__uuidof(ID3D11On12Device1),
 		__uuidof(ID3D11On12Device2),

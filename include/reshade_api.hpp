@@ -66,6 +66,10 @@ namespace reshade { namespace api
 		virtual uint32_t get_back_buffer_count() const = 0;
 
 		/// <summary>
+		/// Gets the current back buffer resource.
+		/// </summary>
+		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
+		/// <summary>
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
 		virtual uint32_t get_current_back_buffer_index() const = 0;
@@ -783,6 +787,11 @@ namespace reshade { namespace api
 		/// <param name="open">Requested overlay state.</param>
 		/// <param name="source">Source of this request.</param>
 		/// <returns><see langword="true"/> if the overlay state was changed, <see langword="false"/> otherwise.</returns>
-		virtual bool open_overlay(bool open, api::input_source source) = 0;
+		virtual bool open_overlay(bool open, input_source source) = 0;
+
+		/// <summary>
+		/// Overrides the color space used for presentation.
+		/// </summary>
+		virtual void set_color_space(color_space color_space) = 0;
 	};
 } }

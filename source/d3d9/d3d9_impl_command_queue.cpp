@@ -40,5 +40,5 @@ uint64_t reshade::d3d9::device_impl::get_timestamp_frequency() const
 			return frequency;
 	}
 
-	return 1000000000;
+	return 0;
 }

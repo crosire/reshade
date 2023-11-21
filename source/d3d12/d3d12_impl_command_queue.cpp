@@ -139,5 +139,5 @@ uint64_t reshade::d3d12::command_queue_impl::get_timestamp_frequency() const
 	if (SUCCEEDED(_orig->GetTimestampFrequency(&frequency)))
 		return frequency;
 
-	return 1000000000;
+	return 0;
 }

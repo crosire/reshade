@@ -132,5 +132,5 @@ uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
 			return temp_query_data.Frequency;
 	}
 
-	return 1000000000;
+	return 0;
 }

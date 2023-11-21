@@ -38,6 +38,8 @@ namespace reshade::d3d12
 	protected:
 		device_impl *const _device_impl;
 		std::vector<com_ptr<ID3D12Resource>> _back_buffers;
+
+	private:
 		api::color_space _back_buffer_color_space = api::color_space::unknown;
 	};
 

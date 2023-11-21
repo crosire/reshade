@@ -21,8 +21,8 @@ extern vr::IVRClientCore *g_client_core;
 static vr::VROverlayHandle_t s_main_handle = vr::k_ulOverlayHandleInvalid;
 static vr::VROverlayHandle_t s_thumbnail_handle = vr::k_ulOverlayHandleInvalid;
 
-static const uint32_t OVERLAY_WIDTH = 500;
-static const uint32_t OVERLAY_HEIGHT = 500;
+static constexpr uint32_t OVERLAY_WIDTH = 500;
+static constexpr uint32_t OVERLAY_HEIGHT = 500;
 
 bool reshade::runtime::init_gui_vr()
 {

@@ -13,8 +13,6 @@ namespace reshade::d3d10
 {
 	class device_impl : public api::api_object_impl<ID3D10Device1 *, api::device, api::command_queue, api::command_list>
 	{
-		friend class swapchain_impl;
-
 	public:
 		explicit device_impl(ID3D10Device1 *device);
 

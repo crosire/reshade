@@ -11,7 +11,7 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 
-void ReShadeLogMessage(HMODULE module, int level, const char *message)
+void ReShadeLogMessage([[maybe_unused]] HMODULE module, int level, const char *message)
 {
 	std::string prefix;
 #if RESHADE_ADDON
@@ -21,8 +21,6 @@ void ReShadeLogMessage(HMODULE module, int level, const char *message)
 		if (info != nullptr)
 			prefix = "[" + info->name + "] ";
 	}
-#else
-	UNREFERENCED_PARAMETER(module);
 #endif
 
 	reshade::log::message(static_cast<reshade::log::level>(level)) << prefix << message;
@@ -88,14 +86,14 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 
 #if RESHADE_ADDON && RESHADE_FX
 
-#include "d3d9/d3d9_device.hpp"
+#include "d3d9/d3d9_impl_device.hpp"
 #include "d3d9/d3d9_impl_swapchain.hpp"
-#include "d3d10/d3d10_device.hpp"
+#include "d3d10/d3d10_impl_device.hpp"
 #include "d3d10/d3d10_impl_swapchain.hpp"
-#include "d3d11/d3d11_device.hpp"
+#include "d3d11/d3d11_impl_device.hpp"
 #include "d3d11/d3d11_impl_device_context.hpp"
 #include "d3d11/d3d11_impl_swapchain.hpp"
-#include "d3d12/d3d12_device.hpp"
+#include "d3d12/d3d12_impl_device.hpp"
 #include "d3d12/d3d12_impl_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "opengl/opengl_impl_swapchain.hpp"
@@ -103,7 +101,7 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 #include "vulkan/vulkan_impl_command_queue.hpp"
 #include "vulkan/vulkan_impl_swapchain.hpp"
 
-bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime)
+bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_device, void *opaque_command_queue, void *opaque_swapchain, const char *config_path, reshade::api::effect_runtime **out_runtime)
 {
 	if (out_runtime == nullptr)
 		return false;
@@ -123,12 +121,8 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapc
 		com_ptr<IDirect3DSwapChain9> swapchain;
 		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
 			return false;
-		if (FAILED(swapchain->GetDevice(&device)))
+		if (FAILED(swapchain->GetDevice(&device)) || device.get() != opaque_device)
 			return false;
-
-		if (com_ptr<Direct3DDevice9> device_proxy;
-			SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&device_proxy))))
-			return false; // Cannot create new effect runtime for devices that were already proxied
 
 		const auto device_impl = new reshade::d3d9::device_impl(device.get());
 		swapchain_impl = new reshade::d3d9::swapchain_impl(device_impl, swapchain.get());
@@ -140,12 +134,8 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapc
 		com_ptr<IDXGISwapChain> swapchain;
 		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
 			return false;
-		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))))
+		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
 			return false;
-
-		if (com_ptr<D3D10Device> device_proxy;
-			SUCCEEDED(device->QueryInterface(&device_proxy)))
-			return false; // Cannot create new effect runtime for devices that were already proxied
 
 		const auto device_impl = new reshade::d3d10::device_impl(device.get());
 		swapchain_impl = new reshade::d3d10::swapchain_impl(device_impl, swapchain.get());
@@ -157,15 +147,19 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapc
 		com_ptr<IDXGISwapChain> swapchain;
 		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
 			return false;
-		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))))
+		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
 			return false;
 
-		if (com_ptr<D3D11Device> device_proxy;
-			SUCCEEDED(device->QueryInterface(&device_proxy)))
-			return false; // Cannot create new effect runtime for devices that were already proxied
-
 		com_ptr<ID3D11DeviceContext> device_context;
-		device->GetImmediateContext(&device_context);
+		if (opaque_command_queue != nullptr)
+		{
+			if (FAILED(static_cast<IUnknown *>(opaque_command_queue)->QueryInterface(&device_context)))
+				return false;
+		}
+		else
+		{
+			device->GetImmediateContext(&device_context);
+		}
 
 		const auto device_impl = new reshade::d3d11::device_impl(device.get());
 		swapchain_impl = new reshade::d3d11::swapchain_impl(device_impl, swapchain.get());
@@ -175,18 +169,16 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapc
 	case reshade::api::device_api::d3d12:
 	{
 		com_ptr<ID3D12Device> device;
-		com_ptr<ID3D12CommandQueue> command_queue;
 		com_ptr<IDXGISwapChain3> swapchain;
 		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
 			return false;
-		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&command_queue))))
-			return false;
-		if (FAILED(command_queue->GetDevice(IID_PPV_ARGS(&device))))
+		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
 			return false;
 
-		if (com_ptr<D3D12Device> device_proxy;
-			SUCCEEDED(device->QueryInterface(&device_proxy)))
-			return false; // Cannot create new effect runtime for devices that were already proxied
+		com_ptr<ID3D12CommandQueue> command_queue;
+		if (opaque_command_queue == nullptr ||
+			FAILED(static_cast<IUnknown *>(opaque_command_queue)->QueryInterface(IID_PPV_ARGS(&command_queue))))
+			return false;
 
 		const auto device_impl = new reshade::d3d12::device_impl(device.get());
 		swapchain_impl = new reshade::d3d12::swapchain_impl(device_impl, swapchain.get());
@@ -201,7 +193,7 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_swapc
 
 		gl3wInit();
 
-		swapchain_impl = new reshade::opengl::swapchain_impl(hdc, nullptr);
+		swapchain_impl = new reshade::opengl::swapchain_impl(hdc, static_cast<HGLRC>(opaque_device));
 		graphics_queue_impl = static_cast<reshade::opengl::swapchain_impl *>(swapchain_impl);
 		break;
 	}

@@ -12,7 +12,7 @@
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
 	api_object_impl(queue),
 	_device_impl(device),
-	_queue_flags(queue_family.queueFlags)
+	_queue_family_props(queue_family)
 {
 	// Register queue to device (no need to lock, since all command queues are created single threaded in 'vkCreateDevice')
 	_device_impl->_queues.push_back(this);
@@ -51,7 +51,7 @@ reshade::api::command_queue_type reshade::vulkan::command_queue_impl::get_type()
 		api::command_queue_type::compute == VK_QUEUE_COMPUTE_BIT &&
 		api::command_queue_type::copy == VK_QUEUE_TRANSFER_BIT);
 
-	return static_cast<api::command_queue_type>(_queue_flags);
+	return static_cast<api::command_queue_type>(_queue_family_props.queueFlags);
 }
 
 void reshade::vulkan::command_queue_impl::wait_idle() const
@@ -160,6 +160,9 @@ bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t valu
 
 uint64_t reshade::vulkan::command_queue_impl::get_timestamp_frequency() const
 {
+	if (_queue_family_props.timestampValidBits == 0)
+		return 0;
+
 	VkPhysicalDeviceProperties device_props = {};
 	_device_impl->_instance_dispatch_table.GetPhysicalDeviceProperties(_device_impl->_physical_device, &device_props);
 

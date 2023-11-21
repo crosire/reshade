@@ -1191,6 +1191,14 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 		apply_state(cmd_list, _app_state);
 #endif
 }
+#else
+void reshade::runtime::render_effects(api::command_list * /*cmd_list*/, api::resource_view /*rtv*/, api::resource_view /*rtv_srgb*/)
+{
+}
+
+void reshade::runtime::render_technique(api::effect_technique /*handle*/, api::command_list * /*cmd_list*/, api::resource_view /*rtv*/, api::resource_view /*rtv_srgb*/)
+{
+}
 #endif
 
 bool reshade::runtime::get_effects_state() const
@@ -1296,3 +1304,10 @@ void reshade::runtime::reorder_techniques([[maybe_unused]] size_t count, [[maybe
 #endif
 #endif
 }
+
+#if RESHADE_GUI == 0
+bool reshade::runtime::open_overlay(bool /*open*/, api::input_source /*source*/)
+{
+	return false;
+}
+#endif

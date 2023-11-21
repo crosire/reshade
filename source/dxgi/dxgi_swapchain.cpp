@@ -293,7 +293,7 @@ bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 		riid == __uuidof(IDXGIDeviceSubObject))
 		return true;
 
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(IDXGISwapChain),
 		__uuidof(IDXGISwapChain1),
 		__uuidof(IDXGISwapChain2),

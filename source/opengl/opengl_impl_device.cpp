@@ -47,6 +47,8 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	if (pfd.dwFlags & PFD_STEREO)
 		_default_fbo_desc.texture.depth_or_layers = 2;
 
+	const auto wglGetProcAddress = reinterpret_cast<PROC(WINAPI *)(LPCSTR lpszProc)>(GetProcAddress(GetModuleHandleW(L"opengl32.dll"), "wglGetProcAddress"));
+	assert(wglGetProcAddress != nullptr);
 	const auto wglGetPixelFormatAttribivARB = reinterpret_cast<BOOL(WINAPI *)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)>(wglGetProcAddress("wglGetPixelFormatAttribivARB"));
 	if (wglGetPixelFormatAttribivARB != nullptr)
 	{
@@ -330,7 +332,7 @@ void reshade::opengl::device_impl::destroy_sampler(api::sampler handle)
 	gl.DeleteSamplers(1, &object);
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE * /* shared_handle */)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_handle, HANDLE * /*shared_handle*/)
 {
 	*out_handle = { 0 };
 
