@@ -4040,7 +4040,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	const effect &effect = _effects[tech.effect_index];
 
 #if RESHADE_GUI
-	if (_gather_gpu_statistics && effect.query_heap != 0)
+	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
@@ -4255,7 +4255,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-	if (_gather_gpu_statistics && effect.query_heap != 0)
+	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0)
 		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2 + 1);
 #endif
 

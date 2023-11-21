@@ -38,7 +38,7 @@ namespace reshade::vulkan
 	private:
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
-		const VkQueueFlags _queue_flags;
+		VkQueueFamilyProperties _queue_family_props = {};
 	};
 
 	template <>

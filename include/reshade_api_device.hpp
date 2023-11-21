@@ -1039,6 +1039,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Queries the GPU timestamp frequency in ticks per second.
 		/// </summary>
+		/// <returns>Timestamp frequency in number of ticks per second, or zero if GPU timestamps are not supported on this queue.</returns>
 		virtual uint64_t get_timestamp_frequency() const = 0;
 	};
 
