@@ -4162,7 +4162,10 @@ bool reshade::runtime::init_imgui_resources()
 
 	subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_state });
 
-	subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &_back_buffer_format });
+	// Always choose non-sRGB format variant, since 'render_imgui_draw_data' is called with the non-sRGB render target (see 'draw_gui')
+	api::format render_target_format = api::format_to_default_typed(_back_buffer_format, 0);
+
+	subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &render_target_format });
 
 	if (_device->create_pipeline(_imgui_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_imgui_pipeline))
 	{
