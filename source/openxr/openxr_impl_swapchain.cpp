@@ -12,8 +12,7 @@ reshade::openxr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 	_device(device),
 	_graphics_queue(graphics_queue)
 {
-	// TODO_OXR: this calls init_vr_gui.  UI is not implemented yet.
-	create_effect_runtime(this, graphics_queue, false);
+	create_effect_runtime(this, graphics_queue, true);
 }
 
 reshade::openxr::swapchain_impl::~swapchain_impl()

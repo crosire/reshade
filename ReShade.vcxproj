@@ -599,7 +599,7 @@
     <ClCompile Include="source\opengl\opengl_impl_state_block.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_swapchain.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp" />
-    <ClCompile Include="source\openvr\openvr.cpp" />
+    <ClCompile Include="source\openvr\openvr_hooks.cpp" />
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp" />
     <ClCompile Include="source\openxr\openxr_hooks.cpp" />
     <ClCompile Include="source\openxr\openxr_hooks_instance.cpp" />

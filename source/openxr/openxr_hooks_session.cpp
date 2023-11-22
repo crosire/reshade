@@ -25,7 +25,6 @@ struct session_data : public reshade::openxr::swapchain_impl
 struct swapchain_data
 {
 	XrInstance instance;
-	// TODO_OXR: why deque?
 	std::deque<uint32_t> acquired_index;
 	uint32_t last_released_index = 0;
 	std::vector<XrSwapchainImageVulkanKHR> surface_images;

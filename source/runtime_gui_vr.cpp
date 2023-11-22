@@ -31,7 +31,11 @@ bool reshade::runtime::init_gui_vr()
 
 	if (s_overlay == nullptr)
 	{
-		assert(g_client_core != nullptr);
+		if (g_client_core == nullptr)
+		{
+			LOG(ERROR) << "Failed to create VR dashboard overlay because SteamVR is not loaded!";
+			return true; // Do not prevent effect runtime from initializing
+		}
 
 		vr::EVRInitError init_e;
 		if ((s_overlay = static_cast<vr::IVROverlay *>(g_client_core->GetGenericInterface(vr::IVROverlay_Version, &init_e))) == nullptr)
@@ -63,7 +67,7 @@ bool reshade::runtime::init_gui_vr()
 
 	s_overlay->SetOverlayWidthInMeters(s_main_handle, 1.5f);
 
-	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::shader_resource), nullptr, api::resource_usage::shader_resource_pixel, &_vr_overlay_tex))
+	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source), nullptr, api::resource_usage::copy_source, &_vr_overlay_tex))
 	{
 		LOG(ERROR) << "Failed to create VR dashboard overlay texture!";
 		return false;
@@ -294,9 +298,9 @@ void reshade::runtime::draw_gui_vr()
 	{
 		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
-		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::shader_resource_pixel, api::resource_usage::render_target);
+		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::copy_source, api::resource_usage::render_target);
 		render_imgui_draw_data(cmd_list, draw_data, _vr_overlay_target);
-		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::render_target, api::resource_usage::shader_resource_pixel);
+		cmd_list->barrier(_vr_overlay_tex, api::resource_usage::render_target, api::resource_usage::copy_source);
 	}
 
 	ImGui::SetCurrentContext(backup_context);

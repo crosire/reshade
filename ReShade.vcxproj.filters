@@ -327,7 +327,7 @@
     <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp">
       <Filter>core\runtime\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\openvr\openvr.cpp">
+    <ClCompile Include="source\openvr\openvr_hooks.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp">
