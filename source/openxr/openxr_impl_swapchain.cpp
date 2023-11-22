@@ -82,26 +82,32 @@ void reshade::openxr::swapchain_impl::on_reset()
 	_side_by_side_texture = {};
 }
 
-void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain_image, api::resource right_xr_swapchain_image)
+void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain_image, const api::rect &left_rect, uint32_t left_layer, api::resource right_xr_swapchain_image, const api::rect &right_rect, uint32_t right_layer)
 {
 	const api::resource_desc source_desc = _device->get_resource_desc(left_xr_swapchain_image);
 
 	if (source_desc.texture.samples > 1 && !_device->check_capability(api::device_caps::resolve_region))
 		return; // Can only copy whole subresources when the resource is multisampled
 
-	reshade::api::subresource_box source_box;
-	source_box.left = 0;
-	source_box.top = 0;
-	source_box.front = 0;
-	source_box.right = source_desc.texture.width;
-	source_box.bottom = source_desc.texture.height;
-	source_box.back = 1;
+	reshade::api::subresource_box left_source_box;
+	left_source_box.left = left_rect.left;
+	left_source_box.top = left_rect.top;
+	left_source_box.front = 0;
+	left_source_box.right = left_rect.right;
+	left_source_box.bottom = left_rect.bottom;
+	left_source_box.back = 1;
+	reshade::api::subresource_box right_source_box;
+	right_source_box.left = right_rect.left;
+	right_source_box.top = right_rect.top;
+	right_source_box.front = 0;
+	right_source_box.right = right_rect.right;
+	right_source_box.bottom = right_rect.bottom;
+	right_source_box.back = 1;
 
-	const uint32_t region_width = source_box.width();
-	const uint32_t target_width = region_width * 2;
-	const uint32_t region_height = source_box.height();
+	const uint32_t target_width = left_source_box.width() + right_source_box.width();
+	const uint32_t region_height = std::max(left_source_box.height(), right_source_box.height());
 
-	if (region_width == 0 || region_height == 0)
+	if (target_width == 0 || region_height == 0)
 		return;
 
 	const api::resource_desc target_desc = _side_by_side_texture != 0 ? _device->get_resource_desc(_side_by_side_texture) : api::resource_desc();
@@ -141,8 +147,8 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::copy_source);
 		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::copy_source);
 
-		cmd_list->copy_texture_region(left_xr_swapchain_image, 0, &source_box, _side_by_side_texture, 0, &left_dest_box, api::filter_mode::min_mag_mip_point);
-		cmd_list->copy_texture_region(right_xr_swapchain_image, 0, &source_box, _side_by_side_texture, 0, &right_dest_box, api::filter_mode::min_mag_mip_point);
+		cmd_list->copy_texture_region(left_xr_swapchain_image, left_layer, &left_source_box, _side_by_side_texture, 0, &left_dest_box, api::filter_mode::min_mag_mip_point);
+		cmd_list->copy_texture_region(right_xr_swapchain_image, right_layer, &right_source_box, _side_by_side_texture, 0, &right_dest_box, api::filter_mode::min_mag_mip_point);
 
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::copy_dest, api::resource_usage::present);
 	}
@@ -152,8 +158,8 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::resolve_source);
 		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::resolve_source);
 
-		cmd_list->resolve_texture_region(left_xr_swapchain_image, 0, &source_box, _side_by_side_texture, 0, left_dest_box.left, left_dest_box.top, left_dest_box.front, source_desc.texture.format);
-		cmd_list->resolve_texture_region(right_xr_swapchain_image, 0, &source_box, _side_by_side_texture, 0, right_dest_box.left, right_dest_box.top, right_dest_box.front, source_desc.texture.format);
+		cmd_list->resolve_texture_region(left_xr_swapchain_image, left_layer, &left_source_box, _side_by_side_texture, 0, left_dest_box.left, left_dest_box.top, left_dest_box.front, source_desc.texture.format);
+		cmd_list->resolve_texture_region(right_xr_swapchain_image, right_layer, &right_source_box, _side_by_side_texture, 0, right_dest_box.left, right_dest_box.top, right_dest_box.front, source_desc.texture.format);
 
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::resolve_dest, api::resource_usage::present);
 	}
@@ -170,8 +176,8 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_source, api::resource_usage::copy_dest);
 		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::copy_source, api::resource_usage::copy_dest);
 
-		cmd_list->copy_texture_region(_side_by_side_texture, 0, &left_dest_box, left_xr_swapchain_image, 0, &source_box, api::filter_mode::min_mag_mip_point);
-		cmd_list->copy_texture_region(_side_by_side_texture, 0, &right_dest_box, right_xr_swapchain_image, 0, &source_box, api::filter_mode::min_mag_mip_point);
+		cmd_list->copy_texture_region(_side_by_side_texture, 0, &left_dest_box, left_xr_swapchain_image, left_layer, &left_source_box, api::filter_mode::min_mag_mip_point);
+		cmd_list->copy_texture_region(_side_by_side_texture, 0, &right_dest_box, right_xr_swapchain_image, right_layer, &right_source_box, api::filter_mode::min_mag_mip_point);
 
 		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::render_target);
 		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::render_target);

@@ -42,7 +42,7 @@ namespace reshade::openxr
 		bool on_init();
 		void on_reset();
 
-		void on_present(api::resource left_texture, api::resource right_texture);
+		void on_present(api::resource left_texture, const api::rect &left_rect, uint32_t left_layer, api::resource right_texture, const api::rect &right_rect, uint32_t right_layer);
 
 	private:
 		api::device *const _device;

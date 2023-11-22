@@ -196,7 +196,11 @@ XrResult XRAPI_CALL xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapc
 XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEndInfo)
 {
 	reshade::api::resource left_texture = {};
+	reshade::api::rect left_rect;
+	uint32_t left_layer = 0;
 	reshade::api::resource right_texture = {};
+	reshade::api::rect right_rect;
+	uint32_t right_layer = 0;
 
 	for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i)
 	{
@@ -204,11 +208,25 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 		{
 			const XrCompositionLayerProjection *const layer = reinterpret_cast<const XrCompositionLayerProjection *>(frameEndInfo->layers[i]);
 
-			swapchain_data const &left_data = s_openxr_swapchains.at(layer->views[static_cast<int>(reshade::openxr::eye::left)].subImage.swapchain);
-			left_texture.handle = (uint64_t)left_data.surface_images[left_data.last_released_index].image;
+			XrSwapchainSubImage const &left_sub_image = layer->views[0].subImage;
 
-			swapchain_data const &right_data = s_openxr_swapchains.at(layer->views[static_cast<int>(reshade::openxr::eye::right)].subImage.swapchain);
+			swapchain_data const &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
+			left_texture.handle = (uint64_t)left_data.surface_images[left_data.last_released_index].image;
+			left_rect.left = left_sub_image.imageRect.offset.x;
+			left_rect.top = left_sub_image.imageRect.offset.y;
+			left_rect.right = left_sub_image.imageRect.offset.x + left_sub_image.imageRect.extent.width;
+			left_rect.bottom = left_sub_image.imageRect.offset.y + left_sub_image.imageRect.extent.height;
+			left_layer = left_sub_image.imageArrayIndex;
+
+			XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
+
+			swapchain_data const &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
 			right_texture.handle = (uint64_t)right_data.surface_images[right_data.last_released_index].image;
+			right_rect.left = right_sub_image.imageRect.offset.x;
+			right_rect.top = right_sub_image.imageRect.offset.y;
+			right_rect.right = right_sub_image.imageRect.offset.x + right_sub_image.imageRect.extent.width;
+			right_rect.bottom = right_sub_image.imageRect.offset.y + right_sub_image.imageRect.extent.height;
+			right_layer = right_sub_image.imageArrayIndex;
 			break;
 		}
 	}
@@ -216,7 +234,7 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 	session_data *const swapchain_impl = s_openxr_sessions.at(session);
 
 	if (left_texture != 0 && right_texture != 0)
-		swapchain_impl->on_present(left_texture, right_texture);
+		swapchain_impl->on_present(left_texture, left_rect, left_layer, right_texture, right_rect, right_layer);
 
 	GET_DISPATCH_PTR_FROM(EndFrame, swapchain_impl->instance);
 	return trampoline(session, frameEndInfo);
