@@ -29,3 +29,6 @@
 [submodule "d3d12"]
 	path = deps/d3d12
 	url = https://github.com/microsoft/DirectX-Headers.git
+[submodule "openxr"]
+	path = deps/openxr
+	url = https://github.com/KhronosGroup/OpenXR-SDK.git

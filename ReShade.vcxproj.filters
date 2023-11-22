@@ -61,6 +61,9 @@
     <Filter Include="hooks\openvr">
       <UniqueIdentifier>{d33c801e-4764-4584-b168-66dde19a6f57}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\openxr">
+      <UniqueIdentifier>{6e1dc50f-a845-48b7-bc1c-852c22956b19}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\vulkan">
       <UniqueIdentifier>{40ae025e-f912-4ebf-9a43-69d7c1a96d3e}</UniqueIdentifier>
     </Filter>
@@ -329,6 +332,12 @@
     </ClCompile>
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp">
       <Filter>hooks\openvr</Filter>
+    </ClCompile>
+    <ClCompile Include="source\openxr\openxr.cpp">
+      <Filter>hooks\openxr</Filter>
+    </ClCompile>
+    <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp">
+      <Filter>hooks\openxr</Filter>
     </ClCompile>
     <ClCompile Include="source\platform_utils.cpp">
       <Filter>core\utils</Filter>
@@ -634,6 +643,9 @@
     </ClInclude>
     <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp">
       <Filter>hooks\openvr</Filter>
+    </ClInclude>
+    <ClInclude Include="source\openxr\openxr_impl_swapchain.hpp">
+      <Filter>hooks\openxr</Filter>
     </ClInclude>
     <ClInclude Include="source\platform_utils.hpp">
       <Filter>core\utils</Filter>
