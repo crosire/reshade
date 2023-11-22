@@ -1002,6 +1002,7 @@ namespace ReShade.Setup
 				{
 					string layerModulePath = Path.Combine(commonPath, layerModuleName + ".dll");
 					string layerManifestPath = Path.Combine(commonPath, layerModuleName + ".json");
+					string layerManifestPathXR = Path.Combine(commonPath, layerModuleName + "_XR.json");
 
 					try
 					{
@@ -1038,6 +1039,28 @@ namespace ReShade.Setup
 					catch (Exception ex)
 					{
 						UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest:\n" + ex.Message);
+						return;
+					}
+
+					try
+					{
+						var manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR));
+						if (manifest == null)
+						{
+							throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
+						}
+
+						manifest.ExtractToFile(layerManifestPathXR, true);
+
+						// Register this layer manifest
+						using (RegistryKey key = Registry.LocalMachine.CreateSubKey(Environment.Is64BitOperatingSystem && layerModuleName == "ReShade32" ? @"Software\Wow6432Node\Khronos\OpenXR\1\ApiLayers\Implicit" : @"Software\Khronos\OpenXR\1\ApiLayers\Implicit"))
+						{
+							key.SetValue(layerManifestPathXR, 0, RegistryValueKind.DWord);
+						}
+					}
+					catch (Exception ex)
+					{
+						UpdateStatusAndFinish(false, "Failed to install OpenXR layer manifest:\n" + ex.Message);
 						return;
 					}
 				}
