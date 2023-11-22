@@ -1760,11 +1760,22 @@ In that event here are some steps you can try to resolve this:
 								key.DeleteValue(Path.Combine(commonPath, "ReShade64.json"), false);
 							}
 
+							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\OpenXR\1\ApiLayers\Implicit"))
+							{
+								key.DeleteValue(Path.Combine(commonPath, "ReShade32_XR.json"), false);
+								key.DeleteValue(Path.Combine(commonPath, "ReShade64_XR.json"), false);
+							}
+
 							if (Environment.Is64BitOperatingSystem)
 							{
 								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers"))
 								{
 									key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
+								}
+
+								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\OpenXR\1\ApiLayers\Implicit"))
+								{
+									key.DeleteValue(Path.Combine(commonPath, "ReShade32_XR.json"), false);
 								}
 							}
 						}
