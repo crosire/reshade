@@ -333,7 +333,13 @@
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
-    <ClCompile Include="source\openxr\openxr.cpp">
+    <ClCompile Include="source\openxr\openxr_hooks.cpp">
+      <Filter>hooks\openxr</Filter>
+    </ClCompile>
+    <ClCompile Include="source\openxr\openxr_hooks_instance.cpp">
+      <Filter>hooks\openxr</Filter>
+    </ClCompile>
+    <ClCompile Include="source\openxr\openxr_hooks_session.cpp">
       <Filter>hooks\openxr</Filter>
     </ClCompile>
     <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp">
@@ -643,6 +649,9 @@
     </ClInclude>
     <ClInclude Include="source\openvr\openvr_impl_swapchain.hpp">
       <Filter>hooks\openvr</Filter>
+    </ClInclude>
+    <ClInclude Include="source\openxr\openxr_hooks.hpp">
+      <Filter>hooks\openxr</Filter>
     </ClInclude>
     <ClInclude Include="source\openxr\openxr_impl_swapchain.hpp">
       <Filter>hooks\openxr</Filter>

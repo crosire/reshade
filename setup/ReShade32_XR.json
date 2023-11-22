@@ -1,0 +1,11 @@
+{
+	"file_format_version": "1.0.0",
+	"api_layer": {
+		"name": "XR_APILAYER_reshade",
+		"library_path": ".\\ReShade32.dll",
+		"api_version": "1.0",
+		"implementation_version": "2",
+		"description": "crosire's ReShade post-processing injector for 32-bit",
+		"disable_environment": "DISABLE_XR_API_LAYER_reshade_1"
+	}
+}
