@@ -736,7 +736,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
 	{
 		// Add required usage flags to create info
-		create_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		create_info.imageUsage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
 		// Add required formats, so views with different formats can be created for the swap chain images
 		format_list.push_back(reshade::vulkan::convert_format(
@@ -974,7 +974,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 }
 void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks *pAllocator)
 {
-	LOG(INFO) << "Redirecting " << "vkDestroySwapchainKHR" << '(' << device << ", " << swapchain << ", " << pAllocator << ')' << " ...";
+	LOG(INFO) << "Redirecting " << "vkDestroySwapchainKHR" << '(' << "device = " << device << ", swapchain = " << swapchain << ", pAllocator = " << pAllocator << ')' << " ...";
 
 	if (swapchain == VK_NULL_HANDLE)
 		return;
