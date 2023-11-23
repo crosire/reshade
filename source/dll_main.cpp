@@ -167,10 +167,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
 				if (!reshade::log::open_log_file(log_path, ec))
 				{
-					for (int log_index = 1; std::filesystem::exists(log_path, ec); ++log_index)
+					// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
+					for (int log_index = 0; log_index < 10 && std::filesystem::exists(log_path, ec); ++log_index)
 					{
-						// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
-						log_path.replace_filename(L"ReShade" + std::to_wstring(log_index + 1) + L".log");
+						log_path.replace_filename(L"ReShade.log" + std::to_wstring(log_index + 1));
 
 						if (reshade::log::open_log_file(log_path, ec))
 							break;
