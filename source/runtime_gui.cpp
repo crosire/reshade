@@ -2733,6 +2733,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_VMA);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
+	if (ImGui::CollapsingHeader("OpenVR"))
+	{
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_OPENVR);
+		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
+	}
+	if (ImGui::CollapsingHeader("OpenXR"))
+	{
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_OPENXR);
+		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
+	}
 	if (ImGui::CollapsingHeader("Solarized"))
 	{
 		ImGui::TextUnformatted(R"(Copyright (C) 2011 Ethan Schoonover

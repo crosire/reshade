@@ -17,12 +17,14 @@
 #define IDR_LICENSE_GL3W                701
 #define IDR_LICENSE_IMGUI               702
 #define IDR_LICENSE_MINHOOK             703
-#define IDR_LICENSE_RESHADE             704
-#define IDR_LICENSE_SPIRV               705
-#define IDR_LICENSE_STB                 706
-#define IDR_LICENSE_UTFCPP              707
-#define IDR_LICENSE_VMA                 708
-#define IDR_LICENSE_VULKAN              709
+#define IDR_LICENSE_OPENVR              704
+#define IDR_LICENSE_OPENXR              705
+#define IDR_LICENSE_RESHADE             706
+#define IDR_LICENSE_SPIRV               707
+#define IDR_LICENSE_STB                 708
+#define IDR_LICENSE_UTFCPP              709
+#define IDR_LICENSE_VMA                 710
+#define IDR_LICENSE_VULKAN              711
 
 // Next default values for new objects
 // 
