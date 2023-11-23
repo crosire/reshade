@@ -39,8 +39,14 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	if (trampoline == nullptr || get_instance_proc == nullptr) // Unable to resolve next 'xrCreateApiLayerInstance' function in the call chain
 		return XR_ERROR_INITIALIZATION_FAILED;
 
+	LOG(INFO) << "> Dumping enabled instance extensions:";
+	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
+		LOG(INFO) << "  " << pCreateInfo->enabledExtensionNames[i];
+
 	XrApiLayerCreateInfo api_layer_info = *pApiLayerInfo;
 	api_layer_info.nextInfo = pApiLayerInfo->nextInfo->next;
+
+	LOG(INFO) << "> Requesting new OpenXR instance for API version " << XR_VERSION_MAJOR(pCreateInfo->applicationInfo.apiVersion) << '.' << XR_VERSION_MINOR(pCreateInfo->applicationInfo.apiVersion) << '.';
 
 	// Continue calling down the chain
 	const XrResult result = trampoline(pCreateInfo, &api_layer_info, pInstance);

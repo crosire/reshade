@@ -60,6 +60,20 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
 
+	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+	if (pCreateInfo->pApplicationInfo != nullptr)
+		app_info = *pCreateInfo->pApplicationInfo;
+
+	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << '.';
+
+	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
+	if (app_info.apiVersion < VK_API_VERSION_1_1)
+	{
+		LOG(INFO) << "> Replacing requested version with 1.1.";
+
+		app_info.apiVersion = VK_API_VERSION_1_1;
+	}
+
 	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
 	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
 		GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
@@ -101,20 +115,6 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 		// Enable extensions that ReShade requires
 		add_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
-	}
-
-	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
-	if (pCreateInfo->pApplicationInfo != nullptr)
-		app_info = *pCreateInfo->pApplicationInfo;
-
-	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << ".";
-
-	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
-	if (app_info.apiVersion < VK_API_VERSION_1_1)
-	{
-		LOG(INFO) << "> Replacing requested version with 1.1.";
-
-		app_info.apiVersion = VK_API_VERSION_1_1;
 	}
 
 	VkInstanceCreateInfo create_info = *pCreateInfo;
