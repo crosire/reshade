@@ -25,7 +25,7 @@ void reshade::opengl::swapchain_impl::destroy_resource_view(api::resource_view h
 {
 	device_impl::destroy_resource_view(handle);
 
-	// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is re-used
+	// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is reused
 	for (const auto &fbo_data : _fbo_lookup)
 	{
 		gl.DeleteFramebuffers(1, &fbo_data.second);

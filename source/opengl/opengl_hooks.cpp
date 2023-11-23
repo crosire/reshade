@@ -1781,16 +1781,26 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
-		if (length != nullptr)
+		if (count == 1)
 		{
-			combined_source.reserve(length[0]);
+			combined_source_ptr = *string;
+			combined_source_length = (length != nullptr) ? *length : static_cast<GLint>(std::strlen(combined_source_ptr));
+		}
+		else if (length != nullptr)
+		{
 			for (GLsizei i = 0; i < count; ++i)
 				combined_source.append(string[i], length[i]);
+
+			combined_source_ptr = combined_source.data();
+			combined_source_length = static_cast<GLint>(combined_source.size());
 		}
 		else
 		{
 			for (GLsizei i = 0; i < count; ++i)
 				combined_source.append(string[i]);
+
+			combined_source_ptr = combined_source.data();
+			combined_source_length = static_cast<GLint>(combined_source.size());
 		}
 
 		GLint type = GL_NONE;
@@ -1824,8 +1834,8 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 		}
 
 		reshade::api::shader_desc desc = {};
-		desc.code = combined_source.data();
-		desc.code_size = combined_source.size();
+		desc.code = combined_source_ptr;
+		desc.code_size = combined_source_length;
 		desc.entry_point = "main";
 
 		const reshade::api::pipeline_subobject subobject = { subobject_type, 1, &desc };
