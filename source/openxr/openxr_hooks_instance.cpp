@@ -59,6 +59,7 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(CreateSession);
 	INIT_DISPATCH_PTR(DestroySession);
+	INIT_DISPATCH_PTR(EnumerateViewConfigurations);
 	INIT_DISPATCH_PTR(CreateSwapchain);
 	INIT_DISPATCH_PTR(DestroySwapchain);
 	INIT_DISPATCH_PTR(EnumerateSwapchainImages);

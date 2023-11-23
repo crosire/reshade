@@ -29,12 +29,12 @@
 
 struct openxr_session_data
 {
-	openxr_dispatch_table *dispatch_table = nullptr;
+	const openxr_dispatch_table *dispatch_table = nullptr;
 	reshade::openxr::swapchain_impl *swapchain_impl = nullptr;
 };
 struct openxr_swapchain_data
 {
-	openxr_dispatch_table *dispatch_table = nullptr;
+	const openxr_dispatch_table *dispatch_table = nullptr;
 	std::vector<reshade::api::resource> surface_images;
 	std::deque<uint32_t> acquired_index;
 	uint32_t last_released_index = 0;
@@ -44,8 +44,6 @@ extern lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_insta
 static lockfree_linear_map<XrSession, openxr_session_data, 16> s_openxr_sessions;
 static lockfree_linear_map<XrSwapchain, openxr_swapchain_data, 16> s_openxr_swapchains;
 
-#define GET_DISPATCH_PTR(name) \
-	GET_DISPATCH_PTR_FROM(name, &g_openxr_instances.at(instance))
 #define GET_DISPATCH_PTR_FROM(name, data) \
 	assert((data) != nullptr); \
 	PFN_xr##name trampoline = (data)->name; \
@@ -57,7 +55,8 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 
 	assert(pCreateInfo != nullptr && pSession != nullptr);
 
-	GET_DISPATCH_PTR(CreateSession);
+	const openxr_dispatch_table &dispatch_table = g_openxr_instances.at(instance);
+	GET_DISPATCH_PTR_FROM(CreateSession, &dispatch_table);
 
 	const XrResult result = trampoline(instance, pCreateInfo, pSession);
 	if (XR_FAILED(result))
@@ -66,79 +65,94 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		return result;
 	}
 
-	// Initialize OpenVR hooks, in case this OpenXR instance is using the SteamVR runtime, so that the VR dashboard overlay can be added
-	extern void check_and_init_openvr_hooks();
-	check_and_init_openvr_hooks();
+	auto enum_view_configurations = dispatch_table.EnumerateViewConfigurations;
+	assert(enum_view_configurations != nullptr);
+
+	uint32_t num_view_configurations = 0;
+	enum_view_configurations(instance, pCreateInfo->systemId, num_view_configurations, &num_view_configurations, nullptr);
+	std::vector<XrViewConfigurationType> view_configurations(num_view_configurations);
+	enum_view_configurations(instance, pCreateInfo->systemId, num_view_configurations, &num_view_configurations, view_configurations.data());
 
 	reshade::openxr::swapchain_impl *swapchain_impl = nullptr;
 
-	if (const auto binding_d3d11 = find_in_structure_chain<XrGraphicsBindingD3D11KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_D3D11_KHR))
+	if (std::find(view_configurations.begin(), view_configurations.end(), XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO) != view_configurations.end())
 	{
-		if (const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(binding_d3d11->device))
+		// Initialize OpenVR hooks, in case this OpenXR instance is using the SteamVR runtime, so that the VR dashboard overlay can be added
+		extern void check_and_init_openvr_hooks();
+		check_and_init_openvr_hooks();
+
+		if (const auto binding_d3d11 = find_in_structure_chain<XrGraphicsBindingD3D11KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_D3D11_KHR))
 		{
-			swapchain_impl = new reshade::openxr::swapchain_impl(device_proxy, device_proxy->_immediate_context, *pSession);
-		}
-		else
-		{
-			LOG(WARN) << "Skipping OpenXR session because it was created without a proxy Direct3D 11 device.";
-		}
-	}
-	else
-	if (const auto binding_d3d12 = find_in_structure_chain<XrGraphicsBindingD3D12KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_D3D12_KHR))
-	{
-		if (const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(binding_d3d12->device))
-		{
-			if (com_ptr<D3D12CommandQueue> command_queue_proxy;
-				SUCCEEDED(binding_d3d12->queue->QueryInterface(&command_queue_proxy)))
+			if (const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(binding_d3d11->device))
 			{
-				swapchain_impl = new reshade::openxr::swapchain_impl(device_proxy, command_queue_proxy.get(), *pSession);
+				swapchain_impl = new reshade::openxr::swapchain_impl(device_proxy, device_proxy->_immediate_context, *pSession);
+			}
+			else
+			{
+				LOG(WARN) << "Skipping OpenXR session because it was created without a proxy Direct3D 11 device.";
 			}
 		}
 		else
+		if (const auto binding_d3d12 = find_in_structure_chain<XrGraphicsBindingD3D12KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_D3D12_KHR))
 		{
-			LOG(WARN) << "Skipping OpenXR session because it was created without a proxy Direct3D 12 device.";
-		}
-	}
-	else
-	if (const auto binding_opengl = find_in_structure_chain<XrGraphicsBindingOpenGLWin32KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR))
-	{
-		extern thread_local reshade::opengl::render_context_impl *g_current_context;
-
-		if (g_current_context != nullptr)
-		{
-			assert(reinterpret_cast<HGLRC>(g_current_context->get_native()) == binding_opengl->hGLRC);
-
-			swapchain_impl = new reshade::openxr::swapchain_impl(g_current_context->get_device(), g_current_context, *pSession);
-		}
-	}
-	else
-	if (const auto binding_vulkan = find_in_structure_chain<XrGraphicsBindingVulkanKHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR))
-	{
-		extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
-
-		if (reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(binding_vulkan->device)))
-		{
-			VkQueue queue_handle = VK_NULL_HANDLE;
-			device->_dispatch_table.GetDeviceQueue(binding_vulkan->device, binding_vulkan->queueFamilyIndex, binding_vulkan->queueIndex, &queue_handle);
-
-			reshade::vulkan::command_queue_impl *queue = nullptr;
-			if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
-					[queue_handle](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == queue_handle; });
-				queue_it != device->_queues.cend())
-				queue = *queue_it;
-
-			if (queue != nullptr)
+			if (const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(binding_d3d12->device))
 			{
-				swapchain_impl = new reshade::openxr::swapchain_impl(device, queue, *pSession);
+				if (com_ptr<D3D12CommandQueue> command_queue_proxy;
+					SUCCEEDED(binding_d3d12->queue->QueryInterface(&command_queue_proxy)))
+				{
+					swapchain_impl = new reshade::openxr::swapchain_impl(device_proxy, command_queue_proxy.get(), *pSession);
+				}
+			}
+			else
+			{
+				LOG(WARN) << "Skipping OpenXR session because it was created without a proxy Direct3D 12 device.";
 			}
 		}
 		else
+		if (const auto binding_opengl = find_in_structure_chain<XrGraphicsBindingOpenGLWin32KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR))
 		{
-			LOG(WARN) << "Skipping OpenXR session because it was created without a known Vulkan device.";
+			extern thread_local reshade::opengl::render_context_impl *g_current_context;
+
+			if (g_current_context != nullptr)
+			{
+				assert(reinterpret_cast<HGLRC>(g_current_context->get_native()) == binding_opengl->hGLRC);
+
+				swapchain_impl = new reshade::openxr::swapchain_impl(g_current_context->get_device(), g_current_context, *pSession);
+			}
+		}
+		else
+		if (const auto binding_vulkan = find_in_structure_chain<XrGraphicsBindingVulkanKHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR))
+		{
+			extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
+
+			if (reshade::vulkan::device_impl *const device = g_vulkan_devices.at(dispatch_key_from_handle(binding_vulkan->device)))
+			{
+				VkQueue queue_handle = VK_NULL_HANDLE;
+				device->_dispatch_table.GetDeviceQueue(binding_vulkan->device, binding_vulkan->queueFamilyIndex, binding_vulkan->queueIndex, &queue_handle);
+
+				reshade::vulkan::command_queue_impl *queue = nullptr;
+				if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
+						[queue_handle](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == queue_handle; });
+					queue_it != device->_queues.cend())
+					queue = *queue_it;
+
+				if (queue != nullptr)
+				{
+					swapchain_impl = new reshade::openxr::swapchain_impl(device, queue, *pSession);
+				}
+			}
+			else
+			{
+				LOG(WARN) << "Skipping OpenXR session because it was created without a known Vulkan device.";
+			}
 		}
 	}
+	else
+	{
+		LOG(WARN) << "Skipping OpenXR session because the system does not support the stereo view configuration.";
+	}
 
-	s_openxr_sessions.emplace(*pSession, openxr_session_data { &g_openxr_instances.at(instance), swapchain_impl });
+	s_openxr_sessions.emplace(*pSession, openxr_session_data { &dispatch_table, swapchain_impl });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning OpenXR session " << *pSession << '.';
@@ -182,48 +196,52 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 		return result;
 	}
 
-	auto enum_swapchain_images = data.dispatch_table->EnumerateSwapchainImages;
-	assert(enum_swapchain_images != nullptr);
-
-	uint32_t num_images = 0;
-	enum_swapchain_images(*pSwapchain, num_images, &num_images, nullptr);
-
 	std::vector<reshade::api::resource> images;
-	images.reserve(num_images);
-	switch (data.swapchain_impl->get_device()->get_api())
+
+	if (data.swapchain_impl != nullptr)
 	{
-	case reshade::api::device_api::d3d11:
-	{
-		std::vector<XrSwapchainImageD3D11KHR> images_d3d11(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
-		enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d11.data()));
-		for (const XrSwapchainImageD3D11KHR &image_d3d11 : images_d3d11)
-			images.push_back({ reinterpret_cast<uintptr_t>(image_d3d11.texture) });
-		break;
-	}
-	case reshade::api::device_api::d3d12:
-	{
-		std::vector<XrSwapchainImageD3D12KHR> images_d3d12(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR });
-		enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d12.data()));
-		for (const XrSwapchainImageD3D12KHR &image_d3d12 : images_d3d12)
-			images.push_back({ reinterpret_cast<uintptr_t>(image_d3d12.texture) });
-		break;
-	}
-	case reshade::api::device_api::opengl:
-	{
-		std::vector<XrSwapchainImageOpenGLKHR> images_opengl(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR });
-		enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_opengl.data()));
-		for (const XrSwapchainImageOpenGLKHR &image_opengl : images_opengl)
-			images.push_back(reshade::opengl::make_resource_handle(GL_TEXTURE_2D, image_opengl.image));
-		break;
-	}
-	case reshade::api::device_api::vulkan:
-	{
-		std::vector<XrSwapchainImageVulkanKHR> images_vulkan(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
-		enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_vulkan.data()));
-		for (const XrSwapchainImageVulkanKHR &image_vulkan : images_vulkan)
-			images.push_back({ (uint64_t)image_vulkan.image });
-		break;
-	}
+		auto enum_swapchain_images = data.dispatch_table->EnumerateSwapchainImages;
+		assert(enum_swapchain_images != nullptr);
+
+		uint32_t num_images = 0;
+		enum_swapchain_images(*pSwapchain, num_images, &num_images, nullptr);
+		images.reserve(num_images);
+
+		switch (data.swapchain_impl->get_device()->get_api())
+		{
+		case reshade::api::device_api::d3d11:
+		{
+			std::vector<XrSwapchainImageD3D11KHR> images_d3d11(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
+			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d11.data()));
+			for (const XrSwapchainImageD3D11KHR &image_d3d11 : images_d3d11)
+				images.push_back({ reinterpret_cast<uintptr_t>(image_d3d11.texture) });
+			break;
+		}
+		case reshade::api::device_api::d3d12:
+		{
+			std::vector<XrSwapchainImageD3D12KHR> images_d3d12(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR });
+			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d12.data()));
+			for (const XrSwapchainImageD3D12KHR &image_d3d12 : images_d3d12)
+				images.push_back({ reinterpret_cast<uintptr_t>(image_d3d12.texture) });
+			break;
+		}
+		case reshade::api::device_api::opengl:
+		{
+			std::vector<XrSwapchainImageOpenGLKHR> images_opengl(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR });
+			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_opengl.data()));
+			for (const XrSwapchainImageOpenGLKHR &image_opengl : images_opengl)
+				images.push_back(reshade::opengl::make_resource_handle(GL_TEXTURE_2D, image_opengl.image));
+			break;
+		}
+		case reshade::api::device_api::vulkan:
+		{
+			std::vector<XrSwapchainImageVulkanKHR> images_vulkan(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
+			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_vulkan.data()));
+			for (const XrSwapchainImageVulkanKHR &image_vulkan : images_vulkan)
+				images.push_back({ (uint64_t)image_vulkan.image });
+			break;
+		}
+		}
 	}
 
 	s_openxr_swapchains.emplace(*pSwapchain, openxr_swapchain_data { data.dispatch_table, std::move(images) });
@@ -269,6 +287,7 @@ XrResult XRAPI_CALL xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapc
 	if (XR_FAILED(result))
 		return result;
 
+	// 'xrReleaseSwapchainImage' releases the last image from 'xrWaitSwapchainImage', which will implicitly wait on the oldest acquired swapchain image which has not yet been successfully waited on
 	data.last_released_index = data.acquired_index.front();
 	data.acquired_index.pop_front();
 
@@ -277,46 +296,52 @@ XrResult XRAPI_CALL xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapc
 
 XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEndInfo)
 {
-	reshade::api::resource left_texture = {};
-	reshade::api::rect left_rect;
-	uint32_t left_layer = 0;
-	reshade::api::resource right_texture = {};
-	reshade::api::rect right_rect;
-	uint32_t right_layer = 0;
-
-	for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i)
-	{
-		if (frameEndInfo->layers[i]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION)
-		{
-			const XrCompositionLayerProjection *const layer = reinterpret_cast<const XrCompositionLayerProjection *>(frameEndInfo->layers[i]);
-
-			XrSwapchainSubImage const &left_sub_image = layer->views[0].subImage;
-
-			openxr_swapchain_data const &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
-			left_texture = left_data.surface_images[left_data.last_released_index];
-			left_rect.left = left_sub_image.imageRect.offset.x;
-			left_rect.top = left_sub_image.imageRect.offset.y;
-			left_rect.right = left_sub_image.imageRect.offset.x + left_sub_image.imageRect.extent.width;
-			left_rect.bottom = left_sub_image.imageRect.offset.y + left_sub_image.imageRect.extent.height;
-			left_layer = left_sub_image.imageArrayIndex;
-
-			XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
-
-			openxr_swapchain_data const &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
-			right_texture = right_data.surface_images[right_data.last_released_index];
-			right_rect.left = right_sub_image.imageRect.offset.x;
-			right_rect.top = right_sub_image.imageRect.offset.y;
-			right_rect.right = right_sub_image.imageRect.offset.x + right_sub_image.imageRect.extent.width;
-			right_rect.bottom = right_sub_image.imageRect.offset.y + right_sub_image.imageRect.extent.height;
-			right_layer = right_sub_image.imageArrayIndex;
-			break;
-		}
-	}
-
 	const openxr_session_data &data = s_openxr_sessions.at(session);
 
-	if (left_texture != 0 && right_texture != 0)
-		data.swapchain_impl->on_present(left_texture, left_rect, left_layer, right_texture, right_rect, right_layer);
+	if (data.swapchain_impl != nullptr)
+	{
+		reshade::api::resource left_texture = {};
+		reshade::api::rect left_rect;
+		uint32_t left_layer = 0;
+		reshade::api::resource right_texture = {};
+		reshade::api::rect right_rect;
+		uint32_t right_layer = 0;
+
+		for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i)
+		{
+			if (frameEndInfo->layers[i]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION)
+			{
+				const XrCompositionLayerProjection *const layer = reinterpret_cast<const XrCompositionLayerProjection *>(frameEndInfo->layers[i]);
+
+				if (layer->viewCount != 2)
+					continue; // Only support stereo views
+
+				XrSwapchainSubImage const &left_sub_image = layer->views[0].subImage;
+
+				openxr_swapchain_data const &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
+				left_texture = left_data.surface_images[left_data.last_released_index];
+				left_rect.left = left_sub_image.imageRect.offset.x;
+				left_rect.top = left_sub_image.imageRect.offset.y;
+				left_rect.right = left_sub_image.imageRect.offset.x + left_sub_image.imageRect.extent.width;
+				left_rect.bottom = left_sub_image.imageRect.offset.y + left_sub_image.imageRect.extent.height;
+				left_layer = left_sub_image.imageArrayIndex;
+
+				XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
+
+				openxr_swapchain_data const &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
+				right_texture = right_data.surface_images[right_data.last_released_index];
+				right_rect.left = right_sub_image.imageRect.offset.x;
+				right_rect.top = right_sub_image.imageRect.offset.y;
+				right_rect.right = right_sub_image.imageRect.offset.x + right_sub_image.imageRect.extent.width;
+				right_rect.bottom = right_sub_image.imageRect.offset.y + right_sub_image.imageRect.extent.height;
+				right_layer = right_sub_image.imageArrayIndex;
+				break;
+			}
+		}
+
+		if (left_texture != 0 && right_texture != 0)
+			data.swapchain_impl->on_present(left_texture, left_rect, left_layer, right_texture, right_rect, right_layer);
+	}
 
 	GET_DISPATCH_PTR_FROM(EndFrame, data.dispatch_table);
 	return trampoline(session, frameEndInfo);

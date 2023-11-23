@@ -980,7 +980,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			g_current_context = nullptr;
 
-			LOG(DEBUG) << "Skipping render context " << hglrc << " because there is no window associated with device context " << hdc << '.';
+			LOG(WARN) << "Skipping render context " << hglrc << " because there is no window associated with device context " << hdc << '.';
 			return TRUE;
 		}
 		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
