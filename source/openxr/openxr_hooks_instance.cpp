@@ -61,7 +61,7 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	XrGeneratedDispatchTable dispatch_table = {};
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 
-	#pragma region Core 1_0
+	// Core 1_0
 	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(CreateSession);
 	INIT_DISPATCH_PTR(DestroySession);
@@ -72,7 +72,6 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	INIT_DISPATCH_PTR(AcquireSwapchainImage);
 	INIT_DISPATCH_PTR(ReleaseSwapchainImage);
 	INIT_DISPATCH_PTR(EndFrame);
-	#pragma endregion
 
 	g_openxr_instances.emplace(instance, openxr_dispatch_table { dispatch_table, instance });
 

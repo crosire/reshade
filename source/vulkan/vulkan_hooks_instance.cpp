@@ -133,9 +133,10 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	VkInstance instance = *pInstance;
 	// Initialize the instance dispatch table
 	VkLayerInstanceDispatchTable dispatch_table = {};
+	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 	dispatch_table.GetPhysicalDeviceProcAddr = get_physical_device_proc;
 
-	#pragma region Core 1_0
+	// Core 1_0
 	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(EnumeratePhysicalDevices);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceFeatures);
@@ -143,25 +144,23 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_DISPATCH_PTR(GetPhysicalDeviceProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceQueueFamilyProperties);
-	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 	INIT_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
-	#pragma endregion
-	#pragma region Core 1_1
+
+	// Core 1_1
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
-	#pragma endregion
-	#pragma region VK_KHR_surface
+
+	// VK_KHR_surface
 	INIT_DISPATCH_PTR(DestroySurfaceKHR);
-	#pragma endregion
-	#pragma region VK_KHR_win32_surface
+
+	// VK_KHR_win32_surface
 	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
-	#pragma endregion
-	#pragma region VK_EXT_tooling_info
+
+	// VK_EXT_tooling_info
 #ifdef VK_EXT_tooling_info
 	INIT_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT);
 #endif
-	#pragma endregion
 
 	g_vulkan_instances.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 

@@ -368,6 +368,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkLayerDispatchTable dispatch_table = {};
 	dispatch_table.GetDeviceProcAddr = get_device_proc;
 
+	// Core 1_0
 	INIT_DISPATCH_PTR(DestroyDevice);
 	INIT_DISPATCH_PTR(GetDeviceQueue);
 	INIT_DISPATCH_PTR(QueueSubmit);

@@ -23,13 +23,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
 	HOOK_PROC(DestroyDevice);
 
-	// VK_KHR_swapchain
-	HOOK_PROC(CreateSwapchainKHR);
-	HOOK_PROC(DestroySwapchainKHR);
-	HOOK_PROC(AcquireNextImageKHR);
-	HOOK_PROC(QueuePresentKHR);
-	HOOK_PROC(AcquireNextImage2KHR);
-
+	// Core 1_0
 #if RESHADE_ADDON
 	HOOK_PROC(QueueSubmit);
 	HOOK_PROC(BindBufferMemory);
@@ -172,6 +166,13 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 #if RESHADE_ADDON >= 2
 	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2,);
 #endif
+
+	// VK_KHR_swapchain
+	HOOK_PROC(CreateSwapchainKHR);
+	HOOK_PROC(DestroySwapchainKHR);
+	HOOK_PROC(AcquireNextImageKHR);
+	HOOK_PROC(QueuePresentKHR);
+	HOOK_PROC(AcquireNextImage2KHR);
 
 #if RESHADE_ADDON
 	// VK_KHR_dynamic_rendering
