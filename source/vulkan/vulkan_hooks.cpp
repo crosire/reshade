@@ -271,3 +271,17 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 #endif
 	return trampoline(instance, pName);
 }
+
+VK_LAYER_EXPORT VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
+{
+	if (pVersionStruct == nullptr ||
+		pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)
+		return VK_ERROR_INITIALIZATION_FAILED;
+
+	pVersionStruct->loaderLayerInterfaceVersion = CURRENT_LOADER_LAYER_INTERFACE_VERSION;
+	pVersionStruct->pfnGetDeviceProcAddr = vkGetDeviceProcAddr;
+	pVersionStruct->pfnGetInstanceProcAddr = vkGetInstanceProcAddr;
+	pVersionStruct->pfnGetPhysicalDeviceProcAddr = nullptr;
+
+	return VK_SUCCESS;
+}

@@ -440,6 +440,7 @@ EXPORTS
 	VRClientCoreFactory PRIVATE
 
 	; vulkan-1.dll
+	vkNegotiateLoaderLayerInterfaceVersion
 	vkCreateDevice PRIVATE
 	vkCreateInstance PRIVATE
 	vkGetDeviceProcAddr PRIVATE
