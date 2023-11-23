@@ -35,6 +35,7 @@ struct openxr_session_data
 struct openxr_swapchain_data
 {
 	const openxr_dispatch_table *dispatch_table = nullptr;
+	XrSwapchainCreateFlags create_flags = 0;
 	std::vector<reshade::api::resource> surface_images;
 	std::deque<uint32_t> acquired_index;
 	uint32_t last_released_index = 0;
@@ -187,7 +188,7 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 
 	XrSwapchainCreateInfo create_info = *pCreateInfo;
 	// Add required usage flags to create info
-	create_info.usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT;
+	create_info.usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
 
 	const XrResult result = trampoline(session, &create_info, pSwapchain);
 	if (XR_FAILED(result))
@@ -244,7 +245,7 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 		}
 	}
 
-	s_openxr_swapchains.emplace(*pSwapchain, openxr_swapchain_data { data.dispatch_table, std::move(images) });
+	s_openxr_swapchains.emplace(*pSwapchain, openxr_swapchain_data { data.dispatch_table, create_info.createFlags, std::move(images) });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning OpenXR swap chain " << *pSwapchain << '.';
@@ -317,8 +318,14 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 					continue; // Only support stereo views
 
 				XrSwapchainSubImage const &left_sub_image = layer->views[0].subImage;
+				XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
 
-				openxr_swapchain_data const &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
+				const openxr_swapchain_data &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
+				const openxr_swapchain_data &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
+
+				if (left_data.create_flags & XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT || right_data.create_flags & XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT)
+					continue; // Cannot apply effects to a static image, since it would just stack on top of the previous result every frame
+
 				left_texture = left_data.surface_images[left_data.last_released_index];
 				left_rect.left = left_sub_image.imageRect.offset.x;
 				left_rect.top = left_sub_image.imageRect.offset.y;
@@ -326,9 +333,6 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 				left_rect.bottom = left_sub_image.imageRect.offset.y + left_sub_image.imageRect.extent.height;
 				left_layer = left_sub_image.imageArrayIndex;
 
-				XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
-
-				openxr_swapchain_data const &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
 				right_texture = right_data.surface_images[right_data.last_released_index];
 				right_rect.left = right_sub_image.imageRect.offset.x;
 				right_rect.top = right_sub_image.imageRect.offset.y;
