@@ -314,9 +314,6 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	_screenshot_key_data[0] = 0x2C;
 
 #if RESHADE_GUI && RESHADE_FX
-	if (s_runtime_index != 0)
-		_tutorial_index = 4;
-
 	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
 #endif
 

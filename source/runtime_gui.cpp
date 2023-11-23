@@ -269,7 +269,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("OVERLAY", "ShowFrameTime", _show_frametime);
 	config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
 #if RESHADE_FX
-	config.get("OVERLAY", "TutorialProgress", _tutorial_index);
+	global_config().get("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.get("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.get("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 	config.get("OVERLAY", "AutoSavePreset", _auto_save_preset);
@@ -365,7 +365,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("OVERLAY", "ShowFrameTime", _show_frametime);
 	config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
 #if RESHADE_FX
-	config.set("OVERLAY", "TutorialProgress", _tutorial_index);
+	global_config().set("OVERLAY", "TutorialProgress", _tutorial_index);
 	config.set("OVERLAY", "VariableListHeight", _variable_editor_height);
 	config.set("OVERLAY", "VariableListUseTabs", _variable_editor_tabs);
 	config.set("OVERLAY", "AutoSavePreset", _auto_save_preset);
