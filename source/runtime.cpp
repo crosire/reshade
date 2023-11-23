@@ -2281,7 +2281,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 	else
 	{
-		_last_reload_successfull = false;
+		_last_reload_successful = false;
 
 		if (effect.errors.empty())
 			LOG(ERROR) << "Failed to compile " << source_file << '!';
@@ -2963,7 +2963,7 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		}
 	}
 
-	// Do not clear effect here, since it is common to be re-used immediately
+	// Do not clear effect here, since it is common to be reused immediately
 }
 
 void reshade::runtime::load_textures()
@@ -2990,7 +2990,7 @@ void reshade::runtime::load_textures()
 				if (tech.effect_index == tex.effect_index)
 					disable_technique(tech);
 			effect.compiled = false;
-			_last_reload_successfull = false;
+			_last_reload_successful = false;
 
 			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
 			continue;
@@ -3025,7 +3025,7 @@ void reshade::runtime::load_textures()
 				if (tech.effect_index == tex.effect_index)
 					disable_technique(tech);
 			effect.compiled = false;
-			_last_reload_successfull = false;
+			_last_reload_successful = false;
 
 			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
 			continue;
@@ -3410,7 +3410,7 @@ void reshade::runtime::reload_effects()
 	_show_splash = true; // Always show splash bar when reloading everything
 	_reload_count++;
 #endif
-	_last_reload_successfull = true;
+	_last_reload_successful = true;
 
 	load_effects();
 }
@@ -3693,7 +3693,7 @@ void reshade::runtime::update_effects()
 					disable_technique(tech);
 
 			_effects[effect_index].compiled = false;
-			_last_reload_successfull = false;
+			_last_reload_successful = false;
 		}
 
 		// An effect has changed, need to reload textures
@@ -4774,9 +4774,9 @@ void reshade::runtime::save_screenshot(const std::string_view &postfix)
 
 			// Create screenshot directory if it does not exist
 			std::error_code ec;
-			_screenshot_directory_creation_successfull = true;
+			_screenshot_directory_creation_successful = true;
 			if (!std::filesystem::exists(screenshot_path.parent_path(), ec))
-				if (!(_screenshot_directory_creation_successfull = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
+				if (!(_screenshot_directory_creation_successful = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
 					LOG(ERROR) << "Failed to create screenshot directory " << screenshot_path.parent_path() << " with error code " << ec.value() << '!';
 
 			// Default to a save failure unless it is reported to succeed below

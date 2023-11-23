@@ -100,7 +100,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_in
 	{
 		LOG(ERROR) << "Failed to close immediate command list!";
 
-		// Have to reset the command buffer when closing it was unsuccessfull
+		// Have to reset the command buffer when closing it was unsuccessful
 		vk.BeginCommandBuffer(_orig, &begin_info);
 		return false;
 	}
@@ -122,7 +122,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_in
 	{
 		LOG(ERROR) << "Failed to submit immediate command list!";
 
-		// Have to reset the command buffer when submitting it was unsuccessfull
+		// Have to reset the command buffer when submitting it was unsuccessful
 		vk.BeginCommandBuffer(_orig, &begin_info);
 		return false;
 	}

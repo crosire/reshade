@@ -301,7 +301,7 @@ namespace reshade
 		std::vector<std::filesystem::path> _effect_search_paths;
 		std::vector<std::filesystem::path> _texture_search_paths;
 
-		std::atomic<bool> _last_reload_successfull = true;
+		std::atomic<bool> _last_reload_successful = true;
 		bool _textures_loaded = false;
 		std::shared_mutex _reload_mutex;
 		std::vector<size_t> _reload_create_queue;
@@ -373,7 +373,7 @@ namespace reshade
 
 		bool _should_save_screenshot = false;
 		std::atomic<bool> _last_screenshot_save_successful = true;
-		bool _screenshot_directory_creation_successfull = true;
+		bool _screenshot_directory_creation_successful = true;
 		std::filesystem::path _last_screenshot_file;
 		std::chrono::high_resolution_clock::time_point _last_screenshot_time;
 		#pragma endregion

@@ -942,7 +942,7 @@ void reshade::runtime::draw_gui()
 			error_message += "loading some add-ons";
 #endif
 #if RESHADE_FX
-		if (!_last_reload_successfull)
+		if (!_last_reload_successful)
 			error_message += (error_message.empty() ? std::string() : " and ") + "compiling some effects";
 #endif
 		if (!error_message.empty())
@@ -983,7 +983,7 @@ void reshade::runtime::draw_gui()
 		else if (show_screenshot_message)
 		{
 			if (!_last_screenshot_save_successful)
-				if (_screenshot_directory_creation_successfull)
+				if (_screenshot_directory_creation_successful)
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because of an internal error (the format may not be supported or the drive may be full).");
 				else
 					ImGui::TextColored(COLOR_RED, "Unable to save screenshot because path could not be created: %s", (g_reshade_base_path / _screenshot_path).u8string().c_str());
@@ -3457,7 +3457,7 @@ void reshade::runtime::draw_variable_editor()
 		{
 			save_current_preset();
 
-			const bool reload_successful_before = _last_reload_successfull;
+			const bool reload_successful_before = _last_reload_successful;
 
 			// Reload current effect file
 			if (!reload_effect(effect_index) && modified_definition != std::vector<std::pair<std::string, std::string>>::iterator())
@@ -3467,7 +3467,7 @@ void reshade::runtime::draw_variable_editor()
 
 				if (reload_effect(effect_index))
 				{
-					_last_reload_successfull = reload_successful_before;
+					_last_reload_successful = reload_successful_before;
 					ImGui::OpenPopup("##pperror"); // Notify the user about this
 
 					// Update preset again now, so that the removed preprocessor definition does not reappear on a reload
@@ -3504,7 +3504,7 @@ void reshade::runtime::draw_technique_editor()
 		return;
 	}
 
-	if (!_last_reload_successfull)
+	if (!_last_reload_successful)
 	{
 		// Add fake items at the top for effects that failed to compile
 		for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
