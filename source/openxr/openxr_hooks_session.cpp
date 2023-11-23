@@ -66,6 +66,10 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		return result;
 	}
 
+	// Initialize OpenVR hooks, in case this OpenXR instance is using the SteamVR runtime, so that the VR dashboard overlay can be added
+	extern void check_and_init_openvr_hooks();
+	check_and_init_openvr_hooks();
+
 	reshade::openxr::swapchain_impl *swapchain_impl = nullptr;
 
 	if (const auto binding_d3d11 = find_in_structure_chain<XrGraphicsBindingD3D11KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_D3D11_KHR))
