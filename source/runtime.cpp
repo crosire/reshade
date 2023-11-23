@@ -211,40 +211,51 @@ static inline int format_color_bit_depth(reshade::api::format value)
 }
 #endif
 
-static std::atomic<unsigned int> s_runtime_index = 0;
+static std::shared_mutex s_runtime_config_names_mutex;
+static std::unordered_set<std::string> s_runtime_config_names;
 
 void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
 {
-	// Increase global runtime index
-	const unsigned int runtime_index = s_runtime_index++;
-
 	if (graphics_queue == nullptr)
 		return;
 
-	// Add an index to the config file name in case there are multiple runtimes
-	std::filesystem::path config_path = g_reshade_base_path / L"ReShade.ini";
-	if (runtime_index != 0)
-	{
-		std::filesystem::path config_path_alt = config_path;
-		config_path_alt.replace_filename(L"ReShade" + std::to_wstring(runtime_index + 1) + L".ini");
+	assert((graphics_queue->get_type() & api::command_queue_type::graphics) != 0);
 
-		std::error_code ec;
-		if (std::filesystem::exists(config_path_alt, ec) || !std::filesystem::exists(config_path, ec) || std::filesystem::copy_file(config_path, config_path_alt, ec))
-			config_path = std::move(config_path_alt);
+	// Try to find a unique configuration name for this effect runtime instance
+	std::string config_name = "ReShade";
+	if (g_reshade_base_path != g_target_executable_path.parent_path())
+		config_name += '_' + g_target_executable_path.stem().u8string() + '_';
+	if (is_vr)
+		config_name += "VR";
+	{
+		const std::string config_name_base = config_name;
+
+		const std::unique_lock<std::shared_mutex> lock(s_runtime_config_names_mutex);
+
+		for (int attempt = 1; attempt < 100 && s_runtime_config_names.find(config_name) != s_runtime_config_names.end(); ++attempt)
+			config_name = config_name_base + std::to_string(attempt + 1);
+
+		assert(s_runtime_config_names.find(config_name) == s_runtime_config_names.end());
+		s_runtime_config_names.insert(config_name);
 	}
 
-	const ini_file &config = ini_file::load_cache(config_path);
+	const ini_file &config = ini_file::load_cache(g_reshade_base_path / std::filesystem::u8path(config_name + ".ini"));
 	if (config.get("GENERAL", "Disable"))
 		return;
 
-	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config_path, is_vr);
+	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config.path(), is_vr);
 }
 void reshade::destroy_effect_runtime(api::swapchain *swapchain)
 {
-	swapchain->destroy_private_data<reshade::runtime>();
+	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+	{
+		// Free up the configuration name of this effect runtime instance for reuse
+		const std::unique_lock<std::shared_mutex> lock(s_runtime_config_names_mutex);
 
-	// Decrease global runtime index
-	--s_runtime_index;
+		s_runtime_config_names.erase(runtime->get_config_path().stem().u8string());
+	}
+
+	swapchain->destroy_private_data<reshade::runtime>();
 }
 
 void reshade::init_effect_runtime(api::swapchain *swapchain)
@@ -964,30 +975,36 @@ void reshade::runtime::load_config()
 	else
 		_input_gamepad.reset();
 
-	config.get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
-	config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+	const auto config_get = [&config](const std::string &section, const std::string &key, auto &values) {
+		if (config.get(section, key, values))
+			return true;
+		// Fall back to global configuration when an entry does not exist in the local configuration
+		return global_config().get(section, key, values);
+	};
+
+	config_get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
+	config_get("INPUT", "KeyScreenshot", _screenshot_key_data);
 #if RESHADE_FX
-	config.get("INPUT", "KeyEffects", _effects_key_data);
-	config.get("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config.get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
-	config.get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
-	config.get("INPUT", "KeyReload", _reload_key_data);
+	config_get("INPUT", "KeyEffects", _effects_key_data);
+	config_get("INPUT", "KeyNextPreset", _next_preset_key_data);
+	config_get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
+	config_get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
+	config_get("INPUT", "KeyReload", _reload_key_data);
 
-	config.get("GENERAL", "NoDebugInfo", _no_debug_info);
-	config.get("GENERAL", "NoEffectCache", _no_effect_cache);
-	config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-	config.get("GENERAL", "NoReloadOnInitForNonVR", _no_reload_for_non_vr);
+	config_get("GENERAL", "NoDebugInfo", _no_debug_info);
+	config_get("GENERAL", "NoEffectCache", _no_effect_cache);
+	config_get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-	config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
-	config.get("GENERAL", "PerformanceMode", _performance_mode);
-	config.get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
-	config.get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
-	config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
-	config.get("GENERAL", "IntermediateCachePath", _effect_cache_path);
+	config_get("GENERAL", "EffectSearchPaths", _effect_search_paths);
+	config_get("GENERAL", "PerformanceMode", _performance_mode);
+	config_get("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+	config_get("GENERAL", "SkipLoadingDisabledEffects", _effect_load_skipping);
+	config_get("GENERAL", "TextureSearchPaths", _texture_search_paths);
+	config_get("GENERAL", "IntermediateCachePath", _effect_cache_path);
 
-	config.get("GENERAL", "StartupPresetPath", _startup_preset_path);
-	config.get("GENERAL", "PresetPath", _current_preset_path);
-	config.get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
+	config_get("GENERAL", "StartupPresetPath", _startup_preset_path);
+	config_get("GENERAL", "PresetPath", _current_preset_path);
+	config_get("GENERAL", "PresetTransitionDuration", _preset_transition_duration);
 
 	// Fall back to temp directory if cache path does not exist
 	std::error_code ec;
@@ -1008,8 +1025,8 @@ void reshade::runtime::load_config()
 
 	std::vector<unsigned int> preset_key_data;
 	std::vector<std::filesystem::path> preset_shortcut_paths;
-	config.get("GENERAL", "PresetShortcutKeys", preset_key_data);
-	config.get("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
+	config_get("GENERAL", "PresetShortcutKeys", preset_key_data);
+	config_get("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
 
 	_preset_shortcuts.clear();
 	for (size_t i = 0; i < preset_shortcut_paths.size() && (i * 4 + 4) <= preset_key_data.size(); ++i)
@@ -1021,23 +1038,23 @@ void reshade::runtime::load_config()
 	}
 #endif
 
-	config.get("SCREENSHOT", "SavePath", _screenshot_path);
-	config.get("SCREENSHOT", "SoundPath", _screenshot_sound_path);
-	config.get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
-	config.get("SCREENSHOT", "FileFormat", _screenshot_format);
-	config.get("SCREENSHOT", "FileNaming", _screenshot_name);
-	config.get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+	config_get("SCREENSHOT", "SavePath", _screenshot_path);
+	config_get("SCREENSHOT", "SoundPath", _screenshot_sound_path);
+	config_get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
+	config_get("SCREENSHOT", "FileFormat", _screenshot_format);
+	config_get("SCREENSHOT", "FileNaming", _screenshot_name);
+	config_get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 #if RESHADE_FX
-	config.get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
-	config.get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
+	config_get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
+	config_get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #endif
 #if RESHADE_GUI
-	config.get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
+	config_get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 #endif
-	config.get("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
-	config.get("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
-	config.get("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
-	config.get("SCREENSHOT", "PostSaveCommandNoWindow", _screenshot_post_save_command_no_window);
+	config_get("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
+	config_get("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
+	config_get("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
+	config_get("SCREENSHOT", "PostSaveCommandNoWindow", _screenshot_post_save_command_no_window);
 
 #if RESHADE_GUI
 	load_config_gui(config);
@@ -1059,7 +1076,6 @@ void reshade::runtime::save_config() const
 	config.set("GENERAL", "NoDebugInfo", _no_debug_info);
 	config.set("GENERAL", "NoEffectCache", _no_effect_cache);
 	config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
-	config.set("GENERAL", "NoReloadOnInitForNonVR", _no_reload_for_non_vr);
 
 	config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
 	config.set("GENERAL", "PerformanceMode", _performance_mode);
@@ -3612,7 +3628,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 void reshade::runtime::update_effects()
 {
 	// Delay first load to the first render call to avoid loading while the application is still initializing
-	if (_frame_count == 0 && !_no_reload_on_init && !(_no_reload_for_non_vr && !_is_vr))
+	if (_frame_count == 0 && !_no_reload_on_init)
 		reload_effects();
 
 	if (_should_reload_effect != std::numeric_limits<size_t>::max() && !is_loading())

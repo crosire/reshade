@@ -255,8 +255,15 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	else
 		_imgui_context->IO.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
 
-	config.get("INPUT", "KeyOverlay", _overlay_key_data);
-	config.get("INPUT", "InputProcessing", _input_processing_mode);
+	const auto config_get = [&config](const std::string &section, const std::string &key, auto &values) {
+		if (config.get(section, key, values))
+			return true;
+		// Fall back to global configuration when an entry does not exist in the local configuration
+		return global_config().get(section, key, values);
+	};
+
+	config_get("INPUT", "KeyOverlay", _overlay_key_data);
+	config_get("INPUT", "InputProcessing", _input_processing_mode);
 
 	config.get("OVERLAY", "ClockFormat", _clock_format);
 	config.get("OVERLAY", "FPSPosition", _fps_pos);

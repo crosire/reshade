@@ -283,7 +283,6 @@ namespace reshade
 		bool _no_debug_info = true;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
-		bool _no_reload_for_non_vr = false;
 		bool _performance_mode = false;
 		bool _effect_load_skipping = false;
 		bool _load_option_disable_skipping = false;
