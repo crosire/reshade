@@ -2593,7 +2593,7 @@ void reshade::runtime::draw_gui_statistics()
 void reshade::runtime::draw_gui_log()
 {
 	std::error_code ec;
-	const std::filesystem::path log_path = g_reshade_base_path / L"ReShade.log";
+	const std::filesystem::path log_path = g_target_executable_path.parent_path() / L"ReShade.log";
 
 	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(16.0f * _font_size + 2 * _imgui_context->Style.ItemSpacing.x));
 
@@ -3496,7 +3496,7 @@ void reshade::runtime::draw_technique_editor()
 {
 	if (_reload_count != 0 && _effects.empty())
 	{
-		ImGui::TextColored(COLOR_YELLOW, "No effect files (.fx) found in the following effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
+		ImGui::TextColored(COLOR_YELLOW, "No effect files (.fx) found in the configured effect search paths%c", _effect_search_paths.empty() ? '.' : ':');
 		for (const std::filesystem::path &search_path : _effect_search_paths)
 			ImGui::TextColored(COLOR_YELLOW, "  %s", (g_reshade_base_path / search_path).lexically_normal().u8string().c_str());
 		ImGui::Spacing();

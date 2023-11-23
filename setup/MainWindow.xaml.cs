@@ -1096,7 +1096,7 @@ namespace ReShade.Setup
 				}
 
 				// Create a default log file for troubleshooting
-				File.WriteAllText(Path.Combine(basePath, "ReShade.log"), @"
+				File.WriteAllText(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log"), @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
 
 In that event here are some steps you can try to resolve this:
@@ -1334,7 +1334,7 @@ In that event here are some steps you can try to resolve this:
 
 			// Change file permissions for files ReShade needs write access to
 			MakeWritable(configPath);
-			MakeWritable(Path.Combine(basePath, "ReShade.log"));
+			MakeWritable(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log"));
 			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
 
 			if (!isHeadless && operation != InstallOperation.Update)
@@ -1806,9 +1806,9 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(configPath);
 				}
 
-				if (File.Exists(Path.Combine(basePath, "ReShade.log")))
+				if (File.Exists(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log")))
 				{
-					File.Delete(Path.Combine(basePath, "ReShade.log"));
+					File.Delete(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log"));
 				}
 
 				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
