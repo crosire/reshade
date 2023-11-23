@@ -27,28 +27,28 @@
 #define XR_USE_GRAPHICS_API_VULKAN
 #include <openxr/openxr_platform.h>
 
-struct session_data
+struct openxr_session_data
 {
-	XrInstance instance = XR_NULL_HANDLE;
+	openxr_dispatch_table *dispatch_table = nullptr;
 	reshade::openxr::swapchain_impl *swapchain_impl = nullptr;
 };
-struct swapchain_data
+struct openxr_swapchain_data
 {
-	XrInstance instance = XR_NULL_HANDLE;
+	openxr_dispatch_table *dispatch_table = nullptr;
 	std::vector<reshade::api::resource> surface_images;
 	std::deque<uint32_t> acquired_index;
 	uint32_t last_released_index = 0;
 };
 
 extern lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
-static lockfree_linear_map<XrSession, session_data, 16> s_openxr_sessions;
-static lockfree_linear_map<XrSwapchain, swapchain_data, 16> s_openxr_swapchains;
+static lockfree_linear_map<XrSession, openxr_session_data, 16> s_openxr_sessions;
+static lockfree_linear_map<XrSwapchain, openxr_swapchain_data, 16> s_openxr_swapchains;
 
 #define GET_DISPATCH_PTR(name) \
-	GET_DISPATCH_PTR_FROM(name, instance)
-#define GET_DISPATCH_PTR_FROM(name, instance) \
-	assert((instance) != XR_NULL_HANDLE); \
-	PFN_xr##name trampoline = g_openxr_instances.at(instance).name; \
+	GET_DISPATCH_PTR_FROM(name, &g_openxr_instances.at(instance))
+#define GET_DISPATCH_PTR_FROM(name, data) \
+	assert((data) != nullptr); \
+	PFN_xr##name trampoline = (data)->name; \
 	assert(trampoline != nullptr)
 
 XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateInfo *pCreateInfo, XrSession *pSession)
@@ -138,7 +138,7 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		}
 	}
 
-	s_openxr_sessions.emplace(*pSession, session_data { instance, swapchain_impl });
+	s_openxr_sessions.emplace(*pSession, openxr_session_data { &g_openxr_instances.at(instance), swapchain_impl });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning OpenXR session " << *pSession << '.';
@@ -152,8 +152,8 @@ XrResult XRAPI_CALL xrDestroySession(XrSession session)
 
 	assert(session != XR_NULL_HANDLE);
 
-	const session_data &data = s_openxr_sessions.at(session);
-	GET_DISPATCH_PTR_FROM(DestroySession, data.instance);
+	const openxr_session_data &data = s_openxr_sessions.at(session);
+	GET_DISPATCH_PTR_FROM(DestroySession, data.dispatch_table);
 
 	delete data.swapchain_impl;
 
@@ -166,8 +166,8 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 {
 	LOG(INFO) << "Redirecting " << "xrCreateSwapchain" << '(' << "session = " << session << ", pCreateInfo = " << pCreateInfo << ", pSwapchain = " << pSwapchain << ')' << " ...";
 
-	const session_data &data = s_openxr_sessions.at(session);
-	GET_DISPATCH_PTR_FROM(CreateSwapchain, data.instance);
+	const openxr_session_data &data = s_openxr_sessions.at(session);
+	GET_DISPATCH_PTR_FROM(CreateSwapchain, data.dispatch_table);
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
@@ -182,7 +182,7 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 		return result;
 	}
 
-	auto enum_swapchain_images = g_openxr_instances.at(data.instance).EnumerateSwapchainImages;
+	auto enum_swapchain_images = data.dispatch_table->EnumerateSwapchainImages;
 	assert(enum_swapchain_images != nullptr);
 
 	uint32_t num_images = 0;
@@ -226,7 +226,7 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 	}
 	}
 
-	s_openxr_swapchains.emplace(*pSwapchain, swapchain_data { data.instance, std::move(images) });
+	s_openxr_swapchains.emplace(*pSwapchain, openxr_swapchain_data { data.dispatch_table, std::move(images) });
 
 #if RESHADE_VERBOSE_LOG
 	LOG(DEBUG) << "Returning OpenXR swap chain " << *pSwapchain << '.';
@@ -238,8 +238,8 @@ XrResult XRAPI_CALL xrDestroySwapchain(XrSwapchain swapchain)
 {
 	LOG(INFO) << "Redirecting " << "xrDestroySwapchain" << '(' << "swapchain = " << swapchain << ')' << " ...";
 
-	const swapchain_data &data = s_openxr_swapchains.at(swapchain);
-	GET_DISPATCH_PTR_FROM(DestroySwapchain, data.instance);
+	const openxr_swapchain_data &data = s_openxr_swapchains.at(swapchain);
+	GET_DISPATCH_PTR_FROM(DestroySwapchain, data.dispatch_table);
 
 	s_openxr_swapchains.erase(swapchain);
 
@@ -248,8 +248,8 @@ XrResult XRAPI_CALL xrDestroySwapchain(XrSwapchain swapchain)
 
 XrResult XRAPI_CALL xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo *pAcquireInfo, uint32_t *pIndex)
 {
-	swapchain_data &data = s_openxr_swapchains.at(swapchain);
-	GET_DISPATCH_PTR_FROM(AcquireSwapchainImage, data.instance);
+	openxr_swapchain_data &data = s_openxr_swapchains.at(swapchain);
+	GET_DISPATCH_PTR_FROM(AcquireSwapchainImage, data.dispatch_table);
 
 	const XrResult result = trampoline(swapchain, pAcquireInfo, pIndex);
 	if (XR_FAILED(result))
@@ -262,8 +262,8 @@ XrResult XRAPI_CALL xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapc
 
 XrResult XRAPI_CALL xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo *pReleaseInfo)
 {
-	swapchain_data &data = s_openxr_swapchains.at(swapchain);
-	GET_DISPATCH_PTR_FROM(ReleaseSwapchainImage, data.instance);
+	openxr_swapchain_data &data = s_openxr_swapchains.at(swapchain);
+	GET_DISPATCH_PTR_FROM(ReleaseSwapchainImage, data.dispatch_table);
 
 	const XrResult result = trampoline(swapchain, pReleaseInfo);
 	if (XR_FAILED(result))
@@ -292,7 +292,7 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 
 			XrSwapchainSubImage const &left_sub_image = layer->views[0].subImage;
 
-			swapchain_data const &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
+			openxr_swapchain_data const &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
 			left_texture = left_data.surface_images[left_data.last_released_index];
 			left_rect.left = left_sub_image.imageRect.offset.x;
 			left_rect.top = left_sub_image.imageRect.offset.y;
@@ -302,7 +302,7 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 
 			XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
 
-			swapchain_data const &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
+			openxr_swapchain_data const &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
 			right_texture = right_data.surface_images[right_data.last_released_index];
 			right_rect.left = right_sub_image.imageRect.offset.x;
 			right_rect.top = right_sub_image.imageRect.offset.y;
@@ -313,11 +313,11 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 		}
 	}
 
-	const session_data &data = s_openxr_sessions.at(session);
+	const openxr_session_data &data = s_openxr_sessions.at(session);
 
 	if (left_texture != 0 && right_texture != 0)
 		data.swapchain_impl->on_present(left_texture, left_rect, left_layer, right_texture, right_rect, right_layer);
 
-	GET_DISPATCH_PTR_FROM(EndFrame, data.instance);
+	GET_DISPATCH_PTR_FROM(EndFrame, data.dispatch_table);
 	return trampoline(session, frameEndInfo);
 }
