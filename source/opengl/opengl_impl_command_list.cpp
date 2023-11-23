@@ -1323,6 +1323,8 @@ void reshade::opengl::render_context_impl::copy_texture_region(api::resource src
 		(src_region[4] - src_region[1]) == (dst_region[4] - dst_region[1]) &&
 		(src_region[5] - src_region[2]) == (dst_region[5] - dst_region[2]))
 	{
+		assert(filter == api::filter_mode::min_mag_mip_point);
+
 		if (src_box != nullptr)
 		{
 			src_region[3] -= src_box->left;
