@@ -939,14 +939,26 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
+		if (aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT)
+		{
+			VkPhysicalDeviceDepthStencilResolveProperties resolve_properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
+			VkPhysicalDeviceProperties2 properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_properties };
+			_device_impl->_instance_dispatch_table.GetPhysicalDeviceProperties2(_device_impl->_physical_device, &properties);
+
+			// Prefer average depth resolve mode when supported
+			if (resolve_properties.supportedDepthResolveModes & VK_RESOLVE_MODE_AVERAGE_BIT)
+				depth_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+
+			rendering_info.pDepthAttachment = &depth_attachment;
+		}
+
 		VkRenderingAttachmentInfo stencil_attachment = depth_attachment;
 		stencil_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 
-		if (aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT)
-			rendering_info.pDepthAttachment = &depth_attachment;
-
 		if (aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT)
+		{
 			rendering_info.pStencilAttachment = &stencil_attachment;
+		}
 
 		vk.CmdBeginRendering(_orig, &rendering_info);
 		vk.CmdEndRendering(_orig);

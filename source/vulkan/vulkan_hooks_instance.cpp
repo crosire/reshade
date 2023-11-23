@@ -147,6 +147,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
 
 	// Core 1_1
+	INIT_DISPATCH_PTR(GetPhysicalDeviceProperties2);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
