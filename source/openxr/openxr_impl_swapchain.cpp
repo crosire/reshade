@@ -129,6 +129,8 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 			return;
 		}
 
+		_device->set_resource_name(_side_by_side_texture, "ReShade side-by-side texture");
+
 		if (!on_init())
 			return;
 	}
@@ -139,12 +141,14 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 	const api::subresource_box left_dest_box = get_eye_subresource_box(eye::left);
 	const api::subresource_box right_dest_box = get_eye_subresource_box(eye::right);
 
+	const auto before_state = _device->get_api() == api::device_api::d3d12 ? api::resource_usage::shader_resource_pixel : api::resource_usage::copy_source;
+	const api::resource resources[3] = { _side_by_side_texture, left_xr_swapchain_image, right_xr_swapchain_image };
+
 	if (source_desc.texture.samples <= 1)
 	{
-		cmd_list->barrier(_side_by_side_texture, api::resource_usage::undefined, api::resource_usage::copy_dest);
-		// OXR end frame images are in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::copy_source);
-		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::copy_source);
+		const api::resource_usage state_old[3] = { api::resource_usage::general, before_state, before_state };
+		const api::resource_usage state_new[3] = { api::resource_usage::copy_dest, api::resource_usage::copy_source, api::resource_usage::copy_source };
+		cmd_list->barrier(3, resources, state_old, state_new);
 
 		cmd_list->copy_texture_region(left_xr_swapchain_image, left_layer, &left_source_box, _side_by_side_texture, 0, &left_dest_box, api::filter_mode::min_mag_mip_point);
 		cmd_list->copy_texture_region(right_xr_swapchain_image, right_layer, &right_source_box, _side_by_side_texture, 0, &right_dest_box, api::filter_mode::min_mag_mip_point);
@@ -153,9 +157,9 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 	}
 	else
 	{
-		cmd_list->barrier(_side_by_side_texture, api::resource_usage::undefined, api::resource_usage::resolve_dest);
-		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::resolve_source);
-		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::render_target, api::resource_usage::resolve_source);
+		const api::resource_usage state_old[3] = { api::resource_usage::general, before_state, before_state };
+		const api::resource_usage state_new[3] = { api::resource_usage::resolve_dest, api::resource_usage::resolve_source, api::resource_usage::resolve_source };
+		cmd_list->barrier(3, resources, state_old, state_new);
 
 		cmd_list->resolve_texture_region(left_xr_swapchain_image, left_layer, &left_source_box, _side_by_side_texture, 0, left_dest_box.left, left_dest_box.top, left_dest_box.front, source_desc.texture.format);
 		cmd_list->resolve_texture_region(right_xr_swapchain_image, right_layer, &right_source_box, _side_by_side_texture, 0, right_dest_box.left, right_dest_box.top, right_dest_box.front, source_desc.texture.format);
@@ -171,22 +175,24 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 
 	if (source_desc.texture.samples <= 1)
 	{
-		cmd_list->barrier(_side_by_side_texture, api::resource_usage::present, api::resource_usage::copy_source);
-		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_source, api::resource_usage::copy_dest);
-		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::copy_source, api::resource_usage::copy_dest);
+		const api::resource_usage state_old[3] = { api::resource_usage::present, api::resource_usage::copy_source, api::resource_usage::copy_source };
+		const api::resource_usage state_new[3] = { api::resource_usage::copy_source, api::resource_usage::copy_dest, api::resource_usage::copy_dest };
+		cmd_list->barrier(3, resources, state_old, state_new);
 
 		cmd_list->copy_texture_region(_side_by_side_texture, 0, &left_dest_box, left_xr_swapchain_image, left_layer, &left_source_box, api::filter_mode::min_mag_mip_point);
 		cmd_list->copy_texture_region(_side_by_side_texture, 0, &right_dest_box, right_xr_swapchain_image, right_layer, &right_source_box, api::filter_mode::min_mag_mip_point);
 
-		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::render_target);
-		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::copy_dest, api::resource_usage::render_target);
+		const api::resource_usage state_final[3] = { api::resource_usage::general, before_state, before_state };
+		cmd_list->barrier(3, resources, state_new, state_final);
 	}
 	else
 	{
+		const api::resource_usage state_old[3] = { api::resource_usage::present, api::resource_usage::resolve_source, api::resource_usage::resolve_source };
+
 		// TODO
 
-		cmd_list->barrier(left_xr_swapchain_image, api::resource_usage::resolve_dest, api::resource_usage::render_target);
-		cmd_list->barrier(right_xr_swapchain_image, api::resource_usage::resolve_dest, api::resource_usage::render_target);
+		const api::resource_usage state_final[3] = { api::resource_usage::general, before_state, before_state };
+		cmd_list->barrier(3, resources, state_old, state_final);
 	}
 
 	_graphics_queue->flush_immediate_command_list();

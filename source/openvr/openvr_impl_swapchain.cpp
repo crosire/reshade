@@ -198,6 +198,8 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr
 			return false;
 		}
 
+		_device->set_resource_name(_side_by_side_texture, "ReShade side-by-side texture");
+
 		if (!on_init())
 			return false;
 	}
