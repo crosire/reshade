@@ -115,6 +115,7 @@ namespace reshade
 		/// <item><description>wglMakeCurrent</description></item>
 		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
+		/// <item><description>xrCreateSession</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
 		/// </summary>
@@ -151,6 +152,7 @@ namespace reshade
 		/// <item><description>wglDeleteContext</description></item>
 		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkDestroySwapchainKHR</description></item>
+		/// <item><description>xrDestroySession</description></item>
 		/// </list>
 		/// In addition, called when swap chain is reset, before:
 		/// <list type="bullet">
@@ -1474,6 +1476,7 @@ namespace reshade
 		/// <item><description>wglSwapBuffers</description></item>
 		/// <item><description>vkQueuePresentKHR</description></item>
 		/// <item><description>IVRCompositor::Submit</description></item>
+		/// <item><description>xrEndFrame</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects)</c></para>
 		/// </summary>
