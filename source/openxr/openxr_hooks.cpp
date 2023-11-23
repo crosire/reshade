@@ -16,6 +16,7 @@ extern lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_insta
 
 XrResult XRAPI_CALL xrGetInstanceProcAddr(XrInstance instance, const char *pName, PFN_xrVoidFunction *pFunction)
 {
+	HOOK_PROC(DestroyInstance);
 	HOOK_PROC(CreateSession);
 	HOOK_PROC(DestroySession);
 	HOOK_PROC(CreateSwapchain);

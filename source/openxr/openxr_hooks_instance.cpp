@@ -10,6 +10,9 @@
 
 lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
 
+#define GET_DISPATCH_PTR(name) \
+	PFN_xr##name trampoline = g_openxr_instances.at(instance).name; \
+	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	reinterpret_cast<PFN_xr##name>(get_instance_proc(instance, "xr" #name, reinterpret_cast<PFN_xrVoidFunction *>(&dispatch_table.name)))
 
@@ -30,10 +33,10 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 		return XR_ERROR_INITIALIZATION_FAILED;
 
 	// Get trampoline function pointers
-	PFN_xrGetInstanceProcAddr get_instance_proc = pApiLayerInfo->nextInfo->nextGetInstanceProcAddr;
 	PFN_xrCreateApiLayerInstance trampoline = pApiLayerInfo->nextInfo->nextCreateApiLayerInstance;
+	PFN_xrGetInstanceProcAddr get_instance_proc = pApiLayerInfo->nextInfo->nextGetInstanceProcAddr;
 
-	if (trampoline == nullptr)
+	if (trampoline == nullptr || get_instance_proc == nullptr) // Unable to resolve next 'xrCreateApiLayerInstance' function in the call chain
 		return XR_ERROR_INITIALIZATION_FAILED;
 
 	XrApiLayerCreateInfo api_layer_info = *pApiLayerInfo;
@@ -53,6 +56,7 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 
 	#pragma region Core 1_0
+	INIT_DISPATCH_PTR(DestroyInstance);
 	INIT_DISPATCH_PTR(CreateSession);
 	INIT_DISPATCH_PTR(DestroySession);
 	INIT_DISPATCH_PTR(CreateSwapchain);
@@ -69,6 +73,19 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	LOG(DEBUG) << "Returning OpenXR instance " << instance << '.';
 #endif
 	return result;
+}
+
+XrResult XRAPI_CALL xrDestroyInstance(XrInstance instance)
+{
+	LOG(INFO) << "Redirecting " << "xrDestroyInstance" << '(' << "instance = " << instance << ')' << " ...";
+
+	// Get function pointer before removing it next
+	GET_DISPATCH_PTR(DestroyInstance);
+
+	// Remove instance dispatch table since this instance is being destroyed
+	g_openxr_instances.erase(instance);
+
+	return trampoline(instance);
 }
 
 extern "C" XrResult XRAPI_CALL xrNegotiateLoaderApiLayerInterface(const XrNegotiateLoaderInfo *pLoaderInfo, const char *, XrNegotiateApiLayerRequest *pApiLayerRequest)

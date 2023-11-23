@@ -53,7 +53,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	}
 #endif
 
-	if (trampoline == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
+	if (trampoline == nullptr || get_instance_proc == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
 	LOG(INFO) << "> Dumping enabled instance extensions:";
