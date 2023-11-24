@@ -39,7 +39,6 @@ END
 3 TEXTINCLUDE 
 BEGIN
     "#include ""version.rc2""\r\n"
-    "#include ""lang_en-US.rc2""\r\n"
     "\0"
 END
 
