@@ -198,7 +198,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 	std::filesystem::path path_name = path.has_filename() || !exts.empty() ? path.filename() : path.parent_path().filename();
 
-	const float button_size = 6.0f * ImGui::GetFontSize();
+	const float button_size = 8.0f * ImGui::GetFontSize();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
 	{	char buf[4096];
