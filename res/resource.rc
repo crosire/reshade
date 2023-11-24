@@ -121,8 +121,10 @@ IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.txt"
 // Generated from the TEXTINCLUDE 3 resource.
 //
 #include "version.rc2"
+#if defined(RESHADE_LOCALIZATION)
 #include "lang_de-DE.rc2"
 #include "lang_en-US.rc2"
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
