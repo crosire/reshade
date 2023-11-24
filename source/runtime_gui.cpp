@@ -4047,9 +4047,9 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 	std::string save_button_label = ICON_FK_FLOPPY " ";
 	save_button_label += _("Save");
 
-	if (instance.entry_point_name.empty() && (
-		ImGui::Button(save_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)) || (
-		_input != nullptr && _input->is_key_pressed('S', true, false, false))))
+	if (!instance.generated && (
+			ImGui::Button(save_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)) || (
+			_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file
 		if (auto file = std::ofstream(instance.file_path, std::ios::trunc))
