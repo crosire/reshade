@@ -16,6 +16,8 @@
 #include <ivrclientcore.h>
 #include <stb_image.h>
 
+#define _(message) message
+
 static vr::IVROverlay *s_overlay = nullptr;
 extern vr::IVRClientCore *g_client_core;
 static vr::VROverlayHandle_t s_main_handle = vr::k_ulOverlayHandleInvalid;
@@ -194,17 +196,17 @@ void reshade::runtime::draw_gui_vr()
 		s_overlay->SetKeyboardPositionForOverlay(s_main_handle, vr::HmdRect2_t { { 0.0f, 1.0f }, { 1.0f, 0.0f } });
 	}
 
-	static constexpr std::pair<const char *, void(runtime::*)()> overlay_callbacks[] = {
+	static const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
 #if RESHADE_FX
-		{ "Home", &runtime::draw_gui_home },
+		{ _("Home###home"), &runtime::draw_gui_home },
 #endif
 #if RESHADE_ADDON
-		{ "Add-ons", &runtime::draw_gui_addons },
+		{ _("Add-ons###addons"), &runtime::draw_gui_addons },
 #endif
-		{ "Settings", &runtime::draw_gui_settings },
-		{ "Statistics", &runtime::draw_gui_statistics },
-		{ "Log", &runtime::draw_gui_log },
-		{ "About", &runtime::draw_gui_about }
+		{ _("Settings###settings"), &runtime::draw_gui_settings },
+		{ _("Statistics###statistics"), &runtime::draw_gui_statistics },
+		{ _("Log###log"), &runtime::draw_gui_log },
+		{ _("About###about"), &runtime::draw_gui_about }
 	};
 
 	const ImGuiViewport *const viewport = ImGui::GetMainViewport();
@@ -223,10 +225,10 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::BeginChild("##overlay", ImVec2(0, ImGui::GetFrameHeight()), false, ImGuiWindowFlags_NoScrollbar);
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 
-	for (const std::pair<const char *, void(runtime:: *)()> &widget : overlay_callbacks)
+	for (const std::pair<std::string, void(runtime:: *)()> &widget : overlay_callbacks)
 	{
 		if (bool state = (overlay_index == selected_overlay_index);
-			imgui::toggle_button(widget.first, state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
+			imgui::toggle_button(widget.first.c_str(), state, 0.0f, ImGuiButtonFlags_AlignTextBaseLine))
 			selected_overlay_index = overlay_index;
 		ImGui::SameLine();
 
