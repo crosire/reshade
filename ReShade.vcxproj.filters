@@ -623,6 +623,9 @@
     <ClInclude Include="source\input_gamepad.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
+    <ClInclude Include="source\localization.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
     <ClInclude Include="source\lockfree_linear_map.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>

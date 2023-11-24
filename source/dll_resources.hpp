@@ -6,6 +6,7 @@
 #pragma once
 
 #include "resource.h"
+#include <string>
 
 namespace reshade::resources
 {
@@ -19,4 +20,11 @@ namespace reshade::resources
 	/// Loads the raw data associated with the specified <paramref name="id"/> from the DLL resources.
 	/// </summary>
 	data_resource load_data_resource(unsigned short id);
+
+	/// <summary>
+	/// Loads the localized string associated with the specified <paramref name="id"/> from the DLL resources.
+	/// </summary>
+	std::string load_string(unsigned short id);
+	template <unsigned short id>
+	inline std::string load_string() { return load_string(id); }
 }

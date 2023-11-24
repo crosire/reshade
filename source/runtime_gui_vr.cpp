@@ -10,13 +10,12 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "imgui_widgets.hpp"
+#include "localization.hpp"
 #include "addon_manager.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include <openvr.h>
 #include <ivrclientcore.h>
 #include <stb_image.h>
-
-#define _(message) message
 
 static vr::IVROverlay *s_overlay = nullptr;
 extern vr::IVRClientCore *g_client_core;

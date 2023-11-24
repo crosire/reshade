@@ -5,10 +5,9 @@
 
 #include "imgui_widgets.hpp"
 #include "input.hpp" // input::key_name
+#include "localization.hpp"
 #include "fonts/forkawesome.h"
 #include <cassert>
-
-#define _(message) message
 
 extern std::filesystem::path g_reshade_base_path;
 

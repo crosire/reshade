@@ -39,6 +39,7 @@ END
 3 TEXTINCLUDE 
 BEGIN
     "#include ""version.rc2""\r\n"
+    "#include ""lang_en-US.rc2""\r\n"
     "\0"
 END
 
@@ -121,6 +122,7 @@ IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.txt"
 // Generated from the TEXTINCLUDE 3 resource.
 //
 #include "version.rc2"
+#include "lang_en-US.rc2"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

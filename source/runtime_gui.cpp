@@ -15,12 +15,11 @@
 #include "input.hpp"
 #include "input_gamepad.hpp"
 #include "imgui_widgets.hpp"
+#include "localization.hpp"
 #include "platform_utils.hpp"
 #include "fonts/forkawesome.inl"
 #include <fstream>
 #include <algorithm>
-
-#define _(message) message
 
 static bool filter_text(const std::string_view &text, const std::string_view &filter)
 {
