@@ -171,17 +171,61 @@ void reshade::runtime::build_font_atlas()
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(_font_size);
+		const ImWchar *glyph_ranges = nullptr;
 
 		std::error_code ec;
 		std::filesystem::path resolved_font_path = _font_path;
-		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels) == nullptr))
+
+		if (_language.find("bg") == 0)
 		{
-			LOG(ERROR) << "Failed to load font from " << _font_path << " with error code " << ec.value() << '!';
-			_font_path.clear();
+			if (resolved_font_path.empty())
+				resolved_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+			glyph_ranges = atlas->GetGlyphRangesCyrillic();
+		}
+		else
+		if (_language.find("el") == 0)
+		{
+			if (resolved_font_path.empty())
+				resolved_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+			glyph_ranges = atlas->GetGlyphRangesGreek();
+		}
+		else
+		if (_language.find("ja") == 0)
+		{
+			if (resolved_font_path.empty())
+				resolved_font_path = "C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
+			glyph_ranges = atlas->GetGlyphRangesJapanese();
+		}
+		else
+		if (_language.find("ko") == 0)
+		{
+			if (resolved_font_path.empty())
+				resolved_font_path = "C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
+			glyph_ranges = atlas->GetGlyphRangesKorean();
+		}
+		else
+		if (_language.find("vi") == 0)
+		{
+			if (resolved_font_path.empty())
+				resolved_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+			glyph_ranges = atlas->GetGlyphRangesVietnamese();
+		}
+		else
+		if (_language.find("zh") == 0)
+		{
+			if (resolved_font_path.empty())
+				resolved_font_path = "C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+			glyph_ranges = atlas->GetGlyphRangesChineseSimplifiedCommon();
+		}
+
+		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, nullptr, glyph_ranges) == nullptr))
+		{
+			LOG(ERROR) << "Failed to load font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			resolved_font_path.clear();
 		}
 
 		// Use default font if custom font failed to load
-		if (_font_path.empty())
+		if (resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 
 		// Merge icons into main font
@@ -204,11 +248,11 @@ void reshade::runtime::build_font_atlas()
 		std::filesystem::path resolved_font_path = _editor_font_path;
 		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels) == nullptr))
 		{
-			LOG(ERROR) << "Failed to load editor font from " << _editor_font_path << " with error code " << ec.value() << '!';
-			_editor_font_path.clear();
+			LOG(ERROR) << "Failed to load editor font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			resolved_font_path.clear();
 		}
 
-		if (_editor_font_path.empty())
+		if (resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 	}
 
@@ -2061,6 +2105,8 @@ void reshade::runtime::draw_gui_settings()
 					_language.clear();
 				else
 					_language = languages[lang_index - 1];
+				// Rebuild font atlas in case language needs a special font or glyph range
+				_imgui_context->IO.Fonts->TexReady = false;
 			}
 		}
 #endif
