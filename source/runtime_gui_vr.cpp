@@ -195,6 +195,9 @@ void reshade::runtime::draw_gui_vr()
 		s_overlay->SetKeyboardPositionForOverlay(s_main_handle, vr::HmdRect2_t { { 0.0f, 1.0f }, { 1.0f, 0.0f } });
 	}
 
+	std::string prev_language;
+	resources::set_language(_language, prev_language);
+
 	static const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
 #if RESHADE_FX
 		{ _("Home###home"), &runtime::draw_gui_home },
@@ -291,6 +294,8 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::GetStateStorage()->SetInt(ImGui::GetID("##overlay_index"), selected_overlay_index);
 
 	ImGui::End(); // VR Viewport window
+
+	resources::set_language(prev_language, prev_language);
 
 	ImGui::Render();
 

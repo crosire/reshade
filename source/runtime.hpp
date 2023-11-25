@@ -491,6 +491,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Settings
+		std::string _language;
 		int _font_size = 0;
 		int _editor_font_size = 0;
 		int _style_index = 2;

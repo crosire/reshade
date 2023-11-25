@@ -266,6 +266,8 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config_get("INPUT", "KeyOverlay", _overlay_key_data);
 	config_get("INPUT", "InputProcessing", _input_processing_mode);
 
+	config_get("OVERLAY", "Language", _language);
+
 	config.get("OVERLAY", "ClockFormat", _clock_format);
 	config.get("OVERLAY", "FPSPosition", _fps_pos);
 	config.get("OVERLAY", "NoFontScaling", _no_font_scaling);
@@ -361,6 +363,8 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 {
 	config.set("INPUT", "KeyOverlay", _overlay_key_data);
 	config.set("INPUT", "InputProcessing", _input_processing_mode);
+
+	config.set("OVERLAY", "Language", _language);
 
 	config.set("OVERLAY", "ClockFormat", _clock_format);
 	config.set("OVERLAY", "FPSPosition", _fps_pos);
@@ -870,6 +874,9 @@ void reshade::runtime::draw_gui()
 
 	ImGui::NewFrame();
 
+	std::string prev_language;
+	resources::set_language(_language, prev_language);
+
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
 	// Create ImGui widgets and windows
@@ -1270,6 +1277,8 @@ void reshade::runtime::draw_gui()
 		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture.handle, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
 	}
 #endif
+
+	resources::set_language(prev_language, prev_language);
 
 	// Disable keyboard shortcuts while typing into input boxes
 	_ignore_shortcuts |= ImGui::IsAnyItemActive();
@@ -1995,6 +2004,30 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader(_("Overlay & Styling"), ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		{
+			std::vector<std::string> languages = resources::get_languages();
+
+			int lang_index = 0;
+			if (const auto it = std::find(languages.begin(), languages.end(), _language); it != languages.end())
+				lang_index = static_cast<int>(std::distance(languages.begin(), it) + 1);
+
+			if (ImGui::Combo(_("Language"), &lang_index,
+					[](void *data, int idx, const char **out_text) {
+						if (idx == 0)
+							*out_text = "System Default";
+						else
+							*out_text = (*static_cast<const std::vector<std::string> *>(data))[idx - 1].c_str();
+						return true;
+					}, &languages, static_cast<int>(languages.size() + 1)))
+			{
+				modified = true;
+				if (lang_index == 0)
+					_language.clear();
+				else
+					_language = languages[lang_index - 1];
+			}
+		}
+
 #if RESHADE_FX
 		if (ImGui::Button(_("Restart tutorial"), ImVec2(ImGui::CalcItemWidth(), 0)))
 			_tutorial_index = 0;

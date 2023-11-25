@@ -103,6 +103,7 @@ BEGIN
 19318 "Post-save command working directory"
 39535 "Hide post-save command window"
 58617 "Overlay & Styling"
+11496 "Language"
 195 "Restart tutorial"
 58246 "Show screenshot message"
 58370 "Show preset transition message"
