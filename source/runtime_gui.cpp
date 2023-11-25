@@ -1140,7 +1140,7 @@ void reshade::runtime::draw_gui()
 			save_config();
 		}
 
-		static const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
+		const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
 #if RESHADE_FX
 			{ _("Home###home"), &runtime::draw_gui_home },
 #endif
