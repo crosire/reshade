@@ -57,6 +57,31 @@ static void parse_errors(const std::string_view &errors, F &&callback)
 	}
 }
 
+template <typename T>
+static std::string_view get_localized_annotation(T &object, const std::string_view &ann_name, std::string language)
+{
+	if (language.size() >= 2)
+	{
+		// Transform language name from e.g. 'en-US' to 'en_us'
+		std::replace(language.begin(), language.end(), '-', '_');
+		std::transform(language.begin(), language.end(), language.begin(),
+			[](std::string::value_type c) {
+				return static_cast<std::string::value_type>(std::tolower(c));
+			});
+
+		for (int attempt = 0; attempt < 2; ++attempt)
+		{
+			const std::string_view localized_result = object.annotation_as_string(std::string(ann_name) + '_' + language);
+			if (!localized_result.empty())
+				return localized_result;
+			else if (attempt == 0)
+				language.erase(2); // Remove location information from language name, so that it e.g. becomes 'en'
+		}
+	}
+
+	return object.annotation_as_string(ann_name);
+}
+
 static const ImVec4 COLOR_RED = ImColor(240, 100, 100);
 static const ImVec4 COLOR_YELLOW = ImColor(204, 204, 0);
 
@@ -3266,7 +3291,7 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::Spacing();
 
 			// Add user-configurable text before variable widget
-			if (const std::string_view text = variable.annotation_as_string("ui_text");
+			if (const std::string_view text = get_localized_annotation(variable, "ui_text", _language);
 				!text.empty())
 			{
 				ImGui::PushTextWrapPos();
@@ -3276,7 +3301,7 @@ void reshade::runtime::draw_variable_editor()
 
 			bool modified = false;
 			bool is_default_value = true;
-			std::string_view label = variable.annotation_as_string("ui_label");
+			std::string_view label = get_localized_annotation(variable, "ui_label", _language);
 			if (label.empty())
 				label = variable.name;
 			const std::string_view ui_type = variable.annotation_as_string("ui_type");
@@ -3390,7 +3415,7 @@ void reshade::runtime::draw_variable_editor()
 				hovered_variable = variable_index + 1;
 
 			// Display tooltip
-			if (const std::string_view tooltip = variable.annotation_as_string("ui_tooltip");
+			if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
 				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 			{
 				if (ImGui::BeginTooltip())
@@ -3762,7 +3787,7 @@ void reshade::runtime::draw_technique_editor()
 			// Gray out disabled techniques
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
-			std::string label(tech.annotation_as_string("ui_label"));
+			std::string label(get_localized_annotation(tech, "ui_label", _language));
 			if (label.empty())
 				label = tech.name;
 			label += " [" + effect.source_file.filename().u8string() + ']';
@@ -3791,7 +3816,7 @@ void reshade::runtime::draw_technique_editor()
 				hovered_technique_index = index;
 
 			// Display tooltip
-			if (const std::string_view tooltip = tech.annotation_as_string("ui_tooltip");
+			if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
 				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 			{
 				if (ImGui::BeginTooltip())
