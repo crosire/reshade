@@ -12,8 +12,8 @@ LANGUAGE 9, 1
 STRINGTABLE
 BEGIN
 
-23118 "An update is available! Please visit https://reshade.me and install the new version (v%u.%u.%u)."
-26219 "Visit https://reshade.me for news, updates, effects and discussion."
+55975 "An update is available! Please visit %s and install the new version (v%u.%u.%u)."
+37123 "Visit %s for news, updates, effects and discussion."
 6954 "Compiling (%zu effects remaining) ... This might take a while. The application could become unresponsive for some time."
 60691 "No keyboard or mouse input available."
 36869 "Use gamepad instead: Press 'left + right shoulder + start button' to open the configuration overlay."

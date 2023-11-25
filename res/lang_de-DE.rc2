@@ -12,8 +12,8 @@ LANGUAGE 7, 1
 STRINGTABLE
 BEGIN
 
-23118 "Ein Update ist vefügbar! Bitte besuche https://reshade.me und installiere die neue Version (v%u.%u.%u)."
-26219 "Besuche https://reshade.me für Neuigkeiten, Updates, Effekte und Diskurs."
+55975 "Ein Update ist vefügbar! Bitte besuche %s und installiere die neue Version (v%u.%u.%u)."
+37123 "Besuche %s für Neuigkeiten, Updates, Effekte und Diskurs."
 6954 "Kompiliere (%zu Effekte verbleibend) ... Das kann ein bisschen dauern. Die Applikation könnte kurzzeitig nicht reagieren."
 60691 "Keine Tastatur- oder Mauseingabe verfügbar."
 36869 "Benutze stattdessen ein Gamepad: 'Linke + Rechte Schultertasten + Start-Taste' drücken, um das Konfigurationsmenü zu öffnen."
@@ -41,7 +41,7 @@ BEGIN
 16638 "Auto Save an"
 1761 "Auto Save"
 62984 "Speichere das aktuelle Preset automatisch bei jeder Veränderung"
-62638 "Möchtests due wirklich alle Techniques und Werte zurücksetzen?"
+62638 "Möchtest du wirklich alle Techniques und Werte zurücksetzen?"
 10706 "Setze alle Techniques und Werte auf die des aktuellen Presets zurück"
 4381 "Räume das aktuelle Preset auf und speichere es (alle Werte für deaktivierte Techniques werden entfernt)"
 20029 "Füge ein neues Preset hinzu"
@@ -157,7 +157,7 @@ BEGIN
 17289 "Globale Präprozessordefinitionen bearbeiten"
 2314 "Global"
 38344 "Aktuelles Preset"
-10646 "Möchtest due die Präprozessordefinition '%s' wirklich entfernen?"
+10646 "Möchtest du die Präprozessordefinition '%s' wirklich entfernen?"
 9813 "Alle zurücksetzen"
 2781 "Möchtest du wirkliche alle Werte in '%s' zurücksetzen?"
 18455 "Alle in '%s' zurücksetzen"
