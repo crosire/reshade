@@ -20,34 +20,38 @@ function compute_crc16 {
 	return $crc
 }
 
-$table = ""
-$message = ""
-$is_inside_message = $false
+$strings = ""
 
-xgettext.exe --c++ --keyword=_ --omit-header --indent --no-wrap --output=- ..\source\runtime_gui.cpp ..\source\runtime_gui_vr.cpp ..\source\imgui_widgets.cpp | ForEach-Object {
-	if ($_.StartsWith("#") -or $_.Length -eq 0) {
-		return # Ignore comments
-	}
+if (Get-Command "xgettext.exe" -ErrorAction SilentlyContinue)
+{
+	$message = ""
+	$is_inside_message = $false
 
-	if ($_.StartsWith("msgid")) {
-		$is_inside_message = $true
-	}
-	if ($_.StartsWith("msgstr")) {
-		$hash = compute_crc16([System.Text.Encoding]::UTF8.GetBytes($message.Trim('"').Replace("\`"", "`"").Replace("\\", "\").Replace("\n", "`n")))
+	xgettext.exe --c++ --keyword=_ --omit-header --indent --no-wrap --output=- ..\source\runtime_gui.cpp ..\source\runtime_gui_vr.cpp ..\source\imgui_widgets.cpp | ForEach-Object {
+		if ($_.StartsWith("#") -or $_.Length -eq 0) {
+			return # Ignore comments
+		}
 
-		$message = $message.Replace("\`"", "`"`"")
-		$table += "$hash $message`r`n"
+		if ($_.StartsWith("msgid")) {
+			$is_inside_message = $true
+		}
+		if ($_.StartsWith("msgstr")) {
+			$hash = compute_crc16([System.Text.Encoding]::UTF8.GetBytes($message.Trim('"').Replace("\`"", "`"").Replace("\\", "\").Replace("\n", "`n")))
 
-		$message = ""
-		$is_inside_message = $false
-		return
-	}
+			$message = $message.Replace("\`"", "`"`"")
+			$strings += "$hash $message`r`n"
 
-	if ($is_inside_message) {
-		if ($message.Length -ne 0) {
-			$message = $message.Remove($message.Length - 1) + $_.Substring($_.IndexOf('"') + 1)
-		} else {
-			$message += $_.Substring($_.IndexOf('"'))
+			$message = ""
+			$is_inside_message = $false
+			return
+		}
+
+		if ($is_inside_message) {
+			if ($message.Length -ne 0) {
+				$message = $message.Remove($message.Length - 1) + $_.Substring($_.IndexOf('"') + 1)
+			} else {
+				$message += $_.Substring($_.IndexOf('"'))
+			}
 		}
 	}
 }
@@ -74,7 +78,7 @@ LANGUAGE $locale_lang_id, $locale_sublang_id
 STRINGTABLE
 BEGIN
 
-$table
+$strings
 END
 
 #endif    // $locale_name resources
