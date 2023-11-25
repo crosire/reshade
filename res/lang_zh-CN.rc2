@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Simplified Chinese (China) resources
+// Chinese (Simplified, China) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
 LANGUAGE 4, 2
@@ -12,8 +12,8 @@ LANGUAGE 4, 2
 STRINGTABLE
 BEGIN
 
-23118 "有更新可用! 请访问 https://reshade.me 并安装新版本 (v%u.%u.%u)."
-26219 "访问 https://reshade.me 了解新闻, 更新, 着色器效果和讨论."
+55975 "有更新可用! 请访问 %s 并安装新版本 (v%u.%u.%u)."
+37123 "访问 %s 了解新闻, 更新, 着色器效果和讨论."
 6954 "编译中 (剩余 %zu 效果) ...  这可能需要一些时间. 应用程序在这段时间内可能会失去响应."
 60691 "没有可用于输入的键盘或鼠标."
 36869 "改用游戏手柄: 按 '左 + 右 肩键 + 开始 按钮' 打开并配置控制台."
@@ -103,6 +103,7 @@ BEGIN
 19318 "保存后的工作目录命令"
 39535 "隐藏保存后的命令窗口"
 58617 "控制台风格"
+11496 "语言"
 195 "重启教程"
 58246 "显示屏幕截图消息"
 58370 "显示预设切换消息"
@@ -182,5 +183,5 @@ BEGIN
 
 END
 
-#endif    // Simplified Chinese (China) resources
+#endif    // Chinese (Simplified, China) resources
 /////////////////////////////////////////////////////////////////////////////
