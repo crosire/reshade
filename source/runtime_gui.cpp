@@ -58,8 +58,9 @@ static void parse_errors(const std::string_view &errors, F &&callback)
 }
 
 template <typename T>
-static std::string_view get_localized_annotation(T &object, const std::string_view &ann_name, std::string language)
+static std::string_view get_localized_annotation(T &object, const std::string_view &ann_name, [[maybe_unused]] std::string language)
 {
+#if RESHADE_LOCALIZATION
 	if (language.size() >= 2)
 	{
 		// Transform language name from e.g. 'en-US' to 'en_us'
@@ -78,7 +79,7 @@ static std::string_view get_localized_annotation(T &object, const std::string_vi
 				language.erase(2); // Remove location information from language name, so that it e.g. becomes 'en'
 		}
 	}
-
+#endif
 	return object.annotation_as_string(ann_name);
 }
 
@@ -291,7 +292,9 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config_get("INPUT", "KeyOverlay", _overlay_key_data);
 	config_get("INPUT", "InputProcessing", _input_processing_mode);
 
+#if RESHADE_LOCALIZATION
 	config_get("OVERLAY", "Language", _language);
+#endif
 
 	config.get("OVERLAY", "ClockFormat", _clock_format);
 	config.get("OVERLAY", "FPSPosition", _fps_pos);
@@ -389,7 +392,9 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("INPUT", "KeyOverlay", _overlay_key_data);
 	config.set("INPUT", "InputProcessing", _input_processing_mode);
 
+#if RESHADE_LOCALIZATION
 	config.set("OVERLAY", "Language", _language);
+#endif
 
 	config.set("OVERLAY", "ClockFormat", _clock_format);
 	config.set("OVERLAY", "FPSPosition", _fps_pos);
@@ -899,8 +904,10 @@ void reshade::runtime::draw_gui()
 
 	ImGui::NewFrame();
 
+#if RESHADE_LOCALIZATION
 	std::string prev_language;
 	resources::set_language(_language, prev_language);
+#endif
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
 
@@ -1303,7 +1310,9 @@ void reshade::runtime::draw_gui()
 	}
 #endif
 
+#if RESHADE_LOCALIZATION
 	resources::set_language(prev_language, prev_language);
+#endif
 
 	// Disable keyboard shortcuts while typing into input boxes
 	_ignore_shortcuts |= ImGui::IsAnyItemActive();
@@ -2029,6 +2038,7 @@ void reshade::runtime::draw_gui_settings()
 
 	if (ImGui::CollapsingHeader(_("Overlay & Styling"), ImGuiTreeNodeFlags_DefaultOpen))
 	{
+#if RESHADE_LOCALIZATION
 		{
 			std::vector<std::string> languages = resources::get_languages();
 
@@ -2052,6 +2062,7 @@ void reshade::runtime::draw_gui_settings()
 					_language = languages[lang_index - 1];
 			}
 		}
+#endif
 
 #if RESHADE_FX
 		if (ImGui::Button(_("Restart tutorial"), ImVec2(ImGui::CalcItemWidth(), 0)))

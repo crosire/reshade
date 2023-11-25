@@ -36,10 +36,9 @@ std::string reshade::resources::load_string(unsigned short id)
 	return utf8_string;
 }
 
+#if RESHADE_LOCALIZATION
 std::vector<std::string> reshade::resources::get_languages()
 {
-	std::vector<std::string> languages;
-#if RESHADE_LOCALIZATION
 	// Find a valid string table resource to use as reference to query languages for
 	LPCWSTR first_string_table_block = nullptr;
 	EnumResourceNamesW(g_module_handle, RT_STRING,
@@ -48,6 +47,7 @@ std::vector<std::string> reshade::resources::get_languages()
 			return FALSE;
 		}, reinterpret_cast<LONG_PTR>(&first_string_table_block));
 
+	std::vector<std::string> languages;
 	EnumResourceLanguages(g_module_handle, RT_STRING, first_string_table_block,
 		[](HMODULE, LPCTSTR, LPCTSTR, LANGID wLanguage, LONG_PTR lParam) -> BOOL {
 			WCHAR locale_name[16];
@@ -63,13 +63,12 @@ std::vector<std::string> reshade::resources::get_languages()
 			}
 			return TRUE;
 		}, reinterpret_cast<LONG_PTR>(&languages));
-#endif
+
 	return languages;
 }
 
 void reshade::resources::set_language(const std::string &language, std::string &prev_language)
 {
-#if RESHADE_LOCALIZATION
 	const std::string new_language = language; // Copy 'language' before modifying 'prev_language', in case they are aliased
 
 	ULONG num = 0, size = 0;
@@ -95,8 +94,5 @@ void reshade::resources::set_language(const std::string &language, std::string &
 	languages.push_back(L'\0');
 
 	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);
-#else
-	UNREFERENCED_PARAMETER(language);
-	UNREFERENCED_PARAMETER(prev_language);
-#endif
 }
+#endif

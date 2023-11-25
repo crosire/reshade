@@ -31,6 +31,7 @@ namespace reshade::resources
 	template <unsigned short id>
 	inline std::string load_string() { return load_string(id); }
 
+#if RESHADE_LOCALIZATION
 	/// <summary>
 	/// Returns a list of languages for which a string table is embeded in the DLL resources.
 	/// </summary>
@@ -42,4 +43,5 @@ namespace reshade::resources
 	/// <param name="language">Language name of the new language to set.</param>
 	/// <param name="prev_language">Variable that is set to the language name of the language that was set before the change.</param>
 	void set_language(const std::string &new_language, std::string &prev_language);
+#endif
 }
