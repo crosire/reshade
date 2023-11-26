@@ -38,6 +38,7 @@ namespace ReShade.Setup
 		readonly SelectAppPage appPage = new SelectAppPage();
 
 		Api targetApi = Api.Unknown;
+		bool targetOpenXR = false;
 		InstallOperation operation = InstallOperation.Default;
 		internal static bool is64Bit;
 		string targetPath;
@@ -128,6 +129,10 @@ namespace ReShade.Setup
 						else if (api == "vulkan")
 						{
 							targetApi = Api.Vulkan;
+						}
+						else if (api == "openxr")
+						{
+							targetOpenXR = true;
 						}
 						continue;
 					}
@@ -361,6 +366,7 @@ namespace ReShade.Setup
 			operation = InstallOperation.Default;
 
 			targetApi = Api.Unknown;
+			targetOpenXR = false;
 			targetPath = targetName = configPath = modulePath = presetPath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
 			packages = null; effects = null; package = null;
 
@@ -452,6 +458,11 @@ namespace ReShade.Setup
 				case Api.Vulkan:
 					startInfo.Arguments += " --api vulkan";
 					break;
+			}
+
+			if (targetOpenXR)
+			{
+				startInfo.Arguments += " --api openxr";
 			}
 
 			switch (operation)
@@ -608,6 +619,7 @@ namespace ReShade.Setup
 			bool isApiDXGI = false;
 			bool isApiOpenGL = false;
 			bool isApiVulkan = false;
+			bool isApiOpenXR = false;
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
 			DownloadCompatibilityIni();
@@ -641,6 +653,7 @@ namespace ReShade.Setup
 				isApiDXGI = peInfo.Modules.Any(s => s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) || s.StartsWith("d3d1", StringComparison.OrdinalIgnoreCase) || s.Contains("GFSDK")); // Assume DXGI when GameWorks SDK is in use
 				isApiOpenGL = peInfo.Modules.Any(s => s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase));
 				isApiVulkan = peInfo.Modules.Any(s => s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase));
+				isApiOpenXR = peInfo.Modules.Any(s => s.StartsWith("openxr_loader", StringComparison.OrdinalIgnoreCase));
 
 				if (isApiD3D9 && isApiDXGI)
 				{
@@ -684,6 +697,11 @@ namespace ReShade.Setup
 					targetApi = Api.Vulkan;
 				}
 
+				if (isApiOpenXR)
+				{
+					targetOpenXR = true;
+				}
+
 				InstallStep_CheckExistingInstallation();
 				return;
 			}
@@ -695,6 +713,7 @@ namespace ReShade.Setup
 				page.ApiDXGI.IsChecked = isApiDXGI;
 				page.ApiOpenGL.IsChecked = isApiOpenGL;
 				page.ApiVulkan.IsChecked = isApiVulkan;
+				page.ApiOpenXR.IsChecked = isApiOpenXR;
 
 				CurrentPage.Navigate(page);
 			});
@@ -756,7 +775,7 @@ namespace ReShade.Setup
 
 			var isReShade = false;
 
-			if (targetApi == Api.Vulkan)
+			if (targetApi == Api.Vulkan || targetOpenXR)
 			{
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
@@ -929,7 +948,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (targetApi == Api.Vulkan)
+			if (targetApi == Api.Vulkan || targetOpenXR)
 			{
 				if (!isElevated)
 				{
@@ -1001,8 +1020,6 @@ namespace ReShade.Setup
 				foreach (string layerModuleName in new[] { "ReShade32", "ReShade64" })
 				{
 					string layerModulePath = Path.Combine(commonPath, layerModuleName + ".dll");
-					string layerManifestPath = Path.Combine(commonPath, layerModuleName + ".json");
-					string layerManifestPathXR = Path.Combine(commonPath, layerModuleName + "_XR.json");
 
 					try
 					{
@@ -1020,48 +1037,58 @@ namespace ReShade.Setup
 						return;
 					}
 
-					try
+					if (targetApi == Api.Vulkan)
 					{
-						var manifest = zip.GetEntry(Path.GetFileName(layerManifestPath));
-						if (manifest == null)
+						string layerManifestPath = Path.Combine(commonPath, layerModuleName + ".json");
+
+						try
 						{
-							throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
+							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPath));
+							if (manifest == null)
+							{
+								throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
+							}
+
+							manifest.ExtractToFile(layerManifestPath, true);
+
+							// Register this layer manifest
+							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(Environment.Is64BitOperatingSystem && layerModuleName == "ReShade32" ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
+							{
+								key.SetValue(layerManifestPath, 0, RegistryValueKind.DWord);
+							}
 						}
-
-						manifest.ExtractToFile(layerManifestPath, true);
-
-						// Register this layer manifest
-						using (RegistryKey key = Registry.LocalMachine.CreateSubKey(Environment.Is64BitOperatingSystem && layerModuleName == "ReShade32" ? @"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers" : @"Software\Khronos\Vulkan\ImplicitLayers"))
+						catch (Exception ex)
 						{
-							key.SetValue(layerManifestPath, 0, RegistryValueKind.DWord);
-						}
-					}
-					catch (Exception ex)
-					{
-						UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest:\n" + ex.Message);
-						return;
-					}
-
-					try
-					{
-						var manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR));
-						if (manifest == null)
-						{
-							throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
-						}
-
-						manifest.ExtractToFile(layerManifestPathXR, true);
-
-						// Register this layer manifest
-						using (RegistryKey key = Registry.LocalMachine.CreateSubKey(Environment.Is64BitOperatingSystem && layerModuleName == "ReShade32" ? @"Software\Wow6432Node\Khronos\OpenXR\1\ApiLayers\Implicit" : @"Software\Khronos\OpenXR\1\ApiLayers\Implicit"))
-						{
-							key.SetValue(layerManifestPathXR, 0, RegistryValueKind.DWord);
+							UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest:\n" + ex.Message);
+							return;
 						}
 					}
-					catch (Exception ex)
+
+					if (targetOpenXR)
 					{
-						UpdateStatusAndFinish(false, "Failed to install OpenXR layer manifest:\n" + ex.Message);
-						return;
+						string layerManifestPathXR = Path.Combine(commonPath, layerModuleName + "_XR.json");
+
+						try
+						{
+							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR));
+							if (manifest == null)
+							{
+								throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
+							}
+
+							manifest.ExtractToFile(layerManifestPathXR, true);
+
+							// Register this layer manifest
+							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(Environment.Is64BitOperatingSystem && layerModuleName == "ReShade32" ? @"Software\Wow6432Node\Khronos\OpenXR\1\ApiLayers\Implicit" : @"Software\Khronos\OpenXR\1\ApiLayers\Implicit"))
+							{
+								key.SetValue(layerManifestPathXR, 0, RegistryValueKind.DWord);
+							}
+						}
+						catch (Exception ex)
+						{
+							UpdateStatusAndFinish(false, "Failed to install OpenXR layer manifest:\n" + ex.Message);
+							return;
+						}
 					}
 				}
 
@@ -1727,7 +1754,7 @@ In that event here are some steps you can try to resolve this:
 
 		void UninstallStep_UninstallReShadeModule()
 		{
-			if (targetApi == Api.Vulkan)
+			if (targetApi == Api.Vulkan || targetOpenXR)
 			{
 				if (!isElevated)
 				{
@@ -1796,7 +1823,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				string basePath = Path.GetDirectoryName(configPath);
 
-				if (targetApi != Api.Vulkan)
+				if (targetApi != Api.Vulkan && !targetOpenXR)
 				{
 					File.Delete(modulePath);
 				}
@@ -1882,6 +1909,11 @@ In that event here are some steps you can try to resolve this:
 				if (apiPage.ApiVulkan.IsChecked == true)
 				{
 					targetApi = Api.Vulkan;
+				}
+
+				if (apiPage.ApiOpenXR.IsChecked == true)
+				{
+					targetOpenXR = true;
 				}
 
 				RunTaskWithExceptionHandling(InstallStep_CheckExistingInstallation);

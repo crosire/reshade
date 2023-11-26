@@ -160,6 +160,7 @@
   <ItemGroup>
     <Resource Include="Pages\Resources\DirectX.png" />
     <Resource Include="Pages\Resources\OpenGL.png" />
+    <Resource Include="Pages\Resources\OpenXR.png" />
     <Resource Include="Pages\Resources\Vulkan.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />

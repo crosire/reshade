@@ -21,28 +21,59 @@
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
       <RadioButton x:Name="ApiD3D9" VerticalContentAlignment="Center">
         <StackPanel Orientation="Horizontal" Margin="8">
-          <Image Source="Resources/DirectX.png" Height="65" />
+          <Image Source="Resources/DirectX.png" Height="65">
+            <Image.ToolTip>
+              <ToolTip>
+                <TextBlock Text="DirectX 9" />
+              </ToolTip>
+            </Image.ToolTip>
+          </Image>
           <Label Content="_9" FontSize="18" VerticalAlignment="Center" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiDXGI" VerticalContentAlignment="Center">
         <StackPanel Orientation="Horizontal" Margin="8">
-          <Image Source="Resources/DirectX.png" Height="65" />
+          <Image Source="Resources/DirectX.png" Height="65">
+            <Image.ToolTip>
+              <ToolTip>
+                <TextBlock Text="DirectX 10/11/12" />
+              </ToolTip>
+            </Image.ToolTip>
+          </Image>
           <Label Content="_10/11/12" FontSize="18" VerticalAlignment="Center" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiOpenGL" VerticalContentAlignment="Center">
-        <StackPanel Orientation="Horizontal">
-          <Image Source="Resources/OpenGL.png" Margin="8" Height="65" />
+        <StackPanel Orientation="Horizontal" Margin="8">
+          <Image Source="Resources/OpenGL.png" Height="65" />
           <AccessText Text="_OpenGL" Width="0" Height="0" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiVulkan" VerticalContentAlignment="Center">
-        <StackPanel Orientation="Horizontal">
-          <Image Source="Resources/Vulkan.png" Margin="8" Height="55" />
+        <StackPanel Orientation="Horizontal" Margin="8">
+          <Image Source="Resources/Vulkan.png" Height="55">
+            <Image.ToolTip>
+              <ToolTip>
+                <TextBlock Text="Vulkan" />
+              </ToolTip>
+            </Image.ToolTip>
+          </Image>
           <AccessText Text="_Vulkan" Width="0" Height="0" />
         </StackPanel>
       </RadioButton>
+      <Separator Margin="0,8" />
+      <CheckBox x:Name="ApiOpenXR" VerticalContentAlignment="Center">
+        <StackPanel Orientation="Horizontal" Margin="8">
+          <Image Source="Resources/OpenXR.png" Height="65">
+            <Image.ToolTip>
+              <ToolTip>
+                <TextBlock Text="OpenXR" />
+              </ToolTip>
+            </Image.ToolTip>
+          </Image>
+          <AccessText Text="Open_XR" Width="0" Height="0" />
+        </StackPanel>
+      </CheckBox>
     </StackPanel>
   </DockPanel>
 </Page>
