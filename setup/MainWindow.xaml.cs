@@ -54,7 +54,6 @@ namespace ReShade.Setup
 		string targetPathTextures;
 		string downloadPath;
 		Queue<EffectPackage> packages;
-		string[] effects;
 		EffectPackage package;
 		Queue<Addon> addons;
 		Addon addon;
@@ -368,7 +367,7 @@ namespace ReShade.Setup
 			targetApi = Api.Unknown;
 			targetOpenXR = false;
 			targetPath = targetName = configPath = modulePath = presetPath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
-			packages = null; effects = null; package = null;
+			packages = null; package = null;
 
 			Dispatcher.Invoke(() =>
 			{
@@ -1375,8 +1374,8 @@ In that event here are some steps you can try to resolve this:
 
 					Dispatcher.Invoke(() =>
 					{
-						var page = new SelectPresetPage();
-						page.FileName = presetPath;
+						var page = new SelectEffectsPage(packagesIni);
+						page.PresetPath = presetPath;
 
 						CurrentPage.Navigate(page);
 					});
@@ -1394,8 +1393,6 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallStep_CheckPreset()
 		{
-			var effectFiles = new List<string>();
-
 			if (!string.IsNullOrEmpty(presetPath))
 			{
 				// Change current directory so that "Path.GetFullPath" resolves correctly
@@ -1410,34 +1407,11 @@ In that event here are some steps you can try to resolve this:
 					config.SetValue("GENERAL", "PresetPath", presetPath);
 					config.SaveFile();
 
-					var preset = new IniFile(presetPath);
-
-					if (preset.GetValue(string.Empty, "Techniques", out string[] techniques))
-					{
-						foreach (string technique in techniques)
-						{
-							var filenameIndex = technique.IndexOf('@');
-							if (filenameIndex > 0)
-							{
-								string filename = technique.Substring(filenameIndex + 1);
-
-								effectFiles.Add(filename);
-							}
-						}
-					}
-
 					MakeWritable(presetPath);
 				}
 			}
 
-			DownloadEffectPackagesIni();
-
-			Dispatcher.Invoke(() =>
-			{
-				var page = new SelectPackagesPage(packagesIni, effectFiles);
-
-				CurrentPage.Navigate(page);
-			});
+			InstallStep_DownloadEffectPackage();
 		}
 		void InstallStep_DownloadEffectPackage()
 		{
@@ -1498,7 +1472,7 @@ In that event here are some steps you can try to resolve this:
 
 				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
-				effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
+				string[] effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
 
 				// First check for a standard directory name
 				tempPathEffects = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
@@ -1523,7 +1497,7 @@ In that event here are some steps you can try to resolve this:
 					}
 				}
 
-				// Skip any effects no in the shader directory
+				// Skip any effects not in the shader directory
 				effects = effects.Where(x => x.StartsWith(tempPathEffects)).ToArray();
 
 				// Delete denied effects
@@ -1535,27 +1509,22 @@ In that event here are some steps you can try to resolve this:
 					{
 						File.Delete(filePath);
 					}
+				}
 
-					effects = effects.Except(denyEffectFiles).ToArray();
+				// Delete all unselected effects
+				if (package.Selected == null)
+				{
+					var disabledEffectFiles = effects.Where(x => package.EffectFiles.Any(effectFile => !effectFile.Selected && effectFile.FileName == Path.GetFileName(x)));
+
+					foreach (string filePath in disabledEffectFiles)
+					{
+						File.Delete(filePath);
+					}
 				}
 			}
 			catch (Exception ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to extract " + package.PackageName + ":\n" + ex.Message);
-				return;
-			}
-
-			// Show file selection dialog
-			if (!isHeadless && package.Selected == null)
-			{
-				effects = effects.Select(x => targetPathEffects + x.Remove(0, tempPathEffects.Length)).ToArray();
-
-				Dispatcher.Invoke(() =>
-				{
-					var page = new SelectEffectsPage(package.PackageName, effects);
-
-					CurrentPage.Navigate(page);
-				});
 				return;
 			}
 
@@ -1945,49 +1914,19 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			if (CurrentPage.Content is SelectPresetPage presetPage)
-			{
-				presetPath = presetPage.FileName;
-
-				RunTaskWithExceptionHandling(InstallStep_CheckPreset);
-				return;
-			}
-
-			if (CurrentPage.Content is SelectPackagesPage packagesPage)
+			if (CurrentPage.Content is SelectEffectsPage packagesPage)
 			{
 				packages = new Queue<EffectPackage>(packagesPage.SelectedItems);
+				presetPath = packagesPage.PresetPath;
 
 				if (packages.Count != 0)
 				{
-					RunTaskWithExceptionHandling(InstallStep_DownloadEffectPackage);
+					RunTaskWithExceptionHandling(InstallStep_CheckPreset);
 				}
 				else
 				{
 					RunTaskWithExceptionHandling(InstallStep_CheckAddons);
 				}
-				return;
-			}
-
-			if (CurrentPage.Content is SelectEffectsPage effectsPage)
-			{
-				RunTaskWithExceptionHandling(() =>
-				{
-					try
-					{
-						// Delete all unselected effect files before moving
-						foreach (string filePath in effects.Except(effectsPage.SelectedItems.Select(x => x.FilePath)))
-						{
-							File.Delete(tempPathEffects + filePath.Remove(0, targetPathEffects.Length));
-						}
-					}
-					catch (Exception ex)
-					{
-						UpdateStatusAndFinish(false, "Failed to delete an effect file from " + package.PackageName + ":\n" + ex.Message);
-						return;
-					}
-
-					InstallStep_InstallEffectPackage();
-				});
 				return;
 			}
 
@@ -2014,27 +1953,7 @@ In that event here are some steps you can try to resolve this:
 				appPage.Cancel();
 			}
 
-			if (CurrentPage.Content is SelectPresetPage)
-			{
-				presetPath = null;
-
-				RunTaskWithExceptionHandling(InstallStep_CheckPreset);
-				return;
-			}
-
-			if (CurrentPage.Content is SelectPackagesPage)
-			{
-				RunTaskWithExceptionHandling(InstallStep_Finish);
-				return;
-			}
-
-			if (CurrentPage.Content is SelectEffectsPage)
-			{
-				RunTaskWithExceptionHandling(InstallStep_InstallEffectPackage);
-				return;
-			}
-
-			if (CurrentPage.Content is SelectAddonsPage)
+			if (CurrentPage.Content is SelectAddonsPage || CurrentPage.Content is SelectEffectsPage)
 			{
 				RunTaskWithExceptionHandling(InstallStep_Finish);
 				return;
@@ -2054,7 +1973,7 @@ In that event here are some steps you can try to resolve this:
 			bool isFinished = operation == InstallOperation.Finished;
 
 			NextButton.Content = isFinished ? "_Finish" : "_Next";
-			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectPresetPage || e.Content is SelectPackagesPage || e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";
+			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";
 
 			CancelButton.IsEnabled = !(e.Content is StatusPage) || isFinished;
 

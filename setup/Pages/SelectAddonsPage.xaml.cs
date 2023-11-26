@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Navigation;
+using ReShade.Setup.Utilities;
 
 namespace ReShade.Setup.Pages
 {
@@ -36,7 +37,7 @@ namespace ReShade.Setup.Pages
 
 	public partial class SelectAddonsPage : Page
 	{
-		public SelectAddonsPage(Utilities.IniFile addonsIni)
+		public SelectAddonsPage(IniFile addonsIni)
 		{
 			InitializeComponent();
 			DataContext = this;

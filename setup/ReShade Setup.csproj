@@ -100,20 +100,6 @@
     <Compile Include="Pages\SelectEffectsPage.xaml.cs">
       <DependentUpon>SelectEffectsPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Pages\SelectPackagesPage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Compile Include="Pages\SelectPackagesPage.xaml.cs">
-      <DependentUpon>SelectPackagesPage.xaml</DependentUpon>
-    </Compile>
-    <Page Include="Pages\SelectPresetPage.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Compile Include="Pages\SelectPresetPage.xaml.cs">
-      <DependentUpon>SelectPresetPage.xaml</DependentUpon>
-    </Compile>
     <Page Include="Pages\SelectUninstallPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

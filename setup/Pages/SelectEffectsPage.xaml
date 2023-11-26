@@ -3,35 +3,96 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:local="clr-namespace:ReShade.Setup.Pages"
       mc:Ignorable="d"
       d:DesignWidth="510" d:DesignHeight="638"
       Width="Auto" Height="Auto"
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label Margin="10" Padding="0" VerticalAlignment="Top" HorizontalContentAlignment="Stretch" Foreground="#FF003399" FontSize="16">
-        <StackPanel Orientation="Horizontal">
-          <TextBlock Text="Select " />
-          <TextBlock x:Name="PackageName" Text="effect" />
-          <TextBlock Text=" files to install:" />
-        </StackPanel>
-      </Label>
+      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
-      Check all effect files (.fx) of the package you want to install/update. Files not checked here will not be installed or are left untouched when updating.
+      Check all effects you want to install/update or click on "Skip" to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).
     </TextBlock>
-    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
+    <Grid DockPanel.Dock="Bottom" Margin="10,5">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" />
+        <!-- Margin -->
+        <ColumnDefinition Width="100" />
+      </Grid.ColumnDefinitions>
+      <TextBox x:Name="PresetPathBox" Grid.Column="0" IsReadOnly="True" Text="" />
+      <Button Grid.Column="2" Content="_Browse..." Click="OnBrowsePresetClick" />
+    </Grid>
+    <TextBlock DockPanel.Dock="Bottom" Margin="10,5">
+      Choose a preset file (.ini) to install only the effects it uses:
+    </TextBlock>
+    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" VirtualizingPanel.ScrollUnit="Pixel" ItemsSource="{Binding Items}" d:ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <CheckBox VerticalAlignment="Center" IsChecked="{Binding Selected}" MouseEnter="OnCheckBoxMouseEnter" GotMouseCapture="OnCheckBoxMouseCapture">
-            <CheckBox.ToolTip>
-              <ToolTip>
-                <TextBlock Text="{Binding FilePath, Mode=OneTime}" />
-              </ToolTip>
-            </CheckBox.ToolTip>
-            <TextBlock Text="{Binding FileName, Mode=OneTime}" />
-          </CheckBox>
+          <Grid Margin="0,3">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="20" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="35" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Selected}" IsEnabled="{Binding Modifiable}" IsThreeState="True">
+              <local:EffectPackageCheckBox.ToolTip>
+                <TextBlock Text="Check to install all effects in the package, fill out to select individual effects to install." />
+              </local:EffectPackageCheckBox.ToolTip>
+            </local:EffectPackageCheckBox>
+            <TextBlock Grid.Column="1" VerticalAlignment="Center">
+              <Hyperlink NavigateUri="{Binding RepositoryUrl, Mode=OneTime}" RequestNavigate="OnHyperlinkRequestNavigate">
+                <TextBlock Text="{Binding PackageName, Mode=OneTime}" />
+                <Hyperlink.ToolTip>
+                  <TextBlock Text="{Binding RepositoryUrl, Mode=OneTime}" />                  
+                </Hyperlink.ToolTip>
+              </Hyperlink>
+            </TextBlock>
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageDescription, Mode=OneTime}">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Style.Triggers>
+                    <!-- Hide description row if it is empty -->
+                    <DataTrigger Binding="{Binding PackageDescription, Mode=OneTime}" Value="{x:Null}">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+              <TextBlock.ToolTip>
+                <ToolTip>
+                  <TextBlock>
+                    <Run Text="{Binding DownloadUrl, Mode=OneTime}" />
+                  </TextBlock>
+                </ToolTip>
+              </TextBlock.ToolTip>
+            </TextBlock>
+            <ListBox Grid.Row="2" Grid.Column="1" Margin="0,8" BorderThickness="0" Background="Transparent" ItemsSource="{Binding EffectFiles}">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox Content="{Binding FileName}" IsChecked="{Binding Selected}" />
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+              <ListBox.Style>
+                <Style TargetType="ListBox">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <!-- Hide effect file list if check box is not filled out -->
+                    <DataTrigger Binding="{Binding ElementName=SelectedCheckBox, Path=IsChecked}" Value="{x:Null}">
+                      <Setter Property="Visibility" Value="Visible" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ListBox.Style>
+            </ListBox>
+          </Grid>
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
