@@ -45,13 +45,19 @@
       </RadioButton>
       <RadioButton x:Name="ApiOpenGL" VerticalContentAlignment="Center">
         <StackPanel Orientation="Horizontal" Margin="8">
-          <Image Source="Resources/OpenGL.png" Height="65" />
+          <Image Source="Resources/OpenGL.png" Height="65">
+            <Image.ToolTip>
+              <ToolTip>
+                <TextBlock Text="OpenGL" />
+              </ToolTip>
+            </Image.ToolTip>
+          </Image>
           <AccessText Text="_OpenGL" Width="0" Height="0" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiVulkan" VerticalContentAlignment="Center">
         <StackPanel Orientation="Horizontal" Margin="8">
-          <Image Source="Resources/Vulkan.png" Height="55">
+          <Image Source="Resources/Vulkan.png" Height="65">
             <Image.ToolTip>
               <ToolTip>
                 <TextBlock Text="Vulkan" />
