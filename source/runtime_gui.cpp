@@ -2543,7 +2543,7 @@ void reshade::runtime::draw_gui_statistics()
 				memory_size_unit = "KiB";
 			}
 
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (Pooled)" : "");
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (pooled)" : "");
 			switch (tex.type)
 			{
 			case reshadefx::texture_type::texture_1d:
