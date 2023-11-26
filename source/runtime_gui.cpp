@@ -50,7 +50,7 @@ static void parse_errors(const std::string_view &errors, F &&callback)
 		next = pos_linefeed != std::string_view::npos ? pos_linefeed + 1 : std::string_view::npos;
 
 		const std::string error_file(errors.data() + offset, pos_error_line - offset);
-		int error_line = std::strtol(errors.data() + pos_error_line + 1, nullptr, 10);
+		int error_line = static_cast<int>(std::strtol(errors.data() + pos_error_line + 1, nullptr, 10));
 		const std::string error_text(errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2));
 
 		callback(error_file, error_line, error_text);

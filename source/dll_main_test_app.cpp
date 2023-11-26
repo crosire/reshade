@@ -103,11 +103,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	RegisterClass(&wc);
 
 	LONG window_w = 1024;
-	if (LPSTR width_arg = strstr(lpCmdLine, "-width "))
-		window_w = strtol(width_arg + 7, nullptr, 10);
+	if (LPSTR width_arg = std::strstr(lpCmdLine, "-width "))
+		window_w = std::strtol(width_arg + 7, nullptr, 10);
 	LONG window_h =  800;
-	if (LPSTR height_arg = strstr(lpCmdLine, "-height "))
-		window_h = strtol(height_arg + 8, nullptr, 10);
+	if (LPSTR height_arg = std::strstr(lpCmdLine, "-height "))
+		window_h = std::strtol(height_arg + 8, nullptr, 10);
 
 	const LONG window_x = (GetSystemMetrics(SM_CXSCREEN) - window_w) / 2;
 	const LONG window_y = (GetSystemMetrics(SM_CYSCREEN) - window_h) / 2;
