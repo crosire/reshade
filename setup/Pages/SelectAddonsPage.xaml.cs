@@ -7,7 +7,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Windows.Controls;
 using System.Windows.Navigation;
 using ReShade.Setup.Utilities;
@@ -37,22 +40,46 @@ namespace ReShade.Setup.Pages
 
 	public partial class SelectAddonsPage : Page
 	{
-		public SelectAddonsPage(IniFile addonsIni)
+		public SelectAddonsPage()
 		{
 			InitializeComponent();
 			DataContext = this;
 
-			foreach (var addon in addonsIni.GetSections())
+			new Thread(() =>
 			{
-				Items.Add(new Addon
+				// Attempt to download add-ons list
+				using (var client = new WebClient())
 				{
-					Name = addonsIni.GetString(addon, "Name"),
-					Description = addonsIni.GetString(addon, "Description"),
-					DownloadUrl32 = addonsIni.GetString(addon, "DownloadUrl32"),
-					DownloadUrl64 = addonsIni.GetString(addon, "DownloadUrl64"),
-					RepositoryUrl = addonsIni.GetString(addon, "RepositoryUrl")
-				});
-			}
+					// Ensure files are downloaded again if they changed
+					client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
+					try
+					{
+						using (Stream addonsStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Addons.ini"))
+						{
+							var addonsIni = new IniFile(addonsStream);
+
+							foreach (string addon in addonsIni.GetSections())
+							{
+								var item = new Addon
+								{
+									Name = addonsIni.GetString(addon, "Name"),
+									Description = addonsIni.GetString(addon, "Description"),
+									DownloadUrl32 = addonsIni.GetString(addon, "DownloadUrl32"),
+									DownloadUrl64 = addonsIni.GetString(addon, "DownloadUrl64"),
+									RepositoryUrl = addonsIni.GetString(addon, "RepositoryUrl")
+								};
+
+								Dispatcher.Invoke(() => { Items.Add(item); });
+							}
+						}
+					}
+					catch
+					{
+						// Ignore if this list failed to download, since setup can still proceed without it
+					}
+				}
+			}).Start();
 		}
 
 		public IEnumerable<Addon> SelectedItems => Items.Where(x => x.Selected);

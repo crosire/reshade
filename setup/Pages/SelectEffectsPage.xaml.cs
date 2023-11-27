@@ -3,11 +3,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
@@ -71,33 +75,61 @@ namespace ReShade.Setup.Pages
 
 	public partial class SelectEffectsPage : Page
 	{
-		public SelectEffectsPage(IniFile packagesIni)
+		public SelectEffectsPage()
 		{
 			InitializeComponent();
 			DataContext = this;
 
-			foreach (var package in packagesIni.GetSections())
+			new Thread(() =>
 			{
-				bool required = packagesIni.GetString(package, "Required") == "1";
-				bool? enabled = required || packagesIni.GetString(package, "Enabled") == "1";
-
-				packagesIni.GetValue(package, "EffectFiles", out string[] packageEffectFiles);
-				packagesIni.GetValue(package, "DenyEffectFiles", out string[] packageDenyEffectFiles);
-
-				Items.Add(new EffectPackage
+				// Attempt to download effect package list
+				using (var client = new WebClient())
 				{
-					Selected = enabled,
-					Modifiable = !required,
-					Name = packagesIni.GetString(package, "PackageName"),
-					Description = packagesIni.GetString(package, "PackageDescription"),
-					InstallPath = packagesIni.GetString(package, "InstallPath"),
-					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
-					DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
-					RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl"),
-					EffectFiles = packageEffectFiles.Where(x => packageDenyEffectFiles == null || !packageDenyEffectFiles.Contains(x)).Select(x => new EffectFile { FileName = x, Selected = true }).ToArray(),
-					DenyEffectFiles = packageDenyEffectFiles
-				});
-			}
+					// Ensure files are downloaded again if they changed
+					client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
+
+					try
+					{
+						using (Stream packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
+						{
+							var packagesIni = new IniFile(packagesStream);
+
+							foreach (string package in packagesIni.GetSections())
+							{
+								bool required = packagesIni.GetString(package, "Required") == "1";
+								bool? enabled = required || packagesIni.GetString(package, "Enabled") == "1";
+
+								packagesIni.GetValue(package, "EffectFiles", out string[] packageEffectFiles);
+								packagesIni.GetValue(package, "DenyEffectFiles", out string[] packageDenyEffectFiles);
+
+								var item = new EffectPackage
+								{
+									Selected = enabled,
+									Modifiable = !required,
+									Name = packagesIni.GetString(package, "PackageName"),
+									Description = packagesIni.GetString(package, "PackageDescription"),
+									InstallPath = packagesIni.GetString(package, "InstallPath"),
+									TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
+									DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
+									RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl"),
+									EffectFiles = packageEffectFiles.Where(x => packageDenyEffectFiles == null || !packageDenyEffectFiles.Contains(x)).Select(x => new EffectFile { FileName = x, Selected = true }).ToArray(),
+									DenyEffectFiles = packageDenyEffectFiles
+								};
+
+								Dispatcher.Invoke(() => { Items.Add(item); });
+							}
+						}
+					}
+					catch (Exception ex)
+					{
+						// Ignore if this list failed to download, since setup can still proceed without it
+						Dispatcher.Invoke(() =>
+						{
+							MessageBox.Show("Failed to download list of available effects:\n" + ex.Message + "\n\nTry using a proxy or VPN and verify that you can access https://raw.githubusercontent.com.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+						});
+					}
+				}
+			}).Start();	
 		}
 
 		public IEnumerable<EffectPackage> SelectedItems => Items.Where(x => x.Selected != false);

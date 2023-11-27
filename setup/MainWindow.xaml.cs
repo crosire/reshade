@@ -30,8 +30,6 @@ namespace ReShade.Setup
 		readonly bool isHeadless = false;
 		readonly bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
 
-		IniFile addonsIni;
-		IniFile packagesIni;
 		IniFile compatibilityIni;
 
 		readonly StatusPage status = new StatusPage();
@@ -492,32 +490,6 @@ namespace ReShade.Setup
 			}
 		}
 
-		void DownloadAddonsIni()
-		{
-			if (addonsIni != null)
-			{
-				return;
-			}
-
-			// Attempt to download add-ons list
-			using (var client = new WebClient())
-			{
-				// Ensure files are downloaded again if they changed
-				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
-
-				try
-				{
-					using (var addonsStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Addons.ini"))
-					{
-						addonsIni = new IniFile(addonsStream);
-					}
-				}
-				catch
-				{
-					// Ignore if this list failed to download, since setup can still proceed without them
-				}
-			}
-		}
 		void DownloadCompatibilityIni()
 		{
 			if (compatibilityIni != null)
@@ -541,39 +513,6 @@ namespace ReShade.Setup
 				catch
 				{
 					// Ignore if this list failed to download, since setup can still proceed without them
-				}
-			}
-		}
-		void DownloadEffectPackagesIni()
-		{
-			if (packagesIni != null)
-			{
-				return;
-			}
-
-			// Attempt to download effect package list
-			using (var client = new WebClient())
-			{
-				// Ensure files are downloaded again if they changed
-				client.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.Revalidate);
-
-				try
-				{
-					using (var packagesStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/EffectPackages.ini"))
-					{
-						packagesIni = new IniFile(packagesStream);
-					}
-				}
-				catch (Exception ex)
-				{
-					// Ignore if this list failed to download, since setup can still proceed without them
-					if (!isHeadless)
-					{
-						Dispatcher.Invoke(() =>
-						{
-							MessageBox.Show("Failed to download list of available effect packages:\n" + ex.Message + "\n\nTry using a proxy or VPN and verify that you can access https://raw.githubusercontent.com.\n\nProceeding without effect installation ...", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
-						});
-					}
 				}
 			}
 		}
@@ -1365,22 +1304,16 @@ In that event here are some steps you can try to resolve this:
 
 			if (!isHeadless && operation != InstallOperation.Update)
 			{
-				// Only show the selection dialog if there are actually packages to choose
-				DownloadEffectPackagesIni();
+				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
-				if (packagesIni != null && packagesIni.GetSections().Length != 0)
+				Dispatcher.Invoke(() =>
 				{
-					presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
+					var page = new SelectEffectsPage();
+					page.PresetPath = presetPath;
 
-					Dispatcher.Invoke(() =>
-					{
-						var page = new SelectEffectsPage(packagesIni);
-						page.PresetPath = presetPath;
-
-						CurrentPage.Navigate(page);
-					});
-					return;
-				}
+					CurrentPage.Navigate(page);
+				});
+				return;
 			}
 
 			// Add default search paths if no config exists
@@ -1569,21 +1502,12 @@ In that event here are some steps you can try to resolve this:
 #if RESHADE_ADDON
 			if (!isHeadless)
 			{
-				DownloadAddonsIni();
-
-				if (addonsIni != null)
+				Dispatcher.Invoke(() =>
 				{
-					Dispatcher.Invoke(() =>
-					{
-						var page = new SelectAddonsPage(addonsIni);
+					var page = new SelectAddonsPage();
 
-						CurrentPage.Navigate(page);
-					});
-				}
-				else
-				{
-					InstallStep_Finish();
-				}
+					CurrentPage.Navigate(page);
+				});
 			}
 			else
 #endif
@@ -1940,7 +1864,7 @@ In that event here are some steps you can try to resolve this:
 				}
 				else
 				{
-					RunTaskWithExceptionHandling(InstallStep_Finish);
+					InstallStep_Finish();
 				}
 				return;
 			}
@@ -1955,7 +1879,7 @@ In that event here are some steps you can try to resolve this:
 
 			if (CurrentPage.Content is SelectAddonsPage || CurrentPage.Content is SelectEffectsPage)
 			{
-				RunTaskWithExceptionHandling(InstallStep_Finish);
+				InstallStep_Finish();
 				return;
 			}
 
