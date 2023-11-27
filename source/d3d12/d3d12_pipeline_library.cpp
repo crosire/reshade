@@ -187,7 +187,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary1_LoadPipeline(ID3D12PipelineLibr
 
 				reshade::api::pipeline_layout layout = {};
 
-				reshade::api::shader_desc vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, cs_desc;
+				reshade::api::shader_desc vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, cs_desc, as_desc, ms_desc;
 				reshade::api::stream_output_desc stream_output_desc;
 				reshade::api::blend_desc blend_desc;
 				reshade::api::rasterizer_desc rasterizer_desc;
@@ -313,12 +313,29 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary1_LoadPipeline(ID3D12PipelineLibr
 						p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
 						continue;
 					case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
-						assert(false); // Not implemented
+						as_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_AS *>(p)->data);
+						subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
 						p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
 						continue;
 					case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
-						assert(false); // Not implemented
+						ms_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_MS *>(p)->data);
+						subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
 						p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
+						continue;
+					case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL2:
+						depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL2 *>(p)->data);
+						subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
+						p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL2);
+						continue;
+					case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER1:
+						rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER1 *>(p)->data);
+						subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
+						p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER1);
+						continue;
+					case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER2:
+						rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER2 *>(p)->data);
+						subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
+						p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER2);
 						continue;
 					default:
 						// Unknown sub-object type, break out of the loop

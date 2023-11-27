@@ -174,6 +174,11 @@ namespace reshade { namespace api
 		/// If this feature is not present, <see cref="fence_flags::shared_nt_handle"/> must not be used.
 		/// </summary>
 		shared_fence_nt_handle,
+		/// <summary>
+		/// Specifies whether amplification and mesh shaders are supported.
+		///	If this feature is not present, the <see cref="pipeline_stage::amplification_shader"/> and <see cref="pipeline_stage::mesh_shader"/> stages must not be used.
+		/// </summary>
+		amplification_and_mesh_shader,
 	};
 
 	/// <summary>

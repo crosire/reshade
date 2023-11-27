@@ -1678,6 +1678,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		reshade::api::shader_desc ds_desc = {};
 		reshade::api::shader_desc gs_desc = {};
 		reshade::api::shader_desc ps_desc = {};
+		reshade::api::shader_desc as_desc = {};
+		reshade::api::shader_desc ms_desc = {};
 		auto stream_output_desc = reshade::vulkan::convert_stream_output_desc(create_info.pRasterizationState);
 		auto blend_desc = reshade::vulkan::convert_blend_desc(create_info.pColorBlendState, create_info.pMultisampleState);
 		auto rasterizer_desc = reshade::vulkan::convert_rasterizer_desc(create_info.pRasterizationState, create_info.pMultisampleState);
@@ -1712,6 +1714,12 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 				break;
 			case VK_SHADER_STAGE_FRAGMENT_BIT:
 				desc = &ps_desc;
+				break;
+			case VK_SHADER_STAGE_TASK_BIT_NV:
+				desc = &as_desc;
+				break;
+			case VK_SHADER_STAGE_MESH_BIT_NV:
+				desc = &ms_desc;
 				break;
 			default:
 				continue;
@@ -1784,6 +1792,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			{ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc },
 			{ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc },
 			{ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc },
+			{ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc },
+			{ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc },
 			{ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc },
 			{ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc },
 			{ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask },

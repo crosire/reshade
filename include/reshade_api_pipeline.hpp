@@ -20,6 +20,8 @@ namespace reshade { namespace api
 		geometry = 0x8,
 		pixel = 0x10,
 		compute = 0x20,
+		amplification = 0x40,
+		mesh = 0x80,
 
 		all = 0x7FFFFFFF,
 		all_compute = compute,
@@ -38,6 +40,8 @@ namespace reshade { namespace api
 		geometry_shader = 0x40,
 		pixel_shader = 0x80,
 		compute_shader = 0x800,
+		amplification_shader = 0x80000,
+		mesh_shader = 0x100000,
 
 		input_assembler = 0x2,
 		stream_output = 0x4,
@@ -739,7 +743,21 @@ namespace reshade { namespace api
 		/// Maximum number of vertices a draw call with this pipeline will draw.
 		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
 		/// </summary>
-		max_vertex_count
+		max_vertex_count,
+		/// <summary>
+		/// Amplification shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::amplification"/>
+		/// <seealso cref="pipeline_stage::amplification_shader"/>
+		amplification_shader,
+		/// <summary>
+		/// Mesh shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::mesh"/>
+		/// <seealso cref="pipeline_stage::mesh_shader"/>
+		mesh_shader,
 	};
 
 	/// <summary>

@@ -1664,6 +1664,10 @@ auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY visibilit
 		return api::shader_stage::geometry;
 	case D3D12_SHADER_VISIBILITY_PIXEL:
 		return api::shader_stage::pixel;
+	case D3D12_SHADER_VISIBILITY_AMPLIFICATION:
+		return api::shader_stage::amplification;
+	case D3D12_SHADER_VISIBILITY_MESH:
+		return api::shader_stage::mesh;
 	}
 }
 

@@ -1533,7 +1533,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 
 	reshade::api::pipeline_layout layout = {};
 
-	reshade::api::shader_desc vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, cs_desc;
+	reshade::api::shader_desc vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, cs_desc, as_desc, ms_desc;
 	reshade::api::stream_output_desc stream_output_desc;
 	reshade::api::blend_desc blend_desc;
 	reshade::api::rasterizer_desc rasterizer_desc;
@@ -1671,11 +1671,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
-			assert(false); // Not implemented
+			as_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_AS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
-			assert(false); // Not implemented
+			ms_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_MS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL2:
