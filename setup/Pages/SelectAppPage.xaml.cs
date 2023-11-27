@@ -95,8 +95,8 @@ namespace ReShade.Setup.Pages
 			public string LastAccess { get; }
 		}
 
-		Thread UpdateThread = null;
-		AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
+		readonly Thread UpdateThread = null;
+		readonly AutoResetEvent SuspendUpdateThreadEvent = new AutoResetEvent(false);
 		bool SuspendUpdateThread = false;
 		bool IgnorePathBoxChanged = false;
 		public string FileName { get => PathBox.Text; set => PathBox.Text = value; }
@@ -391,6 +391,7 @@ namespace ReShade.Setup.Pages
 #endif
 			});
 
+			UpdateThread.IsBackground = true;
 			UpdateThread.Start();
 		}
 

@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Navigation;
 using ReShade.Setup.Utilities;
@@ -45,7 +45,7 @@ namespace ReShade.Setup.Pages
 			InitializeComponent();
 			DataContext = this;
 
-			new Thread(() =>
+			Task.Run(() =>
 			{
 				// Attempt to download add-ons list
 				using (var client = new WebClient())
@@ -79,7 +79,7 @@ namespace ReShade.Setup.Pages
 						// Ignore if this list failed to download, since setup can still proceed without it
 					}
 				}
-			}).Start();
+			});
 		}
 
 		public IEnumerable<Addon> SelectedItems => Items.Where(x => x.Selected);

@@ -11,7 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
@@ -80,7 +80,7 @@ namespace ReShade.Setup.Pages
 			InitializeComponent();
 			DataContext = this;
 
-			new Thread(() =>
+			Task.Run(() =>
 			{
 				// Attempt to download effect package list
 				using (var client = new WebClient())
@@ -129,7 +129,7 @@ namespace ReShade.Setup.Pages
 						});
 					}
 				}
-			}).Start();	
+			});	
 		}
 
 		public IEnumerable<EffectPackage> SelectedItems => Items.Where(x => x.Selected != false);
