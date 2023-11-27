@@ -10,11 +10,11 @@
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effect packages to install:" />
+      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effects to install:" />
       <Button DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
-      Check all effects you want to install/update or click on "Skip" to continue without modifying them (e.g. if you want to only update ReShade, but not the effects).
+      Check all effects you want to install or update. Effects not checked here will not be installed or are left untouched when updating.
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
       <Grid.ColumnDefinitions>
@@ -42,25 +42,25 @@
               <ColumnDefinition Width="35" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <local:EffectPackageCheckBox Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Selected}" IsEnabled="{Binding Modifiable}" IsThreeState="True">
+            <local:EffectPackageCheckBox x:Name="SelectedCheckBox" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Selected}" IsEnabled="{Binding Modifiable}" IsThreeState="True">
               <local:EffectPackageCheckBox.ToolTip>
                 <TextBlock Text="Check to install all effects in the package, fill out to select individual effects to install." />
               </local:EffectPackageCheckBox.ToolTip>
             </local:EffectPackageCheckBox>
             <TextBlock Grid.Column="1" VerticalAlignment="Center">
               <Hyperlink NavigateUri="{Binding RepositoryUrl, Mode=OneTime}" RequestNavigate="OnHyperlinkRequestNavigate">
-                <TextBlock Text="{Binding PackageName, Mode=OneTime}" />
+                <TextBlock Text="{Binding Name, Mode=OneTime}" />
                 <Hyperlink.ToolTip>
                   <TextBlock Text="{Binding RepositoryUrl, Mode=OneTime}" />                  
                 </Hyperlink.ToolTip>
               </Hyperlink>
             </TextBlock>
-            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageDescription, Mode=OneTime}">
+            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Description, Mode=OneTime}">
               <TextBlock.Style>
                 <Style TargetType="TextBlock">
                   <Style.Triggers>
                     <!-- Hide description row if it is empty -->
-                    <DataTrigger Binding="{Binding PackageDescription, Mode=OneTime}" Value="{x:Null}">
+                    <DataTrigger Binding="{Binding Description, Mode=OneTime}" Value="{x:Null}">
                       <Setter Property="Visibility" Value="Collapsed" />
                     </DataTrigger>
                   </Style.Triggers>

@@ -1418,7 +1418,7 @@ In that event here are some steps you can try to resolve this:
 			package = packages.Dequeue();
 			downloadPath = Path.GetTempFileName();
 
-			UpdateStatus("Downloading " + package.PackageName + " from " + package.DownloadUrl + " ...");
+			UpdateStatus("Downloading " + package.Name + " from " + package.DownloadUrl + " ...");
 
 			var client = new WebClient();
 
@@ -1439,7 +1439,7 @@ In that event here are some steps you can try to resolve this:
 				// Avoid negative percentage values
 				if (e.TotalBytesToReceive > 0)
 				{
-					UpdateStatus("Downloading " + package.PackageName + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
+					UpdateStatus("Downloading " + package.Name + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
 				}
 			};
 
@@ -1454,7 +1454,7 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallStep_ExtractEffectPackage()
 		{
-			UpdateStatus("Extracting " + package.PackageName + " ...");
+			UpdateStatus("Extracting " + package.Name + " ...");
 
 			tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders");
 
@@ -1524,7 +1524,7 @@ In that event here are some steps you can try to resolve this:
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Failed to extract " + package.PackageName + ":\n" + ex.Message);
+				UpdateStatusAndFinish(false, "Failed to extract " + package.Name + ":\n" + ex.Message);
 				return;
 			}
 
@@ -1549,7 +1549,7 @@ In that event here are some steps you can try to resolve this:
 			}
 			catch (Exception ex)
 			{
-				UpdateStatusAndFinish(false, "Failed to install " + package.PackageName + ":\n" + ex.Message);
+				UpdateStatusAndFinish(false, "Failed to install " + package.Name + ":\n" + ex.Message);
 				return;
 			}
 

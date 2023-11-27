@@ -34,8 +34,8 @@ namespace ReShade.Setup.Pages
 		public bool? Selected { get; set; } = false;
 		public bool  Modifiable { get; set; } = true;
 
-		public string PackageName { get; internal set; }
-		public string PackageDescription { get; internal set; }
+		public string Name { get; internal set; }
+		public string Description { get; internal set; }
 
 		public string InstallPath { get; internal set; }
 		public string TextureInstallPath { get; internal set; }
@@ -88,8 +88,8 @@ namespace ReShade.Setup.Pages
 				{
 					Selected = enabled,
 					Modifiable = !required,
-					PackageName = packagesIni.GetString(package, "PackageName"),
-					PackageDescription = packagesIni.GetString(package, "PackageDescription"),
+					Name = packagesIni.GetString(package, "PackageName"),
+					Description = packagesIni.GetString(package, "PackageDescription"),
 					InstallPath = packagesIni.GetString(package, "InstallPath"),
 					TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
 					DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
