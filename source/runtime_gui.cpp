@@ -236,6 +236,7 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	// Add editor font
+	if (_editor_font_path != _font_path)
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(_editor_font_size);
@@ -4185,7 +4186,7 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 		}
 	}
 
-	instance.editor.render("##editor", _editor_palette, false, _imgui_context->IO.Fonts->Fonts[1]);
+	instance.editor.render("##editor", _editor_palette, false, _imgui_context->IO.Fonts->Fonts[_imgui_context->IO.Fonts->Fonts.Size - 1]);
 
 	// Disable keyboard shortcuts when the window is focused so they don't get triggered while editing text
 	const bool is_focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
