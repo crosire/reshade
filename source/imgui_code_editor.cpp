@@ -11,8 +11,9 @@
 #include <cctype>
 #include <imgui.h>
 #include <algorithm>
+#include <utf8/unchecked.h>
 
-static inline int get_parenthesis_type(char c)
+static inline int get_parenthesis_type(utf8::uint32_t c)
 {
 	switch (c)
 	{
@@ -232,8 +233,8 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			while (text_start + cumulated_string_width[0] < pos.x && res.column < line.size())
 			{
 				cumulated_string_width[1] = cumulated_string_width[0];
-				cumulated_string += line[res.column].c;
-				cumulated_string_width[0] = calc_text_size(cumulated_string.c_str()).x;
+				utf8::unchecked::append(line[res.column].c, std::back_inserter(cumulated_string));
+				cumulated_string_width[0] = calc_text_size(cumulated_string.data(), cumulated_string.data() + cumulated_string.size()).x;
 				column_width = (cumulated_string_width[0] - cumulated_string_width[1]);
 				res.column++;
 			}
@@ -307,7 +308,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	// If cursor is on a parenthesis or bracket, find the matching sibling to highlight
 	text_pos parenthesis_pos[2];
 	{
-		char parenthesis_c = 0;
+		utf8::uint32_t parenthesis_c = 0;
 		text_pos search_pos = _cursor_pos;
 
 		// Check if character to the right or left of the cursor is a parenthesis or bracket
@@ -361,10 +362,17 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		float distance = 0.0f;
 		const std::vector<glyph> &line = _lines[from.line];
 		for (size_t i = 0u; i < line.size() && i < from.column; ++i)
+		{
 			if (line[i].c == '\t')
+			{
 				distance += _tab_size * space_size;
+			}
 			else
-				distance += calc_text_size(&line[i].c, &line[i].c + 1).x;
+			{
+				char text[4], *text_end = utf8::unchecked::append(line[i].c, text);
+				distance += calc_text_size(text, text_end).x;
+			}
+		}
 		return distance;
 	};
 
@@ -513,7 +521,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		// Fill temporary buffer with glyph characters and commit it every time the color changes or a tab character is encountered
 		for (const glyph &glyph : line)
 		{
-			if (buf != buf_end && (glyph.col != current_color || glyph.c == '\t' || buf_end - buf >= sizeof(buf)))
+			if (buf != buf_end && (glyph.col != current_color || glyph.c == '\t' || buf_end - buf >= sizeof(buf) - 4)) // Up to 4 bytes per unicode code point
 			{
 				draw_list->AddText(ImVec2(text_screen_pos.x + text_offset, text_screen_pos.y), palette[current_color], buf, buf_end);
 
@@ -521,7 +529,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			}
 
 			if (glyph.c != '\t')
-				*buf_end++ = glyph.c;
+				buf_end = utf8::unchecked::append(glyph.c, buf_end);
 			else
 				text_offset += _tab_size * space_size;
 
@@ -682,13 +690,34 @@ void reshade::imgui::code_editor::select(const text_pos &beg, const text_pos &en
 	_cursor_anim = 0;
 
 	// Find the identifier under the cursor position
+	_highlighted.clear();
 	text_pos highlight_beg = _select_beg;
 	text_pos highlight_end = _select_end;
 	select_word(highlight_beg, highlight_end);
 	if (_lines[highlight_beg.line].size() > highlight_beg.column && _lines[highlight_beg.line][highlight_beg.column].col == color_identifier)
-		_highlighted = get_text(highlight_beg, highlight_end);
-	else
-		_highlighted.clear();
+	{
+		for (text_pos it = highlight_beg; it < highlight_end;)
+		{
+			const std::vector<glyph> &line = _lines[it.line];
+
+			if (it.column < line.size())
+			{
+				_highlighted.push_back(line[it.column].c);
+
+				it.column++;
+			}
+			else
+			{
+				it.line++;
+				it.column = 0;
+
+				if (it.line < _lines.size())
+					// Reached end of line, so append a new line feed
+					_highlighted.push_back('\n');
+			}
+		}
+
+	}
 
 	switch (mode)
 	{
@@ -726,8 +755,9 @@ void reshade::imgui::code_editor::set_text(const std::string_view &text)
 	_undo_base_index = 0;
 	_errors.clear();
 
-	for (char c : text)
+	for (auto it = text.begin(); it < text.end();)
 	{
+		const utf8::uint32_t c = utf8::unchecked::next(it);
 		if (c == '\r')
 			continue; // Ignore the carriage return character
 		else if (c == '\n')
@@ -752,13 +782,13 @@ void reshade::imgui::code_editor::clear_text()
 void reshade::imgui::code_editor::insert_text(const std::string_view &text)
 {
 	// Insert all characters of the text
-	for (const char c : text)
-		insert_character(c, false);
+	for (auto it = text.begin(); it < text.end();)
+		insert_character(utf8::unchecked::next(it), false);
 
 	// Move cursor to end of inserted text
 	select(_cursor_pos, _cursor_pos);
 }
-void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
+void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 {
 	if (_readonly)
 		return;
@@ -843,7 +873,7 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 
 			if (line[0].c == '\t')
 			{
-				u.removed += line[0].c;
+				utf8::unchecked::append(line[0].c, std::back_inserter(u.removed));
 				u.removed_end.column++;
 				line.erase(line.begin());
 				if (_cursor_pos.column > 0)
@@ -851,7 +881,7 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 			}
 			else for (size_t j = 0; j < _tab_size && !line.empty() && line[0].c == ' '; j++) // Do the same for spaces
 			{
-				u.removed += line[0].c;
+				utf8::unchecked::append(line[0].c, std::back_inserter(u.removed));
 				u.removed_end.column++;
 				line.erase(line.begin());
 				if (_cursor_pos.column > 0)
@@ -865,7 +895,8 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 
 	assert(!_lines.empty());
 
-	u.added = c;
+	u.added.clear();
+	utf8::unchecked::append(c, std::back_inserter(u.added));
 	u.added_beg = _cursor_pos;
 
 	// Colorize additional 10 lines above and below to better catch multi-line constructs
@@ -886,8 +917,13 @@ void reshade::imgui::code_editor::insert_character(char c, bool auto_indent)
 
 		// Auto indentation
 		if (auto_indent && _cursor_pos.column == line.size())
-			for (size_t i = 0; i < line.size() && isblank(line[i].c); ++i)
-				new_line.push_back(line[i]), u.added.push_back(line[i].c);
+		{
+			for (size_t i = 0; i < line.size() && std::isblank(line[i].c); ++i)
+			{
+				new_line.push_back(line[i]);
+				utf8::unchecked::append(line[i].c, std::back_inserter(u.added));
+			}
+		}
 		const size_t indentation = new_line.size();
 
 		new_line.insert(new_line.end(), line.begin() + _cursor_pos.column, line.end());
@@ -939,7 +975,7 @@ std::string reshade::imgui::code_editor::get_text(const text_pos &beg, const tex
 
 		if (it.column < line.size())
 		{
-			result.push_back(line[it.column].c);
+			utf8::unchecked::append(line[it.column].c, std::back_inserter(result));
 
 			it.column++;
 		}
@@ -1075,7 +1111,8 @@ void reshade::imgui::code_editor::delete_next()
 	}
 	else
 	{
-		u.removed = line[_cursor_pos.column].c;
+		u.removed.clear();
+		utf8::unchecked::append(line[_cursor_pos.column].c, std::back_inserter(u.removed));
 		u.removed_end.column++;
 
 		// Otherwise just remove the character at the cursor position
@@ -1127,7 +1164,8 @@ void reshade::imgui::code_editor::delete_previous()
 	{
 		_cursor_pos.column--;
 
-		u.removed = line[_cursor_pos.column].c;
+		u.removed.clear();
+		utf8::unchecked::append(line[_cursor_pos.column].c, std::back_inserter(u.removed));
 
 		// Otherwise remove the character next to the cursor position
 		line.erase(line.begin() + _cursor_pos.column);
@@ -1221,7 +1259,7 @@ void reshade::imgui::code_editor::clipboard_copy()
 		std::string line_text;
 		line_text.reserve(_lines[_cursor_pos.line].size() + 1);
 		for (const glyph &glyph : _lines[_cursor_pos.line])
-			line_text.push_back(glyph.c);
+			utf8::unchecked::append(glyph.c, std::back_inserter(line_text));
 		// Include new line character
 		line_text += '\n';
 
@@ -1599,12 +1637,15 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 	if (text.empty())
 		return false; // Cannot search for empty text
 
-	const auto compare_c = [this](char clhs, char crhs) {
+	const auto compare_c = [this](utf8::uint32_t clhs, utf8::uint32_t crhs) {
 		return _search_case_sensitive ? clhs == crhs : std::tolower(clhs) == std::tolower(crhs);
 	};
 
 	// Start search at the cursor position
 	text_pos match_pos_beg, search_pos = backwards != with_selection ? _select_beg : _select_end;
+
+	const utf8::unchecked::iterator<std::string_view::iterator> text_begin(text.begin());
+	const utf8::unchecked::iterator<std::string_view::iterator> text_end(text.end());
 
 	if (backwards)
 	{
@@ -1619,8 +1660,8 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 			search_pos.column = _lines[search_pos.line].size();
 		}
 
-		const size_t match_last = text.size() - 1;
-		size_t match_offset = match_last;
+		const utf8::unchecked::iterator<std::string_view::iterator> match_last = std::prev(text_end);
+		utf8::unchecked::iterator<std::string_view::iterator> match_offset = match_last;
 
 		while (true)
 		{
@@ -1631,13 +1672,13 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 
 				while (true)
 				{
-					if (compare_c(_lines[search_pos.line][search_pos.column].c, text[match_offset]))
+					if (compare_c(_lines[search_pos.line][search_pos.column].c, *match_offset))
 					{
 						if (match_offset == match_last) // Keep track of end of the match
 							match_pos_beg = search_pos;
 
 						// All characters matching means the text was found, so select it and return
-						if (match_offset == 0)
+						if (match_offset == text_begin)
 						{
 							_select_beg = search_pos;
 							_select_end = text_pos(match_pos_beg.line, match_pos_beg.column + 1);
@@ -1668,7 +1709,7 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 			else
 				search_pos.line -= 1;
 
-			if (match_offset != match_last && text[match_offset--] != '\n')
+			if (match_offset != match_last && *match_offset-- != '\n')
 				match_offset  = match_last; // Check for line feed in search text between lines
 
 			search_pos.column = _lines[search_pos.line].size(); // Continue at end of previous line
@@ -1676,24 +1717,24 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 	}
 	else
 	{
-		size_t match_offset = 0;
+		utf8::unchecked::iterator<std::string_view::iterator> match_offset = text_begin;
 
 		while (search_pos.line < _lines.size())
 		{
-			if (match_offset != 0 && text[match_offset++] != '\n')
-				match_offset  = 0; // Check for line feed in search text between lines
+			if (match_offset != text_begin && *match_offset++ != '\n')
+				match_offset  = text_begin; // Check for line feed in search text between lines
 
 			while (search_pos.column < _lines[search_pos.line].size())
 			{
-				if (compare_c(_lines[search_pos.line][search_pos.column].c, text[match_offset]))
+				if (compare_c(_lines[search_pos.line][search_pos.column].c, *match_offset))
 				{
-					if (match_offset == 0) // Keep track of beginning of the match
+					if (match_offset == text_begin) // Keep track of beginning of the match
 						match_pos_beg = search_pos;
 
 					match_offset++;
 
 					// All characters matching means the text was found, so select it and return
-					if (match_offset == text.size())
+					if (match_offset == text_end)
 					{
 						_select_beg = match_pos_beg;
 						_select_end = text_pos(search_pos.line, search_pos.column + 1);
@@ -1705,7 +1746,7 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 				else
 				{
 					// A character mismatched, so start from the beginning again
-					match_offset = 0;
+					match_offset = text_begin;
 				}
 
 				search_pos.column += 1;
@@ -1741,7 +1782,7 @@ void reshade::imgui::code_editor::colorize()
 	std::string input_string;
 	for (size_t l = from; l < to && l < _lines.size(); ++l, input_string.push_back('\n'))
 		for (size_t k = 0; k < _lines[l].size(); ++k)
-			input_string.push_back(_lines[l][k].c);
+			utf8::unchecked::append(_lines[l][k].c, std::back_inserter(input_string));
 
 	reshadefx::lexer lexer(
 		std::move(input_string),

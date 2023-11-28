@@ -200,7 +200,7 @@ namespace reshade::imgui
 	private:
 		struct glyph
 		{
-			char c = '\0';
+			uint32_t c = '\0';
 			color col = color_default;
 		};
 
@@ -216,7 +216,7 @@ namespace reshade::imgui
 
 		void record_undo(undo_record &&record);
 
-		void insert_character(char c, bool auto_indent);
+		void insert_character(uint32_t c, bool auto_indent);
 
 		void delete_next();
 		void delete_previous();
@@ -257,7 +257,7 @@ namespace reshade::imgui
 		text_pos _select_end;
 		text_pos _interactive_beg;
 		text_pos _interactive_end;
-		std::string _highlighted;
+		std::vector<uint32_t> _highlighted;
 		std::string _last_copy_string;
 		bool _last_copy_from_empty_selection = false;
 
