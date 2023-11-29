@@ -695,6 +695,9 @@
     <ClInclude Include="source\vulkan\vulkan_impl_type_convert.hpp">
       <Filter>core\runtime\vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="res\fonts\custom_glyph_range.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">
