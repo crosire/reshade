@@ -1860,10 +1860,10 @@ void reshade::runtime::draw_gui_home()
 	}
 	else
 	{
-		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(0, 175));
-		ImGui::TextWrapped(tutorial_text.c_str());
+		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(ImGui::GetContentRegionAvail().x, std::min(ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeight() - _imgui_context->Style.ItemSpacing.y, ImGui::CalcTextSize(tutorial_text.data(), tutorial_text.data() + tutorial_text.size(), false, ImGui::GetContentRegionAvail().x - _imgui_context->Style.FramePadding.x * 2).y + _imgui_context->Style.FramePadding.y * 2)));
+		ImGui::TextWrapped("%*s", tutorial_text.size(), tutorial_text.c_str());
 		ImGui::EndChildFrame();
-
+		
 		const float max_button_width = ImGui::GetContentRegionAvail().x;
 
 		if (_tutorial_index == 0)
