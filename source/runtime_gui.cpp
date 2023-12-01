@@ -165,39 +165,43 @@ void reshade::runtime::build_font_atlas()
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
+	std::string language = _language;
+	if (language.empty())
+		language = reshade::resources::get_language();
+
 	const char *default_font_path = nullptr;
 	const ImWchar *glyph_ranges = nullptr;
-	if (_language.find("bg") == 0)
+	if (language.find("bg") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
 		glyph_ranges = atlas->GetGlyphRangesCyrillic();
 	}
 	else
-	if (_language.find("el") == 0)
+	if (language.find("el") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
 		glyph_ranges = atlas->GetGlyphRangesGreek();
 	}
 	else
-	if (_language.find("ja") == 0)
+	if (language.find("ja") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
 		glyph_ranges = atlas->GetGlyphRangesJapanese();
 	}
 	else
-	if (_language.find("ko") == 0)
+	if (language.find("ko") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
 		glyph_ranges = atlas->GetGlyphRangesKorean();
 	}
 	else
-	if (_language.find("vi") == 0)
+	if (language.find("vi") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
 		glyph_ranges = atlas->GetGlyphRangesVietnamese();
 	}
 	else
-	if (_language.find("zh") == 0)
+	if (language.find("zh") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
 		glyph_ranges = atlas->GetGlyphRangesChineseSimplifiedCommon();
