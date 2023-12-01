@@ -1866,7 +1866,11 @@ void reshade::runtime::draw_gui_home()
 	}
 	else
 	{
-		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), ImVec2(ImGui::GetContentRegionAvail().x, std::min(ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeight() - _imgui_context->Style.ItemSpacing.y, ImGui::CalcTextSize(tutorial_text.data(), tutorial_text.data() + tutorial_text.size(), false, ImGui::GetContentRegionAvail().x - _imgui_context->Style.FramePadding.x * 2).y + _imgui_context->Style.FramePadding.y * 2)));
+		const float maximum_frame_height = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeight() - _imgui_context->Style.ItemSpacing.y;
+		const float assume_content_avail = ImGui::GetContentRegionAvail().x - _imgui_context->Style.FramePadding.x * 2;
+		const float require_frame_height = ImGui::CalcTextSize(tutorial_text.data(), tutorial_text.data() + tutorial_text.size(), false, assume_content_avail).y + _imgui_context->Style.FramePadding.y * 2;
+		const ImVec2 frame_size = ImVec2(ImGui::GetContentRegionAvail().x, std::min(maximum_frame_height, require_frame_height));
+		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), frame_size);
 		ImGui::TextWrapped("%*s", tutorial_text.size(), tutorial_text.c_str());
 		ImGui::EndChildFrame();
 
