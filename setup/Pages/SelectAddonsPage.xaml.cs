@@ -19,15 +19,13 @@ namespace ReShade.Setup.Pages
 {
 	public class Addon : INotifyPropertyChanged
 	{
-		public bool Enabled => !string.IsNullOrEmpty(MainWindow.is64Bit ? DownloadUrl64 : DownloadUrl32);
+		public bool Enabled => !string.IsNullOrEmpty(DownloadUrl);
 		public bool Selected { get; set; } = false;
 
 		public string Name { get; internal set; }
 		public string Description { get; internal set; }
 
-		public string DownloadUrl => MainWindow.is64Bit ? DownloadUrl64 : DownloadUrl32;
-		public string DownloadUrl32 { get; internal set; }
-		public string DownloadUrl64 { get; internal set; }
+		public string DownloadUrl { get; internal set; }
 		public string RepositoryUrl { get; internal set; }
 
 		public event PropertyChangedEventHandler PropertyChanged;
@@ -61,12 +59,17 @@ namespace ReShade.Setup.Pages
 
 							foreach (string addon in addonsIni.GetSections())
 							{
+								string downloadUrl = addonsIni.GetString(addon, "DownloadUrl");
+								if (string.IsNullOrEmpty(downloadUrl))
+								{
+									downloadUrl = addonsIni.GetString(addon, MainWindow.is64Bit ? "DownloadUrl64" : "DownloadUrl32");
+								}
+
 								var item = new Addon
 								{
-									Name = addonsIni.GetString(addon, "Name"),
-									Description = addonsIni.GetString(addon, "Description"),
-									DownloadUrl32 = addonsIni.GetString(addon, "DownloadUrl32"),
-									DownloadUrl64 = addonsIni.GetString(addon, "DownloadUrl64"),
+									Name = addonsIni.GetString(addon, "PackageName"),
+									Description = addonsIni.GetString(addon, "PackageDescription"),
+									DownloadUrl = downloadUrl,
 									RepositoryUrl = addonsIni.GetString(addon, "RepositoryUrl")
 								};
 
