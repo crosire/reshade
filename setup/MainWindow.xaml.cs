@@ -1306,6 +1306,15 @@ In that event here are some steps you can try to resolve this:
 			{
 				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
+				if (!string.IsNullOrEmpty(presetPath))
+				{
+					// Change current directory so that "Path.GetFullPath" resolves correctly
+					string currentPath = Directory.GetCurrentDirectory();
+					Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
+					presetPath = Path.GetFullPath(presetPath);
+					Directory.SetCurrentDirectory(currentPath);
+				}
+
 				Dispatcher.Invoke(() =>
 				{
 					var page = new SelectEffectsPage();
@@ -1326,22 +1335,13 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallStep_CheckPreset()
 		{
-			if (!string.IsNullOrEmpty(presetPath))
+			if (!string.IsNullOrEmpty(presetPath) && File.Exists(presetPath))
 			{
-				// Change current directory so that "Path.GetFullPath" resolves correctly
-				string currentPath = Directory.GetCurrentDirectory();
-				Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
-				presetPath = Path.GetFullPath(presetPath);
-				Directory.SetCurrentDirectory(currentPath);
+				var config = new IniFile(configPath);
+				config.SetValue("GENERAL", "PresetPath", presetPath);
+				config.SaveFile();
 
-				if (File.Exists(presetPath))
-				{
-					var config = new IniFile(configPath);
-					config.SetValue("GENERAL", "PresetPath", presetPath);
-					config.SaveFile();
-
-					MakeWritable(presetPath);
-				}
+				MakeWritable(presetPath);
 			}
 
 			InstallStep_DownloadEffectPackage();
