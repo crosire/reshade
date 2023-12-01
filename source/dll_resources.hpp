@@ -43,5 +43,9 @@ namespace reshade::resources
 	/// <param name="language">Language name of the new language to set.</param>
 	/// <param name="prev_language">Variable that is set to the language name of the language that was set before the change.</param>
 	void set_language(const std::string &new_language, std::string &prev_language);
+	/// <summary>
+	/// Resolve the preferred UI language used to look up resources for the current thread.
+	/// </summary>
+	std::string get_language();
 #endif
 }

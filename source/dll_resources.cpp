@@ -95,4 +95,16 @@ void reshade::resources::set_language(const std::string &language, std::string &
 
 	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);
 }
+std::string reshade::resources::get_language()
+{
+	std::string language;
+	if (ULONG num = 0, size = 0;
+		GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
+	{
+		std::vector<WCHAR> languages(size);
+		if (GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, languages.data(), &size) && num != 0)
+			utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(language));
+	}
+	return language;
+}
 #endif
