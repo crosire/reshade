@@ -129,6 +129,9 @@ namespace ReShade.Setup.Pages
 						});
 					}
 				}
+
+				// Update selection after all items were added
+				Dispatcher.Invoke(() => { PresetPath = PresetPath; });
 			});	
 		}
 
