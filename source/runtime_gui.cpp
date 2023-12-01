@@ -18,6 +18,7 @@
 #include "localization.hpp"
 #include "platform_utils.hpp"
 #include "fonts/forkawesome.inl"
+#include "fonts/custom_glyph_range.hpp"
 #include <fstream>
 #include <algorithm>
 
@@ -205,7 +206,7 @@ void reshade::runtime::build_font_atlas()
 	if (language.find("zh") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
-		glyph_ranges = atlas->GetGlyphRangesChineseSimplifiedCommon();
+		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 	}
 #endif
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
