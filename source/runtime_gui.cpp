@@ -165,12 +165,13 @@ void reshade::runtime::build_font_atlas()
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
+	const char *default_font_path = nullptr;
+	const ImWchar *glyph_ranges = nullptr;
+#ifdef RESHADE_LOCALIZATION
 	std::string language = _language;
 	if (language.empty())
 		language = reshade::resources::get_language();
 
-	const char *default_font_path = nullptr;
-	const ImWchar *glyph_ranges = nullptr;
 	if (language.find("bg") == 0)
 	{
 		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
@@ -206,7 +207,7 @@ void reshade::runtime::build_font_atlas()
 		default_font_path = "C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
 		glyph_ranges = atlas->GetGlyphRangesChineseSimplifiedCommon();
 	}
-
+#endif
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 
 	// Add main font
