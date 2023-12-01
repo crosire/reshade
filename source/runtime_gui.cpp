@@ -1918,6 +1918,11 @@ void reshade::runtime::draw_gui_settings()
 	{
 		if (_input != nullptr)
 		{
+			modified |= ImGui::Combo(_("Input processing"), reinterpret_cast<int *>(&_input_processing_mode),
+				"Pass on all input\0"
+				"Block input when cursor is on overlay\0"
+				"Block all input when overlay is visible\0");
+
 			modified |= imgui::key_input_box(_("Overlay key"), _overlay_key_data, *_input);
 
 #if RESHADE_FX
@@ -1933,13 +1938,7 @@ void reshade::runtime::draw_gui_settings()
 			ImGui::SetItemTooltip(_("Make a smooth transition when switching presets, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds."));
 #endif
 
-			modified |= ImGui::Combo(_("Input processing"), reinterpret_cast<int *>(&_input_processing_mode),
-				"Pass on all input\0"
-				"Block input when cursor is on overlay\0"
-				"Block all input when overlay is visible\0");
-#if RESHADE_FX
 			ImGui::Spacing();
-#endif
 		}
 
 #if RESHADE_FX
@@ -1966,6 +1965,9 @@ void reshade::runtime::draw_gui_settings()
 			clear_effect_cache();
 		ImGui::SetItemTooltip(_("Clear effect cache located in \"%s\"."), _effect_cache_path.u8string().c_str());
 #endif
+
+		if (ImGui::Button(_("Open base folder in explorer"), ImVec2(ImGui::CalcItemWidth(), 0)))
+			utils::open_explorer(_config_path);
 	}
 
 	if (ImGui::CollapsingHeader(_("Screenshots"), ImGuiTreeNodeFlags_DefaultOpen))
