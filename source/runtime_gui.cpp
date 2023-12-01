@@ -168,10 +168,11 @@ void reshade::runtime::build_font_atlas()
 
 	const char *default_font_path = nullptr;
 	const ImWchar *glyph_ranges = nullptr;
-#ifdef RESHADE_LOCALIZATION
+
+#if RESHADE_LOCALIZATION
 	std::string language = _language;
 	if (language.empty())
-		language = reshade::resources::get_language();
+		language = resources::get_current_language();
 
 	if (language.find("bg") == 0)
 	{
@@ -209,6 +210,7 @@ void reshade::runtime::build_font_atlas()
 		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 	}
 #endif
+
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 
 	// Add main font
@@ -954,8 +956,7 @@ void reshade::runtime::draw_gui()
 	ImGui::NewFrame();
 
 #if RESHADE_LOCALIZATION
-	std::string prev_language;
-	resources::set_language(_language, prev_language);
+	const std::string prev_language = resources::set_current_language(_language);
 #endif
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
@@ -1361,7 +1362,7 @@ void reshade::runtime::draw_gui()
 #endif
 
 #if RESHADE_LOCALIZATION
-	resources::set_language(prev_language, prev_language);
+	resources::set_current_language(prev_language);
 #endif
 
 	// Disable keyboard shortcuts while typing into input boxes

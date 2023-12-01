@@ -33,19 +33,19 @@ namespace reshade::resources
 
 #if RESHADE_LOCALIZATION
 	/// <summary>
-	/// Returns a list of languages for which a string table is embeded in the DLL resources.
+	/// Gets the preferred UI language used to look up resources for the current thread.
 	/// </summary>
-	std::vector<std::string> get_languages();
-
+	std::string get_current_language();
 	/// <summary>
 	/// Changes the language used to look up resources for the current thread.
 	/// </summary>
 	/// <param name="language">Language name of the new language to set.</param>
-	/// <param name="prev_language">Variable that is set to the language name of the language that was set before the change.</param>
-	void set_language(const std::string &new_language, std::string &prev_language);
+	/// <returns>Language name of the language that was set before the change.</returns>
+	std::string set_current_language(const std::string &language);
+
 	/// <summary>
-	/// Resolve the preferred UI language used to look up resources for the current thread.
+	/// Returns a list of languages for which a string table is embeded in the DLL resources.
 	/// </summary>
-	std::string get_language();
+	std::vector<std::string> get_languages();
 #endif
 }

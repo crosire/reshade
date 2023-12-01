@@ -37,6 +37,49 @@ std::string reshade::resources::load_string(unsigned short id)
 }
 
 #if RESHADE_LOCALIZATION
+std::string reshade::resources::get_current_language()
+{
+	ULONG num = 0, size = 0;
+	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
+		return std::string();
+	std::vector<WCHAR> languages(size);
+	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, languages.data(), &size) || num == 0)
+		return std::string();
+
+	std::string language;
+	// Extract first language from the double null-terminated multi-string buffer
+	utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(language));
+	return language;
+}
+std::string reshade::resources::set_current_language(const std::string &language)
+{
+	ULONG num = 0, size = 0;
+	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, nullptr, &size))
+		return language;
+	std::vector<WCHAR> languages(size);
+	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, languages.data(), &size))
+		return language;
+
+	std::string prev_language;
+	if (num != 0)
+		// Extract first language from the double null-terminated multi-string buffer
+		utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(prev_language));
+
+	if (language == prev_language)
+		return language;
+
+	// Create new double null-terminated buffer with the new language
+	languages.clear();
+	languages.reserve(language.size() + 2);
+	utf8::unchecked::utf8to16(language.begin(), language.end(), std::back_inserter(languages));
+	languages.push_back(L'\0');
+	languages.push_back(L'\0');
+
+	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);
+
+	return prev_language;
+}
+
 std::vector<std::string> reshade::resources::get_languages()
 {
 	// Find a valid string table resource to use as reference to query languages for
@@ -65,46 +108,5 @@ std::vector<std::string> reshade::resources::get_languages()
 		}, reinterpret_cast<LONG_PTR>(&languages));
 
 	return languages;
-}
-
-void reshade::resources::set_language(const std::string &language, std::string &prev_language)
-{
-	const std::string new_language = language; // Copy 'language' before modifying 'prev_language', in case they are aliased
-
-	ULONG num = 0, size = 0;
-	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, nullptr, &size))
-		return;
-	std::vector<WCHAR> languages(size);
-	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, languages.data(), &size))
-		return;
-
-	prev_language.clear();
-	if (num != 0)
-		// Extract first language from the double null-terminated multi-string buffer
-		utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(prev_language));
-
-	if (new_language == prev_language)
-		return;
-
-	// Create new double null-terminated buffer with the new language
-	languages.clear();
-	languages.reserve(new_language.size() + 2);
-	utf8::unchecked::utf8to16(new_language.begin(), new_language.end(), std::back_inserter(languages));
-	languages.push_back(L'\0');
-	languages.push_back(L'\0');
-
-	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);
-}
-std::string reshade::resources::get_language()
-{
-	std::string language;
-	if (ULONG num = 0, size = 0;
-		GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
-	{
-		std::vector<WCHAR> languages(size);
-		if (GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, languages.data(), &size) && num != 0)
-			utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(language));
-	}
-	return language;
 }
 #endif

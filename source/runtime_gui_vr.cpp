@@ -196,8 +196,7 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 #if RESHADE_LOCALIZATION
-	std::string prev_language;
-	resources::set_language(_language, prev_language);
+	const std::string prev_language = resources::set_current_language(_language);
 #endif
 
 	const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
@@ -298,7 +297,7 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::End(); // VR Viewport window
 
 #if RESHADE_LOCALIZATION
-	resources::set_language(prev_language, prev_language);
+	resources::set_current_language(prev_language);
 #endif
 
 	ImGui::Render();
