@@ -3017,20 +3017,100 @@ void reshade::runtime::load_textures()
 
 		void *pixels = nullptr;
 		int width = 0, height = 1, depth = 1, channels = 0;
+		const bool is_floating_point_format = (tex.format == reshadefx::texture_format::r32f || tex.format == reshadefx::texture_format::rg32f || tex.format == reshadefx::texture_format::rgba32f);
 
 		if (auto file = std::ifstream(source_path, std::ios::binary))
 		{
-			// Read texture data into memory in one go since that is faster than reading chunk by chunk
-			std::vector<stbi_uc> file_data(static_cast<size_t>(file_size));
-			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
-			file.close();
+			if (source_path.extension() == L".cube")
+			{
+				if (!is_floating_point_format)
+				{
+					LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' is a Cube LUT file, which can only be loaded into textures with a floating-point format!";
+					continue;
+				}
 
-			if (tex.format == reshadefx::texture_format::r32f || tex.format == reshadefx::texture_format::rg32f || tex.format == reshadefx::texture_format::rgba32f)
-				pixels = stbi_loadf_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
-			else if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
-				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &depth, &channels, STBI_rgb_alpha);
+				float domain_min[3] = { 0.0f, 0.0f, 0.0f };
+				float domain_max[3] = { 1.0f, 1.0f, 1.0f };
+
+				// Read header information
+				std::string line;
+				while (std::getline(file, line))
+				{
+					if (line.empty() || line[0] == '#')
+						continue; // Skip lines with comments
+
+					char *p = line.data();
+
+					if (line.rfind("TITLE", 0) == 0)
+						continue; // Skip optional line with title
+
+					if (line.rfind("DOMAIN_MIN", 0) == 0)
+					{
+						p += 10;
+						domain_min[0] = static_cast<float>(std::strtod(p, &p));
+						domain_min[1] = static_cast<float>(std::strtod(p, &p));
+						domain_min[2] = static_cast<float>(std::strtod(p, &p));
+						continue;
+					}
+					if (line.rfind("DOMAIN_MAX", 0) == 0)
+					{
+						p += 10;
+						domain_max[0] = static_cast<float>(std::strtod(p, &p));
+						domain_max[1] = static_cast<float>(std::strtod(p, &p));
+						domain_max[2] = static_cast<float>(std::strtod(p, &p));
+						continue;
+					}
+
+					if (line.rfind("LUT_1D_SIZE", 0) == 0)
+					{
+						if (pixels != nullptr)
+							break;
+						width = std::strtol(p + 11, nullptr, 10);
+						pixels = std::malloc(static_cast<size_t>(width) * 4 * sizeof(float));
+						break; // Assume size declaration is the last keyword in the header before table data follows
+					}
+					if (line.rfind("LUT_3D_SIZE", 0) == 0)
+					{
+						if (pixels != nullptr)
+							break;
+						width = height = depth = std::strtol(p + 11, nullptr, 10);
+						pixels = std::malloc(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4 * sizeof(float));
+						break;
+					}
+				}
+
+				// Read table data
+				if (pixels != nullptr)
+				{
+					size_t index = 0;
+					while (std::getline(file, line) && (index + 4) <= (static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4))
+					{
+						if (line.empty() || line[0] == '#')
+							continue; // Skip lines with comments
+
+						char *p = line.data();
+
+						static_cast<float *>(pixels)[index++] = static_cast<float>(std::strtod(p, &p)) * (domain_max[0] - domain_min[0]) + domain_min[0];
+						static_cast<float *>(pixels)[index++] = static_cast<float>(std::strtod(p, &p)) * (domain_max[1] - domain_min[1]) + domain_min[1];
+						static_cast<float *>(pixels)[index++] = static_cast<float>(std::strtod(p, &p)) * (domain_max[2] - domain_min[2]) + domain_min[2];
+						static_cast<float *>(pixels)[index++] = 1.0f;
+					}
+				}
+			}
 			else
-				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+			{
+				// Read texture data into memory in one go since that is faster than reading chunk by chunk
+				std::vector<stbi_uc> file_data(static_cast<size_t>(file_size));
+				file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
+				file.close();
+
+				if (is_floating_point_format)
+					pixels = stbi_loadf_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+				else if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
+					pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &depth, &channels, STBI_rgb_alpha);
+				else
+					pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+			}
 		}
 
 		if (ec || pixels == nullptr)
