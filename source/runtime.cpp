@@ -2997,17 +2997,6 @@ void reshade::runtime::load_textures()
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path))
 		{
-			effect &effect = _effects[tex.effect_index];
-			if (effect.errors.find(source_path.u8string()) == std::string::npos)
-				effect.errors += "error: " + tex.unique_name + ": image file \"" + source_path.u8string() + "\" was not found\n";
-
-			// Disable all techniques belonging to this effect
-			for (technique &tech : _techniques)
-				if (tech.effect_index == tex.effect_index)
-					disable_technique(tech);
-			effect.compiled = false;
-			_last_reload_successful = false;
-
 			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
 			continue;
 		}
@@ -3115,16 +3104,6 @@ void reshade::runtime::load_textures()
 
 		if (ec || pixels == nullptr)
 		{
-			effect &effect = _effects[tex.effect_index];
-			if (effect.errors.find(source_path.u8string()) == std::string::npos)
-				effect.errors += "error: " + tex.unique_name + ": image file \"" + source_path.u8string() + "\" could not be loaded\n";
-
-			for (technique &tech : _techniques)
-				if (tech.effect_index == tex.effect_index)
-					disable_technique(tech);
-			effect.compiled = false;
-			_last_reload_successful = false;
-
 			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
 			continue;
 		}
