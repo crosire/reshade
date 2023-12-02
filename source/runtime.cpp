@@ -1973,6 +1973,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					std::string d3d_errors_string;
 					if (d3d_errors != nullptr) // Append warnings to the output error string as well
 						d3d_errors_string.assign(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+					d3d_errors.reset();
 
 					// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
 					for (size_t line_offset = 0, next_line_offset; (next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
@@ -2006,9 +2007,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 						effect.errors += d3d_errors_string;
 						effect.compiled = false;
-
-						d3d_errors.reset();
-						d3d_compiled.reset();
 						break;
 					}
 					else

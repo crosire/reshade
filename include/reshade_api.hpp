@@ -95,10 +95,10 @@ namespace reshade { namespace api
 		virtual void render_effects(command_list *cmd_list, resource_view rtv, resource_view rtv_srgb) = 0;
 
 		/// <summary>
-		/// Captures a screenshot of the current back buffer resource and returns its image data in 32 bits-per-pixel RGBA format.
+		/// Captures a screenshot of the current back buffer resource and returns its image data.
 		/// </summary>
-		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is written to.</param>
-		virtual bool capture_screenshot(uint8_t *pixels) = 0;
+		/// <param name="pixels">Pointer to an array of <c>width * height * bpp</c> bytes the image data is written to (where <c>bpp</c> is the number of bytes per pixel of the back buffer format).</param>
+		virtual bool capture_screenshot(void *pixels) = 0;
 
 		/// <summary>
 		/// Gets the current buffer dimensions of the swap chain.
