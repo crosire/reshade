@@ -659,7 +659,7 @@ bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unuse
 	return false;
 }
 
-void reshade::runtime::update_texture([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const uint32_t width, [[maybe_unused]] const uint32_t height, [[maybe_unused]] const uint8_t *pixels)
+void reshade::runtime::update_texture([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const uint32_t width, [[maybe_unused]] const uint32_t height, [[maybe_unused]] const void *pixels)
 {
 #if RESHADE_FX
 	const auto variable = reinterpret_cast<texture *>(handle.handle);

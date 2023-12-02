@@ -126,7 +126,7 @@ namespace reshade
 		bool get_annotation_uint_from_texture_variable(api::effect_texture_variable variable, const char *name, uint32_t *values, size_t count, size_t array_index = 0) const final;
 		bool get_annotation_string_from_texture_variable(api::effect_texture_variable variable, const char *name, char *value, size_t *value_size) const final;
 
-		void update_texture(api::effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) final;
+		void update_texture(api::effect_texture_variable variable, const uint32_t width, const uint32_t height, const void *pixels) final;
 
 		void get_texture_binding(api::effect_texture_variable variable, api::resource_view *out_srv, api::resource_view *out_srv_srgb) const final;
 
@@ -206,7 +206,7 @@ namespace reshade
 		void render_technique(technique &technique, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb);
 
 		void save_texture(const texture &texture);
-		void update_texture(texture &texture, uint32_t width, uint32_t height, uint32_t depth, const uint8_t *pixels);
+		void update_texture(texture &texture, uint32_t width, uint32_t height, uint32_t depth, const void *pixels);
 
 		void reset_uniform_value(uniform &variable);
 

@@ -490,13 +490,13 @@ namespace reshade { namespace api
 		}
 
 		/// <summary>
-		/// Uploads 32 bits-per-pixel RGBA image data to the specified texture <paramref name="variable"/>.
+		/// Uploads image data to the specified texture <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the texture variable.</param>
 		/// <param name="width">Width of the image data.</param>
 		/// <param name="height">Height of the image data.</param>
-		/// <param name="pixels">Pointer to an array of <c>width * height * 4</c> bytes the image data is read from.</param>
-		virtual void update_texture(effect_texture_variable variable, const uint32_t width, const uint32_t height, const uint8_t *pixels) = 0;
+		/// <param name="pixels">Pointer to an array of <c>width * height * bpp</c> bytes the image data is read from (where <c>bpp</c> is the number of bytes per pixel of the texture format).</param>
+		virtual void update_texture(effect_texture_variable variable, const uint32_t width, const uint32_t height, const void *pixels) = 0;
 
 		/// <summary>
 		/// Gets the shader resource view that is bound to the specified texture <paramref name="variable"/>.

@@ -3015,8 +3015,8 @@ void reshade::runtime::load_textures()
 		std::error_code ec;
 		const uintmax_t file_size = std::filesystem::file_size(source_path, ec);
 
-		stbi_uc *pixels = nullptr;
-		int width = 0, height = 0, depth = 1, channels = 0;
+		void *pixels = nullptr;
+		int width = 0, height = 1, depth = 1, channels = 0;
 
 		if (auto file = std::ifstream(source_path, std::ios::binary))
 		{
@@ -3025,7 +3025,9 @@ void reshade::runtime::load_textures()
 			file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
 			file.close();
 
-			if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
+			if (tex.format == reshadefx::texture_format::r32f || tex.format == reshadefx::texture_format::rg32f || tex.format == reshadefx::texture_format::rgba32f)
+				pixels = stbi_loadf_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+			else if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
 				pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &depth, &channels, STBI_rgb_alpha);
 			else
 				pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
@@ -3044,6 +3046,36 @@ void reshade::runtime::load_textures()
 			_last_reload_successful = false;
 
 			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
+			continue;
+		}
+
+		// Collapse data to the correct number of components per pixel based on the texture format
+		switch (tex.format)
+		{
+		case reshadefx::texture_format::r8:
+			for (size_t i = 4, k = 1; i < static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4; i += 4, k += 1)
+				static_cast<stbi_uc *>(pixels)[k] = static_cast<stbi_uc *>(pixels)[i];
+			break;
+		case reshadefx::texture_format::r32f:
+			for (size_t i = 4, k = 1; i < static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4; i += 4, k += 1)
+				static_cast<float *>(pixels)[k] = static_cast<float *>(pixels)[i];
+			break;
+		case reshadefx::texture_format::rg8:
+			for (size_t i = 4, k = 2; i < static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4; i += 4, k += 2)
+				static_cast<stbi_uc *>(pixels)[k + 0] = static_cast<stbi_uc *>(pixels)[i + 0],
+				static_cast<stbi_uc *>(pixels)[k + 1] = static_cast<stbi_uc *>(pixels)[i + 1];
+			break;
+		case reshadefx::texture_format::rg32f:
+			for (size_t i = 4, k = 2; i < static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4; i += 4, k += 2)
+				static_cast<float *>(pixels)[k + 0] = static_cast<float *>(pixels)[i + 0],
+				static_cast<float *>(pixels)[k + 1] = static_cast<float *>(pixels)[i + 1];
+			break;
+		case reshadefx::texture_format::rgba8:
+		case reshadefx::texture_format::rgba32f:
+			break;
+		default:
+			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(tex.format) << " of texture '" << tex.unique_name << "'!";
+			stbi_image_free(pixels);
 			continue;
 		}
 
@@ -4344,7 +4376,7 @@ void reshade::runtime::save_texture(const texture &tex)
 		});
 	}
 }
-void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, uint32_t depth, const uint8_t *pixels)
+void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t height, uint32_t depth, const void *pixels)
 {
 	if (tex.depth != depth || (tex.depth != 1 && (tex.width != width || tex.height != height)))
 	{
@@ -4352,44 +4384,79 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 		return;
 	}
 
-	std::vector<uint8_t> resized(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * 4);
+	int type_size;
+	int num_channels;
+	switch (tex.format)
+	{
+	case reshadefx::texture_format::r8:
+		type_size = 1;
+		num_channels = 1;
+		break;
+	case reshadefx::texture_format::r16:
+	case reshadefx::texture_format::r16f:
+		type_size = 2;
+		num_channels = 1;
+		break;
+	case reshadefx::texture_format::r32i:
+	case reshadefx::texture_format::r32u:
+	case reshadefx::texture_format::r32f:
+		type_size = 4;
+		num_channels = 1;
+		break;
+	case reshadefx::texture_format::rg8:
+		type_size = 2;
+		num_channels = 2;
+		break;
+	case reshadefx::texture_format::rg16:
+	case reshadefx::texture_format::rg16f:
+		type_size = 4;
+		num_channels = 1;
+		break;
+	case reshadefx::texture_format::rg32f:
+		type_size = 8;
+		num_channels = 2;
+		break;
+	case reshadefx::texture_format::rgba8:
+	case reshadefx::texture_format::rgb10a2:
+		type_size = 4;
+		num_channels = 4;
+		break;
+	case reshadefx::texture_format::rgba16:
+	case reshadefx::texture_format::rgba16f:
+		type_size = 8;
+		num_channels = 4;
+		break;
+	case reshadefx::texture_format::rgba32f:
+		type_size = 16;
+		num_channels = 4;
+		break;
+	default:
+		return;
+	}
+
+	void *upload_data = const_cast<void *>(pixels);
+
 	// Need to potentially resize image data to the texture dimensions
+	std::vector<uint8_t> resized;
 	if (tex.width != width || tex.height != height)
 	{
 		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << '.';
 
-		stbir_resize_uint8(pixels, width, height, 0, resized.data(), tex.width, tex.height, 0, 4);
-	}
-	else
-	{
-		std::memcpy(resized.data(), pixels, resized.size());
-	}
+		resized.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * type_size);
 
-	// Collapse data to the correct number of components per pixel based on the texture format
-	uint32_t row_pitch = tex.width;
-	switch (tex.format)
-	{
-	case reshadefx::texture_format::r8:
-		for (size_t i = 4, k = 1; i < resized.size(); i += 4, k += 1)
-			resized[k] = resized[i];
-		break;
-	case reshadefx::texture_format::rg8:
-		for (size_t i = 4, k = 2; i < resized.size(); i += 4, k += 2)
-			resized[k + 0] = resized[i + 0],
-			resized[k + 1] = resized[i + 1];
-		row_pitch *= 2;
-		break;
-	case reshadefx::texture_format::rgba8:
-		row_pitch *= 4;
-		break;
-	default:
-		LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(tex.format) << " of texture '" << tex.unique_name << "'!";
-		return;
+		if (type_size == sizeof(float))
+			stbir_resize_float(static_cast<const float *>(pixels), width, height, 0, reinterpret_cast<float *>(resized.data()), tex.width, tex.height, 0, num_channels);
+		else if (type_size == 2)
+			stbir_resize_uint16_generic(static_cast<const uint16_t *>(pixels), width, height, 0, reinterpret_cast<uint16_t *>(resized.data()), tex.width, tex.height, 0, num_channels, -1, 0, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT, STBIR_COLORSPACE_LINEAR, nullptr);
+		else
+			stbir_resize_uint8(static_cast<const uint8_t *>(pixels), width, height, 0, resized.data(), tex.width, tex.height, 0, num_channels);
+
+		upload_data = resized.data();
 	}
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-	_device->update_texture_region({ resized.data(), row_pitch, row_pitch * tex.height }, tex.resource, 0);
+	_device->update_texture_region({ upload_data, tex.width * static_cast<uint32_t>(type_size), tex.width * tex.height * static_cast<uint32_t>(type_size) }, tex.resource, 0);
 	cmd_list->barrier(tex.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 	if (tex.levels > 1)
