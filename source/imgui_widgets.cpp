@@ -282,7 +282,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 	return res;
 }
 
-bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
+bool reshade::imgui::font_input_box(const char *name, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
 {
 	bool res = false;
 	const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
@@ -291,12 +291,13 @@ bool reshade::imgui::font_input_box(const char *name, std::filesystem::path &pat
 	ImGui::PushID(name);
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80);
-	if (file_input_box("##font", "ProggyClean.ttf", path, dialog_path, { L".ttf" }))
+	if (file_input_box("##font", hint, path, dialog_path, { L".ttf", L".ttc" }))
 		res = true;
 
 	ImGui::SameLine(0, spacing);
 	ImGui::SetNextItemWidth(80);
-	if (ImGui::SliderInt("##size", &size, 8, 32, "%d", ImGuiSliderFlags_AlwaysClamp))
+	ImGui::SliderInt("##size", &size, 8, 32, "%d", ImGuiSliderFlags_AlwaysClamp);
+	if (ImGui::IsItemDeactivatedAfterEdit())
 		res = true;
 
 	ImGui::PopID();

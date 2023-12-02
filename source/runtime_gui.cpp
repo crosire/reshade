@@ -166,7 +166,6 @@ void reshade::runtime::build_font_atlas()
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
-	const char *default_font_path = nullptr;
 	const ImWchar *glyph_ranges = nullptr;
 
 #if RESHADE_LOCALIZATION
@@ -176,53 +175,108 @@ void reshade::runtime::build_font_atlas()
 
 	if (language.find("bg") == 0)
 	{
-		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+		_default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+		_default_latin_font_path = _default_font_path;
 		glyph_ranges = atlas->GetGlyphRangesCyrillic();
 	}
 	else
 	if (language.find("el") == 0)
 	{
-		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+		_default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+		_default_latin_font_path = _default_font_path;
 		glyph_ranges = atlas->GetGlyphRangesGreek();
 	}
 	else
 	if (language.find("ja") == 0)
 	{
-		default_font_path = "C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
+		// Morisawa BIZ UDGothic Regular
+		// Available since Windows 10 October 2018 Update (1809) Build 17763.1
+		if (std::filesystem::exists("C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc"))
+		{
+			_default_font_path = "C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
+			_default_latin_font_path = "C:\\Windows\\Fonts\\msgothic.ttc";
+		}
+		else
+		{
+			_default_font_path = "C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
+			_default_latin_font_path = _default_font_path;
+		}
 		glyph_ranges = atlas->GetGlyphRangesJapanese();
 	}
 	else
 	if (language.find("ko") == 0)
 	{
-		default_font_path = "C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
+		_default_font_path = "C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
+		_default_latin_font_path = _default_font_path;
 		glyph_ranges = atlas->GetGlyphRangesKorean();
 	}
 	else
 	if (language.find("vi") == 0)
 	{
-		default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+		_default_font_path = "C:\\Windows\\Fonts\\calibri.ttf";
+		_default_latin_font_path = _default_font_path;
 		glyph_ranges = atlas->GetGlyphRangesVietnamese();
 	}
 	else
 	if (language.find("zh") == 0)
 	{
-		default_font_path = "C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+		_default_font_path = "C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+		_default_latin_font_path = _default_font_path;
 		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 	}
+	else
 #endif
+	{
+		_default_font_path = "ProggyClean.ttf";
+		_default_latin_font_path = _default_font_path;
+		glyph_ranges = atlas->GetGlyphRangesDefault();
+	}
+
+	// Set default editor font
+	{
+		if (std::filesystem::exists("C:\\Windows\\Fonts\\CascadiaMono.ttf"))
+			_default_editor_font_path = "C:\\Windows\\Fonts\\CascadiaMono.ttf";
+		else
+			_default_editor_font_path = "ProggyClean.ttf";
+	}
 
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 
-	// Add main font
+	// Add latin font
+	std::filesystem::path resolved_latin_font_path;
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(_font_size);
 
 		std::error_code ec;
-		std::filesystem::path resolved_font_path = _font_path;
-		if (resolved_font_path.empty() && default_font_path != nullptr)
-			resolved_font_path = default_font_path;
-		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, nullptr, glyph_ranges) == nullptr))
+		resolved_latin_font_path = _latin_font_path;
+		if (resolved_latin_font_path.empty() && !_default_latin_font_path.empty())
+			resolved_latin_font_path = _default_latin_font_path;
+		if (resolved_latin_font_path.stem().u8string().find("ProggyClean") != std::string::npos)
+			atlas->AddFontDefault(&cfg);
+		else
+		if (!resolved_latin_font_path.empty() && (!resolve_path(resolved_latin_font_path, ec) || atlas->AddFontFromFileTTF(resolved_latin_font_path.u8string().c_str(), _font_size, &cfg, atlas->GetGlyphRangesDefault()) == nullptr))
+		{
+			LOG(ERROR) << "Failed to load latin font from " << resolved_latin_font_path << " with error code " << ec.value() << '!';
+			resolved_latin_font_path.clear();
+		}
+	}
+
+	// Add main font
+	std::filesystem::path resolved_font_path;
+	{
+		ImFontConfig cfg;
+		cfg.MergeMode = !atlas->Fonts.empty();
+		cfg.SizePixels = static_cast<float>(_font_size);
+
+		std::error_code ec;
+		resolved_font_path = _font_path;
+		if (resolved_font_path.empty() && !_default_font_path.empty())
+			resolved_font_path = _default_font_path;
+		if (resolved_font_path.stem().u8string().find("ProggyClean") != std::string::npos)
+			atlas->AddFontDefault(&cfg);
+		else
+		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), _font_size, &cfg, glyph_ranges) == nullptr))
 		{
 			LOG(ERROR) << "Failed to load font from " << resolved_font_path << " with error code " << ec.value() << '!';
 			resolved_font_path.clear();
@@ -244,22 +298,23 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	// Add editor font
-	if (_editor_font_path != _font_path)
+	std::filesystem::path resolved_editor_font_path;
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(_editor_font_size);
 
 		std::error_code ec;
-		std::filesystem::path resolved_font_path = _editor_font_path;
-		if (resolved_font_path.empty() && default_font_path != nullptr)
-			resolved_font_path = default_font_path;
-		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, nullptr, glyph_ranges) == nullptr))
+		resolved_editor_font_path = _editor_font_path;
+		if (resolved_editor_font_path.empty() && !_default_editor_font_path.empty())
+			resolved_editor_font_path = _default_editor_font_path;
+		if (resolved_editor_font_path != resolved_font_path &&
+			!resolved_editor_font_path.empty() && (!resolve_path(resolved_editor_font_path, ec) || atlas->AddFontFromFileTTF(resolved_editor_font_path.u8string().c_str(), cfg.SizePixels, nullptr, glyph_ranges) == nullptr))
 		{
-			LOG(ERROR) << "Failed to load editor font from " << resolved_font_path << " with error code " << ec.value() << '!';
-			resolved_font_path.clear();
+			LOG(ERROR) << "Failed to load editor font from " << resolved_editor_font_path << " with error code " << ec.value() << '!';
+			resolved_editor_font_path.clear();
 		}
 
-		if (resolved_font_path.empty())
+		if (resolved_editor_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 	}
 
@@ -274,6 +329,7 @@ void reshade::runtime::build_font_atlas()
 		LOG(ERROR) << "Failed to build font atlas!";
 
 		_font_path.clear();
+		_latin_font_path.clear();
 		_editor_font_path.clear();
 
 		atlas->Clear();
@@ -372,6 +428,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("STYLE", "EditorFont", _editor_font_path);
 	config.get("STYLE", "EditorFontSize", _editor_font_size);
 	config.get("STYLE", "EditorStyleIndex", _editor_style_index);
+	config.get("STYLE", "LatinFont", _latin_font_path);
 	config.get("STYLE", "Font", _font_path);
 	config.get("STYLE", "FontSize", _font_size);
 	config.get("STYLE", "FPSScale", _fps_scale);
@@ -472,6 +529,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("STYLE", "EditorFont", _editor_font_path);
 	config.set("STYLE", "EditorFontSize", _editor_font_size);
 	config.set("STYLE", "EditorStyleIndex", _editor_style_index);
+	config.set("STYLE", "LatinFont", _latin_font_path);
 	config.set("STYLE", "Font", _font_path);
 	config.set("STYLE", "FontSize", _font_size);
 	config.set("STYLE", "FPSScale", _fps_scale);
@@ -2261,13 +2319,19 @@ void reshade::runtime::draw_gui_settings()
 		}
 		#pragma endregion
 
-		if (imgui::font_input_box(_("Global font"), _font_path, _file_selection_path, _font_size))
+		if (imgui::font_input_box(_("Global font"), _default_font_path.c_str(), _font_path, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (imgui::font_input_box(_("Text editor font"), _editor_font_path, _file_selection_path, _editor_font_size))
+		if (imgui::font_input_box(_("Latin font"), _default_latin_font_path.c_str(), _latin_font_path, _file_selection_path, _font_size))
+		{
+			modified = true;
+			_imgui_context->IO.Fonts->TexReady = false;
+		}
+
+		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path.c_str(), _editor_font_path, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
