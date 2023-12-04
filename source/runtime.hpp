@@ -469,9 +469,10 @@ namespace reshade
 		api::resource_view _vr_overlay_target = {};
 
 		// Used for hint and temporal
-		std::string _default_font_path;
-		std::string _default_latin_font_path;
-		std::string _default_editor_font_path;
+		std::wstring _language_glyph_ranges;
+		std::filesystem::path _default_font_path;
+		std::filesystem::path _default_latin_font_path;
+		std::filesystem::path _default_editor_font_path;
 		#pragma endregion
 
 		#pragma region Overlay Home
