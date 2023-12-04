@@ -14,7 +14,7 @@ static void UnpackAccumulativeOffsetsIntoRanges(int base_codepoint, const short 
 
 // Original GetGlyphRangesChineseSimplifiedCommon() is not enough for Simplified Chinese actually, but the "Full" one is too heavy.
 // This one contains all the Chinese characters (Hanzi) defined in GB2312. However this does not contain Greek/Cyrillic/some Hanzi numbers/..., which are also defined in GB2312.
-const ImWchar*  GetGlyphRangesChineseSimplifiedGB2312()
+static const ImWchar *GetGlyphRangesChineseSimplifiedGB2312()
 {
 	// All Simplified Chinese characters contained in GB2312 charset.
 	// Include some fullwidth numbers/letters/symbols larger than U+4E00.
@@ -132,10 +132,10 @@ const ImWchar*  GetGlyphRangesChineseSimplifiedGB2312()
 		0xFFFD, 0xFFFD  // Invalid
 	};
 	static ImWchar full_ranges[IM_ARRAYSIZE(base_ranges) + IM_ARRAYSIZE(accumulative_offsets_from_0x4E00) * 2 + 1] = { 0 };
-	if (!full_ranges[0])
+	if (*full_ranges == '\0')
 	{
 		memcpy(full_ranges, base_ranges, sizeof(base_ranges));
 		UnpackAccumulativeOffsetsIntoRanges(0x4E00, accumulative_offsets_from_0x4E00, IM_ARRAYSIZE(accumulative_offsets_from_0x4E00), full_ranges + IM_ARRAYSIZE(base_ranges));
 	}
-	return &full_ranges[0];
+	return full_ranges;
 }
