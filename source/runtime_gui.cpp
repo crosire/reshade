@@ -242,15 +242,15 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+	const bool latin_font_enabled = _language_glyph_ranges.compare((const wchar_t *)atlas->GetGlyphRangesDefault()) != 0;
 
 	// Add latin font
-	std::filesystem::path resolved_latin_font_path;
+	std::filesystem::path resolved_latin_font_path = _latin_font_path;
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(_font_size);
 
 		std::error_code ec;
-		resolved_latin_font_path = _latin_font_path;
 		if (resolved_latin_font_path.empty() && !_default_latin_font_path.empty())
 			resolved_latin_font_path = _default_latin_font_path;
 		if (resolved_latin_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
@@ -264,14 +264,13 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	// Add main font
-	std::filesystem::path resolved_font_path;
+	std::filesystem::path resolved_font_path = _font_path;
 	{
 		ImFontConfig cfg;
 		cfg.MergeMode = !atlas->Fonts.empty();
 		cfg.SizePixels = static_cast<float>(_font_size);
 
 		std::error_code ec;
-		resolved_font_path = _font_path;
 		if (resolved_font_path.empty() && !_default_font_path.empty())
 			resolved_font_path = _default_font_path;
 		if (resolved_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
@@ -299,16 +298,15 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	// Add editor font
-	std::filesystem::path resolved_editor_font_path;
 	{
 		ImFontConfig cfg;
 		cfg.SizePixels = static_cast<float>(_editor_font_size);
 
 		std::error_code ec;
-		resolved_editor_font_path = _editor_font_path;
+		std::filesystem::path resolved_editor_font_path = _editor_font_path;
 		if (resolved_editor_font_path.empty() && !_default_editor_font_path.empty())
 			resolved_editor_font_path = _default_editor_font_path;
-		if (resolved_editor_font_path != resolved_font_path &&
+		if (resolved_editor_font_path != (latin_font_enabled ? resolved_latin_font_path : resolved_font_path) &&
 			!resolved_editor_font_path.empty() && (!resolve_path(resolved_editor_font_path, ec) || atlas->AddFontFromFileTTF(resolved_editor_font_path.u8string().c_str(), cfg.SizePixels, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges.c_str())) == nullptr))
 		{
 			LOG(ERROR) << "Failed to load editor font from " << resolved_editor_font_path << " with error code " << ec.value() << '!';
@@ -429,12 +427,12 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("STYLE", "EditorFont", _editor_font_path);
 	config.get("STYLE", "EditorFontSize", _editor_font_size);
 	config.get("STYLE", "EditorStyleIndex", _editor_style_index);
-	config.get("STYLE", "LatinFont", _latin_font_path);
 	config.get("STYLE", "Font", _font_path);
 	config.get("STYLE", "FontSize", _font_size);
 	config.get("STYLE", "FPSScale", _fps_scale);
 	config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
 	config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
+	config.get("STYLE", "LatinFont", _latin_font_path);
 	config.get("STYLE", "PopupRounding", imgui_style.PopupRounding);
 	config.get("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
 	config.get("STYLE", "StyleIndex", _style_index);
@@ -530,12 +528,12 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("STYLE", "EditorFont", _editor_font_path);
 	config.set("STYLE", "EditorFontSize", _editor_font_size);
 	config.set("STYLE", "EditorStyleIndex", _editor_style_index);
-	config.set("STYLE", "LatinFont", _latin_font_path);
 	config.set("STYLE", "Font", _font_path);
 	config.set("STYLE", "FontSize", _font_size);
 	config.set("STYLE", "FPSScale", _fps_scale);
 	config.set("STYLE", "FrameRounding", imgui_style.FrameRounding);
 	config.set("STYLE", "GrabRounding", imgui_style.GrabRounding);
+	config.set("STYLE", "LatinFont", _latin_font_path);
 	config.set("STYLE", "PopupRounding", imgui_style.PopupRounding);
 	config.set("STYLE", "ScrollbarRounding", imgui_style.ScrollbarRounding);
 	config.set("STYLE", "StyleIndex", _style_index);
