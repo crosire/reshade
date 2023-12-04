@@ -1983,10 +1983,9 @@ void reshade::runtime::draw_gui_settings()
 	{
 		if (_input != nullptr)
 		{
-			modified |= ImGui::Combo(_("Input processing"), reinterpret_cast<int *>(&_input_processing_mode),
-				"Pass on all input\0"
-				"Block input when cursor is on overlay\0"
-				"Block all input when overlay is visible\0");
+			std::string input_processing_mode = _("Pass on all input\nBlock input when cursor is on overlay\nBlock all input when overlay is visible\n");
+			std::replace(input_processing_mode.begin(), input_processing_mode.end(), '\n', '\0');
+			modified |= ImGui::Combo(_("Input processing"), reinterpret_cast<int *>(&_input_processing_mode), input_processing_mode.c_str());//input_processing_mode.c_str());
 
 			modified |= imgui::key_input_box(_("Overlay key"), _overlay_key_data, *_input);
 
@@ -2380,7 +2379,9 @@ void reshade::runtime::draw_gui_settings()
 
 			modified |= ImGui::SliderFloat(_("OSD text size"), &_fps_scale, 0.2f, 2.5f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
 			modified |= ImGui::ColorEdit4(_("OSD text color"), _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
-			modified |= ImGui::Combo(_("OSD position on screen"), reinterpret_cast<int *>(&_fps_pos), "Top Left\0Top Right\0Bottom Left\0Bottom Right\0");
+			std::string fps_pos = _("Top Left\nTop Right\nBottom Left\nBottom Right\n");
+			std::replace(fps_pos.begin(), fps_pos.end(), '\n', '\0');
+			modified |= ImGui::Combo(_("OSD position on screen"), reinterpret_cast<int *>(&_fps_pos), fps_pos.c_str());
 		}
 	}
 
@@ -3764,7 +3765,7 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
-			const std::string label = '[' + effect.source_file.filename().u8string() + ']' + " failed to compile";
+			const std::string label = '[' + effect.source_file.filename().u8string() + ']' + _(" failed to compile");
 			bool value = false;
 			ImGui::Checkbox(label.c_str(), &value);
 
