@@ -166,9 +166,6 @@ void reshade::runtime::build_font_atlas()
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
-	// To reinterpret_cast each other between ImWchar and wchar_t
-	static_assert(sizeof(ImWchar) == sizeof(wchar_t));
-
 #if RESHADE_LOCALIZATION
 	std::string language = _language;
 	if (language.empty())
@@ -178,14 +175,14 @@ void reshade::runtime::build_font_atlas()
 	{
 		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
 		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(atlas->GetGlyphRangesCyrillic());
+		_language_glyph_ranges = atlas->GetGlyphRangesCyrillic();
 	}
 	else
 	if (language.find("el") == 0)
 	{
 		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
 		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(atlas->GetGlyphRangesGreek());
+		_language_glyph_ranges = atlas->GetGlyphRangesGreek();
 	}
 	else
 	if (language.find("ja") == 0)
@@ -202,35 +199,35 @@ void reshade::runtime::build_font_atlas()
 			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
 			_default_latin_font_path = _default_font_path;
 		}
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(atlas->GetGlyphRangesJapanese());
+		_language_glyph_ranges = atlas->GetGlyphRangesJapanese();
 	}
 	else
 	if (language.find("ko") == 0)
 	{
 		_default_font_path = L"C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
 		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(atlas->GetGlyphRangesKorean());
+		_language_glyph_ranges = atlas->GetGlyphRangesKorean();
 	}
 	else
 	if (language.find("vi") == 0)
 	{
 		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
 		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(atlas->GetGlyphRangesVietnamese());
+		_language_glyph_ranges = atlas->GetGlyphRangesVietnamese();
 	}
 	else
 	if (language.find("zh") == 0)
 	{
 		_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
 		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(GetGlyphRangesChineseSimplifiedGB2312());
+		_language_glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 	}
 	else
 #endif
 	{
 		_default_font_path = L"ProggyClean.ttf";
 		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = reinterpret_cast<const wchar_t *>(atlas->GetGlyphRangesDefault());
+		_language_glyph_ranges = atlas->GetGlyphRangesDefault();
 	}
 
 	// Set default editor font
@@ -242,7 +239,7 @@ void reshade::runtime::build_font_atlas()
 	}
 
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
-	const bool latin_font_enabled = _language_glyph_ranges.compare((const wchar_t *)atlas->GetGlyphRangesDefault()) != 0;
+	const bool latin_font_enabled = _language_glyph_ranges != atlas->GetGlyphRangesDefault();
 
 	// Add latin font
 	std::filesystem::path resolved_latin_font_path = _latin_font_path;
@@ -276,7 +273,7 @@ void reshade::runtime::build_font_atlas()
 		if (resolved_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
 			atlas->AddFontDefault(&cfg);
 		else
-		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), _font_size, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges.c_str())) == nullptr))
+		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), _font_size, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges)) == nullptr))
 		{
 			LOG(ERROR) << "Failed to load font from " << resolved_font_path << " with error code " << ec.value() << '!';
 			resolved_font_path.clear();
@@ -307,7 +304,7 @@ void reshade::runtime::build_font_atlas()
 		if (resolved_editor_font_path.empty() && !_default_editor_font_path.empty())
 			resolved_editor_font_path = _default_editor_font_path;
 		if (resolved_editor_font_path != (latin_font_enabled ? resolved_latin_font_path : resolved_font_path) &&
-			!resolved_editor_font_path.empty() && (!resolve_path(resolved_editor_font_path, ec) || atlas->AddFontFromFileTTF(resolved_editor_font_path.u8string().c_str(), cfg.SizePixels, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges.c_str())) == nullptr))
+			!resolved_editor_font_path.empty() && (!resolve_path(resolved_editor_font_path, ec) || atlas->AddFontFromFileTTF(resolved_editor_font_path.u8string().c_str(), cfg.SizePixels, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges)) == nullptr))
 		{
 			LOG(ERROR) << "Failed to load editor font from " << resolved_editor_font_path << " with error code " << ec.value() << '!';
 			resolved_editor_font_path.clear();
@@ -2324,7 +2321,7 @@ void reshade::runtime::draw_gui_settings()
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (_language_glyph_ranges.compare((const wchar_t *)_imgui_context->IO.Fonts->GetGlyphRangesDefault()) != 0 &&
+		if (_language_glyph_ranges != _imgui_context->IO.Fonts->GetGlyphRangesDefault() &&
 			imgui::font_input_box(_("Latin font"), _default_latin_font_path.u8string().c_str(), _latin_font_path, _file_selection_path, _font_size))
 		{
 			modified = true;

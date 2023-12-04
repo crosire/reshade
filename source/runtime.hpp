@@ -469,7 +469,7 @@ namespace reshade
 		api::resource_view _vr_overlay_target = {};
 
 		// Used for hint and temporal
-		std::wstring _language_glyph_ranges;
+		const void *_language_glyph_ranges; // 'const ImWchar *'
 		std::filesystem::path _default_font_path;
 		std::filesystem::path _default_latin_font_path;
 		std::filesystem::path _default_editor_font_path;
