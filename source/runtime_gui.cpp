@@ -1576,7 +1576,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 
 		const auto browse_button_pos = ImGui::GetCursorScreenPos();
-		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 12.5f * _font_size);
+		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (button_size + button_spacing + _imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 12.5f * _font_size);
 
 		const std::string browse_button_label = _current_preset_path.stem().u8string() + "###browse_button";
 
@@ -1614,6 +1614,12 @@ void reshade::runtime::draw_gui_home()
 
 			ImGui::EndPopup();
 		}
+
+		ImGui::SameLine(0, button_spacing);
+
+		if (ImGui::Button(ICON_FK_FOLDER, ImVec2(button_size, button_size)))
+			utils::open_explorer(_current_preset_path);
+		ImGui::SetItemTooltip(_("Open folder in explorer"));
 
 		ImGui::SameLine();
 
