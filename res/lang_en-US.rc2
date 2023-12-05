@@ -114,6 +114,7 @@ BEGIN
 761 "Global style"
 30004 "Text editor style"
 34840 "Global font"
+13075 "Latin font"
 17836 "Text editor font"
 41108 "Global alpha"
 64461 "HDR overlay brightness"
