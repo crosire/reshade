@@ -4461,30 +4461,30 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 		num_channels = 1;
 		break;
 	case reshadefx::texture_format::rg8:
-		type_size = 2;
+		type_size = 1;
 		num_channels = 2;
 		break;
 	case reshadefx::texture_format::rg16:
 	case reshadefx::texture_format::rg16f:
-		type_size = 4;
+		type_size = 2;
 		num_channels = 1;
 		break;
 	case reshadefx::texture_format::rg32f:
-		type_size = 8;
+		type_size = 4;
 		num_channels = 2;
 		break;
 	case reshadefx::texture_format::rgba8:
 	case reshadefx::texture_format::rgb10a2:
-		type_size = 4;
+		type_size = 1;
 		num_channels = 4;
 		break;
 	case reshadefx::texture_format::rgba16:
 	case reshadefx::texture_format::rgba16f:
-		type_size = 8;
+		type_size = 2;
 		num_channels = 4;
 		break;
 	case reshadefx::texture_format::rgba32f:
-		type_size = 16;
+		type_size = 4;
 		num_channels = 4;
 		break;
 	default:
@@ -4499,9 +4499,9 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 	{
 		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << '.';
 
-		resized.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * type_size);
+		resized.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * static_cast<size_t>(type_size * num_channels));
 
-		if (type_size == sizeof(float))
+		if (type_size == 4)
 			stbir_resize_float(static_cast<const float *>(pixels), width, height, 0, reinterpret_cast<float *>(resized.data()), tex.width, tex.height, 0, num_channels);
 		else if (type_size == 2)
 			stbir_resize_uint16_generic(static_cast<const uint16_t *>(pixels), width, height, 0, reinterpret_cast<uint16_t *>(resized.data()), tex.width, tex.height, 0, num_channels, -1, 0, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT, STBIR_COLORSPACE_LINEAR, nullptr);
@@ -4513,7 +4513,7 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-	_device->update_texture_region({ upload_data, tex.width * static_cast<uint32_t>(type_size), tex.width * tex.height * static_cast<uint32_t>(type_size) }, tex.resource, 0);
+	_device->update_texture_region({ upload_data, tex.width * static_cast<uint32_t>(type_size * num_channels), tex.width * tex.height * static_cast<uint32_t>(type_size * num_channels) }, tex.resource, 0);
 	cmd_list->barrier(tex.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 	if (tex.levels > 1)
