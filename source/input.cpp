@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
+#include "localization.hpp"
 #include <algorithm>
 #include <unordered_map>
 #include <Windows.h>
@@ -418,6 +419,9 @@ std::string reshade::input::key_name(unsigned int keycode)
 {
 	if (keycode >= 256)
 		return std::string();
+
+	if (keycode == 0x24)
+		return _("Home/Pos1");
 
 	static const char *keyboard_keys[256] = {
 		"", "Left Mouse", "Right Mouse", "Cancel", "Middle Mouse", "X1 Mouse", "X2 Mouse", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",

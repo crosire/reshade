@@ -27,7 +27,7 @@ if (Get-Command "xgettext.exe" -ErrorAction SilentlyContinue)
 	$message = ""
 	$is_inside_message = $false
 
-	xgettext.exe --c++ --keyword=_ --omit-header --indent --no-wrap --output=- ..\source\runtime_gui.cpp ..\source\runtime_gui_vr.cpp ..\source\imgui_widgets.cpp | ForEach-Object {
+	xgettext.exe --c++ --keyword=_ --omit-header --indent --no-wrap --output=- ..\source\runtime_gui.cpp ..\source\runtime_gui_vr.cpp ..\source\imgui_widgets.cpp ..\source\input.cpp | ForEach-Object {
 		if ($_.StartsWith("#") -or $_.Length -eq 0) {
 			return # Ignore comments
 		}
