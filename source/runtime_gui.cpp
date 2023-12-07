@@ -3259,8 +3259,6 @@ void reshade::runtime::draw_variable_editor()
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables");
 
-	bool force_reload_all_effects = false;
-
 	for (size_t effect_index = 0, id = 0; effect_index < _effects.size(); ++effect_index)
 	{
 		reshade::effect &effect = _effects[effect_index];
@@ -3690,48 +3688,6 @@ void reshade::runtime::draw_variable_editor()
 			}
 		}
 
-		if (effect.source_file.stem().wstring().compare(0, 12, L"DisplayDepth") == 0)
-		{
-			std::string apply_button_label = ICON_FK_FLOPPY " ";
-			apply_button_label += "Save and complete adjustments";
-			if (ImGui::Button(apply_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight())))
-			{
-				for (const uniform &uniform : effect.uniforms)
-				{
-					auto get_value_as_int = [this, &uniform](const char *format, int def, size_t offset = 0) -> std::string {
-						char strbuf[256] = "";
-						int value[16] = { 0 }; get_uniform_value(uniform, value, 16);
-						return sprintf_s(strbuf, format, value[offset]), strbuf; };
-					auto get_value_as_float = [this, &uniform](const char *format, float def, size_t offset = 0) -> std::string {
-						char strbuf[256] = "";
-						float value[16] = { 0 }; get_uniform_value(uniform, value, 16);
-						return sprintf_s(strbuf, format, value[offset]), strbuf; };
-
-					if (_stricmp(uniform.name.c_str(), "iUIUpsideDown") == 0)
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN", get_value_as_int("%d", 0).c_str());
-					else if (_stricmp(uniform.name.c_str(), "iUIReversed") == 0)
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_IS_REVERSED", get_value_as_int("%d", 0).c_str());
-					else if (_stricmp(uniform.name.c_str(), "iUILogarithmic") == 0)
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_IS_LOGARITHMIC", get_value_as_int("%d", 0).c_str());
-					else if (_stricmp(uniform.name.c_str(), "fUIScale") == 0)
-					{
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_X_SCALE", get_value_as_float("%1.8e", 0.0f, 0).c_str());
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_Y_SCALE", get_value_as_float("%1.8e", 0.0f, 1).c_str());
-					}
-					else if (_stricmp(uniform.name.c_str(), "iUIOffset") == 0)
-					{
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_X_PIXEL_OFFSET", get_value_as_int("%d", 0, 0).c_str());
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_INPUT_Y_PIXEL_OFFSET", get_value_as_int("%d", 0, 1).c_str());
-					}
-					else if (_stricmp(uniform.name.c_str(), "fUIFarPlane") == 0)
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_LINEARIZATION_FAR_PLANE", get_value_as_int("%1.8e", 0).c_str());
-					else if (_stricmp(uniform.name.c_str(), "fUIDepthMultiplier") == 0)
-						set_preprocessor_definition_for_effect("GLOBAL", "RESHADE_DEPTH_MULTIPLIER", get_value_as_int("%1.8e", 0).c_str());
-				}
-				force_reload_all_effects = true;
-			}
-		}
-
 		if (_variable_editor_tabs)
 		{
 			ImGui::EndChild();
@@ -3769,11 +3725,6 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGuiWindow *const statistics_window = ImGui::FindWindowByName("###statistics"))
 				statistics_window->DrawList->CmdBuffer.clear();
 		}
-	}
-	if (force_reload_all_effects)
-	{
-		save_config();
-		reload_effects();
 	}
 
 	if (ImGui::BeginPopup("##pperror"))
