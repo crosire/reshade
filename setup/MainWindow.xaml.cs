@@ -765,12 +765,6 @@ namespace ReShade.Setup
 
 				modulePath = Path.Combine(basePath, modulePath);
 
-				var configPathAlt = Path.ChangeExtension(modulePath, ".ini");
-				if (File.Exists(configPathAlt) && !File.Exists(configPath))
-				{
-					configPath = configPathAlt;
-				}
-
 				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && ModuleExists(modulePath, out isReShade))
 				{
 					if (isReShade)
