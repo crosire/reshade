@@ -38,7 +38,7 @@ BEGIN
 3613 "C'est la sélection de configurations. Toutes les modifications seront enregistrées dans la configuration sélectionnée.\n\nCliquez sur le bouton '+' pour en créer une nouvelle.\nFaite un clic droit de la souris, puis cliquez sur le bouton Configuration pour ouvrir un menu avec plus d'options."
 46542 "Configuration précédente"
 52128 "Configuration suivante"
-16638 "Enregistrement Auto activé"
+16638 "Enr. Auto act."
 1761 "Enr. Auto"
 62984 "Enregistre la configuration actuelle automatiquement à chaque modification"
 62638 "Êtes vous certain de vouloir réinitialiser tous les effets et valeurs ?"
