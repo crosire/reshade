@@ -38,7 +38,7 @@ namespace ReShade.Setup
 		Api targetApi = Api.Unknown;
 		bool targetOpenXR = false;
 		InstallOperation operation = InstallOperation.Default;
-		internal static bool is64Bit;
+		bool is64Bit;
 		string targetPath;
 		string targetName;
 		string configPath;
@@ -1499,7 +1499,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				Dispatcher.Invoke(() =>
 				{
-					var page = new SelectAddonsPage();
+					var page = new SelectAddonsPage(is64Bit);
 
 					CurrentPage.Navigate(page);
 				});
