@@ -773,6 +773,9 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	if (_should_save_screenshot)
 		save_screenshot();
 
+	if (_should_save_config)
+		save_config();
+
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
 	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;

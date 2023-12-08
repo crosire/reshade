@@ -44,6 +44,17 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// *TODO*
+	/// </summary>
+	union uniform_value
+	{
+		bool as_bool;
+		float as_float[16];
+		int32_t as_int[16];
+		uint32_t as_uint[16];
+	};
+
+	/// <summary>
 	/// A post-processing effect runtime, used to control effects.
 	/// <para>ReShade associates an independent post-processing effect runtime with most swap chains.</para>
 	/// </summary>
