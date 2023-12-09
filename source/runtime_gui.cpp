@@ -253,7 +253,7 @@ void reshade::runtime::build_font_atlas()
 		if (resolved_latin_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
 			atlas->AddFontDefault(&cfg);
 		else
-		if (!resolved_latin_font_path.empty() && (!resolve_path(resolved_latin_font_path, ec) || atlas->AddFontFromFileTTF(resolved_latin_font_path.u8string().c_str(), _font_size, &cfg, atlas->GetGlyphRangesDefault()) == nullptr))
+		if (!resolved_latin_font_path.empty() && (!resolve_path(resolved_latin_font_path, ec) || atlas->AddFontFromFileTTF(resolved_latin_font_path.u8string().c_str(), cfg.SizePixels, &cfg, atlas->GetGlyphRangesDefault()) == nullptr))
 		{
 			LOG(ERROR) << "Failed to load latin font from " << resolved_latin_font_path << " with error code " << ec.value() << '!';
 			resolved_latin_font_path.clear();
@@ -273,7 +273,7 @@ void reshade::runtime::build_font_atlas()
 		if (resolved_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
 			atlas->AddFontDefault(&cfg);
 		else
-		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), _font_size, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges)) == nullptr))
+		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges)) == nullptr))
 		{
 			LOG(ERROR) << "Failed to load font from " << resolved_font_path << " with error code " << ec.value() << '!';
 			resolved_font_path.clear();
@@ -1510,7 +1510,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 
 		const auto browse_button_pos = ImGui::GetCursorScreenPos();
-		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 11.0f * _font_size);
+		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 12.0f * _font_size);
 
 		const std::string browse_button_label = _current_preset_path.stem().u8string() + "###browse_button";
 
@@ -1556,7 +1556,7 @@ void reshade::runtime::draw_gui_home()
 		std::string auto_save_button_label = was_auto_save_preset ? _("Auto Save on") : _("Auto Save");
 		auto_save_button_label += "###auto_save";
 
-		if (imgui::toggle_button(auto_save_button_label.c_str(), _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (11.0f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
+		if (imgui::toggle_button(auto_save_button_label.c_str(), _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (12.0f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
 		{
 			_preset_is_modified = false;
 
@@ -1748,7 +1748,7 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 11.0f * _font_size))))
+		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 12.0f * _font_size))))
 		{
 			_effects_expanded_state = 3;
 
@@ -1766,7 +1766,7 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::BeginDisabled(_is_in_preset_transition);
 
-		if (ImGui::Button(_("Active to top"), ImVec2(auto_save_button_spacing + 11.0f * _font_size, 0)))
+		if (ImGui::Button(_("Active to top"), ImVec2(auto_save_button_spacing + 12.0f * _font_size, 0)))
 		{
 			std::vector<size_t> technique_indices = _technique_sorting;
 
@@ -1794,7 +1794,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::SameLine();
 
-			if (ImGui::Button((_effects_expanded_state & 2) ? _("Collapse all") : _("Expand all"), ImVec2(auto_save_button_spacing + 11.0f * _font_size, 0)))
+			if (ImGui::Button((_effects_expanded_state & 2) ? _("Collapse all") : _("Expand all"), ImVec2(auto_save_button_spacing + 12.0f * _font_size, 0)))
 				_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 		}
 
@@ -3430,13 +3430,12 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::PopTextWrapPos();
 			}
 
-			std::string_view label = get_localized_annotation(variable, "ui_label", _language);
-			if (label.empty())
-				label = variable.name;
-			const std::string_view ui_type = variable.annotation_as_string("ui_type");
+			bool modified = false;
+			bool is_default_value = true;
+
+			ImGui::PushID(static_cast<int>(id++));
 
 			reshadefx::constant before = { 0 }, after = { 0 };
-			bool is_default_value = true;
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_bool:
@@ -3455,11 +3454,8 @@ void reshade::runtime::draw_variable_editor()
 			}
 			after = before;
 
-			ImGui::PushID(static_cast<int>(id++));
-
 			const bool addon_input = invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this,
 				api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) });
-			bool modified = false;
 			
 			if (addon_input)
 			{
@@ -3482,6 +3478,11 @@ void reshade::runtime::draw_variable_editor()
 			}
 			else
 			{
+				std::string_view label = get_localized_annotation(variable, "ui_label", _language);
+				if (label.empty())
+					label = variable.name;
+				const std::string_view ui_type = variable.annotation_as_string("ui_type");
+
 				switch (variable.type.base)
 				{
 					case reshadefx::type::t_bool:
@@ -3931,6 +3932,9 @@ void reshade::runtime::draw_technique_editor()
 			if (tech.hidden || !_effects[tech.effect_index].compiled)
 				continue;
 
+			bool modified = false;
+			bool before = tech.enabled;
+
 			ImGui::PushID(static_cast<int>(index));
 
 			// Look up effect that contains this technique
@@ -3944,29 +3948,33 @@ void reshade::runtime::draw_technique_editor()
 			// Prevent user from disabling the technique when it is set to always be enabled via annotation
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
-			// Gray out disabled techniques
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
-
-			std::string label(get_localized_annotation(tech, "ui_label", _language));
-			if (label.empty())
-				label = tech.name;
-			label += " [" + effect.source_file.filename().u8string() + ']';
-
-			if (bool status = tech.enabled;
-				ImGui::Checkbox(label.c_str(), &status) && !force_enabled)
+			if (reshade::invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
 			{
-				if (status)
-					enable_technique(tech);
-				else
-					disable_technique(tech);
-
-				if (_auto_save_preset)
-					save_current_preset();
-				else
-					_preset_is_modified = true;
+				modified = tech.enabled != before;
 			}
+			else
+			{
+				// Gray out disabled techniques
+				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
-			ImGui::PopStyleColor();
+				std::string label(get_localized_annotation(tech, "ui_label", _language));
+				if (label.empty())
+					label = tech.name;
+				label += " [" + effect.source_file.filename().u8string() + ']';
+
+				if (bool status = tech.enabled;
+					ImGui::Checkbox(label.c_str(), &status) && !force_enabled)
+				{
+					modified = true;
+
+					if (status)
+						enable_technique(tech);
+					else
+						disable_technique(tech);
+				}
+
+				ImGui::PopStyleColor();
+			}
 
 			if (ImGui::IsItemActive())
 				_selected_technique = index;
@@ -4114,6 +4122,14 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::Separator();
 
 			ImGui::PopID();
+
+			if (modified)
+			{
+				if (_auto_save_preset)
+					save_current_preset();
+				else
+					_preset_is_modified = true;
+			}
 		}
 	}
 

@@ -112,7 +112,7 @@ namespace ReShade.Setup.Pages
 									TextureInstallPath = packagesIni.GetString(package, "TextureInstallPath"),
 									DownloadUrl = packagesIni.GetString(package, "DownloadUrl"),
 									RepositoryUrl = packagesIni.GetString(package, "RepositoryUrl"),
-									EffectFiles = packageEffectFiles.Where(x => packageDenyEffectFiles == null || !packageDenyEffectFiles.Contains(x)).Select(x => new EffectFile { FileName = x, Selected = true }).ToArray(),
+									EffectFiles = packageEffectFiles?.Where(x => packageDenyEffectFiles == null || !packageDenyEffectFiles.Contains(x)).Select(x => new EffectFile { FileName = x, Selected = true }).ToArray(),
 									DenyEffectFiles = packageDenyEffectFiles
 								};
 

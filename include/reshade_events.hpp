@@ -1577,9 +1577,24 @@ namespace reshade
 		reshade_open_overlay,
 
 		/// <summary>
-		/// *TODO*
+		/// Called when a uniform variable widget is added to the variable list in the overlay.
+		/// Can be used to replace with custom one or add widgets for specific uniform variables.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_uniform_variable variable)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// To prevent the normal widget from being added to the overlay, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
 		reshade_overlay_uniform_variable,
+
+		/// <summary>
+		/// Called when a technique is added to the technique list in the overlay.
+		/// Can be used to replace with custom one or add widgets for specific techniques.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::effect_technique technique)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To prevent the normal widget from being added to the overlay, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_overlay_technique,
 
 #if RESHADE_ADDON
 		max // Last value used internally by ReShade to determine number of events in this enum
@@ -1714,5 +1729,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_open_overlay, bool, api::effect_runtime *runtime, bool open, api::input_source source);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_uniform_variable, bool, api::effect_runtime *runtime, api::effect_uniform_variable);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_uniform_variable, bool, api::effect_runtime *runtime, api::effect_uniform_variable variable);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_technique, bool, api::effect_runtime *runtime, api::effect_technique technique);
 }
