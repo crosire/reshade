@@ -3512,8 +3512,8 @@ void reshade::runtime::draw_variable_editor()
 							modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 						else if (ui_type == "drag")
 							modified = variable.annotation_as_int("ui_step") == 0 ?
-							ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
-							imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
+								ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
+								imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 						else if (ui_type == "list")
 							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), after.as_int[0]);
 						else if (ui_type == "combo")
@@ -3549,8 +3549,8 @@ void reshade::runtime::draw_variable_editor()
 							modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 						else if (ui_type == "drag")
 							modified = variable.annotation_as_float("ui_step") == 0.0f ?
-							ImGui::DragScalarN(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str()) :
-							imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
+								ImGui::DragScalarN(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str()) :
+								imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 						else if (ui_type == "color" && variable.type.rows == 1)
 							modified = imgui::slider_for_alpha_value(label.data(), after.as_float);
 						else if (ui_type == "color" && variable.type.rows == 3)
