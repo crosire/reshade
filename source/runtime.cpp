@@ -3054,7 +3054,7 @@ void reshade::runtime::load_textures()
 							break;
 						width = std::strtol(p + 11, nullptr, 10);
 						pixels = std::malloc(static_cast<size_t>(width) * 4 * sizeof(float));
-						break; // Assume size declaration is the last keyword in the header before table data follows
+						continue;
 					}
 					if (line.rfind("LUT_3D_SIZE", 0) == 0)
 					{
@@ -3062,8 +3062,12 @@ void reshade::runtime::load_textures()
 							break;
 						width = height = depth = std::strtol(p + 11, nullptr, 10);
 						pixels = std::malloc(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4 * sizeof(float));
-						break;
+						continue;
 					}
+
+					// Line has no known keyword, so assume this is where the table data starts and roll back a line to continue reading that below
+					file.seekg(-static_cast<std::streampos>(line.size() + 1), std::ios::cur);
+					break;
 				}
 
 				// Read table data
