@@ -1714,5 +1714,5 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_reorder_techniques, bool, api::effect_runtime *runtime, size_t count, api::effect_technique *techniques);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_open_overlay, bool, api::effect_runtime *runtime, bool open, api::input_source source);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_uniform_variable, bool, api::effect_runtime *runtime, api::effect_uniform_variable, api::uniform_value *value);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_uniform_variable, bool, api::effect_runtime *runtime, api::effect_uniform_variable);
 }

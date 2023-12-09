@@ -3435,13 +3435,13 @@ void reshade::runtime::draw_variable_editor()
 				label = variable.name;
 			const std::string_view ui_type = variable.annotation_as_string("ui_type");
 
-			api::uniform_value before = { 0 }, after = { 0 };
+			reshadefx::constant before = { 0 }, after = { 0 };
 			bool is_default_value = true;
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_bool:
-				get_uniform_value(variable, &before.as_bool, variable.type.components());
-				is_default_value = before.as_bool == (variable.initializer_value.as_uint[0] != 0);
+				get_uniform_value(variable, reinterpret_cast<bool *>(before.as_uint), variable.type.components());
+				is_default_value = before.as_uint[0] == (variable.initializer_value.as_uint[0] != 0);
 				break;
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
@@ -3458,12 +3458,27 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::PushID(static_cast<int>(id++));
 
 			const bool addon_input = invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this,
-				api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) }, &after);
+				api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) });
 			bool modified = false;
 			
 			if (addon_input)
 			{
-				modified = memcmp(before.as_uint, after.as_uint, sizeof(after.as_uint)) != 0;
+				switch (variable.type.base)
+				{
+				case reshadefx::type::t_bool:
+					get_uniform_value(variable, reinterpret_cast<bool *>(before.as_uint), variable.type.components());
+					modified = before.as_uint[0] != after.as_uint[0];
+					break;
+				case reshadefx::type::t_int:
+				case reshadefx::type::t_uint:
+					get_uniform_value(variable, before.as_int, variable.type.components());
+					modified = std::memcmp(before.as_int, after.as_int, variable.type.components() * sizeof(int)) != 0;
+					break;
+				case reshadefx::type::t_float:
+					get_uniform_value(variable, before.as_float, variable.type.components());
+					modified = std::memcmp(before.as_float, after.as_float, variable.type.components() * sizeof(float)) != 0;
+					break;
+				}
 			}
 			else
 			{
@@ -3472,13 +3487,12 @@ void reshade::runtime::draw_variable_editor()
 					case reshadefx::type::t_bool:
 					{
 						if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), after.as_bool);
+							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool &>(after.as_uint));
 						else
-							modified = ImGui::Checkbox(label.data(), &after.as_bool);
+							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(after.as_uint));
 
 						if (modified)
-							set_uniform_value(variable, &after.as_bool);
-
+							set_uniform_value(variable, reinterpret_cast<bool *>(after.as_uint));
 						break;
 					}
 					case reshadefx::type::t_int:
@@ -3511,6 +3525,8 @@ void reshade::runtime::draw_variable_editor()
 						else
 							modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows);
 
+						if (modified)
+							set_uniform_value(variable, after.as_int, variable.type.components());
 						break;
 					}
 					case reshadefx::type::t_float:
@@ -3546,27 +3562,10 @@ void reshade::runtime::draw_variable_editor()
 						else
 							modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows);
 
+						if (modified)
+							set_uniform_value(variable, after.as_float, variable.type.components());
 						break;
 					}
-				}
-			}
-
-			if (modified)
-			{
-				switch (variable.type.base)
-				{
-				case reshadefx::type::t_bool:
-					set_uniform_value(variable, &after.as_bool, variable.type.components());
-					break;
-				case reshadefx::type::t_int:
-					set_uniform_value(variable, after.as_int, variable.type.components());
-					break;
-				case reshadefx::type::t_uint:
-					set_uniform_value(variable, after.as_uint, variable.type.components());
-					break;
-				case reshadefx::type::t_float:
-					set_uniform_value(variable, after.as_float, variable.type.components());
-					break;
 				}
 			}
 
