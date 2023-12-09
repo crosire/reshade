@@ -1033,22 +1033,22 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 		{
 			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name); preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
 				if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
-						[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
-					it != preset_it->second.cend())
+						[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
+					it != preset_it->second.end())
 					preset_it->second.erase(it, preset_it->second.end()), updated = 0b001;
 		}
 		if (find_flag & 0b010)
 		{
 			if (const auto preset_it = _preset_preprocessor_definitions.find({}); preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
 				if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
-						[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
-					it != preset_it->second.cend())
+						[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
+					it != preset_it->second.end())
 					preset_it->second.erase(it, preset_it->second.end()), updated = 0b010;
 		}
 		if (find_flag & 0b100)
 		{
 			if (const auto it = std::remove_if(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(),
-					[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
+					[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
 				it != _global_preprocessor_definitions.end())
 				_global_preprocessor_definitions.erase(it, _global_preprocessor_definitions.end()), updated = 0b100;
 		}
