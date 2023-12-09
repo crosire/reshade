@@ -1510,7 +1510,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 
 		const auto browse_button_pos = ImGui::GetCursorScreenPos();
-		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 12.0f * _font_size);
+		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (_imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 12.5f * _font_size);
 
 		const std::string browse_button_label = _current_preset_path.stem().u8string() + "###browse_button";
 
@@ -1556,7 +1556,7 @@ void reshade::runtime::draw_gui_home()
 		std::string auto_save_button_label = was_auto_save_preset ? _("Auto Save on") : _("Auto Save");
 		auto_save_button_label += "###auto_save";
 
-		if (imgui::toggle_button(auto_save_button_label.c_str(), _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (12.0f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
+		if (imgui::toggle_button(auto_save_button_label.c_str(), _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (12.5f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
 		{
 			_preset_is_modified = false;
 
@@ -1748,7 +1748,7 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 12.0f * _font_size))))
+		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 12.5f * _font_size))))
 		{
 			_effects_expanded_state = 3;
 
@@ -1766,7 +1766,7 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::BeginDisabled(_is_in_preset_transition);
 
-		if (ImGui::Button(_("Active to top"), ImVec2(auto_save_button_spacing + 12.0f * _font_size, 0)))
+		if (ImGui::Button(_("Active to top"), ImVec2(auto_save_button_spacing + 12.5f * _font_size, 0)))
 		{
 			std::vector<size_t> technique_indices = _technique_sorting;
 
@@ -1794,7 +1794,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::SameLine();
 
-			if (ImGui::Button((_effects_expanded_state & 2) ? _("Collapse all") : _("Expand all"), ImVec2(auto_save_button_spacing + 12.0f * _font_size, 0)))
+			if (ImGui::Button((_effects_expanded_state & 2) ? _("Collapse all") : _("Expand all"), ImVec2(auto_save_button_spacing + 12.5f * _font_size, 0)))
 				_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 		}
 
@@ -1983,9 +1983,12 @@ void reshade::runtime::draw_gui_settings()
 	{
 		if (_input != nullptr)
 		{
-			std::string input_processing_mode = _("Pass on all input\nBlock input when cursor is on overlay\nBlock all input when overlay is visible\n");
-			std::replace(input_processing_mode.begin(), input_processing_mode.end(), '\n', '\0');
-			modified |= ImGui::Combo(_("Input processing"), reinterpret_cast<int *>(&_input_processing_mode), input_processing_mode.c_str());//input_processing_mode.c_str());
+			std::string input_processing_mode_items = _(
+				"Pass on all input\n"
+				"Block input when cursor is on overlay\n"
+				"Block all input when overlay is visible\n");
+			std::replace(input_processing_mode_items.begin(), input_processing_mode_items.end(), '\n', '\0');
+			modified |= ImGui::Combo(_("Input processing"), reinterpret_cast<int *>(&_input_processing_mode), input_processing_mode_items.c_str());
 
 			modified |= imgui::key_input_box(_("Overlay key"), _overlay_key_data, *_input);
 
@@ -1999,7 +2002,10 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::key_input_box(_("Next preset key"), _next_preset_key_data, *_input);
 
 			modified |= ImGui::SliderInt(_("Preset transition duration"), reinterpret_cast<int *>(&_preset_transition_duration), 0, 10 * 1000);
-			ImGui::SetItemTooltip(_("Make a smooth transition when switching presets, but only for floating point values.\nRecommended for multiple presets that contain the same effects, otherwise set this to zero.\nValues are in milliseconds."));
+			ImGui::SetItemTooltip(_(
+				"Make a smooth transition when switching presets, but only for floating point values.\n"
+				"Recommended for multiple presets that contain the same effects, otherwise set this to zero.\n"
+				"Values are in milliseconds."));
 #endif
 
 			ImGui::Spacing();
@@ -2094,7 +2100,9 @@ void reshade::runtime::draw_gui_settings()
 		ImGui::SetItemTooltip(_("Audio file that is played when taking a screenshot."));
 
 		modified |= imgui::file_input_box(_("Post-save command"), "command.exe", _screenshot_post_save_command, _file_selection_path, { L".exe" });
-		ImGui::SetItemTooltip(_("Executable that is called after saving a screenshot.\nThis can be used to perform additional processing on the image (e.g. compressing it with an image optimizer)."));
+		ImGui::SetItemTooltip(_(
+			"Executable that is called after saving a screenshot.\n"
+			"This can be used to perform additional processing on the image (e.g. compressing it with an image optimizer)."));
 
 		char arguments[260];
 		arguments[_screenshot_post_save_command_arguments.copy(arguments, sizeof(arguments) - 1)] = '\0';
@@ -2379,9 +2387,10 @@ void reshade::runtime::draw_gui_settings()
 
 			modified |= ImGui::SliderFloat(_("OSD text size"), &_fps_scale, 0.2f, 2.5f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
 			modified |= ImGui::ColorEdit4(_("OSD text color"), _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
-			std::string fps_pos = _("Top Left\nTop Right\nBottom Left\nBottom Right\n");
-			std::replace(fps_pos.begin(), fps_pos.end(), '\n', '\0');
-			modified |= ImGui::Combo(_("OSD position on screen"), reinterpret_cast<int *>(&_fps_pos), fps_pos.c_str());
+
+			std::string fps_pos_items = _("Top left\nTop right\nBottom left\nBottom right\n");
+			std::replace(fps_pos_items.begin(), fps_pos_items.end(), '\n', '\0');
+			modified |= ImGui::Combo(_("OSD position on screen"), reinterpret_cast<int *>(&_fps_pos), fps_pos_items.c_str());
 		}
 	}
 
@@ -3769,10 +3778,11 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
+			char label[128] = "";
+			ImFormatString(label, sizeof(label), _("[%s] failed to compile"), effect.source_file.filename().u8string().c_str());
+
 			bool value = false;
-			ImGui::Checkbox("", &value);
-			ImGui::SameLine();
-			ImGui::Text(_("[%s] failed to compile"), effect.source_file.filename().u8string().c_str());
+			ImGui::Checkbox(label, &value);
 
 			ImGui::PopItemFlag();
 

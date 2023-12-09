@@ -128,7 +128,7 @@ BEGIN
 37459 "Clock format"
 8868 "OSD text size"
 45445 "OSD text color"
-24480 "Top Left\nTop Right\nBottom Left\nBottom Right\n"
+12844 "Top left\nTop right\nBottom left\nBottom right\n"
 56765 "OSD position on screen"
 44707 "API:"
 27435 "Hardware:"

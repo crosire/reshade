@@ -128,7 +128,7 @@ BEGIN
 37459 "Format de l'horloge"
 8868 "Taille du texte de l'OSD"
 45445 "Couleur du texte de l'OSD"
-24480 "Haut Gauche\nHaut Droit\nBas Gauche\nBas Droit\n"
+12844 "Haut gauche\nHaut droit\nBas gauche\nBas droit\n"
 56765 "Position de l'OSD sur l'écran"
 44707 "API:"
 27435 "Matériel:"
