@@ -170,7 +170,7 @@ BEGIN
 25263 "Der Effekt konnte nach dieser Änderung nicht kompiliert werden, daher wurde der Wert zurückgesetzt."
 52028 "Keine Effekt-Dateien (.fx) in den konfigurierten Effekte-Suchpfaden gefunden%c"
 58782 "Bitte sicherstellen, dass diese richtig konfiguriert sind und dann 'Neuladen' drücken!"
-54979 " konnte nicht kompiliert werden"
+49902 "[%s] konnte nicht kompiliert werden"
 33659 "Öffne Ordner im Explorer"
 2202 "Quellcode bearbeiten"
 58076 "Zeige kompiliertes Ergebnis"

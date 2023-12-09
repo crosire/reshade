@@ -3765,9 +3765,10 @@ void reshade::runtime::draw_technique_editor()
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
-			const std::string label = '[' + effect.source_file.filename().u8string() + ']' + _(" failed to compile");
 			bool value = false;
-			ImGui::Checkbox(label.c_str(), &value);
+			ImGui::Checkbox("", &value);
+			ImGui::SameLine();
+			ImGui::Text(_("[%s] failed to compile"), effect.source_file.filename().u8string().c_str());
 
 			ImGui::PopItemFlag();
 

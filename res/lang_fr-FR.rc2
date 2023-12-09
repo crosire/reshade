@@ -170,7 +170,7 @@ BEGIN
 25263 "La compilation de l'Effet a échoué après ce changement, la valeur a été réinitialisée à sa valeur par défaut."
 52028 "Aucun fichier d'Effet (.fx) trouvé dans les chemins définis dans les paramètres%c"
 58782 "S'il vous plait, vérifiez qu'ils soient correctement configurés dans les paramètres et appuyez sur 'Recharger' !"
-54979 " échec de compilation"
+49902 "La compilation de [%s] a échoué"
 33659 "Ouvrir le dossier dans l'explorateur"
 2202 "Éditer le code source"
 58076 "Afficher les résultats de la compilation"
