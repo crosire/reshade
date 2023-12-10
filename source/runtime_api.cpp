@@ -1018,8 +1018,6 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 	constexpr int effect_only = 0b001;
 	constexpr int preset_only = 0b010;
 	constexpr int global_only = 0b100;
-	constexpr int effect_scope = 0b001;
-	constexpr int preset_scope = 0b011;
 	constexpr int global_scope = 0b111;
 
 #if RESHADE_FX
