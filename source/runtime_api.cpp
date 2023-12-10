@@ -1029,7 +1029,7 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 
 	const int find_flag = *effect_name == '\0' ? global_scope :
 		strncmp(effect_name, "GLOBAL", 6) == 0 ? global_only :
-		strncmp(effect_name, "PRESET", 6) == 0 ? preset_only :global_scope;
+		strncmp(effect_name, "PRESET", 6) == 0 ? preset_only : global_scope;
 
 	int updated = 0;
 	if (value == nullptr || *value == '\0')
