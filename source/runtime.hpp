@@ -227,7 +227,7 @@ namespace reshade
 			set_uniform_value(variable, values, 4, 0);
 		}
 
-		int get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
+		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
 #else
 		void save_current_preset() const final {}
 #endif

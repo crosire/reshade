@@ -925,7 +925,10 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		_input_gamepad->next_frame();
 
 	if (_should_save_config)
-		_should_save_config = false, save_config();
+	{
+		_should_save_config = false;
+		save_config();
+	}
 
 	// Save modified INI files
 	if (!ini_file::flush_cache())
