@@ -3308,8 +3308,13 @@ void reshade::runtime::draw_variable_editor()
 		{
 			// Reset all uniform variables
 			for (uniform &variable_it : effect.uniforms)
-				if (variable_it.special == special_uniform::none)
-					reset_uniform_value(variable_it);
+			{
+				if (variable_it.special != special_uniform::none)
+					continue;
+				if (const bool nosave = variable_it.annotation_as_uint("nosave") != 0; nosave)
+					continue;
+				reset_uniform_value(variable_it);
+			}
 
 			// Reset all preprocessor definitions
 			if (const auto preset_it = _preset_preprocessor_definitions.find({});
@@ -3394,9 +3399,14 @@ void reshade::runtime::draw_variable_editor()
 						if (imgui::confirm_button(reset_category_button_label.c_str(), ImGui::GetContentRegionAvail().x, _("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
 						{
 							for (uniform &variable_it : effect.uniforms)
-								if (variable_it.special == special_uniform::none &&
-									variable_it.annotation_as_string("ui_category") == category)
-									reset_uniform_value(variable_it);
+							{
+								if (variable_it.special != special_uniform::none ||
+									variable_it.annotation_as_string("ui_category") != category)
+									continue;
+								if (const bool nosave = variable_it.annotation_as_uint("nosave") != 0; nosave)
+									continue;
+								reset_uniform_value(variable_it);
+							}
 
 							if (_auto_save_preset)
 								save_current_preset();

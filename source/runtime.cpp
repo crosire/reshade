@@ -1237,6 +1237,8 @@ void reshade::runtime::load_current_preset()
 		{
 			if (variable.special != special_uniform::none)
 				continue;
+			if (const bool nosave = variable.annotation_as_uint("nosave") != 0; nosave)
+				continue;
 
 			if (variable.supports_toggle_key())
 			{
@@ -1313,6 +1315,9 @@ void reshade::runtime::save_current_preset() const
 	{
 		const technique &tech = _techniques[technique_index];
 
+		if (const bool nosave = tech.annotation_as_uint("nosave") != 0; nosave)
+			continue;
+
 		const std::string unique_name = tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
 
 		if (tech.enabled)
@@ -1359,6 +1364,8 @@ void reshade::runtime::save_current_preset() const
 		for (const uniform &variable : effect.uniforms)
 		{
 			if (variable.special != special_uniform::none)
+				continue;
+			if (const bool nosave = variable.annotation_as_uint("nosave") != 0; nosave)
 				continue;
 
 			if (variable.supports_toggle_key())
@@ -1554,7 +1561,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_hash = source_hash;
 	}
 
-	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty()) // Only skip during 'load_effects'
+	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty() &&
+		effect.source_file.extension() != L".addonfx") // Only skip during 'load_effects'
 	{
 		if (std::vector<std::string> techniques;
 			preset.get({}, "Techniques", techniques))
@@ -1573,6 +1581,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 		}
 	}
+
+	assert(effect.source_file.extension() != L".addonfx" || !effect.skipped);
 
 	bool skip_optimization = false;
 	std::string code_preamble;
@@ -3436,7 +3446,7 @@ void reshade::runtime::load_effects()
 {
 	// Build a list of effect files by walking through the effect search paths
 	const std::vector<std::filesystem::path> effect_files =
-		find_files(_effect_search_paths, { L".fx" });
+		find_files(_effect_search_paths, { L".fx", L".addonfx" });
 
 	if (effect_files.empty())
 		return; // No effect files found, so nothing more to do
