@@ -3311,7 +3311,7 @@ void reshade::runtime::draw_variable_editor()
 			{
 				if (variable_it.special != special_uniform::none)
 					continue;
-				if (const bool nosave = variable_it.annotation_as_uint("nosave") != 0; nosave)
+				if (variable_it.annotation_as_uint("nosave") != 0)
 					continue;
 				reset_uniform_value(variable_it);
 			}
@@ -3403,7 +3403,7 @@ void reshade::runtime::draw_variable_editor()
 								if (variable_it.special != special_uniform::none ||
 									variable_it.annotation_as_string("ui_category") != category)
 									continue;
-								if (const bool nosave = variable_it.annotation_as_uint("nosave") != 0; nosave)
+								if (variable_it.annotation_as_uint("nosave") != 0)
 									continue;
 								reset_uniform_value(variable_it);
 							}
