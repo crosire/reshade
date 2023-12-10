@@ -1565,7 +1565,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_file.extension() != L".addonfx") // Only skip during 'load_effects'
 	{
 		if (std::vector<std::string> techniques;
-			preset.get({}, "Techniques", techniques))
+			preset.get({}, "Techniques", techniques) && !techniques.empty())
 		{
 			effect.skipped = std::find_if(techniques.cbegin(), techniques.cend(),
 				[&effect_name](const std::string &technique) {
