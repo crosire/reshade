@@ -119,7 +119,7 @@ bool ini_file::save()
 
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (!ec && (modified_at - _modified_at) >= std::chrono::seconds(2))
+	if (!ec && (modified_at - _modified_at) > std::chrono::seconds(2))
 		return false; // File exists and was modified on disk and therefore may have different data, so cannot save
 
 	std::stringstream data;
