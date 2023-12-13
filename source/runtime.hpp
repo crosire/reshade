@@ -260,6 +260,7 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _preset_save_successful = true;
+		bool _should_save_config = false;
 		std::filesystem::path _config_path;
 
 		bool _ignore_shortcuts = false;
