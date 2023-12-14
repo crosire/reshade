@@ -263,11 +263,6 @@ namespace ReShade.Setup
 			}
 		}
 
-		static void RunTaskWithExceptionHandling(Action action)
-		{
-			Task.Run(action).ContinueWith(c => Environment.FailFast("Unhandled exception during installation", c.Exception), TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
-		}
-
 		void AddSearchPath(List<string> searchPaths, string newPath)
 		{
 			const string wildcard = "**";
@@ -398,6 +393,11 @@ namespace ReShade.Setup
 			}
 		}
 
+		void RunTaskWithExceptionHandling(Action action)
+		{
+			Task.Run(action).ContinueWith(c => UpdateStatusAndFinish(false, "Unhandled exception during installation:\n" + c.Exception.InnerException.Message + "\n\n" + c.Exception.InnerException.StackTrace), TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+		}
+
 		bool RestartWithElevatedPrivileges()
 		{
 			var startInfo = new ProcessStartInfo
@@ -485,7 +485,7 @@ namespace ReShade.Setup
 						compatibilityIni = new IniFile(compatibilityStream);
 					}
 				}
-				catch
+				catch (WebException)
 				{
 					// Ignore if this list failed to download, since setup can still proceed without them
 				}
@@ -804,7 +804,7 @@ namespace ReShade.Setup
 					throw new InvalidDataException();
 				}
 			}
-			catch (Exception)
+			catch (InvalidDataException)
 			{
 				UpdateStatusAndFinish(false, "This setup archive is corrupted! Please download from https://reshade.me again.");
 				return;
@@ -824,7 +824,7 @@ namespace ReShade.Setup
 						File.Delete(conflictingModulePath);
 					}
 				}
-				catch
+				catch (SystemException)
 				{
 					// Ignore errors
 					continue;
@@ -852,7 +852,7 @@ namespace ReShade.Setup
 						Directory.CreateDirectory(commonPath);
 					}
 				}
-				catch (Exception ex)
+				catch (SystemException ex)
 				{
 					UpdateStatusAndFinish(false, "Failed to create installation directory:\n" + ex.Message);
 					return;
@@ -895,7 +895,7 @@ namespace ReShade.Setup
 						key.DeleteValue(Path.Combine(commonPathLocal, "ReShade32", "ReShade32.json"), false);
 					}
 				}
-				catch
+				catch (SystemException)
 				{
 					// Ignore errors
 				}
@@ -909,7 +909,7 @@ namespace ReShade.Setup
 						var module = zip.GetEntry(Path.GetFileName(layerModulePath)) ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
 						module.ExtractToFile(layerModulePath, true);
 					}
-					catch (Exception ex)
+					catch (SystemException ex)
 					{
 						UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(layerModulePath) + ":\n" + ex.Message);
 						return;
@@ -930,7 +930,7 @@ namespace ReShade.Setup
 								key.SetValue(layerManifestPath, 0, RegistryValueKind.DWord);
 							}
 						}
-						catch (Exception ex)
+						catch (SystemException ex)
 						{
 							UpdateStatusAndFinish(false, "Failed to install Vulkan layer manifest:\n" + ex.Message);
 							return;
@@ -952,7 +952,7 @@ namespace ReShade.Setup
 								key.SetValue(layerManifestPathXR, 0, RegistryValueKind.DWord);
 							}
 						}
-						catch (Exception ex)
+						catch (SystemException ex)
 						{
 							UpdateStatusAndFinish(false, "Failed to install OpenXR layer manifest:\n" + ex.Message);
 							return;
@@ -978,7 +978,7 @@ namespace ReShade.Setup
 					var module = zip.GetEntry(currentInfo.is64Bit ? "ReShade64.dll" : "ReShade32.dll") ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
 					module.ExtractToFile(currentInfo.modulePath, true);
 				}
-				catch (Exception ex)
+				catch (SystemException ex)
 				{
 					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(currentInfo.modulePath) + ":\n" + ex.Message +
 							(currentOperation != InstallOperation.Install ? "\n\nMake sure the target application is not still running!" : string.Empty));
@@ -1011,7 +1011,7 @@ In that event here are some steps you can try to resolve this:
 				{
 					File.Copy("ReShade.ini", currentInfo.configPath);
 				}
-				catch (Exception ex)
+				catch (SystemException ex)
 				{
 					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(currentInfo.configPath) + ":\n" + ex.Message);
 					return;
@@ -1312,7 +1312,7 @@ In that event here are some steps you can try to resolve this:
 								}
 							}
 						}
-						catch (Exception ex)
+						catch (SystemException ex)
 						{
 							UpdateStatusAndFinish(false, "Failed to delete Vulkan layer manifest:\n" + ex.Message);
 							return;
@@ -1360,7 +1360,7 @@ In that event here are some steps you can try to resolve this:
 					}
 				}
 			}
-			catch (Exception ex)
+			catch (SystemException ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to delete some ReShade files:\n" + ex.Message +
 					(currentOperation != InstallOperation.Install ? "\n\nMake sure the target application is not still running!" : string.Empty));
@@ -1401,7 +1401,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				client.DownloadFile(new Uri(package.DownloadUrl), downloadPath);
 			}
-			catch (Exception ex)
+			catch (WebException ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + ex.Message);
 				return;
@@ -1481,7 +1481,7 @@ In that event here are some steps you can try to resolve this:
 					}
 				}
 			}
-			catch (Exception ex)
+			catch (SystemException ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to extract " + package.Name + ":\n" + ex.Message);
 				return;
@@ -1502,7 +1502,7 @@ In that event here are some steps you can try to resolve this:
 				File.Delete(downloadPath);
 				Directory.Delete(tempPath, true);
 			}
-			catch (Exception ex)
+			catch (SystemException ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to install " + package.Name + ":\n" + ex.Message);
 				return;
@@ -1546,7 +1546,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				client.DownloadFile(new Uri(addon.DownloadUrl), downloadPath);
 			}
-			catch (Exception ex)
+			catch (WebException ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + ex.Message);
 				return;
@@ -1591,7 +1591,7 @@ In that event here are some steps you can try to resolve this:
 
 					downloadPath = addonPath;
 				}
-				catch (Exception ex)
+				catch (SystemException ex)
 				{
 					UpdateStatusAndFinish(false, "Failed to extract " + addon.Name + ":\n" + ex.Message);
 					return;
@@ -1617,7 +1617,7 @@ In that event here are some steps you can try to resolve this:
 					Directory.Delete(tempPath, true);
 				}
 			}
-			catch (Exception ex)
+			catch (SystemException ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to install " + addon.Name + ":\n" + ex.Message);
 				return;

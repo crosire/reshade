@@ -120,7 +120,7 @@ namespace ReShade.Setup.Pages
 							}
 						}
 					}
-					catch (Exception ex)
+					catch (WebException ex)
 					{
 						// Ignore if this list failed to download, since setup can still proceed without it
 						Dispatcher.Invoke(() =>
