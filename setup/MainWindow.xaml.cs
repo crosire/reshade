@@ -1030,11 +1030,18 @@ In that event here are some steps you can try to resolve this:
 			}
 
 			// Copy potential pre-made configuration file to target
-			if (File.Exists("ReShade.ini") && !File.Exists(currentInfo.configPath))
+			if (!File.Exists(currentInfo.configPath))
 			{
 				try
 				{
-					File.Copy("ReShade.ini", currentInfo.configPath);
+					foreach (var premadeConfigPath in new[] { "ReShade.ini", Path.Combine(Path.GetDirectoryName(currentInfo.configPath), "GShade.ini") })
+					{
+						if (File.Exists(premadeConfigPath))
+						{
+							File.Copy(premadeConfigPath, currentInfo.configPath);
+							break;
+						}
+					}
 				}
 				catch (SystemException ex)
 				{
