@@ -38,7 +38,7 @@ namespace ReShade.Setup
 		Api targetApi = Api.Unknown;
 		bool targetOpenXR = false;
 		InstallOperation operation = InstallOperation.Default;
-		internal static bool is64Bit;
+		bool is64Bit;
 		string targetPath;
 		string targetName;
 		string configPath;
@@ -705,12 +705,6 @@ namespace ReShade.Setup
 
 			configPath = Path.Combine(basePath, "ReShade.ini");
 
-			if (operation == InstallOperation.Uninstall)
-			{
-				UninstallStep_UninstallReShadeModule();
-				return;
-			}
-
 			var isReShade = false;
 
 			if (targetApi == Api.Vulkan || targetOpenXR)
@@ -718,7 +712,7 @@ namespace ReShade.Setup
 				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
 				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && File.Exists(configPath))
+				if (operation == InstallOperation.Default && File.Exists(configPath))
 				{
 					if (isHeadless)
 					{
@@ -765,13 +759,7 @@ namespace ReShade.Setup
 
 				modulePath = Path.Combine(basePath, modulePath);
 
-				var configPathAlt = Path.ChangeExtension(modulePath, ".ini");
-				if (File.Exists(configPathAlt) && !File.Exists(configPath))
-				{
-					configPath = configPathAlt;
-				}
-
-				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && ModuleExists(modulePath, out isReShade))
+				if (operation == InstallOperation.Default && ModuleExists(modulePath, out isReShade))
 				{
 					if (isReShade)
 					{
@@ -800,7 +788,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (operation != InstallOperation.Update && operation != InstallOperation.Modify && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (operation == InstallOperation.Default && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
 				{
 					if (isHeadless)
 					{
@@ -819,7 +807,14 @@ namespace ReShade.Setup
 				}
 			}
 
-			InstallStep_InstallReShadeModule();
+			if (operation != InstallOperation.Uninstall)
+			{
+				InstallStep_InstallReShadeModule();
+			}
+			else
+			{
+				UninstallStep_UninstallReShadeModule();
+			}
 		}
 		void InstallStep_InstallReShadeModule()
 		{
@@ -1504,7 +1499,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				Dispatcher.Invoke(() =>
 				{
-					var page = new SelectAddonsPage();
+					var page = new SelectAddonsPage(is64Bit);
 
 					CurrentPage.Navigate(page);
 				});

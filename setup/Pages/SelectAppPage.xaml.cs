@@ -63,7 +63,7 @@ namespace ReShade.Setup.Pages
 					int length = Name.LastIndexOf('.');
 					if (length > 1)
 					{
-						Name = path.Substring(0, length);
+						Name = Name.Substring(0, length);
 					}
 
 					if (char.IsLower(Name.First()))
