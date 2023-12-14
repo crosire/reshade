@@ -163,14 +163,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			if (config.get("INSTALL", "EnableLogging") || (!config.has("INSTALL", "EnableLogging") && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOGGING", nullptr, 0)))
 			{
+				std::filesystem::path log_path = config.path();
+				log_path.replace_extension(L".log");
+
 				std::error_code ec;
-				std::filesystem::path log_path = g_target_executable_path.parent_path() / L"ReShade.log";
 				if (!reshade::log::open_log_file(log_path, ec))
 				{
 					// Try a different file if the default failed to open (e.g. because currently in use by another ReShade instance)
 					for (int log_index = 0; log_index < 10 && std::filesystem::exists(log_path, ec); ++log_index)
 					{
-						log_path.replace_filename(L"ReShade.log" + std::to_wstring(log_index + 1));
+						log_path.replace_extension(L".log" + std::to_wstring(log_index + 1));
 
 						if (reshade::log::open_log_file(log_path, ec))
 							break;

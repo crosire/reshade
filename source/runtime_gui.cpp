@@ -2835,7 +2835,8 @@ void reshade::runtime::draw_gui_statistics()
 void reshade::runtime::draw_gui_log()
 {
 	std::error_code ec;
-	const std::filesystem::path log_path = g_target_executable_path.parent_path() / L"ReShade.log";
+	std::filesystem::path log_path = global_config().path();
+	log_path.replace_extension(L".log");
 
 	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(16.0f * _font_size + 2 * _imgui_context->Style.ItemSpacing.x));
 
