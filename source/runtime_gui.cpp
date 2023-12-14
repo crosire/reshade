@@ -3453,7 +3453,7 @@ void reshade::runtime::draw_variable_editor()
 			{
 			case reshadefx::type::t_bool:
 				get_uniform_value(variable, reinterpret_cast<bool *>(before.as_uint), variable.type.components());
-				is_default_value = before.as_uint[0] == (variable.initializer_value.as_uint[0] != 0);
+				is_default_value = before.as_uint[0] == static_cast<uint32_t>(variable.initializer_value.as_uint[0] != 0);
 				break;
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
