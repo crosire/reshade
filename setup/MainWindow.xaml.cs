@@ -275,7 +275,7 @@ namespace ReShade.Setup
 			}
 
 			// Avoid adding search paths already covered by an existing wildcard search path
-			if (searchPaths.Any(searchPath => searchPath.EndsWith(wildcard) && newPath.StartsWith(searchPath.Remove(searchPath.Length - wildcard.Length))))
+			if (searchPaths.Any(searchPath => searchPath.EndsWith(wildcard) && newPath.StartsWith(searchPath.Remove(searchPath.Length - 1 - wildcard.Length))))
 			{
 				return;
 			}
@@ -302,20 +302,24 @@ namespace ReShade.Setup
 			var iniFile = new IniFile(currentInfo.configPath);
 			List<string> paths = null;
 
-			iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
-
-			paths = new List<string>(effectSearchPaths ?? new string[0]);
-			paths.RemoveAll(string.IsNullOrWhiteSpace);
+			if (!string.IsNullOrEmpty(targetPathEffects))
 			{
+				iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
+
+				paths = new List<string>(effectSearchPaths ?? new string[0]);
+				paths.RemoveAll(string.IsNullOrWhiteSpace);
+
 				AddSearchPath(paths, targetPathEffects);
 				iniFile.SetValue("GENERAL", "EffectSearchPaths", paths.ToArray());
 			}
 
-			iniFile.GetValue("GENERAL", "TextureSearchPaths", out var textureSearchPaths);
-
-			paths = new List<string>(textureSearchPaths ?? new string[0]);
-			paths.RemoveAll(string.IsNullOrWhiteSpace);
+			if (!string.IsNullOrEmpty(targetPathTextures))
 			{
+				iniFile.GetValue("GENERAL", "TextureSearchPaths", out var textureSearchPaths);
+
+				paths = new List<string>(textureSearchPaths ?? new string[0]);
+				paths.RemoveAll(string.IsNullOrWhiteSpace);
+
 				AddSearchPath(paths, targetPathTextures);
 				iniFile.SetValue("GENERAL", "TextureSearchPaths", paths.ToArray());
 			}
@@ -340,7 +344,7 @@ namespace ReShade.Setup
 			{
 				searchPaths = effectSearchPaths
 					.Where(searchPath => !string.IsNullOrWhiteSpace(searchPath))
-					.Select(searchPath => searchPath.EndsWith(wildcard) ? new KeyValuePair<string, bool>(searchPath.Remove(searchPath.Length - wildcard.Length), true) : new KeyValuePair<string, bool>(searchPath, false))
+					.Select(searchPath => searchPath.EndsWith(wildcard) ? new KeyValuePair<string, bool>(searchPath.Remove(searchPath.Length - 1 - wildcard.Length), true) : new KeyValuePair<string, bool>(searchPath, false))
 					.Where(searchPath => searchPath.Key.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.Key.IndexOf('*') < 0)
 					.Select(searchPath => new KeyValuePair<string, bool>(Path.GetFullPath(searchPath.Key), searchPath.Value))
 					.ToList();
@@ -1458,8 +1462,10 @@ In that event here are some steps you can try to resolve this:
 			string tempPathTextures = null;
 
 			string basePath = Path.GetDirectoryName(currentInfo.configPath);
-			string targetPathEffects = Path.Combine(basePath, package.InstallPath);
-			string targetPathTextures = Path.Combine(basePath, package.TextureInstallPath);
+			string targetPathEffects = Path.GetFullPath(Path.Combine(basePath, package.InstallPath));
+			string targetPathTextures = Path.GetFullPath(Path.Combine(basePath, package.TextureInstallPath));
+
+			IEnumerable<string> effects = null;
 
 			try
 			{
@@ -1471,7 +1477,7 @@ In that event here are some steps you can try to resolve this:
 
 				ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
-				string[] effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
+				effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
 
 				// First check for a standard directory name
 				tempPathEffects = Directory.EnumerateDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
@@ -1494,28 +1500,32 @@ In that event here are some steps you can try to resolve this:
 				}
 
 				// Skip any effects not in the shader directory
-				effects = effects.Where(x => x.StartsWith(tempPathEffects)).ToArray();
+				effects = effects.Where(filePath => filePath.StartsWith(tempPathEffects));
 
 				// Delete denied effects
 				if (package.DenyEffectFiles != null)
 				{
-					var denyEffectFiles = effects.Where(x => package.DenyEffectFiles.Contains(Path.GetFileName(x)));
+					var denyEffectFiles = effects.Where(effectPath => package.DenyEffectFiles.Contains(Path.GetFileName(effectPath)));
 
-					foreach (string filePath in denyEffectFiles)
+					foreach (string effectPath in denyEffectFiles)
 					{
-						File.Delete(filePath);
+						File.Delete(effectPath);
 					}
+
+					effects = effects.Except(denyEffectFiles);
 				}
 
 				// Delete all unselected effects
 				if (package.Selected == null)
 				{
-					var disabledEffectFiles = effects.Where(x => package.EffectFiles.Any(effectFile => !effectFile.Selected && effectFile.FileName == Path.GetFileName(x)));
+					var disabledEffectFiles = effects.Where(effectPath => package.EffectFiles.Any(effectFile => !effectFile.Selected && effectFile.FileName == Path.GetFileName(effectPath)));
 
-					foreach (string filePath in disabledEffectFiles)
+					foreach (string effectPath in disabledEffectFiles)
 					{
-						File.Delete(filePath);
+						File.Delete(effectPath);
 					}
+
+					effects = effects.Except(disabledEffectFiles);
 				}
 			}
 			catch (SystemException ex)
@@ -1524,8 +1534,42 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
+			GetEffectSearchPaths(out List<KeyValuePair<string, bool>> effectSearchPaths);
+
 			try
 			{
+				var existingEffectFiles = effectSearchPaths
+					.Where(searchPath => (searchPath.Value ? !targetPathEffects.StartsWith(searchPath.Key) : searchPath.Key != targetPathEffects) && Directory.Exists(searchPath.Key))
+					.SelectMany(searchPath => Directory.EnumerateFiles(searchPath.Key, "*.fx", searchPath.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly))
+					.Where(effectPath => effects.Select(x => Path.GetFileName(x)).Contains(Path.GetFileName(effectPath)) == true);
+				if (existingEffectFiles.Any())
+				{
+					string existingPathEffects = Path.GetDirectoryName(existingEffectFiles.First());
+
+					bool overwriteExistingEffectFiles = false;
+					if (!isHeadless)
+					{
+						UpdateStatus("Waiting for user confirmation ...");
+
+						Dispatcher.Invoke(() =>
+						{
+							if (MessageBox.Show(this, "Found " + string.Join(", ", existingEffectFiles.Select(x => Path.GetFileName(x))) + " in \"" + existingPathEffects + "\" instead of in the default location \"" + targetPathEffects + "\".\n\nDo you want to overwrite the files in \"" + existingPathEffects + "\"?", "Warning", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+							{
+								overwriteExistingEffectFiles = true;
+							}
+						});
+					}
+
+					if (!overwriteExistingEffectFiles)
+					{
+						UpdateStatusAndFinish(false, "Existing effect files found in non-default location. Please remove them first to avoid duplicates.");
+						return;
+					}
+
+					targetPathEffects = existingPathEffects;
+					package.InstallPath = null; // Prevent install path getting written to config below
+				}
+
 				// Move only the relevant files to the target
 				if (tempPathEffects != null)
 				{
