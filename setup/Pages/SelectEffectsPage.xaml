@@ -29,7 +29,7 @@
     <TextBlock DockPanel.Dock="Bottom" Margin="10,5">
       Choose a preset file (.ini) to install only the effects it uses:
     </TextBlock>
-    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" VirtualizingPanel.ScrollUnit="Pixel" ItemsSource="{Binding Items}" d:ItemsSource="{Binding Items}">
+    <ListBox x:Name="ItemsListBox" x:FieldModifier="private" Margin="10,5" HorizontalContentAlignment="Stretch" VirtualizingPanel.ScrollUnit="Pixel" ItemsSource="{Binding Items}" d:ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <Grid Margin="0,3">

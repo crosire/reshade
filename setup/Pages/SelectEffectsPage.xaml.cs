@@ -211,15 +211,15 @@ namespace ReShade.Setup.Pages
 				bool check = button.Content as string == CHECK_LABEL;
 				button.Content = check ? UNCHECK_LABEL : CHECK_LABEL;
 
-				foreach (var item in Items)
+				foreach (EffectPackage package in Items)
 				{
-					if (!item.Modifiable)
+					if (!package.Modifiable)
 					{
 						continue;
 					}
 
-					item.Selected = check;
-					item.NotifyPropertyChanged(nameof(item.Selected));
+					package.Selected = check;
+					package.NotifyPropertyChanged(nameof(package.Selected));
 				}
 			}
 		}

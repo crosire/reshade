@@ -1,4 +1,4 @@
-﻿<Page x:Class="ReShade.Setup.Pages.SelectUninstallPage"
+﻿<Page x:Class="ReShade.Setup.Pages.SelectOperationPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -13,7 +13,7 @@
       An existing ReShade installation was found for the target game. Choose how to proceed with this installation.
     </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
-      <RadioButton x:Name="UpdateButton" Margin="0,10" IsChecked="True">
+      <RadioButton x:Name="UpdateButton" x:FieldModifier="private" Margin="0,10" IsChecked="True">
         <TextBlock Width="290" TextWrapping="Wrap">
           <Label Content="Update _ReShade only" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
@@ -21,7 +21,7 @@
           Update ReShade to this version, but keep existing preset and effect files unchanged.
         </TextBlock>
       </RadioButton>
-      <RadioButton x:Name="ModifyButton" Margin="0,10">
+      <RadioButton x:Name="ModifyButton" x:FieldModifier="private" Margin="0,10">
         <TextBlock Width="290" TextWrapping="Wrap">
           <Label Content="Update ReShade and _effects" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />
@@ -29,7 +29,7 @@
           Update ReShade to this version and also download effect files again.
         </TextBlock>
       </RadioButton>
-      <RadioButton x:Name="UninstallButton" Margin="0,10" VerticalContentAlignment="Top">
+      <RadioButton x:Name="UninstallButton" x:FieldModifier="private" Margin="0,10" VerticalContentAlignment="Top">
         <TextBlock Width="290" TextWrapping="Wrap">
           <Label Content="_Uninstall ReShade and effects" Padding="0" Foreground="#FF003399" FontSize="16" />
           <LineBreak />

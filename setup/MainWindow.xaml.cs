@@ -27,35 +27,6 @@ namespace ReShade.Setup
 {
 	public partial class MainWindow
 	{
-		readonly bool isHeadless = false;
-		readonly bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
-
-		IniFile compatibilityIni;
-
-		readonly StatusPage status = new StatusPage();
-		readonly SelectAppPage appPage = new SelectAppPage();
-
-		Api targetApi = Api.Unknown;
-		bool targetOpenXR = false;
-		InstallOperation operation = InstallOperation.Default;
-		bool is64Bit;
-		string targetPath;
-		string targetName;
-		string configPath;
-		string modulePath;
-		string presetPath;
-		static readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
-		string tempPath;
-		string tempPathEffects;
-		string tempPathTextures;
-		string targetPathEffects;
-		string targetPathTextures;
-		string downloadPath;
-		Queue<EffectPackage> packages;
-		EffectPackage package;
-		Queue<Addon> addons;
-		Addon addon;
-
 		public MainWindow()
 		{
 			InitializeComponent();
@@ -97,39 +68,32 @@ namespace ReShade.Setup
 				{
 					if (args[i] == "--api")
 					{
-						string api = args[++i];
-
-						if (api == "d3d9")
+						switch (args[++i])
 						{
-							targetApi = Api.D3D9;
-						}
-						else if (api == "d3d10")
-						{
-							targetApi = Api.D3D10;
-						}
-						else if (api == "d3d11")
-						{
-							targetApi = Api.D3D11;
-						}
-						else if (api == "d3d12")
-						{
-							targetApi = Api.D3D12;
-						}
-						else if (api == "dxgi")
-						{
-							targetApi = Api.DXGI;
-						}
-						else if (api == "opengl")
-						{
-							targetApi = Api.OpenGL;
-						}
-						else if (api == "vulkan")
-						{
-							targetApi = Api.Vulkan;
-						}
-						else if (api == "openxr")
-						{
-							targetOpenXR = true;
+							case "d3d9":
+								currentInfo.targetApi = Api.D3D9;
+								break;
+							case "d3d10":
+								currentInfo.targetApi = Api.D3D10;
+								break;
+							case "d3d11":
+								currentInfo.targetApi = Api.D3D11;
+								break;
+							case "d3d12":
+								currentInfo.targetApi = Api.D3D12;
+								break;
+							case "dxgi":
+								currentInfo.targetApi = Api.DXGI;
+								break;
+							case "opengl":
+								currentInfo.targetApi = Api.OpenGL;
+								break;
+							case "vulkan":
+								currentInfo.targetApi = Api.Vulkan;
+								break;
+							case "openxr":
+								currentInfo.targetOpenXR = true;
+								break;
 						}
 						continue;
 					}
@@ -147,46 +111,46 @@ namespace ReShade.Setup
 
 					if (args[i] == "--state")
 					{
-						string state = args[++i];
-
-						if (state == "finished")
+						switch (args[++i])
 						{
-							operation = InstallOperation.Finished;
-						}
-						else if (state == "update")
-						{
-							operation = InstallOperation.Update;
-						}
-						else if (state == "modify")
-						{
-							operation = InstallOperation.Modify;
-						}
-						else if (state == "uninstall")
-						{
-							operation = InstallOperation.Uninstall;
+							case "finished":
+								currentOperation = InstallOperation.Finished;
+								break;
+							case "update":
+								currentOperation = InstallOperation.Update;
+								break;
+							case "modify":
+								currentOperation = InstallOperation.UpdateWithEffects;
+								break;
+							case "uninstall":
+								currentOperation = InstallOperation.Uninstall;
+								break;
 						}
 					}
 				}
 
 				if (File.Exists(args[i]))
 				{
-					targetPath = args[i];
-					targetName = Path.GetFileNameWithoutExtension(targetPath);
+					currentInfo.targetPath = args[i];
+					currentInfo.targetName = Path.GetFileNameWithoutExtension(currentInfo.targetPath);
 				}
 			}
 
-			if (targetPath != null)
+			if (currentInfo.targetPath != null)
 			{
-				if (operation == InstallOperation.Finished)
+				if (currentOperation == InstallOperation.Finished)
 				{
 					InstallStep_Finish();
 				}
-				else if (targetApi != Api.Unknown)
+				else if (currentInfo.targetApi != Api.Unknown)
 				{
-					var peInfo = new PEInfo(targetPath);
-					is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
+					RunTaskWithExceptionHandling(() =>
+					{
+						var peInfo = new PEInfo(currentInfo.targetPath);
+						currentInfo.is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
-					RunTaskWithExceptionHandling(InstallStep_CheckExistingInstallation);
+						InstallStep_CheckExistingInstallation();
+					});
 				}
 				else
 				{
@@ -210,6 +174,27 @@ namespace ReShade.Setup
 #endif
 			}
 		}
+
+		readonly bool isHeadless = false;
+		readonly bool isElevated = WindowsIdentity.GetCurrent().Owner.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid);
+		static readonly string commonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ReShade");
+
+		IniFile compatibilityIni;
+
+		readonly StatusPage status = new StatusPage();
+		readonly SelectAppPage appPage = new SelectAppPage();
+
+		struct InstallInfo
+		{
+			public bool is64Bit;
+			public Api targetApi;
+			public bool targetOpenXR;
+			public string targetPath, targetName;
+			public string modulePath, configPath, presetPath;
+		}
+
+		InstallInfo currentInfo = new InstallInfo();
+		InstallOperation currentOperation = InstallOperation.Install;
 
 		static void MoveFiles(string sourcePath, string targetPath)
 		{
@@ -320,19 +305,13 @@ namespace ReShade.Setup
 		}
 		void WriteSearchPaths(string targetPathEffects, string targetPathTextures)
 		{
+			string basePath = Path.GetDirectoryName(currentInfo.configPath);
+
 			// Change current directory so that "Path.GetFullPath" resolves correctly
 			string currentPath = Directory.GetCurrentDirectory();
-			Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
+			Directory.SetCurrentDirectory(basePath);
 
-			// Vulkan uses a common ReShade DLL for all applications, which is not in the location the effects and textures are installed to, so make paths absolute
-			if (targetApi == Api.Vulkan)
-			{
-				string targetDir = Path.GetDirectoryName(targetPath);
-				targetPathEffects = Path.GetFullPath(Path.Combine(targetDir, targetPathEffects));
-				targetPathTextures = Path.GetFullPath(Path.Combine(targetDir, targetPathTextures));
-			}
-
-			var iniFile = new IniFile(configPath);
+			var iniFile = new IniFile(currentInfo.configPath);
 			List<string> paths = null;
 
 			iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
@@ -360,12 +339,8 @@ namespace ReShade.Setup
 
 		void ResetStatus()
 		{
-			operation = InstallOperation.Default;
-
-			targetApi = Api.Unknown;
-			targetOpenXR = false;
-			targetPath = targetName = configPath = modulePath = presetPath = tempPath = tempPathEffects = tempPathTextures = targetPathEffects = targetPathTextures = downloadPath = null;
-			packages = null; package = null;
+			currentInfo = new InstallInfo();
+			currentOperation = InstallOperation.Install;
 
 			Dispatcher.Invoke(() =>
 			{
@@ -399,7 +374,7 @@ namespace ReShade.Setup
 		}
 		void UpdateStatusAndFinish(bool success, string message)
 		{
-			operation = InstallOperation.Finished;
+			currentOperation = InstallOperation.Finished;
 
 			Dispatcher.Invoke(() =>
 			{
@@ -429,10 +404,10 @@ namespace ReShade.Setup
 			{
 				Verb = "runas",
 				FileName = Assembly.GetExecutingAssembly().Location,
-				Arguments = $"\"{targetPath}\" --elevated --left {Left} --top {Top}"
+				Arguments = $"\"{currentInfo.targetPath}\" --elevated --left {Left} --top {Top}"
 			};
 
-			switch (targetApi)
+			switch (currentInfo.targetApi)
 			{
 				case Api.D3D9:
 					startInfo.Arguments += " --api d3d9";
@@ -457,12 +432,12 @@ namespace ReShade.Setup
 					break;
 			}
 
-			if (targetOpenXR)
+			if (currentInfo.targetOpenXR)
 			{
 				startInfo.Arguments += " --api openxr";
 			}
 
-			switch (operation)
+			switch (currentOperation)
 			{
 				case InstallOperation.Finished:
 					startInfo.Arguments += " --state finished";
@@ -470,7 +445,7 @@ namespace ReShade.Setup
 				case InstallOperation.Update:
 					startInfo.Arguments += " --state update";
 					break;
-				case InstallOperation.Modify:
+				case InstallOperation.UpdateWithEffects:
 					startInfo.Arguments += " --state modify";
 					break;
 				case InstallOperation.Uninstall:
@@ -517,52 +492,41 @@ namespace ReShade.Setup
 			}
 		}
 
-		void InstallStep_CheckPrivileges()
-		{
-			if (!isElevated && !IsWritable(Path.GetDirectoryName(targetPath)))
-			{
-				RestartWithElevatedPrivileges();
-			}
-			else
-			{
-				RunTaskWithExceptionHandling(InstallStep_AnalyzeExecutable);
-			}
-		}
 		void InstallStep_AnalyzeExecutable()
 		{
 			UpdateStatus("Analyzing executable ...");
 
 			// In case this is the bootstrap executable of an Unreal Engine game, try and find the actual game executable for it
-			string targetPathUnrealEngine = PEInfo.ReadResourceString(targetPath, 201); // IDI_EXEC_FILE (see BootstrapPackagedGame.cpp in Unreal Engine source code)
-			if (!string.IsNullOrEmpty(targetPathUnrealEngine) && File.Exists(targetPathUnrealEngine = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(targetPath), targetPathUnrealEngine))))
+			string targetPathUnrealEngine = PEInfo.ReadResourceString(currentInfo.targetPath, 201); // IDI_EXEC_FILE (see BootstrapPackagedGame.cpp in Unreal Engine source code)
+			if (!string.IsNullOrEmpty(targetPathUnrealEngine) && File.Exists(targetPathUnrealEngine = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), targetPathUnrealEngine))))
 			{
-				targetPath = targetPathUnrealEngine;
+				currentInfo.targetPath = targetPathUnrealEngine;
 			}
 
-			var info = FileVersionInfo.GetVersionInfo(targetPath);
-			targetName = info.FileDescription;
-			if (targetName is null || targetName.Trim().Length == 0)
+			var info = FileVersionInfo.GetVersionInfo(currentInfo.targetPath);
+			currentInfo.targetName = info.FileDescription;
+			if (currentInfo.targetName is null || currentInfo.targetName.Trim().Length == 0)
 			{
-				targetName = Path.GetFileNameWithoutExtension(targetPath);
-				if (char.IsLower(targetName[0]))
+				currentInfo.targetName = Path.GetFileNameWithoutExtension(currentInfo.targetPath);
+				if (char.IsLower(currentInfo.targetName[0]))
 				{
-					targetName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(targetName);
+					currentInfo.targetName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(currentInfo.targetName);
 				}
 			}
 
-			var peInfo = new PEInfo(targetPath);
-			is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
+			var peInfo = new PEInfo(currentInfo.targetPath);
+			currentInfo.is64Bit = peInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64;
 
 			bool isApiD3D9 = false;
 			bool isApiDXGI = false;
 			bool isApiOpenGL = false;
 			bool isApiVulkan = false;
-			bool isApiOpenXR = false;
+			currentInfo.targetOpenXR = false;
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
 			DownloadCompatibilityIni();
 
-			var executableName = Path.GetFileName(targetPath);
+			var executableName = Path.GetFileName(currentInfo.targetPath);
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
 				string api = compatibilityIni.GetString(executableName, "RenderApi");
@@ -591,7 +555,7 @@ namespace ReShade.Setup
 				isApiDXGI = peInfo.Modules.Any(s => s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) || s.StartsWith("d3d1", StringComparison.OrdinalIgnoreCase) || s.Contains("GFSDK")); // Assume DXGI when GameWorks SDK is in use
 				isApiOpenGL = peInfo.Modules.Any(s => s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase));
 				isApiVulkan = peInfo.Modules.Any(s => s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase));
-				isApiOpenXR = peInfo.Modules.Any(s => s.StartsWith("openxr_loader", StringComparison.OrdinalIgnoreCase));
+				currentInfo.targetOpenXR = peInfo.Modules.Any(s => s.StartsWith("openxr_loader", StringComparison.OrdinalIgnoreCase));
 
 				if (isApiD3D9 && isApiDXGI)
 				{
@@ -616,62 +580,54 @@ namespace ReShade.Setup
 				}
 			}
 
+			if (isApiD3D9)
+			{
+				currentInfo.targetApi = Api.D3D9;
+			}
+			else if (isApiDXGI)
+			{
+				currentInfo.targetApi = Api.DXGI;
+			}
+			else if (isApiOpenGL)
+			{
+				currentInfo.targetApi = Api.OpenGL;
+			}
+			else if (isApiVulkan)
+			{
+				currentInfo.targetApi = Api.Vulkan;
+			}
+
 			if (isHeadless)
 			{
-				if (isApiD3D9)
-				{
-					targetApi = Api.D3D9;
-				}
-				else if (isApiDXGI)
-				{
-					targetApi = Api.DXGI;
-				}
-				else if (isApiOpenGL)
-				{
-					targetApi = Api.OpenGL;
-				}
-				else if (isApiVulkan)
-				{
-					targetApi = Api.Vulkan;
-				}
-
-				if (isApiOpenXR)
-				{
-					targetOpenXR = true;
-				}
-
 				InstallStep_CheckExistingInstallation();
 				return;
 			}
 
 			Dispatcher.Invoke(() =>
 			{
-				var page = new SelectApiPage(targetName);
-				page.ApiD3D9.IsChecked = isApiD3D9;
-				page.ApiDXGI.IsChecked = isApiDXGI;
-				page.ApiOpenGL.IsChecked = isApiOpenGL;
-				page.ApiVulkan.IsChecked = isApiVulkan;
-				page.ApiOpenXR.IsChecked = isApiOpenXR;
-
-				CurrentPage.Navigate(page);
+				CurrentPage.Navigate(new SelectApiPage(currentInfo.targetName)
+				{
+					SelectedApi = currentInfo.targetApi,
+					SelectedOpenXR = currentInfo.targetOpenXR
+				});
 			});
 		}
 		void InstallStep_CheckExistingInstallation()
 		{
 			UpdateStatus("Checking installation status ...");
 
-			var basePath = Path.GetDirectoryName(targetPath);
-			var executableName = Path.GetFileName(targetPath);
+			var basePath = Path.GetDirectoryName(currentInfo.targetPath);
+			var executableName = Path.GetFileName(currentInfo.targetPath);
 
 			DownloadCompatibilityIni();
 
-			if (targetApi != Api.Vulkan && compatibilityIni != null)
+			if (currentInfo.targetApi != Api.Vulkan && compatibilityIni != null)
 			{
 				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
 				{
 					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
 
-					var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.ini"));
+					var globalConfig = new IniFile(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.ini"));
 					globalConfig.SetValue("INSTALL", "BasePath", basePath);
 					globalConfig.SaveFile();
 				}
@@ -682,37 +638,37 @@ namespace ReShade.Setup
 
 					if (api == "D3D8" || api == "D3D9")
 					{
-						targetApi = Api.D3D9;
+						currentInfo.targetApi = Api.D3D9;
 					}
 					else if (api == "D3D10")
 					{
-						targetApi = Api.D3D10;
+						currentInfo.targetApi = Api.D3D10;
 					}
 					else if (api == "D3D11")
 					{
-						targetApi = Api.D3D11;
+						currentInfo.targetApi = Api.D3D11;
 					}
 					else if (api == "D3D12")
 					{
-						targetApi = Api.D3D12;
+						currentInfo.targetApi = Api.D3D12;
 					}
 					else if (api == "OpenGL")
 					{
-						targetApi = Api.OpenGL;
+						currentInfo.targetApi = Api.OpenGL;
 					}
 				}
 			}
 
-			configPath = Path.Combine(basePath, "ReShade.ini");
+			currentInfo.configPath = Path.Combine(basePath, "ReShade.ini");
 
 			var isReShade = false;
 
-			if (targetApi == Api.Vulkan || targetOpenXR)
+			if (currentInfo.targetApi == Api.Vulkan || currentInfo.targetOpenXR)
 			{
-				var moduleName = is64Bit ? "ReShade64" : "ReShade32";
-				modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
+				var moduleName = currentInfo.is64Bit ? "ReShade64" : "ReShade32";
+				currentInfo.modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
-				if (operation == InstallOperation.Default && File.Exists(configPath))
+				if (currentOperation == InstallOperation.Install && File.Exists(currentInfo.configPath))
 				{
 					if (isHeadless)
 					{
@@ -722,9 +678,7 @@ namespace ReShade.Setup
 					{
 						Dispatcher.Invoke(() =>
 						{
-							var page = new SelectUninstallPage();
-
-							CurrentPage.Navigate(page);
+							CurrentPage.Navigate(new SelectOperationPage());
 						});
 					}
 					return;
@@ -732,34 +686,34 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				switch (targetApi)
+				switch (currentInfo.targetApi)
 				{
 					case Api.D3D9:
-						modulePath = "d3d9.dll";
+						currentInfo.modulePath = "d3d9.dll";
 						break;
 					case Api.D3D10:
-						modulePath = "d3d10.dll";
+						currentInfo.modulePath = "d3d10.dll";
 						break;
 					case Api.D3D11:
-						modulePath = "d3d11.dll";
+						currentInfo.modulePath = "d3d11.dll";
 						break;
 					case Api.D3D12:
-						modulePath = "d3d12.dll";
+						currentInfo.modulePath = "d3d12.dll";
 						break;
 					case Api.DXGI:
-						modulePath = "dxgi.dll";
+						currentInfo.modulePath = "dxgi.dll";
 						break;
 					case Api.OpenGL:
-						modulePath = "opengl32.dll";
+						currentInfo.modulePath = "opengl32.dll";
 						break;
 					default: // No API selected, abort immediately
 						UpdateStatusAndFinish(false, "Could not detect the rendering API used by the application.");
 						return;
 				}
 
-				modulePath = Path.Combine(basePath, modulePath);
+				currentInfo.modulePath = Path.Combine(basePath, currentInfo.modulePath);
 
-				if (operation == InstallOperation.Default && ModuleExists(modulePath, out isReShade))
+				if (currentOperation == InstallOperation.Install && ModuleExists(currentInfo.modulePath, out isReShade))
 				{
 					if (isReShade)
 					{
@@ -771,14 +725,12 @@ namespace ReShade.Setup
 
 						Dispatcher.Invoke(() =>
 						{
-							var page = new SelectUninstallPage();
-
-							CurrentPage.Navigate(page);
+							CurrentPage.Navigate(new SelectOperationPage());
 						});
 					}
 					else
 					{
-						UpdateStatusAndFinish(false, Path.GetFileName(modulePath) + " already exists, but does not belong to ReShade.\nPlease make sure this is not a system file required by the game.");
+						UpdateStatusAndFinish(false, Path.GetFileName(currentInfo.modulePath) + " already exists, but does not belong to ReShade.\nPlease make sure this is not a system file required by the game.");
 					}
 					return;
 				}
@@ -788,7 +740,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (operation == InstallOperation.Default && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (currentOperation == InstallOperation.Install && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
 				{
 					if (isHeadless)
 					{
@@ -798,22 +750,20 @@ namespace ReShade.Setup
 					{
 						Dispatcher.Invoke(() =>
 						{
-							var page = new SelectUninstallPage();
-
-							CurrentPage.Navigate(page);
+							CurrentPage.Navigate(new SelectOperationPage());
 						});
 					}
 					return;
 				}
 			}
 
-			if (operation != InstallOperation.Uninstall)
+			if (currentOperation != InstallOperation.Uninstall)
 			{
 				InstallStep_InstallReShadeModule();
 			}
 			else
 			{
-				UninstallStep_UninstallReShadeModule();
+				InstallStep_UninstallReShadeModule();
 			}
 		}
 		void InstallStep_InstallReShadeModule()
@@ -860,7 +810,7 @@ namespace ReShade.Setup
 				return;
 			}
 
-			string basePath = Path.GetDirectoryName(configPath);
+			string basePath = Path.GetDirectoryName(currentInfo.configPath);
 
 			// Delete any existing and conflicting ReShade installations first
 			foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
@@ -881,7 +831,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (targetApi == Api.Vulkan || targetOpenXR)
+			if (currentInfo.targetApi == Api.Vulkan || currentInfo.targetOpenXR)
 			{
 				if (!isElevated)
 				{
@@ -956,12 +906,7 @@ namespace ReShade.Setup
 
 					try
 					{
-						var module = zip.GetEntry(Path.GetFileName(layerModulePath));
-						if (module == null)
-						{
-							throw new FileFormatException("Setup archive is missing ReShade DLL file.");
-						}
-
+						var module = zip.GetEntry(Path.GetFileName(layerModulePath)) ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
 						module.ExtractToFile(layerModulePath, true);
 					}
 					catch (Exception ex)
@@ -970,18 +915,13 @@ namespace ReShade.Setup
 						return;
 					}
 
-					if (targetApi == Api.Vulkan)
+					if (currentInfo.targetApi == Api.Vulkan)
 					{
 						string layerManifestPath = Path.Combine(commonPath, layerModuleName + ".json");
 
 						try
 						{
-							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPath));
-							if (manifest == null)
-							{
-								throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
-							}
-
+							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPath)) ?? throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
 							manifest.ExtractToFile(layerManifestPath, true);
 
 							// Register this layer manifest
@@ -997,18 +937,13 @@ namespace ReShade.Setup
 						}
 					}
 
-					if (targetOpenXR)
+					if (currentInfo.targetOpenXR)
 					{
 						string layerManifestPathXR = Path.Combine(commonPath, layerModuleName + "_XR.json");
 
 						try
 						{
-							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR));
-							if (manifest == null)
-							{
-								throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
-							}
-
+							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR)) ?? throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
 							manifest.ExtractToFile(layerManifestPathXR, true);
 
 							// Register this layer manifest
@@ -1026,37 +961,32 @@ namespace ReShade.Setup
 				}
 
 				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
-				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) == false || !appKeys.Contains(targetPath))
+				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) == false || !appKeys.Contains(currentInfo.targetPath))
 				{
 					var appKeysList = appKeys != null ? appKeys.ToList() : new List<string>();
-					appKeysList.Add(targetPath);
+					appKeysList.Add(currentInfo.targetPath);
 					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
 					appConfig.SaveFile();
 				}
 			}
 			else
 			{
-				string parentPath = Path.GetDirectoryName(modulePath);
+				string parentPath = Path.GetDirectoryName(currentInfo.modulePath);
 
 				try
 				{
-					var module = zip.GetEntry(is64Bit ? "ReShade64.dll" : "ReShade32.dll");
-					if (module == null)
-					{
-						throw new FileFormatException("Setup archive is missing ReShade DLL file.");
-					}
-
-					module.ExtractToFile(modulePath, true);
+					var module = zip.GetEntry(currentInfo.is64Bit ? "ReShade64.dll" : "ReShade32.dll") ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
+					module.ExtractToFile(currentInfo.modulePath, true);
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(modulePath) + ":\n" + ex.Message +
-							(operation != InstallOperation.Default ? "\n\nMake sure the target application is not still running!" : string.Empty));
+					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(currentInfo.modulePath) + ":\n" + ex.Message +
+							(currentOperation != InstallOperation.Install ? "\n\nMake sure the target application is not still running!" : string.Empty));
 					return;
 				}
 
 				// Create a default log file for troubleshooting
-				File.WriteAllText(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log"), @"
+				File.WriteAllText(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"), @"
 If you are reading this after launching the game at least once, it likely means ReShade was not loaded by the game.
 
 In that event here are some steps you can try to resolve this:
@@ -1075,15 +1005,15 @@ In that event here are some steps you can try to resolve this:
 			}
 
 			// Copy potential pre-made configuration file to target
-			if (File.Exists("ReShade.ini") && !File.Exists(configPath))
+			if (File.Exists("ReShade.ini") && !File.Exists(currentInfo.configPath))
 			{
 				try
 				{
-					File.Copy("ReShade.ini", configPath);
+					File.Copy("ReShade.ini", currentInfo.configPath);
 				}
 				catch (Exception ex)
 				{
-					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(configPath) + ":\n" + ex.Message);
+					UpdateStatusAndFinish(false, "Failed to install " + Path.GetFileName(currentInfo.configPath) + ":\n" + ex.Message);
 					return;
 				}
 			}
@@ -1091,15 +1021,15 @@ In that event here are some steps you can try to resolve this:
 			DownloadCompatibilityIni();
 
 			// Add default configuration
-			var config = new IniFile(configPath);
+			var config = new IniFile(currentInfo.configPath);
 			if (compatibilityIni != null && !config.HasValue("GENERAL", "PreprocessorDefinitions"))
 			{
-				string depthReversed = compatibilityIni.GetString(targetName, "DepthReversed", "0");
-				string depthUpsideDown = compatibilityIni.GetString(targetName, "DepthUpsideDown", "0");
-				string depthLogarithmic = compatibilityIni.GetString(targetName, "DepthLogarithmic", "0");
-				if (!compatibilityIni.HasValue(targetName, "DepthReversed"))
+				string depthReversed = compatibilityIni.GetString(currentInfo.targetName, "DepthReversed", "0");
+				string depthUpsideDown = compatibilityIni.GetString(currentInfo.targetName, "DepthUpsideDown", "0");
+				string depthLogarithmic = compatibilityIni.GetString(currentInfo.targetName, "DepthLogarithmic", "0");
+				if (!compatibilityIni.HasValue(currentInfo.targetName, "DepthReversed"))
 				{
-					var info = FileVersionInfo.GetVersionInfo(targetPath);
+					var info = FileVersionInfo.GetVersionInfo(currentInfo.targetPath);
 					if (info.LegalCopyright != null)
 					{
 						Match match = new Regex("(20[0-9]{2})", RegexOptions.RightToLeft).Match(info.LegalCopyright);
@@ -1117,16 +1047,16 @@ In that event here are some steps you can try to resolve this:
 					"RESHADE_DEPTH_INPUT_IS_REVERSED=" + depthReversed,
 					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + depthLogarithmic);
 
-				if (compatibilityIni.HasValue(targetName, "DepthCopyBeforeClears") ||
-					compatibilityIni.HasValue(targetName, "DepthCopyAtClearIndex") ||
-					compatibilityIni.HasValue(targetName, "UseAspectRatioHeuristics"))
+				if (compatibilityIni.HasValue(currentInfo.targetName, "DepthCopyBeforeClears") ||
+					compatibilityIni.HasValue(currentInfo.targetName, "DepthCopyAtClearIndex") ||
+					compatibilityIni.HasValue(currentInfo.targetName, "UseAspectRatioHeuristics"))
 				{
 					config.SetValue("DEPTH", "DepthCopyBeforeClears",
-						compatibilityIni.GetString(targetName, "DepthCopyBeforeClears", "0"));
+						compatibilityIni.GetString(currentInfo.targetName, "DepthCopyBeforeClears", "0"));
 					config.SetValue("DEPTH", "DepthCopyAtClearIndex",
-						compatibilityIni.GetString(targetName, "DepthCopyAtClearIndex", "0"));
+						compatibilityIni.GetString(currentInfo.targetName, "DepthCopyAtClearIndex", "0"));
 					config.SetValue("DEPTH", "UseAspectRatioHeuristics",
-						compatibilityIni.GetString(targetName, "UseAspectRatioHeuristics", "1"));
+						compatibilityIni.GetString(currentInfo.targetName, "UseAspectRatioHeuristics", "1"));
 				}
 			}
 
@@ -1275,7 +1205,7 @@ In that event here are some steps you can try to resolve this:
 			}
 
 			// Always add app section if this is the global config
-			if (Path.GetDirectoryName(configPath) == Path.GetDirectoryName(targetPath) && !config.HasValue("APP"))
+			if (Path.GetDirectoryName(currentInfo.configPath) == Path.GetDirectoryName(currentInfo.targetPath) && !config.HasValue("APP"))
 			{
 				config.SetValue("APP", "ForceVsync", "0");
 				config.SetValue("APP", "ForceWindowed", "0");
@@ -1293,29 +1223,29 @@ In that event here are some steps you can try to resolve this:
 			config.SaveFile();
 
 			// Change file permissions for files ReShade needs write access to
-			MakeWritable(configPath);
-			MakeWritable(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log"));
+			MakeWritable(currentInfo.configPath);
+			MakeWritable(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"));
 			MakeWritable(Path.Combine(basePath, "ReShadePreset.ini"));
 
-			if (!isHeadless && operation != InstallOperation.Update)
+			if (!isHeadless && currentOperation != InstallOperation.Update)
 			{
-				presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
+				currentInfo.presetPath = config.GetString("GENERAL", "PresetPath", string.Empty);
 
-				if (!string.IsNullOrEmpty(presetPath))
+				if (!string.IsNullOrEmpty(currentInfo.presetPath))
 				{
 					// Change current directory so that "Path.GetFullPath" resolves correctly
 					string currentPath = Directory.GetCurrentDirectory();
-					Directory.SetCurrentDirectory(Path.GetDirectoryName(configPath));
-					presetPath = Path.GetFullPath(presetPath);
+					Directory.SetCurrentDirectory(basePath);
+					currentInfo.presetPath = Path.GetFullPath(currentInfo.presetPath);
 					Directory.SetCurrentDirectory(currentPath);
 				}
 
 				Dispatcher.Invoke(() =>
 				{
-					var page = new SelectEffectsPage();
-					page.PresetPath = presetPath;
-
-					CurrentPage.Navigate(page);
+					CurrentPage.Navigate(new SelectEffectsPage
+					{
+						PresetPath = currentInfo.presetPath
+					});
 				});
 				return;
 			}
@@ -1328,39 +1258,135 @@ In that event here are some steps you can try to resolve this:
 
 			InstallStep_Finish();
 		}
-		void InstallStep_CheckPreset()
+		void InstallStep_UninstallReShadeModule()
 		{
-			if (!string.IsNullOrEmpty(presetPath) && File.Exists(presetPath))
+			if (currentInfo.targetApi == Api.Vulkan || currentInfo.targetOpenXR)
 			{
-				var config = new IniFile(configPath);
-				config.SetValue("GENERAL", "PresetPath", presetPath);
-				config.SaveFile();
+				if (!isElevated)
+				{
+					Dispatcher.Invoke(() =>
+					{
+						if (!RestartWithElevatedPrivileges())
+						{
+							UpdateStatusAndFinish(false, "Failed to acquire elevated privileges to uninstall Vulkan layer.");
+						}
+					});
+					return;
+				}
 
-				MakeWritable(presetPath);
+				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
+				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys))
+				{
+					var appKeysList = appKeys.ToList();
+					appKeysList.Remove(currentInfo.targetPath);
+					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
+
+					if (appKeysList.Count == 0)
+					{
+						try
+						{
+							Directory.Delete(commonPath, true);
+
+							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
+							{
+								key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
+								key.DeleteValue(Path.Combine(commonPath, "ReShade64.json"), false);
+							}
+
+							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\OpenXR\1\ApiLayers\Implicit"))
+							{
+								key.DeleteValue(Path.Combine(commonPath, "ReShade32_XR.json"), false);
+								key.DeleteValue(Path.Combine(commonPath, "ReShade64_XR.json"), false);
+							}
+
+							if (Environment.Is64BitOperatingSystem)
+							{
+								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers"))
+								{
+									key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
+								}
+
+								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\OpenXR\1\ApiLayers\Implicit"))
+								{
+									key.DeleteValue(Path.Combine(commonPath, "ReShade32_XR.json"), false);
+								}
+							}
+						}
+						catch (Exception ex)
+						{
+							UpdateStatusAndFinish(false, "Failed to delete Vulkan layer manifest:\n" + ex.Message);
+							return;
+						}
+					}
+					else
+					{
+						appConfig.SaveFile();
+					}
+				}
 			}
 
-			InstallStep_DownloadEffectPackage();
-		}
-		void InstallStep_DownloadEffectPackage()
-		{
-			package = packages.Dequeue();
-			downloadPath = Path.GetTempFileName();
+			try
+			{
+				string basePath = Path.GetDirectoryName(currentInfo.configPath);
 
+				if (currentInfo.targetApi != Api.Vulkan && !currentInfo.targetOpenXR)
+				{
+					File.Delete(currentInfo.modulePath);
+				}
+
+				if (File.Exists(currentInfo.configPath))
+				{
+					File.Delete(currentInfo.configPath);
+				}
+
+				if (File.Exists(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log")))
+				{
+					File.Delete(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"));
+				}
+
+				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
+				{
+					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
+				}
+
+				// Delete all other existing ReShade installations too
+				foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
+				{
+					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
+
+					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					{
+						File.Delete(conflictingModulePath);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				UpdateStatusAndFinish(false, "Failed to delete some ReShade files:\n" + ex.Message +
+					(currentOperation != InstallOperation.Install ? "\n\nMake sure the target application is not still running!" : string.Empty));
+				return;
+			}
+
+			InstallStep_Finish();
+		}
+		void InstallStep_CheckPreset()
+		{
+			if (!string.IsNullOrEmpty(currentInfo.presetPath) && File.Exists(currentInfo.presetPath))
+			{
+				var config = new IniFile(currentInfo.configPath);
+				config.SetValue("GENERAL", "PresetPath", currentInfo.presetPath);
+				config.SaveFile();
+
+				MakeWritable(currentInfo.presetPath);
+			}
+		}
+		void InstallStep_DownloadEffectPackage(EffectPackage package)
+		{
 			UpdateStatus("Downloading " + package.Name + " from " + package.DownloadUrl + " ...");
 
-			var client = new WebClient();
+			string downloadPath = Path.GetTempFileName();
 
-			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) =>
-			{
-				if (e.Error != null)
-				{
-					UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + e.Error.Message);
-				}
-				else
-				{
-					InstallStep_ExtractEffectPackage();
-				}
-			};
+			var client = new WebClient();
 
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
 			{
@@ -1373,22 +1399,27 @@ In that event here are some steps you can try to resolve this:
 
 			try
 			{
-				client.DownloadFileAsync(new Uri(package.DownloadUrl), downloadPath);
+				client.DownloadFile(new Uri(package.DownloadUrl), downloadPath);
 			}
 			catch (Exception ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + ex.Message);
+				return;
 			}
+
+			InstallStep_InstallEffectPackage(package, downloadPath);
 		}
-		void InstallStep_ExtractEffectPackage()
+		void InstallStep_InstallEffectPackage(EffectPackage package, string downloadPath)
 		{
 			UpdateStatus("Extracting " + package.Name + " ...");
 
-			tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders");
+			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders");
+			string tempPathEffects = null;
+			string tempPathTextures = null;
 
-			string basePath = Path.GetDirectoryName(configPath);
-			targetPathEffects = Path.Combine(basePath, package.InstallPath);
-			targetPathTextures = Path.Combine(basePath, package.TextureInstallPath);
+			string basePath = Path.GetDirectoryName(currentInfo.configPath);
+			string targetPathEffects = Path.Combine(basePath, package.InstallPath);
+			string targetPathTextures = Path.Combine(basePath, package.TextureInstallPath);
 
 			try
 			{
@@ -1456,10 +1487,6 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			InstallStep_InstallEffectPackage();
-		}
-		void InstallStep_InstallEffectPackage()
-		{
 			try
 			{
 				// Move only the relevant files to the target
@@ -1482,15 +1509,6 @@ In that event here are some steps you can try to resolve this:
 			}
 
 			WriteSearchPaths(package.InstallPath, package.TextureInstallPath);
-
-			if (packages.Count != 0)
-			{
-				InstallStep_DownloadEffectPackage();
-			}
-			else
-			{
-				InstallStep_CheckAddons();
-			}
 		}
 		void InstallStep_CheckAddons()
 		{
@@ -1499,48 +1517,21 @@ In that event here are some steps you can try to resolve this:
 			{
 				Dispatcher.Invoke(() =>
 				{
-					var page = new SelectAddonsPage(is64Bit);
-
-					CurrentPage.Navigate(page);
+					CurrentPage.Navigate(new SelectAddonsPage(currentInfo.is64Bit));
 				});
+				return;
 			}
-			else
 #endif
-			{
-				InstallStep_Finish();
-			}
-		}
-		void InstallStep_DownloadAddon()
-		{
-			addon = addons.Dequeue();
-			downloadPath = Path.GetTempFileName();
 
+			InstallStep_Finish();
+		}
+		void InstallStep_DownloadAddon(Addon addon)
+		{
 			UpdateStatus("Downloading " + addon.Name + " from " + addon.DownloadUrl + " ...");
 
-			tempPath = null;
+			string downloadPath = Path.GetTempFileName();
 
 			var client = new WebClient();
-
-			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) =>
-			{
-				if (e.Error != null)
-				{
-					UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + e.Error.Message);
-				}
-				else
-				{
-					string ext = Path.GetExtension(new Uri(addon.DownloadUrl).AbsolutePath);
-
-					if (ext == ".addon" || ext == ".addon32" || ext == ".addon64")
-					{
-						InstallStep_InstallAddon();
-					}
-					else
-					{
-						InstallStep_ExtractAddon();
-					}
-				}
-			};
 
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
 			{
@@ -1553,66 +1544,72 @@ In that event here are some steps you can try to resolve this:
 
 			try
 			{
-				client.DownloadFileAsync(new Uri(addon.DownloadUrl), downloadPath);
+				client.DownloadFile(new Uri(addon.DownloadUrl), downloadPath);
 			}
 			catch (Exception ex)
 			{
 				UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + ex.Message);
-			}
-		}
-		void InstallStep_ExtractAddon()
-		{
-			UpdateStatus("Extracting " + addon.Name + " ...");
-
-			tempPath = Path.Combine(Path.GetTempPath(), "reshade-addons");
-
-			try
-			{
-				// Delete existing directories since extraction fails if the target is not empty
-				if (Directory.Exists(tempPath))
-				{
-					Directory.Delete(tempPath, true);
-				}
-
-				ZipFile.ExtractToDirectory(downloadPath, tempPath);
-
-				string addonPath = Directory.GetFiles(tempPath, is64Bit ? "*.addon64" : "*.addon32", SearchOption.AllDirectories).FirstOrDefault();
-				if (addonPath == null)
-				{
-					addonPath = Directory.GetFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(is64Bit ? "x64" : "x86"));
-				}
-				if (addonPath == null)
-				{
-					Directory.Delete(tempPath, true);
-					File.Delete(downloadPath);
-
-					throw new FileFormatException("Add-on archive is missing add-on binary.");
-				}
-
-				downloadPath = addonPath;
-			}
-			catch (Exception ex)
-			{
-				UpdateStatusAndFinish(false, "Failed to extract " + addon.Name + ":\n" + ex.Message);
 				return;
 			}
 
-			InstallStep_InstallAddon();
+			InstallStep_InstallAddon(addon, downloadPath);
 		}
-		void InstallStep_InstallAddon()
+		void InstallStep_InstallAddon(Addon addon, string downloadPath)
 		{
-			string addonPath = Path.GetDirectoryName(targetPath);
+			string ext = Path.GetExtension(new Uri(addon.DownloadUrl).AbsolutePath);
 
-			var globalConfigPath = Path.Combine(addonPath, "ReShade.ini");
+			string tempPath = null;
+
+			if (ext != ".addon" && ext != ".addon32" && ext != ".addon64")
+			{
+				UpdateStatus("Extracting " + addon.Name + " ...");
+
+				tempPath = Path.Combine(Path.GetTempPath(), "reshade-addons");
+
+				try
+				{
+					// Delete existing directories since extraction fails if the target is not empty
+					if (Directory.Exists(tempPath))
+					{
+						Directory.Delete(tempPath, true);
+					}
+
+					ZipFile.ExtractToDirectory(downloadPath, tempPath);
+
+					string addonPath = Directory.GetFiles(tempPath, currentInfo.is64Bit ? "*.addon64" : "*.addon32", SearchOption.AllDirectories).FirstOrDefault();
+					if (addonPath == null)
+					{
+						addonPath = Directory.GetFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(currentInfo.is64Bit ? "x64" : "x86"));
+					}
+					if (addonPath == null)
+					{
+						Directory.Delete(tempPath, true);
+						File.Delete(downloadPath);
+
+						throw new FileFormatException("Add-on archive is missing add-on binary.");
+					}
+
+					downloadPath = addonPath;
+				}
+				catch (Exception ex)
+				{
+					UpdateStatusAndFinish(false, "Failed to extract " + addon.Name + ":\n" + ex.Message);
+					return;
+				}
+			}
+
+			string targetAddonPath = Path.GetDirectoryName(currentInfo.targetPath);
+
+			var globalConfigPath = Path.Combine(targetAddonPath, "ReShade.ini");
 			if (File.Exists(globalConfigPath))
 			{
 				var globalConfig = new IniFile(globalConfigPath);
-				addonPath = globalConfig.GetString("ADDON", "AddonPath", addonPath);
+				targetAddonPath = globalConfig.GetString("ADDON", "AddonPath", targetAddonPath);
 			}
 
 			try
 			{
-				File.Copy(downloadPath, Path.Combine(addonPath, Path.GetFileNameWithoutExtension(tempPath != null ? downloadPath : new Uri(addon.DownloadUrl).AbsolutePath) + (is64Bit ? ".addon64" : ".addon32")), true);
+				File.Copy(downloadPath, Path.Combine(targetAddonPath, Path.GetFileNameWithoutExtension(tempPath != null ? downloadPath : new Uri(addon.DownloadUrl).AbsolutePath) + (currentInfo.is64Bit ? ".addon64" : ".addon32")), true);
 
 				File.Delete(downloadPath);
 				if (tempPath != null)
@@ -1625,146 +1622,22 @@ In that event here are some steps you can try to resolve this:
 				UpdateStatusAndFinish(false, "Failed to install " + addon.Name + ":\n" + ex.Message);
 				return;
 			}
-
-			if (addons.Count != 0)
-			{
-				InstallStep_DownloadAddon();
-			}
-			else
-			{
-				InstallStep_Finish();
-			}
 		}
 		void InstallStep_Finish()
 		{
-			UpdateStatusAndFinish(true, "Successfully installed ReShade." + (isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
-		}
-
-		void UninstallStep_UninstallReShadeModule()
-		{
-			if (targetApi == Api.Vulkan || targetOpenXR)
-			{
-				if (!isElevated)
-				{
-					Dispatcher.Invoke(() =>
-					{
-						if (!RestartWithElevatedPrivileges())
-						{
-							UpdateStatusAndFinish(false, "Failed to acquire elevated privileges to uninstall Vulkan layer.");
-						}
-					});
-					return;
-				}
-
-				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
-				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys))
-				{
-					var appKeysList = appKeys.ToList();
-					appKeysList.Remove(targetPath);
-					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
-
-					if (appKeysList.Count == 0)
-					{
-						try
-						{
-							Directory.Delete(commonPath, true);
-
-							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
-							{
-								key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
-								key.DeleteValue(Path.Combine(commonPath, "ReShade64.json"), false);
-							}
-
-							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\OpenXR\1\ApiLayers\Implicit"))
-							{
-								key.DeleteValue(Path.Combine(commonPath, "ReShade32_XR.json"), false);
-								key.DeleteValue(Path.Combine(commonPath, "ReShade64_XR.json"), false);
-							}
-
-							if (Environment.Is64BitOperatingSystem)
-							{
-								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\Vulkan\ImplicitLayers"))
-								{
-									key.DeleteValue(Path.Combine(commonPath, "ReShade32.json"), false);
-								}
-
-								using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Wow6432Node\Khronos\OpenXR\1\ApiLayers\Implicit"))
-								{
-									key.DeleteValue(Path.Combine(commonPath, "ReShade32_XR.json"), false);
-								}
-							}
-						}
-						catch (Exception ex)
-						{
-							UpdateStatusAndFinish(false, "Failed to delete Vulkan layer manifest:\n" + ex.Message);
-							return;
-						}
-					}
-					else
-					{
-						appConfig.SaveFile();
-					}
-				}
-			}
-
-			try
-			{
-				string basePath = Path.GetDirectoryName(configPath);
-
-				if (targetApi != Api.Vulkan && !targetOpenXR)
-				{
-					File.Delete(modulePath);
-				}
-
-				if (File.Exists(configPath))
-				{
-					File.Delete(configPath);
-				}
-
-				if (File.Exists(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log")))
-				{
-					File.Delete(Path.Combine(Path.GetDirectoryName(targetPath), "ReShade.log"));
-				}
-
-				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
-				{
-					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
-				}
-
-				// Delete all other existing ReShade installations too
-				foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
-				{
-					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
-
-					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
-					{
-						File.Delete(conflictingModulePath);
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				UpdateStatusAndFinish(false, "Failed to delete some ReShade files:\n" + ex.Message +
-					(operation != InstallOperation.Default ? "\n\nMake sure the target application is not still running!" : string.Empty));
-				return;
-			}
-
-			UninstallStep_Finish();
-		}
-		void UninstallStep_Finish()
-		{
-			UpdateStatusAndFinish(true, "Successfully uninstalled ReShade." + (isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
+			UpdateStatusAndFinish(true, (currentOperation != InstallOperation.Uninstall ? "Successfully installed ReShade." : "Successfully uninstalled ReShade.") +
+				(isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
 		}
 
 		void OnWindowInit(object sender, EventArgs e)
 		{
 			AeroGlass.HideIcon(this);
-			AeroGlass.HideSystemMenu(this, targetPath != null);
+			AeroGlass.HideSystemMenu(this, currentInfo.targetPath != null);
 		}
 
 		void OnNextButtonClick(object sender, RoutedEventArgs e)
 		{
-			if (operation == InstallOperation.Finished)
+			if (currentOperation == InstallOperation.Finished)
 			{
 				Close();
 				return;
@@ -1774,93 +1647,88 @@ In that event here are some steps you can try to resolve this:
 			{
 				appPage.Cancel();
 
-				targetPath = appPage.FileName;
+				currentInfo.targetPath = appPage.FileName;
 
-				InstallStep_CheckPrivileges();
+				if (!isElevated && !IsWritable(Path.GetDirectoryName(currentInfo.targetPath)))
+				{
+					RestartWithElevatedPrivileges();
+				}
+				else
+				{
+					RunTaskWithExceptionHandling(InstallStep_AnalyzeExecutable);
+				}
 				return;
 			}
 
 			if (CurrentPage.Content is SelectApiPage apiPage)
 			{
-				if (apiPage.ApiD3D9.IsChecked == true)
-				{
-					targetApi = Api.D3D9;
-				}
-				if (apiPage.ApiDXGI.IsChecked == true)
-				{
-					targetApi = Api.DXGI;
-				}
-				if (apiPage.ApiOpenGL.IsChecked == true)
-				{
-					targetApi = Api.OpenGL;
-				}
-				if (apiPage.ApiVulkan.IsChecked == true)
-				{
-					targetApi = Api.Vulkan;
-				}
-
-				if (apiPage.ApiOpenXR.IsChecked == true)
-				{
-					targetOpenXR = true;
-				}
+				currentInfo.targetApi = apiPage.SelectedApi;
+				currentInfo.targetOpenXR = apiPage.SelectedOpenXR;
 
 				RunTaskWithExceptionHandling(InstallStep_CheckExistingInstallation);
 				return;
 			}
 
-			if (CurrentPage.Content is SelectUninstallPage uninstallPage)
+			if (CurrentPage.Content is SelectOperationPage operationPage)
 			{
-				if (uninstallPage.UninstallButton.IsChecked == true)
+				currentOperation = operationPage.SelectedOperation;
+
+				switch (currentOperation)
 				{
-					operation = InstallOperation.Uninstall;
-
-					RunTaskWithExceptionHandling(UninstallStep_UninstallReShadeModule);
-				}
-				else
-				{
-					if (uninstallPage.UpdateButton.IsChecked == true)
-					{
-						operation = InstallOperation.Update;
-
-					}
-					if (uninstallPage.ModifyButton.IsChecked == true)
-					{
-						operation = InstallOperation.Modify;
-					}
-
-					RunTaskWithExceptionHandling(InstallStep_InstallReShadeModule);
+					case InstallOperation.Update:
+					case InstallOperation.UpdateWithEffects:
+						RunTaskWithExceptionHandling(InstallStep_InstallReShadeModule);
+						break;
+					case InstallOperation.Uninstall:
+						RunTaskWithExceptionHandling(InstallStep_UninstallReShadeModule);
+						break;
 				}
 				return;
 			}
 
-			if (CurrentPage.Content is SelectEffectsPage packagesPage)
+			if (CurrentPage.Content is SelectEffectsPage effectsPage)
 			{
-				packages = new Queue<EffectPackage>(packagesPage.SelectedItems);
-				presetPath = packagesPage.PresetPath;
+				currentInfo.presetPath = effectsPage.PresetPath;
 
-				if (packages.Count != 0)
+				var packages = new List<EffectPackage>(effectsPage.SelectedItems);
+
+				RunTaskWithExceptionHandling(() =>
 				{
-					RunTaskWithExceptionHandling(InstallStep_CheckPreset);
-				}
-				else
-				{
-					RunTaskWithExceptionHandling(InstallStep_CheckAddons);
-				}
+					InstallStep_CheckPreset();
+
+					foreach (EffectPackage package in packages)
+					{
+						InstallStep_DownloadEffectPackage(package);
+
+						if (currentOperation == InstallOperation.Finished)
+						{
+							return;
+						}
+					}
+
+					InstallStep_CheckAddons();
+				});
 				return;
 			}
 
 			if (CurrentPage.Content is SelectAddonsPage addonsPage)
 			{
-				addons = new Queue<Addon>(addonsPage.SelectedItems);
+				var addons = new List<Addon>(addonsPage.SelectedItems);
 
-				if (addons.Count != 0)
+				RunTaskWithExceptionHandling(() =>
 				{
-					RunTaskWithExceptionHandling(InstallStep_DownloadAddon);
-				}
-				else
-				{
+					foreach (Addon addon in addons)
+					{
+						InstallStep_DownloadAddon(addon);
+
+						if (currentOperation == InstallOperation.Finished)
+						{
+							return;
+						}
+					}
+
 					InstallStep_Finish();
-				}
+				});
 				return;
 			}
 		}
@@ -1878,7 +1746,7 @@ In that event here are some steps you can try to resolve this:
 				return;
 			}
 
-			if (operation == InstallOperation.Finished)
+			if (currentOperation == InstallOperation.Finished)
 			{
 				ResetStatus();
 				return;
@@ -1889,7 +1757,7 @@ In that event here are some steps you can try to resolve this:
 
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
-			bool isFinished = operation == InstallOperation.Finished;
+			bool isFinished = currentOperation == InstallOperation.Finished;
 
 			NextButton.Content = isFinished ? "_Finish" : "_Next";
 			CancelButton.Content = isFinished ? "_Back" : (e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";

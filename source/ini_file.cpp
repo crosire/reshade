@@ -200,10 +200,11 @@ bool ini_file::save()
 	file.imbue(std::locale("en-us.UTF-8"));
 
 	const std::string str = data.str();
-	const bool fail = !(file.write(str.data(), str.size()) && file.flush());
-	
+
 	// Flush stream to disk before updating last write time
-	if (file.close(); fail)
+	const bool fail = !(file.write(str.data(), str.size()) && file.flush());
+	file.close();
+	if (fail)
 		return false;
 
 	_modified_at = std::filesystem::last_write_time(_path, ec);
