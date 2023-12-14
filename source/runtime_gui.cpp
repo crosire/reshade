@@ -3308,13 +3308,9 @@ void reshade::runtime::draw_variable_editor()
 		{
 			// Reset all uniform variables
 			for (uniform &variable_it : effect.uniforms)
-			{
-				if (variable_it.special != special_uniform::none)
-					continue;
-				if (variable_it.annotation_as_uint("nosave") != 0)
-					continue;
-				reset_uniform_value(variable_it);
-			}
+				if (variable_it.special == special_uniform::none &&
+					variable_it.annotation_as_uint("noreset") == 0)
+					reset_uniform_value(variable_it);
 
 			// Reset all preprocessor definitions
 			if (const auto preset_it = _preset_preprocessor_definitions.find({});
@@ -3399,14 +3395,10 @@ void reshade::runtime::draw_variable_editor()
 						if (imgui::confirm_button(reset_category_button_label.c_str(), ImGui::GetContentRegionAvail().x, _("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
 						{
 							for (uniform &variable_it : effect.uniforms)
-							{
-								if (variable_it.special != special_uniform::none ||
-									variable_it.annotation_as_string("ui_category") != category)
-									continue;
-								if (variable_it.annotation_as_uint("nosave") != 0)
-									continue;
-								reset_uniform_value(variable_it);
-							}
+								if (variable_it.special == special_uniform::none &&
+									variable_it.annotation_as_string("ui_category") == category &&
+									variable_it.annotation_as_uint("noreset") == 0)
+									reset_uniform_value(variable_it);
 
 							if (_auto_save_preset)
 								save_current_preset();
@@ -3448,6 +3440,7 @@ void reshade::runtime::draw_variable_editor()
 			const std::string_view ui_type = variable.annotation_as_string("ui_type");
 
 			ImGui::PushID(static_cast<int>(id++));
+			ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
 
 			switch (variable.type.base)
 			{
@@ -3555,9 +3548,11 @@ void reshade::runtime::draw_variable_editor()
 			if (ImGui::IsItemHovered())
 				hovered_variable = variable_index + 1;
 
+			ImGui::EndDisabled();
+
 			// Display tooltip
 			if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
 			{
 				if (ImGui::BeginTooltip())
 				{
@@ -3588,7 +3583,8 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::EndPopup();
 			}
 
-			if (!is_default_value)
+			if (!is_default_value &&
+				variable.annotation_as_uint("noreset") == 0)
 			{
 				ImGui::SameLine();
 				if (ImGui::SmallButton(ICON_FK_UNDO))
@@ -3607,7 +3603,7 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::PopID();
 
 			// A value has changed, so save the current preset
-			if (modified)
+			if (modified && variable.annotation_as_uint("nosaved") == 0)
 			{
 				if (_auto_save_preset)
 					save_current_preset();
