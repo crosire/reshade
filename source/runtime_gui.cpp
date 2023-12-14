@@ -3923,6 +3923,7 @@ void reshade::runtime::draw_technique_editor()
 
 			// Gray out disabled techniques
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
+			ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
 
 			std::string label(get_localized_annotation(tech, "ui_label", _language));
 			if (label.empty())
@@ -3943,18 +3944,19 @@ void reshade::runtime::draw_technique_editor()
 					_preset_is_modified = true;
 			}
 
+			ImGui::EndDisabled();
 			ImGui::PopStyleColor();
 
 			if (ImGui::IsItemActive())
 				_selected_technique = index;
 			if (ImGui::IsItemClicked())
 				_focused_effect = tech.effect_index;
-			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 				hovered_technique_index = index;
 
 			// Display tooltip
 			if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
 			{
 				if (ImGui::BeginTooltip())
 				{
