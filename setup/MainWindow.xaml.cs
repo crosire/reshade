@@ -203,7 +203,7 @@ namespace ReShade.Setup
 				Directory.CreateDirectory(targetPath);
 			}
 
-			foreach (string source in Directory.GetFiles(sourcePath))
+			foreach (string source in Directory.EnumerateFiles(sourcePath))
 			{
 				string target = targetPath + source.Replace(sourcePath, string.Empty);
 
@@ -211,7 +211,7 @@ namespace ReShade.Setup
 			}
 
 			// Copy files recursively
-			foreach (string source in Directory.GetDirectories(sourcePath))
+			foreach (string source in Directory.EnumerateDirectories(sourcePath))
 			{
 				string target = targetPath + source.Replace(sourcePath, string.Empty);
 
@@ -281,17 +281,10 @@ namespace ReShade.Setup
 			}
 
 			// Filter out invalid search paths (and those with remaining wildcards that were not handled above)
-			var validSearchPaths = searchPaths.Where(searchPath => searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0);
+			var validSearchPaths = searchPaths.Where(searchPath => searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.IndexOf('*') < 0);
 
-			try
-			{
-				// Avoid adding duplicate search paths (relative or absolute)
-				if (validSearchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
-				{
-					return;
-				}
-			}
-			catch
+			// Avoid adding duplicate search paths (relative or absolute)
+			if (validSearchPaths.Any(searchPath => Path.GetFullPath(searchPath) == Path.GetFullPath(newPath)))
 			{
 				return;
 			}
@@ -328,6 +321,34 @@ namespace ReShade.Setup
 			}
 
 			iniFile.SaveFile();
+
+			Directory.SetCurrentDirectory(currentPath);
+		}
+		void GetEffectSearchPaths(out List<KeyValuePair<string, bool>> searchPaths)
+		{
+			const string wildcard = "**";
+
+			string basePath = Path.GetDirectoryName(currentInfo.configPath);
+
+			// Change current directory so that "Path.GetFullPath" resolves correctly
+			string currentPath = Directory.GetCurrentDirectory();
+			Directory.SetCurrentDirectory(basePath);
+
+			var iniFile = new IniFile(currentInfo.configPath);
+
+			if (iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths))
+			{
+				searchPaths = effectSearchPaths
+					.Where(searchPath => !string.IsNullOrWhiteSpace(searchPath))
+					.Select(searchPath => searchPath.EndsWith(wildcard) ? new KeyValuePair<string, bool>(searchPath.Remove(searchPath.Length - wildcard.Length), true) : new KeyValuePair<string, bool>(searchPath, false))
+					.Where(searchPath => searchPath.Key.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.Key.IndexOf('*') < 0)
+					.Select(searchPath => new KeyValuePair<string, bool>(Path.GetFullPath(searchPath.Key), searchPath.Value))
+					.ToList();
+			}
+			else
+			{
+				searchPaths = new List<KeyValuePair<string, bool>>();
+			}
 
 			Directory.SetCurrentDirectory(currentPath);
 		}
@@ -1334,6 +1355,9 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(currentInfo.modulePath);
 				}
 
+				// Read search paths from config file before deleting it
+				GetEffectSearchPaths(out List<KeyValuePair<string, bool>> effectSearchPaths);
+
 				if (File.Exists(currentInfo.configPath))
 				{
 					File.Delete(currentInfo.configPath);
@@ -1344,9 +1368,25 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"));
 				}
 
-				if (Directory.Exists(Path.Combine(basePath, "reshade-shaders")))
+				foreach (var searchPath in effectSearchPaths)
 				{
-					Directory.Delete(Path.Combine(basePath, "reshade-shaders"), true);
+					if (searchPath.Key.StartsWith(basePath) && Directory.Exists(searchPath.Key))
+					{
+						string[] extensions = { "*.fx", "*.fxh" };
+
+						foreach (string effectFile in extensions.SelectMany(ext => Directory.EnumerateFiles(searchPath.Key, ext, searchPath.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)))
+						{
+							File.Delete(effectFile);
+						}
+
+						foreach (string parentPath in Directory.EnumerateDirectories(searchPath.Key, "*", searchPath.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly).Union(new string[] { searchPath.Key }).OrderByDescending(path => path.Length))
+						{
+							if (Directory.EnumerateFiles(parentPath, "*", SearchOption.AllDirectories).Any() == false)
+							{
+								Directory.Delete(parentPath, false);
+							}
+						}
+					}
 				}
 
 				// Delete all other existing ReShade installations too
@@ -1413,7 +1453,7 @@ In that event here are some steps you can try to resolve this:
 		{
 			UpdateStatus("Extracting " + package.Name + " ...");
 
-			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders");
+			string tempPath = Path.Combine(Path.GetTempPath(), "ReShadeSetup");
 			string tempPathEffects = null;
 			string tempPathTextures = null;
 
@@ -1434,8 +1474,8 @@ In that event here are some steps you can try to resolve this:
 				string[] effects = Directory.GetFiles(tempPath, "*.fx", SearchOption.AllDirectories);
 
 				// First check for a standard directory name
-				tempPathEffects = Directory.GetDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
-				tempPathTextures = Directory.GetDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
+				tempPathEffects = Directory.EnumerateDirectories(tempPath, "Shaders", SearchOption.AllDirectories).FirstOrDefault();
+				tempPathTextures = Directory.EnumerateDirectories(tempPath, "Textures", SearchOption.AllDirectories).FirstOrDefault();
 
 				// If that does not exist, look for the first directory that contains shaders/textures
 				if (tempPathEffects == null)
@@ -1444,15 +1484,12 @@ In that event here are some steps you can try to resolve this:
 				}
 				if (tempPathTextures == null)
 				{
-					string[] tempTextureExtensions = { "*.png", "*.jpg", "*.jpeg" };
+					string[] extensions = { "*.png", "*.jpg", "*.jpeg" };
 
-					foreach (string extension in tempTextureExtensions)
+					string path = extensions.SelectMany(ext => Directory.EnumerateFiles(tempPath, ext, SearchOption.AllDirectories)).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
+					if (!string.IsNullOrEmpty(path))
 					{
-						string path = Directory.GetFiles(tempPath, extension, SearchOption.AllDirectories).Select(x => Path.GetDirectoryName(x)).OrderBy(x => x.Length).FirstOrDefault();
-						if (!string.IsNullOrEmpty(path))
-						{
-							tempPathTextures = tempPathTextures != null ? tempPathTextures.Union(path).ToString() : path;
-						}
+						tempPathTextures = tempPathTextures != null ? tempPathTextures.Union(path).ToString() : path;
 					}
 				}
 
@@ -1576,10 +1613,10 @@ In that event here are some steps you can try to resolve this:
 
 					ZipFile.ExtractToDirectory(downloadPath, tempPath);
 
-					string addonPath = Directory.GetFiles(tempPath, currentInfo.is64Bit ? "*.addon64" : "*.addon32", SearchOption.AllDirectories).FirstOrDefault();
+					string addonPath = Directory.EnumerateFiles(tempPath, currentInfo.is64Bit ? "*.addon64" : "*.addon32", SearchOption.AllDirectories).FirstOrDefault();
 					if (addonPath == null)
 					{
-						addonPath = Directory.GetFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(currentInfo.is64Bit ? "x64" : "x86"));
+						addonPath = Directory.EnumerateFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(currentInfo.is64Bit ? "x64" : "x86"));
 					}
 					if (addonPath == null)
 					{
