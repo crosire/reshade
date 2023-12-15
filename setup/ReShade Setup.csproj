@@ -100,12 +100,12 @@
     <Compile Include="Pages\SelectEffectsPage.xaml.cs">
       <DependentUpon>SelectEffectsPage.xaml</DependentUpon>
     </Compile>
-    <Page Include="Pages\SelectUninstallPage.xaml">
+    <Page Include="Pages\SelectOperationPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Compile Include="Pages\SelectUninstallPage.xaml.cs">
-      <DependentUpon>SelectUninstallPage.xaml</DependentUpon>
+    <Compile Include="Pages\SelectOperationPage.xaml.cs">
+      <DependentUpon>SelectOperationPage.xaml</DependentUpon>
     </Compile>
     <Page Include="Pages\StatusPage.xaml">
       <SubType>Designer</SubType>

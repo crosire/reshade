@@ -38,7 +38,7 @@ namespace ReShade.Setup.Pages
 
 	public partial class SelectAddonsPage : Page
 	{
-		public SelectAddonsPage()
+		public SelectAddonsPage(bool is64Bit)
 		{
 			InitializeComponent();
 			DataContext = this;
@@ -62,7 +62,7 @@ namespace ReShade.Setup.Pages
 								string downloadUrl = addonsIni.GetString(addon, "DownloadUrl");
 								if (string.IsNullOrEmpty(downloadUrl))
 								{
-									downloadUrl = addonsIni.GetString(addon, MainWindow.is64Bit ? "DownloadUrl64" : "DownloadUrl32");
+									downloadUrl = addonsIni.GetString(addon, is64Bit ? "DownloadUrl64" : "DownloadUrl32");
 								}
 
 								var item = new Addon
@@ -77,7 +77,7 @@ namespace ReShade.Setup.Pages
 							}
 						}
 					}
-					catch
+					catch (WebException)
 					{
 						// Ignore if this list failed to download, since setup can still proceed without it
 					}

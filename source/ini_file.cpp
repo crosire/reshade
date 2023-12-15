@@ -119,7 +119,7 @@ bool ini_file::save()
 
 	std::error_code ec;
 	const std::filesystem::file_time_type modified_at = std::filesystem::last_write_time(_path, ec);
-	if (!ec && modified_at > _modified_at)
+	if (!ec && (modified_at - _modified_at) > std::chrono::seconds(2))
 		return false; // File exists and was modified on disk and therefore may have different data, so cannot save
 
 	std::stringstream data;
@@ -200,11 +200,13 @@ bool ini_file::save()
 	file.imbue(std::locale("en-us.UTF-8"));
 
 	const std::string str = data.str();
-	if (!file.write(str.data(), str.size()))
-		return false;
 
 	// Flush stream to disk before updating last write time
+	const bool fail = !(file.write(str.data(), str.size()) && file.flush());
 	file.close();
+	if (fail)
+		return false;
+
 	_modified_at = std::filesystem::last_write_time(_path, ec);
 
 	assert(!ec && std::filesystem::file_size(_path, ec) > 0);
