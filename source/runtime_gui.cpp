@@ -3318,7 +3318,7 @@ void reshade::runtime::draw_variable_editor()
 		{
 			// Reset all uniform variables
 			for (uniform &variable_it : effect.uniforms)
-				if (variable_it.special == special_uniform::none)
+				if (variable_it.special == special_uniform::none && !variable_it.annotation_as_uint("noreset"))
 					reset_uniform_value(variable_it);
 
 			// Reset all preprocessor definitions
@@ -3404,7 +3404,7 @@ void reshade::runtime::draw_variable_editor()
 						if (imgui::confirm_button(reset_category_button_label.c_str(), ImGui::GetContentRegionAvail().x, _("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
 						{
 							for (uniform &variable_it : effect.uniforms)
-								if (variable_it.special == special_uniform::none &&
+								if (variable_it.special == special_uniform::none && !variable_it.annotation_as_uint("noreset") &&
 									variable_it.annotation_as_string("ui_category") == category)
 									reset_uniform_value(variable_it);
 
@@ -3462,6 +3462,8 @@ void reshade::runtime::draw_variable_editor()
 				is_default_value = std::memcmp(value.as_float, variable.initializer_value.as_float, variable.type.components() * sizeof(float)) == 0;
 				break;
 			}
+
+			ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
 
 			if (invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this, api::effect_uniform_variable{ reinterpret_cast<uintptr_t>(&variable) }))
 			{
@@ -3577,6 +3579,8 @@ void reshade::runtime::draw_variable_editor()
 				}
 			}
 
+			ImGui::EndDisabled();
+
 			if (ImGui::IsItemActive())
 				active_variable = variable_index + 1;
 			if (ImGui::IsItemHovered())
@@ -3584,7 +3588,7 @@ void reshade::runtime::draw_variable_editor()
 
 			// Display tooltip
 			if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
 			{
 				if (ImGui::BeginTooltip())
 				{
@@ -3615,7 +3619,7 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::EndPopup();
 			}
 
-			if (!is_default_value)
+			if (!is_default_value && !variable.annotation_as_uint("noreset"))
 			{
 				ImGui::SameLine();
 				if (ImGui::SmallButton(ICON_FK_UNDO))
@@ -3634,7 +3638,7 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::PopID();
 
 			// A value has changed, so save the current preset
-			if (modified)
+			if (modified && !variable.annotation_as_uint("nosave"))
 			{
 				if (_auto_save_preset)
 					save_current_preset();
@@ -3956,6 +3960,8 @@ void reshade::runtime::draw_technique_editor()
 			// Prevent user from disabling the technique when it is set to always be enabled via annotation
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
+			ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
+
 			if (bool was_enabled = tech.enabled;
 				invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
 			{
@@ -3985,16 +3991,18 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::PopStyleColor();
 			}
 
+			ImGui::EndDisabled();
+
 			if (ImGui::IsItemActive())
 				_selected_technique = index;
 			if (ImGui::IsItemClicked())
 				_focused_effect = tech.effect_index;
-			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 				hovered_technique_index = index;
 
 			// Display tooltip
 			if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
 			{
 				if (ImGui::BeginTooltip())
 				{
