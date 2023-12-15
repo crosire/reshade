@@ -1240,7 +1240,7 @@ void reshade::runtime::load_current_preset()
 		for (uniform &variable : effect.uniforms)
 		{
 			if (variable.special != special_uniform::none ||
-				variable.annotation_as_uint("nosaved") != 0)
+				variable.annotation_as_uint("nosave"))
 				continue;
 
 			if (variable.supports_toggle_key())
@@ -1318,7 +1318,7 @@ void reshade::runtime::save_current_preset() const
 	{
 		const technique &tech = _techniques[technique_index];
 
-		if (tech.annotation_as_uint("nosaved") != 0)
+		if (tech.annotation_as_uint("nosave"))
 			continue;
 
 		const std::string unique_name = tech.name + '@' + _effects[tech.effect_index].source_file.filename().u8string();
@@ -1367,7 +1367,7 @@ void reshade::runtime::save_current_preset() const
 		for (const uniform &variable : effect.uniforms)
 		{
 			if (variable.special != special_uniform::none ||
-				variable.annotation_as_uint("nosaved") != 0)
+				variable.annotation_as_uint("nosave"))
 				continue;
 
 			if (variable.supports_toggle_key())
