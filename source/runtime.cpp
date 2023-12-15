@@ -549,7 +549,7 @@ bool reshade::runtime::on_init()
 
 	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
 	if (window != nullptr)
-		utils::set_window_transparency(window, global_config().get("APP", "EnableTransparency"));
+		utils::set_window_transparency(window, false);
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_frame_count = 0;
