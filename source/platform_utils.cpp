@@ -21,7 +21,7 @@ bool reshade::utils::open_explorer(const std::filesystem::path &path)
 	return ShellExecuteW(nullptr, L"open", explorer_path, (L"/select,\"" + path.wstring() + L"\"").c_str(), nullptr, SW_SHOWDEFAULT) != nullptr;
 }
 
-bool reshade::utils::execute_command(const std::string &command_line, const std::filesystem::path &working_directory, bool no_window)
+bool reshade::utils::execute_command(const std::string &command_line, const std::filesystem::path &working_directory, bool hide_window)
 {
 	std::wstring command_line_wide;
 	command_line_wide.reserve(command_line.size());
@@ -35,7 +35,7 @@ bool reshade::utils::execute_command(const std::string &command_line, const std:
 	DWORD process_creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
 	STARTUPINFOW si = { sizeof(si) };
 	PROCESS_INFORMATION pi = { 0 };
-	if (no_window)
+	if (hide_window)
 	{
 		process_creation_flags |= CREATE_NO_WINDOW;
 

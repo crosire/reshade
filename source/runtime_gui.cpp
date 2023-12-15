@@ -2110,7 +2110,7 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 		modified |= imgui::directory_input_box(_("Post-save command working directory"), _screenshot_post_save_command_working_directory, _file_selection_path);
-		modified |= ImGui::Checkbox(_("Hide post-save command window"), &_screenshot_post_save_command_no_window);
+		modified |= ImGui::Checkbox(_("Hide post-save command window"), &_screenshot_post_save_command_hide_window);
 	}
 
 	if (ImGui::CollapsingHeader(_("Overlay & Styling"), ImGuiTreeNodeFlags_DefaultOpen))

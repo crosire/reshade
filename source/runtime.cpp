@@ -1058,7 +1058,7 @@ void reshade::runtime::load_config()
 	config_get("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config_get("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
 	config_get("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
-	config_get("SCREENSHOT", "PostSaveCommandNoWindow", _screenshot_post_save_command_no_window);
+	config_get("SCREENSHOT", "PostSaveCommandHideWindow", _screenshot_post_save_command_hide_window);
 
 #if RESHADE_GUI
 	load_config_gui(config);
@@ -1126,7 +1126,7 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "PostSaveCommand", _screenshot_post_save_command);
 	config.set("SCREENSHOT", "PostSaveCommandArguments", _screenshot_post_save_command_arguments);
 	config.set("SCREENSHOT", "PostSaveCommandWorkingDirectory", _screenshot_post_save_command_working_directory);
-	config.set("SCREENSHOT", "PostSaveCommandNoWindow", _screenshot_post_save_command_no_window);
+	config.set("SCREENSHOT", "PostSaveCommandHideWindow", _screenshot_post_save_command_hide_window);
 
 #if RESHADE_GUI
 	save_config_gui(config);
@@ -5030,7 +5030,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		});
 	}
 
-	if (!utils::execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_no_window))
+	if (!utils::execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_hide_window))
 	{
 		LOG(ERROR) << "Failed to execute screenshot post-save command!";
 		return false;

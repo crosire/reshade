@@ -17,7 +17,7 @@ namespace reshade::utils
 	/// <summary>
 	/// Executes the specified command as a new process, with basic (not elevated) user privileges.
 	/// </summary>
-	bool execute_command(const std::string &command_line, const std::filesystem::path &working_directory = L".", bool no_window = false);
+	bool execute_command(const std::string &command_line, const std::filesystem::path &working_directory = L".", bool hide_window = false);
 
 	/// <summary>
 	/// Plays the specified audio file asynchronously.

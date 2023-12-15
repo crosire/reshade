@@ -369,7 +369,7 @@ namespace reshade
 		std::filesystem::path _screenshot_post_save_command;
 		std::string _screenshot_post_save_command_arguments;
 		std::filesystem::path _screenshot_post_save_command_working_directory;
-		bool _screenshot_post_save_command_no_window = false;
+		bool _screenshot_post_save_command_hide_window = false;
 
 		bool _should_save_screenshot = false;
 		std::atomic<bool> _last_screenshot_save_successful = true;
