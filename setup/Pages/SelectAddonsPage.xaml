@@ -15,7 +15,7 @@
     <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       Check all add-ons you want to install or update. Add-ons not checked here will not be installed or are left untouched when updating.
     </TextBlock>
-    <ListBox x:Name="ItemsListBox" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
+    <ListBox x:Name="ItemsListBox" x:FieldModifier="private" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <Grid Margin="0,3">

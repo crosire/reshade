@@ -223,8 +223,6 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 
 	// Try to find a unique configuration name for this effect runtime instance
 	std::string config_name = "ReShade";
-	if (g_reshade_base_path != g_target_executable_path.parent_path())
-		config_name += '_' + g_target_executable_path.stem().u8string() + '_';
 	if (is_vr)
 		config_name += "VR";
 	{

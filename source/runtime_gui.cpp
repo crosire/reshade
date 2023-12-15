@@ -68,7 +68,7 @@ static std::string_view get_localized_annotation(T &object, const std::string_vi
 		std::replace(language.begin(), language.end(), '-', '_');
 		std::transform(language.begin(), language.end(), language.begin(),
 			[](std::string::value_type c) {
-				return static_cast<std::string::value_type>(std::tolower(c));
+				return static_cast<std::string::value_type>(tolower(c));
 			});
 
 		for (int attempt = 0; attempt < 2; ++attempt)
@@ -3448,44 +3448,41 @@ void reshade::runtime::draw_variable_editor()
 			ImGui::PushID(static_cast<int>(id++));
 			ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
 
-			reshadefx::constant before = { 0 }, after = { 0 };
+			reshadefx::constant value;
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_bool:
-				get_uniform_value(variable, reinterpret_cast<bool *>(before.as_uint), variable.type.components());
-				is_default_value = before.as_uint[0] == static_cast<uint32_t>(variable.initializer_value.as_uint[0] != 0);
+				get_uniform_value(variable, reinterpret_cast<bool *>(value.as_uint), variable.type.components());
+				is_default_value = (value.as_uint[0] != 0) == (variable.initializer_value.as_uint[0] != 0);
 				break;
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
-				get_uniform_value(variable, before.as_int, variable.type.components());
-				is_default_value = std::memcmp(before.as_int, variable.initializer_value.as_int, variable.type.components() * sizeof(int)) == 0;
+				get_uniform_value(variable, value.as_int, variable.type.components());
+				is_default_value = std::memcmp(value.as_int, variable.initializer_value.as_int, variable.type.components() * sizeof(int)) == 0;
 				break;
 			case reshadefx::type::t_float:
-				get_uniform_value(variable, before.as_float, variable.type.components());
-				is_default_value = std::memcmp(before.as_float, variable.initializer_value.as_float, variable.type.components() * sizeof(float)) == 0;
+				get_uniform_value(variable, value.as_float, variable.type.components());
+				is_default_value = std::memcmp(value.as_float, variable.initializer_value.as_float, variable.type.components() * sizeof(float)) == 0;
 				break;
 			}
-			after = before;
 
-			const bool addon_input = invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this,
-				api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) });
-			
-			if (addon_input)
+			if (invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this, api::effect_uniform_variable{ reinterpret_cast<uintptr_t>(&variable) }))
 			{
+				reshadefx::constant new_value;
 				switch (variable.type.base)
 				{
 				case reshadefx::type::t_bool:
-					get_uniform_value(variable, reinterpret_cast<bool *>(before.as_uint), variable.type.components());
-					modified = before.as_uint[0] != after.as_uint[0];
+					get_uniform_value(variable, reinterpret_cast<bool *>(new_value.as_uint), variable.type.components());
+					modified = new_value.as_uint[0] != value.as_uint[0];
 					break;
 				case reshadefx::type::t_int:
 				case reshadefx::type::t_uint:
-					get_uniform_value(variable, before.as_int, variable.type.components());
-					modified = std::memcmp(before.as_int, after.as_int, variable.type.components() * sizeof(int)) != 0;
+					get_uniform_value(variable, new_value.as_int, variable.type.components());
+					modified = std::memcmp(new_value.as_int, value.as_int, variable.type.components() * sizeof(int)) != 0;
 					break;
 				case reshadefx::type::t_float:
-					get_uniform_value(variable, before.as_float, variable.type.components());
-					modified = std::memcmp(before.as_float, after.as_float, variable.type.components() * sizeof(float)) != 0;
+					get_uniform_value(variable, new_value.as_float, variable.type.components());
+					modified = std::memcmp(new_value.as_float, value.as_float, variable.type.components() * sizeof(float)) != 0;
 					break;
 				}
 			}
@@ -3501,12 +3498,12 @@ void reshade::runtime::draw_variable_editor()
 					case reshadefx::type::t_bool:
 					{
 						if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool &>(after.as_uint));
+							modified = imgui::combo_with_buttons(label.data(), *reinterpret_cast<bool *>(value.as_uint));
 						else
-							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(after.as_uint));
+							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(value.as_uint));
 
 						if (modified)
-							set_uniform_value(variable, reinterpret_cast<bool *>(after.as_uint));
+							set_uniform_value(variable, reinterpret_cast<bool *>(value.as_uint));
 						break;
 					}
 					case reshadefx::type::t_int:
@@ -3522,25 +3519,25 @@ void reshade::runtime::draw_variable_editor()
 						format.append(units);
 
 						if (ui_type == "slider")
-							modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
+							modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 						else if (ui_type == "drag")
 							modified = variable.annotation_as_int("ui_step") == 0 ?
-								ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
-								imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
+								ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
+								imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 						else if (ui_type == "list")
-							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), after.as_int[0]);
+							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), value.as_int[0]);
 						else if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), after.as_int[0]);
+							modified = imgui::combo_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), value.as_int[0]);
 						else if (ui_type == "radio")
-							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _language), after.as_int[0]);
+							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _language), value.as_int[0]);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
-								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &after.as_int[variable.type.cols * row], variable.type.cols) || modified;
+								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &value.as_int[variable.type.cols * row], variable.type.cols) || modified;
 						else
-							modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, after.as_int, variable.type.rows);
+							modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows);
 
 						if (modified)
-							set_uniform_value(variable, after.as_int, variable.type.components());
+							set_uniform_value(variable, value.as_int, variable.type.components());
 						break;
 					}
 					case reshadefx::type::t_float:
@@ -3559,25 +3556,25 @@ void reshade::runtime::draw_variable_editor()
 						precision_format.append(units);
 
 						if (ui_type == "slider")
-							modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
+							modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, value.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 						else if (ui_type == "drag")
 							modified = variable.annotation_as_float("ui_step") == 0.0f ?
-								ImGui::DragScalarN(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str()) :
-								imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
+								ImGui::DragScalarN(label.data(), ImGuiDataType_Float, value.as_float, variable.type.rows, ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str()) :
+								imgui::drag_with_buttons(label.data(), ImGuiDataType_Float, value.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
 						else if (ui_type == "color" && variable.type.rows == 1)
-							modified = imgui::slider_for_alpha_value(label.data(), after.as_float);
+							modified = imgui::slider_for_alpha_value(label.data(), value.as_float);
 						else if (ui_type == "color" && variable.type.rows == 3)
-							modified = ImGui::ColorEdit3(label.data(), after.as_float, ImGuiColorEditFlags_NoOptions);
+							modified = ImGui::ColorEdit3(label.data(), value.as_float, ImGuiColorEditFlags_NoOptions);
 						else if (ui_type == "color" && variable.type.rows == 4)
-							modified = ImGui::ColorEdit4(label.data(), after.as_float, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
+							modified = ImGui::ColorEdit4(label.data(), value.as_float, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
-								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), ImGuiDataType_Float, &after.as_float[variable.type.cols * row], variable.type.cols) || modified;
+								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), ImGuiDataType_Float, &value.as_float[variable.type.cols * row], variable.type.cols) || modified;
 						else
-							modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, after.as_float, variable.type.rows);
+							modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, value.as_float, variable.type.rows);
 
 						if (modified)
-							set_uniform_value(variable, after.as_float, variable.type.components());
+							set_uniform_value(variable, value.as_float, variable.type.components());
 						break;
 					}
 				}
@@ -3951,7 +3948,6 @@ void reshade::runtime::draw_technique_editor()
 				continue;
 
 			bool modified = false;
-			bool before = tech.enabled;
 
 			ImGui::PushID(static_cast<int>(index));
 
@@ -3966,9 +3962,10 @@ void reshade::runtime::draw_technique_editor()
 			// Prevent user from disabling the technique when it is set to always be enabled via annotation
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
-			if (reshade::invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
+			if (bool was_enabled = tech.enabled;
+				invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
 			{
-				modified = tech.enabled != before;
+				modified = tech.enabled != was_enabled;
 			}
 			else
 			{

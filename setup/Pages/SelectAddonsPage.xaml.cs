@@ -77,7 +77,7 @@ namespace ReShade.Setup.Pages
 							}
 						}
 					}
-					catch
+					catch (WebException)
 					{
 						// Ignore if this list failed to download, since setup can still proceed without it
 					}
