@@ -166,151 +166,110 @@ void reshade::runtime::build_font_atlas()
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
 
+	std::error_code ec;
+	std::filesystem::path resolved_font_path;
+
 #if RESHADE_LOCALIZATION
 	std::string language = _language;
 	if (language.empty())
 		language = resources::get_current_language();
+	const ImWchar *glyph_ranges = nullptr;
 
 	if (language.find("bg") == 0)
 	{
+		glyph_ranges = atlas->GetGlyphRangesCyrillic();
+
 		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
-		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = atlas->GetGlyphRangesCyrillic();
-	}
-	else
-	if (language.find("el") == 0)
-	{
-		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
-		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = atlas->GetGlyphRangesGreek();
 	}
 	else
 	if (language.find("ja") == 0)
 	{
-		// Morisawa BIZ UDGothic Regular
-		// Available since Windows 10 October 2018 Update (1809) Build 17763.1
-		if (std::filesystem::exists(L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc"))
-		{
+		glyph_ranges = atlas->GetGlyphRangesJapanese();
+
+		_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
+
+		// Morisawa BIZ UDGothic Regular, available since Windows 10 October 2018 Update (1809) Build 17763.1
+		if (std::filesystem::exists(L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc", ec))
 			_default_font_path = L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
-			_default_latin_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc";
-		}
-		else
-		{
-			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
-			_default_latin_font_path = _default_font_path;
-		}
-		_language_glyph_ranges = atlas->GetGlyphRangesJapanese();
-	}
-	else
-	if (language.find("ko") == 0)
-	{
-		_default_font_path = L"C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
-		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = atlas->GetGlyphRangesKorean();
-	}
-	else
-	if (language.find("vi") == 0)
-	{
-		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
-		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = atlas->GetGlyphRangesVietnamese();
 	}
 	else
 	if (language.find("zh") == 0)
 	{
+		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
+
 		_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
-		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 	}
 	else
 #endif
 	{
-		_default_font_path = L"ProggyClean.ttf";
-		_default_latin_font_path = _default_font_path;
-		_language_glyph_ranges = atlas->GetGlyphRangesDefault();
+		glyph_ranges = atlas->GetGlyphRangesDefault();
+
+		_default_font_path.clear();
 	}
 
 	// Set default editor font
-	{
-		if (std::filesystem::exists(L"C:\\Windows\\Fonts\\CascadiaMono.ttf"))
-			_default_editor_font_path = L"C:\\Windows\\Fonts\\CascadiaMono.ttf";
-		else
-			_default_editor_font_path = L"ProggyClean.ttf";
-	}
+	if (std::filesystem::exists(L"C:\\Windows\\Fonts\\CascadiaMono.ttf"))
+		_default_editor_font_path = L"C:\\Windows\\Fonts\\CascadiaMono.ttf";
 
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
-	const bool latin_font_enabled = _language_glyph_ranges != atlas->GetGlyphRangesDefault();
+
+	ImFontConfig cfg;
+	cfg.SizePixels = static_cast<float>(_font_size);
 
 	// Add latin font
-	std::filesystem::path resolved_latin_font_path = _latin_font_path;
+	resolved_font_path = _latin_font_path;
+	if (!_default_font_path.empty())
 	{
-		ImFontConfig cfg;
-		cfg.SizePixels = static_cast<float>(_font_size);
-
-		std::error_code ec;
-		if (resolved_latin_font_path.empty() && !_default_latin_font_path.empty())
-			resolved_latin_font_path = _default_latin_font_path;
-		if (resolved_latin_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
-			atlas->AddFontDefault(&cfg);
-		else
-		if (!resolved_latin_font_path.empty() && (!resolve_path(resolved_latin_font_path, ec) || atlas->AddFontFromFileTTF(resolved_latin_font_path.u8string().c_str(), cfg.SizePixels, &cfg, atlas->GetGlyphRangesDefault()) == nullptr))
+		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, atlas->GetGlyphRangesDefault()) != nullptr))
 		{
-			LOG(ERROR) << "Failed to load latin font from " << resolved_latin_font_path << " with error code " << ec.value() << '!';
-			resolved_latin_font_path.clear();
+			LOG(ERROR) << "Failed to load latin font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			resolved_font_path.clear();
 		}
+
+		if ( resolved_font_path.empty())
+			atlas->AddFontDefault(&cfg);
+
+		cfg.MergeMode = true;
 	}
 
 	// Add main font
-	std::filesystem::path resolved_font_path = _font_path;
+	resolved_font_path = _font_path.empty() ? _default_font_path : _font_path;
 	{
-		ImFontConfig cfg;
-		cfg.MergeMode = !atlas->Fonts.empty();
-		cfg.SizePixels = static_cast<float>(_font_size);
-
-		std::error_code ec;
-		if (resolved_font_path.empty() && !_default_font_path.empty())
-			resolved_font_path = _default_font_path;
-		if (resolved_font_path.stem().wstring().find(L"ProggyClean") != std::string::npos)
-			atlas->AddFontDefault(&cfg);
-		else
-		if (!resolved_font_path.empty() && (!resolve_path(resolved_font_path, ec) || atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges)) == nullptr))
+		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, glyph_ranges) != nullptr))
 		{
 			LOG(ERROR) << "Failed to load font from " << resolved_font_path << " with error code " << ec.value() << '!';
 			resolved_font_path.clear();
 		}
 
 		// Use default font if custom font failed to load
-		if (resolved_font_path.empty())
+		if ( resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 
 		// Merge icons into main font
-		ImFontConfig icon_config;
-		icon_config.MergeMode = true;
-		icon_config.PixelSnapH = true;
-		icon_config.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
+		cfg.MergeMode = true;
+		cfg.PixelSnapH = true;
+		cfg.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
+
 		// This need to be static so that it doesn't fall out of scope before the atlas is built below
 		static constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
 
-		atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &icon_config, icon_ranges);
+		atlas->AddFontFromMemoryCompressedBase85TTF(FONT_ICON_BUFFER_NAME_FK, cfg.SizePixels, &cfg, icon_ranges);
 	}
 
 	// Add editor font
+	resolved_font_path = _editor_font_path.empty() ? _default_editor_font_path : _editor_font_path;
+	if (resolved_font_path != _font_path || _editor_font_size != _font_size)
 	{
-		ImFontConfig cfg;
+		cfg = ImFontConfig();
 		cfg.SizePixels = static_cast<float>(_editor_font_size);
 
-		std::error_code ec;
-		std::filesystem::path resolved_editor_font_path = _editor_font_path;
-		if (resolved_editor_font_path.empty() && !_default_editor_font_path.empty())
-			resolved_editor_font_path = _default_editor_font_path;
-		if (resolved_editor_font_path != (latin_font_enabled ? resolved_latin_font_path : resolved_font_path) &&
-			!resolved_editor_font_path.empty() && (!resolve_path(resolved_editor_font_path, ec) || atlas->AddFontFromFileTTF(resolved_editor_font_path.u8string().c_str(), cfg.SizePixels, &cfg, reinterpret_cast<const ImWchar *>(_language_glyph_ranges)) == nullptr))
+		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, glyph_ranges) != nullptr))
 		{
-			LOG(ERROR) << "Failed to load editor font from " << resolved_editor_font_path << " with error code " << ec.value() << '!';
-			resolved_editor_font_path.clear();
+			LOG(ERROR) << "Failed to load editor font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			resolved_font_path.clear();
 		}
 
-		if (resolved_editor_font_path.empty())
+		if ( resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 	}
 
@@ -331,9 +290,9 @@ void reshade::runtime::build_font_atlas()
 		atlas->Clear();
 
 		// If unable to build font atlas due to an invalid custom font, revert to the default font
-		for (int i = 0; i < 2; ++i)
+		for (int i = 0; i < (_editor_font_size != _font_size ? 2 : 1); ++i)
 		{
-			ImFontConfig cfg;
+			cfg = ImFontConfig();
 			cfg.SizePixels = static_cast<float>(i == 0 ? _font_size : _editor_font_size);
 
 			atlas->AddFontDefault(&cfg);
@@ -2322,20 +2281,20 @@ void reshade::runtime::draw_gui_settings()
 		}
 		#pragma endregion
 
-		if (imgui::font_input_box(_("Global font"), _default_font_path.u8string().c_str(), _font_path, _file_selection_path, _font_size))
+		if (imgui::font_input_box(_("Global font"), _default_font_path.empty() ? "ProggyClean.ttf" : _default_font_path.u8string().c_str(), _font_path, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (_language_glyph_ranges != _imgui_context->IO.Fonts->GetGlyphRangesDefault() &&
-			imgui::font_input_box(_("Latin font"), _default_latin_font_path.u8string().c_str(), _latin_font_path, _file_selection_path, _font_size))
+		if (_imgui_context->IO.Fonts->Fonts[0]->ConfigDataCount > 2 && // Latin font + main font + icon font
+			imgui::font_input_box(_("Latin font"), "ProggyClean.ttf", _latin_font_path, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path.u8string().c_str(), _editor_font_path, _file_selection_path, _editor_font_size))
+		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path.empty() ? "ProggyClean.ttf" : _default_editor_font_path.u8string().c_str(), _editor_font_path, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;

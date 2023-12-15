@@ -468,12 +468,6 @@ namespace reshade
 
 		api::resource _vr_overlay_tex = {};
 		api::resource_view _vr_overlay_target = {};
-
-		// Used for hint and temporal
-		const void *_language_glyph_ranges; // 'const ImWchar *'
-		std::filesystem::path _default_font_path;
-		std::filesystem::path _default_latin_font_path;
-		std::filesystem::path _default_editor_font_path;
 		#pragma endregion
 
 		#pragma region Overlay Home
@@ -503,9 +497,9 @@ namespace reshade
 		int _editor_font_size = 0;
 		int _style_index = 2;
 		int _editor_style_index = 0;
-		std::filesystem::path _font_path;
+		std::filesystem::path _font_path, _default_font_path;
 		std::filesystem::path _latin_font_path;
-		std::filesystem::path _editor_font_path;
+		std::filesystem::path _editor_font_path, _default_editor_font_path;
 		std::filesystem::path _file_selection_path;
 		float _fps_col[4] = { 1.0f, 1.0f, 0.784314f, 1.0f };
 		float _fps_scale = 1.0f;
