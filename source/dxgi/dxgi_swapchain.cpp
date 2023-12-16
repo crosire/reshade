@@ -15,6 +15,41 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "addon_manager.hpp"
 
+struct unique_device_lock : std::unique_lock<std::shared_mutex>
+{
+	unique_device_lock(IUnknown *direct3d_device, unsigned int direct3d_version, std::shared_mutex &mutex) : unique_lock(mutex)
+	{
+		switch (direct3d_version)
+		{
+		case 10:
+			// 'ID3D10Multithread' and 'ID3D11Multithread' are the same interface
+			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(direct3d_device))->_orig->QueryInterface(&multithread);
+			break;
+		case 11:
+			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(direct3d_device))->_immediate_context->_orig->QueryInterface(&multithread);
+			break;
+		}
+
+		if (multithread != nullptr)
+		{
+			was_protected = multithread->GetMultithreadProtected();
+			multithread->SetMultithreadProtected(TRUE);
+			multithread->Enter();
+		}
+	}
+	~unique_device_lock()
+	{
+		if (multithread != nullptr)
+		{
+			multithread->Leave();
+			multithread->SetMultithreadProtected(was_protected);
+		}
+	}
+
+	com_ptr<ID3D11Multithread> multithread;
+	BOOL was_protected = FALSE;
+};
+
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc);
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND window);
 
@@ -123,7 +158,7 @@ DXGISwapChain::~DXGISwapChain()
 
 void DXGISwapChain::on_init()
 {
-	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	const unique_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl);
@@ -138,7 +173,7 @@ void DXGISwapChain::on_reset()
 	if (!_is_initialized)
 		return;
 
-	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	const unique_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 	reshade::reset_effect_runtime(_impl);
 
@@ -164,9 +199,9 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	assert(_is_initialized);
 
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
-	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
+	// This is necessary because Resident Evil 3 calls D3D11 and DXGI functions simultaneously from multiple threads
 	// In case of D3D12, also synchronize access to the command queue while events are invoked and the immediate command list may be accessed
-	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	const unique_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 	switch (_direct3d_version)
 	{
