@@ -214,6 +214,7 @@ void reshade::runtime::build_font_atlas()
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 
 	ImFontConfig cfg;
+	cfg.GlyphOffset.y = std::floor(_font_size / 13.0f); // Not used in AddFontDefault()
 	cfg.SizePixels = static_cast<float>(_font_size);
 
 #if RESHADE_LOCALIZATION
@@ -250,7 +251,6 @@ void reshade::runtime::build_font_atlas()
 		// Merge icons into main font
 		cfg.MergeMode = true;
 		cfg.PixelSnapH = true;
-		cfg.GlyphOffset = ImVec2(0.0f, 0.1f * _font_size);
 
 		// This need to be static so that it doesn't fall out of scope before the atlas is built below
 		static constexpr ImWchar icon_ranges[] = { ICON_MIN_FK, ICON_MAX_FK, 0 }; // Zero-terminated list
