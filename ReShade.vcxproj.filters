@@ -434,11 +434,11 @@
     <ClInclude Include="include\reshade_overlay.hpp">
       <Filter>core\api</Filter>
     </ClInclude>
-    <ClInclude Include="res\fonts\custom_glyph_range.hpp">
-      <Filter>core\utils</Filter>
-    </ClInclude>
     <ClInclude Include="res\fonts\forkawesome.h">
       <Filter>resources\fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="res\fonts\glyph_ranges.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>

@@ -18,7 +18,7 @@
 #include "localization.hpp"
 #include "platform_utils.hpp"
 #include "fonts/forkawesome.inl"
-#include "fonts/custom_glyph_range.hpp"
+#include "fonts/glyph_ranges.hpp"
 #include <fstream>
 #include <algorithm>
 
@@ -167,13 +167,13 @@ void reshade::runtime::build_font_atlas()
 	atlas->Clear();
 
 	std::error_code ec;
+	const ImWchar *glyph_ranges = nullptr;
 	std::filesystem::path resolved_font_path;
 
 #if RESHADE_LOCALIZATION
 	std::string language = _language;
 	if (language.empty())
 		language = resources::get_current_language();
-	const ImWchar *glyph_ranges = nullptr;
 
 	if (language.find("bg") == 0)
 	{
@@ -216,6 +216,7 @@ void reshade::runtime::build_font_atlas()
 	ImFontConfig cfg;
 	cfg.SizePixels = static_cast<float>(_font_size);
 
+#if RESHADE_LOCALIZATION
 	// Add latin font
 	resolved_font_path = _latin_font_path;
 	if (!_default_font_path.empty())
@@ -226,11 +227,12 @@ void reshade::runtime::build_font_atlas()
 			resolved_font_path.clear();
 		}
 
-		if ( resolved_font_path.empty())
+		if (resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 
 		cfg.MergeMode = true;
 	}
+#endif
 
 	// Add main font
 	resolved_font_path = _font_path.empty() ? _default_font_path : _font_path;
@@ -242,7 +244,7 @@ void reshade::runtime::build_font_atlas()
 		}
 
 		// Use default font if custom font failed to load
-		if ( resolved_font_path.empty())
+		if (resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 
 		// Merge icons into main font
@@ -269,7 +271,7 @@ void reshade::runtime::build_font_atlas()
 			resolved_font_path.clear();
 		}
 
-		if ( resolved_font_path.empty())
+		if (resolved_font_path.empty())
 			atlas->AddFontDefault(&cfg);
 	}
 

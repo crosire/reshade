@@ -1,6 +1,8 @@
 #pragma once
 
-#include "imgui.h"
+#if RESHADE_LOCALIZATION
+
+#include <imgui.h>
 
 static void UnpackAccumulativeOffsetsIntoRanges(int base_codepoint, const short *accumulative_offsets, int accumulative_offsets_count, ImWchar *out_ranges)
 {
@@ -139,3 +141,5 @@ static const ImWchar *GetGlyphRangesChineseSimplifiedGB2312()
 	}
 	return full_ranges;
 }
+
+#endif
