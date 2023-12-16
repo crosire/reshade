@@ -1219,7 +1219,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 					auto mapped_data_slice = mapped_data;
 					auto upload_data_slice = upload_data;
 
-					for (uint32_t y = 0; y < height; ++y, mapped_data_slice += locked_box.RowPitch, upload_data_slice += data.slice_pitch)
+					for (uint32_t y = 0; y < height; ++y, mapped_data_slice += locked_box.RowPitch, upload_data_slice += data.row_pitch)
 					{
 						std::memcpy(mapped_data_slice, upload_data_slice, std::min(data.row_pitch, static_cast<uint32_t>(locked_box.RowPitch)));
 					}
