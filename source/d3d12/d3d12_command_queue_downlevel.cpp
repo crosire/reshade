@@ -10,17 +10,17 @@
 #include "addon_manager.hpp"
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
-	swapchain_d3d12on7_impl(queue->_device),
-	_orig(original),
+	swapchain_d3d12on7_impl(queue->_device, original),
 	_parent_queue(queue)
 {
 	assert(_orig != nullptr && _parent_queue != nullptr);
+	assert(!_back_buffers.empty());
 
 	reshade::create_effect_runtime(this, queue);
 }
 D3D12CommandQueueDownlevel::~D3D12CommandQueueDownlevel()
 {
-	if (is_initialized())
+	if (_back_buffers[0] != nullptr)
 	{
 		reshade::reset_effect_runtime(this);
 
@@ -96,7 +96,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	}
 
 	// Do not call 'present' event before 'init_swapchain' event
-	if (is_initialized())
+	if (_back_buffers[0] != nullptr)
 	{
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);

@@ -7,6 +7,8 @@
 
 #include <dxgi1_5.h>
 
+struct ID3D12CommandQueueDownlevel;
+
 namespace reshade::d3d12
 {
 	class device_impl;
@@ -15,44 +17,49 @@ namespace reshade::d3d12
 	{
 	public:
 		swapchain_impl(device_impl *device, IDXGISwapChain3 *swapchain);
-		~swapchain_impl();
 
 		api::device *get_device() final;
 
-		void *get_hwnd() const override;
+		void *get_hwnd() const final;
 
 		api::resource get_back_buffer(uint32_t index) final;
 
 		uint32_t get_back_buffer_count() const final;
-		uint32_t get_current_back_buffer_index() const override;
+		uint32_t get_current_back_buffer_index() const final;
 
 		bool check_color_space_support(api::color_space color_space) const final;
 
-		api::color_space get_color_space() const final { return _back_buffer_color_space; }
-		void set_color_space(DXGI_COLOR_SPACE_TYPE type);
-
-		void on_init();
-		void on_reset();
-		bool is_initialized() const { return !_back_buffers.empty() && _back_buffers[0] != nullptr; }
-
-	protected:
-		device_impl *const _device_impl;
-		std::vector<com_ptr<ID3D12Resource>> _back_buffers;
+		api::color_space get_color_space() const final;
+		void set_color_space(DXGI_COLOR_SPACE_TYPE type) { _color_space = type; }
 
 	private:
-		api::color_space _back_buffer_color_space = api::color_space::unknown;
+		device_impl *const _device_impl;
+		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_CUSTOM;
 	};
 
-	class swapchain_d3d12on7_impl : public swapchain_impl
+	class swapchain_d3d12on7_impl : public api::api_object_impl<ID3D12CommandQueueDownlevel *, api::swapchain>
 	{
 	public:
-		swapchain_d3d12on7_impl(device_impl *device);
+		swapchain_d3d12on7_impl(device_impl *device, ID3D12CommandQueueDownlevel *command_queue_downlevel);
 
-		void *get_hwnd() const final { return _hwnd; }
+		api::device *get_device() final;
 
-		uint32_t get_current_back_buffer_index() const final { return _swap_index; }
+		void *get_hwnd() const final;
+
+		api::resource get_back_buffer(uint32_t index) final;
+
+		uint32_t get_back_buffer_count() const final;
+		uint32_t get_current_back_buffer_index() const final;
+
+		bool check_color_space_support(api::color_space color_space) const final { return color_space == api::color_space::srgb_nonlinear || color_space == api::color_space::extended_srgb_linear; }
+
+		api::color_space get_color_space() const final { return api::color_space::unknown; }
+
+	private:
+		device_impl *const _device_impl;
 
 	protected:
+		std::vector<com_ptr<ID3D12Resource>> _back_buffers;
 		HWND _hwnd = nullptr;
 		UINT _swap_index = 0;
 	};

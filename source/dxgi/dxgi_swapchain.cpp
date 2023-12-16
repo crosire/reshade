@@ -125,28 +125,17 @@ void DXGISwapChain::on_init()
 {
 	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
-	switch (_direct3d_version)
-	{
-	case 10:
-		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_init();
-		break;
-	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_init();
-		break;
-	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_init();
-		break;
-	}
-
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl);
 #endif
 
 	reshade::init_effect_runtime(_impl);
+
+	_is_initialized = true;
 }
 void DXGISwapChain::on_reset()
 {
-	if (!is_initialized())
+	if (!_is_initialized)
 		return;
 
 	const std::unique_lock<std::shared_mutex> lock(_direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
@@ -157,18 +146,7 @@ void DXGISwapChain::on_reset()
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl);
 #endif
 
-	switch (_direct3d_version)
-	{
-	case 10:
-		static_cast<reshade::d3d10::swapchain_impl *>(_impl)->on_reset();
-		break;
-	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->on_reset();
-		break;
-	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->on_reset();
-		break;
-	}
+	_is_initialized = false;
 }
 
 void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
@@ -183,7 +161,7 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 		return;
 	assert(!_was_still_drawing_last_frame);
 
-	assert(is_initialized());
+	assert(_is_initialized);
 
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls DXGI functions simultaneously from multiple threads (which is technically illegal)
@@ -238,21 +216,6 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 		reshade::present_effect_runtime(_impl, static_cast<D3D12CommandQueue *>(_direct3d_command_queue));
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
-	}
-}
-
-bool DXGISwapChain::is_initialized() const
-{
-	switch (_direct3d_version)
-	{
-	case 10:
-		return static_cast<reshade::d3d10::swapchain_impl *>(_impl)->is_initialized();
-	case 11:
-		return static_cast<reshade::d3d11::swapchain_impl *>(_impl)->is_initialized();
-	case 12:
-		return static_cast<reshade::d3d12::swapchain_impl *>(_impl)->is_initialized();
-	default:
-		return false;
 	}
 }
 

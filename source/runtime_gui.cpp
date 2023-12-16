@@ -1403,11 +1403,11 @@ void reshade::runtime::draw_gui()
 		}
 		else
 		{
-			uint32_t back_buffer_index = get_current_back_buffer_index();
-			const api::resource back_buffer_resource = get_back_buffer(back_buffer_index);
+			uint32_t back_buffer_index = get_current_back_buffer_index() * 2;
+			const api::resource back_buffer_resource = _device->get_resource_from_view(_back_buffer_targets[back_buffer_index]);
 
 			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-			render_imgui_draw_data(cmd_list, draw_data, _back_buffer_targets[back_buffer_index * 2]);
+			render_imgui_draw_data(cmd_list, draw_data, _back_buffer_targets[back_buffer_index]);
 			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 		}
 	}

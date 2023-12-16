@@ -13,7 +13,6 @@ namespace reshade::d3d10
 	{
 	public:
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
-		~swapchain_impl();
 
 		api::device *get_device() final;
 
@@ -28,12 +27,7 @@ namespace reshade::d3d10
 
 		api::color_space get_color_space() const final { return api::color_space::unknown; }
 
-		void on_init();
-		void on_reset();
-		bool is_initialized() const { return _back_buffer != nullptr; }
-
 	private:
 		device_impl *const _device_impl;
-		com_ptr<ID3D10Texture2D> _back_buffer;
 	};
 }

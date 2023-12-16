@@ -11,11 +11,12 @@ reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	api_object_impl(swapchain),
 	_device_impl(device)
 {
-	on_init();
-}
-reshade::d3d10::swapchain_impl::~swapchain_impl()
-{
-	on_reset();
+#ifndef NDEBUG
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
+#endif
 }
 
 reshade::api::device *reshade::d3d10::swapchain_impl::get_device()
@@ -35,28 +36,9 @@ reshade::api::resource reshade::d3d10::swapchain_impl::get_back_buffer(uint32_t 
 {
 	assert(index == 0);
 
-	return to_handle(_back_buffer.get());
-}
+	com_ptr<ID3D10Texture2D> back_buffer;
+	_orig->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
+	assert(back_buffer != nullptr);
 
-void reshade::d3d10::swapchain_impl::on_init()
-{
-	assert(_orig != nullptr);
-
-	if (is_initialized())
-		return;
-
-	// Get back buffer texture
-	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_back_buffer))))
-		return;
-	assert(_back_buffer != nullptr);
-
-#ifndef NDEBUG
-	DXGI_SWAP_CHAIN_DESC swap_desc = {};
-	_orig->GetDesc(&swap_desc);
-	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
-#endif
-}
-void reshade::d3d10::swapchain_impl::on_reset()
-{
-	_back_buffer.reset();
+	return to_handle(back_buffer.get());
 }

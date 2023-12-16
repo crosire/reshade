@@ -507,7 +507,7 @@ bool reshade::runtime::on_init()
 #endif
 
 	// Create render targets for the back buffer resources
-	for (uint32_t i = 0; i < get_back_buffer_count(); ++i)
+	for (uint32_t i = 0, count = get_back_buffer_count(); i < count; ++i)
 	{
 		const api::resource back_buffer_resource = get_back_buffer(i);
 
@@ -727,8 +727,8 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 
 	capture_state(cmd_list, _app_state);
 
-	uint32_t back_buffer_index = get_current_back_buffer_index();
-	const api::resource back_buffer_resource = get_back_buffer(back_buffer_index);
+	uint32_t back_buffer_index = (_back_buffer_resolved != 0 ? 2 : 0) + get_current_back_buffer_index() * 2;
+	const api::resource back_buffer_resource = _device->get_resource_from_view(_back_buffer_targets[back_buffer_index]);
 
 	// Resolve MSAA back buffer if MSAA is active or copy when format conversion is required
 	if (_back_buffer_resolved != 0)
@@ -762,7 +762,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		else
 		{
 			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-			runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index * 2], _back_buffer_targets[back_buffer_index * 2 + 1]);
+			runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index], _back_buffer_targets[back_buffer_index + 1]);
 			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 		}
 	}
@@ -880,7 +880,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 			cmd_list->bind_scissor_rects(0, 1, &scissor_rect);
 
 			const bool srgb_write_enable = (_back_buffer_format == api::format::r8g8b8a8_unorm_srgb || _back_buffer_format == api::format::b8g8r8a8_unorm_srgb);
-			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[2 + back_buffer_index * 2 + srgb_write_enable]);
+			cmd_list->bind_render_targets_and_depth_stencil(1, &_back_buffer_targets[back_buffer_index + srgb_write_enable]);
 
 			cmd_list->draw(3, 1, 0, 0);
 

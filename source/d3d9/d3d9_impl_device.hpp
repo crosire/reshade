@@ -141,17 +141,16 @@ namespace reshade::d3d9
 	protected:
 		void on_init();
 		void on_reset();
-		bool is_initialized() const { return _copy_state != nullptr; }
 
 		HRESULT create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle = nullptr);
+
+		com_ptr<IDirect3D9> _d3d;
+		D3DDEVICE_CREATION_PARAMETERS _cp = {};
+		D3DCAPS9 _caps = {};
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
 		IDirect3DVertexBuffer9 *_current_stream_output = nullptr;
 		UINT _current_stream_output_offset = 0;
-
-		D3DCAPS9 _caps = {};
-		D3DDEVICE_CREATION_PARAMETERS _cp = {};
-		com_ptr<IDirect3D9> _d3d;
 
 	private:
 		state_block _backup_state;

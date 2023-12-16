@@ -42,18 +42,18 @@ Direct3DSwapChain9::~Direct3DSwapChain9()
 
 void Direct3DSwapChain9::on_init()
 {
-	swapchain_impl::on_init();
-
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
 #endif
 
 	reshade::init_effect_runtime(this);
+
+	_is_initialized = true;
 }
 void Direct3DSwapChain9::on_reset()
 {
 	// May be called without a previous call to 'on_init' if a device reset had failed
-	if (!is_initialized())
+	if (!_is_initialized)
 		return;
 
 	reshade::reset_effect_runtime(this);
@@ -62,16 +62,18 @@ void Direct3DSwapChain9::on_reset()
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
 
-	swapchain_impl::on_reset();
+	_back_buffer.reset();
+
+	_is_initialized = false;
 }
 
 void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
 {
-	assert(is_initialized());
+	assert(_is_initialized);
 
 	if (SUCCEEDED(_device->_orig->BeginScene()))
 	{
-		_window_override = window_override;
+		_hwnd = window_override;
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(
@@ -87,7 +89,7 @@ void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] co
 		if (is_presenting_entire_surface(source_rect, window_override))
 			reshade::present_effect_runtime(this, _device);
 
-		_window_override = nullptr;
+		_hwnd = nullptr;
 
 		_device->_orig->EndScene();
 	}

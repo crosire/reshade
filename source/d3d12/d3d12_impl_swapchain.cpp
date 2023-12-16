@@ -12,12 +12,12 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	api_object_impl(swapchain),
 	_device_impl(device)
 {
-	if (_orig != nullptr)
-		on_init();
-}
-reshade::d3d12::swapchain_impl::~swapchain_impl()
-{
-	on_reset();
+#ifndef NDEBUG
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
+#endif
 }
 
 reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
@@ -27,8 +27,6 @@ reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
 
 void *reshade::d3d12::swapchain_impl::get_hwnd() const
 {
-	assert(_orig != nullptr);
-
 	if (HWND hwnd = nullptr;
 		SUCCEEDED(_orig->GetHwnd(&hwnd)))
 		return hwnd;
@@ -44,17 +42,23 @@ void *reshade::d3d12::swapchain_impl::get_hwnd() const
 
 reshade::api::resource reshade::d3d12::swapchain_impl::get_back_buffer(uint32_t index)
 {
-	return to_handle(_back_buffers[index].get());
+	com_ptr<ID3D12Resource> back_buffer;
+	_orig->GetBuffer(index, IID_PPV_ARGS(&back_buffer));
+	assert(back_buffer != nullptr);
+
+	return to_handle(back_buffer.get());
 }
 
 uint32_t reshade::d3d12::swapchain_impl::get_back_buffer_count() const
 {
-	return static_cast<uint32_t>(_back_buffers.size());
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	return swap_desc.BufferCount;
 }
+
 uint32_t reshade::d3d12::swapchain_impl::get_current_back_buffer_index() const
 {
-	assert(_orig != nullptr);
-
 	return _orig->GetCurrentBackBufferIndex();
 }
 
@@ -67,42 +71,43 @@ bool reshade::d3d12::swapchain_impl::check_color_space_support(api::color_space 
 	return SUCCEEDED(_orig->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
 }
 
-void reshade::d3d12::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
+reshade::api::color_space reshade::d3d12::swapchain_impl::get_color_space() const
 {
-	_back_buffer_color_space = convert_color_space(type);
+	if (_color_space == DXGI_COLOR_SPACE_CUSTOM)
+		return api::color_space::unknown;
+
+	return convert_color_space(_color_space);
 }
 
-void reshade::d3d12::swapchain_impl::on_init()
-{
-	assert(_orig != nullptr);
-
-	if (is_initialized())
-		return;
-
-	DXGI_SWAP_CHAIN_DESC swap_desc;
-	// Get description from 'IDXGISwapChain' interface, since later versions are slightly different
-	if (FAILED(_orig->GetDesc(&swap_desc)))
-		return;
-
-	// Get back buffer textures
-	_back_buffers.resize(swap_desc.BufferCount);
-	for (UINT i = 0; i < swap_desc.BufferCount; ++i)
-	{
-		if (FAILED(_orig->GetBuffer(i, IID_PPV_ARGS(&_back_buffers[i]))))
-			return;
-		assert(_back_buffers[i] != nullptr);
-	}
-
-	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
-}
-void reshade::d3d12::swapchain_impl::on_reset()
-{
-	_back_buffers.clear();
-}
-
-reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device) :
-	swapchain_impl(device, nullptr)
+reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, ID3D12CommandQueueDownlevel *command_queue_downlevel) :
+	api_object_impl(command_queue_downlevel),
+	_device_impl(device)
 {
 	// Default to three back buffers for d3d12on7
 	_back_buffers.resize(3);
+}
+
+reshade::api::device *reshade::d3d12::swapchain_d3d12on7_impl::get_device()
+{
+	return _device_impl;
+}
+
+void *reshade::d3d12::swapchain_d3d12on7_impl::get_hwnd() const
+{
+	return _hwnd;
+}
+
+reshade::api::resource reshade::d3d12::swapchain_d3d12on7_impl::get_back_buffer(uint32_t index)
+{
+	return to_handle(_back_buffers[index].get());
+}
+
+uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_back_buffer_count() const
+{
+	return static_cast<uint32_t>(_back_buffers.size());
+}
+
+uint32_t reshade::d3d12::swapchain_d3d12on7_impl::get_current_back_buffer_index() const
+{
+	return _swap_index;
 }

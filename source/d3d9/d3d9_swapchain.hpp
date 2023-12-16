@@ -47,5 +47,6 @@ struct DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 
 	LONG _ref = 1;
 	bool _extended_interface;
 	Direct3DDevice9 *const _device;
+	bool _is_initialized = false;
 	bool _was_still_drawing_last_frame = false;
 };

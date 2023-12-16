@@ -13,7 +13,6 @@ namespace reshade::d3d9
 	{
 	public:
 		swapchain_impl(device_impl *device, IDirect3DSwapChain9 *swapchain);
-		~swapchain_impl();
 
 		api::device *get_device() final;
 
@@ -28,15 +27,11 @@ namespace reshade::d3d9
 
 		api::color_space get_color_space() const final { return api::color_space::unknown; }
 
-	protected:
-		void on_init();
-		void on_reset();
-		bool is_initialized() const { return _back_buffer != nullptr; }
-
-		HWND _window_override = nullptr;
-
 	private:
 		device_impl *const _device_impl;
+
+	protected:
 		com_ptr<IDirect3DSurface9> _back_buffer;
+		HWND _hwnd = nullptr;
 	};
 }

@@ -13,7 +13,6 @@ namespace reshade::d3d11
 	{
 	public:
 		swapchain_impl(device_impl *device, IDXGISwapChain *swapchain);
-		~swapchain_impl();
 
 		api::device *get_device() final;
 
@@ -26,16 +25,11 @@ namespace reshade::d3d11
 
 		bool check_color_space_support(api::color_space color_space) const final;
 
-		api::color_space get_color_space() const final { return _back_buffer_color_space; }
-		void set_color_space(DXGI_COLOR_SPACE_TYPE type);
-
-		void on_init();
-		void on_reset();
-		bool is_initialized() const { return _back_buffer != nullptr; }
+		api::color_space get_color_space() const final;
+		void set_color_space(DXGI_COLOR_SPACE_TYPE type) { _color_space = type;}
 
 	private:
 		device_impl *const _device_impl;
-		com_ptr<ID3D11Texture2D> _back_buffer;
-		api::color_space _back_buffer_color_space = api::color_space::unknown;
+		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_CUSTOM;
 	};
 }

@@ -11,11 +11,12 @@ reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	api_object_impl(swapchain),
 	_device_impl(device)
 {
-	on_init();
-}
-reshade::d3d11::swapchain_impl::~swapchain_impl()
-{
-	on_reset();
+#ifndef NDEBUG
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	_orig->GetDesc(&swap_desc);
+
+	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
+#endif
 }
 
 reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
@@ -35,7 +36,12 @@ reshade::api::resource reshade::d3d11::swapchain_impl::get_back_buffer(uint32_t 
 {
 	assert(index == 0);
 
-	return to_handle(_back_buffer.get());
+	com_ptr<ID3D11Texture2D> back_buffer;
+	_orig->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
+	assert(back_buffer != nullptr);
+	// Reference is immediately released to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
+
+	return to_handle(back_buffer.get());
 }
 
 bool reshade::d3d11::swapchain_impl::check_color_space_support(api::color_space color_space) const
@@ -51,41 +57,10 @@ bool reshade::d3d11::swapchain_impl::check_color_space_support(api::color_space 
 	return SUCCEEDED(swapchain3->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
 }
 
-void reshade::d3d11::swapchain_impl::set_color_space(DXGI_COLOR_SPACE_TYPE type)
+reshade::api::color_space reshade::d3d11::swapchain_impl::get_color_space() const
 {
-	_back_buffer_color_space = convert_color_space(type);
-}
+	if (_color_space == DXGI_COLOR_SPACE_CUSTOM)
+		return api::color_space::unknown;
 
-void reshade::d3d11::swapchain_impl::on_init()
-{
-	assert(_orig != nullptr);
-
-	if (is_initialized())
-		return;
-
-	// Get back buffer texture
-	if (FAILED(_orig->GetBuffer(0, IID_PPV_ARGS(&_back_buffer))))
-		return;
-	assert(_back_buffer != nullptr);
-
-#ifndef NDEBUG
-	DXGI_SWAP_CHAIN_DESC swap_desc = {};
-	_orig->GetDesc(&swap_desc);
-	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
-#endif
-
-	// Clear reference to make Unreal Engine 4 happy (https://github.com/EpicGames/UnrealEngine/blob/4.7/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Viewport.cpp#L195)
-	_back_buffer->Release();
-	assert(_back_buffer.ref_count() == 0);
-}
-void reshade::d3d11::swapchain_impl::on_reset()
-{
-	if (!is_initialized())
-		return;
-
-	// Resident Evil 3 releases all references to the back buffer before calling 'IDXGISwapChain::ResizeBuffers', even ones it does not own
-	// Releasing any references ReShade owns would then make the count negative, which consequently breaks DXGI validation
-	// But the only reference was already released above because of Unreal Engine 4 anyway, so can simply clear out the pointer here without touching the reference count
-	assert(_back_buffer.ref_count() == 0);
-	_back_buffer.release();
+	return convert_color_space(_color_space);
 }
