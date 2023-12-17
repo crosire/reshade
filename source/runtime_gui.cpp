@@ -3412,7 +3412,8 @@ void reshade::runtime::draw_variable_editor()
 			{
 			case reshadefx::type::t_bool:
 				get_uniform_value(variable, reinterpret_cast<bool *>(value.as_uint), variable.type.components());
-				is_default_value = (value.as_uint[0] != 0) == (variable.initializer_value.as_uint[0] != 0);
+				for (size_t i = 0; is_default_value && i < variable.type.components(); i++)
+					is_default_value = (reinterpret_cast<bool *>(value.as_uint)[i] != 0) == (variable.initializer_value.as_uint[i] != 0);
 				break;
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
@@ -3421,7 +3422,8 @@ void reshade::runtime::draw_variable_editor()
 				break;
 			case reshadefx::type::t_float:
 				get_uniform_value(variable, value.as_float, variable.type.components());
-				is_default_value = std::memcmp(value.as_float, variable.initializer_value.as_float, variable.type.components() * sizeof(float)) == 0;
+				for (size_t i = 0; is_default_value && i < variable.type.components(); i++)
+					is_default_value = std::abs(value.as_float[i] - variable.initializer_value.as_float[i]) < FLT_EPSILON;
 				break;
 			}
 
@@ -3434,7 +3436,8 @@ void reshade::runtime::draw_variable_editor()
 				{
 				case reshadefx::type::t_bool:
 					get_uniform_value(variable, reinterpret_cast<bool *>(new_value.as_uint), variable.type.components());
-					modified = new_value.as_uint[0] != value.as_uint[0];
+					for (size_t i = 0; !modified && i < variable.type.components(); i++)
+						modified = (reinterpret_cast<bool *>(new_value.as_uint)[i] != 0) != (value.as_uint[i] != 0);
 					break;
 				case reshadefx::type::t_int:
 				case reshadefx::type::t_uint:
@@ -3443,7 +3446,8 @@ void reshade::runtime::draw_variable_editor()
 					break;
 				case reshadefx::type::t_float:
 					get_uniform_value(variable, new_value.as_float, variable.type.components());
-					modified = std::memcmp(new_value.as_float, value.as_float, variable.type.components() * sizeof(float)) != 0;
+					for (size_t i = 0; !modified && i < variable.type.components(); i++)
+						modified = std::abs(new_value.as_float[i] - value.as_float[i]) > FLT_EPSILON;
 					break;
 				}
 			}

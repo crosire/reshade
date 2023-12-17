@@ -594,7 +594,7 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 bool reshade::imgui::combo_with_buttons(const char *label, bool &v)
 {
 	int current_item = v ? 1 : 0;
-	const bool res = combo_with_buttons(label, "Off\0On\0", current_item);
+	const bool res = combo_with_buttons(label, std::string_view("Off\0On\0", 7), current_item);
 	v = current_item != 0;
 	return res;
 }
