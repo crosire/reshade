@@ -2287,20 +2287,23 @@ void reshade::runtime::draw_gui_settings()
 		}
 		#pragma endregion
 
-		if (imgui::font_input_box(_("Global font"), _default_font_path.empty() ? "ProggyClean.ttf" : _default_font_path.u8string().c_str(), _font_path, _file_selection_path, _font_size))
+		// Latin font + main font + icon font
+		const bool latin_only = _imgui_context->IO.Fonts->Fonts[0]->ConfigDataCount <= 2;
+
+		if (imgui::font_input_box(_("Global font"), _default_font_path, _font_path, latin_only, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (_imgui_context->IO.Fonts->Fonts[0]->ConfigDataCount > 2 && // Latin font + main font + icon font
-			imgui::font_input_box(_("Latin font"), _default_latin_font_path.empty() ? "ProggyClean.ttf" : _default_latin_font_path.u8string().c_str(), _latin_font_path, _file_selection_path, _font_size))
+		if (!latin_only &&
+			imgui::font_input_box(_("Latin font"), _default_latin_font_path, _latin_font_path, true, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path.empty() ? "ProggyClean.ttf" : _default_editor_font_path.u8string().c_str(), _editor_font_path, _file_selection_path, _editor_font_size))
+		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path, _editor_font_path, latin_only, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
