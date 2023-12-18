@@ -3437,7 +3437,7 @@ void reshade::runtime::draw_variable_editor()
 				case reshadefx::type::t_bool:
 					get_uniform_value(variable, reinterpret_cast<bool *>(new_value.as_uint), variable.type.components());
 					for (size_t i = 0; !modified && i < variable.type.components(); i++)
-						modified = (reinterpret_cast<bool *>(new_value.as_uint)[i] != 0) != (value.as_uint[i] != 0);
+						modified = (reinterpret_cast<bool *>(new_value.as_uint)[i] != 0) != (reinterpret_cast<bool *>(value.as_uint)[i] != 0);
 					break;
 				case reshadefx::type::t_int:
 				case reshadefx::type::t_uint:
