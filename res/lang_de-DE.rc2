@@ -65,7 +65,7 @@ BEGIN
 54263 "Tutorial überspringen"
 34234 "Abschließen"
 21056 "Generelles"
-33858 "Alle Eingaben weiterreichen\nEingaben blockieren, wenn der Mauszeiger über dem Konfigurationsmenü liegt\nAlle Eingaben blockieren, wenn das Konfigurationsmenü sichtbar ist\n"
+33858 "Alle Eingaben weiterreichen\nEingaben blockieren, wenn sich der Mauszeiger über dem Konfigurationsmenü befindet\nAlle Eingaben blockieren, wenn das Konfigurationsmenü sichtbar ist\n"
 46080 "Eingabeverarbeitung"
 23871 "Menü-Taste"
 40379 "Effekte-Umschalt-Taste"
