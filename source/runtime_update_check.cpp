@@ -4,7 +4,6 @@
  */
 
 #include "runtime.hpp"
-#include "version.h"
 #include <Windows.h>
 #include <WinInet.h>
 
@@ -19,7 +18,6 @@ private:
 	HINTERNET handle;
 };
 
-bool reshade::runtime::s_needs_update = false;
 unsigned int reshade::runtime::s_latest_version[3] = {};
 
 void reshade::runtime::check_for_update()
@@ -58,10 +56,6 @@ void reshade::runtime::check_for_update()
 		s_latest_version[0] = static_cast<unsigned int>(std::strtoul(version_major_offset, nullptr, 10));
 		s_latest_version[1] = static_cast<unsigned int>(std::strtoul(version_minor_offset, nullptr, 10));
 		s_latest_version[2] = static_cast<unsigned int>(std::strtoul(version_revision_offset, nullptr, 10));
-
-		s_needs_update = (s_latest_version[0] > VERSION_MAJOR) ||
-			(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] > VERSION_MINOR) ||
-			(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] == VERSION_MINOR && s_latest_version[2] > VERSION_REVISION);
 	}
 #endif
 }

@@ -22,7 +22,7 @@
 #include <fstream>
 #include <algorithm>
 
-static bool filter_text(const std::string_view &text, const std::string_view &filter)
+static bool filter_text(const std::string_view text, const std::string_view filter)
 {
 	return filter.empty() ||
 		std::search(text.cbegin(), text.cend(), filter.cbegin(), filter.cend(),
@@ -37,7 +37,7 @@ static auto filter_name(ImGuiInputTextCallbackData *data) -> int
 }
 
 template <typename F>
-static void parse_errors(const std::string_view &errors, F &&callback)
+static void parse_errors(const std::string_view errors, F &&callback)
 {
 	for (size_t offset = 0, next; offset != std::string_view::npos; offset = next)
 	{
@@ -50,16 +50,16 @@ static void parse_errors(const std::string_view &errors, F &&callback)
 
 		next = pos_linefeed != std::string_view::npos ? pos_linefeed + 1 : std::string_view::npos;
 
-		const std::string error_file(errors.data() + offset, pos_error_line - offset);
+		const std::string_view error_file = errors.substr(offset, pos_error_line - offset);
 		int error_line = static_cast<int>(std::strtol(errors.data() + pos_error_line + 1, nullptr, 10));
-		const std::string error_text(errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2));
+		const std::string_view error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
 
 		callback(error_file, error_line, error_text);
 	}
 }
 
 template <typename T>
-static std::string_view get_localized_annotation(T &object, const std::string_view &ann_name, [[maybe_unused]] std::string language)
+static std::string_view get_localized_annotation(T &object, const std::string_view ann_name, [[maybe_unused]] std::string language)
 {
 #if RESHADE_LOCALIZATION
 	if (language.size() >= 2)
@@ -995,7 +995,9 @@ void reshade::runtime::draw_gui()
 
 		ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
-		if (s_needs_update)
+		if ((s_latest_version[0] > VERSION_MAJOR) ||
+			(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] > VERSION_MINOR) ||
+			(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] == VERSION_MINOR && s_latest_version[2] > VERSION_REVISION))
 		{
 			ImGui::TextColored(COLOR_YELLOW, _(
 				"An update is available! Please visit %s and install the new version (v%u.%u.%u)."),
@@ -1791,8 +1793,7 @@ void reshade::runtime::draw_gui_home()
 
 					if (ImGui::ButtonEx(force_reload_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
-						_load_option_disable_skipping = true;
-						reload_effects();
+						reload_effects(true);
 
 						ImGui::EndChild();
 						return;
@@ -1988,8 +1989,7 @@ void reshade::runtime::draw_gui_settings()
 			modified = true;
 
 			// Force load all effects in case some where skipped after load skipping was disabled
-			_load_option_disable_skipping = !_effect_load_skipping;
-			reload_effects();
+			reload_effects(!_effect_load_skipping);
 		}
 
 		if (ImGui::Button(_("Clear effect cache"), ImVec2(ImGui::CalcItemWidth(), 0)))
@@ -3038,7 +3038,7 @@ void reshade::runtime::draw_gui_addons()
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
 		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(),
-			[&info](const std::string_view &addon_name) {
+			[&info](const std::string_view addon_name) {
 				const size_t at_pos = addon_name.find('@');
 				if (at_pos == std::string_view::npos)
 					return addon_name == info.name;
@@ -3803,10 +3803,10 @@ void reshade::runtime::draw_technique_editor()
 
 				if (imgui::popup_button(edit_button_label.c_str(), 18.0f * _font_size))
 				{
-					std::unordered_map<std::string, std::string> file_errors_lookup;
+					std::unordered_map<std::string_view, std::string> file_errors_lookup;
 					parse_errors(effect.errors,
-						[&file_errors_lookup](const std::string &file, int line, const std::string &message) {
-							file_errors_lookup[file] += file + '(' + std::to_string(line) + "): " + message + '\n';
+						[&file_errors_lookup](const std::string_view file, int line, const std::string_view message) {
+							file_errors_lookup[file] += std::string(file) + '(' + std::to_string(line) + "): " + std::string(message) + '\n';
 						});
 
 					const auto source_file_errors_it = file_errors_lookup.find(effect.source_file.u8string());
@@ -4247,7 +4247,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 	instance.editor.clear_errors();
 
 	parse_errors(effect.errors,
-		[&instance](const std::string_view &file, int line, const std::string &message) {
+		[&instance](const std::string_view file, int line, const std::string_view message) {
 			// Ignore errors that aren't in the current source file
 			if (file != instance.file_path.u8string())
 				return;

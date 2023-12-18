@@ -46,7 +46,7 @@ void reshade::d3d9::state_block::capture()
 	_device->GetRenderState(D3DRS_SRGBWRITEENABLE, &_srgb_write);
 	_device->GetSamplerState(0, D3DSAMP_SRGBTEXTURE, &_srgb_texture);
 
-	if ((_vertex_processing & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+	if (0 != (_vertex_processing & D3DCREATE_MIXED_VERTEXPROCESSING))
 	{
 		_vertex_processing |= _device->GetSoftwareVertexProcessing();
 		_device->SetSoftwareVertexProcessing(FALSE); // Disable software vertex processing since it is incompatible with programmable shaders
@@ -60,7 +60,7 @@ void reshade::d3d9::state_block::apply_and_release()
 	// Release state block every time, so that all references to captured vertex and index buffers, textures, etc. are released again
 	_state_block.reset();
 
-	if ((_vertex_processing & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+	if (0 != (_vertex_processing & D3DCREATE_MIXED_VERTEXPROCESSING))
 	{
 		_device->SetSoftwareVertexProcessing(_vertex_processing & (TRUE | FALSE));
 		_vertex_processing &= ~(TRUE | FALSE);

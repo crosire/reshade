@@ -720,7 +720,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	_is_in_present_call = true;
 #endif
 #if RESHADE_ADDON && RESHADE_FX
-	_should_block_effect_reload = false;
+	_block_effect_reload_this_frame = false;
 #endif
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
@@ -1479,7 +1479,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	return true;
 }
 
-bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required)
+bool reshade::runtime::load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool force_load, bool preprocess_required)
 {
 	const std::chrono::high_resolution_clock::time_point time_load_started = std::chrono::high_resolution_clock::now();
 
@@ -1563,8 +1563,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_hash = source_hash;
 	}
 
-	if (_effect_load_skipping && !_load_option_disable_skipping && !_worker_threads.empty() &&
-		effect.source_file.extension() != L".addonfx") // Only skip during 'load_effects'
+	if (_effect_load_skipping && !force_load)
 	{
 		if (std::vector<std::string> techniques;
 			preset.get({}, "Techniques", techniques) && !techniques.empty())
@@ -1583,8 +1582,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 		}
 	}
-
-	assert(effect.source_file.extension() != L".addonfx" || !effect.skipped);
 
 	bool skip_optimization = false;
 	std::string code_preamble;
@@ -1856,7 +1853,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			assert(!preprocess_required);
 
-			return load_effect(source_file, preset, effect_index, true);
+			return load_effect(source_file, preset, effect_index, force_load, true);
 		}
 	}
 
@@ -3448,7 +3445,7 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 	_technique_sorting = std::move(technique_indices);
 }
 
-void reshade::runtime::load_effects()
+void reshade::runtime::load_effects(bool force_load_all)
 {
 	// Build a list of effect files by walking through the effect search paths
 	const std::vector<std::filesystem::path> effect_files =
@@ -3490,11 +3487,11 @@ void reshade::runtime::load_effects()
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
 	for (size_t n = 0; n < num_splits; ++n)
-		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, &preset]() {
+		_worker_threads.emplace_back([this, effect_files, offset, num_splits, n, &preset, force_load_all]() {
 			// Abort loading when initialization state changes (indicating that 'on_reset' was called in the meantime)
 			for (size_t i = 0; i < effect_files.size() && _is_initialized; ++i)
 				if (i * num_splits / effect_files.size() == n)
-					load_effect(effect_files[i], preset, offset + i);
+					load_effect(effect_files[i], preset, offset + i, force_load_all || effect_files[i].extension() == L".addonfx");
 		});
 }
 bool reshade::runtime::reload_effect(size_t effect_index)
@@ -3514,9 +3511,9 @@ bool reshade::runtime::reload_effect(size_t effect_index)
 	// Make sure 'is_loading' is true while loading the effect
 	_reload_remaining_effects = 1;
 
-	return load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true);
+	return load_effect(source_file, ini_file::load_cache(_current_preset_path), effect_index, true, true);
 }
-void reshade::runtime::reload_effects()
+void reshade::runtime::reload_effects(bool force_load_all)
 {
 	// Clear out any previous effects
 	destroy_effects();
@@ -3533,7 +3530,7 @@ void reshade::runtime::reload_effects()
 #endif
 	_last_reload_successful = true;
 
-	load_effects();
+	load_effects(force_load_all);
 }
 void reshade::runtime::destroy_effects()
 {
@@ -3692,7 +3689,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 #if RESHADE_ADDON
 	if (force_reload)
 	{
-		if (_effects.size() != _should_reload_effect && !_should_block_effect_reload)
+		if (_effects.size() != _should_reload_effect && !_block_effect_reload_this_frame)
 		{
 			_should_reload_effect = _effects.size();
 		}
@@ -3704,7 +3701,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 
 			// Avoid reloading effects when effect color resource changes every frame
 			_should_reload_effect = std::numeric_limits<size_t>::max();
-			_should_block_effect_reload = true;
+			_block_effect_reload_this_frame = true;
 		}
 	}
 #endif
@@ -3765,9 +3762,6 @@ void reshade::runtime::update_effects()
 
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 		_reload_remaining_effects = std::numeric_limits<size_t>::max();
-
-		// Reset all effect loading options
-		_load_option_disable_skipping = false;
 
 #if RESHADE_GUI
 		// Update all code editors after a reload
@@ -4885,7 +4879,7 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	return result;
 }
 
-void reshade::runtime::save_screenshot(const std::string_view &postfix)
+void reshade::runtime::save_screenshot(const std::string_view postfix)
 {
 	const unsigned int screenshot_count = _screenshot_count;
 
