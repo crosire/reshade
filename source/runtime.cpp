@@ -3008,6 +3008,7 @@ void reshade::runtime::load_textures()
 		if (!find_file(_texture_search_paths, source_path))
 		{
 			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
+			_last_reload_successful = false;
 			continue;
 		}
 
@@ -3025,6 +3026,7 @@ void reshade::runtime::load_textures()
 				if (!is_floating_point_format)
 				{
 					LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' is a Cube LUT file, which can only be loaded into textures with a floating-point format!";
+					_last_reload_successful = false;
 					continue;
 				}
 
@@ -3119,6 +3121,7 @@ void reshade::runtime::load_textures()
 		if (ec || pixels == nullptr)
 		{
 			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
+			_last_reload_successful = false;
 			continue;
 		}
 
@@ -3148,6 +3151,7 @@ void reshade::runtime::load_textures()
 			break;
 		default:
 			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(tex.format) << " of texture '" << tex.unique_name << "'!";
+			_last_reload_successful = false;
 			stbi_image_free(pixels);
 			continue;
 		}

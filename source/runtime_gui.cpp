@@ -1070,7 +1070,7 @@ void reshade::runtime::draw_gui()
 #endif
 #if RESHADE_FX
 		if (!_last_reload_successful)
-			error_message += _("There were errors compiling some effects."),
+			error_message += _("There were errors loading some effects."),
 			error_message += ' ';
 #endif
 		if (!error_message.empty())

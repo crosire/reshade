@@ -20,7 +20,7 @@ BEGIN
 16144 "ReShade wurde erfolgreich installiert! Drücke '%s', um das Tutorial zu starten."
 690 "Drücke '%s', um das Konfigurationsmenü zu öffnen."
 16882 "Fehler beim Laden mancher Erweiterungen."
-9811 "Fehler beim Kompilieren mancher Effekte."
+2323 "Fehler beim Laden mancher Effekte."
 60730 "Bitte das Log überprüfen, um mehr Details zu erhalten."
 39634 "Fehler beim Speichern der Konfiguration und/oder des Presets. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Dateien und übergeordneten Ordnern zu ermöglichen:\n%s\n%s"
 53844 "Fehler beim Speichern der Konfiguration. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Datei zu ermöglichen: %s"
