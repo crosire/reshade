@@ -1052,6 +1052,7 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 		effect_name = "";
 
 	const int find_flag = *effect_name == '\0' ? global_scope :
+		strchr(effect_name, '.') != nullptr ? effect_only :
 		strncmp(effect_name, "GLOBAL", 6) == 0 ? global_only :
 		strncmp(effect_name, "PRESET", 6) == 0 ? preset_only : global_scope;
 
@@ -1245,6 +1246,7 @@ bool reshade::runtime::get_preprocessor_definition(const std::string &effect_nam
 		};
 
 	const int find_flag = effect_name.empty() ? global_scope :
+		effect_name.find('.') != std::string::npos ? effect_only :
 		effect_name.compare(0, 6, "GLOBAL") == 0 ? global_only :
 		effect_name.compare(0, 6, "PRESET") == 0 ? preset_only : global_scope;
 
