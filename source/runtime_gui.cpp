@@ -1647,9 +1647,6 @@ void reshade::runtime::draw_gui_home()
 				}
 			}
 
-			if (preset_name[0] == '\0' && ImGui::IsKeyPressed(ImGuiKey_Backspace))
-				ImGui::CloseCurrentPopup();
-
 			ImGui::EndPopup();
 		}
 
