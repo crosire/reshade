@@ -1298,6 +1298,7 @@ void reshade::runtime::load_current_preset()
 			enable_technique(tech);
 		else
 			disable_technique(tech);
+
 		preset.get({}, "Key" + unique_name, tech.toggle_key_data);
 		preset.get({}, "Key" + tech.name, tech.toggle_key_data);
 	}
