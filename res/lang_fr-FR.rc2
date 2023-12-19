@@ -185,6 +185,7 @@ BEGIN
 37590 "Recherche"
 42682 "Oui"
 35957 "Non"
+25121 "Désactivé\nActivé\n"
 
 END
 
