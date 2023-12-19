@@ -3449,6 +3449,8 @@ void reshade::runtime::draw_variable_editor()
 			}
 			else
 			{
+				ImGui::BeginGroup();
+
 				std::string_view label = get_localized_annotation(variable, "ui_label", _language);
 				if (label.empty())
 					label = variable.name;
@@ -3539,6 +3541,8 @@ void reshade::runtime::draw_variable_editor()
 						break;
 					}
 				}
+
+				ImGui::EndGroup();
 			}
 
 			ImGui::EndDisabled();
