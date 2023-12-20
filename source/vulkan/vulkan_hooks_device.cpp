@@ -28,9 +28,9 @@ extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
-#define INIT_DISPATCH_PTR_EXTENSION(name, suffix) \
-	if (dispatch_table.name == nullptr) \
-		dispatch_table.name  = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
+#define INIT_DISPATCH_PTR_ALTERNATIVE(name, suffix) \
+	if (nullptr == dispatch_table.name) \
+		dispatch_table.name = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
 
 #if RESHADE_ADDON
 static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
@@ -78,6 +78,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
 	const instance_dispatch_table &instance_dispatch = g_vulkan_instances.at(dispatch_key_from_handle(physicalDevice));
+	assert(instance_dispatch.instance != VK_NULL_HANDLE);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
 	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
@@ -129,9 +130,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	enum_queue_families(physicalDevice, &num_queue_families, queue_families.data());
 
 	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
-	for (uint32_t i = 0, queue_family_index; i < pCreateInfo->queueCreateInfoCount; ++i)
+	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; ++i)
 	{
-		queue_family_index = pCreateInfo->pQueueCreateInfos[i].queueFamilyIndex;
+		const uint32_t queue_family_index = pCreateInfo->pQueueCreateInfos[i].queueFamilyIndex;
 		assert(queue_family_index < num_queue_families);
 
 		// Find the first queue family which supports graphics and has at least one queue
@@ -541,43 +542,43 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(AcquireNextImage2KHR);
 
 	// VK_KHR_dynamic_rendering
-	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRendering, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdEndRendering, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBeginRendering, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdEndRendering, KHR);
 
 	// VK_KHR_push_descriptor
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 
 	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
-	INIT_DISPATCH_PTR_EXTENSION(CreateRenderPass2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRenderPass2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdNextSubpass2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdEndRenderPass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CreateRenderPass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBeginRenderPass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdNextSubpass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdEndRenderPass2, KHR);
 
 	// VK_KHR_bind_memory2
-	INIT_DISPATCH_PTR_EXTENSION(BindBufferMemory2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(BindImageMemory2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(BindBufferMemory2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(BindImageMemory2, KHR);
 
 	// VK_KHR_draw_indirect_count
-	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndirectCount, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndexedIndirectCount, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdDrawIndirectCount, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdDrawIndexedIndirectCount, KHR);
 
 	// VK_KHR_timeline_semaphore
-	INIT_DISPATCH_PTR_EXTENSION(GetSemaphoreCounterValue, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(WaitSemaphores, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(SignalSemaphore, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(GetSemaphoreCounterValue, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(WaitSemaphores, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(SignalSemaphore, KHR);
 
 	// VK_KHR_synchronization2
-	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdWriteTimestamp2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(QueueSubmit2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdPipelineBarrier2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdWriteTimestamp2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(QueueSubmit2, KHR);
 
 	// VK_KHR_copy_commands2
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBufferToImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImageToBuffer2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdResolveImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyBuffer2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyBufferToImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyImageToBuffer2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBlitImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdResolveImage2, KHR);
 
 	// VK_EXT_transform_feedback
 	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
@@ -594,24 +595,24 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 
 	// VK_EXT_extended_dynamic_state
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetPrimitiveTopology, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetViewportWithCount, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetScissorWithCount, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBindVertexBuffers2, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthTestEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthWriteEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthCompareOp, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthBoundsTestEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetCullMode, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetFrontFace, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetPrimitiveTopology, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetViewportWithCount, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetScissorWithCount, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBindVertexBuffers2, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthTestEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthWriteEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthCompareOp, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthBoundsTestEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetStencilTestEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetStencilOp, EXT);
 
 	// VK_EXT_private_data (try the EXT version if the core version does not exist)
-	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(DestroyPrivateDataSlot, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(GetPrivateData, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(SetPrivateData, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CreatePrivateDataSlot, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(DestroyPrivateDataSlot, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(GetPrivateData, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(SetPrivateData, EXT);
 
 	// VK_KHR_external_memory_win32
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
@@ -729,9 +730,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
+	std::vector<VkFormat> format_list;
+	std::vector<uint32_t> queue_family_list;
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	VkImageFormatListCreateInfoKHR format_list_info;
-	std::vector<VkFormat> format_list; std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
@@ -1025,7 +1027,6 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 
 	// Remove swap chain from global list
 	reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
-
 	if (swapchain_impl != nullptr)
 	{
 		reshade::reset_effect_runtime(swapchain_impl);
