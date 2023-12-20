@@ -1498,6 +1498,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
 	attributes += "device=" + std::to_string(_device_id) + ';';
 
+	std::vector<std::string> addon_markers; addon_markers.reserve(addon_loaded_info.size());
+	for (const auto &addon : addon_loaded_info)
+	{
+		std::string name; name.reserve(addon.name.size());
+		std::transform(addon.name.begin(), addon.name.end(), std::back_inserter(name),
+			[](const char c) { return ('9' >= c && c >= '0') ? c : ('Z' >= c && c >= 'A') ? c : ('z' >= c && c >= 'a') ? (c - 'a' + 'A') : '_'; });
+		attributes += addon_markers.emplace_back("ADDON_" + name) + ';';
+	}
+
 	const std::string effect_name = source_file.filename().u8string();
 
 	std::vector<std::pair<std::string, std::string>> preprocessor_definitions = _global_preprocessor_definitions;
@@ -1607,6 +1616,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
 		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
+
+		for (const std::string &addon_marker : addon_markers)
+			pp.add_macro_definition(addon_marker);
 
 		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
 		{
