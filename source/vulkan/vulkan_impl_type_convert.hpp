@@ -220,8 +220,6 @@ namespace reshade::vulkan
 	auto convert_stencil_op(VkStencilOp value) -> api::stencil_op;
 	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;
 	auto convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology;
-	auto convert_hit_group_type(api::hit_group_type value) -> VkRayTracingShaderGroupTypeKHR;
-	auto convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::hit_group_type;
 
 	auto convert_query_type(api::query_type value) -> VkQueryType;
 	auto convert_query_type(VkQueryType value, uint32_t index = 0) -> api::query_type;
@@ -233,6 +231,18 @@ namespace reshade::vulkan
 	auto convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op;
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
+
+	auto convert_hit_group_type(api::acceleration_structure_build_input_type value) -> VkRayTracingShaderGroupTypeKHR;
+	auto convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::acceleration_structure_build_input_type;
+	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR;
+	auto convert_acceleration_structure_type(VkAccelerationStructureTypeKHR value) -> api::acceleration_structure_type;
+	auto convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> VkCopyAccelerationStructureModeKHR;
+	auto convert_acceleration_structure_copy_mode(VkCopyAccelerationStructureModeKHR value) -> api::acceleration_structure_copy_mode;
+	auto convert_acceleration_structure_build_flags(api::acceleration_structure_build_flags value) -> VkBuildAccelerationStructureFlagsKHR;
+	auto convert_acceleration_structure_build_flags(VkBuildAccelerationStructureFlagsKHR value) -> api::acceleration_structure_build_flags;
+
+	void convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, VkAccelerationStructureGeometryKHR &geometry, VkAccelerationStructureBuildRangeInfoKHR &range_info);
+	api::acceleration_structure_build_input convert_acceleration_structure_build_input(const VkAccelerationStructureGeometryKHR &geometry, const VkAccelerationStructureBuildRangeInfoKHR &range_info);
 }
 
 template <typename T>

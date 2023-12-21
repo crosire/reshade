@@ -1910,32 +1910,6 @@ auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> a
 		return api::primitive_topology::undefined;
 	}
 }
-auto reshade::vulkan::convert_hit_group_type(api::hit_group_type value) -> VkRayTracingShaderGroupTypeKHR
-{
-	switch (value)
-	{
-	case reshade::api::hit_group_type::triangles:
-		return VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-	case reshade::api::hit_group_type::procedural_primitive:
-		return VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
-	default:
-		assert(false);
-		return VK_RAY_TRACING_SHADER_GROUP_TYPE_MAX_ENUM_KHR;
-	}
-}
-auto reshade::vulkan::convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::hit_group_type
-{
-	switch (value)
-	{
-	case VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR:
-		return api::hit_group_type::triangles;
-	default:
-		assert(false);
-		[[fallthrough]];
-	case VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR:
-		return api::hit_group_type::procedural_primitive;
-	}
-}
 
 auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 {
@@ -1997,6 +1971,8 @@ auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value, bool i
 		return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	case api::descriptor_type::shader_storage_buffer:
 		return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	case api::descriptor_type::acceleration_structure:
+		return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 	default:
 		assert(false);
 		return static_cast<VkDescriptorType>(value);
@@ -2023,6 +1999,8 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 		return api::descriptor_type::shader_storage_buffer;
+	case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+		return api::descriptor_type::acceleration_structure;
 	default:
 		assert(false);
 		return static_cast<api::descriptor_type>(value);
@@ -2092,4 +2070,145 @@ auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) ->
 	case VK_ATTACHMENT_STORE_OP_NONE_EXT:
 		return api::render_pass_store_op::no_access;
 	}
+}
+
+auto reshade::vulkan::convert_hit_group_type(api::acceleration_structure_build_input_type value) -> VkRayTracingShaderGroupTypeKHR
+{
+	switch (value)
+	{
+	case reshade::api::acceleration_structure_build_input_type::triangles:
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+	case reshade::api::acceleration_structure_build_input_type::aabbs:
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+	default:
+		assert(false);
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_MAX_ENUM_KHR;
+	}
+}
+auto reshade::vulkan::convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::acceleration_structure_build_input_type
+{
+	switch (value)
+	{
+	case VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR:
+		return api::acceleration_structure_build_input_type::triangles;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR:
+		return api::acceleration_structure_build_input_type::aabbs;
+	}
+}
+auto reshade::vulkan::convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR
+{
+	return static_cast<VkAccelerationStructureTypeKHR>(value);
+}
+auto reshade::vulkan::convert_acceleration_structure_type(VkAccelerationStructureTypeKHR value) -> api::acceleration_structure_type
+{
+	return static_cast<api::acceleration_structure_type>(value);
+}
+auto reshade::vulkan::convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> VkCopyAccelerationStructureModeKHR
+{
+	return static_cast<VkCopyAccelerationStructureModeKHR>(value);
+}
+auto reshade::vulkan::convert_acceleration_structure_copy_mode(VkCopyAccelerationStructureModeKHR value) -> api::acceleration_structure_copy_mode
+{
+	return static_cast<api::acceleration_structure_copy_mode>(value);
+}
+auto reshade::vulkan::convert_acceleration_structure_build_flags(api::acceleration_structure_build_flags value) -> VkBuildAccelerationStructureFlagsKHR
+{
+	VkBuildAccelerationStructureFlagsKHR result = 0;
+	if ((value & api::acceleration_structure_build_flags::allow_update) != 0)
+		result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+	if ((value & api::acceleration_structure_build_flags::allow_compaction) != 0)
+		result |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+	if ((value & api::acceleration_structure_build_flags::prefer_fast_trace) != 0)
+		result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+	if ((value & api::acceleration_structure_build_flags::prefer_fast_build) != 0)
+		result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
+	if ((value & api::acceleration_structure_build_flags::minimize_memory) != 0)
+		result |= VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR;
+	return result;
+}
+auto reshade::vulkan::convert_acceleration_structure_build_flags(VkBuildAccelerationStructureFlagsKHR value) -> api::acceleration_structure_build_flags
+{
+	api::acceleration_structure_build_flags result = api::acceleration_structure_build_flags::none;
+	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR) != 0)
+		result |= api::acceleration_structure_build_flags::allow_update;
+	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR) != 0)
+		result |= api::acceleration_structure_build_flags::allow_compaction;
+	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR) != 0)
+		result |= api::acceleration_structure_build_flags::prefer_fast_trace;
+	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR) != 0)
+		result |= api::acceleration_structure_build_flags::prefer_fast_build;
+	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR) != 0)
+		result |= api::acceleration_structure_build_flags::minimize_memory;
+	return result;
+}
+
+void reshade::vulkan::convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, VkAccelerationStructureGeometryKHR &geometry, VkAccelerationStructureBuildRangeInfoKHR &range_info)
+{
+	geometry.geometryType = static_cast<VkGeometryTypeKHR>(build_input.type);
+
+	switch (geometry.geometryType)
+	{
+	case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
+		geometry.geometry.triangles.vertexFormat = convert_format(build_input.triangles.vertex_format);
+		geometry.geometry.triangles.vertexData.deviceAddress = build_input.triangles.vertex_offset;
+		geometry.geometry.triangles.vertexStride = build_input.triangles.vertex_stride;
+		geometry.geometry.triangles.maxVertex = build_input.triangles.vertex_count;
+		geometry.geometry.triangles.indexType = build_input.triangles.index_format == api::format::r8_uint ? VK_INDEX_TYPE_UINT8_EXT : build_input.triangles.index_format == api::format::r16_uint ? VK_INDEX_TYPE_UINT16 : build_input.triangles.index_format == api::format::r32_uint ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_NONE_KHR;
+		geometry.geometry.triangles.indexData.deviceAddress = build_input.triangles.index_offset;
+		geometry.geometry.triangles.transformData.deviceAddress = build_input.triangles.transform_offset;
+		range_info.primitiveCount = geometry.geometry.triangles.indexData.deviceAddress != 0 ? build_input.triangles.index_count / 3 : build_input.triangles.vertex_count / 3;
+		break;
+	case VK_GEOMETRY_TYPE_AABBS_KHR:
+		geometry.geometry.aabbs.data.deviceAddress = build_input.aabbs.offset;
+		geometry.geometry.aabbs.stride = build_input.aabbs.stride;
+		range_info.primitiveCount = build_input.aabbs.count;
+		break;
+	case VK_GEOMETRY_TYPE_INSTANCES_KHR:
+		geometry.geometry.instances.data.deviceAddress = build_input.instances.offset;
+		geometry.geometry.instances.arrayOfPointers = build_input.instances.array_of_pointers ? VK_TRUE : VK_FALSE;
+		range_info.primitiveCount = build_input.instances.count;
+		break;
+	}
+
+	geometry.flags = static_cast<VkGeometryFlagsKHR>(build_input.flags);
+
+	range_info.primitiveOffset = 0;
+	range_info.firstVertex = 0;
+	range_info.transformOffset = 0;
+}
+reshade::api::acceleration_structure_build_input reshade::vulkan::convert_acceleration_structure_build_input(const VkAccelerationStructureGeometryKHR &geometry, const VkAccelerationStructureBuildRangeInfoKHR &range_info)
+{
+	api::acceleration_structure_build_input build_input = {};
+	build_input.type = static_cast<api::acceleration_structure_build_input_type>(geometry.geometryType);
+
+	switch (geometry.geometryType)
+	{
+	case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
+		build_input.triangles.vertex_offset = geometry.geometry.triangles.vertexData.deviceAddress + range_info.primitiveOffset + range_info.firstVertex * geometry.geometry.triangles.vertexStride;
+		build_input.triangles.vertex_count = geometry.geometry.triangles.indexData.deviceAddress == 0 ? range_info.primitiveCount * 3 : geometry.geometry.triangles.maxVertex;
+		build_input.triangles.vertex_stride = geometry.geometry.triangles.vertexStride;
+		build_input.triangles.vertex_format = convert_format(geometry.geometry.triangles.vertexFormat);
+		build_input.triangles.index_offset = geometry.geometry.triangles.indexData.deviceAddress;
+		build_input.triangles.index_count = geometry.geometry.triangles.indexData.deviceAddress != 0 ? range_info.primitiveCount * 3 : 0;
+		build_input.triangles.index_format = geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT8_EXT ? api::format::r8_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT16 ? api::format::r16_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT32 ? api::format::r32_uint : api::format::unknown;
+		build_input.triangles.transform_offset = geometry.geometry.triangles.transformData.deviceAddress + range_info.transformOffset;
+		break;
+	case VK_GEOMETRY_TYPE_AABBS_KHR:
+		build_input.aabbs.offset = geometry.geometry.aabbs.data.deviceAddress;
+		build_input.aabbs.count = range_info.primitiveCount;
+		build_input.aabbs.stride = geometry.geometry.aabbs.stride;
+		break;
+	case VK_GEOMETRY_TYPE_INSTANCES_KHR:
+		build_input.instances.offset = geometry.geometry.instances.data.deviceAddress;
+		build_input.instances.count = range_info.primitiveCount;
+		build_input.instances.array_of_pointers = geometry.geometry.instances.arrayOfPointers != VK_FALSE;
+		break;
+	}
+
+	build_input.flags = static_cast<api::acceleration_structure_build_input_flags>(geometry.flags);
+
+	return build_input;
 }

@@ -176,12 +176,12 @@ namespace reshade { namespace api
 		shared_fence_nt_handle,
 		/// <summary>
 		/// Specifies whether amplification and mesh shaders are supported.
-		///	If this feature is not present, the <see cref="pipeline_stage::amplification_shader"/> and <see cref="pipeline_stage::mesh_shader"/> stages must not be used.
+		///	If this feature is not present, the <see cref="pipeline_stage::amplification_shader"/> and <see cref="pipeline_stage::mesh_shader"/> stages and <see cref="command_list::dispatch_mesh"/> must not be used.
 		/// </summary>
 		amplification_and_mesh_shader,
 		/// <summary>
-		/// Specifies whether ray tracing shaders are supported.
-		/// If this feature is not present, the <see cref="pipeline_stage::all_raytracing"/> stage must not be used.
+		/// Specifies whether ray tracing is supported.
+		/// If this feature is not present, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
 		/// </summary>
 		raytracing,
 	};
@@ -971,6 +971,58 @@ namespace reshade { namespace api
 		/// <param name="label">Null-terminated string containing the label of the debug marker.</param>
 		/// <param name="color">Optional RGBA color value associated with the debug marker.</param>
 		virtual void insert_debug_marker(const char *label, const float color[4] = nullptr) = 0;
+
+		/// <summary>
+		/// Performs a mesh shader dispatch.
+		/// </summary>
+		/// <seealso cref="device_caps::amplification_and_mesh_shader"/>
+		/// <param name="group_count_x">Number of thread groups dispatched in the x direction.</param>
+		/// <param name="group_count_y">Number of thread groups dispatched in the y direction.</param>
+		/// <param name="group_count_z">Number of thread groups dispatched in the z direction.</param>
+		virtual void dispatch_mesh(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) = 0;
+
+		/// <summary>
+		/// Performs a ray tracing dispatch.
+		/// </summary>
+		/// <remarks>
+		/// The shader table resources have to be in the <see cref="resource_usage::shader_resource_non_pixel"/> state.
+		/// </remarks>
+		/// <seealso cref="device_caps::raytracing"/>
+		/// <param name="raygen_address">Shader table for the ray generation shader to use.</param>
+		/// <param name="miss_address">Shader table for the miss shaders to use.</param>
+		/// <param name="hit_group_address">Shader table for the hit groups to use.</param>
+		/// <param name="callable_address">Shader table for the callable shaders to use.</param>
+		/// <param name="width">Width of the ray generation shader thread grid.</param>
+		/// <param name="height">Height of the ray generation shader thread grid.</param>
+		/// <param name="depth">Depth of the ray generation shader thread grid.</param>
+		virtual void dispatch_rays(uint64_t raygen_address, uint64_t raygen_size, uint64_t raygen_stride, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth) = 0;
+
+		/// <summary>
+		/// Copies or transforms data from the <paramref name="source"/> acceleration structure to the <paramref name="dest"/>ination acceleration structure.
+		/// </summary>
+		/// <seealso cref="device_caps::raytracing"/>
+		/// <param name="source">Acceleration structure to copy from.</param>
+		/// <param name="dest">Acceleration structure to copy to.</param>
+		/// <param name="mode">Choose between copying or transforming the data in the acceleration structure.</param>
+		virtual void copy_acceleration_structure(acceleration_structure source, acceleration_structure dest, acceleration_structure_copy_mode mode) = 0;
+
+		/// <summary>
+		/// Builds or updates an acceleration structure for ray tracing.
+		/// </summary>
+		/// <remarks>
+		/// The <paramref name="scratch"/> resource has to be in the <see cref="resource_usage::unordered_access"/> state.
+		/// </remarks>
+		/// <seealso cref="device_caps::raytracing"/>
+		/// <param name="type">Type of the acceleration structure to build.</param>
+		/// <param name="flags">Acceleration structure build options.</param>
+		/// <param name="input_count">Number of build inputs.</param>
+		/// <param name="inputs">Pointer to an array of build inputs describing the geometry of the acceleration structure to build.</param>
+		/// <param name="scratch">Buffer resource to use as scratch space during building.</param>
+		/// <param name="scratch_offset">Offset (in bytes) into the <paramref name="scratch"/> buffer.</param>
+		/// <param name="source">Acceleration structure to read data from when <paramref name="mode"/> is <see cref="acceleration_structure_build_mode::update"/>.</param>
+		/// <param name="dest">Acceleration structure to write data to.</param>
+		/// <param name="mode">Choose between building a new or updating an existing acceleration structure.</param>
+		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, acceleration_structure source, acceleration_structure dest, acceleration_structure_build_mode mode) = 0;
 	};
 
 	/// <summary>

@@ -494,6 +494,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetSemaphoreCounterValue);
 		INIT_DISPATCH_PTR(WaitSemaphores);
 		INIT_DISPATCH_PTR(SignalSemaphore);
+		INIT_DISPATCH_PTR(GetBufferDeviceAddress);
 	}
 
 	// Core 1_3
@@ -567,6 +568,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_ALTERNATIVE(WaitSemaphores, KHR);
 	INIT_DISPATCH_PTR_ALTERNATIVE(SignalSemaphore, KHR);
 
+	// VK_KHR_buffer_device_address
+	INIT_DISPATCH_PTR_ALTERNATIVE(GetBufferDeviceAddress, KHR);
+
 	// VK_KHR_synchronization2
 	INIT_DISPATCH_PTR_ALTERNATIVE(CmdPipelineBarrier2, KHR);
 	INIT_DISPATCH_PTR_ALTERNATIVE(CmdWriteTimestamp2, KHR);
@@ -613,6 +617,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_ALTERNATIVE(DestroyPrivateDataSlot, EXT);
 	INIT_DISPATCH_PTR_ALTERNATIVE(GetPrivateData, EXT);
 	INIT_DISPATCH_PTR_ALTERNATIVE(SetPrivateData, EXT);
+
+	// VK_KHR_acceleration_structure
+	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresKHR);
+	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
+	INIT_DISPATCH_PTR(CopyAccelerationStructureKHR);
 
 	// VK_KHR_ray_tracing_pipeline
 	INIT_DISPATCH_PTR(CmdTraceRaysKHR);
@@ -2497,6 +2506,18 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 				static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 				update.descriptors = write.pBufferInfo;
+				break;
+			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+				if (const auto write_acceleration_structure = find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(write.pNext, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR))
+				{
+					assert(update.count == write_acceleration_structure->accelerationStructureCount);
+					update.descriptors = write_acceleration_structure->pAccelerationStructures;
+				}
+				else
+				{
+					update.count = 0;
+					update.descriptors = nullptr;
+				}
 				break;
 			}
 		}

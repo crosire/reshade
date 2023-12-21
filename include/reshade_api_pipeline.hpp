@@ -32,9 +32,8 @@ namespace reshade { namespace api
 		callable = 0x2000,
 
 		all = 0x7FFFFFFF,
-		all_compute = compute,
-		all_graphics = vertex | hull | domain | geometry | pixel,
-		all_raytracing = raygen | any_hit | closest_hit | miss | intersection | callable
+		all_compute = compute | raygen | any_hit | closest_hit | miss | intersection | callable,
+		all_graphics = vertex | hull | domain | geometry | pixel | amplification | mesh
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -53,18 +52,18 @@ namespace reshade { namespace api
 		amplification_shader = 0x80000,
 		mesh_shader = 0x100000,
 
+		raytracing_shader = 0x00200000,
+
 		input_assembler = 0x2,
 		stream_output = 0x4,
 		rasterizer = 0x100,
 		depth_stencil = 0x200,
 		output_merger = 0x400,
 
-		acceleration_structure_build = 0x02000000,
-
 		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
 		all_graphics = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | input_assembler | stream_output | rasterizer | depth_stencil | output_merger,
-		all_raytracing = 0x00200000,
+		all_raytracing = raytracing_shader,
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
@@ -79,7 +78,8 @@ namespace reshade { namespace api
 		shader_resource_view = 2,
 		unordered_access_view = 3,
 		constant_buffer = 6,
-		shader_storage_buffer = 7
+		shader_storage_buffer = 7,
+		acceleration_structure
 	};
 
 	/// <summary>
@@ -390,20 +390,11 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// 
-	/// </summary>
-	enum class hit_group_type
-	{
-		triangles = 0,
-		procedural_primitive = 2
-	};
-
-	/// <summary>
-	/// 
+	/// Describes a ray tracing hit group.
 	/// </summary>
 	struct hit_group
 	{
-		hit_group_type type = hit_group_type::triangles;
+		acceleration_structure_build_input_type type = acceleration_structure_build_input_type::triangles;
 		uint32_t closest_hit_index = UINT32_MAX;
 		uint32_t any_hit_index = UINT32_MAX;
 		uint32_t intersection_index = UINT32_MAX;
@@ -983,7 +974,7 @@ namespace reshade { namespace api
 		descriptor_type type = descriptor_type::sampler;
 		/// <summary>
 		/// Pointer to an array of descriptors to update in the descriptor table (which should be as large as the specified <see cref="count"/>).
-		/// Depending on the descriptor <see cref="type"/> this should be pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.
+		/// Depending on the descriptor <see cref="type"/> this should be pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/>, <see cref="sampler_with_resource_view"/> or <see cref="acceleration_structure"/>.
 		/// </summary>
 		const void *descriptors = nullptr;
 	};

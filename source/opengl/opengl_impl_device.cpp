@@ -195,6 +195,8 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::shared_fence_nt_handle:
 		// TODO: Implement using 'GL_EXT_semaphore' and 'GL_EXT_semaphore_win32' extensions
 		return false;
+	case api::device_caps::amplification_and_mesh_shader:
+	case api::device_caps::raytracing:
 	default:
 		return false;
 	}

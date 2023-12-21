@@ -95,8 +95,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(begin_query);
 		CASE(end_query);
 		CASE(copy_query_heap_results);
-		CASE(build_acceleration_structure);
 		CASE(copy_acceleration_structure);
+		CASE(build_acceleration_structure);
 		CASE(reset_command_list);
 		CASE(close_command_list);
 		CASE(execute_command_list);

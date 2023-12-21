@@ -999,6 +999,14 @@ void reshade::opengl::render_context_impl::dispatch(uint32_t group_count_x, uint
 {
 	gl.DispatchCompute(group_count_x, group_count_y, group_count_z);
 }
+void reshade::opengl::render_context_impl::dispatch_mesh(uint32_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
+void reshade::opengl::render_context_impl::dispatch_rays(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
 void reshade::opengl::render_context_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	switch (type)
@@ -1708,6 +1716,15 @@ void reshade::opengl::render_context_impl::copy_query_heap_results(api::query_he
 
 		gl.GetQueryBufferObjectui64v(reinterpret_cast<query_heap_impl *>(heap.handle)->queries[first + i], dst.handle & 0xFFFFFFFF, GL_QUERY_RESULT_NO_WAIT, static_cast<GLintptr>(dst_offset + i * stride));
 	}
+}
+
+void reshade::opengl::render_context_impl::copy_acceleration_structure(api::acceleration_structure, api::acceleration_structure, api::acceleration_structure_copy_mode)
+{
+	assert(false);
+}
+void reshade::opengl::render_context_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::acceleration_structure, api::acceleration_structure, api::acceleration_structure_build_mode)
+{
+	assert(false);
 }
 
 void reshade::opengl::render_context_impl::begin_debug_event(const char *label, const float[4])

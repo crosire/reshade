@@ -1446,26 +1446,29 @@ namespace reshade
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
-		/// <item><description>ID3D12GraphicsCommandList4::BuildRaytracingAccelerationStructure</description></item>
+		/// <item><description>ID3D12GraphicsCommandList4::CopyRaytracingAccelerationStructure</description></item>
+		/// <item><description>vkCmdCopyAccelerationStructureKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_copy_mode mode)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		build_acceleration_structure = 91,
+		copy_acceleration_structure = 91,
 
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
-		/// <item><description>ID3D12GraphicsCommandList4::CopyRaytracingAccelerationStructure</description></item>
+		/// <item><description>ID3D12GraphicsCommandList4::BuildRaytracingAccelerationStructure</description></item>
+		/// <item><description>vkCmdBuildAccelerationStructuresKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_build_mode mode)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// In case of D3D12 and Vulkan, the 'scratch' handle may be zero with the buffer instead referred to via a device address passed into 'scratch_offset'.
 		/// </remarks>
-		copy_acceleration_structure = 92,
+		build_acceleration_structure = 92,
 
 		/// <summary>
 		/// Called before:
@@ -1766,8 +1769,8 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_query, bool, api::command_list *cmd_list, api::query_heap heap, api::query_type type, uint32_t index);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_query_heap_results, bool, api::command_list *cmd_list, api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::build_acceleration_structure, bool, api::command_list *cmd_list);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_acceleration_structure, bool, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_acceleration_structure, bool, api::command_list *cmd_list, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_copy_mode mode);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::build_acceleration_structure, bool, api::command_list *cmd_list, api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_build_mode mode);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reset_command_list, void, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::close_command_list, void, api::command_list *cmd_list);
