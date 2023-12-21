@@ -745,7 +745,7 @@ void reshade::imgui::code_editor::select_all()
 	select(_interactive_beg, _interactive_end);
 }
 
-void reshade::imgui::code_editor::set_text(const std::string_view &text)
+void reshade::imgui::code_editor::set_text(const std::string_view text)
 {
 	_lines.clear();
 	_lines.emplace_back();
@@ -779,7 +779,7 @@ void reshade::imgui::code_editor::clear_text()
 {
 	set_text(std::string_view());
 }
-void reshade::imgui::code_editor::insert_text(const std::string_view &text)
+void reshade::imgui::code_editor::insert_text(const std::string_view text)
 {
 	// Insert all characters of the text
 	for (auto it = text.begin(); it < text.end();)
@@ -1632,7 +1632,7 @@ void reshade::imgui::code_editor::move_lines_down()
 	_cursor_pos.line++;
 }
 
-bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view &text, bool backwards, bool with_selection)
+bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view text, bool backwards, bool with_selection)
 {
 	if (text.empty())
 		return false; // Cannot search for empty text

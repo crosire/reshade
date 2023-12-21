@@ -20,7 +20,7 @@ BEGIN
 16144 "ReShade is now installed successfully! Press '%s' to start the tutorial."
 690 "Press '%s' to open the configuration overlay."
 16882 "There were errors loading some add-ons."
-9811 "There were errors compiling some effects."
+2323 "There were errors loading some effects."
 60730 "Check the log for more details."
 55956 "Unable to save configuration and/or current preset. Make sure file permissions are set up to allow writing to these paths and their parent directories:\n%s\n%s"
 53844 "Unable to save configuration. Make sure file permissions are set up to allow writing to %s."
@@ -185,6 +185,7 @@ BEGIN
 37590 "Search"
 42682 "Yes"
 35957 "No"
+25121 "Off\nOn\n"
 
 END
 

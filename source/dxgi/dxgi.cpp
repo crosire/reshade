@@ -356,7 +356,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 	}
 
 	// Fall back to checking private data in case original device pointer was passed in (e.g. because D3D11 device was created with video support and then queried though 'D3D11Device::QueryInterface')
-	// Note that D3D11 devices can expose the 'ID3D10Device' interface too, after 'ID3D11Device::CreateDeviceContextState' was called
+	// Note that D3D11 devices can expose the 'ID3D10Device' interface too, if 'ID3D11Device::CreateDeviceContextState' has been called
 	// But since there is a follow-up check for the proxy 'D3D10Device' interface that is only set on real D3D10 devices, the query order doesn't matter here
 	if (com_ptr<ID3D10Device> device_d3d10_orig;
 		SUCCEEDED(device->QueryInterface(&device_d3d10_orig)))
@@ -655,7 +655,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 		return CreateDXGIFactory1(riid, ppFactory);
 	}
 
-	// It is crutial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
+	// It is crucial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
 	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
 	const HRESULT hr = trampoline(Flags, riid, ppFactory);
 	if (FAILED(hr))

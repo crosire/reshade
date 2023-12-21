@@ -20,7 +20,7 @@ BEGIN
 16144 "ReShade wurde erfolgreich installiert! Drücke '%s', um das Tutorial zu starten."
 690 "Drücke '%s', um das Konfigurationsmenü zu öffnen."
 16882 "Fehler beim Laden mancher Erweiterungen."
-9811 "Fehler beim Kompilieren mancher Effekte."
+2323 "Fehler beim Laden mancher Effekte."
 60730 "Bitte das Log überprüfen, um mehr Details zu erhalten."
 39634 "Fehler beim Speichern der Konfiguration und/oder des Presets. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Dateien und übergeordneten Ordnern zu ermöglichen:\n%s\n%s"
 53844 "Fehler beim Speichern der Konfiguration. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Datei zu ermöglichen: %s"
@@ -65,7 +65,7 @@ BEGIN
 54263 "Tutorial überspringen"
 34234 "Abschließen"
 21056 "Generelles"
-33858 "Alle Eingaben weiterreichen\nEingaben blockieren, wenn der Mauszeiger über dem Konfigurationsmenü liegt\nAlle Eingaben blockieren, wenn das Konfigurationsmenü sichtbar ist\n"
+33858 "Alle Eingaben weiterreichen\nEingaben blockieren, wenn sich der Mauszeiger über dem Konfigurationsmenü befindet\nAlle Eingaben blockieren, wenn das Konfigurationsmenü sichtbar ist\n"
 46080 "Eingabeverarbeitung"
 23871 "Menü-Taste"
 40379 "Effekte-Umschalt-Taste"
@@ -185,6 +185,7 @@ BEGIN
 37590 "Suche"
 42682 "Ja"
 35957 "Nein"
+25121 "Aus\nAn\n"
 
 END
 

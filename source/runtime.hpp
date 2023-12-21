@@ -38,6 +38,9 @@ namespace reshade
 
 		uint64_t get_native() const final { return _swapchain->get_native(); }
 
+		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
+		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
+
 		api::device *get_device() final { return _device; }
 		api::swapchain *get_swapchain() { return _swapchain; }
 		api::command_queue *get_command_queue() final { return _graphics_queue; }
@@ -47,9 +50,6 @@ namespace reshade
 		api::resource get_back_buffer(uint32_t index) final { return _swapchain->get_back_buffer(index); }
 		uint32_t get_back_buffer_count() const final { return _swapchain->get_back_buffer_count(); }
 		uint32_t get_current_back_buffer_index() const final { return _swapchain->get_current_back_buffer_index(); }
-
-		void get_private_data(const uint8_t guid[16], uint64_t *data) const final { return _swapchain->get_private_data(guid, data); }
-		void set_private_data(const uint8_t guid[16], const uint64_t data)  final { return _swapchain->set_private_data(guid, data); }
 
 		/// <summary>
 		/// Gets the path to the configuration file used by this effect runtime.
@@ -69,7 +69,7 @@ namespace reshade
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
-		void save_screenshot(const std::string_view &postfix = std::string_view());
+		void save_screenshot(const std::string_view postfix = std::string_view());
 		bool capture_screenshot(void *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, static_cast<uint8_t *>(pixels)); }
 
 		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
@@ -177,7 +177,7 @@ namespace reshade
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool preprocess_required = false);
+		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool force_load = false, bool preprocess_required = false);
 		bool create_effect(size_t effect_index);
 		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
@@ -191,9 +191,9 @@ namespace reshade
 
 		void reorder_techniques(std::vector<size_t> &&technique_indices);
 
-		void load_effects();
+		void load_effects(bool force_load_all = false);
 		bool reload_effect(size_t effect_index);
-		void reload_effects();
+		void reload_effects(bool force_load_all = false);
 		void destroy_effects();
 
 		bool load_effect_cache(const std::string &id, const std::string &type, std::string &data) const;
@@ -255,7 +255,6 @@ namespace reshade
 #endif
 
 		#pragma region Status
-		static bool s_needs_update;
 		static unsigned int s_latest_version[3];
 
 		bool _is_initialized = false;
@@ -286,16 +285,13 @@ namespace reshade
 		bool _no_reload_on_init = false;
 		bool _performance_mode = false;
 		bool _effect_load_skipping = false;
-		bool _load_option_disable_skipping = false;
 		unsigned int _reload_key_data[4] = {};
 		unsigned int _performance_mode_key_data[4] = {};
 
 		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
 		std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> _preset_preprocessor_definitions;
 		size_t _should_reload_effect = std::numeric_limits<size_t>::max();
-#if RESHADE_ADDON
-		bool _should_block_effect_reload = false;
-#endif
+		bool _block_effect_reload_this_frame = false;
 
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
@@ -521,7 +517,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Log
-		char _log_filter[64] = {};
+		char _log_filter[32] = {};
 		bool _log_wordwrap = false;
 		uintmax_t _last_log_size;
 		std::vector<std::string> _log_lines;

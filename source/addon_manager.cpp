@@ -190,7 +190,7 @@ void reshade::load_addons()
 		// Avoid loading library altogether when it is found in the disabled add-on list
 		if (addon_info info;
 			std::find_if(disabled_addons.cbegin(), disabled_addons.cend(),
-				[file_name = path.filename().u8string(), &info](const std::string_view &addon_name) {
+				[file_name = path.filename().u8string(), &info](const std::string_view addon_name) {
 					const size_t at_pos = addon_name.find('@');
 					if (at_pos == std::string_view::npos)
 						return false;
@@ -404,7 +404,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 	if (std::vector<std::string> disabled_addons;
 		reshade::global_config().get("ADDON", "DisabledAddons", disabled_addons) &&
 		std::find_if(disabled_addons.cbegin(), disabled_addons.cend(),
-			[&info](const std::string_view &addon_name) {
+			[&info](const std::string_view addon_name) {
 				const size_t at_pos = addon_name.find('@');
 				if (at_pos == std::string_view::npos)
 					return addon_name == info.name;

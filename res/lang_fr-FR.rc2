@@ -20,7 +20,7 @@ BEGIN
 16144 "ReShade est installé avec succès ! Appuyez sur '%s' pour démarer le didacticiel."
 690 "Apuuyez sur '%s' pour ouvrir l'interface en surimpression."
 16882 "Des erreurs se sont produites pendant le chargement de certains add-ons."
-9811 "Des erreurs se sont produites pendant la compilation de certains effets."
+2323 "Des erreurs se sont produites pendant la chargement de certains effets."
 60730 "Consultez les logs pour plus de détails."
 55956 "Impossible d'enregistrer les paramètres et/ou la configuration courante. Vérifiez les autorisation en écriture pour les fichiers suivant et leurs dossiers parents :\n%s\n%s"
 53844 "Impossible d'enregistrer les paramètres. Vérifiez les autorisation en écriture pour le chemin suivant %s."
@@ -185,6 +185,7 @@ BEGIN
 37590 "Recherche"
 42682 "Oui"
 35957 "Non"
+25121 "Désactivé\nActivé\n"
 
 END
 

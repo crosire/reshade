@@ -25,9 +25,9 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 
 	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), false, ImGuiWindowFlags_NoScrollWithMouse))
 	{
-		for (size_t i = 0; i < paths.size(); ++i)
+		for (int i = 0; i < static_cast<int>(paths.size()); ++i)
 		{
-			ImGui::PushID(static_cast<int>(i));
+			ImGui::PushID(i);
 
 			char buf[4096];
 			const size_t buf_len = paths[i].u8string().copy(buf, sizeof(buf) - 1);
@@ -139,10 +139,10 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	{
 		if (entry.is_directory())
 		{
-			const bool is_selected = entry == path;
+			const bool selected = (entry == path);
 
 			const std::string label = ICON_FK_FOLDER " " + entry.path().filename().u8string();
-			if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+			if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick))
 			{
 				path = entry;
 
@@ -151,7 +151,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 					path += std::filesystem::path::preferred_separator;
 			}
 
-			if (is_selected && ImGui::IsWindowAppearing())
+			if (selected && ImGui::IsWindowAppearing())
 				ImGui::SetScrollHereY();
 			continue;
 		}
@@ -169,7 +169,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	bool has_double_clicked_file = false;
 	for (std::filesystem::path &file_path : file_entries)
 	{
-		const bool is_selected = file_path == path;
+		const bool selected = (file_path == path);
 		// Convert entry extension to lowercase before parsing
 		std::wstring file_path_ext = file_path.extension().wstring();
 		std::transform(file_path_ext.begin(), file_path_ext.end(), file_path_ext.begin(), towlower);
@@ -181,7 +181,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			label = ICON_FK_FILE_IMAGE " " + label;
 		label += file_path.filename().u8string();
 
-		if (ImGui::Selectable(label.c_str(), is_selected, ImGuiSelectableFlags_AllowDoubleClick))
+		if (ImGui::Selectable(label.c_str(), selected, ImGuiSelectableFlags_AllowDoubleClick))
 		{
 			path = std::move(file_path);
 
@@ -190,7 +190,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 				has_double_clicked_file = true;
 		}
 
-		if (is_selected && ImGui::IsWindowAppearing())
+		if (selected && ImGui::IsWindowAppearing())
 			ImGui::SetScrollHereY();
 	}
 
@@ -440,10 +440,10 @@ bool reshade::imgui::radio_list(const char *label, const std::string_view ui_ite
 	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1, ++i)
 		res |= ImGui::RadioButton(ui_items.data() + offset, &v, static_cast<int>(i));
 
-	ImGui::EndGroup();
-
-	ImGui::SameLine(ImGui::GetCursorPosX() + item_width, ImGui::GetStyle().ItemInnerSpacing.x);
+	ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
 	ImGui::TextUnformatted(label);
+
+	ImGui::EndGroup();
 
 	return res;
 }
@@ -516,27 +516,35 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
 	std::vector<std::string_view> items;
-	if (!ui_items.empty())
-		for (std::string_view item = ui_items.data(); ui_items.data() + ui_items.size() > item.data();
-			item = item.data() + item.size() + 1)
-			items.push_back(item);
+	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1)
+		items.push_back(ui_items.substr(offset, next + 1 - offset));
+
+	ImGui::BeginGroup();
 
 	ImGui::BeginGroup();
 
 	ImVec2 hover_pos = ImGui::GetCursorScreenPos();
 	hover_pos.y += button_size;
 
-	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (2 * (button_spacing + button_size)));
-	if (ImGui::BeginCombo("##v", items.size() > static_cast<size_t>(v) && v >= 0 ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
+	const float combo_box_width = ImGui::CalcItemWidth() - (2 * (button_spacing + button_size));
+	ImGui::SetNextItemWidth(combo_box_width);
+	if (ImGui::BeginCombo("##v", v >= 0 && static_cast<size_t>(v) < items.size() ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
-		auto it = items.cbegin();
-		for (size_t i = 0; it != items.cend(); ++it, ++i)
+		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
-			bool selected = v == static_cast<int>(i);
-			if (ImGui::Selectable(it->data(), &selected))
-				v = static_cast<int>(i), res = true;
+			ImGui::PushID(i);
+
+			bool selected = (v == i);
+			if (ImGui::Selectable(items[i].data(), &selected))
+			{
+				v = i;
+				res = true;
+			}
+
 			if (selected)
 				ImGui::SetItemDefaultFocus();
+
+			ImGui::PopID();
 		}
 
 		ImGui::EndCombo();
@@ -566,21 +574,22 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 	ImGui::SameLine(0, button_spacing);
 	ImGui::TextUnformatted(label);
 
+	ImGui::EndGroup();
+
 	if (is_hovered)
 	{
 		const ImGuiStyle &style = ImGui::GetStyle();
 
 		ImGui::SetNextWindowPos(hover_pos);
-		ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::CalcItemWidth(), 0.0f), ImVec2(FLT_MAX, (ImGui::GetFontSize() + style.ItemSpacing.y) * 8 - style.ItemSpacing.y + (style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
+		ImGui::SetNextWindowSizeConstraints(ImVec2(combo_box_width, 0.0f), ImVec2(FLT_MAX, (ImGui::GetFontSize() + style.ItemSpacing.y) * 8 - style.ItemSpacing.y + (style.WindowPadding.y * 2))); // 8 by ImGuiComboFlags_HeightRegular
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(style.FramePadding.x, style.WindowPadding.y));
 		ImGui::Begin("##spinner_items", NULL, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoDocking);
 		ImGui::PopStyleVar();
 
-		auto it = items.cbegin();
-		for (size_t i = 0; it != items.cend(); ++it, ++i)
+		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
-			bool selected = v == static_cast<int>(i);
-			ImGui::Selectable(it->data(), &selected);
+			const bool selected = (v == i);
+			ImGui::Selectable(items[i].data(), selected);
 			if (selected)
 				ImGui::SetScrollHereY();
 		}
@@ -593,52 +602,73 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 
 bool reshade::imgui::combo_with_buttons(const char *label, bool &v)
 {
+	std::string items = _("Off\nOn\n");
+	std::replace(items.begin(), items.end(), '\n', '\0');
+
 	int current_item = v ? 1 : 0;
-	const bool res = combo_with_buttons(label, std::string_view("Off\0On\0", 7), current_item);
+	const bool res = combo_with_buttons(label, items, current_item);
 	v = current_item != 0;
 	return res;
 }
 bool reshade::imgui::combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
 {
+	bool res = false;
+
 	const float button_size = ImGui::GetFrameHeight();
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
-	size_t num_items = 0;
-	std::string items;
-	items.reserve(ui_items.size());
-	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1, ++num_items)
-	{
-		items += ui_items.data() + offset;
-		items += '\0'; // Terminate item in the combo list
-	}
+	std::vector<std::string_view> items;
+	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1)
+		items.push_back(ui_items.substr(offset, next + 1 - offset));
 
 	ImGui::BeginGroup();
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (2 * (button_spacing + button_size)));
-	bool res = ImGui::Combo("##v", &v, items.c_str());
 
-	ImGui::BeginDisabled(num_items == 0);
+	if (ImGui::BeginCombo("##v", v >= 0 && static_cast<size_t>(v) < items.size() ? items[v].data() : nullptr, ImGuiComboFlags_None))
+	{
+		for (int i = 0; i < static_cast<int>(items.size()); ++i)
+		{
+			ImGui::PushID(i);
+
+			bool selected = (v == i);
+			if (ImGui::Selectable(items[i].data(), &selected))
+			{
+				v = i;
+				res = true;
+			}
+
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			ImGui::PopID();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	ImGui::BeginDisabled(items.empty());
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
 	{
 		res = true;
-		v = (v == 0) ? static_cast<int>(num_items - 1) : v - 1;
+		v = (v == 0) ? static_cast<int>(items.size() - 1) : v - 1;
 	}
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button(">", ImVec2(button_size, 0)))
 	{
 		res = true;
-		v = (v == static_cast<int>(num_items - 1)) ? 0 : v + 1;
+		v = (v == static_cast<int>(items.size() - 1)) ? 0 : v + 1;
 	}
 
 	ImGui::EndDisabled();
 
-	ImGui::EndGroup();
-
 	ImGui::SameLine(0, button_spacing);
 	ImGui::TextUnformatted(label);
+
+	ImGui::EndGroup();
 
 	return res;
 }
