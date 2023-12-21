@@ -3408,9 +3408,9 @@ void reshade::runtime::draw_variable_editor()
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_bool:
-				get_uniform_value(variable, value.as_uint, 1);
+				get_uniform_value(variable, value.as_uint, variable.type.components());
 				for (size_t i = 0; is_default_value && i < variable.type.components(); i++)
-					is_default_value = (reinterpret_cast<bool *>(value.as_uint)[i] != 0) == (variable.initializer_value.as_uint[i] != 0);
+					is_default_value = (value.as_uint[i] != 0) == (variable.initializer_value.as_uint[i] != 0);
 				break;
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
@@ -3432,7 +3432,7 @@ void reshade::runtime::draw_variable_editor()
 				switch (variable.type.base)
 				{
 				case reshadefx::type::t_bool:
-					get_uniform_value(variable, reinterpret_cast<bool *>(new_value.as_uint), variable.type.components());
+					get_uniform_value(variable, new_value.as_uint, variable.type.components());
 					for (size_t i = 0; !modified && i < variable.type.components(); i++)
 						modified = (new_value.as_uint[i] != 0) != (value.as_uint[i] != 0);
 					break;
@@ -3460,12 +3460,12 @@ void reshade::runtime::draw_variable_editor()
 					case reshadefx::type::t_bool:
 					{
 						if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), *reinterpret_cast<bool *>(&value.as_uint[0]));
+							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool &>(value.as_uint));
 						else
-							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(&value.as_uint[0]));
+							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(value.as_uint));
 
 						if (modified)
-							set_uniform_value(variable, value.as_uint, 1);
+							set_uniform_value(variable, value.as_uint, variable.type.components());
 						break;
 					}
 					case reshadefx::type::t_int:
