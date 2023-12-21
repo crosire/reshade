@@ -3424,6 +3424,7 @@ void reshade::runtime::draw_variable_editor()
 
 			ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
 
+#if RESHADE_ADDON
 			if (invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this, api::effect_uniform_variable{ reinterpret_cast<uintptr_t>(&variable) }))
 			{
 				reshadefx::constant new_value;
@@ -3445,6 +3446,7 @@ void reshade::runtime::draw_variable_editor()
 				}
 			}
 			else
+#endif
 			{
 				std::string_view label = get_localized_annotation(variable, "ui_label", _language);
 				if (label.empty())
@@ -3921,12 +3923,14 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
 
+#if RESHADE_ADDON
 			if (bool was_enabled = tech.enabled;
 				invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
 			{
 				modified = tech.enabled != was_enabled;
 			}
 			else
+#endif
 			{
 				// Gray out disabled techniques
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
