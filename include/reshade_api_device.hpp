@@ -179,6 +179,11 @@ namespace reshade { namespace api
 		///	If this feature is not present, the <see cref="pipeline_stage::amplification_shader"/> and <see cref="pipeline_stage::mesh_shader"/> stages must not be used.
 		/// </summary>
 		amplification_and_mesh_shader,
+		/// <summary>
+		/// Specifies whether ray tracing shaders are supported.
+		/// If this feature is not present, the <see cref="pipeline_stage::all_raytracing"/> stage must not be used.
+		/// </summary>
+		raytracing,
 	};
 
 	/// <summary>
@@ -565,7 +570,9 @@ namespace reshade { namespace api
 		unknown,
 		draw,
 		draw_indexed,
-		dispatch
+		dispatch,
+		dispatch_mesh,
+		dispatch_rays
 	};
 
 	/// <summary>

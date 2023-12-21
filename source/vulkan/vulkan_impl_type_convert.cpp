@@ -1910,6 +1910,32 @@ auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> a
 		return api::primitive_topology::undefined;
 	}
 }
+auto reshade::vulkan::convert_hit_group_type(api::hit_group_type value) -> VkRayTracingShaderGroupTypeKHR
+{
+	switch (value)
+	{
+	case reshade::api::hit_group_type::triangles:
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+	case reshade::api::hit_group_type::procedural_primitive:
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+	default:
+		assert(false);
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_MAX_ENUM_KHR;
+	}
+}
+auto reshade::vulkan::convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::hit_group_type
+{
+	switch (value)
+	{
+	case VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR:
+		return api::hit_group_type::triangles;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR:
+		return api::hit_group_type::procedural_primitive;
+	}
+}
 
 auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 {

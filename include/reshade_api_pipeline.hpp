@@ -20,12 +20,21 @@ namespace reshade { namespace api
 		geometry = 0x8,
 		pixel = 0x10,
 		compute = 0x20,
+
 		amplification = 0x40,
 		mesh = 0x80,
 
+		raygen = 0x0100,
+		any_hit = 0x0200,
+		closest_hit = 0x0400,
+		miss = 0x0800,
+		intersection = 0x1000,
+		callable = 0x2000,
+
 		all = 0x7FFFFFFF,
 		all_compute = compute,
-		all_graphics = vertex | hull | domain | geometry | pixel
+		all_graphics = vertex | hull | domain | geometry | pixel,
+		all_raytracing = raygen | any_hit | closest_hit | miss | intersection | callable
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -40,6 +49,7 @@ namespace reshade { namespace api
 		geometry_shader = 0x40,
 		pixel_shader = 0x80,
 		compute_shader = 0x800,
+
 		amplification_shader = 0x80000,
 		mesh_shader = 0x100000,
 
@@ -49,9 +59,12 @@ namespace reshade { namespace api
 		depth_stencil = 0x200,
 		output_merger = 0x400,
 
+		acceleration_structure_build = 0x02000000,
+
 		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
 		all_graphics = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | input_assembler | stream_output | rasterizer | depth_stencil | output_merger,
+		all_raytracing = 0x00200000,
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
@@ -374,6 +387,26 @@ namespace reshade { namespace api
 		/// Pointer to an array of constant values, one for each specialization constant index in <see cref="spec_constant_ids"/>.
 		/// </summary>
 		const uint32_t *spec_constant_values = nullptr;
+	};
+
+	/// <summary>
+	/// 
+	/// </summary>
+	enum class hit_group_type
+	{
+		triangles = 0,
+		procedural_primitive = 2
+	};
+
+	/// <summary>
+	/// 
+	/// </summary>
+	struct hit_group
+	{
+		hit_group_type type = hit_group_type::triangles;
+		uint32_t closest_hit_index = UINT32_MAX;
+		uint32_t any_hit_index = UINT32_MAX;
+		uint32_t intersection_index = UINT32_MAX;
 	};
 
 	/// <summary>
@@ -758,6 +791,63 @@ namespace reshade { namespace api
 		/// <seealso cref="shader_stage::mesh"/>
 		/// <seealso cref="pipeline_stage::mesh_shader"/>
 		mesh_shader,
+		/// <summary>
+		/// Ray generation shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::raygen"/>
+		/// <seealso cref="pipeline_stage::raygen_shader"/>
+		raygen_shader,
+		/// <summary>
+		/// Any-hit shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::any_hit"/>
+		any_hit_shader,
+		/// <summary>
+		/// Closest-hit shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::closest_hit"/>
+		closest_hit_shader,
+		/// <summary>
+		/// Miss shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::miss"/>
+		miss_shader,
+		/// <summary>
+		/// Intersection shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::intersection"/>
+		intersection_shader,
+		/// <summary>
+		/// Callable shader to use.
+		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
+		/// </summary>
+		/// <seealso cref="shader_stage::callable"/>
+		callable_shader,
+		/// <summary>
+		/// Hit groups to use.
+		/// Sub-object data is a pointer to an array of <see cref="hit_object"/> values.
+		/// </summary>
+		hit_groups,
+		/// <summary>
+		/// Maximum payload size of shaders executed by this pipeline.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		max_payload_size,
+		/// <summary>
+		/// Maximum hit attribute size of shaders executed by this pipeline.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		max_attribute_size,
+		/// <summary>
+		/// Maximum recursion depth of shaders executed by this pipeline.
+		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
+		/// </summary>
+		max_recursion_depth,
 	};
 
 	/// <summary>

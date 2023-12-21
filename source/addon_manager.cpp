@@ -78,6 +78,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(draw);
 		CASE(draw_indexed);
 		CASE(dispatch);
+		CASE(dispatch_mesh);
+		CASE(dispatch_rays);
 		CASE(draw_or_dispatch_indirect);
 		CASE(copy_resource);
 		CASE(copy_buffer_region);
@@ -93,6 +95,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(begin_query);
 		CASE(end_query);
 		CASE(copy_query_heap_results);
+		CASE(build_acceleration_structure);
+		CASE(copy_acceleration_structure);
 		CASE(reset_command_list);
 		CASE(close_command_list);
 		CASE(execute_command_list);

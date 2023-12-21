@@ -199,19 +199,32 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	// Cannot bind state to individual pipeline stages
-	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics);
+	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics || stages == api::pipeline_stage::all_raytracing);
 
-	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
-	_orig->SetPipelineState(pipeline_object);
-
-	pipeline_extra_data extra_data;
-	UINT extra_data_size = sizeof(extra_data);
-	if (stages == api::pipeline_stage::all_graphics &&
-		pipeline_object != nullptr &&
-		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	if (stages == api::pipeline_stage::all_raytracing)
 	{
-		_orig->IASetPrimitiveTopology(extra_data.topology);
-		_orig->OMSetBlendFactor(extra_data.blend_constant);
+		const auto pipeline_object = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
+
+		com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+		if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+			cmd_list4->SetPipelineState1(pipeline_object);
+		else
+			assert(false);
+	}
+	else
+	{
+		const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
+		_orig->SetPipelineState(pipeline_object);
+
+		pipeline_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (stages == api::pipeline_stage::all_graphics &&
+			pipeline_object != nullptr &&
+			SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		{
+			_orig->IASetPrimitiveTopology(extra_data.topology);
+			_orig->OMSetBlendFactor(extra_data.blend_constant);
+		}
 	}
 }
 void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)

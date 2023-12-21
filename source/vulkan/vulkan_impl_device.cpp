@@ -248,6 +248,10 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		_instance_dispatch_table.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
 		return (external_semaphore_properties.externalSemaphoreFeatures & (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT);
 	}
+	case api::device_caps::amplification_and_mesh_shader:
+		return vk.CmdDrawMeshTasksEXT != nullptr;
+	case api::device_caps::raytracing:
+		return vk.CmdTraceRaysKHR != nullptr;
 	default:
 		return false;
 	}
@@ -1014,6 +1018,8 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	api::shader_desc gs_desc = {};
 	api::shader_desc ps_desc = {};
 	api::shader_desc cs_desc = {};
+	api::shader_desc as_desc = {};
+	api::shader_desc ms_desc = {};
 	api::pipeline_subobject input_layout_desc = {};
 	api::stream_output_desc stream_output_desc = {};
 	api::blend_desc blend_desc = {};
@@ -1026,6 +1032,16 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t sample_count = 1;
 	uint32_t viewport_count = 1;
+	std::vector<api::hit_group> hit_groups;
+	std::vector<api::shader_desc> raygen_desc;
+	std::vector<api::shader_desc> any_hit_desc;
+	std::vector<api::shader_desc> closest_hit_desc;
+	std::vector<api::shader_desc> miss_desc;
+	std::vector<api::shader_desc> intersection_desc;
+	std::vector<api::shader_desc> callable_desc;
+	uint32_t max_payload_size = 0;
+	uint32_t max_attribute_size = 0;
+	uint32_t max_recursion_depth = 0;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -1109,13 +1125,143 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		case api::pipeline_subobject_type::max_vertex_count:
 			assert(subobjects[i].count == 1);
 			break; // Ignored
+		case api::pipeline_subobject_type::amplification_shader:
+			assert(subobjects[i].count == 1);
+			as_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::mesh_shader:
+			assert(subobjects[i].count == 1);
+			ms_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::raygen_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				raygen_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::any_hit_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				any_hit_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::closest_hit_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				closest_hit_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::miss_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				miss_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::intersection_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				intersection_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::callable_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				callable_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::hit_groups:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				hit_groups.push_back(static_cast<const api::hit_group *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::max_payload_size:
+			assert(subobjects[i].count == 1);
+			max_payload_size = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::max_attribute_size:
+			assert(subobjects[i].count == 1);
+			max_attribute_size = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::max_recursion_depth:
+			assert(subobjects[i].count == 1);
+			max_recursion_depth = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
 		default:
 			assert(false);
 			goto exit_failure;
 		}
 	}
 
-	if (cs_desc.code_size != 0)
+	if (!raygen_desc.empty() || !hit_groups.empty())
+	{
+		VkRayTracingPipelineCreateInfoKHR create_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR };
+		create_info.layout = (VkPipelineLayout)layout.handle;
+		create_info.maxPipelineRayRecursionDepth = max_recursion_depth;
+
+		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
+		std::vector<VkSpecializationInfo> spec_info;
+		std::vector<std::vector<VkSpecializationMapEntry>> spec_map;
+		shader_stage_info.resize(raygen_desc.size());
+		spec_info.resize(raygen_desc.size());
+		spec_map.resize(raygen_desc.size());
+
+		for (const api::shader_desc &shader_desc : raygen_desc)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		for (const api::shader_desc &shader_desc : any_hit_desc)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		for (const api::shader_desc &shader_desc : closest_hit_desc)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		for (const api::shader_desc &shader_desc : miss_desc)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		for (const api::shader_desc &shader_desc : intersection_desc)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		for (const api::shader_desc &shader_desc : callable_desc)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+
+		create_info.pStages = shader_stage_info.data();
+
+		create_info.groupCount = static_cast<uint32_t>(hit_groups.size());
+		std::vector<VkRayTracingShaderGroupCreateInfoKHR> group_infos;
+		group_infos.resize(create_info.groupCount);
+
+		for (uint32_t i = 0; i < create_info.groupCount; ++i)
+		{
+			VkRayTracingShaderGroupCreateInfoKHR &group_info = group_infos[i];
+			group_info.type = convert_hit_group_type(hit_groups[i].type);
+			group_info.closestHitShader = hit_groups[i].closest_hit_index;
+			group_info.anyHitShader = hit_groups[i].any_hit_index; // TODO: These indices do not match
+			group_info.intersectionShader = hit_groups[i].intersection_index;
+		}
+
+		create_info.pGroups = group_infos.data();
+
+		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
+		interface_info.maxPipelineRayPayloadSize = max_payload_size;
+		interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
+		create_info.pLibraryInterface = &interface_info;
+
+		if (VkPipeline object = VK_NULL_HANDLE;
+			vk.CreateRayTracingPipelinesKHR(_orig, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
+		{
+			for (const VkShaderModule shader : shaders)
+				vk.DestroyShaderModule(_orig, shader, nullptr);
+
+			*out_handle = { (uint64_t)object };
+			return true;
+		}
+	}
+	else if (cs_desc.code_size != 0)
 	{
 		VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 		create_info.layout = (VkPipelineLayout)layout.handle;
@@ -1177,6 +1323,18 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (ps_desc.code_size != 0)
 		{
 			if (!create_shader_module(VK_SHADER_STAGE_FRAGMENT_BIT, ps_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		if (as_desc.code_size != 0)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_TASK_BIT_EXT, as_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				goto exit_failure;
+			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+		}
+		if (ms_desc.code_size != 0)
+		{
+			if (!create_shader_module(VK_SHADER_STAGE_MESH_BIT_EXT, ms_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
 				goto exit_failure;
 			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
 		}

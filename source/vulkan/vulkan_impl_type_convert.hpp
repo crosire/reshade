@@ -220,6 +220,8 @@ namespace reshade::vulkan
 	auto convert_stencil_op(VkStencilOp value) -> api::stencil_op;
 	auto convert_primitive_topology(api::primitive_topology value) -> VkPrimitiveTopology;
 	auto convert_primitive_topology(VkPrimitiveTopology value) -> api::primitive_topology;
+	auto convert_hit_group_type(api::hit_group_type value) -> VkRayTracingShaderGroupTypeKHR;
+	auto convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::hit_group_type;
 
 	auto convert_query_type(api::query_type value) -> VkQueryType;
 	auto convert_query_type(VkQueryType value, uint32_t index = 0) -> api::query_type;

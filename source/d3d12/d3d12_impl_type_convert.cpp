@@ -1547,6 +1547,32 @@ auto reshade::d3d12::convert_primitive_topology_type(D3D12_PRIMITIVE_TOPOLOGY_TY
 		return api::primitive_topology::patch_list_01_cp;
 	}
 }
+auto reshade::d3d12::convert_hit_group_type(api::hit_group_type value) -> D3D12_HIT_GROUP_TYPE
+{
+	switch (value)
+	{
+	case api::hit_group_type::triangles:
+		return D3D12_HIT_GROUP_TYPE_TRIANGLES;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case api::hit_group_type::procedural_primitive:
+		return D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+	}
+}
+auto reshade::d3d12::convert_hit_group_type(D3D12_HIT_GROUP_TYPE value) -> api::hit_group_type
+{
+	switch (value)
+	{
+	case D3D12_HIT_GROUP_TYPE_TRIANGLES:
+		return api::hit_group_type::triangles;
+	default:
+		assert(false);
+		[[fallthrough]];
+	case D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE:
+		return api::hit_group_type::procedural_primitive;
+	}
+}
 
 auto reshade::d3d12::convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE
 {

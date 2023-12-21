@@ -191,6 +191,16 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
 		return !is_windows7();
+	case api::device_caps::amplification_and_mesh_shader:
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS7 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))))
+			return options.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+		return false;
+	case api::device_caps::raytracing:
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
+			return options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+		return false;
 	default:
 		return false;
 	}
@@ -708,6 +718,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	api::shader_desc gs_desc = {};
 	api::shader_desc ps_desc = {};
 	api::shader_desc cs_desc = {};
+	api::shader_desc as_desc = {};
+	api::shader_desc ms_desc = {};
 	api::pipeline_subobject input_layout_desc = {};
 	api::stream_output_desc stream_output_desc = {};
 	api::blend_desc blend_desc = {};
@@ -718,6 +730,16 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	api::pipeline_subobject render_target_formats = {};
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t sample_count = 1;
+	std::vector<api::hit_group> hit_groups;
+	std::vector<api::shader_desc> raygen_desc;
+	std::vector<api::shader_desc> any_hit_desc;
+	std::vector<api::shader_desc> closest_hit_desc;
+	std::vector<api::shader_desc> miss_desc;
+	std::vector<api::shader_desc> intersection_desc;
+	std::vector<api::shader_desc> callable_desc;
+	uint32_t max_payload_size = 0;
+	uint32_t max_attribute_size = 0;
+	uint32_t max_recursion_depth = 0;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -805,13 +827,116 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		case api::pipeline_subobject_type::max_vertex_count:
 			assert(subobjects[i].count == 1);
 			break; // Ignored
+		case api::pipeline_subobject_type::amplification_shader:
+			assert(subobjects[i].count == 1);
+			as_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::mesh_shader:
+			assert(subobjects[i].count == 1);
+			ms_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::raygen_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				raygen_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::any_hit_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				any_hit_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::closest_hit_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				closest_hit_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::miss_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				miss_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::intersection_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				intersection_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::callable_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				callable_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::hit_groups:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				hit_groups.push_back(static_cast<const api::hit_group *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::max_payload_size:
+			assert(subobjects[i].count == 1);
+			max_payload_size = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::max_attribute_size:
+			assert(subobjects[i].count == 1);
+			max_attribute_size = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::max_recursion_depth:
+			assert(subobjects[i].count == 1);
+			max_recursion_depth = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
 		default:
 			assert(false);
 			goto exit_failure;
 		}
 	}
 
-	if (cs_desc.code_size != 0)
+	if (!raygen_desc.empty() || !hit_groups.empty())
+	{
+		com_ptr<ID3D12Device5> device5;
+		if (SUCCEEDED(_orig->QueryInterface(&device5)))
+		{
+			D3D12_GLOBAL_ROOT_SIGNATURE root_signature;
+			root_signature.pGlobalRootSignature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+
+			D3D12_RAYTRACING_SHADER_CONFIG shader_config;
+			shader_config.MaxPayloadSizeInBytes = max_payload_size;
+			shader_config.MaxAttributeSizeInBytes = max_attribute_size;
+
+			D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_config;
+			pipeline_config.MaxTraceRecursionDepth = max_recursion_depth;
+
+			std::vector<D3D12_STATE_SUBOBJECT> internal_subobjects;
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &root_signature });
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &shader_config });
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipeline_config });
+
+			std::vector<D3D12_DXIL_LIBRARY_DESC> library_descs(raygen_desc.size());
+
+			UINT i = 0;
+			for (const api::shader_desc &shader_desc : raygen_desc)
+			{
+				D3D12_DXIL_LIBRARY_DESC &desc = library_descs[i++];
+				desc.DXILLibrary.pShaderBytecode = shader_desc.code;
+				desc.DXILLibrary.BytecodeLength = shader_desc.code_size;
+
+				if (shader_desc.entry_point != nullptr)
+				{
+					//utf8::unchecked::utf8to16(shader_desc.entry_point, shader_desc.entry_point + strlen(shader_desc.entry_point),)
+					D3D12_EXPORT_DESC e = {};
+					e.Name = 0;
+
+					desc.NumExports = 1;
+					//desc.pExports = &e;
+				}
+
+				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &desc });
+			}
+
+			D3D12_STATE_OBJECT_DESC internal_desc;
+			internal_desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+			internal_desc.NumSubobjects = static_cast<UINT>(internal_subobjects.size());
+			internal_desc.pSubobjects = internal_subobjects.data();
+
+			if (com_ptr<ID3D12StateObject> pipeline;
+				SUCCEEDED(device5->CreateStateObject(&internal_desc, IID_PPV_ARGS(&pipeline))))
+			{
+				*out_handle = to_handle(pipeline.release());
+				return true;
+			}
+		}
+	}
+	else if (cs_desc.code_size != 0)
 	{
 		D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
 		internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
@@ -822,6 +947,67 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		{
 			*out_handle = to_handle(pipeline.release());
 			return true;
+		}
+	}
+	else if (as_desc.code_size != 0 || ms_desc.code_size != 0)
+	{
+		com_ptr<ID3D12Device2> device2;
+		if (SUCCEEDED(_orig->QueryInterface(&device2)))
+		{
+			struct
+			{
+				D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
+				D3D12_PIPELINE_STATE_STREAM_MS as;
+				D3D12_PIPELINE_STATE_STREAM_MS ms;
+				D3D12_PIPELINE_STATE_STREAM_BLEND_DESC blend_state;
+				D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK sample_mask;
+				D3D12_PIPELINE_STATE_STREAM_RASTERIZER rasterizer_state;
+				D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL depth_stencil_state;
+				D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS render_target_formats;
+				D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
+				D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
+			} stream_data = {};
+
+			stream_data.root_signature.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+			stream_data.root_signature.data = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+			stream_data.as.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS;
+			reshade::d3d12::convert_shader_desc(as_desc, stream_data.as.data);
+			stream_data.ms.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
+			reshade::d3d12::convert_shader_desc(ms_desc, stream_data.ms.data);
+			stream_data.blend_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
+			reshade::d3d12::convert_blend_desc(blend_desc, stream_data.blend_state.data);
+			stream_data.sample_mask.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
+			stream_data.sample_mask.data = sample_mask;
+			stream_data.rasterizer_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER;
+			reshade::d3d12::convert_rasterizer_desc(rasterizer_desc, stream_data.rasterizer_state.data);
+			stream_data.depth_stencil_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL;
+			reshade::d3d12::convert_depth_stencil_desc(depth_stencil_desc, stream_data.depth_stencil_state.data);
+			stream_data.render_target_formats.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS;
+			stream_data.render_target_formats.data.NumRenderTargets = render_target_formats.count;
+			for (uint32_t i = 0; i < render_target_formats.count; ++i)
+				stream_data.render_target_formats.data.RTFormats[i] = reshade::d3d12::convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
+			stream_data.depth_stencil_format.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT;
+			stream_data.depth_stencil_format.data = reshade::d3d12::convert_format(depth_stencil_format);
+			stream_data.sample_desc.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC;
+			stream_data.sample_desc.data.Count = sample_count;
+
+			D3D12_PIPELINE_STATE_STREAM_DESC stream_desc;
+			stream_desc.pPipelineStateSubobjectStream = &stream_data;
+			stream_desc.SizeInBytes = sizeof(stream_desc);
+
+			if (com_ptr<ID3D12PipelineState> pipeline;
+				SUCCEEDED(device2->CreatePipelineState(&stream_desc, IID_PPV_ARGS(&pipeline))))
+			{
+				pipeline_extra_data extra_data;
+				extra_data.topology = convert_primitive_topology(topology);
+
+				std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
+
+				pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+				*out_handle = to_handle(pipeline.release());
+				return true;
+			}
 		}
 	}
 	else
@@ -847,7 +1033,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		internal_desc.PrimitiveTopologyType = reshade::d3d12::convert_primitive_topology_type(topology);
 
 		internal_desc.NumRenderTargets = render_target_formats.count;
-		for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
+		for (uint32_t i = 0; i < render_target_formats.count; ++i)
 			internal_desc.RTVFormats[i] = reshade::d3d12::convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
 		internal_desc.DSVFormat = reshade::d3d12::convert_format(depth_stencil_format);
 
