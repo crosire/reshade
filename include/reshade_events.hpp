@@ -106,16 +106,19 @@ namespace reshade
 		/// <item><description>IDirect3D9::CreateDevice (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Device::CreateAdditionalSwapChain</description></item>
-		/// <item><description>IDirect3DDevice9::Reset (for the implicit swap chain)</description></item>
-		/// <item><description>IDirect3DDevice9Ex::ResetEx (for the implicit swap chain)</description></item>
 		/// <item><description>IDXGIFactory::CreateSwapChain</description></item>
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
-		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
-		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
 		/// <item><description>wglMakeCurrent</description></item>
 		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// <item><description>xrCreateSession</description></item>
+		/// </list>
+		/// In addition, called when swap chain is resized, after:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DDevice9::Reset (for the implicit swap chain)</description></item>
+		/// <item><description>IDirect3DDevice9Ex::ResetEx (for the implicit swap chain)</description></item>
+		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
+		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
 		/// </summary>
@@ -154,7 +157,7 @@ namespace reshade
 		/// <item><description>vkDestroySwapchainKHR</description></item>
 		/// <item><description>xrDestroySession</description></item>
 		/// </list>
-		/// In addition, called when swap chain is reset, before:
+		/// In addition, called when swap chain is resized, before:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::Reset (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3DDevice9Ex::ResetEx (for the implicit swap chain)</description></item>
