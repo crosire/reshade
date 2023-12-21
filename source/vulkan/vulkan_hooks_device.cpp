@@ -624,6 +624,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresKHR);
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
 	INIT_DISPATCH_PTR(CopyAccelerationStructureKHR);
+	INIT_DISPATCH_PTR(GetAccelerationStructureBuildSizesKHR);
 
 	// VK_KHR_ray_tracing_pipeline
 	INIT_DISPATCH_PTR(CmdTraceRaysKHR);

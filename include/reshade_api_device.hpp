@@ -551,6 +551,18 @@ namespace reshade { namespace api
 		virtual device_properties get_properties() const = 0;
 
 		/// <summary>
+		/// Gets the required acceleration structure size needed to build the specified data.
+		/// </summary>
+		/// <param name="type">Type of the acceleration structure.</param>
+		/// <param name="flags">Acceleration structure build options.</param>
+		/// <param name="input_count">Number of build inputs.</param>
+		/// <param name="inputs">Pointer to an array of build inputs describing the geometry of the acceleration structure.</param>
+		/// <param name="out_size">Pointer to a variable that is set to the required buffer size for the acceleration structure.</param>
+		/// <param name="out_build_scratch_size">Pointer to a variable that is set to the required scratch buffer size for building the acceleration structure.</param>
+		/// <param name="out_update_scratch_size">Pointer to a variable that is set to the required scratch buffer size for updating the acceleration structure.</param>
+		virtual void get_acceleration_structure_sizes(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const = 0;
+
+		/// <summary>
 		/// Creates a new acceleration structure.
 		/// </summary>
 		/// <remarks>

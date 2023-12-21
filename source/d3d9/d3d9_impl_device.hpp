@@ -80,6 +80,8 @@ namespace reshade::d3d9
 		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
 		bool signal(api::fence fence, uint64_t value) final;
 
+		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
+
 		bool create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle) final;
 		void destroy_acceleration_structure(api::acceleration_structure handle) final;
 

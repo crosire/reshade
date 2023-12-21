@@ -1622,6 +1622,48 @@ bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
 	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
+void reshade::d3d12::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	com_ptr<ID3D12Device5> device5;
+	if (SUCCEEDED(_orig->QueryInterface(&device5)))
+	{
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc;
+		desc.Type = convert_acceleration_structure_type(type);
+		desc.Flags = convert_acceleration_structure_build_flags(flags, api::acceleration_structure_build_mode::build);
+		desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
+		if (type == api::acceleration_structure_type::top_level)
+		{
+			assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
+
+			desc.NumDescs = inputs->instances.count;
+			desc.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
+			desc.InstanceDescs = (inputs->instances.buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(inputs->instances.buffer.handle)->GetGPUVirtualAddress() : 0) + inputs->instances.offset;
+		}
+		else
+		{
+			for (uint32_t i = 0; i < input_count; ++i)
+				convert_acceleration_structure_build_input(inputs[i], geometries[i]);
+
+			desc.pGeometryDescs = geometries.data();
+		}
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
+		device5->GetRaytracingAccelerationStructurePrebuildInfo(&desc, &info);
+
+		*out_size = info.ResultDataMaxSizeInBytes;
+		*out_build_scratch_size = info.ScratchDataSizeInBytes;
+		*out_update_scratch_size = info.UpdateScratchDataSizeInBytes;
+	}
+	else
+	{
+		*out_size = 0;
+		*out_build_scratch_size = 0;
+		*out_update_scratch_size = 0;
+	}
+}
+
 bool reshade::d3d12::device_impl::create_acceleration_structure(api::acceleration_structure_type, api::resource buffer, uint64_t offset, uint64_t, api::acceleration_structure *out_handle)
 {
 	if (buffer.handle != 0)

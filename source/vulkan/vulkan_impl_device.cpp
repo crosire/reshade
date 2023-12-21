@@ -2066,6 +2066,33 @@ bool reshade::vulkan::device_impl::signal(api::fence fence, uint64_t value)
 	return vk.SignalSemaphore(_orig, &signal_info) == VK_SUCCESS;
 }
 
+void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
+	std::vector<VkAccelerationStructureBuildRangeInfoKHR> range_infos(input_count);
+	std::vector<uint32_t> max_primitive_counts(input_count);
+	for (uint32_t i = 0; i < input_count; ++i)
+	{
+		convert_acceleration_structure_build_input(inputs[i], geometries[i], range_infos[i]);
+		max_primitive_counts[i] = range_infos[i].primitiveCount;
+	}
+
+	VkAccelerationStructureBuildGeometryInfoKHR info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR };
+	info.type = convert_acceleration_structure_type(type);
+	info.flags = convert_acceleration_structure_build_flags(flags);
+	info.geometryCount = static_cast<uint32_t>(geometries.size());
+	info.pGeometries = geometries.data();
+
+	VkAccelerationStructureBuildSizesInfoKHR size_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+
+	if (vk.GetAccelerationStructureBuildSizesKHR != nullptr)
+		vk.GetAccelerationStructureBuildSizesKHR(_orig, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &info, max_primitive_counts.data(), &size_info);
+
+	*out_size = size_info.accelerationStructureSize;
+	*out_build_scratch_size = size_info.buildScratchSize;
+	*out_update_scratch_size = size_info.updateScratchSize;
+}
+
 bool reshade::vulkan::device_impl::create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle)
 {
 	VkAccelerationStructureCreateInfoKHR create_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR };
