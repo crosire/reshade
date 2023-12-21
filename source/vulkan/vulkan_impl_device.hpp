@@ -99,6 +99,9 @@ namespace reshade::vulkan
 		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
+		bool create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle) final;
+		void destroy_acceleration_structure(api::acceleration_structure handle) final;
+
 		void advance_transient_descriptor_pool();
 
 		command_list_immediate_impl *get_first_immediate_command_list();

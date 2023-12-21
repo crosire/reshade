@@ -123,7 +123,9 @@ namespace reshade
 			ev != addon_event::init_pipeline_layout &&
 			ev != addon_event::destroy_pipeline_layout &&
 			ev != addon_event::init_query_heap &&
-			ev != addon_event::destroy_query_heap)
+			ev != addon_event::destroy_query_heap &&
+			ev != addon_event::init_acceleration_structure &&
+			ev != addon_event::destroy_acceleration_structure)
 		if (!addon_enabled)
 			return;
 #endif

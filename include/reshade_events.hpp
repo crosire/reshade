@@ -692,12 +692,6 @@ namespace reshade
 		init_pipeline_layout,
 
 		/// <summary>
-		/// Called on pipeline layout creation.
-		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t param_count, const api::pipeline_layout_param *params)</c></para>
-		/// </summary>
-		create_pipeline_layout,
-
-		/// <summary>
 		/// Called on pipeline layout destruction, before:
 		/// <list type="bullet">
 		/// <item><description>ID3D12RootSignature::Release</description></item>
@@ -705,7 +699,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout)</c></para>
 		/// </summary>
-		destroy_pipeline_layout,
+		destroy_pipeline_layout = 31,
 
 		/// <summary>
 		/// Called before:
@@ -774,7 +768,24 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
 		/// </summary>
-		get_query_heap_results,
+		get_query_heap_results = 37,
+
+		/// <summary>
+		/// Called after successfull acceleration structure creation from:
+		/// </summary>
+		/// <list type="bullet">
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure as)</c></para>
+		/// </summary>
+		init_acceleration_structure = 89,
+
+		/// <summary>
+		/// Called on acceleration structure destruction, before:
+		/// <list type="bullet">
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::device *device, api::acceleration_structure as)</c></para>
+		/// </summary>
+		destroy_acceleration_structure = 90,
 
 		/// <summary>
 		/// Called after:
@@ -786,7 +797,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)</c></para>
 		/// </summary>
-		barrier,
+		barrier = 38,
 
 		/// <summary>
 		/// Called before:
@@ -1141,7 +1152,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		dispatch_mesh = 89,
+		dispatch_mesh = 91,
 
 		/// <summary>
 		/// Called before:
@@ -1154,7 +1165,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		dispatch_rays = 90,
+		dispatch_rays = 92,
 
 		/// <summary>
 		/// Called before:
@@ -1454,7 +1465,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		copy_acceleration_structure = 91,
+		copy_acceleration_structure = 93,
 
 		/// <summary>
 		/// Called before:
@@ -1468,7 +1479,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// In case of D3D12 and Vulkan, the 'scratch' handle may be zero with the buffer instead referred to via a device address passed into 'scratch_offset'.
 		/// </remarks>
-		build_acceleration_structure = 92,
+		build_acceleration_structure = 94,
 
 		/// <summary>
 		/// Called before:
@@ -1660,7 +1671,7 @@ namespace reshade
 		reshade_overlay_technique,
 
 #if RESHADE_ADDON
-		max = 93 // Last value used internally by ReShade to determine number of events in this enum
+		max = 95 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 
@@ -1715,7 +1726,6 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline_layout, void, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline_layout, bool, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline_layout, void, api::device *device, api::pipeline_layout layout);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_descriptor_tables, bool, api::device *device, uint32_t count, const api::descriptor_table_copy *copies);
@@ -1726,6 +1736,9 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_query_heap, void, api::device *device, api::query_heap heap);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::get_query_heap_results, bool, api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride);
+
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_acceleration_structure, void, api::device *device, api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure as);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_acceleration_structure, void, api::device *device, api::acceleration_structure as);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 

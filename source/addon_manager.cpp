@@ -53,7 +53,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_pipeline);
 		CASE(destroy_pipeline);
 		CASE(init_pipeline_layout);
-		CASE(create_pipeline_layout);
 		CASE(destroy_pipeline_layout);
 		CASE(copy_descriptor_tables);
 		CASE(update_descriptor_tables);
@@ -61,6 +60,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_query_heap);
 		CASE(destroy_query_heap);
 		CASE(get_query_heap_results);
+		CASE(init_acceleration_structure);
+		CASE(destroy_acceleration_structure);
 		CASE(barrier);
 		CASE(begin_render_pass);
 		CASE(end_render_pass);

@@ -1622,6 +1622,23 @@ bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
 	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
+bool reshade::d3d12::device_impl::create_acceleration_structure(api::acceleration_structure_type, api::resource buffer, uint64_t offset, uint64_t, api::acceleration_structure *out_handle)
+{
+	if (buffer.handle != 0)
+	{
+		*out_handle = { reinterpret_cast<ID3D12Resource *>(buffer.handle)->GetGPUVirtualAddress() + offset };
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::d3d12::device_impl::destroy_acceleration_structure(api::acceleration_structure)
+{
+}
+
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 {
 	assert(resource != nullptr);

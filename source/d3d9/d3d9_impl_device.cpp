@@ -1997,6 +1997,15 @@ bool reshade::d3d9::device_impl::signal(api::fence fence, uint64_t value)
 	return impl->event_queries[value % std::size(impl->event_queries)]->Issue(D3DISSUE_END), true;
 }
 
+bool reshade::d3d9::device_impl::create_acceleration_structure(api::acceleration_structure_type, api::resource, uint64_t, uint64_t, api::acceleration_structure *out_handle)
+{
+	*out_handle = { 0 };
+	return false;
+}
+void reshade::d3d9::device_impl::destroy_acceleration_structure(api::acceleration_structure)
+{
+}
+
 HRESULT reshade::d3d9::device_impl::create_surface_replacement(const D3DSURFACE_DESC &desc, IDirect3DSurface9 **out_surface, HANDLE *out_shared_handle)
 {
 	// Cannot create multisampled textures

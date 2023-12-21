@@ -1552,3 +1552,12 @@ bool reshade::d3d11::device_impl::signal(api::fence fence, uint64_t value)
 
 	return false;
 }
+
+bool reshade::d3d11::device_impl::create_acceleration_structure(api::acceleration_structure_type, api::resource, uint64_t, uint64_t, api::acceleration_structure *out_handle)
+{
+	*out_handle = { 0 };
+	return false;
+}
+void reshade::d3d11::device_impl::destroy_acceleration_structure(api::acceleration_structure)
+{
+}

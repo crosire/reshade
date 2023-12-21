@@ -619,6 +619,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_ALTERNATIVE(SetPrivateData, EXT);
 
 	// VK_KHR_acceleration_structure
+	INIT_DISPATCH_PTR(CreateAccelerationStructureKHR);
+	INIT_DISPATCH_PTR(DestroyAccelerationStructureKHR);
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresKHR);
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
 	INIT_DISPATCH_PTR(CopyAccelerationStructureKHR);
@@ -2751,4 +2753,46 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 #endif
 
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
+}
+
+VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAccelerationStructureCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkAccelerationStructureKHR *pAccelerationStructure)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateAccelerationStructureKHR, device_impl);
+
+	assert(pCreateInfo != nullptr && pAccelerationStructure != nullptr);
+
+#if RESHADE_ADDON
+	VkAccelerationStructureCreateInfoKHR create_info = *pCreateInfo;
+#endif
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pAccelerationStructure);
+	if (result < VK_SUCCESS)
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateAccelerationStructureKHR" << " failed with error code " << result << '.';
+#endif
+		return result;
+	}
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_acceleration_structure>(
+		device_impl, reshade::vulkan::convert_acceleration_structure_type(create_info.type), reshade::api::resource { (uint64_t)create_info.buffer }, create_info.offset, create_info.size, reshade::api::acceleration_structure { (uint64_t)*pAccelerationStructure });
+#endif
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device, VkAccelerationStructureKHR accelerationStructure, const VkAllocationCallbacks *pAllocator)
+{
+	if (accelerationStructure == VK_NULL_HANDLE)
+		return;
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyAccelerationStructureKHR, device_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_acceleration_structure>(device_impl, reshade::api::acceleration_structure { (uint64_t)accelerationStructure });
+#endif
+
+	trampoline(device, accelerationStructure, pAllocator);
 }

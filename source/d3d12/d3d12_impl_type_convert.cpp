@@ -93,6 +93,8 @@ auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api
 		result |= api::resource_usage::resolve_dest;
 	if ((access & D3D12_BARRIER_ACCESS_RESOLVE_SOURCE) != 0)
 		result |= api::resource_usage::resolve_source;
+	if ((access & (D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE)) != 0)
+		result |= api::resource_usage::acceleration_structure;
 	return result;
 }
 auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage
@@ -155,7 +157,8 @@ auto reshade::d3d12::convert_resource_states_to_usage(D3D12_RESOURCE_STATES stat
 		api::resource_usage::copy_dest == D3D12_RESOURCE_STATE_COPY_DEST &&
 		api::resource_usage::copy_source == D3D12_RESOURCE_STATE_COPY_SOURCE &&
 		api::resource_usage::resolve_dest == D3D12_RESOURCE_STATE_RESOLVE_DEST &&
-		api::resource_usage::resolve_source == D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+		api::resource_usage::resolve_source == D3D12_RESOURCE_STATE_RESOLVE_SOURCE &&
+		api::resource_usage::acceleration_structure == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
 	return states == D3D12_RESOURCE_STATE_COMMON ? api::resource_usage::general : static_cast<api::resource_usage>(states);
 }
@@ -196,6 +199,8 @@ auto reshade::d3d12::convert_usage_to_access(api::resource_usage state) -> D3D12
 		result |= D3D12_BARRIER_ACCESS_RESOLVE_DEST;
 	if ((state & api::resource_usage::resolve_source) != 0)
 		result |= D3D12_BARRIER_ACCESS_RESOLVE_SOURCE;
+	if ((state & api::resource_usage::acceleration_structure) != 0)
+		result |= D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE;
 	return result;
 }
 auto reshade::d3d12::convert_usage_to_resource_states(api::resource_usage state) -> D3D12_RESOURCE_STATES
@@ -420,7 +425,7 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
 	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'command_list_impl::generate_mipmaps')
-	if ((desc.usage & api::resource_usage::unordered_access) != 0 || (desc.flags & api::resource_flags::generate_mipmaps) != 0)
+	if ((desc.usage & (api::resource_usage::unordered_access | api::resource_usage::acceleration_structure)) != 0 || (desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;

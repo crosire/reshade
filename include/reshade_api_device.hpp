@@ -181,7 +181,7 @@ namespace reshade { namespace api
 		amplification_and_mesh_shader,
 		/// <summary>
 		/// Specifies whether ray tracing is supported.
-		/// If this feature is not present, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
+		/// If this feature is not present, <see cref="device::create_acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
 		/// </summary>
 		raytracing,
 	};
@@ -549,6 +549,24 @@ namespace reshade { namespace api
 		/// Gets information about the primary adapter associated with this logical render device.
 		/// </summary>
 		virtual device_properties get_properties() const = 0;
+
+		/// <summary>
+		/// Creates a new acceleration structure.
+		/// </summary>
+		/// <remarks>
+		/// The <paramref name="buffer"/> resource must have been created with initial state set to <see cref="resource_usage::acceleration_structure"/>.
+		/// </remarks>
+		/// <param name="type">Type of the acceleration structure to create.</param>
+		/// <param name="buffer">Buffer resource to store the acceleration structure in.</param>
+		/// <param name="offset">Offset (in bytes) into the <paramref name="buffer"/> to start the acceleration structure at.</param>
+		/// <param name="size">Size (in bytes) of the acceleration structure.</param>
+		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created acceleration structure.</param>
+		/// <returns><see langword="true"/> if the acceleration structure was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
+		virtual bool create_acceleration_structure(acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, acceleration_structure *out_handle) = 0;
+		/// <summary>
+		/// Instantly destroys an acceleration structure that was previously created via <see cref="create_acceleration_structure"/>.
+		/// </summary>
+		virtual void destroy_acceleration_structure(acceleration_structure handle) = 0;
 	};
 
 	/// <summary>

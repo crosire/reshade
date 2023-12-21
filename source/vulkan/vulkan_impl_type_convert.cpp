@@ -778,6 +778,11 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 		buffer_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+	if ((usage & api::resource_usage::acceleration_structure) != 0)
+		buffer_flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+	else
+		buffer_flags &= ~VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 }
 void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage)
 {
@@ -803,6 +808,8 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::indirect_argument;
 	if ((buffer_flags & (VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT | VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT)) != 0)
 		usage |= api::resource_usage::stream_output;
+	if ((buffer_flags & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR) != 0)
+		usage |= api::resource_usage::acceleration_structure;
 }
 
 void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamplerCreateInfo &create_info)

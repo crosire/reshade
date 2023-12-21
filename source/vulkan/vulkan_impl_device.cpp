@@ -2066,6 +2066,32 @@ bool reshade::vulkan::device_impl::signal(api::fence fence, uint64_t value)
 	return vk.SignalSemaphore(_orig, &signal_info) == VK_SUCCESS;
 }
 
+bool reshade::vulkan::device_impl::create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle)
+{
+	VkAccelerationStructureCreateInfoKHR create_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR };
+	create_info.createFlags = 0;
+	create_info.buffer = (VkBuffer)buffer.handle;
+	create_info.offset = offset;
+	create_info.size = size;
+	create_info.type = convert_acceleration_structure_type(type);
+
+	if (VkAccelerationStructureKHR as = VK_NULL_HANDLE;
+		vk.CreateAccelerationStructureKHR(_orig, &create_info, nullptr, &as) == VK_SUCCESS)
+	{
+		*out_handle = { (uint64_t)as };
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+void reshade::vulkan::device_impl::destroy_acceleration_structure(api::acceleration_structure handle)
+{
+	vk.DestroyAccelerationStructureKHR(_orig, (VkAccelerationStructureKHR)handle.handle, nullptr);
+}
+
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 {
 	if (_push_descriptor_ext)

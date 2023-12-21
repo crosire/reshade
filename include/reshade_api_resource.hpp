@@ -219,6 +219,8 @@ namespace reshade { namespace api
 		resolve_dest = 0x1000,
 		resolve_source = 0x2000,
 
+		acceleration_structure = 0x400000,
+
 		// The following are special resource states and may only be used in barriers:
 
 		general = 0x80000000,

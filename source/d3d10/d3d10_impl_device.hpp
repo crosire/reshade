@@ -83,6 +83,9 @@ namespace reshade::d3d10
 		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
 		bool signal(api::fence fence, uint64_t value) final;
 
+		bool create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle) final;
+		void destroy_acceleration_structure(api::acceleration_structure handle) final;
+
 		uint64_t get_timestamp_frequency() const final;
 
 		api::device *get_device() final { return this; }

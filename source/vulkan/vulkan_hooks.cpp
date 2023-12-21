@@ -230,6 +230,10 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 
 #if RESHADE_ADDON
 	// VK_KHR_acceleration_structure
+	HOOK_PROC_OPTIONAL(CreateAccelerationStructureKHR,);
+	HOOK_PROC_OPTIONAL(DestroyAccelerationStructureKHR,);
+#endif
+#if RESHADE_ADDON >= 2
 	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresKHR,);
 	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresIndirectKHR,);
 	HOOK_PROC_OPTIONAL(CmdCopyAccelerationStructureKHR,);
