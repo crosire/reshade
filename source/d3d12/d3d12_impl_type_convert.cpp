@@ -1759,32 +1759,6 @@ auto reshade::d3d12::convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_
 	return result;
 }
 
-auto reshade::d3d12::convert_hit_group_type(api::acceleration_structure_build_input_type value) -> D3D12_HIT_GROUP_TYPE
-{
-	switch (value)
-	{
-	case api::acceleration_structure_build_input_type::triangles:
-		return D3D12_HIT_GROUP_TYPE_TRIANGLES;
-	default:
-		assert(false);
-		[[fallthrough]];
-	case api::acceleration_structure_build_input_type::aabbs:
-		return D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
-	}
-}
-auto reshade::d3d12::convert_hit_group_type(D3D12_HIT_GROUP_TYPE value) -> api::acceleration_structure_build_input_type
-{
-	switch (value)
-	{
-	case D3D12_HIT_GROUP_TYPE_TRIANGLES:
-		return api::acceleration_structure_build_input_type::triangles;
-	default:
-		assert(false);
-		[[fallthrough]];
-	case D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE:
-		return api::acceleration_structure_build_input_type::aabbs;
-	}
-}
 auto reshade::d3d12::convert_acceleration_structure_type(api::acceleration_structure_type value) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE
 {
 	return static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE>(value);

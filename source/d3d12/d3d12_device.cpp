@@ -472,7 +472,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 		const reshade::api::acceleration_structure descriptor_value = { desc.buffer.offset };
 
 		const uint64_t offset = pResource != nullptr ? desc.buffer.offset - pResource->GetGPUVirtualAddress() : 0;
-		const uint64_t size = pResource != nullptr ? pResource->GetDesc().Width - offset : 0;
+		const uint64_t size = pResource != nullptr ? pResource->GetDesc().Width - offset : UINT64_MAX;
 		reshade::invoke_addon_event<reshade::addon_event::init_acceleration_structure>(this, reshade::api::acceleration_structure_type::generic, to_handle(pResource), offset, size, descriptor_value);
 
 #if RESHADE_ADDON >= 2
@@ -1401,7 +1401,26 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetBackgroundProcessingMode(D3D12_BACKGRO
 HRESULT STDMETHODCALLTYPE D3D12Device::AddToStateObject(const D3D12_STATE_OBJECT_DESC *pAddition, ID3D12StateObject *pStateObjectToGrowFrom, REFIID riid, void **ppNewStateObject)
 {
 	assert(_interface_version >= 7);
-	return static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject);
+
+	if (pAddition == nullptr)
+		return E_INVALIDARG;
+
+	HRESULT hr = S_OK;
+#if RESHADE_ADDON >= 2
+	if (ppNewStateObject == nullptr ||
+		riid != __uuidof(ID3D12StateObject) ||
+		!invoke_create_and_init_pipeline_event(*pAddition, *reinterpret_cast<ID3D12StateObject **>(ppNewStateObject), hr)) // TODO: Add state from pStateObjectToGrowFrom
+#endif
+		hr = static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject);
+
+#if RESHADE_VERBOSE_LOG
+	if (FAILED(hr) && ppNewStateObject != nullptr)
+	{
+		LOG(WARN) << "ID3D12Device7::AddToStateObject" << " failed with error code " << hr << '.';
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession1(const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc, REFIID riid, void **ppSession)
 {
@@ -1853,15 +1872,6 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		return false;
 
-	if (internal_desc.Type == D3D12_STATE_OBJECT_TYPE_COLLECTION)
-	{
-		// TODO
-		return false;
-	}
-
-	if (internal_desc.Type != D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE)
-		return false;
-
 	const auto dxcompiler_module = GetModuleHandleW(L"dxcompiler.dll");
 	if (dxcompiler_module == nullptr)
 		return false;
@@ -1878,13 +1888,13 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 
 	reshade::api::pipeline_layout layout = {};
 
-	std::vector<reshade::api::hit_group> hit_groups;
 	std::vector<reshade::api::shader_desc> raygen_desc;
 	std::vector<reshade::api::shader_desc> any_hit_desc;
 	std::vector<reshade::api::shader_desc> closest_hit_desc;
 	std::vector<reshade::api::shader_desc> miss_desc;
 	std::vector<reshade::api::shader_desc> intersection_desc;
 	std::vector<reshade::api::shader_desc> callable_desc;
+	std::vector<reshade::api::shader_group> shader_groups;
 
 	std::vector<reshade::api::pipeline_subobject> subobjects;
 
@@ -2012,26 +2022,35 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		{
 			const auto &desc = *static_cast<const D3D12_HIT_GROUP_DESC *>(subobject.pDesc);
 
-			reshade::api::hit_group &hit_group = hit_groups.emplace_back();
-			hit_group.type = reshade::d3d12::convert_hit_group_type(desc.Type);
+			reshade::api::shader_group &shader_group = shader_groups.emplace_back();
+
+			switch (desc.Type)
+			{
+			case D3D12_HIT_GROUP_TYPE_TRIANGLES:
+				shader_group.type = reshade::api::shader_group_type::hit_group_triangles;
+				break;
+			case D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE:
+				shader_group.type = reshade::api::shader_group_type::hit_group_aabbs;
+				break;
+			}
 
 			std::string any_hit_name;
 			utf8::unchecked::utf16to8(desc.AnyHitShaderImport, desc.AnyHitShaderImport + wcslen(desc.AnyHitShaderImport), std::back_inserter(any_hit_name));
 			if (const auto it = std::find_if(any_hit_desc.begin(), any_hit_desc.end(), [&any_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == any_hit_name; });
 				it != any_hit_desc.end())
-				hit_group.any_hit_index = static_cast<uint32_t>(std::distance(any_hit_desc.begin(), it));
+				shader_group.hit_group.any_hit_shader_index = static_cast<uint32_t>(std::distance(any_hit_desc.begin(), it));
 
 			std::string closest_hit_name;
 			utf8::unchecked::utf16to8(desc.ClosestHitShaderImport, desc.ClosestHitShaderImport + wcslen(desc.ClosestHitShaderImport), std::back_inserter(closest_hit_name));
 			if (const auto it = std::find_if(closest_hit_desc.begin(), closest_hit_desc.end(), [&closest_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == closest_hit_name; });
 				it != closest_hit_desc.end())
-				hit_group.closest_hit_index = static_cast<uint32_t>(std::distance(closest_hit_desc.begin(), it));
+				shader_group.hit_group.closest_hit_shader_index = static_cast<uint32_t>(std::distance(closest_hit_desc.begin(), it));
 
 			std::string intersection_name;
 			utf8::unchecked::utf16to8(desc.IntersectionShaderImport, desc.IntersectionShaderImport + wcslen(desc.IntersectionShaderImport), std::back_inserter(intersection_name));
 			if (const auto it = std::find_if(intersection_desc.begin(), intersection_desc.end(), [&intersection_name](const reshade::api::shader_desc &shader) { return shader.entry_point == intersection_name; });
 				it != intersection_desc.end())
-				hit_group.intersection_index = static_cast<uint32_t>(std::distance(intersection_desc.begin(), it));
+				shader_group.hit_group.intersection_shader_index = static_cast<uint32_t>(std::distance(intersection_desc.begin(), it));
 			break;
 		}
 		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1:
@@ -2043,7 +2062,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		}
 	}
 
-	subobjects.push_back({ reshade::api::pipeline_subobject_type::hit_groups, static_cast<uint32_t>(hit_groups.size()), hit_groups.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() });
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 	{

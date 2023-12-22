@@ -165,6 +165,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool custom_border_color_ext = false;
 	bool extended_dynamic_state_ext = false;
 	bool conservative_rasterization_ext = false;
+	bool ray_tracing_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
@@ -239,6 +240,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
+
+		ray_tracing_ext =
+			add_extension(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_SPIRV_1_4_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, false) &&
+			add_extension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, false);
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -351,6 +361,36 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
 
 		create_info.pNext = &extended_dynamic_state_feature;
+	}
+
+	// Optionally enable ray tracing feature
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_feature;
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_feature;
+	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_feature;
+	if (const auto existing_ray_tracing_features = find_in_structure_chain<VkPhysicalDeviceRayTracingPipelineFeaturesKHR>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR))
+	{
+		ray_tracing_ext = existing_ray_tracing_features->rayTracingPipeline;
+	}
+	else if (ray_tracing_ext)
+	{
+		ray_tracing_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
+		ray_tracing_feature.pNext = const_cast<void *>(create_info.pNext);
+		ray_tracing_feature.rayTracingPipeline = VK_TRUE;
+
+		create_info.pNext = &ray_tracing_feature;
+
+		acceleration_structure_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
+		acceleration_structure_feature.pNext = const_cast<void *>(create_info.pNext);
+		acceleration_structure_feature.accelerationStructure = VK_TRUE;
+
+		create_info.pNext = &acceleration_structure_feature;
+
+		buffer_device_address_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
+		buffer_device_address_feature.pNext = const_cast<void *>(create_info.pNext);
+		buffer_device_address_feature.bufferDeviceAddress = VK_TRUE;
+
+		create_info.pNext = &buffer_device_address_feature;
 	}
 
 	// Continue calling down the chain
@@ -624,11 +664,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresKHR);
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
 	INIT_DISPATCH_PTR(CopyAccelerationStructureKHR);
+	INIT_DISPATCH_PTR(GetAccelerationStructureDeviceAddressKHR);
 	INIT_DISPATCH_PTR(GetAccelerationStructureBuildSizesKHR);
 
 	// VK_KHR_ray_tracing_pipeline
 	INIT_DISPATCH_PTR(CmdTraceRaysKHR);
 	INIT_DISPATCH_PTR(CreateRayTracingPipelinesKHR);
+	INIT_DISPATCH_PTR(GetRayTracingShaderGroupHandlesKHR);
 	INIT_DISPATCH_PTR(CmdTraceRaysIndirectKHR);
 
 	// VK_KHR_ray_tracing_maintenance1
@@ -661,7 +703,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		timeline_semaphore_ext,
 		custom_border_color_ext,
 		extended_dynamic_state_ext,
-		conservative_rasterization_ext);
+		conservative_rasterization_ext,
+		ray_tracing_ext);
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 
@@ -1020,17 +1063,14 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	image_data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	for (uint32_t i = 0; i < num_images; ++i)
-	{
 		device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i], std::move(image_data));
 
 #if RESHADE_ADDON
-		// Create default views for swap chain images
-		create_default_view(device_impl, swapchain_images[i]);
-#endif
-	}
-
-#if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(swapchain_impl);
+
+	// Create default views for swap chain images (do this after the "init_swapchain" event, so that the images are known to add-ons)
+	for (uint32_t i = 0; i < num_images; ++i)
+		create_default_view(device_impl, swapchain_images[i]);
 #endif
 
 	reshade::init_effect_runtime(swapchain_impl);
@@ -2002,13 +2042,13 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 	{
 		const VkRayTracingPipelineCreateInfoKHR &create_info = pCreateInfos[i];
 
-		std::vector<reshade::api::hit_group> hit_groups;
 		std::vector<reshade::api::shader_desc> raygen_desc;
 		std::vector<reshade::api::shader_desc> any_hit_desc;
 		std::vector<reshade::api::shader_desc> closest_hit_desc;
 		std::vector<reshade::api::shader_desc> miss_desc;
 		std::vector<reshade::api::shader_desc> intersection_desc;
 		std::vector<reshade::api::shader_desc> callable_desc;
+		std::vector<reshade::api::shader_group> shader_groups;
 		auto dynamic_states = reshade::vulkan::convert_dynamic_states(create_info.pDynamicState);
 
 		for (uint32_t k = 0; k < create_info.stageCount; ++k)
@@ -2056,14 +2096,25 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 			}
 		}
 
-		hit_groups.reserve(create_info.groupCount);
+		shader_groups.reserve(create_info.groupCount);
 		for (uint32_t k = 0; k < create_info.groupCount; ++k)
 		{
-			auto &hit_group = hit_groups.emplace_back();
-			hit_group.type = reshade::vulkan::convert_hit_group_type(create_info.pGroups[k].type);
-			hit_group.closest_hit_index = create_info.pGroups[k].closestHitShader;
-			hit_group.any_hit_index = create_info.pGroups[k].anyHitShader;
-			hit_group.intersection_index = create_info.pGroups[k].intersectionShader;
+			const VkRayTracingShaderGroupCreateInfoKHR &group_info = create_info.pGroups[k];
+
+			reshade::api::shader_group &shader_group = shader_groups.emplace_back();
+			shader_group.type = reshade::vulkan::convert_shader_group_type(group_info.type);
+
+			if (shader_group.type == reshade::api::shader_group_type::raygen)
+			{
+				shader_group.raygen.shader_index = group_info.generalShader;
+			}
+			else
+			{
+				assert(group_info.generalShader == VK_SHADER_UNUSED_KHR);
+				shader_group.hit_group.closest_hit_shader_index = group_info.closestHitShader;
+				shader_group.hit_group.any_hit_shader_index = group_info.anyHitShader;
+				shader_group.hit_group.intersection_shader_index = group_info.intersectionShader;
+			}
 		}
 
 		std::vector<reshade::api::pipeline_subobject> subobjects = {
@@ -2072,7 +2123,7 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 			{ reshade::api::pipeline_subobject_type::closest_hit_shader, static_cast<uint32_t>(closest_hit_desc.size()), closest_hit_desc.data() },
 			{ reshade::api::pipeline_subobject_type::miss_shader, static_cast<uint32_t>(miss_desc.size()), miss_desc.data() },
 			{ reshade::api::pipeline_subobject_type::callable_shader, static_cast<uint32_t>(callable_desc.size()), callable_desc.data() },
-			{ reshade::api::pipeline_subobject_type::hit_groups, static_cast<uint32_t>(hit_groups.size()), hit_groups.data() },
+			{ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() },
 			{ reshade::api::pipeline_subobject_type::max_recursion_depth, create_info.groupCount, const_cast<uint32_t *>(&create_info.maxPipelineRayRecursionDepth) },
 			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
 		};

@@ -2425,13 +2425,6 @@ bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
 	return sync_object != 0;
 }
 
-void reshade::opengl::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
-{
-	*out_size = 0;
-	*out_build_scratch_size = 0;
-	*out_update_scratch_size = 0;
-}
-
 bool reshade::opengl::device_impl::create_acceleration_structure(api::acceleration_structure_type, api::resource, uint64_t, uint64_t, api::acceleration_structure *out_handle)
 {
 	*out_handle = { 0 };
@@ -2439,4 +2432,24 @@ bool reshade::opengl::device_impl::create_acceleration_structure(api::accelerati
 }
 void reshade::opengl::device_impl::destroy_acceleration_structure(api::acceleration_structure)
 {
+}
+
+void reshade::opengl::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	if (out_size != nullptr)
+		*out_size = 0;
+	if (out_build_scratch_size != nullptr)
+		*out_build_scratch_size = 0;
+	if (out_update_scratch_size != nullptr)
+		*out_update_scratch_size = 0;
+}
+
+uint64_t reshade::opengl::device_impl::get_acceleration_structure_gpu_address(api::acceleration_structure handle) const
+{
+	return handle.handle;
+}
+
+bool reshade::opengl::device_impl::get_pipeline_shader_group_handles(api::pipeline, uint32_t, uint32_t, void *)
+{
+	return false;
 }

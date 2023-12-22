@@ -83,10 +83,14 @@ namespace reshade::d3d10
 		bool wait(api::fence fence, uint64_t value) final { return wait(fence, value, UINT64_MAX); }
 		bool signal(api::fence fence, uint64_t value) final;
 
-		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
-
 		bool create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle) final;
 		void destroy_acceleration_structure(api::acceleration_structure handle) final;
+
+		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
+
+		uint64_t get_acceleration_structure_gpu_address(api::acceleration_structure handle) const final;
+
+		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups) final;
 
 		uint64_t get_timestamp_frequency() const final;
 
@@ -127,7 +131,7 @@ namespace reshade::d3d10
 		void draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) final;
 		void dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) final;
 		void dispatch_mesh(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) final;
-		void dispatch_rays(uint64_t raygen_address, uint64_t raygen_size, uint64_t raygen_stride, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth) final;
+		void dispatch_rays(api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth) final;
 		void draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride) final;
 
 		void copy_resource(api::resource source, api::resource dest) final;

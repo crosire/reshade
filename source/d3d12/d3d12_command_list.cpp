@@ -501,7 +501,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12R
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		0,
 		0, nullptr);
@@ -529,7 +529,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		1, reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor));
@@ -555,7 +555,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UIN
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
@@ -583,7 +583,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UI
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
@@ -619,7 +619,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::constant_buffer, &buffer_range });
@@ -661,7 +661,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceVie
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::shader_resource_view, &buffer_range }); // TODO: This could also be a 'descriptor_type::acceleration_structure'
@@ -703,7 +703,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootUnorderedAccessVi
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::unordered_access_view, &buffer_range });
@@ -1104,7 +1104,24 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchRays(const D3D12_DISPAT
 	assert(pDesc != nullptr);
 
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_rays>(this, pDesc->RayGenerationShaderRecord.StartAddress, pDesc->RayGenerationShaderRecord.SizeInBytes, 0, pDesc->MissShaderTable.StartAddress, pDesc->MissShaderTable.SizeInBytes, pDesc->MissShaderTable.StrideInBytes, pDesc->HitGroupTable.StartAddress, pDesc->HitGroupTable.SizeInBytes, pDesc->HitGroupTable.StrideInBytes, pDesc->CallableShaderTable.StartAddress, pDesc->CallableShaderTable.SizeInBytes, pDesc->CallableShaderTable.StrideInBytes, pDesc->Width, pDesc->Height, pDesc->Depth))
+	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_rays>(
+			this,
+			reshade::api::resource {},
+			pDesc->RayGenerationShaderRecord.StartAddress,
+			pDesc->RayGenerationShaderRecord.SizeInBytes,
+			reshade::api::resource {},
+			pDesc->MissShaderTable.StartAddress,
+			pDesc->MissShaderTable.SizeInBytes,
+			pDesc->MissShaderTable.StrideInBytes,
+			reshade::api::resource {},
+			pDesc->HitGroupTable.StartAddress,
+			pDesc->HitGroupTable.SizeInBytes,
+			pDesc->HitGroupTable.StrideInBytes,
+			reshade::api::resource {},
+			pDesc->CallableShaderTable.StartAddress,
+			pDesc->CallableShaderTable.SizeInBytes,
+			pDesc->CallableShaderTable.StrideInBytes,
+			pDesc->Width, pDesc->Height, pDesc->Depth))
 		return;
 #endif
 	assert(_interface_version >= 4);

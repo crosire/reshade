@@ -559,7 +559,7 @@ void reshade::d3d11::device_context_impl::dispatch_mesh(uint32_t, uint32_t, uint
 {
 	assert(false);
 }
-void reshade::d3d11::device_context_impl::dispatch_rays(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
+void reshade::d3d11::device_context_impl::dispatch_rays(api::resource, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }

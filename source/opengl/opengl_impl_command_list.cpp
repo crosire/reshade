@@ -1003,7 +1003,7 @@ void reshade::opengl::render_context_impl::dispatch_mesh(uint32_t, uint32_t, uin
 {
 	assert(false);
 }
-void reshade::opengl::render_context_impl::dispatch_rays(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
+void reshade::opengl::render_context_impl::dispatch_rays(api::resource, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }

@@ -276,7 +276,7 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 {
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if ((stages & api::shader_stage::all_compute) != 0)
+	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -346,6 +346,19 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.p, convert_descriptor_type_to_heap_type(update.type));
 #endif
 	}
+	else if (update.type == api::descriptor_type::acceleration_structure)
+	{
+		for (uint32_t k = 0; k < update.count; ++k, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC view_desc;
+			view_desc.Format = DXGI_FORMAT_UNKNOWN;
+			view_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+			view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::acceleration_structure *>(update.descriptors)[k].handle;
+
+			_device_impl->_orig->CreateShaderResourceView(nullptr, &view_desc, base_handle);
+		}
+	}
 	else
 	{
 		assert(false);
@@ -372,7 +385,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 #endif
 
-	if ((stages & api::shader_stage::all_compute) != 0)
+	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -442,7 +455,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if ((stages & api::shader_stage::all_compute) != 0)
+	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -555,7 +568,7 @@ void reshade::d3d12::command_list_impl::dispatch_mesh(uint32_t group_count_x, ui
 		assert(false);
 	}
 }
-void reshade::d3d12::command_list_impl::dispatch_rays(uint64_t raygen_address, uint64_t raygen_size, uint64_t, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
+void reshade::d3d12::command_list_impl::dispatch_rays(api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
 {
 	_has_commands = true;
 
@@ -563,15 +576,15 @@ void reshade::d3d12::command_list_impl::dispatch_rays(uint64_t raygen_address, u
 	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
 	{
 		D3D12_DISPATCH_RAYS_DESC desc;
-		desc.RayGenerationShaderRecord.StartAddress = raygen_address;
+		desc.RayGenerationShaderRecord.StartAddress = (raygen.handle != 0 ? reinterpret_cast<ID3D12Resource *>(raygen.handle)->GetGPUVirtualAddress() : 0) + raygen_offset;
 		desc.RayGenerationShaderRecord.SizeInBytes = raygen_size;
-		desc.MissShaderTable.StartAddress = miss_address;
+		desc.MissShaderTable.StartAddress = (miss.handle != 0 ? reinterpret_cast<ID3D12Resource *>(miss.handle)->GetGPUVirtualAddress() : 0) + miss_offset;
 		desc.MissShaderTable.SizeInBytes = miss_size;
 		desc.MissShaderTable.StrideInBytes = miss_stride;
-		desc.HitGroupTable.StartAddress = hit_group_address;
+		desc.HitGroupTable.StartAddress = (hit_group.handle != 0 ? reinterpret_cast<ID3D12Resource *>(hit_group.handle)->GetGPUVirtualAddress() : 0) + hit_group_offset;
 		desc.HitGroupTable.SizeInBytes = hit_group_size;
 		desc.HitGroupTable.StrideInBytes = hit_group_stride;
-		desc.CallableShaderTable.StartAddress = callable_address;
+		desc.CallableShaderTable.StartAddress = (callable.handle != 0 ? reinterpret_cast<ID3D12Resource *>(callable.handle)->GetGPUVirtualAddress() : 0) + callable_offset;
 		desc.CallableShaderTable.SizeInBytes = callable_size;
 		desc.CallableShaderTable.StrideInBytes = callable_stride;
 		desc.Width = width;
@@ -1024,6 +1037,7 @@ void reshade::d3d12::command_list_impl::build_acceleration_structure(api::accele
 			for (uint32_t i = 0; i < input_count; ++i)
 				convert_acceleration_structure_build_input(inputs[i], geometries[i]);
 
+			desc.Inputs.NumDescs = static_cast<UINT>(geometries.size());
 			desc.Inputs.pGeometryDescs = geometries.data();
 		}
 

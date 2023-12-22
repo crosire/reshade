@@ -37,7 +37,8 @@ namespace reshade::vulkan
 			bool timeline_semaphore_ext = false,
 			bool custom_border_color_ext = false,
 			bool extended_dynamic_state_ext = false,
-			bool conservative_rasterization_ext = false);
+			bool conservative_rasterization_ext = false,
+			bool ray_tracing_ext = false);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }
@@ -99,10 +100,14 @@ namespace reshade::vulkan
 		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
-		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
-
 		bool create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle) final;
 		void destroy_acceleration_structure(api::acceleration_structure handle) final;
+
+		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
+
+		uint64_t get_acceleration_structure_gpu_address(api::acceleration_structure handle) const final;
+
+		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups) final;
 
 		void advance_transient_descriptor_pool();
 
@@ -160,6 +165,7 @@ namespace reshade::vulkan
 		const bool _custom_border_color_ext;
 		const bool _extended_dynamic_state_ext;
 		const bool _conservative_rasterization_ext;
+		const bool _ray_tracing_ext;
 		const VkPhysicalDeviceFeatures _enabled_features;
 
 	private:

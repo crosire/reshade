@@ -551,19 +551,6 @@ namespace reshade { namespace api
 		virtual device_properties get_properties() const = 0;
 
 		/// <summary>
-		/// Gets the required acceleration structure size needed to build the specified data.
-		/// </summary>
-		/// <seealso cref="device_caps::ray_tracing"/>
-		/// <param name="type">Type of the acceleration structure.</param>
-		/// <param name="flags">Acceleration structure build options.</param>
-		/// <param name="input_count">Number of build inputs.</param>
-		/// <param name="inputs">Pointer to an array of build inputs describing the geometry of the acceleration structure.</param>
-		/// <param name="out_size">Pointer to a variable that is set to the required buffer size for the acceleration structure.</param>
-		/// <param name="out_build_scratch_size">Pointer to a variable that is set to the required scratch buffer size for building the acceleration structure.</param>
-		/// <param name="out_update_scratch_size">Pointer to a variable that is set to the required scratch buffer size for updating the acceleration structure.</param>
-		virtual void get_acceleration_structure_sizes(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const = 0;
-
-		/// <summary>
 		/// Creates a new acceleration structure.
 		/// </summary>
 		/// <remarks>
@@ -582,6 +569,37 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <seealso cref="device_caps::ray_tracing"/>
 		virtual void destroy_acceleration_structure(acceleration_structure handle) = 0;
+
+		/// <summary>
+		/// Gets the required acceleration structure size needed to build the specified data.
+		/// </summary>
+		/// <seealso cref="device_caps::ray_tracing"/>
+		/// <param name="type">Type of the acceleration structure.</param>
+		/// <param name="flags">Acceleration structure build options.</param>
+		/// <param name="input_count">Number of build inputs.</param>
+		/// <param name="inputs">Pointer to an array of build inputs describing the geometry of the acceleration structure.</param>
+		/// <param name="out_size">Pointer to a variable that is set to the required buffer size for the acceleration structure.</param>
+		/// <param name="out_build_scratch_size">Pointer to a variable that is set to the required scratch buffer size for building the acceleration structure.</param>
+		/// <param name="out_update_scratch_size">Pointer to a variable that is set to the required scratch buffer size for updating the acceleration structure.</param>
+		virtual void get_acceleration_structure_sizes(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const = 0;
+
+		/// <summary>
+		/// Gets the GPU address for an acceleration structure, which can be filled into the <see cref="acceleration_structure_instance::acceleration_structure_gpu_address"/> field.
+		/// </summary>
+		/// <param name="handle">Acceleration structure to query.</param>
+		/// <returns>GPU address of the acceleration structure, or zero in case of failure.</returns>
+		virtual uint64_t get_acceleration_structure_gpu_address(acceleration_structure handle) const = 0;
+
+		/// <summary>
+		/// Gets the shader group handles for a ray tracing pipeline, to be put into a shader binding table.
+		/// </summary>
+		/// <seealso cref="device_caps::ray_tracing"/>
+		/// <param name="pipeline">Ray tracing pipeline to query.</param>
+		/// <param name="first">Index of the first shader group in the <see cref="pipeline_subobject_type::shader_groups"/> array that was used to create the pipeline.</param>
+		/// <param name="count">Number of shader groups to get handles for.</param>
+		/// <param name="out_handles">Pointer to an array that is filled with the handles.</param>
+		/// <returns><see langword="true"/> if the shader group handles were successfully retrieved, <see langword="false"/> otherwise.</returns>
+		virtual bool get_pipeline_shader_group_handles(pipeline pipeline, uint32_t first, uint32_t count, void *out_handles) = 0;
 	};
 
 	/// <summary>
@@ -1021,14 +1039,14 @@ namespace reshade { namespace api
 		/// The shader table resources have to be in the <see cref="resource_usage::shader_resource_non_pixel"/> state.
 		/// </remarks>
 		/// <seealso cref="device_caps::ray_tracing"/>
-		/// <param name="raygen_address">Shader table for the ray generation shader to use.</param>
-		/// <param name="miss_address">Shader table for the miss shaders to use.</param>
-		/// <param name="hit_group_address">Shader table for the hit groups to use.</param>
-		/// <param name="callable_address">Shader table for the callable shaders to use.</param>
+		/// <param name="raygen">Buffer resource containing the ray generation shader handle to use.</param>
+		/// <param name="miss">Buffer resource containing the miss shader handles to use.</param>
+		/// <param name="hit_group">Buffer resource containing the hit group handles to use.</param>
+		/// <param name="callable">Buffer resource containing the callable shader handles to use.</param>
 		/// <param name="width">Width of the ray generation shader thread grid.</param>
 		/// <param name="height">Height of the ray generation shader thread grid.</param>
 		/// <param name="depth">Depth of the ray generation shader thread grid.</param>
-		virtual void dispatch_rays(uint64_t raygen_address, uint64_t raygen_size, uint64_t raygen_stride, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth) = 0;
+		virtual void dispatch_rays(resource raygen, uint64_t raygen_offset, uint64_t raygen_size, resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth) = 0;
 
 		/// <summary>
 		/// Copies or transforms data from the <paramref name="source"/> acceleration structure to the <paramref name="dest"/>ination acceleration structure.

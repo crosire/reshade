@@ -32,8 +32,9 @@ namespace reshade { namespace api
 		callable = 0x2000,
 
 		all = 0x7FFFFFFF,
-		all_compute = compute | raygen | any_hit | closest_hit | miss | intersection | callable,
-		all_graphics = vertex | hull | domain | geometry | pixel | amplification | mesh
+		all_compute = compute,
+		all_graphics = vertex | hull | domain | geometry | pixel | amplification | mesh,
+		all_ray_tracing = raygen | any_hit | closest_hit | miss | intersection | callable
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -390,14 +391,93 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes a ray tracing hit group.
+	/// The available ray tracing shader group types.
 	/// </summary>
-	struct hit_group
+	enum class shader_group_type
 	{
-		acceleration_structure_build_input_type type = acceleration_structure_build_input_type::triangles;
-		uint32_t closest_hit_index = UINT32_MAX;
-		uint32_t any_hit_index = UINT32_MAX;
-		uint32_t intersection_index = UINT32_MAX;
+		raygen = 0,
+		miss = 3,
+		hit_group_triangles = 1,
+		hit_group_aabbs = 2,
+		callable = 4,
+	};
+
+	/// <summary>
+	/// Describes a ray tracing shader group.
+	/// </summary>
+	struct shader_group
+	{
+		shader_group() : hit_group() {}
+		shader_group(shader_group_type type, uint32_t closest_hit_shader_index, uint32_t any_hit_shader_index = UINT32_MAX, uint32_t intersection_shader_index = UINT32_MAX) : type(type), hit_group({ closest_hit_shader_index, any_hit_shader_index, intersection_shader_index }) {}
+
+		/// <summary>
+		/// Type of the shader group.
+		/// </summary>
+		shader_group_type type = shader_group_type::raygen;
+
+		union
+		{
+			/// <summary>
+			/// Used when type is <see cref="shader_group_type::raygen"/>.
+			/// </summary>
+			struct
+			{
+				/// <summary>
+				/// Index of the shader in the ray generation shader pipeline subobject.
+				/// </summary>
+				/// <seealso cref="pipeline_subobject_type::raygen_shader"/>
+				uint32_t shader_index = UINT32_MAX;
+			} raygen;
+
+			/// <summary>
+			/// Used when type is <see cref="shader_group_type::miss"/>.
+			/// </summary>
+			struct
+			{
+				/// <summary>
+				/// Index of the shader in the miss shader pipeline subobject.
+				/// </summary>
+				/// <seealso cref="pipeline_subobject_type::miss_shader"/>
+				uint32_t shader_index = UINT32_MAX;
+			} miss;
+
+			/// <summary>
+			/// Used when type is <see cref="shader_group_type::hit_group_triangles"/> or <see cref="shader_group_type::hit_group_aabbs"/>.
+			/// </summary>
+			struct
+			{
+				/// <summary>
+				/// Index of the shader in the closest-hit shader pipeline subobject.
+				/// Set to -1 (UINT32_MAX) to indicate that this shader type is not used in the hit group.
+				/// </summary>
+				/// <seealso cref="pipeline_subobject_type::closest_shader"/>
+				uint32_t closest_hit_shader_index = UINT32_MAX;
+				/// <summary>
+				/// Index of the shader in the any-hit shader pipeline subobject.
+				/// Set to -1 (UINT32_MAX) to indicate that this shader type is not used in the hit group.
+				/// </summary>
+				/// <seealso cref="pipeline_subobject_type::any_hit_shader"/>
+				uint32_t any_hit_shader_index = UINT32_MAX;
+				/// <summary>
+				/// Index of the shader in the intersection shader pipeline subobject.
+				/// Set to -1 (UINT32_MAX) to indicate that this shader type is not used in the hit group.
+				/// </summary>
+				/// <seealso cref="pipeline_subobject_type::intersection_shader"/>
+				uint32_t intersection_shader_index = UINT32_MAX;
+			} hit_group;
+
+			/// <summary>
+			/// Used when type is <see cref="shader_group_type::callable"/>.
+			/// </summary>
+			struct
+			{
+				/// <summary>
+				/// Index of the shader in the callable shader pipeline subobject.
+				/// </summary>
+				/// <seealso cref="pipeline_subobject_type::callable_shader"/>
+				uint32_t shader_index = UINT32_MAX;
+			} callable;
+		};
 	};
 
 	/// <summary>
@@ -783,46 +863,46 @@ namespace reshade { namespace api
 		/// <seealso cref="pipeline_stage::mesh_shader"/>
 		mesh_shader,
 		/// <summary>
-		/// Ray generation shader to use.
+		/// Ray generation shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::raygen"/>
 		raygen_shader,
 		/// <summary>
-		/// Any-hit shader to use.
+		/// Any-hit shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::any_hit"/>
 		any_hit_shader,
 		/// <summary>
-		/// Closest-hit shader to use.
+		/// Closest-hit shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::closest_hit"/>
 		closest_hit_shader,
 		/// <summary>
-		/// Miss shader to use.
+		/// Miss shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::miss"/>
 		miss_shader,
 		/// <summary>
-		/// Intersection shader to use.
+		/// Intersection shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::intersection"/>
 		intersection_shader,
 		/// <summary>
-		/// Callable shader to use.
+		/// Callable shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::callable"/>
 		callable_shader,
 		/// <summary>
-		/// Hit groups to use.
-		/// Sub-object data is a pointer to an array of <see cref="hit_object"/> values.
+		/// Ray tracing shader groups to use.
+		/// Sub-object data is a pointer to an array of <see cref="shader_group"/> values.
 		/// </summary>
-		hit_groups,
+		shader_groups,
 		/// <summary>
 		/// Maximum payload size of shaders executed by this pipeline.
 		/// Sub-object data is a pointer to a 32-bit unsigned integer value.

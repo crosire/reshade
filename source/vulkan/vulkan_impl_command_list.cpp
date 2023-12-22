@@ -88,8 +88,8 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 			barrier.size = VK_WHOLE_SIZE;
 		}
 
-		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features);
-		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features);
+		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features, _device_impl->_ray_tracing_ext);
+		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features, _device_impl->_ray_tracing_ext);
 	}
 
 	assert(src_stage_mask != 0 && dst_stage_mask != 0);
@@ -532,10 +532,27 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 
 	if (_device_impl->_push_descriptor_ext)
 	{
-		vk.CmdPushDescriptorSetKHR(_orig,
-			stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-			(VkPipelineLayout)layout.handle, layout_param,
-			1, &write);
+		if ((stages & api::shader_stage::all_compute) != 0)
+		{
+			vk.CmdPushDescriptorSetKHR(_orig,
+				VK_PIPELINE_BIND_POINT_COMPUTE,
+				(VkPipelineLayout)layout.handle, layout_param,
+				1, &write);
+		}
+		if ((stages & api::shader_stage::all_graphics) != 0)
+		{
+			vk.CmdPushDescriptorSetKHR(_orig,
+				VK_PIPELINE_BIND_POINT_GRAPHICS,
+				(VkPipelineLayout)layout.handle, layout_param,
+				1, &write);
+		}
+		if ((stages & api::shader_stage::all_ray_tracing) != 0)
+		{
+			vk.CmdPushDescriptorSetKHR(_orig,
+				VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+				(VkPipelineLayout)layout.handle, layout_param,
+				1, &write);
+		}
 		return;
 	}
 
@@ -559,11 +576,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 
 	vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
 
-	vk.CmdBindDescriptorSets(_orig,
-		stages == api::shader_stage::compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-		(VkPipelineLayout)layout.handle,
-		layout_param, 1, &write.dstSet,
-		0, nullptr);
+	bind_descriptor_tables(stages, layout, layout_param, 1, reinterpret_cast<const api::descriptor_table *>(&write.dstSet));
 }
 void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
@@ -578,6 +591,13 @@ void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::shader_stag
 	{
 		vk.CmdBindDescriptorSets(_orig,
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			(VkPipelineLayout)layout.handle,
+			first, count, reinterpret_cast<const VkDescriptorSet *>(tables), 0, nullptr);
+	}
+	if ((stages & api::shader_stage::all_ray_tracing) != 0)
+	{
+		vk.CmdBindDescriptorSets(_orig,
+			VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 			(VkPipelineLayout)layout.handle,
 			first, count, reinterpret_cast<const VkDescriptorSet *>(tables), 0, nullptr);
 	}
@@ -621,31 +641,55 @@ void reshade::vulkan::command_list_impl::dispatch_mesh(uint32_t group_count_x, u
 
 	vk.CmdDrawMeshTasksEXT(_orig, group_count_x, group_count_y, group_count_z);
 }
-void reshade::vulkan::command_list_impl::dispatch_rays(uint64_t raygen_address, uint64_t raygen_size, uint64_t raygen_stride, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
+void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
 {
 	_has_commands = true;
 
-	VkStridedDeviceAddressRegionKHR raygen_table;
-	raygen_table.deviceAddress = raygen_address;
-	raygen_table.size = raygen_size;
-	raygen_table.stride = raygen_stride;
+	VkStridedDeviceAddressRegionKHR raygen_region;
+	raygen_region.deviceAddress = raygen_offset;
+	if (raygen.handle != 0)
+	{
+		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+		address_info.buffer = (VkBuffer)raygen.handle;
+		raygen_region.deviceAddress += vk.GetBufferDeviceAddress(_device_impl->_orig, &address_info);
+	}
+	raygen_region.size = raygen_size;
+	raygen_region.stride = raygen_size;
 
-	VkStridedDeviceAddressRegionKHR miss_table;
-	miss_table.deviceAddress = miss_address;
-	miss_table.size = miss_size;
-	miss_table.stride = miss_stride;
+	VkStridedDeviceAddressRegionKHR miss_region;
+	miss_region.deviceAddress = miss_offset;
+	if (miss.handle != 0)
+	{
+		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+		address_info.buffer = (VkBuffer)miss.handle;
+		miss_region.deviceAddress += vk.GetBufferDeviceAddress(_device_impl->_orig, &address_info);
+	}
+	miss_region.size = miss_size;
+	miss_region.stride = miss_stride;
 
-	VkStridedDeviceAddressRegionKHR hit_table;
-	hit_table.deviceAddress = hit_group_address;
-	hit_table.size = hit_group_size;
-	hit_table.stride = hit_group_stride;
+	VkStridedDeviceAddressRegionKHR hit_group_region;
+	hit_group_region.deviceAddress = hit_group_offset;
+	if (hit_group.handle != 0)
+	{
+		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+		address_info.buffer = (VkBuffer)hit_group.handle;
+		hit_group_region.deviceAddress += vk.GetBufferDeviceAddress(_device_impl->_orig, &address_info);
+	}
+	hit_group_region.size = hit_group_size;
+	hit_group_region.stride = hit_group_stride;
 
-	VkStridedDeviceAddressRegionKHR callable_table;
-	callable_table.deviceAddress = callable_address;
-	callable_table.size = callable_size;
-	callable_table.stride = callable_stride;
+	VkStridedDeviceAddressRegionKHR callable_region;
+	callable_region.deviceAddress = callable_offset;
+	if (callable.handle != 0)
+	{
+		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+		address_info.buffer = (VkBuffer)callable.handle;
+		callable_region.deviceAddress += vk.GetBufferDeviceAddress(_device_impl->_orig, &address_info);
+	}
+	callable_region.size = callable_size;
+	callable_region.stride = callable_stride;
 
-	vk.CmdTraceRaysKHR(_orig, &raygen_table, &miss_table, &hit_table, &callable_table, width, height, depth);
+	vk.CmdTraceRaysKHR(_orig, &raygen_region, &miss_region, &hit_group_region, &callable_region, width, height, depth);
 }
 void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {

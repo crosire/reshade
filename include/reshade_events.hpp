@@ -592,6 +592,7 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateGraphicsPipelineState</description></item>
 		/// <item><description>ID3D12Device2::CreatePipelineState</description></item>
 		/// <item><description>ID3D12Device5::CreateStateObject</description></item>
+		/// <item><description>ID3D12Device7::AddToStateObject</description></item>
 		/// <item><description>ID3D12PipelineLibrary::LoadComputePipeline</description></item>
 		/// <item><description>ID3D12PipelineLibrary::LoadGraphicsPipeline</description></item>
 		/// <item><description>ID3D12PipelineLibrary1::LoadPipeline</description></item>
@@ -1160,7 +1161,7 @@ namespace reshade
 		/// <item><description>ID3D12GraphicsCommandList::DispatchRays</description></item>
 		/// <item><description>vkCmdTraceRaysKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint64_t raygen_address, uint64_t raygen_size, uint64_t raygen_stride, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
@@ -1761,7 +1762,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_indexed, bool, api::command_list *cmd_list, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::dispatch, bool, api::command_list *cmd_list, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::dispatch_mesh, bool, api::command_list *cmd_list, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::dispatch_rays, bool, api::command_list *cmd_list, uint64_t raygen_address, uint64_t raygen_size, uint64_t raygen_stride, uint64_t miss_address, uint64_t miss_size, uint64_t miss_stride, uint64_t hit_group_address, uint64_t hit_group_size, uint64_t hit_group_stride, uint64_t callable_address, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::dispatch_rays, bool, api::command_list *cmd_list, api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::draw_or_dispatch_indirect, bool, api::command_list *cmd_list, api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_resource, bool, api::command_list *cmd_list, api::resource source, api::resource dest);

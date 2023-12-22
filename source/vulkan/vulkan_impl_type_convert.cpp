@@ -654,7 +654,7 @@ auto reshade::vulkan::convert_usage_to_image_layout(api::resource_usage state) -
 		return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	}
 }
-auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features) -> VkPipelineStageFlags
+auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features, bool enabled_ray_tracing) -> VkPipelineStageFlags
 {
 	if (state == api::resource_usage::general)
 		return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
@@ -680,7 +680,7 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer)) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != 0)
-		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | (enabled_features.tessellationShader ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 0) | (enabled_features.geometryShader ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | (enabled_features.tessellationShader ? VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 0) | (enabled_features.geometryShader ? VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | (enabled_ray_tracing ? VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR : 0);
 	if ((state & api::resource_usage::unordered_access) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != 0)
@@ -774,8 +774,11 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
 
+	if ((usage & api::resource_usage::shader_resource) == api::resource_usage::shader_resource_non_pixel)
+		buffer_flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
 	if ((usage & api::resource_usage::unordered_access) != 0)
-		buffer_flags |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+		buffer_flags |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 	else
 		buffer_flags &= ~(VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
@@ -790,7 +793,7 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 		buffer_flags &= ~VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 	if ((usage & api::resource_usage::acceleration_structure) != 0)
-		buffer_flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+		buffer_flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 }
@@ -820,6 +823,10 @@ void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFla
 		usage |= api::resource_usage::stream_output;
 	if ((buffer_flags & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR) != 0)
 		usage |= api::resource_usage::acceleration_structure;
+	if ((buffer_flags & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR) != 0)
+		usage |= api::resource_usage::shader_resource_non_pixel | api::resource_usage::unordered_access;
+	if ((buffer_flags & VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR) != 0)
+		usage |= api::resource_usage::shader_resource_non_pixel;
 }
 
 void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamplerCreateInfo &create_info)
@@ -2092,30 +2099,36 @@ auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) ->
 	}
 }
 
-auto reshade::vulkan::convert_hit_group_type(api::acceleration_structure_build_input_type value) -> VkRayTracingShaderGroupTypeKHR
+auto reshade::vulkan::convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR
 {
 	switch (value)
 	{
-	case reshade::api::acceleration_structure_build_input_type::triangles:
+	case api::shader_group_type::raygen:
+	case api::shader_group_type::miss:
+	case api::shader_group_type::callable:
+		return VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+	case api::shader_group_type::hit_group_triangles:
 		return VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-	case reshade::api::acceleration_structure_build_input_type::aabbs:
+	case api::shader_group_type::hit_group_aabbs:
 		return VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
 	default:
 		assert(false);
 		return VK_RAY_TRACING_SHADER_GROUP_TYPE_MAX_ENUM_KHR;
 	}
 }
-auto reshade::vulkan::convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::acceleration_structure_build_input_type
+auto reshade::vulkan::convert_shader_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::shader_group_type
 {
 	switch (value)
 	{
-	case VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR:
-		return api::acceleration_structure_build_input_type::triangles;
 	default:
 		assert(false);
 		[[fallthrough]];
+	case VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR:
+		return api::shader_group_type::raygen;
+	case VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR:
+		return api::shader_group_type::hit_group_triangles;
 	case VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR:
-		return api::acceleration_structure_build_input_type::aabbs;
+		return api::shader_group_type::hit_group_aabbs;
 	}
 }
 auto reshade::vulkan::convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR
@@ -2174,6 +2187,7 @@ void reshade::vulkan::convert_acceleration_structure_build_input(const api::acce
 	switch (geometry.geometryType)
 	{
 	case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
+		geometry.geometry.triangles = { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
 		geometry.geometry.triangles.vertexFormat = convert_format(build_input.triangles.vertex_format);
 		geometry.geometry.triangles.vertexData.deviceAddress = build_input.triangles.vertex_offset;
 		geometry.geometry.triangles.vertexStride = build_input.triangles.vertex_stride;
@@ -2184,11 +2198,13 @@ void reshade::vulkan::convert_acceleration_structure_build_input(const api::acce
 		range_info.primitiveCount = geometry.geometry.triangles.indexData.deviceAddress != 0 ? build_input.triangles.index_count / 3 : build_input.triangles.vertex_count / 3;
 		break;
 	case VK_GEOMETRY_TYPE_AABBS_KHR:
+		geometry.geometry.aabbs = { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR };
 		geometry.geometry.aabbs.data.deviceAddress = build_input.aabbs.offset;
 		geometry.geometry.aabbs.stride = build_input.aabbs.stride;
 		range_info.primitiveCount = build_input.aabbs.count;
 		break;
 	case VK_GEOMETRY_TYPE_INSTANCES_KHR:
+		geometry.geometry.instances = { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR };
 		geometry.geometry.instances.data.deviceAddress = build_input.instances.offset;
 		geometry.geometry.instances.arrayOfPointers = build_input.instances.array_of_pointers ? VK_TRUE : VK_FALSE;
 		range_info.primitiveCount = build_input.instances.count;

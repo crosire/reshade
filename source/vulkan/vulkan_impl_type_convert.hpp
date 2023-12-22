@@ -15,6 +15,8 @@ namespace reshade::vulkan
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
 	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
 	static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(api::buffer_range));
+	static_assert(sizeof(VkAccelerationStructureKHR) == sizeof(api::acceleration_structure));
+	static_assert(sizeof(VkAccelerationStructureInstanceKHR) == sizeof(api::acceleration_structure_instance));
 
 	template <VkObjectType type>
 	struct object_data;
@@ -171,7 +173,7 @@ namespace reshade::vulkan
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
-	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features) -> VkPipelineStageFlags;
+	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features, bool enabled_ray_tracing) -> VkPipelineStageFlags;
 
 	void convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags);
 	void convert_usage_to_buffer_usage_flags(api::resource_usage usage, VkBufferUsageFlags &buffer_flags);
@@ -232,8 +234,8 @@ namespace reshade::vulkan
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
 
-	auto convert_hit_group_type(api::acceleration_structure_build_input_type value) -> VkRayTracingShaderGroupTypeKHR;
-	auto convert_hit_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::acceleration_structure_build_input_type;
+	auto convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR;
+	auto convert_shader_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::shader_group_type;
 	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR;
 	auto convert_acceleration_structure_type(VkAccelerationStructureTypeKHR value) -> api::acceleration_structure_type;
 	auto convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> VkCopyAccelerationStructureModeKHR;

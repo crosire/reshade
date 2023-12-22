@@ -594,9 +594,23 @@ namespace reshade { namespace api
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(acceleration_structure_build_input_flags);
 
 	/// <summary>
+	/// Describes an instance in a top-level acceleration structure.
+	/// The data in <see cref="acceleration_structure_build_input::instances::buffer"/> should be an array of this structure.
+	/// </summary>
+	struct acceleration_structure_instance
+	{
+		float transform[3][4];
+		uint32_t custom_index : 24;
+		uint32_t mask : 8;
+		uint32_t shader_binding_table_offset : 24;
+		uint32_t flags : 8;
+		uint64_t acceleration_structure_gpu_address;
+	};
+
+	/// <summary>
 	/// Describes a build input for an acceleration structure build.
 	/// </summary>
-	struct [[nodiscard]] acceleration_structure_build_input
+	struct acceleration_structure_build_input
 	{
 		constexpr acceleration_structure_build_input() : triangles() {}
 		constexpr acceleration_structure_build_input(api::resource vertex_buffer, uint64_t vertex_offset, uint32_t vertex_count, uint64_t vertex_stride, api::format vertex_format, api::resource index_buffer, uint64_t index_offset, uint32_t index_count, api::format index_format, uint64_t transform_address = 0) : type(acceleration_structure_build_input_type::triangles), triangles({ vertex_buffer, vertex_offset, vertex_count, vertex_stride, vertex_format, index_buffer, index_offset, index_count, index_format, transform_address }) {}

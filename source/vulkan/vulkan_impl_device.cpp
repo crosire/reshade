@@ -22,7 +22,8 @@ reshade::vulkan::device_impl::device_impl(
 	bool timeline_semaphore_ext,
 	bool custom_border_color_ext,
 	bool extended_dynamic_state_ext,
-	bool conservative_rasterization_ext) :
+	bool conservative_rasterization_ext,
+	bool ray_tracing_ext) :
 	api_object_impl(device),
 	_physical_device(physical_device),
 	_dispatch_table(device_table),
@@ -33,6 +34,7 @@ reshade::vulkan::device_impl::device_impl(
 	_custom_border_color_ext(custom_border_color_ext),
 	_extended_dynamic_state_ext(extended_dynamic_state_ext),
 	_conservative_rasterization_ext(conservative_rasterization_ext),
+	_ray_tracing_ext(ray_tracing_ext),
 	_enabled_features(enabled_features)
 {
 	{	VmaVulkanFunctions functions;
@@ -72,6 +74,9 @@ reshade::vulkan::device_impl::device_impl(
 		create_info.pVulkanFunctions = &functions;
 		create_info.instance = instance;
 		create_info.vulkanApiVersion = api_version;
+
+		if (ray_tracing_ext)
+			create_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 		vmaCreateAllocator(&create_info, &_alloc);
 	}
@@ -251,7 +256,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::amplification_and_mesh_shader:
 		return vk.CmdDrawMeshTasksEXT != nullptr;
 	case api::device_caps::ray_tracing:
-		return vk.CmdTraceRaysKHR != nullptr;
+		return _ray_tracing_ext;
 	default:
 		return false;
 	}
@@ -1032,16 +1037,16 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t sample_count = 1;
 	uint32_t viewport_count = 1;
-	std::vector<api::hit_group> hit_groups;
 	std::vector<api::shader_desc> raygen_desc;
 	std::vector<api::shader_desc> any_hit_desc;
 	std::vector<api::shader_desc> closest_hit_desc;
 	std::vector<api::shader_desc> miss_desc;
 	std::vector<api::shader_desc> intersection_desc;
 	std::vector<api::shader_desc> callable_desc;
+	std::vector<api::shader_group> shader_groups;
 	uint32_t max_payload_size = 0;
-	uint32_t max_attribute_size = 0;
-	uint32_t max_recursion_depth = 0;
+	uint32_t max_attribute_size = 2 * sizeof(float); // Default triangle attributes
+	uint32_t max_recursion_depth = 1;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -1157,9 +1162,9 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				callable_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
 			break;
-		case api::pipeline_subobject_type::hit_groups:
+		case api::pipeline_subobject_type::shader_groups:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
-				hit_groups.push_back(static_cast<const api::hit_group *>(subobjects[i].data)[k]);
+				shader_groups.push_back(static_cast<const api::shader_group *>(subobjects[i].data)[k]);
 			break;
 		case api::pipeline_subobject_type::max_payload_size:
 			assert(subobjects[i].count == 1);
@@ -1179,18 +1184,24 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		}
 	}
 
-	if (!raygen_desc.empty() || !hit_groups.empty())
+	if (!raygen_desc.empty() || !shader_groups.empty())
 	{
 		VkRayTracingPipelineCreateInfoKHR create_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR };
 		create_info.layout = (VkPipelineLayout)layout.handle;
 		create_info.maxPipelineRayRecursionDepth = max_recursion_depth;
 
+		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
+		interface_info.maxPipelineRayPayloadSize = max_payload_size;
+		interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
+
+		create_info.pLibraryInterface = &interface_info;
+
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
 		std::vector<VkSpecializationInfo> spec_info;
 		std::vector<std::vector<VkSpecializationMapEntry>> spec_map;
-		shader_stage_info.resize(raygen_desc.size());
-		spec_info.resize(raygen_desc.size());
-		spec_map.resize(raygen_desc.size());
+		shader_stage_info.resize(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size());
+		spec_info.resize(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size());
+		spec_map.resize(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size());
 
 		for (const api::shader_desc &shader_desc : raygen_desc)
 		{
@@ -1231,25 +1242,60 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		create_info.pStages = shader_stage_info.data();
 
-		create_info.groupCount = static_cast<uint32_t>(hit_groups.size());
+		create_info.groupCount = static_cast<uint32_t>(shader_groups.size());
 		std::vector<VkRayTracingShaderGroupCreateInfoKHR> group_infos;
-		group_infos.resize(create_info.groupCount);
+		group_infos.resize(create_info.groupCount, { VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR });
 
 		for (uint32_t i = 0; i < create_info.groupCount; ++i)
 		{
+			const api::shader_group &shader_group = shader_groups[i];
+
 			VkRayTracingShaderGroupCreateInfoKHR &group_info = group_infos[i];
-			group_info.type = convert_hit_group_type(hit_groups[i].type);
-			group_info.closestHitShader = hit_groups[i].closest_hit_index;
-			group_info.anyHitShader = hit_groups[i].any_hit_index; // TODO: These indices do not match
-			group_info.intersectionShader = hit_groups[i].intersection_index;
+			group_info.type = convert_shader_group_type(shader_group.type);
+
+			switch (shader_group.type)
+			{
+			case api::shader_group_type::raygen:
+				assert(shader_group.raygen.shader_index != UINT32_MAX);
+				group_info.generalShader = shader_group.raygen.shader_index;
+				group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+				group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+				group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+				break;
+			case api::shader_group_type::miss:
+				assert(shader_group.miss.shader_index != UINT32_MAX);
+				group_info.generalShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size()) + shader_group.miss.shader_index;
+				group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+				group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+				group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+				break;
+			case api::shader_group_type::callable:
+				assert(shader_group.callable.shader_index != UINT32_MAX);
+				group_info.generalShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size()) + shader_group.callable.shader_index;
+				group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+				group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+				group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+				break;
+			case api::shader_group_type::hit_group_triangles:
+			case api::shader_group_type::hit_group_aabbs:
+				group_info.generalShader = VK_SHADER_UNUSED_KHR;
+				if (shader_group.hit_group.closest_hit_shader_index != UINT32_MAX)
+					group_info.closestHitShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size()) + shader_group.hit_group.closest_hit_shader_index;
+				else
+					group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+				if (shader_group.hit_group.any_hit_shader_index != UINT32_MAX)
+					group_info.anyHitShader = static_cast<uint32_t>(raygen_desc.size()) + shader_group.hit_group.any_hit_shader_index;
+				else
+					group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+				if (shader_group.hit_group.intersection_shader_index != UINT32_MAX && shader_group.type == api::shader_group_type::hit_group_aabbs)
+					group_info.intersectionShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size()) + shader_group.hit_group.intersection_shader_index;
+				else
+					group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+				break;
+			}
 		}
 
 		create_info.pGroups = group_infos.data();
-
-		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
-		interface_info.maxPipelineRayPayloadSize = max_payload_size;
-		interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
-		create_info.pLibraryInterface = &interface_info;
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateRayTracingPipelinesKHR(_orig, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
@@ -1591,7 +1637,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
 			internal_binding.binding = range.binding;
-			internal_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
+			internal_binding.descriptorType = convert_descriptor_type(range.type, true);
 			internal_binding.descriptorCount = range.array_size;
 			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
 
@@ -1607,7 +1653,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 				VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
 				additional_binding.binding = range.binding + 1 + j;
-				additional_binding.descriptorType = static_cast<VkDescriptorType>(range.type);
+				additional_binding.descriptorType = convert_descriptor_type(range.type, true);
 				additional_binding.descriptorCount = 1;
 				additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
 
@@ -1772,10 +1818,11 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 	std::vector<VkWriteDescriptorSet> writes_internal;
 	writes_internal.reserve(count);
 
+	constexpr size_t extra_data_size = std::max(sizeof(VkDescriptorImageInfo), sizeof(VkWriteDescriptorSetAccelerationStructureKHR)) / sizeof(uint64_t);
 	uint32_t max_descriptors = 0;
 	for (uint32_t i = 0; i < count; ++i)
 		max_descriptors += updates[i].count;
-	temp_mem<VkDescriptorImageInfo> image_info(max_descriptors);
+	temp_mem<uint64_t> extra_data(max_descriptors * extra_data_size);
 
 	for (uint32_t i = 0, j = 0; i < count; ++i)
 	{
@@ -1795,34 +1842,44 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
-			write.pImageInfo = image_info.p + j;
+		{
+			const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
+			write.pImageInfo = image_info;
 			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
 				const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[k];
-				image_info[j].sampler = (VkSampler)descriptor.handle;
+				image_info[k].sampler = (VkSampler)descriptor.handle;
+				image_info[k].imageView = VK_NULL_HANDLE;
+				image_info[k].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			}
 			break;
+		}
 		case api::descriptor_type::sampler_with_resource_view:
-			write.pImageInfo = image_info.p + j;
+		{
+			const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
+			write.pImageInfo = image_info;
 			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
 				const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k];
-				image_info[j].sampler = (VkSampler)descriptor.sampler.handle;
-				image_info[j].imageView = (VkImageView)descriptor.view.handle;
-				image_info[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				image_info[k].sampler = (VkSampler)descriptor.sampler.handle;
+				image_info[k].imageView = (VkImageView)descriptor.view.handle;
+				image_info[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			}
 			break;
+		}
 		case api::descriptor_type::shader_resource_view:
 		case api::descriptor_type::unordered_access_view:
 			if (const auto descriptors = static_cast<const api::resource_view *>(update.descriptors);
 				get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)descriptors[0].handle)->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 			{
-				write.pImageInfo = image_info.p + j;
+				const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
+				write.pImageInfo = image_info;
 				for (uint32_t k = 0; k < update.count; ++k, ++j)
 				{
 					const auto &descriptor = descriptors[k];
-					image_info[j].imageView = (VkImageView)descriptor.handle;
-					image_info[j].imageLayout = (update.type == api::descriptor_type::unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+					image_info[k].sampler = VK_NULL_HANDLE;
+					image_info[k].imageView = (VkImageView)descriptor.handle;
+					image_info[k].imageLayout = (update.type == api::descriptor_type::unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				}
 			}
 			else
@@ -1835,6 +1892,15 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 		case api::descriptor_type::shader_storage_buffer:
 			write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(update.descriptors);
 			break;
+		case api::descriptor_type::acceleration_structure:
+		{
+			const auto as_info = reinterpret_cast<VkWriteDescriptorSetAccelerationStructureKHR *>(extra_data.p + j++ * extra_data_size);
+			write.pNext = as_info;
+			as_info[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
+			as_info->accelerationStructureCount = update.count;
+			as_info->pAccelerationStructures = static_cast<const VkAccelerationStructureKHR *>(update.descriptors);
+			break;
+		}
 		default:
 			assert(false);
 			break;
@@ -2066,35 +2132,11 @@ bool reshade::vulkan::device_impl::signal(api::fence fence, uint64_t value)
 	return vk.SignalSemaphore(_orig, &signal_info) == VK_SUCCESS;
 }
 
-void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
-{
-	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
-	std::vector<VkAccelerationStructureBuildRangeInfoKHR> range_infos(input_count);
-	std::vector<uint32_t> max_primitive_counts(input_count);
-	for (uint32_t i = 0; i < input_count; ++i)
-	{
-		convert_acceleration_structure_build_input(inputs[i], geometries[i], range_infos[i]);
-		max_primitive_counts[i] = range_infos[i].primitiveCount;
-	}
-
-	VkAccelerationStructureBuildGeometryInfoKHR info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR };
-	info.type = convert_acceleration_structure_type(type);
-	info.flags = convert_acceleration_structure_build_flags(flags);
-	info.geometryCount = static_cast<uint32_t>(geometries.size());
-	info.pGeometries = geometries.data();
-
-	VkAccelerationStructureBuildSizesInfoKHR size_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
-
-	if (vk.GetAccelerationStructureBuildSizesKHR != nullptr)
-		vk.GetAccelerationStructureBuildSizesKHR(_orig, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &info, max_primitive_counts.data(), &size_info);
-
-	*out_size = size_info.accelerationStructureSize;
-	*out_build_scratch_size = size_info.buildScratchSize;
-	*out_update_scratch_size = size_info.updateScratchSize;
-}
-
 bool reshade::vulkan::device_impl::create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle)
 {
+	if (UINT64_MAX == size)
+		size = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)buffer.handle)->create_info.size - offset;
+
 	VkAccelerationStructureCreateInfoKHR create_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR };
 	create_info.createFlags = 0;
 	create_info.buffer = (VkBuffer)buffer.handle;
@@ -2117,6 +2159,49 @@ bool reshade::vulkan::device_impl::create_acceleration_structure(api::accelerati
 void reshade::vulkan::device_impl::destroy_acceleration_structure(api::acceleration_structure handle)
 {
 	vk.DestroyAccelerationStructureKHR(_orig, (VkAccelerationStructureKHR)handle.handle, nullptr);
+}
+
+void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
+	std::vector<VkAccelerationStructureBuildRangeInfoKHR> range_infos(input_count);
+	std::vector<uint32_t> max_primitive_counts(input_count);
+	for (uint32_t i = 0; i < input_count; ++i)
+	{
+		convert_acceleration_structure_build_input(inputs[i], geometries[i], range_infos[i]);
+		max_primitive_counts[i] = range_infos[i].primitiveCount;
+	}
+
+	VkAccelerationStructureBuildGeometryInfoKHR info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR };
+	info.type = convert_acceleration_structure_type(type);
+	info.flags = convert_acceleration_structure_build_flags(flags);
+	info.geometryCount = static_cast<uint32_t>(geometries.size());
+	info.pGeometries = geometries.data();
+
+	VkAccelerationStructureBuildSizesInfoKHR size_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+
+	if (vk.GetAccelerationStructureBuildSizesKHR != nullptr)
+		vk.GetAccelerationStructureBuildSizesKHR(_orig, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &info, max_primitive_counts.data(), &size_info);
+
+	if (out_size != nullptr)
+		*out_size = size_info.accelerationStructureSize;
+	if (out_build_scratch_size != nullptr)
+		*out_build_scratch_size = size_info.buildScratchSize;
+	if (out_update_scratch_size != nullptr)
+		*out_update_scratch_size = size_info.updateScratchSize;
+}
+
+uint64_t reshade::vulkan::device_impl::get_acceleration_structure_gpu_address(api::acceleration_structure handle) const
+{
+	VkAccelerationStructureDeviceAddressInfoKHR info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
+	info.accelerationStructure = (VkAccelerationStructureKHR)handle.handle;
+
+	return vk.GetAccelerationStructureDeviceAddressKHR(_orig, &info);
+}
+
+bool reshade::vulkan::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups)
+{
+	return vk.GetRayTracingShaderGroupHandlesKHR(_orig, (VkPipeline)pipeline.handle, first, count, count * 32, groups) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
