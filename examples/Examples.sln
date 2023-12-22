@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.1705
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01-framerate_limit", "01-framerate_limit\framerate_limit.vcxproj", "{03869F31-1377-4A09-8CD2-C84D66E2A13F}"
 EndProject
@@ -28,6 +28,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "12-video_capture", "12-video_capture\video_capture.vcxproj", "{D9379DF9-DFF6-4190-ACC5-913D9D22AB22}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "13-effects_during_frame", "13-effects_during_frame\effects_during_frame.vcxproj", "{02AF14FF-5139-43C5-9AD2-D382B0E3BFF9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "14-ray_tracing", "14-ray_tracing\ray_tracing.vcxproj", "{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -133,6 +135,10 @@ Global
 		{02AF14FF-5139-43C5-9AD2-D382B0E3BFF9}.Release|x64.Build.0 = Release|x64
 		{02AF14FF-5139-43C5-9AD2-D382B0E3BFF9}.Release|x86.ActiveCfg = Release|Win32
 		{02AF14FF-5139-43C5-9AD2-D382B0E3BFF9}.Release|x86.Build.0 = Release|Win32
+		{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}.Debug|x64.ActiveCfg = Debug|x64
+		{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}.Debug|x86.ActiveCfg = Debug|x64
+		{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}.Release|x64.ActiveCfg = Release|x64
+		{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
