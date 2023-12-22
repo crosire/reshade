@@ -181,9 +181,9 @@ namespace reshade { namespace api
 		amplification_and_mesh_shader,
 		/// <summary>
 		/// Specifies whether ray tracing is supported.
-		/// If this feature is not present, <see cref="device::create_acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
+		/// If this feature is not present, <see cref="device::create_acceleration_structure"/>, <see cref="device::destroy_acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
 		/// </summary>
-		raytracing,
+		ray_tracing,
 	};
 
 	/// <summary>
@@ -553,6 +553,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the required acceleration structure size needed to build the specified data.
 		/// </summary>
+		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="type">Type of the acceleration structure.</param>
 		/// <param name="flags">Acceleration structure build options.</param>
 		/// <param name="input_count">Number of build inputs.</param>
@@ -568,6 +569,7 @@ namespace reshade { namespace api
 		/// <remarks>
 		/// The <paramref name="buffer"/> resource must have been created with initial state set to <see cref="resource_usage::acceleration_structure"/>.
 		/// </remarks>
+		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="type">Type of the acceleration structure to create.</param>
 		/// <param name="buffer">Buffer resource to store the acceleration structure in.</param>
 		/// <param name="offset">Offset (in bytes) into the <paramref name="buffer"/> to start the acceleration structure at.</param>
@@ -578,6 +580,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Instantly destroys an acceleration structure that was previously created via <see cref="create_acceleration_structure"/>.
 		/// </summary>
+		/// <seealso cref="device_caps::ray_tracing"/>
 		virtual void destroy_acceleration_structure(acceleration_structure handle) = 0;
 	};
 
@@ -1017,7 +1020,7 @@ namespace reshade { namespace api
 		/// <remarks>
 		/// The shader table resources have to be in the <see cref="resource_usage::shader_resource_non_pixel"/> state.
 		/// </remarks>
-		/// <seealso cref="device_caps::raytracing"/>
+		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="raygen_address">Shader table for the ray generation shader to use.</param>
 		/// <param name="miss_address">Shader table for the miss shaders to use.</param>
 		/// <param name="hit_group_address">Shader table for the hit groups to use.</param>
@@ -1030,7 +1033,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Copies or transforms data from the <paramref name="source"/> acceleration structure to the <paramref name="dest"/>ination acceleration structure.
 		/// </summary>
-		/// <seealso cref="device_caps::raytracing"/>
+		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="source">Acceleration structure to copy from.</param>
 		/// <param name="dest">Acceleration structure to copy to.</param>
 		/// <param name="mode">Choose between copying or transforming the data in the acceleration structure.</param>
@@ -1042,7 +1045,7 @@ namespace reshade { namespace api
 		/// <remarks>
 		/// The <paramref name="scratch"/> resource has to be in the <see cref="resource_usage::unordered_access"/> state.
 		/// </remarks>
-		/// <seealso cref="device_caps::raytracing"/>
+		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="type">Type of the acceleration structure to build.</param>
 		/// <param name="flags">Acceleration structure build options.</param>
 		/// <param name="input_count">Number of build inputs.</param>

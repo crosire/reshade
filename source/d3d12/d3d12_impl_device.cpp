@@ -196,7 +196,7 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))))
 			return options.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
 		return false;
-	case api::device_caps::raytracing:
+	case api::device_caps::ray_tracing:
 		if (D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
 			return options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;

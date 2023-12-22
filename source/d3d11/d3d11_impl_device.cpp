@@ -107,7 +107,7 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 		else
 			return false;
 	case api::device_caps::amplification_and_mesh_shader:
-	case api::device_caps::raytracing:
+	case api::device_caps::ray_tracing:
 	default:
 		return false;
 	}

@@ -250,7 +250,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	}
 	case api::device_caps::amplification_and_mesh_shader:
 		return vk.CmdDrawMeshTasksEXT != nullptr;
-	case api::device_caps::raytracing:
+	case api::device_caps::ray_tracing:
 		return vk.CmdTraceRaysKHR != nullptr;
 	default:
 		return false;

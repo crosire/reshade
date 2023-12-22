@@ -199,9 +199,9 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	// Cannot bind state to individual pipeline stages
-	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics || stages == api::pipeline_stage::all_raytracing);
+	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics || stages == api::pipeline_stage::all_ray_tracing);
 
-	if (stages == api::pipeline_stage::all_raytracing)
+	if (stages == api::pipeline_stage::all_ray_tracing)
 	{
 		const auto pipeline_object = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
 

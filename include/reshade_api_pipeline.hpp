@@ -52,7 +52,7 @@ namespace reshade { namespace api
 		amplification_shader = 0x80000,
 		mesh_shader = 0x100000,
 
-		raytracing_shader = 0x00200000,
+		ray_tracing_shader = 0x00200000,
 
 		input_assembler = 0x2,
 		stream_output = 0x4,
@@ -63,7 +63,7 @@ namespace reshade { namespace api
 		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
 		all_graphics = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | input_assembler | stream_output | rasterizer | depth_stencil | output_merger,
-		all_raytracing = raytracing_shader,
+		all_ray_tracing = ray_tracing_shader,
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
@@ -787,7 +787,6 @@ namespace reshade { namespace api
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::raygen"/>
-		/// <seealso cref="pipeline_stage::raygen_shader"/>
 		raygen_shader,
 		/// <summary>
 		/// Any-hit shader to use.
