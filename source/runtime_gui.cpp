@@ -3365,7 +3365,7 @@ void reshade::runtime::draw_variable_editor()
 						{
 							for (uniform &variable_it : effect.uniforms)
 								if (variable_it.special == special_uniform::none && !variable_it.annotation_as_uint("noreset") &&
-									get_localized_annotation(variable_it, "ui_category", _current_language) == category)
+									variable_it.annotation_as_string("ui_category") == category)
 									reset_uniform_value(variable_it);
 
 							if (_auto_save_preset)
