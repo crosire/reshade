@@ -59,7 +59,7 @@ static void parse_errors(const std::string_view errors, F &&callback)
 }
 
 template <typename T>
-std::string_view get_localized_annotation(T &object, const std::string_view ann_name, [[maybe_unused]] std::string language)
+static std::string_view get_localized_annotation(T &object, const std::string_view ann_name, [[maybe_unused]] std::string language)
 {
 #if RESHADE_LOCALIZATION
 	if (language.size() >= 2)
