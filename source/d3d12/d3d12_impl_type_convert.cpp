@@ -95,6 +95,7 @@ auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api
 		result |= api::resource_usage::resolve_source;
 	if ((access & (D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE)) != 0)
 		result |= api::resource_usage::acceleration_structure;
+
 	return result;
 }
 auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage
@@ -201,6 +202,7 @@ auto reshade::d3d12::convert_usage_to_access(api::resource_usage state) -> D3D12
 		result |= D3D12_BARRIER_ACCESS_RESOLVE_SOURCE;
 	if ((state & api::resource_usage::acceleration_structure) != 0)
 		result |= D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE;
+
 	return result;
 }
 auto reshade::d3d12::convert_usage_to_resource_states(api::resource_usage state) -> D3D12_RESOURCE_STATES
@@ -483,7 +485,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		desc.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 
 		if (desc.type == api::resource_type::texture_2d)
-			desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+			desc.usage |= (desc.texture.samples > 1) ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
 	}
 
 	switch (heap_props.Type)
@@ -520,6 +522,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
 	{
 		desc.usage |= api::resource_usage::unordered_access;
+		// Buffers that have unordered access may be used as acceleration structures
+		if (desc.type == api::resource_type::buffer)
+			desc.usage |= api::resource_usage::acceleration_structure;
 		// Resources that have unordered access are usable with the 'generate_mipmaps' function
 		if (internal_desc.MipLevels > 1)
 			desc.flags |= api::resource_flags::generate_mipmaps;
@@ -1608,6 +1613,7 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 		assert(false);
 		[[fallthrough]];
 	case api::descriptor_type::shader_resource_view:
+	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	case api::descriptor_type::unordered_access_view:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -1644,6 +1650,7 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 	case api::descriptor_type::constant_buffer:
 	case api::descriptor_type::shader_resource_view:
 	case api::descriptor_type::unordered_access_view:
+	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	case api::descriptor_type::sampler:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
