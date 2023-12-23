@@ -3386,19 +3386,6 @@ void reshade::runtime::draw_variable_editor()
 			if (category_closed)
 				continue;
 
-			// Add spacing before variable widget
-			for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
-				ImGui::Spacing();
-
-			// Add user-configurable text before variable widget
-			if (const std::string_view text = get_localized_annotation(variable, "ui_text", _language);
-				!text.empty())
-			{
-				ImGui::PushTextWrapPos();
-				ImGui::TextUnformatted(text.data());
-				ImGui::PopTextWrapPos();
-			}
-
 			bool modified = false;
 			bool is_default_value = true;
 
@@ -3422,8 +3409,6 @@ void reshade::runtime::draw_variable_editor()
 				break;
 			}
 
-			ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
-
 			if (invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this, api::effect_uniform_variable{ reinterpret_cast<uintptr_t>(&variable) }))
 			{
 				reshadefx::constant new_value;
@@ -3446,6 +3431,21 @@ void reshade::runtime::draw_variable_editor()
 			}
 			else
 			{
+				// Add spacing before variable widget
+				for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
+					ImGui::Spacing();
+
+				// Add user-configurable text before variable widget
+				if (const std::string_view text = get_localized_annotation(variable, "ui_text", _language);
+					!text.empty())
+				{
+					ImGui::PushTextWrapPos();
+					ImGui::TextUnformatted(text.data());
+					ImGui::PopTextWrapPos();
+				}
+
+				ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
+
 				std::string_view label = get_localized_annotation(variable, "ui_label", _language);
 				if (label.empty())
 					label = variable.name;
@@ -3536,25 +3536,25 @@ void reshade::runtime::draw_variable_editor()
 						break;
 					}
 				}
-			}
 
-			ImGui::EndDisabled();
+				ImGui::EndDisabled();
+
+				// Display tooltip
+				if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
+					!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
+				{
+					if (ImGui::BeginTooltip())
+					{
+						ImGui::TextUnformatted(tooltip.data());
+						ImGui::EndTooltip();
+					}
+				}
+			}
 
 			if (ImGui::IsItemActive())
 				active_variable = variable_index + 1;
 			if (ImGui::IsItemHovered())
 				hovered_variable = variable_index + 1;
-
-			// Display tooltip
-			if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
-			{
-				if (ImGui::BeginTooltip())
-				{
-					ImGui::TextUnformatted(tooltip.data());
-					ImGui::EndTooltip();
-				}
-			}
 
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
