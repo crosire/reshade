@@ -333,7 +333,8 @@ namespace reshade { namespace api
 		texture_2d_multisample_array,
 		texture_3d,
 		texture_cube,
-		texture_cube_array
+		texture_cube_array,
+		acceleration_structure
 	};
 
 	/// <summary>
@@ -346,6 +347,8 @@ namespace reshade { namespace api
 			type(resource_view_type::buffer), format(format), buffer({ offset, size }) {}
 		constexpr resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(resource_view_type::texture_2d), format(format), texture({ first_level, levels, first_layer, layers }) {}
+		constexpr resource_view_desc(resource_view_type type, format format, uint64_t offset, uint64_t size) :
+			type(type), format(format), buffer({ offset, size }) {}
 		constexpr resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(type), format(format), texture({ first_level, levels, first_layer, layers }) {}
 		constexpr explicit resource_view_desc(format format) : type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
@@ -362,7 +365,7 @@ namespace reshade { namespace api
 		union
 		{
 			/// <summary>
-			/// Used when view type is a buffer.
+			/// Used when view type is a buffer or acceleration structure.
 			/// </summary>
 			struct
 			{
@@ -407,7 +410,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.</para>
-	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor), 'VkImageView' or 'VkAccelerationStructureKHR' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);
 
@@ -670,10 +673,4 @@ namespace reshade { namespace api
 		/// </summary>
 		acceleration_structure_build_input_flags flags = acceleration_structure_build_input_flags::none;
 	};
-
-	/// <summary>
-	/// An opaque handle to an acceleration structure.
-	/// <para>Depending on the render API this can be a 'D3D12_GPU_VIRTUAL_ADDRESS' or a 'VkAccelerationStructureKHR' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(acceleration_structure);
 } }

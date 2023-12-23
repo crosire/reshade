@@ -1718,11 +1718,11 @@ void reshade::opengl::render_context_impl::copy_query_heap_results(api::query_he
 	}
 }
 
-void reshade::opengl::render_context_impl::copy_acceleration_structure(api::acceleration_structure, api::acceleration_structure, api::acceleration_structure_copy_mode)
+void reshade::opengl::render_context_impl::copy_acceleration_structure(api::resource_view, api::resource_view, api::acceleration_structure_copy_mode)
 {
 	assert(false);
 }
-void reshade::opengl::render_context_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::acceleration_structure, api::acceleration_structure, api::acceleration_structure_build_mode)
+void reshade::opengl::render_context_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::resource_view, api::resource_view, api::acceleration_structure_build_mode)
 {
 	assert(false);
 }

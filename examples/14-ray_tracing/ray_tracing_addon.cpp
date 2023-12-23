@@ -20,9 +20,9 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 	resource shader_binding_table = {};
 
 	resource blas_resource = {};
-	acceleration_structure blas = {};
+	resource_view blas = {};
 	resource tlas_resource = {};
-	acceleration_structure tlas = {};
+	resource_view tlas = {};
 
 	resource output_texture = {};
 	resource_view output_texture_view = {};
@@ -50,9 +50,9 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 		device->destroy_resource_view(output_texture_view);
 		device->destroy_resource(output_texture);
 
-		device->destroy_acceleration_structure(tlas);
+		device->destroy_resource_view(tlas);
 		device->destroy_resource(tlas_resource);
-		device->destroy_acceleration_structure(blas);
+		device->destroy_resource_view(blas);
 		device->destroy_resource(blas_resource);
 
 		device->destroy_resource(shader_binding_table);
@@ -181,7 +181,7 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 			return false;
 
 		if (!device->create_resource(resource_desc(size, memory_heap::gpu_only, resource_usage::acceleration_structure), nullptr, resource_usage::acceleration_structure, &blas_resource) ||
-			!device->create_acceleration_structure(acceleration_structure_type::bottom_level, blas_resource, 0, UINT64_MAX, &blas))
+			!device->create_resource_view(blas_resource, resource_usage::acceleration_structure, resource_view_desc(), &blas))
 			return false;
 
 		command_list *const cmd_list = queue->get_immediate_command_list();
@@ -230,7 +230,7 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 			return false;
 
 		if (!device->create_resource(resource_desc(size, memory_heap::gpu_only, resource_usage::acceleration_structure), nullptr, resource_usage::acceleration_structure, &tlas_resource) ||
-			!device->create_acceleration_structure(acceleration_structure_type::top_level, tlas_resource, 0, UINT64_MAX, &tlas))
+			!device->create_resource_view(tlas_resource, resource_usage::acceleration_structure, resource_view_desc(), &tlas))
 			return false;
 
 		command_list *const cmd_list = queue->get_immediate_command_list();

@@ -727,7 +727,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 			return true;
 		}
 	}
-	else
+	else if (usage_type != api::resource_usage::acceleration_structure && desc.type != api::resource_view_type::acceleration_structure)
 	{
 		VkBufferViewCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO };
 		create_info.buffer = (VkBuffer)resource.handle;
@@ -755,6 +755,37 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 			return true;
 		}
 	}
+	else
+	{
+		VkAccelerationStructureCreateInfoKHR create_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR };
+		create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR;
+		create_info.buffer = (VkBuffer)resource.handle;
+
+		if (desc.type != api::resource_view_type::unknown)
+		{
+			convert_resource_view_desc(desc, create_info);
+		}
+		else
+		{
+			create_info.offset = 0;
+			create_info.size = VK_WHOLE_SIZE;
+		}
+
+		if (VK_WHOLE_SIZE == create_info.size)
+			create_info.size = reinterpret_cast<object_data<VK_OBJECT_TYPE_BUFFER> *>(resource_data)->create_info.size - create_info.offset;
+
+		VkAccelerationStructureKHR buffer_view = VK_NULL_HANDLE;
+		if (vk.CreateAccelerationStructureKHR(_orig, &create_info, nullptr, &buffer_view) == VK_SUCCESS)
+		{
+			object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR> data;
+			data.create_info = create_info;
+
+			register_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>(buffer_view, std::move(data));
+
+			*out_handle = { (uint64_t)buffer_view };
+			return true;
+		}
+	}
 
 	return false;
 }
@@ -773,11 +804,17 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view hand
 
 		vk.DestroyImageView(_orig, (VkImageView)handle.handle, nullptr);
 	}
-	else
+	else if(data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
 	{
 		unregister_object<VK_OBJECT_TYPE_BUFFER_VIEW>((VkBufferView)handle.handle);
 
 		vk.DestroyBufferView(_orig, (VkBufferView)handle.handle, nullptr);
+	}
+	else
+	{
+		unregister_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>((VkAccelerationStructureKHR)handle.handle);
+
+		vk.DestroyAccelerationStructureKHR(_orig, (VkAccelerationStructureKHR)handle.handle, nullptr);
 	}
 }
 
@@ -786,16 +823,20 @@ reshade::api::resource reshade::vulkan::device_impl::get_resource_from_view(api:
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 		return { (uint64_t)data->create_info.image };
-	else
+	else if (data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
 		return { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer };
+	else
+		return { (uint64_t)reinterpret_cast<const object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR> *>(data)->create_info.buffer };
 }
 reshade::api::resource_view_desc reshade::vulkan::device_impl::get_resource_view_desc(api::resource_view view) const
 {
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 		return convert_resource_view_desc(data->create_info);
-	else
+	else if (data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
 		return convert_resource_view_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info);
+	else
+		return convert_resource_view_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR> *>(data)->create_info);
 }
 
 bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access, void **out_data)
@@ -2132,35 +2173,6 @@ bool reshade::vulkan::device_impl::signal(api::fence fence, uint64_t value)
 	return vk.SignalSemaphore(_orig, &signal_info) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle)
-{
-	if (UINT64_MAX == size)
-		size = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)buffer.handle)->create_info.size - offset;
-
-	VkAccelerationStructureCreateInfoKHR create_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR };
-	create_info.createFlags = 0;
-	create_info.buffer = (VkBuffer)buffer.handle;
-	create_info.offset = offset;
-	create_info.size = size;
-	create_info.type = convert_acceleration_structure_type(type);
-
-	if (VkAccelerationStructureKHR as = VK_NULL_HANDLE;
-		vk.CreateAccelerationStructureKHR(_orig, &create_info, nullptr, &as) == VK_SUCCESS)
-	{
-		*out_handle = { (uint64_t)as };
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::vulkan::device_impl::destroy_acceleration_structure(api::acceleration_structure handle)
-{
-	vk.DestroyAccelerationStructureKHR(_orig, (VkAccelerationStructureKHR)handle.handle, nullptr);
-}
-
 void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
 {
 	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
@@ -2191,7 +2203,7 @@ void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceler
 		*out_update_scratch_size = size_info.updateScratchSize;
 }
 
-uint64_t reshade::vulkan::device_impl::get_acceleration_structure_gpu_address(api::acceleration_structure handle) const
+uint64_t reshade::vulkan::device_impl::get_acceleration_structure_gpu_address(api::resource_view handle) const
 {
 	VkAccelerationStructureDeviceAddressInfoKHR info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
 	info.accelerationStructure = (VkAccelerationStructureKHR)handle.handle;

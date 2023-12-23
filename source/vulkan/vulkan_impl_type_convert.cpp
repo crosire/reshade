@@ -1331,6 +1331,13 @@ void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &
 	create_info.offset = desc.buffer.offset;
 	create_info.range = desc.buffer.size;
 }
+void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &desc, VkAccelerationStructureCreateInfoKHR &create_info)
+{
+	assert(desc.type == api::resource_view_type::acceleration_structure);
+
+	create_info.offset = desc.buffer.offset;
+	create_info.size = desc.buffer.size;
+}
 reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkImageViewCreateInfo &create_info)
 {
 	api::resource_view_desc desc = {};
@@ -1377,7 +1384,16 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 	desc.type = api::resource_view_type::buffer;
 	desc.format = convert_format(create_info.format);
 	desc.buffer.offset = create_info.offset;
-	desc.buffer.size = create_info.sType;
+	desc.buffer.size = create_info.range;
+
+	return desc;
+}
+reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(const VkAccelerationStructureCreateInfoKHR &create_info)
+{
+	api::resource_view_desc desc = {};
+	desc.type = api::resource_view_type::acceleration_structure;
+	desc.buffer.offset = create_info.offset;
+	desc.buffer.size = create_info.size;
 
 	return desc;
 }

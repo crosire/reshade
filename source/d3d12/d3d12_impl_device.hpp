@@ -90,19 +90,16 @@ namespace reshade::d3d12
 		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
-		bool create_acceleration_structure(api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure *out_handle) final;
-		void destroy_acceleration_structure(api::acceleration_structure handle) final;
-
 		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
 
-		uint64_t get_acceleration_structure_gpu_address(api::acceleration_structure handle) const final;
+		uint64_t get_acceleration_structure_gpu_address(api::resource_view handle) const final;
 
 		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups) final;
 
 		command_list_immediate_impl *get_first_immediate_command_list();
 
 #if RESHADE_ADDON >= 2
-		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
+		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset, bool *out_acceleration_structure = nullptr) const;
 
 		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
@@ -131,7 +128,7 @@ namespace reshade::d3d12
 		}
 
 	protected:
-		void register_resource(ID3D12Resource *resource);
+		void register_resource(ID3D12Resource *resource, bool acceleration_structure);
 		void unregister_resource(ID3D12Resource *resource);
 
 #if RESHADE_ADDON >= 2
@@ -166,7 +163,7 @@ namespace reshade::d3d12
 		mutable std::shared_mutex _resource_mutex;
 #if RESHADE_ADDON >= 2
 		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
-		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
+		std::vector<std::tuple<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE, bool>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
 

@@ -181,7 +181,7 @@ namespace reshade { namespace api
 		amplification_and_mesh_shader,
 		/// <summary>
 		/// Specifies whether ray tracing is supported.
-		/// If this feature is not present, <see cref="device::create_acceleration_structure"/>, <see cref="device::destroy_acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
+		/// If this feature is not present, <see cref="resource_view_type::acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
 		/// </summary>
 		ray_tracing,
 	};
@@ -551,26 +551,6 @@ namespace reshade { namespace api
 		virtual device_properties get_properties() const = 0;
 
 		/// <summary>
-		/// Creates a new acceleration structure.
-		/// </summary>
-		/// <remarks>
-		/// The <paramref name="buffer"/> resource must have been created with initial state set to <see cref="resource_usage::acceleration_structure"/>.
-		/// </remarks>
-		/// <seealso cref="device_caps::ray_tracing"/>
-		/// <param name="type">Type of the acceleration structure to create.</param>
-		/// <param name="buffer">Buffer resource to store the acceleration structure in.</param>
-		/// <param name="offset">Offset (in bytes) into the <paramref name="buffer"/> to start the acceleration structure at.</param>
-		/// <param name="size">Size (in bytes) of the acceleration structure.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created acceleration structure.</param>
-		/// <returns><see langword="true"/> if the acceleration structure was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_acceleration_structure(acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, acceleration_structure *out_handle) = 0;
-		/// <summary>
-		/// Instantly destroys an acceleration structure that was previously created via <see cref="create_acceleration_structure"/>.
-		/// </summary>
-		/// <seealso cref="device_caps::ray_tracing"/>
-		virtual void destroy_acceleration_structure(acceleration_structure handle) = 0;
-
-		/// <summary>
 		/// Gets the required acceleration structure size needed to build the specified data.
 		/// </summary>
 		/// <seealso cref="device_caps::ray_tracing"/>
@@ -588,7 +568,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="handle">Acceleration structure to query.</param>
 		/// <returns>GPU address of the acceleration structure, or zero in case of failure.</returns>
-		virtual uint64_t get_acceleration_structure_gpu_address(acceleration_structure handle) const = 0;
+		virtual uint64_t get_acceleration_structure_gpu_address(resource_view handle) const = 0;
 
 		/// <summary>
 		/// Gets the shader group handles for a ray tracing pipeline, to be put into a shader binding table.
@@ -1055,7 +1035,7 @@ namespace reshade { namespace api
 		/// <param name="source">Acceleration structure to copy from.</param>
 		/// <param name="dest">Acceleration structure to copy to.</param>
 		/// <param name="mode">Choose between copying or transforming the data in the acceleration structure.</param>
-		virtual void copy_acceleration_structure(acceleration_structure source, acceleration_structure dest, acceleration_structure_copy_mode mode) = 0;
+		virtual void copy_acceleration_structure(resource_view source, resource_view dest, acceleration_structure_copy_mode mode) = 0;
 
 		/// <summary>
 		/// Builds or updates an acceleration structure for ray tracing.
@@ -1073,7 +1053,7 @@ namespace reshade { namespace api
 		/// <param name="source">Acceleration structure to read data from when <paramref name="mode"/> is <see cref="acceleration_structure_build_mode::update"/>.</param>
 		/// <param name="dest">Acceleration structure to write data to.</param>
 		/// <param name="mode">Choose between building a new or updating an existing acceleration structure.</param>
-		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, acceleration_structure source, acceleration_structure dest, acceleration_structure_build_mode mode) = 0;
+		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, resource_view source, resource_view dest, acceleration_structure_build_mode mode) = 0;
 	};
 
 	/// <summary>

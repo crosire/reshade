@@ -1255,7 +1255,7 @@ void reshade::vulkan::command_list_impl::copy_query_heap_results(api::query_heap
 	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
 }
 
-void reshade::vulkan::command_list_impl::copy_acceleration_structure(api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_copy_mode mode)
+void reshade::vulkan::command_list_impl::copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode)
 {
 	_has_commands = true;
 
@@ -1266,7 +1266,7 @@ void reshade::vulkan::command_list_impl::copy_acceleration_structure(api::accele
 
 	vk.CmdCopyAccelerationStructureKHR(_orig, &info);
 }
-void reshade::vulkan::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_build_mode mode)
+void reshade::vulkan::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)
 {
 	_has_commands = true;
 

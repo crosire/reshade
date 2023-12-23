@@ -354,7 +354,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			view_desc.Format = DXGI_FORMAT_UNKNOWN;
 			view_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
 			view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::acceleration_structure *>(update.descriptors)[k].handle;
+			view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::resource_view *>(update.descriptors)[k].handle;
 
 			_device_impl->_orig->CreateShaderResourceView(nullptr, &view_desc, base_handle);
 		}
@@ -993,7 +993,7 @@ void reshade::d3d12::command_list_impl::copy_query_heap_results(api::query_heap 
 	_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), first, count, reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset);
 }
 
-void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_copy_mode mode)
+void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode)
 {
 	_has_commands = true;
 
@@ -1007,7 +1007,7 @@ void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::acceler
 		assert(false);
 	}
 }
-void reshade::d3d12::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_build_mode mode)
+void reshade::d3d12::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)
 {
 	_has_commands = true;
 

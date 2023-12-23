@@ -427,11 +427,11 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 #if RESHADE_ADDON
 	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
+	const auto usage = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE ? reshade::api::resource_usage::acceleration_structure : reshade::api::resource_usage::shader_resource;
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview)
 	if (pResource != nullptr &&
-		internal_desc.ViewDimension != D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE &&
-		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc))
+		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), usage, desc))
 	{
 		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
@@ -445,51 +445,31 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	if (internal_desc.ViewDimension != D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
-	{
-		const reshade::api::resource_view descriptor_value = to_handle(DestDescriptor);
+	const reshade::api::resource_view descriptor_value = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE ? reshade::api::resource_view { desc.buffer.offset } : to_handle(DestDescriptor);
 
-		register_resource_view(DestDescriptor, pResource, desc);
-		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, descriptor_value);
+	if (pResource != nullptr && internal_desc.ViewDimension != D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		desc.buffer.offset -= pResource->GetGPUVirtualAddress();
+		desc.buffer.size = pResource->GetDesc().Width - desc.buffer.offset;
+	}
+
+	register_resource_view(DestDescriptor, pResource, desc);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), usage, desc, descriptor_value);
+#endif
 
 #if RESHADE_ADDON >= 2
-		if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_tables>())
-			return;
+	if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_tables>())
+		return;
 
-		reshade::api::descriptor_table_update update;
-		update.table = table;
-		update.binding = 0;
-		update.array_offset = 0;
-		update.type = reshade::api::descriptor_type::shader_resource_view;
-		update.count = 1;
-		update.descriptors = &descriptor_value;
+	reshade::api::descriptor_table_update update;
+	update.table = table;
+	update.binding = 0;
+	update.array_offset = 0;
+	update.type = reshade::api::descriptor_type::shader_resource_view;
+	update.count = 1;
+	update.descriptors = &descriptor_value;
 
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_tables>(this, 1, &update);
-#endif
-	}
-	else
-	{
-		const reshade::api::acceleration_structure descriptor_value = { desc.buffer.offset };
-
-		const uint64_t offset = pResource != nullptr ? desc.buffer.offset - pResource->GetGPUVirtualAddress() : 0;
-		const uint64_t size = pResource != nullptr ? pResource->GetDesc().Width - offset : UINT64_MAX;
-		reshade::invoke_addon_event<reshade::addon_event::init_acceleration_structure>(this, reshade::api::acceleration_structure_type::generic, to_handle(pResource), offset, size, descriptor_value);
-
-#if RESHADE_ADDON >= 2
-		if (!reshade::has_addon_event<reshade::addon_event::update_descriptor_tables>())
-			return;
-
-		reshade::api::descriptor_table_update update;
-		update.table = table;
-		update.binding = 0;
-		update.array_offset = 0;
-		update.type = reshade::api::descriptor_type::acceleration_structure;
-		update.count = 1;
-		update.descriptors = &descriptor_value;
-
-		reshade::invoke_addon_event<reshade::addon_event::update_descriptor_tables>(this, 1, &update);
-#endif
-	}
+	reshade::invoke_addon_event<reshade::addon_event::update_descriptor_tables>(this, 1, &update);
 #endif
 }
 void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
@@ -1839,7 +1819,7 @@ void D3D12Device::invoke_init_resource_event(const reshade::api::resource_desc &
 		reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
 #endif
 
-	register_resource(resource);
+	register_resource(resource, initial_state == reshade::api::resource_usage::acceleration_structure);
 	reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
 
 	register_destruction_callback_d3dx(resource, [this, resource]() {
@@ -1849,13 +1829,12 @@ void D3D12Device::invoke_init_resource_event(const reshade::api::resource_desc &
 
 	if (initial_state == reshade::api::resource_usage::acceleration_structure)
 	{
-		const auto as_handle = reshade::api::acceleration_structure { resource->GetGPUVirtualAddress() };
-
-		reshade::invoke_addon_event<reshade::addon_event::init_acceleration_structure>(this, reshade::api::acceleration_structure_type::generic, to_handle(resource), 0, desc.buffer.size, as_handle);
-
-		register_destruction_callback_d3dx(resource, [this, as_handle]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_acceleration_structure>(this, as_handle);
-		}, 1);
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+			this,
+			to_handle(resource),
+			reshade::api::resource_usage::acceleration_structure,
+			reshade::api::resource_view_desc(reshade::api::resource_view_type::acceleration_structure, reshade::api::format::unknown, 0, UINT64_MAX),
+			reshade::api::resource_view { resource->GetGPUVirtualAddress() });
 	}
 }
 #endif

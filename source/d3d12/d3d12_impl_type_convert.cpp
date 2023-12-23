@@ -692,6 +692,10 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 			internal_desc.TextureCubeArray.NumCubes = desc.texture.layer_count / 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
+	case api::resource_view_type::acceleration_structure:
+		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		internal_desc.RaytracingAccelerationStructure.Location = desc.buffer.offset;
+		break;
 	}
 }
 void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
@@ -891,6 +895,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
+		desc.type = api::resource_view_type::acceleration_structure;
 		desc.buffer.offset = internal_desc.RaytracingAccelerationStructure.Location;
 		break;
 	}

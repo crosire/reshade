@@ -1874,8 +1874,8 @@ void VKAPI_CALL vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffe
 					build_inputs.data(),
 					reshade::api::resource {},
 					info.scratchData.deviceAddress,
-					reshade::api::acceleration_structure { (uint64_t)info.srcAccelerationStructure },
-					reshade::api::acceleration_structure { (uint64_t)info.dstAccelerationStructure },
+					reshade::api::resource_view { (uint64_t)info.srcAccelerationStructure },
+					reshade::api::resource_view { (uint64_t)info.dstAccelerationStructure },
 					static_cast<reshade::api::acceleration_structure_build_mode>(info.mode)))
 				continue;
 
@@ -1905,8 +1905,8 @@ void VKAPI_CALL vkCmdCopyAccelerationStructureKHR(VkCommandBuffer commandBuffer,
 
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_acceleration_structure>(
 			cmd_impl,
-			reshade::api::acceleration_structure { (uint64_t)pInfo->src },
-			reshade::api::acceleration_structure { (uint64_t)pInfo->dst },
+			reshade::api::resource_view { (uint64_t)pInfo->src },
+			reshade::api::resource_view { (uint64_t)pInfo->dst },
 			reshade::vulkan::convert_acceleration_structure_copy_mode(pInfo->mode)))
 		return;
 #endif

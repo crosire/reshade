@@ -338,7 +338,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		if (footprint.Format != DXGI_FORMAT_UNKNOWN)
 			object->SetPrivateData(extra_data_guid, sizeof(footprint), &footprint);
 
-		register_resource(object.get());
+		register_resource(object.get(), initial_state == api::resource_usage::acceleration_structure);
 
 		*out_handle = to_handle(object.release());
 
@@ -467,6 +467,14 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 			register_resource_view(descriptor_handle, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = to_handle(descriptor_handle);
+			return true;
+		}
+		case api::resource_usage::acceleration_structure:
+		{
+			const D3D12_GPU_VIRTUAL_ADDRESS address = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetGPUVirtualAddress() + (desc.type == api::resource_view_type::acceleration_structure ? desc.buffer.offset : 0);
+
+			register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(address) }, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
+			*out_handle = { address };
 			return true;
 		}
 	}
@@ -1545,7 +1553,7 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 				view_desc.Format = DXGI_FORMAT_UNKNOWN;
 				view_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
 				view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-				view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::acceleration_structure *>(update.descriptors)[k].handle;
+				view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::resource_view *>(update.descriptors)[k].handle;
 
 				_orig->CreateShaderResourceView(nullptr, &view_desc, dst_range_start);
 			}
@@ -1750,23 +1758,6 @@ bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
 	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
-bool reshade::d3d12::device_impl::create_acceleration_structure(api::acceleration_structure_type, api::resource buffer, uint64_t offset, uint64_t, api::acceleration_structure *out_handle)
-{
-	if (buffer.handle != 0)
-	{
-		*out_handle = { reinterpret_cast<ID3D12Resource *>(buffer.handle)->GetGPUVirtualAddress() + offset };
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-void reshade::d3d12::device_impl::destroy_acceleration_structure(api::acceleration_structure)
-{
-}
-
 void reshade::d3d12::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
 {
 	com_ptr<ID3D12Device5> device5;
@@ -1816,7 +1807,7 @@ void reshade::d3d12::device_impl::get_acceleration_structure_sizes(api::accelera
 	}
 }
 
-uint64_t reshade::d3d12::device_impl::get_acceleration_structure_gpu_address(api::acceleration_structure handle) const
+uint64_t reshade::d3d12::device_impl::get_acceleration_structure_gpu_address(api::resource_view handle) const
 {
 	return handle.handle;
 }
@@ -1854,7 +1845,7 @@ bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipelin
 	return false;
 }
 
-void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
+void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bool acceleration_structure)
 {
 	assert(resource != nullptr);
 
@@ -1866,9 +1857,11 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 		{
 			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
-			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width });
+			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width }, acceleration_structure);
 		}
 	}
+#else
+	UNREFERENCED_PARAMETER(acceleration_structure);
 #endif
 }
 void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
@@ -1882,8 +1875,8 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 		if (const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(),
-				[resource](const std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE> &buffer_info) {
-					return buffer_info.first == resource;
+				[resource](const auto &buffer_info) {
+					return std::get<0>(buffer_info) == resource;
 				});
 			it != _buffer_gpu_addresses.end())
 		{
@@ -1917,12 +1910,14 @@ reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_fi
 }
 
 #if RESHADE_ADDON >= 2
-bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const
+bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset, bool *out_acceleration_structure) const
 {
 	assert(out_offset != nullptr && out_resource != nullptr);
 
 	*out_offset = 0;
 	*out_resource = { 0 };
+	if (out_acceleration_structure != nullptr)
+		*out_acceleration_structure = false;
 
 	if (!address)
 		return true;
@@ -1931,15 +1926,17 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 	for (const auto &buffer_info : _buffer_gpu_addresses)
 	{
-		if (address < buffer_info.second.StartAddress)
+		if (address < std::get<1>(buffer_info).StartAddress)
 			continue;
 
-		const UINT64 address_offset = address - buffer_info.second.StartAddress;
-		if (address_offset >= buffer_info.second.SizeInBytes)
+		const UINT64 address_offset = address - std::get<1>(buffer_info).StartAddress;
+		if (address_offset >= std::get<1>(buffer_info).SizeInBytes)
 			continue;
 
 		*out_offset = address_offset;
-		*out_resource = to_handle(buffer_info.first);
+		*out_resource = to_handle(std::get<0>(buffer_info));
+		if (out_acceleration_structure != nullptr)
+			*out_acceleration_structure = std::get<2>(buffer_info);
 		return true;
 	}
 

@@ -399,6 +399,7 @@ namespace reshade
 		/// <item><description>glTextureView</description></item>
 		/// <item><description>vkCreateBufferView</description></item>
 		/// <item><description>vkCreateImageView</description></item>
+		/// <item><description>vkCreateAccelerationStructureKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc, api::resource_view view)</c></para>
 		/// </summary>
@@ -427,6 +428,7 @@ namespace reshade
 		/// <item><description>glTextureView</description></item>
 		/// <item><description>vkCreateBufferView</description></item>
 		/// <item><description>vkCreateImageView</description></item>
+		/// <item><description>vkCreateAccelerationStructureKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, api::resource resource, api::resource_usage usage_type, api::resource_view_desc &amp;desc)</c></para>
 		/// </summary>
@@ -445,6 +447,7 @@ namespace reshade
 		/// <item><description>glDeleteTextures</description></item>
 		/// <item><description>vkDestroyBufferView</description></item>
 		/// <item><description>vkDestroyImageView</description></item>
+		/// <item><description>vkDestroyAccelerationStructureKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource_view view)</c></para>
 		/// </summary>
@@ -770,23 +773,6 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
 		/// </summary>
 		get_query_heap_results = 37,
-
-		/// <summary>
-		/// Called after successfull acceleration structure creation from:
-		/// </summary>
-		/// <list type="bullet">
-		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure as)</c></para>
-		/// </summary>
-		init_acceleration_structure = 89,
-
-		/// <summary>
-		/// Called on acceleration structure destruction, before:
-		/// <list type="bullet">
-		/// </list>
-		/// <para>Callback function signature: <c>void (api::device *device, api::acceleration_structure as)</c></para>
-		/// </summary>
-		destroy_acceleration_structure = 90,
 
 		/// <summary>
 		/// Called after:
@@ -1140,7 +1126,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		dispatch,
+		dispatch = 54,
 
 		/// <summary>
 		/// Called before:
@@ -1153,7 +1139,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		dispatch_mesh = 91,
+		dispatch_mesh = 89,
 
 		/// <summary>
 		/// Called before:
@@ -1166,7 +1152,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		dispatch_rays = 92,
+		dispatch_rays = 90,
 
 		/// <summary>
 		/// Called before:
@@ -1453,7 +1439,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		copy_query_heap_results,
+		copy_query_heap_results = 69,
 
 		/// <summary>
 		/// Called before:
@@ -1461,12 +1447,12 @@ namespace reshade
 		/// <item><description>ID3D12GraphicsCommandList4::CopyRaytracingAccelerationStructure</description></item>
 		/// <item><description>vkCmdCopyAccelerationStructureKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_copy_mode mode)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		copy_acceleration_structure = 93,
+		copy_acceleration_structure = 91,
 
 		/// <summary>
 		/// Called before:
@@ -1474,13 +1460,13 @@ namespace reshade
 		/// <item><description>ID3D12GraphicsCommandList4::BuildRaytracingAccelerationStructure</description></item>
 		/// <item><description>vkCmdBuildAccelerationStructuresKHR</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_build_mode mode)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// In case of D3D12 and Vulkan, the 'scratch' handle may be zero with the buffer instead referred to via a device address passed into 'scratch_offset'.
 		/// </remarks>
-		build_acceleration_structure = 94,
+		build_acceleration_structure = 92,
 
 		/// <summary>
 		/// Called before:
@@ -1672,7 +1658,7 @@ namespace reshade
 		reshade_overlay_technique,
 
 #if RESHADE_ADDON
-		max = 95 // Last value used internally by ReShade to determine number of events in this enum
+		max = 93 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 
@@ -1738,9 +1724,6 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::get_query_heap_results, bool, api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_acceleration_structure, void, api::device *device, api::acceleration_structure_type type, api::resource buffer, uint64_t offset, uint64_t size, api::acceleration_structure as);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_acceleration_structure, void, api::device *device, api::acceleration_structure as);
-
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds);
@@ -1783,8 +1766,8 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_query, bool, api::command_list *cmd_list, api::query_heap heap, api::query_type type, uint32_t index);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_query_heap_results, bool, api::command_list *cmd_list, api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_acceleration_structure, bool, api::command_list *cmd_list, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_copy_mode mode);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::build_acceleration_structure, bool, api::command_list *cmd_list, api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::acceleration_structure source, api::acceleration_structure dest, api::acceleration_structure_build_mode mode);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_acceleration_structure, bool, api::command_list *cmd_list, api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::build_acceleration_structure, bool, api::command_list *cmd_list, api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reset_command_list, void, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::close_command_list, void, api::command_list *cmd_list);

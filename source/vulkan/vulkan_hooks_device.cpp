@@ -1580,7 +1580,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	VkBufferViewCreateInfo create_info = *pCreateInfo;
 	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::undefined, desc))
 	{
 		reshade::vulkan::convert_resource_view_desc(desc, create_info);
 		pCreateInfo = &create_info;
@@ -1602,7 +1602,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
+		device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
 #endif
 
 	return result;
@@ -1691,7 +1691,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	VkImageViewCreateInfo create_info = *pCreateInfo;
 	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, desc))
 	{
 		reshade::vulkan::convert_resource_view_desc(desc, create_info);
 		pCreateInfo = &create_info;
@@ -1720,7 +1720,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 		data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
+		device_impl, reshade::api::resource { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
 #endif
 
 	return result;
@@ -2816,6 +2816,13 @@ VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAc
 
 #if RESHADE_ADDON
 	VkAccelerationStructureCreateInfoKHR create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::acceleration_structure, desc))
+	{
+		reshade::vulkan::convert_resource_view_desc(desc, create_info);
+		pCreateInfo = &create_info;
+	}
 #endif
 
 	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pAccelerationStructure);
@@ -2828,8 +2835,8 @@ VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAc
 	}
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_acceleration_structure>(
-		device_impl, reshade::vulkan::convert_acceleration_structure_type(create_info.type), reshade::api::resource { (uint64_t)create_info.buffer }, create_info.offset, create_info.size, reshade::api::acceleration_structure { (uint64_t)*pAccelerationStructure });
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::acceleration_structure, desc, reshade::api::resource_view { (uint64_t)*pAccelerationStructure });
 #endif
 
 	return result;
@@ -2843,7 +2850,7 @@ void     VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device, VkAcceler
 	GET_DISPATCH_PTR_FROM(DestroyAccelerationStructureKHR, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_acceleration_structure>(device_impl, reshade::api::acceleration_structure { (uint64_t)accelerationStructure });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)accelerationStructure });
 #endif
 
 	trampoline(device, accelerationStructure, pAllocator);

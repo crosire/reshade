@@ -655,7 +655,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceVie
 		return;
 
 	reshade::api::buffer_range buffer_range;
-	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+	bool acceleration_structure;
+	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset, &acceleration_structure))
 		return;
 	buffer_range.size = UINT64_MAX;
 
@@ -664,7 +665,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceVie
 		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
-		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::shader_resource_view, &buffer_range }); // TODO: This could also be a 'descriptor_type::acceleration_structure'
+		reshade::api::descriptor_table_update { {}, 0, 0, 1, acceleration_structure ? reshade::api::descriptor_type::acceleration_structure : reshade::api::descriptor_type::shader_resource_view, acceleration_structure ? static_cast<void *>(&BufferLocation) : static_cast<void *>(&buffer_range) });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootShaderResourceView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -1061,8 +1062,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BuildRaytracingAccelerationStru
 				build_inputs.data(),
 				reshade::api::resource {},
 				pDesc->ScratchAccelerationStructureData,
-				reshade::api::acceleration_structure { pDesc->SourceAccelerationStructureData },
-				reshade::api::acceleration_structure { pDesc->DestAccelerationStructureData },
+				reshade::api::resource_view { pDesc->SourceAccelerationStructureData },
+				reshade::api::resource_view { pDesc->DestAccelerationStructureData },
 				(pDesc->Inputs.Flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE) != 0 ? reshade::api::acceleration_structure_build_mode::update : reshade::api::acceleration_structure_build_mode::build))
 			return;
 	}
@@ -1081,8 +1082,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyRaytracingAccelerationStruc
 #if RESHADE_ADDON >= 2
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_acceleration_structure>(
 			this,
-			reshade::api::acceleration_structure { SourceAccelerationStructureData },
-			reshade::api::acceleration_structure { DestAccelerationStructureData },
+			reshade::api::resource_view { SourceAccelerationStructureData },
+			reshade::api::resource_view { DestAccelerationStructureData },
 			reshade::d3d12::convert_acceleration_structure_copy_mode(Mode)))
 		return;
 #endif

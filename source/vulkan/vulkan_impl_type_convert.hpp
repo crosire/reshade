@@ -15,7 +15,7 @@ namespace reshade::vulkan
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
 	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
 	static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(api::buffer_range));
-	static_assert(sizeof(VkAccelerationStructureKHR) == sizeof(api::acceleration_structure));
+	static_assert(sizeof(VkAccelerationStructureKHR) == sizeof(api::resource_view));
 	static_assert(sizeof(VkAccelerationStructureInstanceKHR) == sizeof(api::acceleration_structure_instance));
 
 	template <VkObjectType type>
@@ -149,6 +149,14 @@ namespace reshade::vulkan
 		VkQueryType type;
 	};
 
+	template <>
+	struct object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>
+	{
+		using Handle = VkAccelerationStructureKHR;
+
+		VkAccelerationStructureCreateInfoKHR create_info;
+	};
+
 	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
 	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
 
@@ -188,8 +196,10 @@ namespace reshade::vulkan
 
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkImageViewCreateInfo &create_info);
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, VkAccelerationStructureCreateInfoKHR &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
+	api::resource_view_desc convert_resource_view_desc(const VkAccelerationStructureCreateInfoKHR &create_info);
 
 	void convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states);
 	std::vector<api::dynamic_state> convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info);

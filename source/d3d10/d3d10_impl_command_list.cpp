@@ -546,11 +546,11 @@ void reshade::d3d10::device_impl::copy_query_heap_results(api::query_heap, api::
 	assert(false);
 }
 
-void reshade::d3d10::device_impl::copy_acceleration_structure(api::acceleration_structure, api::acceleration_structure, api::acceleration_structure_copy_mode)
+void reshade::d3d10::device_impl::copy_acceleration_structure(api::resource_view, api::resource_view, api::acceleration_structure_copy_mode)
 {
 	assert(false);
 }
-void reshade::d3d10::device_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::acceleration_structure, api::acceleration_structure, api::acceleration_structure_build_mode)
+void reshade::d3d10::device_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::resource_view, api::resource_view, api::acceleration_structure_build_mode)
 {
 	assert(false);
 }
