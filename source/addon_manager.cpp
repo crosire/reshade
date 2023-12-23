@@ -6,6 +6,7 @@
 #if RESHADE_ADDON
 
 #include "reshade.hpp"
+#include "version.h"
 #include "addon_manager.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
@@ -147,6 +148,7 @@ void reshade::load_addons()
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.file = g_reshade_dll_path.filename().u8string();
 		info.author = "crosire";
+		info.version_number = VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
 		{
@@ -362,6 +364,10 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 	std::vector<uint8_t> version_data(version_size);
 	if (GetFileVersionInfoW(path.c_str(), version_dummy, version_size, version_data.data()))
 	{
+		VS_FIXEDFILEINFO *finfo = nullptr;
+		if (VerQueryValueW(version_data.data(), L"\\", reinterpret_cast<LPVOID *>(&finfo), nullptr))
+			info.version_number = (HIWORD(finfo->dwFileVersionMS) * 10000) + (LOWORD(finfo->dwFileVersionMS) * 100) + (HIWORD(finfo->dwFileVersionLS));
+
 		WORD language = 0x0400;
 		WORD codepage = 0x04b0;
 
@@ -383,6 +389,10 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		query_file_version_info(info.version, "FileVersion");
 		query_file_version_info(info.description, "FileDescription");
 	}
+
+	// The version number must not be zero
+	if (info.version_number == 0)
+		info.version_number = 1;
 
 	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME"));
 		name != nullptr)

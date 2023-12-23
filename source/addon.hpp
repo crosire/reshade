@@ -27,6 +27,7 @@ namespace reshade
 		std::string file;
 		std::string author;
 		std::string version;
+		uint32_t version_number;
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI
