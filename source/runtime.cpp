@@ -1503,7 +1503,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	{
 		std::string name; name.reserve(addon.name.size());
 		std::transform(addon.name.begin(), addon.name.end(), std::back_inserter(name),
-			[](const char c) { return ('9' >= c && c >= '0') ? c : ('Z' >= c && c >= 'A') ? c : ('z' >= c && c >= 'a') ? (c - 'a' + 'A') : '_'; });
+			[](const char c) -> char { return ('9' >= c && c >= '0') ? c : ('Z' >= c && c >= 'A') ? c : ('z' >= c && c >= 'a') ? (c - 'a' + 'A') : '_'; });
 		attributes += addon_markers.emplace_back("ADDON_" + name) + ';';
 	}
 #endif
