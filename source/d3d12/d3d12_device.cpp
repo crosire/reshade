@@ -427,12 +427,29 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 #if RESHADE_ADDON
 	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
-	const auto usage = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE ? reshade::api::resource_usage::acceleration_structure : reshade::api::resource_usage::shader_resource;
+	auto usage = reshade::api::resource_usage::shader_resource;
+	const bool acceleration_structure = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+
+	if (acceleration_structure)
+	{
+		if (pResource != nullptr)
+		{
+			desc.buffer.offset -= pResource->GetGPUVirtualAddress();
+			desc.buffer.size = pResource->GetDesc().Width - desc.buffer.offset;
+		}
+
+		usage = reshade::api::resource_usage::acceleration_structure;
+	}
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview)
 	if (pResource != nullptr &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), usage, desc))
 	{
+		if (acceleration_structure)
+		{
+			desc.buffer.offset += pResource->GetGPUVirtualAddress();
+		}
+
 		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
@@ -445,13 +462,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	const reshade::api::resource_view descriptor_value = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE ? reshade::api::resource_view { desc.buffer.offset } : to_handle(DestDescriptor);
-
-	if (pResource != nullptr && internal_desc.ViewDimension != D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
-	{
-		desc.buffer.offset -= pResource->GetGPUVirtualAddress();
-		desc.buffer.size = pResource->GetDesc().Width - desc.buffer.offset;
-	}
+	const reshade::api::resource_view descriptor_value = acceleration_structure ? reshade::api::resource_view { internal_desc.RaytracingAccelerationStructure.Location } : to_handle(DestDescriptor);
 
 	register_resource_view(DestDescriptor, pResource, desc);
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), usage, desc, descriptor_value);
@@ -465,7 +476,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
-	update.type = reshade::api::descriptor_type::shader_resource_view;
+	update.type = acceleration_structure ? reshade::api::descriptor_type::acceleration_structure : reshade::api::descriptor_type::shader_resource_view;
 	update.count = 1;
 	update.descriptors = &descriptor_value;
 

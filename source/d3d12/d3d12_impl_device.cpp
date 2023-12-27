@@ -471,7 +471,10 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::acceleration_structure:
 		{
-			const D3D12_GPU_VIRTUAL_ADDRESS address = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetGPUVirtualAddress() + (desc.type == api::resource_view_type::acceleration_structure ? desc.buffer.offset : 0);
+			assert(desc.type == api::resource_view_type::acceleration_structure);
+
+			const D3D12_GPU_VIRTUAL_ADDRESS address = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetGPUVirtualAddress() +
+				(desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure ? desc.buffer.offset : 0);
 
 			register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(address) }, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
 			*out_handle = { address };
