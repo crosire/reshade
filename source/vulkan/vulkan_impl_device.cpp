@@ -1084,6 +1084,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	std::vector<api::shader_desc> miss_desc;
 	std::vector<api::shader_desc> intersection_desc;
 	std::vector<api::shader_desc> callable_desc;
+	std::vector<api::pipeline> libraries;
 	std::vector<api::shader_group> shader_groups;
 	uint32_t max_payload_size = 0;
 	uint32_t max_attribute_size = 2 * sizeof(float); // Default triangle attributes
@@ -1203,6 +1204,10 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				callable_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
 			break;
+		case api::pipeline_subobject_type::libraries:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				libraries.push_back(static_cast<const api::pipeline *>(subobjects[i].data)[k]);
+			break;
 		case api::pipeline_subobject_type::shader_groups:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				shader_groups.push_back(static_cast<const api::shader_group *>(subobjects[i].data)[k]);
@@ -1231,67 +1236,72 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		create_info.layout = (VkPipelineLayout)layout.handle;
 		create_info.maxPipelineRayRecursionDepth = max_recursion_depth;
 
+		VkPipelineLibraryCreateInfoKHR library_info{ VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
+		library_info.libraryCount = static_cast<uint32_t>(libraries.size());
+		library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
+
+		create_info.pLibraryInfo = &library_info;
+
 		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
 		interface_info.maxPipelineRayPayloadSize = max_payload_size;
 		interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
 
 		create_info.pLibraryInterface = &interface_info;
 
+		const size_t max_shader_stage_count = raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size();
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
 		std::vector<VkSpecializationInfo> spec_info;
 		std::vector<std::vector<VkSpecializationMapEntry>> spec_map;
-		shader_stage_info.resize(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size());
-		spec_info.resize(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size());
-		spec_map.resize(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size());
+		shader_stage_info.reserve(max_shader_stage_count);
+		spec_info.reserve(max_shader_stage_count);
+		spec_map.reserve(max_shader_stage_count);
 
 		for (const api::shader_desc &shader_desc : raygen_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+			if (!create_shader_module(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : any_hit_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+			if (!create_shader_module(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : closest_hit_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+			if (!create_shader_module(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : miss_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+			if (!create_shader_module(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : intersection_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+			if (!create_shader_module(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : callable_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+			if (!create_shader_module(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+			shaders.push_back(shader_stage_info.back().module);
 		}
 
+		create_info.stageCount = static_cast<uint32_t>(shader_stage_info.size());
 		create_info.pStages = shader_stage_info.data();
 
-		create_info.groupCount = static_cast<uint32_t>(shader_groups.size());
 		std::vector<VkRayTracingShaderGroupCreateInfoKHR> group_infos;
-		group_infos.resize(create_info.groupCount, { VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR });
+		group_infos.reserve(shader_groups.size());
 
-		for (uint32_t i = 0; i < create_info.groupCount; ++i)
+		for (const api::shader_group &shader_group : shader_groups)
 		{
-			const api::shader_group &shader_group = shader_groups[i];
-
-			VkRayTracingShaderGroupCreateInfoKHR &group_info = group_infos[i];
+			VkRayTracingShaderGroupCreateInfoKHR &group_info = group_infos.emplace_back(VkRayTracingShaderGroupCreateInfoKHR { VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR });
 			group_info.type = convert_shader_group_type(shader_group.type);
 
 			switch (shader_group.type)
@@ -1320,22 +1330,14 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			case api::shader_group_type::hit_group_triangles:
 			case api::shader_group_type::hit_group_aabbs:
 				group_info.generalShader = VK_SHADER_UNUSED_KHR;
-				if (shader_group.hit_group.closest_hit_shader_index != UINT32_MAX)
-					group_info.closestHitShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size()) + shader_group.hit_group.closest_hit_shader_index;
-				else
-					group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
-				if (shader_group.hit_group.any_hit_shader_index != UINT32_MAX)
-					group_info.anyHitShader = static_cast<uint32_t>(raygen_desc.size()) + shader_group.hit_group.any_hit_shader_index;
-				else
-					group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
-				if (shader_group.hit_group.intersection_shader_index != UINT32_MAX && shader_group.type == api::shader_group_type::hit_group_aabbs)
-					group_info.intersectionShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size()) + shader_group.hit_group.intersection_shader_index;
-				else
-					group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+				group_info.closestHitShader = (shader_group.hit_group.closest_hit_shader_index != UINT32_MAX) ? static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size()) + shader_group.hit_group.closest_hit_shader_index : VK_SHADER_UNUSED_KHR;
+				group_info.anyHitShader = (shader_group.hit_group.any_hit_shader_index != UINT32_MAX) ? static_cast<uint32_t>(raygen_desc.size()) + shader_group.hit_group.any_hit_shader_index : VK_SHADER_UNUSED_KHR;
+				group_info.intersectionShader = (shader_group.hit_group.intersection_shader_index != UINT32_MAX && shader_group.type != api::shader_group_type::hit_group_triangles) ? static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size()) + shader_group.hit_group.intersection_shader_index : VK_SHADER_UNUSED_KHR;
 				break;
 			}
 		}
 
+		create_info.groupCount = static_cast<uint32_t>(group_infos.size());
 		create_info.pGroups = group_infos.data();
 
 		if (VkPipeline object = VK_NULL_HANDLE;

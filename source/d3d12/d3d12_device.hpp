@@ -132,7 +132,7 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final :
 	void invoke_init_resource_event(const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, ID3D12Resource *resource);
 #endif
 #if RESHADE_ADDON >= 2
-	bool invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT_DESC &desc, ID3D12StateObject *&pipeline, HRESULT &hr);
+	bool invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT_DESC &desc, ID3D12StateObject *existing_state_object, ID3D12StateObject *&state_object, HRESULT &hr);
 	bool invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STATE_STREAM_DESC &desc, ID3D12PipelineState *&pipeline, HRESULT &hr, bool create_pipeline);
 	bool invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPELINE_STATE_DESC &desc, ID3D12PipelineState *&pipeline, HRESULT &hr, bool create_pipeline);
 	bool invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &desc, ID3D12PipelineState *&pipeline, HRESULT &hr, bool create_pipeline);

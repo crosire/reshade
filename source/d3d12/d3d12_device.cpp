@@ -1359,7 +1359,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJEC
 #if RESHADE_ADDON >= 2
 	if (ppStateObject == nullptr ||
 		riid != __uuidof(ID3D12StateObject) ||
-		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12StateObject **>(ppStateObject), hr))
+		!invoke_create_and_init_pipeline_event(*pDesc, nullptr, *reinterpret_cast<ID3D12StateObject **>(ppStateObject), hr))
 #endif
 		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(pDesc, riid, ppStateObject);
 
@@ -1400,7 +1400,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::AddToStateObject(const D3D12_STATE_OBJECT
 #if RESHADE_ADDON >= 2
 	if (ppNewStateObject == nullptr ||
 		riid != __uuidof(ID3D12StateObject) ||
-		!invoke_create_and_init_pipeline_event(*pAddition, *reinterpret_cast<ID3D12StateObject **>(ppNewStateObject), hr)) // TODO: Add state from pStateObjectToGrowFrom
+		!invoke_create_and_init_pipeline_event(*pAddition, pStateObjectToGrowFrom, *reinterpret_cast<ID3D12StateObject **>(ppNewStateObject), hr))
 #endif
 		hr = static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject);
 
@@ -1855,7 +1855,7 @@ void D3D12Device::invoke_init_resource_event(const reshade::api::resource_desc &
 #include <dxcapi.h>
 #include <d3d12shader.h>
 
-bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT_DESC &internal_desc, ID3D12StateObject *&d3d_pipeline, HRESULT &hr)
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT_DESC &internal_desc, ID3D12StateObject *existing_d3d_pipeline, ID3D12StateObject *&d3d_pipeline, HRESULT &hr)
 {
 	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
 		!reshade::has_addon_event<reshade::addon_event::create_pipeline>() &&
@@ -1884,9 +1884,15 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 	std::vector<reshade::api::shader_desc> miss_desc;
 	std::vector<reshade::api::shader_desc> intersection_desc;
 	std::vector<reshade::api::shader_desc> callable_desc;
+	std::vector<reshade::api::pipeline> libraries;
 	std::vector<reshade::api::shader_group> shader_groups;
 
 	std::vector<reshade::api::pipeline_subobject> subobjects;
+
+	if (existing_d3d_pipeline != nullptr)
+	{
+		libraries.push_back({ reinterpret_cast<uintptr_t>(existing_d3d_pipeline) });
+	}
 
 	for (UINT i = 0; i < internal_desc.NumSubobjects; ++i)
 	{
@@ -1946,6 +1952,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 					{
 					case D3D12_SHVER_RAY_GENERATION_SHADER:
 						raygen_desc.push_back(shader_desc);
+						shader_groups.push_back({ reshade::api::shader_group_type::raygen, static_cast<uint32_t>(raygen_desc.size() - 1) });
 						break;
 					case D3D12_SHVER_INTERSECTION_SHADER:
 						intersection_desc.push_back(shader_desc);
@@ -1958,9 +1965,11 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 						break;
 					case D3D12_SHVER_MISS_SHADER:
 						miss_desc.push_back(shader_desc);
+						shader_groups.push_back({ reshade::api::shader_group_type::miss, static_cast<uint32_t>(miss_desc.size() - 1) });
 						break;
 					case D3D12_SHVER_CALLABLE_SHADER:
 						callable_desc.push_back(shader_desc);
+						shader_groups.push_back({ reshade::api::shader_group_type::callable, static_cast<uint32_t>(callable_desc.size() - 1) });
 						break;
 					}
 				}
@@ -1972,28 +1981,14 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		case D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION:
 		{
 			const auto &desc = *static_cast<const D3D12_EXISTING_COLLECTION_DESC *>(subobject.pDesc);
-			if (desc.NumExports != 0)
-			{
-			}
-			else
-			{
-			}
+			libraries.push_back({ reinterpret_cast<uintptr_t>(desc.pExistingCollection) });
 			break;
 		}
 		case D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
-		{
-			const auto &desc = *static_cast<const D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION *>(subobject.pDesc);
-			if (desc.NumExports != 0)
-			{
-
-			}
-			else
-			{
-
-			}
+			// Used to e.g. associate local root signatures with specific exports
 			break;
-		}
 		case D3D12_STATE_SUBOBJECT_TYPE_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
+			// Currently unsupported
 			break;
 		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
 		{
@@ -2013,7 +2008,6 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			const auto &desc = *static_cast<const D3D12_HIT_GROUP_DESC *>(subobject.pDesc);
 
 			reshade::api::shader_group &shader_group = shader_groups.emplace_back();
-
 			switch (desc.Type)
 			{
 			case D3D12_HIT_GROUP_TYPE_TRIANGLES:
@@ -2024,23 +2018,32 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 				break;
 			}
 
-			std::string any_hit_name;
-			utf8::unchecked::utf16to8(desc.AnyHitShaderImport, desc.AnyHitShaderImport + wcslen(desc.AnyHitShaderImport), std::back_inserter(any_hit_name));
-			if (const auto it = std::find_if(any_hit_desc.begin(), any_hit_desc.end(), [&any_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == any_hit_name; });
-				it != any_hit_desc.end())
-				shader_group.hit_group.any_hit_shader_index = static_cast<uint32_t>(std::distance(any_hit_desc.begin(), it));
+			if (desc.AnyHitShaderImport != nullptr)
+			{
+				std::string any_hit_name;
+				utf8::unchecked::utf16to8(desc.AnyHitShaderImport, desc.AnyHitShaderImport + wcslen(desc.AnyHitShaderImport), std::back_inserter(any_hit_name));
+				if (const auto it = std::find_if(any_hit_desc.begin(), any_hit_desc.end(), [&any_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == any_hit_name; });
+					it != any_hit_desc.end())
+					shader_group.hit_group.any_hit_shader_index = static_cast<uint32_t>(std::distance(any_hit_desc.begin(), it));
+			}
 
-			std::string closest_hit_name;
-			utf8::unchecked::utf16to8(desc.ClosestHitShaderImport, desc.ClosestHitShaderImport + wcslen(desc.ClosestHitShaderImport), std::back_inserter(closest_hit_name));
-			if (const auto it = std::find_if(closest_hit_desc.begin(), closest_hit_desc.end(), [&closest_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == closest_hit_name; });
-				it != closest_hit_desc.end())
-				shader_group.hit_group.closest_hit_shader_index = static_cast<uint32_t>(std::distance(closest_hit_desc.begin(), it));
+			if (desc.ClosestHitShaderImport != nullptr)
+			{
+				std::string closest_hit_name;
+				utf8::unchecked::utf16to8(desc.ClosestHitShaderImport, desc.ClosestHitShaderImport + wcslen(desc.ClosestHitShaderImport), std::back_inserter(closest_hit_name));
+				if (const auto it = std::find_if(closest_hit_desc.begin(), closest_hit_desc.end(), [&closest_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == closest_hit_name; });
+					it != closest_hit_desc.end())
+					shader_group.hit_group.closest_hit_shader_index = static_cast<uint32_t>(std::distance(closest_hit_desc.begin(), it));
+			}
 
-			std::string intersection_name;
-			utf8::unchecked::utf16to8(desc.IntersectionShaderImport, desc.IntersectionShaderImport + wcslen(desc.IntersectionShaderImport), std::back_inserter(intersection_name));
-			if (const auto it = std::find_if(intersection_desc.begin(), intersection_desc.end(), [&intersection_name](const reshade::api::shader_desc &shader) { return shader.entry_point == intersection_name; });
-				it != intersection_desc.end())
-				shader_group.hit_group.intersection_shader_index = static_cast<uint32_t>(std::distance(intersection_desc.begin(), it));
+			if (desc.IntersectionShaderImport != nullptr)
+			{
+				std::string intersection_name;
+				utf8::unchecked::utf16to8(desc.IntersectionShaderImport, desc.IntersectionShaderImport + wcslen(desc.IntersectionShaderImport), std::back_inserter(intersection_name));
+				if (const auto it = std::find_if(intersection_desc.begin(), intersection_desc.end(), [&intersection_name](const reshade::api::shader_desc &shader) { return shader.entry_point == intersection_name; });
+					it != intersection_desc.end())
+					shader_group.hit_group.intersection_shader_index = static_cast<uint32_t>(std::distance(intersection_desc.begin(), it));
+			}
 			break;
 		}
 		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1:
@@ -2052,9 +2055,14 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		}
 	}
 
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::libraries, static_cast<uint32_t>(libraries.size()), libraries.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() });
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
+	if (existing_d3d_pipeline != nullptr) // Do not invoke 'create_pipeline' event for 'AddToStateObject' calls
+	{
+		hr = static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(&internal_desc, existing_d3d_pipeline, IID_PPV_ARGS(&d3d_pipeline));
+	}
+	else if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 	{
 		reshade::api::pipeline pipeline;
 		hr = device_impl::create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pipeline) ? S_OK : E_FAIL;

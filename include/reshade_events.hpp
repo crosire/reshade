@@ -675,6 +675,7 @@ namespace reshade
 		/// <item><description>ID3D11DepthStencilState::Release</description></item>
 		/// <item><description>ID3D11RasterizerState::Release</description></item>
 		/// <item><description>ID3D12PipelineState::Release</description></item>
+		/// <item><description>ID3D12StateObject::Release</description></item>
 		/// <item><description>glDeleteProgram</description></item>
 		/// <item><description>vkDestroyPipeline</description></item>
 		/// </list>

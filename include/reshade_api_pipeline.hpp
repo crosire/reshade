@@ -867,37 +867,48 @@ namespace reshade { namespace api
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::raygen"/>
+		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
 		raygen_shader,
 		/// <summary>
 		/// Any-hit shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::any_hit"/>
+		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
 		any_hit_shader,
 		/// <summary>
 		/// Closest-hit shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::closest_hit"/>
+		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
 		closest_hit_shader,
 		/// <summary>
 		/// Miss shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::miss"/>
+		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
 		miss_shader,
 		/// <summary>
 		/// Intersection shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::intersection"/>
+		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
 		intersection_shader,
 		/// <summary>
 		/// Callable shader(s) to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
 		/// </summary>
 		/// <seealso cref="shader_stage::callable"/>
+		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
 		callable_shader,
+		/// <summary>
+		/// Existing shader libraries added to this pipeline.
+		/// Sub-object data is a pointer to an array of <see cref="pipeline"/> handles.
+		/// </summary>
+		libraries,
 		/// <summary>
 		/// Ray tracing shader groups to use.
 		/// Sub-object data is a pointer to an array of <see cref="shader_group"/> values.

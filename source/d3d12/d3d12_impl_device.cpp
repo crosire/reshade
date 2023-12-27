@@ -747,6 +747,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	std::vector<api::shader_desc> miss_desc;
 	std::vector<api::shader_desc> intersection_desc;
 	std::vector<api::shader_desc> callable_desc;
+	std::vector<api::pipeline> libraries;
 	std::vector<api::shader_group> shader_groups;
 	uint32_t max_payload_size = 0;
 	uint32_t max_attribute_size = 2 * sizeof(float); // Default triangle attributes
@@ -870,6 +871,10 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				callable_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
 			break;
+		case api::pipeline_subobject_type::libraries:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				libraries.push_back(static_cast<const api::pipeline *>(subobjects[i].data)[k]);
+			break;
 		case api::pipeline_subobject_type::shader_groups:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				shader_groups.push_back(static_cast<const api::shader_group *>(subobjects[i].data)[k]);
@@ -934,13 +939,25 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 
 			std::vector<D3D12_DXIL_LIBRARY_DESC> library_descs(deduplicated_shader_bytecode.size());
 			UINT i = 0;
-			for (const auto &shader_bytecode : deduplicated_shader_bytecode)
+			for (const std::pair<const void *, size_t> &shader_bytecode : deduplicated_shader_bytecode)
 			{
 				D3D12_DXIL_LIBRARY_DESC &desc = library_descs[i++];
 				desc.DXILLibrary.pShaderBytecode = shader_bytecode.first;
 				desc.DXILLibrary.BytecodeLength = shader_bytecode.second;
 
 				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &desc });
+			}
+
+			std::vector<D3D12_EXISTING_COLLECTION_DESC> collection_descs(libraries.size());
+			i = 0;
+			for (const api::pipeline library : libraries)
+			{
+				D3D12_EXISTING_COLLECTION_DESC &desc = collection_descs[i++];
+				desc.pExistingCollection = reinterpret_cast<ID3D12StateObject *>(library.handle);
+				desc.NumExports = 0;
+				desc.pExports = nullptr;
+
+				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION, &desc });
 			}
 
 			std::vector<D3D12_HIT_GROUP_DESC> hit_group_descs(shader_groups.size());
@@ -951,8 +968,6 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			i = 0;
 			for (const api::shader_group &group : shader_groups)
 			{
-				D3D12_HIT_GROUP_DESC &desc = hit_group_descs[i];
-
 				switch (group.type)
 				{
 				case api::shader_group_type::raygen:
@@ -962,9 +977,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 						const char *entry_point = raygen_desc[group.raygen.shader_index].entry_point;
 						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
-
-					i++;
-					continue;
+					break;
 				}
 				case api::shader_group_type::miss:
 				{
@@ -973,9 +986,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 						const char *entry_point = miss_desc[group.miss.shader_index].entry_point;
 						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
-
-					i++;
-					continue;
+					break;
 				}
 				case api::shader_group_type::callable:
 				{
@@ -984,58 +995,57 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 						const char *entry_point = callable_desc[group.callable.shader_index].entry_point;
 						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
-
-					i++;
-					continue;
+					break;
 				}
 				case api::shader_group_type::hit_group_triangles:
-					desc.Type = D3D12_HIT_GROUP_TYPE_TRIANGLES;
-					break;
 				case api::shader_group_type::hit_group_aabbs:
-					desc.Type = D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+				{
+					D3D12_HIT_GROUP_DESC &desc = hit_group_descs[i];
+					desc.Type = group.type == api::shader_group_type::hit_group_triangles ? D3D12_HIT_GROUP_TYPE_TRIANGLES : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+
+					group_exports[i] = L"HitGroup" + std::to_wstring(i);
+					desc.HitGroupExport = group_exports[i].c_str();
+
+					if (group.hit_group.any_hit_shader_index != UINT32_MAX && any_hit_desc[group.hit_group.any_hit_shader_index].entry_point != nullptr)
+					{
+						std::wstring &entry_point_wide = any_hit_imports[i];
+						const char *const entry_point = any_hit_desc[group.hit_group.any_hit_shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						desc.AnyHitShaderImport = entry_point_wide.c_str();
+					}
+					else
+					{
+						desc.AnyHitShaderImport = nullptr;
+					}
+
+					if (group.hit_group.closest_hit_shader_index != UINT32_MAX && closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point != nullptr)
+					{
+						std::wstring &entry_point_wide = closest_hit_imports[i];
+						const char *const entry_point = closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						desc.ClosestHitShaderImport = entry_point_wide.c_str();
+					}
+					else
+					{
+						desc.ClosestHitShaderImport = nullptr;
+					}
+
+					if (group.hit_group.intersection_shader_index != UINT32_MAX && intersection_desc[group.hit_group.intersection_shader_index].entry_point != nullptr)
+					{
+						std::wstring &entry_point_wide = intersection_imports[i];
+						const char *const entry_point = intersection_desc[group.hit_group.intersection_shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						desc.IntersectionShaderImport = entry_point_wide.c_str();
+					}
+					else
+					{
+						desc.IntersectionShaderImport = nullptr;
+					}
+
+					internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &desc });
 					break;
 				}
-
-				group_exports[i] = L"HitGroup" + std::to_wstring(i);
-				desc.HitGroupExport = group_exports[i].c_str();
-
-				if (group.hit_group.any_hit_shader_index != UINT32_MAX && any_hit_desc[group.hit_group.any_hit_shader_index].entry_point != nullptr)
-				{
-					std::wstring &entry_point_wide = any_hit_imports[i];
-					const char *entry_point = any_hit_desc[group.hit_group.any_hit_shader_index].entry_point;
-					utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
-					desc.AnyHitShaderImport = entry_point_wide.c_str();
 				}
-				else
-				{
-					desc.AnyHitShaderImport = nullptr;
-				}
-
-				if (group.hit_group.closest_hit_shader_index != UINT32_MAX && closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point != nullptr)
-				{
-					std::wstring &entry_point_wide = closest_hit_imports[i];
-					const char *entry_point = closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point;
-					utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
-					desc.ClosestHitShaderImport = entry_point_wide.c_str();
-				}
-				else
-				{
-					desc.ClosestHitShaderImport = nullptr;
-				}
-
-				if (group.hit_group.intersection_shader_index != UINT32_MAX && intersection_desc[group.hit_group.intersection_shader_index].entry_point != nullptr)
-				{
-					std::wstring &entry_point_wide = intersection_imports[i];
-					const char *entry_point = intersection_desc[group.hit_group.intersection_shader_index].entry_point;
-					utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
-					desc.IntersectionShaderImport = entry_point_wide.c_str();
-				}
-				else
-				{
-					desc.IntersectionShaderImport = nullptr;
-				}
-
-				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &desc });
 
 				i++;
 			}
@@ -1048,6 +1058,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			if (com_ptr<ID3D12StateObject> pipeline;
 				SUCCEEDED(device5->CreateStateObject(&internal_desc, IID_PPV_ARGS(&pipeline))))
 			{
+				// Add shader group exports as private data
 				std::vector<WCHAR> extra_data;
 				for (size_t k = 0; k < group_exports.size(); ++k)
 				{
