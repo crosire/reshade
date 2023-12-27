@@ -1326,12 +1326,21 @@ void reshade::runtime::draw_gui()
 		{
 			for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
 			{
+				constexpr int window_overlay = 0;
+
 				if (widget.title == "OSD" ? show_splash_window : !_show_overlay)
 					continue;
 
-				if (ImGui::Begin(widget.title.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+				if (widget.id > window_overlay)
+				{
 					widget.callback(this);
-				ImGui::End();
+				}
+				else
+				{
+					if (ImGui::Begin(widget.title.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing))
+						widget.callback(this);
+					ImGui::End();
+				}
 			}
 		}
 

@@ -17,6 +17,7 @@ namespace reshade
 	{
 		struct overlay_callback
 		{
+			int id = (-2147483647 - 1);
 			std::string title;
 			void(*callback)(api::effect_runtime *) = nullptr;
 		};

@@ -443,7 +443,7 @@ void ReShadeUnregisterAddon(HMODULE module)
 	while (!info->overlay_callbacks.empty())
 	{
 		const auto &last_overlay_callback = info->overlay_callbacks.back();
-		ReShadeUnregisterOverlay(last_overlay_callback.title.c_str(), last_overlay_callback.callback);
+		ReShadeUnregisterOverlay2(last_overlay_callback.id, last_overlay_callback.title.c_str(), last_overlay_callback.callback);
 	}
 #endif
 
@@ -510,32 +510,56 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 
 void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
+	constexpr int widget_overlay = -1;
+	constexpr int window_overlay = 0;
+
+	ReShadeRegisterOverlay2(title == nullptr ? widget_overlay : window_overlay, title, callback);
+}
+void ReShadeRegisterOverlay2(int id, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
+{
+	constexpr int widget_overlay = -1;
+
 	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
 	{
-		LOG(ERROR) << "Could not find associated add-on and therefore failed to register overlay with title \"" << title << "\".";
+		if (title != nullptr)
+			LOG(ERROR) << "Could not find associated add-on and therefore failed to register overlay with title \"" << title << "\".";
+		else
+			LOG(ERROR) << "Could not find associated add-on and therefore failed to register overlay with id \"" << std::to_string(id) << "\".";
 		return;
 	}
 
-	if (title == nullptr)
+	if (id == widget_overlay)
 	{
 		info->settings_overlay_callback = callback;
 		return;
 	}
 
-	info->overlay_callbacks.push_back(reshade::addon_info::overlay_callback { title, callback });
+	info->overlay_callbacks.push_back(reshade::addon_info::overlay_callback { id, title, callback});
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Registered overlay with title \"" << title << "\" and callback " << callback << '.';
+	if (title != nullptr)
+		LOG(DEBUG) << "Registered overlay with title \"" << title << "\" and callback " << callback << '.';
+	else
+		LOG(DEBUG) << "Registered overlay with id \"" << std::to_string(id) << "\" and callback " << callback << '.';
 #endif
 }
 void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
+	constexpr int widget_overlay = -1;
+	constexpr int window_overlay = 0;
+
+	ReShadeUnregisterOverlay2(title == nullptr ? widget_overlay : window_overlay, title, callback);
+}
+void ReShadeUnregisterOverlay2(int id, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
+{
+	constexpr int widget_overlay = -1;
+
 	reshade::addon_info *const info = reshade::find_addon(callback);
 	if (info == nullptr)
 		return; // Do not log an error here, since this may be called if an add-on failed to load
 
-	if (title == nullptr)
+	if (id == widget_overlay)
 	{
 		assert(callback == info->settings_overlay_callback);
 		info->settings_overlay_callback = nullptr;
@@ -544,12 +568,15 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 
 #if RESHADE_VERBOSE_LOG
 	// Log before removing from overlay list below, since pointer to title string may become invalid by the removal
-	LOG(DEBUG) << "Unregistered overlay with title \"" << title << "\" and callback " << callback << '.';
+	if (title != nullptr)
+		LOG(DEBUG) << "Unregistered overlay with title \"" << title << "\" and callback " << callback << '.';
+	else
+		LOG(DEBUG) << "Unregistered overlay with id \"" << std::to_string(id) << "\" and callback " << callback << '.';
 #endif
 
 	info->overlay_callbacks.erase(std::remove_if(info->overlay_callbacks.begin(), info->overlay_callbacks.end(),
-		[title, callback](const reshade::addon_info::overlay_callback &item) {
-			return item.title == title && item.callback == callback;
+		[id, title, callback](const reshade::addon_info::overlay_callback &item) {
+			return (item.id == id || item.title == title) && item.callback == callback;
 		}), info->overlay_callbacks.end());
 }
 
