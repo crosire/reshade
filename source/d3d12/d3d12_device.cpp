@@ -1894,6 +1894,10 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 	if (existing_d3d_pipeline != nullptr)
 		libraries.push_back({ reinterpret_cast<uintptr_t>(existing_d3d_pipeline) });
 
+	std::vector<reshade::api::dynamic_state> dynamic_states = {
+		reshade::api::dynamic_state::ray_tracing_pipeline_stack_size
+	};
+
 	std::vector<reshade::api::pipeline_subobject> subobjects;
 
 	for (UINT i = 0; i < internal_desc.NumSubobjects; ++i)
@@ -2049,6 +2053,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::libraries, static_cast<uint32_t>(libraries.size()), libraries.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::flags, 1, &flags });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
 
 	if (existing_d3d_pipeline != nullptr) // Do not invoke 'create_pipeline' event for 'AddToStateObject' calls
 	{

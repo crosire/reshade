@@ -1454,8 +1454,40 @@ void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_
 		case api::dynamic_state::logic_op:
 			internal_states.push_back(VK_DYNAMIC_STATE_LOGIC_OP_EXT);
 			break;
+		case api::dynamic_state::fill_mode:
+			internal_states.push_back(VK_DYNAMIC_STATE_POLYGON_MODE_EXT);
+			break;
+		case api::dynamic_state::multisample_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_RASTERIZATION_SAMPLES_EXT);
+			break;
+		case api::dynamic_state::sample_mask:
+			internal_states.push_back(VK_DYNAMIC_STATE_SAMPLE_MASK_EXT);
+			break;
+		case api::dynamic_state::alpha_to_coverage_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_ALPHA_TO_COVERAGE_ENABLE_EXT);
+			break;
+		case api::dynamic_state::logic_op_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_LOGIC_OP_ENABLE_EXT);
+			break;
+		case api::dynamic_state::blend_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_COLOR_BLEND_ENABLE_EXT);
+			break;
+		case api::dynamic_state::source_color_blend_factor:
+		case api::dynamic_state::dest_color_blend_factor:
+		case api::dynamic_state::color_blend_op:
+		case api::dynamic_state::source_alpha_blend_factor:
+		case api::dynamic_state::dest_alpha_blend_factor:
+		case api::dynamic_state::alpha_blend_op:
+			internal_states.push_back(VK_DYNAMIC_STATE_COLOR_BLEND_EQUATION_EXT);
+			break;
 		case api::dynamic_state::render_target_write_mask:
-			internal_states.push_back(VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT);
+			internal_states.push_back(VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT);
+			break;
+		case api::dynamic_state::depth_clip_enable:
+			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_CLIP_ENABLE_EXT);
+			break;
+		case api::dynamic_state::ray_tracing_pipeline_stack_size:
+			internal_states.push_back(VK_DYNAMIC_STATE_RAY_TRACING_PIPELINE_STACK_SIZE_KHR);
 			break;
 		default:
 			assert(false);
@@ -1528,8 +1560,40 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_LOGIC_OP_EXT:
 			states.push_back(api::dynamic_state::logic_op);
 			break;
-		case VK_DYNAMIC_STATE_COLOR_WRITE_ENABLE_EXT:
+		case VK_DYNAMIC_STATE_POLYGON_MODE_EXT:
+			states.push_back(api::dynamic_state::fill_mode);
+			break;
+		case VK_DYNAMIC_STATE_RASTERIZATION_SAMPLES_EXT:
+			states.push_back(api::dynamic_state::multisample_enable);
+			break;
+		case VK_DYNAMIC_STATE_SAMPLE_MASK_EXT:
+			states.push_back(api::dynamic_state::sample_mask);
+			break;
+		case VK_DYNAMIC_STATE_ALPHA_TO_COVERAGE_ENABLE_EXT:
+			states.push_back(api::dynamic_state::alpha_to_coverage_enable);
+			break;
+		case VK_DYNAMIC_STATE_LOGIC_OP_ENABLE_EXT:
+			states.push_back(api::dynamic_state::logic_op_enable);
+			break;
+		case VK_DYNAMIC_STATE_COLOR_BLEND_ENABLE_EXT:
+			states.push_back(api::dynamic_state::blend_enable);
+			break;
+		case VK_DYNAMIC_STATE_COLOR_BLEND_EQUATION_EXT:
+			states.push_back(api::dynamic_state::source_color_blend_factor);
+			states.push_back(api::dynamic_state::dest_color_blend_factor);
+			states.push_back(api::dynamic_state::color_blend_op);
+			states.push_back(api::dynamic_state::source_alpha_blend_factor);
+			states.push_back(api::dynamic_state::dest_alpha_blend_factor);
+			states.push_back(api::dynamic_state::alpha_blend_op);
+			break;
+		case VK_DYNAMIC_STATE_COLOR_WRITE_MASK_EXT:
 			states.push_back(api::dynamic_state::render_target_write_mask);
+			break;
+		case VK_DYNAMIC_STATE_DEPTH_CLIP_ENABLE_EXT:
+			states.push_back(api::dynamic_state::depth_clip_enable);
+			break;
+		case VK_DYNAMIC_STATE_RAY_TRACING_PIPELINE_STACK_SIZE_KHR:
+			states.push_back(api::dynamic_state::ray_tracing_pipeline_stack_size);
 			break;
 		}
 	}
@@ -2198,7 +2262,7 @@ auto reshade::vulkan::convert_acceleration_structure_build_flags(api::accelerati
 		result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
 	if ((value & api::acceleration_structure_build_flags::prefer_fast_build) != 0)
 		result |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
-	if ((value & api::acceleration_structure_build_flags::minimize_memory) != 0)
+	if ((value & api::acceleration_structure_build_flags::minimize_memory_usage) != 0)
 		result |= VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR;
 
 	return result;
@@ -2215,7 +2279,7 @@ auto reshade::vulkan::convert_acceleration_structure_build_flags(VkBuildAccelera
 	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR) != 0)
 		result |= api::acceleration_structure_build_flags::prefer_fast_build;
 	if ((value & VK_BUILD_ACCELERATION_STRUCTURE_LOW_MEMORY_BIT_KHR) != 0)
-		result |= api::acceleration_structure_build_flags::minimize_memory;
+		result |= api::acceleration_structure_build_flags::minimize_memory_usage;
 
 	return result;
 }

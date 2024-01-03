@@ -245,6 +245,11 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 		case api::dynamic_state::front_stencil_reference_value:
 			_orig->OMSetStencilRef(values[i]);
 			break;
+		case api::dynamic_state::ray_tracing_pipeline_stack_size:
+			// ID3D12StateObjectProperties *props = ...;
+			// props->SetPipelineStackSize(values[i]);
+			assert(false);
+			break;
 		default:
 			assert(false);
 			break;

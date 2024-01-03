@@ -370,66 +370,77 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		{
 			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
 			vk.CmdSetBlendConstants(_orig, blend_constant);
-			continue;
+			break;
 		}
 		case api::dynamic_state::front_stencil_read_mask:
 			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
-			continue;
+			break;
 		case api::dynamic_state::front_stencil_write_mask:
 			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
-			continue;
+			break;
 		case api::dynamic_state::front_stencil_reference_value:
 			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
-			continue;
+			break;
 		case api::dynamic_state::back_stencil_read_mask:
 			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
-			continue;
+			break;
 		case api::dynamic_state::back_stencil_write_mask:
 			vk.CmdSetStencilWriteMask(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
-			continue;
+			break;
 		case api::dynamic_state::back_stencil_reference_value:
 			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
-			continue;
-		}
-
-		if (!_device_impl->_extended_dynamic_state_ext)
-		{
-			assert(false);
-			continue;
-		}
-
-		switch (states[i])
-		{
+			break;
 		case api::dynamic_state::cull_mode:
-			vk.CmdSetCullMode(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetCullMode(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
+			else
+				assert(false);
+			break;
 		case api::dynamic_state::front_counter_clockwise:
-			vk.CmdSetFrontFace(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetFrontFace(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
+			else
+				assert(false);
+			break;
 		case api::dynamic_state::primitive_topology:
-			vk.CmdSetPrimitiveTopology(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetPrimitiveTopology(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			else
+				assert(false);
+			break;
 		case api::dynamic_state::depth_enable:
-			vk.CmdSetDepthTestEnable(_orig, values[i]);
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetDepthTestEnable(_orig, values[i]);
+			else
+				assert(false);
+			break;
 		case api::dynamic_state::depth_write_mask:
-			vk.CmdSetDepthWriteEnable(_orig, values[i]);
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetDepthWriteEnable(_orig, values[i]);
+			else
+				assert(false);
+			break;
 		case api::dynamic_state::depth_func:
-			vk.CmdSetDepthCompareOp(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetDepthCompareOp(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
+			else
+				assert(false);
+			break;
 		case api::dynamic_state::stencil_enable:
-			vk.CmdSetStencilTestEnable(_orig, values[i]);
-			continue;
-		case api::dynamic_state::logic_op:
-			vk.CmdSetLogicOpEXT(_orig, convert_logic_op(static_cast<api::logic_op>(values[i])));
-			continue;
-		case api::dynamic_state::render_target_write_mask:
-			vk.CmdSetColorWriteEnableEXT(_orig, 1, &values[i]);
-			continue;
+			if (_device_impl->_extended_dynamic_state_ext)
+				vk.CmdSetStencilTestEnable(_orig, values[i]);
+			else
+				assert(false);
+			break;
+		case api::dynamic_state::ray_tracing_pipeline_stack_size:
+			if (_device_impl->_ray_tracing_ext)
+				vk.CmdSetRayTracingPipelineStackSizeKHR(_orig, values[i]);
+			else
+				assert(false);
+			break;
 		default:
 			assert(false);
-			continue;
+			break;
 		}
 	}
 }

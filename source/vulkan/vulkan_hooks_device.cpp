@@ -672,6 +672,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CreateRayTracingPipelinesKHR);
 	INIT_DISPATCH_PTR(GetRayTracingShaderGroupHandlesKHR);
 	INIT_DISPATCH_PTR(CmdTraceRaysIndirectKHR);
+	INIT_DISPATCH_PTR(CmdSetRayTracingPipelineStackSizeKHR);
 
 	// VK_KHR_ray_tracing_maintenance1
 	INIT_DISPATCH_PTR(CmdTraceRaysIndirect2KHR);

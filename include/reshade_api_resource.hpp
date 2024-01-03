@@ -571,7 +571,7 @@ namespace reshade { namespace api
 		allow_compaction = (1 << 1),
 		prefer_fast_trace = (1 << 2),
 		prefer_fast_build = (1 << 3),
-		minimize_memory = (1 << 4)
+		minimize_memory_usage = (1 << 4)
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(acceleration_structure_build_flags);
 
