@@ -1560,7 +1560,7 @@ bool reshade::d3d11::device_impl::signal(api::fence fence, uint64_t value)
 	return false;
 }
 
-void reshade::d3d11::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+void reshade::d3d11::device_impl::get_acceleration_structure_size(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
 {
 	if (out_size != nullptr)
 		*out_size = 0;

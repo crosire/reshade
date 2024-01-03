@@ -694,6 +694,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// In case of D3D9, D3D10, D3D11 and OpenGL this is called during device initialization as well and behaves as if an implicit global pipeline layout was created.
+		/// </remarks>
 		init_pipeline_layout,
 
 		/// <summary>
@@ -1152,6 +1155,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// In case of D3D12 and Vulkan, the shader handle buffer handles may be zero with the buffers instead referred to via a device address passed in the related offset argument.
 		/// </remarks>
 		dispatch_rays = 90,
 
@@ -1170,7 +1174,6 @@ namespace reshade
 		/// <item><description>vkCmdDrawIndirect</description></item>
 		/// <item><description>vkCmdDrawIndexedIndirect</description></item>
 		/// <item><description>vkCmdDispatchIndirect</description></item>
-		/// <item><description>vkCmdTraceRaysIndirectKHR</description></item>
 		/// <item><description>vkCmdTraceRaysIndirect2KHR</description></item>
 		/// <item><description>vkCmdDrawMeshTasksIndirectEXT</description></item>
 		/// <item><description>vkCmdDrawMeshTasksIndirectCountEXT</description></item>
@@ -1465,7 +1468,8 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// In case of D3D12 and Vulkan, the 'scratch' handle may be zero with the buffer instead referred to via a device address passed into 'scratch_offset'.
+		/// In case of D3D12 and Vulkan, the scratch buffer handle may be zero with the buffer instead referred to via a device address passed in the related offset argument.
+		/// Scratch buffer will be in the <see cref="api::resource_usage::unordered_access"/> resource state.
 		/// </remarks>
 		build_acceleration_structure = 92,
 
@@ -1579,7 +1583,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// To prevent the variable value from being changed, return <see langword="true"/>, otherwise return <see langword="false"/>.
-		/// The new value has the data type reported by <see cref="api::effect_runtime::get_uniform_variable_type"/> and the new value size is in bytes.
+		/// The new value has the data type reported by <see cref="api::effect_runtime::get_uniform_variable_type"/>. The new value size is in bytes.
 		/// </remarks>
 		reshade_set_uniform_value,
 		/// <summary>

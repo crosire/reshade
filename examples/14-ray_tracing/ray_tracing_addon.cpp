@@ -181,7 +181,7 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 
 		uint64_t size = 0;
 		uint64_t scratch_size = 0;
-		device->get_acceleration_structure_sizes(acceleration_structure_type::bottom_level, acceleration_structure_build_flags::prefer_fast_trace, 1, &geometry, &size, &scratch_size, nullptr);
+		device->get_acceleration_structure_size(acceleration_structure_type::bottom_level, acceleration_structure_build_flags::prefer_fast_trace, 1, &geometry, &size, &scratch_size, nullptr);
 
 		resource scratch_resource = {};
 		if (!device->create_resource(resource_desc(scratch_size, memory_heap::gpu_only, resource_usage::unordered_access), nullptr, resource_usage::unordered_access, &scratch_resource))
@@ -230,7 +230,7 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 		geometry.instances.array_of_pointers = false;
 
 		uint64_t size = 0, scratch_size = 0;
-		device->get_acceleration_structure_sizes(acceleration_structure_type::top_level, acceleration_structure_build_flags::prefer_fast_trace, 1, &geometry, &size, &scratch_size, nullptr);
+		device->get_acceleration_structure_size(acceleration_structure_type::top_level, acceleration_structure_build_flags::prefer_fast_trace, 1, &geometry, &size, &scratch_size, nullptr);
 
 		resource scratch_resource = {};
 		if (!device->create_resource(resource_desc(scratch_size, memory_heap::gpu_only, resource_usage::unordered_access), nullptr, resource_usage::unordered_access, &scratch_resource))

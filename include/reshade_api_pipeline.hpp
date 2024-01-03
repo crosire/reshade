@@ -1097,10 +1097,30 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class query_type
 	{
+		/// <summary>
+		/// Number of samples that passed the depth and stencil tests between beginning and end of the query.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
 		occlusion = 0,
+		/// <summary>
+		/// Zero if no samples passed, one if at least one sample passed the depth and stencil tests between beginning and end of the query.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
 		binary_occlusion = 1,
+		/// <summary>
+		/// GPU timestamp at the frequency returned by <see cref="command_queue::get_timestamp_frequency"/>.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
 		timestamp = 2,
+		/// <summary>
+		/// Pipeline statistics (such as the number of shader invocations) between beginning and end of the query.
+		/// Data is a structure of type <c>{ uint64_t ia_vertices; uint64_t ia_primitives; uint64_t vs_invocations; uint64_t gs_invocations; uint64_t gs_primitives; uint64_t invocations; uint64_t primitives; uint64_t ps_invocations; uint64_t hs_invocations; uint64_t ds_invocations; uint64_t cs_invocations; }</c>.
+		/// </summary>
 		pipeline_statistics = 3,
+		/// <summary>
+		/// Streaming output statistics for stream 0 between beginning and end of the query.
+		/// Data is a structure of type <c>{ uint64_t primitives_written; uint64_t primitives_storage_needed; }</c>.
+		/// </summary>
 		stream_output_statistics_0 = 4,
 		stream_output_statistics_1,
 		stream_output_statistics_2,

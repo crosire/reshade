@@ -2281,7 +2281,7 @@ bool reshade::vulkan::device_impl::signal(api::fence fence, uint64_t value)
 	return vk.SignalSemaphore(_orig, &signal_info) == VK_SUCCESS;
 }
 
-void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+void reshade::vulkan::device_impl::get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
 {
 	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
 	std::vector<VkAccelerationStructureBuildRangeInfoKHR> range_infos(input_count);

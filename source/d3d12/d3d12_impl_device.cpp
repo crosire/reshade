@@ -1812,7 +1812,7 @@ bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
 	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
-void reshade::d3d12::device_impl::get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+void reshade::d3d12::device_impl::get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
 {
 	com_ptr<ID3D12Device5> device5;
 	if (SUCCEEDED(_orig->QueryInterface(&device5)))

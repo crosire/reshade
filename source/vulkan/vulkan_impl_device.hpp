@@ -102,7 +102,7 @@ namespace reshade::vulkan
 		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
-		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
+		void get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
 
 		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups) final;
 

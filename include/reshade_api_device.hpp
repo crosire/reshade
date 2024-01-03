@@ -428,7 +428,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="layout">Pipeline layout to use.</param>
 		/// <param name="subobject_count">Number of sub-objects.</param>
-		/// <param name="subobjects">Pointer to an array of sub-objects that describe this pipeline.</param>
+		/// <param name="subobjects">Pointer to the first element of an array of sub-objects that describe this pipeline.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
 		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
 		virtual bool create_pipeline(pipeline_layout layout, uint32_t subobject_count, const pipeline_subobject *subobjects, pipeline *out_handle) = 0;
@@ -441,7 +441,7 @@ namespace reshade { namespace api
 		/// Creates a new pipeline layout.
 		/// </summary>
 		/// <param name="param_count">Number of layout parameters.</param>
-		/// <param name="params">Pointer to an array of layout parameters that describe this pipeline layout.</param>
+		/// <param name="params">Pointer to the first element of an array of layout parameters that describe this pipeline layout.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
 		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
 		virtual bool create_pipeline_layout(uint32_t param_count, const pipeline_layout_param *params, pipeline_layout *out_handle) = 0;
@@ -464,7 +464,7 @@ namespace reshade { namespace api
 		/// <param name="count">Number of descriptor tables to allocate.</param>
 		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
 		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
-		/// <param name="out_handles">Pointer to an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor tables.</param>
+		/// <param name="out_handles">Pointer to the first element of an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor tables.</param>
 		/// <returns><see langword="true"/> if the descriptor tables were successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
 		virtual bool allocate_descriptor_tables(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_table *out_handles) = 0;
 		/// <summary>
@@ -495,7 +495,7 @@ namespace reshade { namespace api
 		/// Copies the contents between multiple descriptor tables.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="copies"/> to process.</param>
-		/// <param name="copies">Pointer to an array of descriptor table copies to process.</param>
+		/// <param name="copies">Pointer to the first element of an array of descriptor table copies to process.</param>
 		virtual void copy_descriptor_tables(uint32_t count, const descriptor_table_copy *copies) = 0;
 		/// <summary>
 		/// Updates the contents of a descriptor table with the specified descriptors.
@@ -506,7 +506,7 @@ namespace reshade { namespace api
 		/// Updates the contents of multiple descriptor tables with the specified descriptors.
 		/// </summary>
 		/// <param name="count">Number of <paramref name="updates"/> to process.</param>
-		/// <param name="updates">Pointer to an array of descriptor table updates to process.</param>
+		/// <param name="updates">Pointer to the first element of an array of descriptor table updates to process.</param>
 		virtual void update_descriptor_tables(uint32_t count, const descriptor_table_update *updates) = 0;
 
 		/// <summary>
@@ -528,7 +528,7 @@ namespace reshade { namespace api
 		/// <param name="heap">Query heap that contains the queries.</param>
 		/// <param name="first">Index of the first query in the query heap to copy the results from.</param>
 		/// <param name="count">Number of query results to copy.</param>
-		/// <param name="results">Pointer to an array that is filled with the results.</param>
+		/// <param name="results">Pointer to the first element of an array that is filled with the results. The necessary data type is documented at the <see cref="query_type"/> enumeration.</param>
 		/// <param name="stride">Size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
 		virtual bool get_query_heap_results(query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
@@ -603,11 +603,11 @@ namespace reshade { namespace api
 		/// <param name="type">Type of the acceleration structure.</param>
 		/// <param name="flags">Acceleration structure build options.</param>
 		/// <param name="input_count">Number of build inputs.</param>
-		/// <param name="inputs">Pointer to an array of build inputs describing the geometry of the acceleration structure.</param>
+		/// <param name="inputs">Pointer to the first element of an array of build inputs describing the geometry of the acceleration structure.</param>
 		/// <param name="out_size">Pointer to a variable that is set to the required buffer size for the acceleration structure.</param>
 		/// <param name="out_build_scratch_size">Pointer to a variable that is set to the required scratch buffer size for building the acceleration structure.</param>
 		/// <param name="out_update_scratch_size">Pointer to a variable that is set to the required scratch buffer size for updating the acceleration structure.</param>
-		virtual void get_acceleration_structure_sizes(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const = 0;
+		virtual void get_acceleration_structure_size(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const = 0;
 
 		/// <summary>
 		/// Gets the shader group handles for a ray tracing pipeline, to be put into a shader binding table.
@@ -616,7 +616,7 @@ namespace reshade { namespace api
 		/// <param name="pipeline">Ray tracing pipeline to query.</param>
 		/// <param name="first">Index of the first shader group in the <see cref="pipeline_subobject_type::shader_groups"/> array that was used to create the pipeline.</param>
 		/// <param name="count">Number of shader groups to get handles for.</param>
-		/// <param name="out_handles">Pointer to an array (with elements of the size reported by <see cref="device_properties::shader_group_handle_size"/>) that is filled with the handles.</param>
+		/// <param name="out_handles">Pointer to the first element of an array (with elements of the size reported by <see cref="device_properties::shader_group_handle_size"/>) that is filled with the handles.</param>
 		/// <returns><see langword="true"/> if the shader group handles were successfully retrieved, <see langword="false"/> otherwise.</returns>
 		virtual bool get_pipeline_shader_group_handles(pipeline pipeline, uint32_t first, uint32_t count, void *out_handles) = 0;
 	};
@@ -666,16 +666,16 @@ namespace reshade { namespace api
 		/// Adds a barrier for the specified <paramref name="resources"/> to the command stream.
 		/// </summary>
 		/// <param name="count">Number of resources to transition.</param>
-		/// <param name="resources">Pointer to an array of resources to transition.</param>
-		/// <param name="old_states">Pointer to an array of usage flags describing how the <paramref name="resources"/> were used before this barrier.</param>
-		/// <param name="new_states">Pointer to an array of usage flags describing how the <paramref name="resources"/> will be used after this barrier.</param>
+		/// <param name="resources">Pointer to the first element of an array of resources to transition.</param>
+		/// <param name="old_states">Pointer to the first element of an array of usage flags describing how the <paramref name="resources"/> were used before this barrier.</param>
+		/// <param name="new_states">Pointer to the first element of an array of usage flags describing how the <paramref name="resources"/> will be used after this barrier.</param>
 		virtual void barrier(uint32_t count, const resource *resources, const resource_usage *old_states, const resource_usage *new_states) = 0;
 
 		/// <summary>
 		/// Begins a render pass and binds render target and depth-stencil resource views.
 		/// </summary>
 		/// <param name="count">Number of render target views to bind.</param>
-		/// <param name="rts">Pointer to an array of render target descriptions.</param>
+		/// <param name="rts">Pointer to the first element of an array of render target descriptions.</param>
 		/// <param name="ds">Optional pointer to a depth-stencil description, or <see langword="nullptr"/> to bind none.</param>
 		virtual void begin_render_pass(uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds = nullptr) = 0;
 		/// <summary>
@@ -690,7 +690,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <seealso cref="device_caps::bind_render_targets_and_depth_stencil"/>
 		/// <param name="count">Number of render target views to bind.</param>
-		/// <param name="rtvs">Pointer to an array of render target views to bind.</param>
+		/// <param name="rtvs">Pointer to the first element of an array of render target views to bind.</param>
 		/// <param name="dsv">Depth-stencil view to bind, or zero to bind none.</param>
 		virtual void bind_render_targets_and_depth_stencil(uint32_t count, const resource_view *rtvs, resource_view dsv = { 0 }) = 0;
 
@@ -712,8 +712,8 @@ namespace reshade { namespace api
 		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object (<see cref="pipeline_subobject_type::dynamic_pipeline_states"/>).
 		/// </summary>
 		/// <param name="count">Number of pipeline states to update.</param>
-		/// <param name="states">Pointer to an array of pipeline states to update.</param>
-		/// <param name="values">Pointer to an array of values to update the pipeline states to, with one for each state in <paramref name="states"/>.</param>
+		/// <param name="states">Pointer to the first element of an array of pipeline states to update.</param>
+		/// <param name="values">Pointer to the first element of an array of values to update the pipeline states to, with one for each state in <paramref name="states"/>.</param>
 		virtual void bind_pipeline_states(uint32_t count, const dynamic_state *states, const uint32_t *values) = 0;
 		/// <summary>
 		/// Binds an array of viewports to the rasterizer stage.
@@ -721,7 +721,7 @@ namespace reshade { namespace api
 		/// <seealso cref="device_caps::multi_viewport"/>
 		/// <param name="first">Index of the first viewport to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
 		/// <param name="count">Number of viewports to bind.</param>
-		/// <param name="viewports">Pointer to an array of viewports.</param>
+		/// <param name="viewports">Pointer to the first element of an array of viewports.</param>
 		virtual void bind_viewports(uint32_t first, uint32_t count, const viewport *viewports) = 0;
 		/// <summary>
 		/// Binds an array of scissor rectangles to the rasterizer stage.
@@ -729,7 +729,7 @@ namespace reshade { namespace api
 		/// <seealso cref="device_caps::multi_viewport"/>
 		/// <param name="first">Index of the first scissor rectangle to bind. In D3D9, D3D10, D3D11 and D3D12 this has to be 0.</param>
 		/// <param name="count">Number of scissor rectangles to bind.</param>
-		/// <param name="rects">Pointer to an array of scissor rectangles.</param>
+		/// <param name="rects">Pointer to the first element of an array of scissor rectangles.</param>
 		virtual void bind_scissor_rects(uint32_t first, uint32_t count, const rect *rects) = 0;
 
 		/// <summary>
@@ -742,7 +742,7 @@ namespace reshade { namespace api
 		/// <param name="param">Layout parameter index of the constant range in the pipeline <paramref name="layout"/> (root parameter index in D3D12).</param>
 		/// <param name="first">Start offset (in 32-bit values) to the first constant in the constant range to begin updating.</param>
 		/// <param name="count">Number of 32-bit values to update.</param>
-		/// <param name="values">Pointer to an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
+		/// <param name="values">Pointer to the first element of an array of 32-bit values to set the constants to. These can be floating-point, integer or boolean depending on what the shader is expecting.</param>
 		virtual void push_constants(shader_stage stages, pipeline_layout layout, uint32_t param, uint32_t first, uint32_t count, const void *values) = 0;
 		/// <summary>
 		/// Directly binds a temporary descriptor table for the specfified shader pipeline stage and updates with an array of descriptors.
@@ -768,7 +768,7 @@ namespace reshade { namespace api
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
 		/// <param name="first">Index of the first pipeline <paramref name="layout"/> parameter that describes the first descriptor table to bind (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="count">Number of descriptor tables to bind.</param>
-		/// <param name="tables">Pointer to an array of descriptor tables to bind.</param>
+		/// <param name="tables">Pointer to the first element of an array of descriptor tables to bind.</param>
 		virtual void bind_descriptor_tables(shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables) = 0;
 
 		/// <summary>
@@ -791,9 +791,9 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="first">First input slot for binding.</param>
 		/// <param name="count">Number of vertex buffers to bind.</param>
-		/// <param name="buffers">Pointer to an array of vertex buffer resources. These resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
-		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
-		/// <param name="strides">Pointer to an array of stride values, one for each buffer. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
+		/// <param name="buffers">Pointer to the first element of an array of vertex buffer resources. These resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
+		/// <param name="offsets">Pointer to the first element of an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the vertex buffer to the first vertex element to use.</param>
+		/// <param name="strides">Pointer to the first element of an array of stride values, one for each buffer. Each stride is the size (in bytes) of the vertex element that will be used from that vertex buffer (is added to an element offset to advance to the next).</param>
 		virtual void bind_vertex_buffers(uint32_t first, uint32_t count, const resource *buffers, const uint64_t *offsets, const uint32_t *strides) = 0;
 
 		/// <summary>
@@ -801,11 +801,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="first">First stream-output slot for binding.</param>
 		/// <param name="count">Number of stream-output targets to bind.</param>
-		/// <param name="buffers">Pointer to an array of buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
-		/// <param name="offsets">Pointer to an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the buffer to the first element to write to.</param>
+		/// <param name="buffers">Pointer to the first element of an array of buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="offsets">Pointer to the first element of an array of offset values, one for each buffer. Each offset is the number of bytes from the start of the buffer to the first element to write to.</param>
 		/// <param name="max_sizes">Optional pointer to an array of size values, one for each buffer. Can be <see langword="nullptr"/> or have elements set to UINT64_MAX to use the entire buffer.</param>
-		/// <param name="counter_buffers">Pointer to an array of counter buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
-		/// <param name="counter_offsets">Pointer to an array of counter offset values, one for each counter buffer. Each offset is the number of bytes from the start of the counter buffer to the first element to write to.</param>
+		/// <param name="counter_buffers">Pointer to the first element of an array of counter buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
+		/// <param name="counter_offsets">Pointer to the first element of an array of counter offset values, one for each counter buffer. Each offset is the number of bytes from the start of the counter buffer to the first element to write to.</param>
 		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) = 0;
 
 		/// <summary>
@@ -948,7 +948,7 @@ namespace reshade { namespace api
 		/// <param name="depth">Optional value to clear the depth buffer with.</param>
 		/// <param name="stencil">Optional value to clear the stencil buffer with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the depth-stencil resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles.</param>
+		/// <param name="rects">Pointer to the first element of an array of rectangles.</param>
 		virtual void clear_depth_stencil_view(resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the render target view.
@@ -959,7 +959,7 @@ namespace reshade { namespace api
 		/// <param name="rtv">Resource view handle of the render target.</param>
 		/// <param name="color">Value to clear the resource with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the render target resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles.</param>
+		/// <param name="rects">Pointer to the first element of an array of rectangles.</param>
 		virtual void clear_render_target_view(resource_view rtv, const float color[4], uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
@@ -970,7 +970,7 @@ namespace reshade { namespace api
 		/// <param name="uav">Resource view handle of the unordered access view.</param>
 		/// <param name="values">Value to clear the resource with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the unordered access resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles.</param>
+		/// <param name="rects">Pointer to the first element of an array of rectangles.</param>
 		virtual void clear_unordered_access_view_uint(resource_view uav, const uint32_t values[4], uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 		/// <summary>
 		/// Clears the resource referenced by the unordered access view.
@@ -981,7 +981,7 @@ namespace reshade { namespace api
 		/// <param name="uav">Resource view handle of the unordered access view.</param>
 		/// <param name="values">Value to clear the resource with.</param>
 		/// <param name="rect_count">Number of rectangles to clear in the unordered access resource, or zero to clear the whole resource.</param>
-		/// <param name="rects">Pointer to an array of rectangles.</param>
+		/// <param name="rects">Pointer to the first element of an array of rectangles.</param>
 		virtual void clear_unordered_access_view_float(resource_view uav, const   float values[4], uint32_t rect_count = 0, const rect *rects = nullptr) = 0;
 
 		/// <summary>
@@ -1055,7 +1055,7 @@ namespace reshade { namespace api
 		/// Performs a ray tracing dispatch.
 		/// </summary>
 		/// <remarks>
-		/// The shader table resources have to be in the <see cref="resource_usage::shader_resource_non_pixel"/> state.
+		/// The buffer resources have to be in the <see cref="resource_usage::shader_resource_non_pixel"/> state.
 		/// </remarks>
 		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="raygen">Buffer resource containing the ray generation shader handle to use.</param>
@@ -1070,6 +1070,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Copies or transforms data from the <paramref name="source"/> acceleration structure to the <paramref name="dest"/>ination acceleration structure.
 		/// </summary>
+		/// <remarks>
+		/// The <paramref name="source"/> and <paramref name="dest"/>ination acceleration structure resources have to be in the <see cref="resource_usage::acceleration_structure"/> state.
+		/// </remarks>
 		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="source">Acceleration structure to copy from.</param>
 		/// <param name="dest">Acceleration structure to copy to.</param>
@@ -1080,16 +1083,18 @@ namespace reshade { namespace api
 		/// Builds or updates an acceleration structure for ray tracing.
 		/// </summary>
 		/// <remarks>
+		/// The build input vertex, index and instance buffers have to be in the <see cref="resource_usage::shader_resource_non_pixel"/> state.
 		/// The <paramref name="scratch"/> resource has to be in the <see cref="resource_usage::unordered_access"/> state.
+		/// The <paramref name="source"/> and <paramref name="dest"/>ination acceleration structure resources have to be in the <see cref="resource_usage::acceleration_structure"/> state.
 		/// </remarks>
 		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="type">Type of the acceleration structure to build.</param>
 		/// <param name="flags">Acceleration structure build options.</param>
 		/// <param name="input_count">Number of build inputs.</param>
-		/// <param name="inputs">Pointer to an array of build inputs describing the geometry of the acceleration structure to build.</param>
+		/// <param name="inputs">Pointer to the first element of an array of build inputs describing the geometry of the acceleration structure to build.</param>
 		/// <param name="scratch">Buffer resource to use as scratch space during building.</param>
 		/// <param name="scratch_offset">Offset (in bytes) into the <paramref name="scratch"/> buffer.</param>
-		/// <param name="source">Acceleration structure to read data from when <paramref name="mode"/> is <see cref="acceleration_structure_build_mode::update"/>.</param>
+		/// <param name="source">Acceleration structure to read data from when <paramref name="mode"/> is <see cref="acceleration_structure_build_mode::update"/>, otherwise zero.</param>
 		/// <param name="dest">Acceleration structure to write data to.</param>
 		/// <param name="mode">Choose between building a new or updating an existing acceleration structure.</param>
 		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, resource_view source, resource_view dest, acceleration_structure_build_mode mode) = 0;
