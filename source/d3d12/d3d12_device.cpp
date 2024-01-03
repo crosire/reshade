@@ -1887,12 +1887,14 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 	std::vector<reshade::api::pipeline> libraries;
 	std::vector<reshade::api::shader_group> shader_groups;
 
-	std::vector<reshade::api::pipeline_subobject> subobjects;
+	reshade::api::pipeline_flags flags = reshade::api::pipeline_flags::none;
+	if (internal_desc.Type == D3D12_STATE_OBJECT_TYPE_COLLECTION)
+		flags |= reshade::api::pipeline_flags::library;
 
 	if (existing_d3d_pipeline != nullptr)
-	{
 		libraries.push_back({ reinterpret_cast<uintptr_t>(existing_d3d_pipeline) });
-	}
+
+	std::vector<reshade::api::pipeline_subobject> subobjects;
 
 	for (UINT i = 0; i < internal_desc.NumSubobjects; ++i)
 	{
@@ -1903,11 +1905,8 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		case D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG:
 			break;
 		case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
-		{
-			const auto &desc = *static_cast<const D3D12_GLOBAL_ROOT_SIGNATURE *>(subobject.pDesc);
-			layout = to_handle(desc.pGlobalRootSignature);
+			layout = to_handle(static_cast<const D3D12_GLOBAL_ROOT_SIGNATURE *>(subobject.pDesc)->pGlobalRootSignature);
 			break;
-		}
 		case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
 			break;
 		case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
@@ -1979,11 +1978,8 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			break;
 		}
 		case D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION:
-		{
-			const auto &desc = *static_cast<const D3D12_EXISTING_COLLECTION_DESC *>(subobject.pDesc);
-			libraries.push_back({ reinterpret_cast<uintptr_t>(desc.pExistingCollection) });
+			libraries.push_back({ reinterpret_cast<uintptr_t>(static_cast<const D3D12_EXISTING_COLLECTION_DESC *>(subobject.pDesc)->pExistingCollection) });
 			break;
-		}
 		case D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
 			// Used to e.g. associate local root signatures with specific exports
 			break;
@@ -1991,18 +1987,12 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			// Currently unsupported
 			break;
 		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
-		{
-			const auto &desc = *static_cast<const D3D12_RAYTRACING_SHADER_CONFIG *>(subobject.pDesc);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_payload_size, 1, const_cast<uint32_t *>(&desc.MaxPayloadSizeInBytes) });
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_attribute_size, 1, const_cast<uint32_t *>(&desc.MaxAttributeSizeInBytes) });
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_payload_size, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_SHADER_CONFIG *>(subobject.pDesc)->MaxPayloadSizeInBytes) });
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_attribute_size, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_SHADER_CONFIG *>(subobject.pDesc)->MaxAttributeSizeInBytes) });
 			break;
-		}
 		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG:
-		{
-			const auto &desc = *static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG *>(subobject.pDesc);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&desc.MaxTraceRecursionDepth) });
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG *>(subobject.pDesc)->MaxTraceRecursionDepth) });
 			break;
-		}
 		case D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP:
 		{
 			const auto &desc = *static_cast<const D3D12_HIT_GROUP_DESC *>(subobject.pDesc);
@@ -2047,19 +2037,22 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			break;
 		}
 		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1:
-		{
-			const auto &desc = *static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG1 *>(subobject.pDesc);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&desc.MaxTraceRecursionDepth) });
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG1 *>(subobject.pDesc)->MaxTraceRecursionDepth) });
+			flags |= reshade::d3d12::convert_pipeline_flags(static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG1 *>(subobject.pDesc)->Flags);
 			break;
-		}
+		default:
+			// Unknown sub-object type
+			assert(false);
 		}
 	}
 
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::libraries, static_cast<uint32_t>(libraries.size()), libraries.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::flags, 1, &flags });
 
 	if (existing_d3d_pipeline != nullptr) // Do not invoke 'create_pipeline' event for 'AddToStateObject' calls
 	{
+		assert(_interface_version >= 7);
 		hr = static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(&internal_desc, existing_d3d_pipeline, IID_PPV_ARGS(&d3d_pipeline));
 	}
 	else if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
@@ -2070,6 +2063,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 	}
 	else
 	{
+		assert(_interface_version >= 5);
 		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
 	}
 

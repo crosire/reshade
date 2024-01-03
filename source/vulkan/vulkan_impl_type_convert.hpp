@@ -244,6 +244,8 @@ namespace reshade::vulkan
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
 
+	auto convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags;
+	auto convert_pipeline_flags(VkPipelineCreateFlags value) -> api::pipeline_flags;
 	auto convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR;
 	auto convert_shader_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::shader_group_type;
 	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR;

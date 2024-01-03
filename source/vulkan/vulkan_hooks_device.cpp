@@ -2045,6 +2045,7 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 		std::vector<reshade::api::shader_desc> raygen_desc, any_hit_desc, closest_hit_desc, miss_desc, intersection_desc, callable_desc;
 		std::vector<uint32_t> shader_stage_to_desc_index(create_info.stageCount);
 		std::vector<reshade::api::shader_group> shader_groups;
+		auto flags = reshade::vulkan::convert_pipeline_flags(create_info.flags);
 		auto dynamic_states = reshade::vulkan::convert_dynamic_states(create_info.pDynamicState);
 
 		for (uint32_t k = 0; k < create_info.stageCount; ++k)
@@ -2148,6 +2149,7 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 			{ reshade::api::pipeline_subobject_type::callable_shader, static_cast<uint32_t>(callable_desc.size()), callable_desc.data() },
 			{ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() },
 			{ reshade::api::pipeline_subobject_type::max_recursion_depth, create_info.groupCount, const_cast<uint32_t *>(&create_info.maxPipelineRayRecursionDepth) },
+			{ reshade::api::pipeline_subobject_type::flags, 1, &flags },
 			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
 		};
 

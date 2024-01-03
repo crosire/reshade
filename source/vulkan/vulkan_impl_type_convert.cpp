@@ -2115,6 +2115,30 @@ auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) ->
 	}
 }
 
+auto reshade::vulkan::convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags
+{
+	VkPipelineCreateFlags result = 0;
+	if ((value & api::pipeline_flags::library) != 0)
+		result |= VK_PIPELINE_CREATE_LIBRARY_BIT_KHR;
+	if ((value & api::pipeline_flags::skip_triangles) != 0)
+		result |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR;
+	if ((value & api::pipeline_flags::skip_aabbs) != 0)
+		result |= VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR;
+
+	return result;
+}
+auto reshade::vulkan::convert_pipeline_flags(VkPipelineCreateFlags value) -> api::pipeline_flags
+{
+	api::pipeline_flags result = api::pipeline_flags::none;
+	if ((value & VK_PIPELINE_CREATE_LIBRARY_BIT_KHR) != 0)
+		result |= api::pipeline_flags::library;
+	if ((value & VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR) != 0)
+		result |= api::pipeline_flags::skip_triangles;
+	if ((value & VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR) != 0)
+		result |= api::pipeline_flags::skip_aabbs;
+
+	return result;
+}
 auto reshade::vulkan::convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR
 {
 	switch (value)

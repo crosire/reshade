@@ -786,6 +786,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	uint32_t max_payload_size = 0;
 	uint32_t max_attribute_size = 2 * sizeof(float); // Default triangle attributes
 	uint32_t max_recursion_depth = 1;
+	api::pipeline_flags flags = api::pipeline_flags::none;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -925,6 +926,10 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			assert(subobjects[i].count == 1);
 			max_recursion_depth = *static_cast<const uint32_t *>(subobjects[i].data);
 			break;
+		case api::pipeline_subobject_type::flags:
+			assert(subobjects[i].count == 1);
+			flags = *static_cast<const api::pipeline_flags *>(subobjects[i].data);
+			break;
 		default:
 			assert(false);
 			goto exit_failure;
@@ -943,13 +948,14 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			shader_config.MaxPayloadSizeInBytes = max_payload_size;
 			shader_config.MaxAttributeSizeInBytes = max_attribute_size;
 
-			D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_config;
+			D3D12_RAYTRACING_PIPELINE_CONFIG1 pipeline_config;
 			pipeline_config.MaxTraceRecursionDepth = max_recursion_depth;
+			pipeline_config.Flags = convert_pipeline_flags(flags);
 
 			std::vector<D3D12_STATE_SUBOBJECT> internal_subobjects;
 			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &root_signature });
 			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &shader_config });
-			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG, &pipeline_config });
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1, &pipeline_config });
 
 			std::vector<std::pair<const void *, size_t>> deduplicated_shader_bytecode;
 			for (const api::shader_desc &shader_desc : raygen_desc)
@@ -1085,7 +1091,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			}
 
 			D3D12_STATE_OBJECT_DESC internal_desc;
-			internal_desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+			internal_desc.Type = (flags & api::pipeline_flags::library) != 0 ? D3D12_STATE_OBJECT_TYPE_COLLECTION : D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
 			internal_desc.NumSubobjects = static_cast<UINT>(internal_subobjects.size());
 			internal_desc.pSubobjects = internal_subobjects.data();
 

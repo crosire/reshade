@@ -1764,6 +1764,26 @@ auto reshade::d3d12::convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_
 	return result;
 }
 
+auto reshade::d3d12::convert_pipeline_flags(api::pipeline_flags value) -> D3D12_RAYTRACING_PIPELINE_FLAGS
+{
+	D3D12_RAYTRACING_PIPELINE_FLAGS result = D3D12_RAYTRACING_PIPELINE_FLAG_NONE;
+	if ((value & api::pipeline_flags::skip_triangles) != 0)
+		result |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES;
+	if ((value & api::pipeline_flags::skip_aabbs) != 0)
+		result |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
+
+	return result;
+}
+auto reshade::d3d12::convert_pipeline_flags(D3D12_RAYTRACING_PIPELINE_FLAGS value) -> api::pipeline_flags
+{
+	api::pipeline_flags result = api::pipeline_flags::none;
+	if ((value & D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES) != 0)
+		result |= api::pipeline_flags::skip_triangles;
+	if ((value & D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES) != 0)
+		result |= api::pipeline_flags::skip_aabbs;
+
+	return result;
+}
 auto reshade::d3d12::convert_acceleration_structure_type(api::acceleration_structure_type value) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE
 {
 	return static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE>(value);

@@ -730,6 +730,18 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// The available pipeline creation flags.
+	/// </summary>
+	enum class pipeline_flags : uint32_t
+	{
+		none = 0,
+		library = (1 << 0),
+		skip_triangles = (1 << 1),
+		skip_aabbs = (1 << 2),
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_flags);
+
+	/// <summary>
 	/// The available pipeline sub-object types.
 	/// </summary>
 	enum class pipeline_subobject_type : uint32_t
@@ -929,6 +941,11 @@ namespace reshade { namespace api
 		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
 		/// </summary>
 		max_recursion_depth,
+		/// <summary>
+		/// Additional pipeline creation flags.
+		/// Sub-object data is a pointer to a <see cref="pipeline_flags"/> value.
+		/// </summary>
+		flags
 	};
 
 	/// <summary>

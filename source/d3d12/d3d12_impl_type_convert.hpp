@@ -144,6 +144,8 @@ namespace reshade::d3d12
 
 	auto convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_FLAGS;
 
+	auto convert_pipeline_flags(api::pipeline_flags value) -> D3D12_RAYTRACING_PIPELINE_FLAGS;
+	auto convert_pipeline_flags(D3D12_RAYTRACING_PIPELINE_FLAGS value) -> api::pipeline_flags;
 	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE;
 	auto convert_acceleration_structure_type(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE value) -> api::acceleration_structure_type;
 	auto convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE;
