@@ -144,30 +144,40 @@ reshade::vulkan::device_impl::~device_impl()
 	vmaDestroyAllocator(_alloc);
 }
 
-reshade::api::device_properties reshade::vulkan::device_impl::get_properties() const
+bool reshade::vulkan::device_impl::get_property(api::device_properties property, void *data) const
 {
-	api::device_properties props;
-
 	VkPhysicalDeviceProperties device_props = {};
 	_instance_dispatch_table.GetPhysicalDeviceProperties(_physical_device, &device_props);
 
-	props.api_version =
-		VK_VERSION_MAJOR(device_props.apiVersion) << 12 |
-		VK_VERSION_MINOR(device_props.apiVersion) << 8;
-
-	const uint32_t driver_major_version = VK_VERSION_MAJOR(device_props.driverVersion);
-	// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
-	const uint32_t driver_minor_version = device_props.vendorID == 0x10DE ?
-		(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
-	props.driver_version = driver_major_version * 100 + driver_minor_version;
-
-	props.vendor_id = device_props.vendorID;
-	props.device_id = device_props.deviceID;
-
-	static_assert(sizeof(props.description) >= sizeof(device_props.deviceName));
-	std::copy_n(device_props.deviceName, VK_MAX_PHYSICAL_DEVICE_NAME_SIZE, props.description);
-
-	return props;
+	switch (property)
+	{
+	case api::device_properties::api_version:
+		*static_cast<uint32_t *>(data) =
+			VK_VERSION_MAJOR(device_props.apiVersion) << 12 |
+			VK_VERSION_MINOR(device_props.apiVersion) << 8;
+		return true;
+	case api::device_properties::driver_version:
+	{
+		const uint32_t driver_major_version = VK_VERSION_MAJOR(device_props.driverVersion);
+		// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
+		const uint32_t driver_minor_version = device_props.vendorID == 0x10DE ?
+			(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
+		*static_cast<uint32_t *>(data) = driver_major_version * 100 + driver_minor_version;
+		return true;
+	}
+	case api::device_properties::vendor_id:
+		*static_cast<uint32_t *>(data) = device_props.vendorID;
+		return true;
+	case api::device_properties::device_id:
+		*static_cast<uint32_t *>(data) = device_props.deviceID;
+		return true;
+	case api::device_properties::description:
+		static_assert(VK_MAX_PHYSICAL_DEVICE_NAME_SIZE <= 256);
+		std::copy_n(device_props.deviceName, 256, static_cast<char *>(data));
+		return true;
+	default:
+		return false;
+	}
 }
 
 bool reshade::vulkan::device_impl::check_capability(api::device_caps capability) const

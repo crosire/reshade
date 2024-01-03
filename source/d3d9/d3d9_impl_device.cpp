@@ -136,24 +136,33 @@ void reshade::d3d9::device_impl::on_reset()
 	_default_input_layout.reset();
 }
 
-reshade::api::device_properties reshade::d3d9::device_impl::get_properties() const
+bool reshade::d3d9::device_impl::get_property(api::device_properties property, void *data) const
 {
-	api::device_properties props;
-	props.api_version = 0x9000;
-
 	D3DADAPTER_IDENTIFIER9 adapter_desc = {};
 	_d3d->GetAdapterIdentifier(_cp.AdapterOrdinal, 0, &adapter_desc);
 
-	// Only the last 5 digits represents the version specific to a driver
-	// See https://docs.microsoft.com/windows-hardware/drivers/display/version-numbers-for-display-drivers
-	props.driver_version = LOWORD(adapter_desc.DriverVersion.LowPart) + (HIWORD(adapter_desc.DriverVersion.LowPart) % 10) * 10000;
-
-	props.vendor_id = adapter_desc.VendorId;
-	props.device_id = adapter_desc.DeviceId;
-
-	std::copy_n(adapter_desc.Description, std::size(props.description), props.description);
-
-	return props;
+	switch (property)
+	{
+	case api::device_properties::api_version:
+		*static_cast<uint32_t *>(data) = 0x9000;
+		return true;
+	case api::device_properties::driver_version:
+		// Only the last 5 digits represents the version specific to a driver
+		// See https://docs.microsoft.com/windows-hardware/drivers/display/version-numbers-for-display-drivers
+		*static_cast<uint32_t *>(data) = LOWORD(adapter_desc.DriverVersion.LowPart) + (HIWORD(adapter_desc.DriverVersion.LowPart) % 10) * 10000;
+		return adapter_desc.DriverVersion.LowPart != 0;
+	case api::device_properties::vendor_id:
+		*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
+		return adapter_desc.VendorId != 0;
+	case api::device_properties::device_id:
+		*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
+		return adapter_desc.DeviceId != 0;
+	case api::device_properties::description:
+		std::copy_n(adapter_desc.Description, 256, static_cast<char *>(data));
+		return true;
+	default:
+		return false;
+	}
 }
 
 bool reshade::d3d9::device_impl::check_capability(api::device_caps capability) const

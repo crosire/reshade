@@ -43,7 +43,7 @@ namespace reshade::vulkan
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }
 
-		api::device_properties get_properties() const;
+		bool get_property(api::device_properties property, void *data) const final;
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;

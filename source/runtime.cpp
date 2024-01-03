@@ -292,11 +292,10 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 {
 	assert(swapchain != nullptr && graphics_queue != nullptr);
 
-	const api::device_properties props = _device->get_properties();
-	_vendor_id = props.vendor_id;
-	_device_id = props.device_id;
+	_device->get_property(api::device_properties::vendor_id, &_vendor_id);
+	_device->get_property(api::device_properties::device_id, &_device_id);
 
-	_renderer_id = props.api_version;
+	_device->get_property(api::device_properties::api_version, &_renderer_id);
 	switch (_device->get_api())
 	{
 	case api::device_api::d3d9:
@@ -312,10 +311,14 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 		break;
 	}
 
-	if (props.driver_version != 0)
-		LOG(INFO) << "Running on " << props.description << " Driver " << (props.driver_version / 100) << '.' << (props.driver_version % 100) << '.';
+	char device_description[256] = "";
+	_device->get_property(api::device_properties::description, device_description);
+
+	if (uint32_t driver_version = 0;
+		_device->get_property(api::device_properties::driver_version, &driver_version))
+		LOG(INFO) << "Running on " << device_description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100) << '.';
 	else
-		LOG(INFO) << "Running on " << props.description << '.';
+		LOG(INFO) << "Running on " << device_description << '.';
 
 	check_for_update();
 

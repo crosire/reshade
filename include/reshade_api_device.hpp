@@ -187,14 +187,35 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes an adapter/physical device.
+	/// The available properties a device may report.
 	/// </summary>
-	struct device_properties
+	enum class device_properties
 	{
-		unsigned int api_version = 0;
-		unsigned int driver_version = 0;
-		unsigned int vendor_id = 0, device_id = 0;
-		char description[256] = "";
+		/// <summary>
+		/// Version of the underlying render API the device is using.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		api_version = 1,
+		/// <summary>
+		/// Version of the graphics driver that is being used.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		driver_version,
+		/// <summary>
+		/// PCI vendor ID of the primary adapter/physical device associated with the logical render device.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		vendor_id,
+		/// <summary>
+		/// PCI device ID of the primary adapter/physical device associated with the logical render device.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		device_id,
+		/// <summary>
+		/// Description text of the primary adapter/physical device associated with the logical render device.
+		/// Data is an array of 256 byte-characters representing a null-terminated string.
+		/// </summary>
+		description,
 	};
 
 	/// <summary>
@@ -546,9 +567,12 @@ namespace reshade { namespace api
 		virtual bool signal(fence fence, uint64_t value) = 0;
 
 		/// <summary>
-		/// Gets information about the primary adapter associated with this logical render device.
+		/// Gets data for a <paramref name="property"/> of this device.
 		/// </summary>
-		virtual device_properties get_properties() const = 0;
+		/// <param name="property">Property to get data for.</param>
+		/// <param name="data">Pointer to a variable that is set to the value of the property. The necessary data type is documented at the <see cref="device_properties"/> enumeration.</param>
+		/// <returns><see langword="true"/> if the property exists and was retrieved, <see langword="false"/> otherwise.</returns>
+		virtual bool get_property(device_properties property, void *data) const = 0;
 
 		/// <summary>
 		/// Gets the required acceleration structure size needed to build the specified data.
