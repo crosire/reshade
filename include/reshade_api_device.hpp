@@ -216,6 +216,21 @@ namespace reshade { namespace api
 		/// Data is an array of 256 byte-characters representing a null-terminated string.
 		/// </summary>
 		description,
+		/// <summary>
+		/// Size of a <see cref="shader_group"/> handle as written by <see cref="device::get_pipeline_shader_group_handles"/>.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		shader_group_handle_size,
+		/// <summary>
+		/// Required alignment of the base <see cref="shader_group"/> handle in the buffers passed to <see cref="command_list::dispatch_rays"/>.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		shader_group_alignment,
+		/// <summary>
+		/// Required alignment of each <see cref="shader_group"/> handle in the buffers passed to <see cref="command_list::dispatch_rays"/>.
+		/// Data is a 32-bit unsigned integer value.
+		/// </summary>
+		shader_group_handle_alignment,
 	};
 
 	/// <summary>
@@ -601,7 +616,7 @@ namespace reshade { namespace api
 		/// <param name="pipeline">Ray tracing pipeline to query.</param>
 		/// <param name="first">Index of the first shader group in the <see cref="pipeline_subobject_type::shader_groups"/> array that was used to create the pipeline.</param>
 		/// <param name="count">Number of shader groups to get handles for.</param>
-		/// <param name="out_handles">Pointer to an array that is filled with the handles.</param>
+		/// <param name="out_handles">Pointer to an array (with elements of the size reported by <see cref="device_properties::shader_group_handle_size"/>) that is filled with the handles.</param>
 		/// <returns><see langword="true"/> if the shader group handles were successfully retrieved, <see langword="false"/> otherwise.</returns>
 		virtual bool get_pipeline_shader_group_handles(pipeline pipeline, uint32_t first, uint32_t count, void *out_handles) = 0;
 	};

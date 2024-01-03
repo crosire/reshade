@@ -18,6 +18,9 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 	pipeline_layout layout = {};
 	pipeline pipeline = {};
 	resource shader_binding_table = {};
+	uint32_t shader_binding_table_alignment = 0;
+	uint32_t shader_binding_table_handle_size = 0;
+	uint32_t shader_binding_table_handle_alignment = 0;
 
 	resource blas_resource = {};
 	resource_view blas = {};
@@ -111,14 +114,18 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 	}
 	bool init_shader_binding_table(device *device)
 	{
-		uint8_t sbt[64 * 3] = {};
-		device->get_pipeline_shader_group_handles(pipeline, 0, 1, sbt + 64 * 0);
-		device->get_pipeline_shader_group_handles(pipeline, 1, 1, sbt + 64 * 1);
-		device->get_pipeline_shader_group_handles(pipeline, 2, 1, sbt + 64 * 2);
+		device->get_property(device_properties::shader_group_handle_size, &shader_binding_table_handle_size);
+		device->get_property(device_properties::shader_group_alignment, &shader_binding_table_alignment);
+		device->get_property(device_properties::shader_group_handle_alignment, &shader_binding_table_handle_alignment);
 
-		const subresource_data sbt_data = { (void *)sbt, sizeof(sbt) };
+		std::vector<uint8_t> sbt(3 * std::max(shader_binding_table_alignment, shader_binding_table_handle_size));
+		device->get_pipeline_shader_group_handles(pipeline, 0, 1, sbt.data() + shader_binding_table_alignment * 0);
+		device->get_pipeline_shader_group_handles(pipeline, 1, 1, sbt.data() + shader_binding_table_alignment * 1);
+		device->get_pipeline_shader_group_handles(pipeline, 2, 1, sbt.data() + shader_binding_table_alignment * 2);
 
-		return device->create_resource(resource_desc(sizeof(sbt), memory_heap::gpu_only, resource_usage::shader_resource_non_pixel), &sbt_data, resource_usage::shader_resource_non_pixel, &shader_binding_table);
+		const subresource_data sbt_data = { sbt.data(), static_cast<uint32_t>(sbt.size()) };
+
+		return device->create_resource(resource_desc(sbt.size(), memory_heap::gpu_only, resource_usage::shader_resource_non_pixel), &sbt_data, resource_usage::shader_resource_non_pixel, &shader_binding_table);
 	}
 	bool init_output_texture(device *device)
 	{
@@ -252,7 +259,12 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 		cmd_list->bind_pipeline(pipeline_stage::all_ray_tracing, pipeline);
 		cmd_list->bind_descriptor_table(shader_stage::all_ray_tracing, layout, 0, descriptor_table);
 
-		cmd_list->dispatch_rays(shader_binding_table, 0, 32, shader_binding_table, 64 * 1, 32, 32, shader_binding_table, 64 * 2, 32, 32, {}, 0, 0, 0, 800, 600, 1);
+		cmd_list->dispatch_rays(
+			shader_binding_table, shader_binding_table_alignment * 0, shader_binding_table_handle_size,
+			shader_binding_table, shader_binding_table_alignment * 1, shader_binding_table_handle_size, shader_binding_table_handle_alignment,
+			shader_binding_table, shader_binding_table_alignment * 2, shader_binding_table_handle_size, shader_binding_table_handle_alignment,
+			{}, 0, 0, 0,
+			800, 600, 1);
 
 		cmd_list->barrier(output_texture, resource_usage::unordered_access, resource_usage::copy_source);
 		cmd_list->barrier(back_buffer, resource_usage::present, resource_usage::copy_dest);

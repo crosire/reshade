@@ -146,34 +146,44 @@ reshade::vulkan::device_impl::~device_impl()
 
 bool reshade::vulkan::device_impl::get_property(api::device_properties property, void *data) const
 {
-	VkPhysicalDeviceProperties device_props = {};
-	_instance_dispatch_table.GetPhysicalDeviceProperties(_physical_device, &device_props);
+	VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_tracing_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
+	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &ray_tracing_props };
+	_instance_dispatch_table.GetPhysicalDeviceProperties2(_physical_device, &device_props);
 
 	switch (property)
 	{
 	case api::device_properties::api_version:
 		*static_cast<uint32_t *>(data) =
-			VK_VERSION_MAJOR(device_props.apiVersion) << 12 |
-			VK_VERSION_MINOR(device_props.apiVersion) << 8;
+			VK_VERSION_MAJOR(device_props.properties.apiVersion) << 12 |
+			VK_VERSION_MINOR(device_props.properties.apiVersion) << 8;
 		return true;
 	case api::device_properties::driver_version:
 	{
-		const uint32_t driver_major_version = VK_VERSION_MAJOR(device_props.driverVersion);
+		const uint32_t driver_major_version = VK_VERSION_MAJOR(device_props.properties.driverVersion);
 		// NVIDIA has a custom driver version scheme, so extract the proper minor version from it
-		const uint32_t driver_minor_version = device_props.vendorID == 0x10DE ?
-			(device_props.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.driverVersion);
+		const uint32_t driver_minor_version = device_props.properties.vendorID == 0x10DE ?
+			(device_props.properties.driverVersion >> 14) & 0xFF : VK_VERSION_MINOR(device_props.properties.driverVersion);
 		*static_cast<uint32_t *>(data) = driver_major_version * 100 + driver_minor_version;
 		return true;
 	}
 	case api::device_properties::vendor_id:
-		*static_cast<uint32_t *>(data) = device_props.vendorID;
+		*static_cast<uint32_t *>(data) = device_props.properties.vendorID;
 		return true;
 	case api::device_properties::device_id:
-		*static_cast<uint32_t *>(data) = device_props.deviceID;
+		*static_cast<uint32_t *>(data) = device_props.properties.deviceID;
 		return true;
 	case api::device_properties::description:
 		static_assert(VK_MAX_PHYSICAL_DEVICE_NAME_SIZE <= 256);
-		std::copy_n(device_props.deviceName, 256, static_cast<char *>(data));
+		std::copy_n(device_props.properties.deviceName, 256, static_cast<char *>(data));
+		return true;
+	case api::device_properties::shader_group_handle_size:
+		*static_cast<uint32_t *>(data) = ray_tracing_props.shaderGroupHandleSize;
+		return true;
+	case api::device_properties::shader_group_alignment:
+		*static_cast<uint32_t *>(data) = ray_tracing_props.shaderGroupBaseAlignment;
+		return true;
+	case api::device_properties::shader_group_handle_alignment:
+		*static_cast<uint32_t *>(data) = ray_tracing_props.shaderGroupHandleAlignment;
 		return true;
 	default:
 		return false;
@@ -2225,7 +2235,10 @@ uint64_t reshade::vulkan::device_impl::get_acceleration_structure_gpu_address(ap
 
 bool reshade::vulkan::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups)
 {
-	return vk.GetRayTracingShaderGroupHandlesKHR(_orig, (VkPipeline)pipeline.handle, first, count, count * 32, groups) == VK_SUCCESS;
+	uint32_t handle_size = 0;
+	get_property(api::device_properties::shader_group_handle_size, &handle_size);
+
+	return vk.GetRayTracingShaderGroupHandlesKHR(_orig, (VkPipeline)pipeline.handle, first, count, count * handle_size, groups) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()

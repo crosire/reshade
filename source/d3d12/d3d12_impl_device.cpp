@@ -137,6 +137,15 @@ bool reshade::d3d12::device_impl::get_property(api::device_properties property, 
 		static_assert(std::size(adapter_desc.Description) <= 256);
 		utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
 		return true;
+	case api::device_properties::shader_group_handle_size:
+		*static_cast<uint32_t *>(data) = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+		return true;
+	case api::device_properties::shader_group_alignment:
+		*static_cast<uint32_t *>(data) = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+		return true;
+	case api::device_properties::shader_group_handle_alignment:
+		*static_cast<uint32_t *>(data) = D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
+		return true;
 	default:
 		return false;
 	}
