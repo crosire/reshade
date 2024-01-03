@@ -171,6 +171,9 @@ namespace reshade::d3d12
 template <D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type, typename T>
 struct alignas(void *) D3D12_PIPELINE_STATE_STREAM
 {
+	D3D12_PIPELINE_STATE_STREAM() {}
+	D3D12_PIPELINE_STATE_STREAM(const T &data) : data(data) {}
+
 	D3D12_PIPELINE_STATE_SUBOBJECT_TYPE type = Type;
 	T data = {};
 };

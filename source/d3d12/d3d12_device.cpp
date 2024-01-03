@@ -2081,11 +2081,11 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 
 	return true;
 }
-bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STATE_STREAM_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool create_pipeline)
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STATE_STREAM_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool with_create_pipeline)
 {
 	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
 		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
-		(create_pipeline && !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
+		(with_create_pipeline && !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
 		return false;
 
 	reshade::api::pipeline_layout layout = {};
@@ -2213,12 +2213,13 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CACHED_PSO);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS:
-			if (reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_FLAGS *>(p)->data & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS)
+			if ((reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_FLAGS *>(p)->data & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS) != 0)
 			{
 				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
 				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_clamp);
 				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_slope_scaled);
 			}
+			// Ignore 'D3D12_PIPELINE_STATE_FLAG_DYNAMIC_INDEX_BUFFER_STRIP_CUT'
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_FLAGS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1:
@@ -2264,7 +2265,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
 
-	if (create_pipeline)
+	if (with_create_pipeline)
 	{
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 		{
@@ -2274,6 +2275,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 		}
 		else
 		{
+			if (_interface_version < 2)
+				return false;
+
 			hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
 		}
 	}
@@ -2297,144 +2301,73 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 
 	return true;
 }
-bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool create_pipeline)
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool with_create_pipeline)
 {
-	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
-		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
-		(create_pipeline && !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
-		return false;
-
-	reshade::api::shader_desc cs_desc = reshade::d3d12::convert_shader_desc(internal_desc.CS);
-
-	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc }
+	struct
+	{
+		D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
+		D3D12_PIPELINE_STATE_STREAM_CS cs;
+		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
+		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
+	} stream_data = {
+		{ internal_desc.pRootSignature },
+		{ internal_desc.CS },
+		{ internal_desc.NodeMask },
+		{ internal_desc.CachedPSO },
+		{ internal_desc.Flags }
 	};
 
-	if (create_pipeline)
-	{
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects))
-		{
-			reshade::api::pipeline handle;
-			hr = device_impl::create_pipeline(to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, &handle) ? S_OK : E_FAIL;
-			d3d_pipeline = reinterpret_cast<ID3D12PipelineState *>(handle.handle);
-		}
-		else
-		{
-			hr = _orig->CreateComputePipelineState(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
-		}
-	}
-	else
-	{
-		assert(d3d_pipeline != nullptr);
-		hr = S_OK;
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(d3d_pipeline));
-
-		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
-		{
-			register_destruction_callback_d3dx(d3d_pipeline, [this, d3d_pipeline]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(d3d_pipeline));
-			});
-		}
-	}
-
-	return true;
+	return invoke_create_and_init_pipeline_event(D3D12_PIPELINE_STATE_STREAM_DESC { sizeof(stream_data), &stream_data }, d3d_pipeline, hr, with_create_pipeline);
 }
-bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool create_pipeline)
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool with_create_pipeline)
 {
-	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
-		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
-		(create_pipeline && !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
-		return false;
-
-	reshade::api::shader_desc vs_desc = reshade::d3d12::convert_shader_desc(internal_desc.VS);
-	reshade::api::shader_desc ps_desc = reshade::d3d12::convert_shader_desc(internal_desc.PS);
-	reshade::api::shader_desc ds_desc = reshade::d3d12::convert_shader_desc(internal_desc.DS);
-	reshade::api::shader_desc hs_desc = reshade::d3d12::convert_shader_desc(internal_desc.HS);
-	reshade::api::shader_desc gs_desc = reshade::d3d12::convert_shader_desc(internal_desc.GS);
-	auto stream_output_desc = reshade::d3d12::convert_stream_output_desc(internal_desc.StreamOutput);
-	auto blend_desc = reshade::d3d12::convert_blend_desc(internal_desc.BlendState);
-	auto rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(internal_desc.RasterizerState);
-	auto depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(internal_desc.DepthStencilState);
-	auto input_layout = reshade::d3d12::convert_input_layout_desc(internal_desc.InputLayout.NumElements, internal_desc.InputLayout.pInputElementDescs);
-	reshade::api::primitive_topology topology = reshade::d3d12::convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
-
-	reshade::api::format depth_stencil_format = reshade::d3d12::convert_format(internal_desc.DSVFormat);
-	assert(internal_desc.NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
-	reshade::api::format render_target_formats[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
-		render_target_formats[i] = reshade::d3d12::convert_format(internal_desc.RTVFormats[i]);
-
-	uint32_t sample_mask = internal_desc.SampleMask;
-	uint32_t sample_count = internal_desc.SampleDesc.Count;
-
-	std::vector<reshade::api::dynamic_state> dynamic_states = {
-		reshade::api::dynamic_state::primitive_topology,
-		reshade::api::dynamic_state::blend_constant,
-		reshade::api::dynamic_state::front_stencil_reference_value,
-		reshade::api::dynamic_state::back_stencil_reference_value
-	};
-	if (internal_desc.Flags & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS)
+	struct
 	{
-		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
-		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_clamp);
-		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_slope_scaled);
-	}
-
-	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc },
-		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc },
-		{ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc },
-		{ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc },
-		{ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc },
-		{ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc },
-		{ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc },
-		{ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask },
-		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc },
-		{ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc },
-		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() },
-		{ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology },
-		{ reshade::api::pipeline_subobject_type::render_target_formats, internal_desc.NumRenderTargets, render_target_formats },
-		{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
-		{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
-		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
+		D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
+		D3D12_PIPELINE_STATE_STREAM_VS vs;
+		D3D12_PIPELINE_STATE_STREAM_PS ps;
+		D3D12_PIPELINE_STATE_STREAM_DS ds;
+		D3D12_PIPELINE_STATE_STREAM_HS hs;
+		D3D12_PIPELINE_STATE_STREAM_GS gs;
+		D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT stream_output;
+		D3D12_PIPELINE_STATE_STREAM_BLEND_DESC blend_state;
+		D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK sample_mask;
+		D3D12_PIPELINE_STATE_STREAM_RASTERIZER rasterizer_state;
+		D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL depth_stencil_state;
+		D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT input_layout;
+		D3D12_PIPELINE_STATE_STREAM_IB_STRIP_CUT_VALUE ib_strip_cut_value;
+		D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY primitive_topology_type;
+		D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS render_target_formats;
+		D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
+		D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
+		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
+		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
+	} stream_data = {
+		{ internal_desc.pRootSignature },
+		{ internal_desc.VS },
+		{ internal_desc.PS },
+		{ internal_desc.DS },
+		{ internal_desc.HS },
+		{ internal_desc.GS },
+		{ internal_desc.StreamOutput },
+		{ internal_desc.BlendState },
+		{ internal_desc.SampleMask },
+		{ internal_desc.RasterizerState },
+		{ internal_desc.DepthStencilState },
+		{ internal_desc.InputLayout },
+		{ internal_desc.IBStripCutValue },
+		{ internal_desc.PrimitiveTopologyType },
+		{ D3D12_RT_FORMAT_ARRAY { { internal_desc.RTVFormats[0], internal_desc.RTVFormats[1], internal_desc.RTVFormats[2], internal_desc.RTVFormats[3], internal_desc.RTVFormats[4], internal_desc.RTVFormats[5], internal_desc.RTVFormats[6], internal_desc.RTVFormats[7] }, internal_desc.NumRenderTargets } },
+		{ internal_desc.DSVFormat },
+		{ internal_desc.SampleDesc },
+		{ internal_desc.NodeMask },
+		{ internal_desc.CachedPSO },
+		{ internal_desc.Flags }
 	};
 
-	if (create_pipeline)
-	{
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects))
-		{
-			reshade::api::pipeline pipeline;
-			hr = device_impl::create_pipeline(to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, &pipeline) ? S_OK : E_FAIL;
-			d3d_pipeline = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
-		}
-		else
-		{
-			hr = _orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
-		}
-	}
-	else
-	{
-		assert(d3d_pipeline != nullptr);
-		hr = S_OK;
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(d3d_pipeline));
-
-		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
-		{
-			register_destruction_callback_d3dx(d3d_pipeline, [this, d3d_pipeline]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(d3d_pipeline));
-			});
-		}
-	}
-
-	return true;
+	return invoke_create_and_init_pipeline_event(D3D12_PIPELINE_STATE_STREAM_DESC { sizeof(stream_data), &stream_data }, d3d_pipeline, hr, with_create_pipeline);
 }
 
 bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, const void *blob, size_t blob_size, ID3D12RootSignature *&root_signature, HRESULT &hr)
