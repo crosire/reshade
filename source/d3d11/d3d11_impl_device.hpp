@@ -37,6 +37,8 @@ namespace reshade::d3d11
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 
+		uint64_t get_resource_view_gpu_address(api::resource_view) const final { return 0; }
+
 		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
 		void unmap_buffer_region(api::resource resource) final;
 		bool map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data) final;
@@ -86,8 +88,6 @@ namespace reshade::d3d11
 		bool signal(api::fence fence, uint64_t value) final;
 
 		void get_acceleration_structure_sizes(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
-
-		uint64_t get_acceleration_structure_gpu_address(api::resource_view handle) const final;
 
 		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups) final;
 	};

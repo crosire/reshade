@@ -2452,11 +2452,6 @@ void reshade::opengl::device_impl::get_acceleration_structure_sizes(api::acceler
 		*out_update_scratch_size = 0;
 }
 
-uint64_t reshade::opengl::device_impl::get_acceleration_structure_gpu_address(api::resource_view handle) const
-{
-	return handle.handle;
-}
-
 bool reshade::opengl::device_impl::get_pipeline_shader_group_handles(api::pipeline, uint32_t, uint32_t, void *)
 {
 	return false;

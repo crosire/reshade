@@ -584,10 +584,17 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets data for a <paramref name="property"/> of this device.
 		/// </summary>
-		/// <param name="property">Property to get data for.</param>
+		/// <param name="property">Property to query.</param>
 		/// <param name="data">Pointer to a variable that is set to the value of the property. The necessary data type is documented at the <see cref="device_properties"/> enumeration.</param>
 		/// <returns><see langword="true"/> if the property exists and was retrieved, <see langword="false"/> otherwise.</returns>
 		virtual bool get_property(device_properties property, void *data) const = 0;
+
+		/// <summary>
+		/// Gets the GPU address for a resource view.
+		/// </summary>
+		/// <param name="handle">Resource view to query.</param>
+		/// <returns>GPU address of the resource view, or zero in case of failure or when no fixed GPU address exists.</returns>
+		virtual uint64_t get_resource_view_gpu_address(resource_view handle) const = 0;
 
 		/// <summary>
 		/// Gets the required acceleration structure size needed to build the specified data.
@@ -601,13 +608,6 @@ namespace reshade { namespace api
 		/// <param name="out_build_scratch_size">Pointer to a variable that is set to the required scratch buffer size for building the acceleration structure.</param>
 		/// <param name="out_update_scratch_size">Pointer to a variable that is set to the required scratch buffer size for updating the acceleration structure.</param>
 		virtual void get_acceleration_structure_sizes(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const = 0;
-
-		/// <summary>
-		/// Gets the GPU address for an acceleration structure, which can be filled into the <see cref="acceleration_structure_instance::acceleration_structure_gpu_address"/> field.
-		/// </summary>
-		/// <param name="handle">Acceleration structure to query.</param>
-		/// <returns>GPU address of the acceleration structure, or zero in case of failure.</returns>
-		virtual uint64_t get_acceleration_structure_gpu_address(resource_view handle) const = 0;
 
 		/// <summary>
 		/// Gets the shader group handles for a ray tracing pipeline, to be put into a shader binding table.

@@ -537,6 +537,28 @@ reshade::api::resource_view_desc reshade::d3d12::device_impl::get_resource_view_
 		return assert(false), api::resource_view_desc();
 }
 
+uint64_t reshade::d3d12::device_impl::get_resource_view_gpu_address(api::resource_view handle) const
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(handle.handle) };
+
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+
+	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
+	{
+		switch (it->second.second.type)
+		{
+		case api::resource_view_type::buffer:
+			return it->second.first->GetGPUVirtualAddress() + it->second.second.buffer.offset;
+		case api::resource_view_type::acceleration_structure:
+			return handle.handle;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
 bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
 {
 	if (out_data == nullptr)
@@ -1831,11 +1853,6 @@ void reshade::d3d12::device_impl::get_acceleration_structure_sizes(api::accelera
 		if (out_update_scratch_size != nullptr)
 			*out_update_scratch_size = 0;
 	}
-}
-
-uint64_t reshade::d3d12::device_impl::get_acceleration_structure_gpu_address(api::resource_view handle) const
-{
-	return handle.handle;
 }
 
 bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups)

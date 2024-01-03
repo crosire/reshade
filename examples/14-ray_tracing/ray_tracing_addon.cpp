@@ -214,7 +214,7 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 		std::memcpy(instance.transform, transform, sizeof(transform));
 		instance.mask = 0xFF;
 		instance.flags = 0x1;
-		instance.acceleration_structure_gpu_address = device->get_acceleration_structure_gpu_address(blas);
+		instance.acceleration_structure_gpu_address = device->get_resource_view_gpu_address(blas);
 
 		const subresource_data instance_data = { (void *)&instance, sizeof(instance) };
 

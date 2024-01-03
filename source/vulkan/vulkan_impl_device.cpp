@@ -859,6 +859,29 @@ reshade::api::resource_view_desc reshade::vulkan::device_impl::get_resource_view
 		return convert_resource_view_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR> *>(data)->create_info);
 }
 
+uint64_t reshade::vulkan::device_impl::get_resource_view_gpu_address(api::resource_view handle) const
+{
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+	{
+		return 0;
+	}
+	else if (data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
+	{
+		VkBufferDeviceAddressInfo info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+		info.buffer = reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.buffer;
+
+		return vk.GetBufferDeviceAddress(_orig, &info) + reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER_VIEW> *>(data)->create_info.offset;
+	}
+	else
+	{
+		VkAccelerationStructureDeviceAddressInfoKHR info{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
+		info.accelerationStructure = (VkAccelerationStructureKHR)handle.handle;
+
+		return vk.GetAccelerationStructureDeviceAddressKHR(_orig, &info);
+	}
+}
+
 bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access, void **out_data)
 {
 	if (out_data == nullptr)
@@ -2223,14 +2246,6 @@ void reshade::vulkan::device_impl::get_acceleration_structure_sizes(api::acceler
 		*out_build_scratch_size = size_info.buildScratchSize;
 	if (out_update_scratch_size != nullptr)
 		*out_update_scratch_size = size_info.updateScratchSize;
-}
-
-uint64_t reshade::vulkan::device_impl::get_acceleration_structure_gpu_address(api::resource_view handle) const
-{
-	VkAccelerationStructureDeviceAddressInfoKHR info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
-	info.accelerationStructure = (VkAccelerationStructureKHR)handle.handle;
-
-	return vk.GetAccelerationStructureDeviceAddressKHR(_orig, &info);
 }
 
 bool reshade::vulkan::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups)
