@@ -3386,19 +3386,6 @@ void reshade::runtime::draw_variable_editor()
 			if (category_closed)
 				continue;
 
-			// Add spacing before variable widget
-			for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
-				ImGui::Spacing();
-
-			// Add user-configurable text before variable widget
-			if (const std::string_view text = get_localized_annotation(variable, "ui_text", _language);
-				!text.empty())
-			{
-				ImGui::PushTextWrapPos();
-				ImGui::TextUnformatted(text.data());
-				ImGui::PopTextWrapPos();
-			}
-
 			bool modified = false;
 			bool is_default_value = true;
 
@@ -3424,8 +3411,6 @@ void reshade::runtime::draw_variable_editor()
 					is_default_value = std::abs(value.as_float[i] - variable.initializer_value.as_float[i]) < threshold;
 				break;
 			}
-
-			ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
 
 #if RESHADE_ADDON
 			if (invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this, api::effect_uniform_variable{ reinterpret_cast<uintptr_t>(&variable) }))
@@ -3453,6 +3438,21 @@ void reshade::runtime::draw_variable_editor()
 			else
 #endif
 			{
+				// Add spacing before variable widget
+				for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
+					ImGui::Spacing();
+
+				// Add user-configurable text before variable widget
+				if (const std::string_view text = get_localized_annotation(variable, "ui_text", _language);
+					!text.empty())
+				{
+					ImGui::PushTextWrapPos();
+					ImGui::TextUnformatted(text.data());
+					ImGui::PopTextWrapPos();
+				}
+
+				ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
+
 				std::string_view label = get_localized_annotation(variable, "ui_label", _language);
 				if (label.empty())
 					label = variable.name;
@@ -3543,25 +3543,25 @@ void reshade::runtime::draw_variable_editor()
 						break;
 					}
 				}
-			}
 
-			ImGui::EndDisabled();
+				ImGui::EndDisabled();
+
+				// Display tooltip
+				if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
+					!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
+				{
+					if (ImGui::BeginTooltip())
+					{
+						ImGui::TextUnformatted(tooltip.data());
+						ImGui::EndTooltip();
+					}
+				}
+			}
 
 			if (ImGui::IsItemActive())
 				active_variable = variable_index + 1;
 			if (ImGui::IsItemHovered())
 				hovered_variable = variable_index + 1;
-
-			// Display tooltip
-			if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
-			{
-				if (ImGui::BeginTooltip())
-				{
-					ImGui::TextUnformatted(tooltip.data());
-					ImGui::EndTooltip();
-				}
-			}
 
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
@@ -3926,8 +3926,6 @@ void reshade::runtime::draw_technique_editor()
 			// Prevent user from disabling the technique when it is set to always be enabled via annotation
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
-			ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
-
 #if RESHADE_ADDON
 			if (bool was_enabled = tech.enabled;
 				invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
@@ -3937,6 +3935,8 @@ void reshade::runtime::draw_technique_editor()
 			else
 #endif
 			{
+				ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
+
 				// Gray out disabled techniques
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
@@ -3957,9 +3957,20 @@ void reshade::runtime::draw_technique_editor()
 				}
 
 				ImGui::PopStyleColor();
-			}
 
-			ImGui::EndDisabled();
+				ImGui::EndDisabled();
+
+				// Display tooltip
+				if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
+					!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
+				{
+					if (ImGui::BeginTooltip())
+					{
+						ImGui::TextUnformatted(tooltip.data());
+						ImGui::EndTooltip();
+					}
+				}
+			}
 
 			if (ImGui::IsItemActive())
 				_selected_technique = index;
@@ -3967,17 +3978,6 @@ void reshade::runtime::draw_technique_editor()
 				_focused_effect = tech.effect_index;
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 				hovered_technique_index = index;
-
-			// Display tooltip
-			if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
-			{
-				if (ImGui::BeginTooltip())
-				{
-					ImGui::TextUnformatted(tooltip.data());
-					ImGui::EndTooltip();
-				}
-			}
 
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
