@@ -171,7 +171,7 @@ void reshade::runtime::build_font_atlas()
 	std::filesystem::path resolved_font_path;
 
 #if RESHADE_LOCALIZATION
-	std::string language = _language;
+	std::string language = _selected_language;
 	if (language.empty())
 		language = resources::get_current_language();
 
@@ -357,7 +357,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config_get("INPUT", "InputProcessing", _input_processing_mode);
 
 #if RESHADE_LOCALIZATION
-	config_get("OVERLAY", "Language", _language);
+	config_get("OVERLAY", "Language", _selected_language);
 #endif
 
 	config.get("OVERLAY", "ClockFormat", _clock_format);
@@ -458,7 +458,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 	config.set("INPUT", "InputProcessing", _input_processing_mode);
 
 #if RESHADE_LOCALIZATION
-	config.set("OVERLAY", "Language", _language);
+	config.set("OVERLAY", "Language", _selected_language);
 #endif
 
 	config.set("OVERLAY", "ClockFormat", _clock_format);
@@ -971,7 +971,8 @@ void reshade::runtime::draw_gui()
 	ImGui::NewFrame();
 
 #if RESHADE_LOCALIZATION
-	const std::string prev_language = resources::set_current_language(_language);
+	const std::string prev_language = resources::set_current_language(_selected_language);
+	_current_language = resources::get_current_language();
 #endif
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
@@ -2119,7 +2120,7 @@ void reshade::runtime::draw_gui_settings()
 			std::vector<std::string> languages = resources::get_languages();
 
 			int lang_index = 0;
-			if (const auto it = std::find(languages.begin(), languages.end(), _language); it != languages.end())
+			if (const auto it = std::find(languages.begin(), languages.end(), _selected_language); it != languages.end())
 				lang_index = static_cast<int>(std::distance(languages.begin(), it) + 1);
 
 			if (ImGui::Combo(_("Language"), &lang_index,
@@ -2133,9 +2134,9 @@ void reshade::runtime::draw_gui_settings()
 			{
 				modified = true;
 				if (lang_index == 0)
-					_language.clear();
+					_selected_language.clear();
 				else
-					_language = languages[lang_index - 1];
+					_selected_language = languages[lang_index - 1];
 				// Rebuild font atlas in case language needs a special font or glyph range
 				_imgui_context->IO.Fonts->TexReady = false;
 			}
@@ -3339,7 +3340,7 @@ void reshade::runtime::draw_variable_editor()
 
 				if (!current_category.empty())
 				{
-					std::string category_label = current_category;
+					std::string category_label(get_localized_annotation(variable, "ui_category", _current_language));
 					if (!_variable_editor_tabs)
 					{
 						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
@@ -3443,7 +3444,7 @@ void reshade::runtime::draw_variable_editor()
 					ImGui::Spacing();
 
 				// Add user-configurable text before variable widget
-				if (const std::string_view text = get_localized_annotation(variable, "ui_text", _language);
+				if (const std::string_view text = get_localized_annotation(variable, "ui_text", _current_language);
 					!text.empty())
 				{
 					ImGui::PushTextWrapPos();
@@ -3453,7 +3454,7 @@ void reshade::runtime::draw_variable_editor()
 
 				ImGui::BeginDisabled(variable.annotation_as_uint("noedit") != 0);
 
-				std::string_view label = get_localized_annotation(variable, "ui_label", _language);
+				std::string_view label = get_localized_annotation(variable, "ui_label", _current_language);
 				if (label.empty())
 					label = variable.name;
 				const std::string_view ui_type = variable.annotation_as_string("ui_type");
@@ -3480,7 +3481,7 @@ void reshade::runtime::draw_variable_editor()
 
 						// Append units
 						std::string format = "%d";
-						const std::string_view units = get_localized_annotation(variable, "ui_units", _language);
+						const std::string_view units = get_localized_annotation(variable, "ui_units", _current_language);
 						format.append(units);
 
 						if (ui_type == "slider")
@@ -3490,11 +3491,11 @@ void reshade::runtime::draw_variable_editor()
 								ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
 								imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 						else if (ui_type == "list")
-							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), value.as_int[0]);
+							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
 						else if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _language), value.as_int[0]);
+							modified = imgui::combo_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
 						else if (ui_type == "radio")
-							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _language), value.as_int[0]);
+							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
 								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &value.as_int[variable.type.cols * row], variable.type.cols) || modified;
@@ -3517,7 +3518,7 @@ void reshade::runtime::draw_variable_editor()
 							++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
 
 						// Append units
-						const std::string_view units = get_localized_annotation(variable, "ui_units", _language);
+						const std::string_view units = get_localized_annotation(variable, "ui_units", _current_language);
 						precision_format.append(units);
 
 						if (ui_type == "slider")
@@ -3547,7 +3548,7 @@ void reshade::runtime::draw_variable_editor()
 				ImGui::EndDisabled();
 
 				// Display tooltip
-				if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _language);
+				if (const std::string_view tooltip = get_localized_annotation(variable, "ui_tooltip", _current_language);
 					!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
 				{
 					if (ImGui::BeginTooltip())
@@ -3940,7 +3941,7 @@ void reshade::runtime::draw_technique_editor()
 				// Gray out disabled techniques
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
-				std::string label(get_localized_annotation(tech, "ui_label", _language));
+				std::string label(get_localized_annotation(tech, "ui_label", _current_language));
 				if (label.empty())
 					label = tech.name;
 				label += " [" + effect.source_file.filename().u8string() + ']';
@@ -3961,7 +3962,7 @@ void reshade::runtime::draw_technique_editor()
 				ImGui::EndDisabled();
 
 				// Display tooltip
-				if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
+				if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _current_language);
 					!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
 				{
 					if (ImGui::BeginTooltip())
