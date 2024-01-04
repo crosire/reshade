@@ -28,9 +28,9 @@ extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 	assert(trampoline != nullptr)
 #define INIT_DISPATCH_PTR(name) \
 	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_device_proc(device, "vk" #name))
-#define INIT_DISPATCH_PTR_EXTENSION(name, suffix) \
-	if (dispatch_table.name == nullptr) \
-		dispatch_table.name  = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
+#define INIT_DISPATCH_PTR_ALTERNATIVE(name, suffix) \
+	if (nullptr == dispatch_table.name) \
+		dispatch_table.name = reinterpret_cast<PFN_vk##name##suffix>(get_device_proc(device, "vk" #name #suffix))
 
 #if RESHADE_ADDON
 static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
@@ -78,6 +78,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
 	const instance_dispatch_table &instance_dispatch = g_vulkan_instances.at(dispatch_key_from_handle(physicalDevice));
+	assert(instance_dispatch.instance != VK_NULL_HANDLE);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
 	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
@@ -129,9 +130,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	enum_queue_families(physicalDevice, &num_queue_families, queue_families.data());
 
 	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
-	for (uint32_t i = 0, queue_family_index; i < pCreateInfo->queueCreateInfoCount; ++i)
+	for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; ++i)
 	{
-		queue_family_index = pCreateInfo->pQueueCreateInfos[i].queueFamilyIndex;
+		const uint32_t queue_family_index = pCreateInfo->pQueueCreateInfos[i].queueFamilyIndex;
 		assert(queue_family_index < num_queue_families);
 
 		// Find the first queue family which supports graphics and has at least one queue
@@ -164,6 +165,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool custom_border_color_ext = false;
 	bool extended_dynamic_state_ext = false;
 	bool conservative_rasterization_ext = false;
+	bool ray_tracing_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
@@ -238,6 +240,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
+
+		ray_tracing_ext =
+			add_extension(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_SPIRV_1_4_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, false) &&
+			add_extension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, false);
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -350,6 +361,36 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
 
 		create_info.pNext = &extended_dynamic_state_feature;
+	}
+
+	// Optionally enable ray tracing feature
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_feature;
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_feature;
+	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_feature;
+	if (const auto existing_ray_tracing_features = find_in_structure_chain<VkPhysicalDeviceRayTracingPipelineFeaturesKHR>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR))
+	{
+		ray_tracing_ext = existing_ray_tracing_features->rayTracingPipeline;
+	}
+	else if (ray_tracing_ext)
+	{
+		ray_tracing_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
+		ray_tracing_feature.pNext = const_cast<void *>(create_info.pNext);
+		ray_tracing_feature.rayTracingPipeline = VK_TRUE;
+
+		create_info.pNext = &ray_tracing_feature;
+
+		acceleration_structure_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
+		acceleration_structure_feature.pNext = const_cast<void *>(create_info.pNext);
+		acceleration_structure_feature.accelerationStructure = VK_TRUE;
+
+		create_info.pNext = &acceleration_structure_feature;
+
+		buffer_device_address_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
+		buffer_device_address_feature.pNext = const_cast<void *>(create_info.pNext);
+		buffer_device_address_feature.bufferDeviceAddress = VK_TRUE;
+
+		create_info.pNext = &buffer_device_address_feature;
 	}
 
 	// Continue calling down the chain
@@ -493,6 +534,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetSemaphoreCounterValue);
 		INIT_DISPATCH_PTR(WaitSemaphores);
 		INIT_DISPATCH_PTR(SignalSemaphore);
+		INIT_DISPATCH_PTR(GetBufferDeviceAddress);
 	}
 
 	// Core 1_3
@@ -541,43 +583,46 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(AcquireNextImage2KHR);
 
 	// VK_KHR_dynamic_rendering
-	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRendering, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdEndRendering, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBeginRendering, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdEndRendering, KHR);
 
 	// VK_KHR_push_descriptor
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 
 	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
-	INIT_DISPATCH_PTR_EXTENSION(CreateRenderPass2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBeginRenderPass2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdNextSubpass2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdEndRenderPass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CreateRenderPass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBeginRenderPass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdNextSubpass2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdEndRenderPass2, KHR);
 
 	// VK_KHR_bind_memory2
-	INIT_DISPATCH_PTR_EXTENSION(BindBufferMemory2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(BindImageMemory2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(BindBufferMemory2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(BindImageMemory2, KHR);
 
 	// VK_KHR_draw_indirect_count
-	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndirectCount, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdDrawIndexedIndirectCount, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdDrawIndirectCount, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdDrawIndexedIndirectCount, KHR);
 
 	// VK_KHR_timeline_semaphore
-	INIT_DISPATCH_PTR_EXTENSION(GetSemaphoreCounterValue, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(WaitSemaphores, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(SignalSemaphore, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(GetSemaphoreCounterValue, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(WaitSemaphores, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(SignalSemaphore, KHR);
+
+	// VK_KHR_buffer_device_address
+	INIT_DISPATCH_PTR_ALTERNATIVE(GetBufferDeviceAddress, KHR);
 
 	// VK_KHR_synchronization2
-	INIT_DISPATCH_PTR_EXTENSION(CmdPipelineBarrier2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdWriteTimestamp2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(QueueSubmit2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdPipelineBarrier2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdWriteTimestamp2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(QueueSubmit2, KHR);
 
 	// VK_KHR_copy_commands2
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBuffer2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyBufferToImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdCopyImageToBuffer2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBlitImage2, KHR);
-	INIT_DISPATCH_PTR_EXTENSION(CmdResolveImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyBuffer2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyBufferToImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdCopyImageToBuffer2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBlitImage2, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdResolveImage2, KHR);
 
 	// VK_EXT_transform_feedback
 	INIT_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
@@ -594,24 +639,48 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
 
 	// VK_EXT_extended_dynamic_state
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetCullMode, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetFrontFace, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetPrimitiveTopology, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetViewportWithCount, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetScissorWithCount, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdBindVertexBuffers2, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthTestEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthWriteEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthCompareOp, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetDepthBoundsTestEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilTestEnable, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(CmdSetStencilOp, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetCullMode, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetFrontFace, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetPrimitiveTopology, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetViewportWithCount, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetScissorWithCount, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBindVertexBuffers2, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthTestEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthWriteEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthCompareOp, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthBoundsTestEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetStencilTestEnable, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CmdSetStencilOp, EXT);
 
 	// VK_EXT_private_data (try the EXT version if the core version does not exist)
-	INIT_DISPATCH_PTR_EXTENSION(CreatePrivateDataSlot, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(DestroyPrivateDataSlot, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(GetPrivateData, EXT);
-	INIT_DISPATCH_PTR_EXTENSION(SetPrivateData, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(CreatePrivateDataSlot, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(DestroyPrivateDataSlot, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(GetPrivateData, EXT);
+	INIT_DISPATCH_PTR_ALTERNATIVE(SetPrivateData, EXT);
+
+	// VK_KHR_acceleration_structure
+	INIT_DISPATCH_PTR(CreateAccelerationStructureKHR);
+	INIT_DISPATCH_PTR(DestroyAccelerationStructureKHR);
+	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresKHR);
+	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
+	INIT_DISPATCH_PTR(CopyAccelerationStructureKHR);
+	INIT_DISPATCH_PTR(GetAccelerationStructureDeviceAddressKHR);
+	INIT_DISPATCH_PTR(GetAccelerationStructureBuildSizesKHR);
+
+	// VK_KHR_ray_tracing_pipeline
+	INIT_DISPATCH_PTR(CmdTraceRaysKHR);
+	INIT_DISPATCH_PTR(CreateRayTracingPipelinesKHR);
+	INIT_DISPATCH_PTR(GetRayTracingShaderGroupHandlesKHR);
+	INIT_DISPATCH_PTR(CmdTraceRaysIndirectKHR);
+	INIT_DISPATCH_PTR(CmdSetRayTracingPipelineStackSizeKHR);
+
+	// VK_KHR_ray_tracing_maintenance1
+	INIT_DISPATCH_PTR(CmdTraceRaysIndirect2KHR);
+
+	// VK_EXT_mesh_shader
+	INIT_DISPATCH_PTR(CmdDrawMeshTasksEXT);
+	INIT_DISPATCH_PTR(CmdDrawMeshTasksIndirectEXT);
+	INIT_DISPATCH_PTR(CmdDrawMeshTasksIndirectCountEXT);
 
 	// VK_KHR_external_memory_win32
 	INIT_DISPATCH_PTR(GetMemoryWin32HandleKHR);
@@ -635,7 +704,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		timeline_semaphore_ext,
 		custom_border_color_ext,
 		extended_dynamic_state_ext,
-		conservative_rasterization_ext);
+		conservative_rasterization_ext,
+		ray_tracing_ext);
 
 	device_impl->_graphics_queue_family_index = graphics_queue_family_index;
 
@@ -729,9 +799,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
+	std::vector<VkFormat> format_list;
+	std::vector<uint32_t> queue_family_list;
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
 	VkImageFormatListCreateInfoKHR format_list_info;
-	std::vector<VkFormat> format_list; std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (device_impl->_graphics_queue_family_index != std::numeric_limits<uint32_t>::max())
@@ -993,17 +1064,14 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	image_data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	for (uint32_t i = 0; i < num_images; ++i)
-	{
 		device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i], std::move(image_data));
 
 #if RESHADE_ADDON
-		// Create default views for swap chain images
-		create_default_view(device_impl, swapchain_images[i]);
-#endif
-	}
-
-#if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(swapchain_impl);
+
+	// Create default views for swap chain images (do this after the "init_swapchain" event, so that the images are known to add-ons)
+	for (uint32_t i = 0; i < num_images; ++i)
+		create_default_view(device_impl, swapchain_images[i]);
 #endif
 
 	reshade::init_effect_runtime(swapchain_impl);
@@ -1025,7 +1093,6 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 
 	// Remove swap chain from global list
 	reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
-
 	if (swapchain_impl != nullptr)
 	{
 		reshade::reset_effect_runtime(swapchain_impl);
@@ -1514,7 +1581,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	VkBufferViewCreateInfo create_info = *pCreateInfo;
 	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::undefined, desc))
 	{
 		reshade::vulkan::convert_resource_view_desc(desc, create_info);
 		pCreateInfo = &create_info;
@@ -1536,7 +1603,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		device_impl, reshade::api::resource { (uint64_t)pCreateInfo->buffer }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
+		device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
 #endif
 
 	return result;
@@ -1625,7 +1692,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	VkImageViewCreateInfo create_info = *pCreateInfo;
 	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, desc))
 	{
 		reshade::vulkan::convert_resource_view_desc(desc, create_info);
 		pCreateInfo = &create_info;
@@ -1654,7 +1721,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 		data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		device_impl, reshade::api::resource { (uint64_t)pCreateInfo->image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
+		device_impl, reshade::api::resource { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });
 #endif
 
 	return result;
@@ -1745,6 +1812,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		uint32_t viewport_count = (create_info.pViewportState != nullptr) ? create_info.pViewportState->viewportCount : 1;
 		auto dynamic_states = reshade::vulkan::convert_dynamic_states(create_info.pDynamicState);
 
+		std::vector<reshade::api::pipeline_subobject> subobjects;
+
 		for (uint32_t k = 0; k < create_info.stageCount; ++k)
 		{
 			const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[k];
@@ -1754,24 +1823,31 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			{
 			case VK_SHADER_STAGE_VERTEX_BIT:
 				desc = &vs_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
 				break;
 			case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
 				desc = &hs_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc });
 				break;
 			case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
 				desc = &ds_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc });
 				break;
 			case VK_SHADER_STAGE_GEOMETRY_BIT:
 				desc = &gs_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc });
 				break;
 			case VK_SHADER_STAGE_FRAGMENT_BIT:
 				desc = &ps_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
 				break;
-			case VK_SHADER_STAGE_TASK_BIT_NV:
+			case VK_SHADER_STAGE_TASK_BIT_EXT:
 				desc = &as_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
 				break;
-			case VK_SHADER_STAGE_MESH_BIT_NV:
+			case VK_SHADER_STAGE_MESH_BIT_EXT:
 				desc = &ms_desc;
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
 				break;
 			default:
 				continue;
@@ -1838,36 +1914,27 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 				depth_stencil_format = reshade::vulkan::convert_format(dynamic_rendering_info->stencilAttachmentFormat);
 		}
 
-		const reshade::api::pipeline_subobject subobjects[] = {
-			{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc },
-			{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc },
-			{ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc },
-			{ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc },
-			{ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc },
-			{ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc },
-			{ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc },
-			{ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc },
-			{ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc },
-			{ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask },
-			{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc },
-			{ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc },
-			{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() },
-			{ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology },
-			{ reshade::api::pipeline_subobject_type::render_target_formats, render_target_count, render_target_formats },
-			{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
-			{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
-			{ reshade::api::pipeline_subobject_type::viewport_count, 1, &viewport_count },
-			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
-		};
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::render_target_formats, render_target_count, render_target_formats });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::viewport_count, 1, &viewport_count });
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
 			assert(create_info.pNext == nullptr); // 'device_impl::create_pipeline' does not support extension structures apart from dynamic rendering
 
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1877,7 +1944,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		if (result >= VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
-				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reshade::api::pipeline { (uint64_t)pPipelines[i] });
+				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{
@@ -1963,6 +2030,178 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	return result;
 #else
 	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+#endif
+}
+VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOperationKHR deferredOperation, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkRayTracingPipelineCreateInfoKHR *pCreateInfos, const VkAllocationCallbacks *pAllocator, VkPipeline *pPipelines)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateRayTracingPipelinesKHR, device_impl);
+
+#if RESHADE_ADDON >= 2
+	VkResult result = VK_SUCCESS;
+	for (uint32_t i = 0; i < createInfoCount; ++i)
+	{
+		const VkRayTracingPipelineCreateInfoKHR &create_info = pCreateInfos[i];
+
+		std::vector<reshade::api::shader_desc> raygen_desc, any_hit_desc, closest_hit_desc, miss_desc, intersection_desc, callable_desc;
+		std::vector<uint32_t> shader_stage_to_desc_index(create_info.stageCount);
+		std::vector<reshade::api::shader_group> shader_groups;
+		auto flags = reshade::vulkan::convert_pipeline_flags(create_info.flags);
+		auto dynamic_states = reshade::vulkan::convert_dynamic_states(create_info.pDynamicState);
+
+		for (uint32_t k = 0; k < create_info.stageCount; ++k)
+		{
+			const VkPipelineShaderStageCreateInfo &stage = create_info.pStages[k];
+
+			reshade::api::shader_desc *desc = nullptr;
+			switch (stage.stage)
+			{
+			case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+				desc = &raygen_desc.emplace_back();
+				shader_stage_to_desc_index[k] = static_cast<uint32_t>(raygen_desc.size() - 1);
+				break;
+			case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+				desc = &any_hit_desc.emplace_back();
+				shader_stage_to_desc_index[k] = static_cast<uint32_t>(any_hit_desc.size() - 1);
+				break;
+			case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+				desc = &closest_hit_desc.emplace_back();
+				shader_stage_to_desc_index[k] = static_cast<uint32_t>(closest_hit_desc.size() - 1);
+				break;
+			case VK_SHADER_STAGE_MISS_BIT_KHR:
+				desc = &miss_desc.emplace_back();
+				shader_stage_to_desc_index[k] = static_cast<uint32_t>(miss_desc.size() - 1);
+				break;
+			case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+				desc = &intersection_desc.emplace_back();
+				shader_stage_to_desc_index[k] = static_cast<uint32_t>(intersection_desc.size() - 1);
+				break;
+			case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
+				desc = &callable_desc.emplace_back();
+				shader_stage_to_desc_index[k] = static_cast<uint32_t>(callable_desc.size() - 1);
+				break;
+			default:
+				assert(false);
+				continue;
+			}
+
+			desc->entry_point = stage.pName;
+
+			if (stage.module != VK_NULL_HANDLE)
+			{
+				const auto module_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SHADER_MODULE>(stage.module);
+
+				desc->code = module_data->spirv.data();
+				desc->code_size = module_data->spirv.size();
+			}
+			else if (const auto module_info = find_in_structure_chain<VkShaderModuleCreateInfo>(stage.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO))
+			{
+				desc->code = module_info->pCode;
+				desc->code_size = module_info->codeSize;
+			}
+		}
+
+		shader_groups.reserve(create_info.groupCount);
+		for (uint32_t k = 0; k < create_info.groupCount; ++k)
+		{
+			const VkRayTracingShaderGroupCreateInfoKHR &group_info = create_info.pGroups[k];
+
+			reshade::api::shader_group &shader_group = shader_groups.emplace_back();
+
+			if (group_info.type == VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR)
+			{
+				assert(group_info.generalShader != VK_SHADER_UNUSED_KHR);
+
+				switch (create_info.pStages[group_info.generalShader].stage)
+				{
+				case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+					shader_group.type = reshade::api::shader_group_type::raygen;
+					shader_group.raygen.shader_index = shader_stage_to_desc_index[group_info.generalShader];
+					break;
+				case VK_SHADER_STAGE_MISS_BIT_KHR:
+					shader_group.type = reshade::api::shader_group_type::miss;
+					shader_group.miss.shader_index = shader_stage_to_desc_index[group_info.generalShader];
+					break;
+				case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
+					shader_group.type = reshade::api::shader_group_type::callable;
+					shader_group.callable.shader_index = shader_stage_to_desc_index[group_info.generalShader];
+					break;
+				default:
+					assert(false);
+					break;
+				}
+			}
+			else
+			{
+				assert(group_info.generalShader == VK_SHADER_UNUSED_KHR);
+
+				shader_group.type = reshade::vulkan::convert_shader_group_type(group_info.type);
+				shader_group.hit_group.closest_hit_shader_index = (group_info.closestHitShader != VK_SHADER_UNUSED_KHR) ? shader_stage_to_desc_index[group_info.closestHitShader] : UINT32_MAX;
+				shader_group.hit_group.any_hit_shader_index = (group_info.anyHitShader != VK_SHADER_UNUSED_KHR) ? shader_stage_to_desc_index[group_info.anyHitShader] : UINT32_MAX;
+				shader_group.hit_group.intersection_shader_index = (group_info.intersectionShader != VK_SHADER_UNUSED_KHR) ? shader_stage_to_desc_index[group_info.intersectionShader] : UINT32_MAX;
+			}
+		}
+
+		std::vector<reshade::api::pipeline_subobject> subobjects = {
+			{ reshade::api::pipeline_subobject_type::raygen_shader, static_cast<uint32_t>(raygen_desc.size()), raygen_desc.data() },
+			{ reshade::api::pipeline_subobject_type::any_hit_shader, static_cast<uint32_t>(any_hit_desc.size()), any_hit_desc.data() },
+			{ reshade::api::pipeline_subobject_type::closest_hit_shader, static_cast<uint32_t>(closest_hit_desc.size()), closest_hit_desc.data() },
+			{ reshade::api::pipeline_subobject_type::miss_shader, static_cast<uint32_t>(miss_desc.size()), miss_desc.data() },
+			{ reshade::api::pipeline_subobject_type::callable_shader, static_cast<uint32_t>(callable_desc.size()), callable_desc.data() },
+			{ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() },
+			{ reshade::api::pipeline_subobject_type::max_recursion_depth, create_info.groupCount, const_cast<uint32_t *>(&create_info.maxPipelineRayRecursionDepth) },
+			{ reshade::api::pipeline_subobject_type::flags, 1, &flags },
+			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
+		};
+
+		if (create_info.pLibraryInfo != nullptr)
+		{
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::libraries, create_info.pLibraryInfo->libraryCount, const_cast<reshade::api::pipeline *>(reinterpret_cast<const reshade::api::pipeline *>(create_info.pLibraryInfo->pLibraries)) });
+		}
+
+		if (create_info.pLibraryInterface != nullptr)
+		{
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_payload_size, 1, const_cast<uint32_t *>(&create_info.pLibraryInterface->maxPipelineRayPayloadSize) });
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_attribute_size, 1, const_cast<uint32_t *>(&create_info.pLibraryInterface->maxPipelineRayHitAttributeSize) });
+		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
+		{
+			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
+
+			assert(deferredOperation == VK_NULL_HANDLE);
+			assert(create_info.pNext == nullptr); // 'device_impl::create_pipeline' does not support extension structures
+
+			result = device_impl->create_pipeline(
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+		}
+		else
+		{
+			result = trampoline(device, deferredOperation, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
+		}
+
+		if (result >= VK_SUCCESS)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
+				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline {(uint64_t)pPipelines[i]});
+		}
+		else
+		{
+#if RESHADE_VERBOSE_LOG
+			LOG(WARN) << "vkCreateRayTracingPipelinesKHR" << " failed with error code " << result << '.';
+#endif
+
+			for (uint32_t k = 0; k < i; ++k)
+				vkDestroyPipeline(device, pPipelines[k], pAllocator);
+			for (uint32_t k = 0; k < createInfoCount; ++k)
+				pPipelines[k] = VK_NULL_HANDLE;
+			break;
+		}
+	}
+
+	return result;
+#else
+	return trampoline(device, deferredOperation, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 #endif
 }
 void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, const VkAllocationCallbacks *pAllocator)
@@ -2353,6 +2592,18 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 				static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 				update.descriptors = write.pBufferInfo;
 				break;
+			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+				if (const auto write_acceleration_structure = find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(write.pNext, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR))
+				{
+					assert(update.count == write_acceleration_structure->accelerationStructureCount);
+					update.descriptors = write_acceleration_structure->pAccelerationStructures;
+				}
+				else
+				{
+					update.count = 0;
+					update.descriptors = nullptr;
+				}
+				break;
 			}
 		}
 
@@ -2585,4 +2836,53 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 #endif
 
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
+}
+
+VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAccelerationStructureCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkAccelerationStructureKHR *pAccelerationStructure)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateAccelerationStructureKHR, device_impl);
+
+	assert(pCreateInfo != nullptr && pAccelerationStructure != nullptr);
+
+#if RESHADE_ADDON
+	VkAccelerationStructureCreateInfoKHR create_info = *pCreateInfo;
+	auto desc = reshade::vulkan::convert_resource_view_desc(create_info);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::acceleration_structure, desc))
+	{
+		reshade::vulkan::convert_resource_view_desc(desc, create_info);
+		pCreateInfo = &create_info;
+	}
+#endif
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pAccelerationStructure);
+	if (result < VK_SUCCESS)
+	{
+#if RESHADE_VERBOSE_LOG
+		LOG(WARN) << "vkCreateAccelerationStructureKHR" << " failed with error code " << result << '.';
+#endif
+		return result;
+	}
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::acceleration_structure, desc, reshade::api::resource_view { (uint64_t)*pAccelerationStructure });
+#endif
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device, VkAccelerationStructureKHR accelerationStructure, const VkAllocationCallbacks *pAllocator)
+{
+	if (accelerationStructure == VK_NULL_HANDLE)
+		return;
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyAccelerationStructureKHR, device_impl);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)accelerationStructure });
+#endif
+
+	trampoline(device, accelerationStructure, pAllocator);
 }

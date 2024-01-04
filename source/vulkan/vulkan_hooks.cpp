@@ -18,7 +18,7 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 	if (0 == std::strcmp(pName, "vk" #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
 
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
+PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
 	HOOK_PROC(DestroyDevice);
@@ -228,6 +228,30 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, EXT);
 #endif
 
+#if RESHADE_ADDON
+	// VK_KHR_acceleration_structure
+	HOOK_PROC_OPTIONAL(CreateAccelerationStructureKHR,);
+	HOOK_PROC_OPTIONAL(DestroyAccelerationStructureKHR,);
+#endif
+#if RESHADE_ADDON >= 2
+	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresKHR,);
+	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresIndirectKHR,);
+	HOOK_PROC_OPTIONAL(CmdCopyAccelerationStructureKHR,);
+
+	// VK_KHR_ray_tracing_pipeline
+	HOOK_PROC_OPTIONAL(CmdTraceRaysKHR,);
+	HOOK_PROC_OPTIONAL(CreateRayTracingPipelinesKHR,);
+	HOOK_PROC_OPTIONAL(CmdTraceRaysIndirectKHR,);
+
+	// VK_KHR_ray_tracing_maintenance1
+	HOOK_PROC_OPTIONAL(CmdTraceRaysIndirect2KHR,);
+
+	// VK_EXT_mesh_shader
+	HOOK_PROC_OPTIONAL(CmdDrawMeshTasksEXT,);
+	HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectEXT,);
+	HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectCountEXT,);
+#endif
+
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
 	HOOK_PROC(GetDeviceProcAddr);
@@ -243,7 +267,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice devic
 	return trampoline(device, pName);
 }
 
-VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
+PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
 {
 	HOOK_PROC(CreateInstance);
 	HOOK_PROC(DestroyInstance);
@@ -273,7 +297,7 @@ VK_LAYER_EXPORT PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance i
 	return trampoline(instance, pName);
 }
 
-VK_LAYER_EXPORT VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
+VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
 {
 	if (pVersionStruct == nullptr ||
 		pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)

@@ -42,7 +42,7 @@ static std::shared_mutex s_delayed_hook_paths_mutex;
 static std::vector<std::filesystem::path> s_delayed_hook_paths;
 static PVOID s_dll_notification_cookie = nullptr;
 
-std::vector<module_export> enumerate_module_exports(HMODULE handle)
+static std::vector<module_export> enumerate_module_exports(HMODULE handle)
 {
 	const auto image_base = reinterpret_cast<const BYTE *>(handle);
 	const auto image_header = reinterpret_cast<const IMAGE_NT_HEADERS *>(image_base +
@@ -315,15 +315,15 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 	{
 		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 			[&loaded_path](const std::filesystem::path &path) {
-			// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
-			HMODULE delayed_handle = nullptr;
-			if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
-				return false;
+				// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
+				HMODULE delayed_handle = nullptr;
+				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
+					return false;
 
-			LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
+				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
 
-			return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-		});
+				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
+			});
 
 		s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
 	}

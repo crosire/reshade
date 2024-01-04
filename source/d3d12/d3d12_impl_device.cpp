@@ -86,12 +86,11 @@ reshade::d3d12::device_impl::~device_impl()
 #endif
 }
 
-reshade::api::device_properties reshade::d3d12::device_impl::get_properties() const
+bool reshade::d3d12::device_impl::get_property(api::device_properties property, void *data) const
 {
-	api::device_properties props;
-	props.api_version = D3D_FEATURE_LEVEL_12_0;
-
 	const LUID luid = _orig->GetAdapterLuid();
+	LARGE_INTEGER umd_version = {};
+	DXGI_ADAPTER_DESC adapter_desc = {};
 	com_ptr<IDXGIAdapter> dxgi_adapter;
 
 	const auto CreateDXGIFactory1 = reinterpret_cast<HRESULT(WINAPI *)(REFIID riid, void **ppFactory)>(
@@ -110,33 +109,46 @@ reshade::api::device_properties reshade::d3d12::device_impl::get_properties() co
 		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
 	{
 		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
-		{
-			DXGI_ADAPTER_DESC adapter_desc;
 			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)) && std::memcmp(&adapter_desc.AdapterLuid, &luid, sizeof(luid)) == 0)
 				break;
-		}
 	}
 
 	if (dxgi_adapter != nullptr)
 	{
-		LARGE_INTEGER umd_version;
-		if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
-		{
-			props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
-		}
-
-		DXGI_ADAPTER_DESC adapter_desc;
-		if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
-		{
-			props.vendor_id = adapter_desc.VendorId;
-			props.device_id = adapter_desc.DeviceId;
-
-			static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
-			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
-		}
+		dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
+		dxgi_adapter->GetDesc(&adapter_desc);
 	}
 
-	return props;
+	switch (property)
+	{
+	case api::device_properties::api_version:
+		*static_cast<uint32_t *>(data) = D3D_FEATURE_LEVEL_12_0;
+		return true;
+	case api::device_properties::driver_version:
+		*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+		return umd_version.LowPart != 0;
+	case api::device_properties::vendor_id:
+		*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
+		return adapter_desc.VendorId != 0;
+	case api::device_properties::device_id:
+		*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
+		return adapter_desc.DeviceId != 0;
+	case api::device_properties::description:
+		static_assert(std::size(adapter_desc.Description) <= 256);
+		utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
+		return true;
+	case api::device_properties::shader_group_handle_size:
+		*static_cast<uint32_t *>(data) = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+		return true;
+	case api::device_properties::shader_group_alignment:
+		*static_cast<uint32_t *>(data) = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+		return true;
+	case api::device_properties::shader_group_handle_alignment:
+		*static_cast<uint32_t *>(data) = D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
+		return true;
+	default:
+		return false;
+	}
 }
 
 bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) const
@@ -191,6 +203,16 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
 		return !is_windows7();
+	case api::device_caps::amplification_and_mesh_shader:
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS7 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))))
+			return options.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+		return false;
+	case api::device_caps::ray_tracing:
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS5 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
+			return options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+		return false;
 	default:
 		return false;
 	}
@@ -328,7 +350,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		if (footprint.Format != DXGI_FORMAT_UNKNOWN)
 			object->SetPrivateData(extra_data_guid, sizeof(footprint), &footprint);
 
-		register_resource(object.get());
+		register_resource(object.get(), initial_state == api::resource_usage::acceleration_structure);
 
 		*out_handle = to_handle(object.release());
 
@@ -459,6 +481,20 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			*out_handle = to_handle(descriptor_handle);
 			return true;
 		}
+		case api::resource_usage::acceleration_structure:
+		{
+			assert(desc.type == api::resource_view_type::unknown || desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure);
+
+			const D3D12_GPU_VIRTUAL_ADDRESS address = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetGPUVirtualAddress() +
+				(desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure ? desc.buffer.offset : 0);
+
+			register_resource_view(
+				D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(address) },
+				reinterpret_cast<ID3D12Resource *>(resource.handle),
+				desc.type != api::resource_view_type::unknown ? desc : api::resource_view_desc(api::resource_view_type::acceleration_structure, api::format::unknown, 0, UINT64_MAX));
+			*out_handle = { address };
+			return true;
+		}
 	}
 
 	return false;
@@ -502,6 +538,29 @@ reshade::api::resource_view_desc reshade::d3d12::device_impl::get_resource_view_
 		return it->second.second;
 	else
 		return assert(false), api::resource_view_desc();
+}
+
+uint64_t reshade::d3d12::device_impl::get_resource_view_gpu_address(api::resource_view handle) const
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle = { static_cast<SIZE_T>(handle.handle) };
+
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
+
+	if (const auto it = _views.find(descriptor_handle.ptr); it != _views.end())
+	{
+		switch (it->second.second.type)
+		{
+		case api::resource_view_type::buffer:
+			return it->second.first->GetGPUVirtualAddress() + it->second.second.buffer.offset;
+		case api::resource_view_type::acceleration_structure:
+			return handle.handle;
+		default:
+			assert(false);
+			break;
+		}
+	}
+
+	return 0;
 }
 
 bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
@@ -708,6 +767,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	api::shader_desc gs_desc = {};
 	api::shader_desc ps_desc = {};
 	api::shader_desc cs_desc = {};
+	api::shader_desc as_desc = {};
+	api::shader_desc ms_desc = {};
 	api::pipeline_subobject input_layout_desc = {};
 	api::stream_output_desc stream_output_desc = {};
 	api::blend_desc blend_desc = {};
@@ -718,6 +779,18 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	api::pipeline_subobject render_target_formats = {};
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t sample_count = 1;
+	std::vector<api::shader_desc> raygen_desc;
+	std::vector<api::shader_desc> any_hit_desc;
+	std::vector<api::shader_desc> closest_hit_desc;
+	std::vector<api::shader_desc> miss_desc;
+	std::vector<api::shader_desc> intersection_desc;
+	std::vector<api::shader_desc> callable_desc;
+	std::vector<api::pipeline> libraries;
+	std::vector<api::shader_group> shader_groups;
+	uint32_t max_payload_size = 0;
+	uint32_t max_attribute_size = 2 * sizeof(float); // Default triangle attributes
+	uint32_t max_recursion_depth = 1;
+	api::pipeline_flags flags = api::pipeline_flags::none;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -805,13 +878,246 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		case api::pipeline_subobject_type::max_vertex_count:
 			assert(subobjects[i].count == 1);
 			break; // Ignored
+		case api::pipeline_subobject_type::amplification_shader:
+			assert(subobjects[i].count == 1);
+			as_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::mesh_shader:
+			assert(subobjects[i].count == 1);
+			ms_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::raygen_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				raygen_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::any_hit_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				any_hit_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::closest_hit_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				closest_hit_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::miss_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				miss_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::intersection_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				intersection_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::callable_shader:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				callable_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::libraries:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				libraries.push_back(static_cast<const api::pipeline *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::shader_groups:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				shader_groups.push_back(static_cast<const api::shader_group *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::max_payload_size:
+			assert(subobjects[i].count == 1);
+			max_payload_size = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::max_attribute_size:
+			assert(subobjects[i].count == 1);
+			max_attribute_size = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::max_recursion_depth:
+			assert(subobjects[i].count == 1);
+			max_recursion_depth = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::flags:
+			assert(subobjects[i].count == 1);
+			flags = *static_cast<const api::pipeline_flags *>(subobjects[i].data);
+			break;
 		default:
 			assert(false);
 			goto exit_failure;
 		}
 	}
 
-	if (cs_desc.code_size != 0)
+	if (!raygen_desc.empty() || !shader_groups.empty())
+	{
+		com_ptr<ID3D12Device5> device5;
+		if (SUCCEEDED(_orig->QueryInterface(&device5)))
+		{
+			D3D12_GLOBAL_ROOT_SIGNATURE root_signature;
+			root_signature.pGlobalRootSignature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+
+			D3D12_RAYTRACING_SHADER_CONFIG shader_config;
+			shader_config.MaxPayloadSizeInBytes = max_payload_size;
+			shader_config.MaxAttributeSizeInBytes = max_attribute_size;
+
+			D3D12_RAYTRACING_PIPELINE_CONFIG1 pipeline_config;
+			pipeline_config.MaxTraceRecursionDepth = max_recursion_depth;
+			pipeline_config.Flags = convert_pipeline_flags(flags);
+
+			std::vector<D3D12_STATE_SUBOBJECT> internal_subobjects;
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE, &root_signature });
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG, &shader_config });
+			internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1, &pipeline_config });
+
+			std::vector<std::pair<const void *, size_t>> deduplicated_shader_bytecode;
+			for (const api::shader_desc &shader_desc : raygen_desc)
+				if (std::find(deduplicated_shader_bytecode.begin(), deduplicated_shader_bytecode.end(), std::make_pair(shader_desc.code, shader_desc.code_size)) == deduplicated_shader_bytecode.end())
+					deduplicated_shader_bytecode.push_back(std::make_pair(shader_desc.code, shader_desc.code_size));
+			for (const api::shader_desc &shader_desc : any_hit_desc)
+				if (std::find(deduplicated_shader_bytecode.begin(), deduplicated_shader_bytecode.end(), std::make_pair(shader_desc.code, shader_desc.code_size)) == deduplicated_shader_bytecode.end())
+					deduplicated_shader_bytecode.push_back(std::make_pair(shader_desc.code, shader_desc.code_size));
+			for (const api::shader_desc &shader_desc : closest_hit_desc)
+				if (std::find(deduplicated_shader_bytecode.begin(), deduplicated_shader_bytecode.end(), std::make_pair(shader_desc.code, shader_desc.code_size)) == deduplicated_shader_bytecode.end())
+					deduplicated_shader_bytecode.push_back(std::make_pair(shader_desc.code, shader_desc.code_size));
+			for (const api::shader_desc &shader_desc : miss_desc)
+				if (std::find(deduplicated_shader_bytecode.begin(), deduplicated_shader_bytecode.end(), std::make_pair(shader_desc.code, shader_desc.code_size)) == deduplicated_shader_bytecode.end())
+					deduplicated_shader_bytecode.push_back(std::make_pair(shader_desc.code, shader_desc.code_size));
+			for (const api::shader_desc &shader_desc : intersection_desc)
+				if (std::find(deduplicated_shader_bytecode.begin(), deduplicated_shader_bytecode.end(), std::make_pair(shader_desc.code, shader_desc.code_size)) == deduplicated_shader_bytecode.end())
+					deduplicated_shader_bytecode.push_back(std::make_pair(shader_desc.code, shader_desc.code_size));
+			for (const api::shader_desc &shader_desc : callable_desc)
+				if (std::find(deduplicated_shader_bytecode.begin(), deduplicated_shader_bytecode.end(), std::make_pair(shader_desc.code, shader_desc.code_size)) == deduplicated_shader_bytecode.end())
+					deduplicated_shader_bytecode.push_back(std::make_pair(shader_desc.code, shader_desc.code_size));
+
+			std::vector<D3D12_DXIL_LIBRARY_DESC> library_descs(deduplicated_shader_bytecode.size());
+			UINT i = 0;
+			for (const std::pair<const void *, size_t> &shader_bytecode : deduplicated_shader_bytecode)
+			{
+				D3D12_DXIL_LIBRARY_DESC &desc = library_descs[i++];
+				desc.DXILLibrary.pShaderBytecode = shader_bytecode.first;
+				desc.DXILLibrary.BytecodeLength = shader_bytecode.second;
+
+				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &desc });
+			}
+
+			std::vector<D3D12_EXISTING_COLLECTION_DESC> collection_descs(libraries.size());
+			i = 0;
+			for (const api::pipeline library : libraries)
+			{
+				D3D12_EXISTING_COLLECTION_DESC &desc = collection_descs[i++];
+				desc.pExistingCollection = reinterpret_cast<ID3D12StateObject *>(library.handle);
+				desc.NumExports = 0;
+				desc.pExports = nullptr;
+
+				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION, &desc });
+			}
+
+			std::vector<D3D12_HIT_GROUP_DESC> hit_group_descs(shader_groups.size());
+			std::vector<std::wstring> group_exports(shader_groups.size());
+			std::vector<std::wstring> any_hit_imports(shader_groups.size());
+			std::vector<std::wstring> closest_hit_imports(shader_groups.size());
+			std::vector<std::wstring> intersection_imports(shader_groups.size());
+			i = 0;
+			for (const api::shader_group &group : shader_groups)
+			{
+				switch (group.type)
+				{
+				case api::shader_group_type::raygen:
+				{
+					if (group.raygen.shader_index != UINT32_MAX && raygen_desc[group.raygen.shader_index].entry_point != nullptr)
+					{
+						const char *entry_point = raygen_desc[group.raygen.shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
+					}
+					break;
+				}
+				case api::shader_group_type::miss:
+				{
+					if (group.miss.shader_index != UINT32_MAX && miss_desc[group.miss.shader_index].entry_point != nullptr)
+					{
+						const char *entry_point = miss_desc[group.miss.shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
+					}
+					break;
+				}
+				case api::shader_group_type::callable:
+				{
+					if (group.callable.shader_index != UINT32_MAX && callable_desc[group.callable.shader_index].entry_point != nullptr)
+					{
+						const char *entry_point = callable_desc[group.callable.shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
+					}
+					break;
+				}
+				case api::shader_group_type::hit_group_triangles:
+				case api::shader_group_type::hit_group_aabbs:
+				{
+					D3D12_HIT_GROUP_DESC &desc = hit_group_descs[i];
+					desc.Type = group.type == api::shader_group_type::hit_group_triangles ? D3D12_HIT_GROUP_TYPE_TRIANGLES : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+
+					group_exports[i] = L"HitGroup" + std::to_wstring(i);
+					desc.HitGroupExport = group_exports[i].c_str();
+
+					if (group.hit_group.any_hit_shader_index != UINT32_MAX && any_hit_desc[group.hit_group.any_hit_shader_index].entry_point != nullptr)
+					{
+						std::wstring &entry_point_wide = any_hit_imports[i];
+						const char *const entry_point = any_hit_desc[group.hit_group.any_hit_shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						desc.AnyHitShaderImport = entry_point_wide.c_str();
+					}
+					else
+					{
+						desc.AnyHitShaderImport = nullptr;
+					}
+
+					if (group.hit_group.closest_hit_shader_index != UINT32_MAX && closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point != nullptr)
+					{
+						std::wstring &entry_point_wide = closest_hit_imports[i];
+						const char *const entry_point = closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						desc.ClosestHitShaderImport = entry_point_wide.c_str();
+					}
+					else
+					{
+						desc.ClosestHitShaderImport = nullptr;
+					}
+
+					if (group.hit_group.intersection_shader_index != UINT32_MAX && intersection_desc[group.hit_group.intersection_shader_index].entry_point != nullptr)
+					{
+						std::wstring &entry_point_wide = intersection_imports[i];
+						const char *const entry_point = intersection_desc[group.hit_group.intersection_shader_index].entry_point;
+						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						desc.IntersectionShaderImport = entry_point_wide.c_str();
+					}
+					else
+					{
+						desc.IntersectionShaderImport = nullptr;
+					}
+
+					internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &desc });
+					break;
+				}
+				}
+
+				i++;
+			}
+
+			D3D12_STATE_OBJECT_DESC internal_desc;
+			internal_desc.Type = (flags & api::pipeline_flags::library) != 0 ? D3D12_STATE_OBJECT_TYPE_COLLECTION : D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+			internal_desc.NumSubobjects = static_cast<UINT>(internal_subobjects.size());
+			internal_desc.pSubobjects = internal_subobjects.data();
+
+			if (com_ptr<ID3D12StateObject> pipeline;
+				SUCCEEDED(device5->CreateStateObject(&internal_desc, IID_PPV_ARGS(&pipeline))))
+			{
+				// Add shader group exports as private data
+				std::vector<WCHAR> extra_data;
+				for (size_t k = 0; k < group_exports.size(); ++k)
+				{
+					extra_data.insert(extra_data.end(), group_exports[k].begin(), group_exports[k].end());
+					extra_data.push_back(L'\0');
+				}
+
+				pipeline->SetPrivateData(extra_data_guid, static_cast<UINT>(extra_data.size() * sizeof(WCHAR)), extra_data.data());
+
+				*out_handle = to_handle(pipeline.release());
+				return true;
+			}
+		}
+	}
+	else if (cs_desc.code_size != 0)
 	{
 		D3D12_COMPUTE_PIPELINE_STATE_DESC internal_desc = {};
 		internal_desc.pRootSignature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
@@ -822,6 +1128,67 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		{
 			*out_handle = to_handle(pipeline.release());
 			return true;
+		}
+	}
+	else if (as_desc.code_size != 0 || ms_desc.code_size != 0)
+	{
+		com_ptr<ID3D12Device2> device2;
+		if (SUCCEEDED(_orig->QueryInterface(&device2)))
+		{
+			struct
+			{
+				D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
+				D3D12_PIPELINE_STATE_STREAM_MS as;
+				D3D12_PIPELINE_STATE_STREAM_MS ms;
+				D3D12_PIPELINE_STATE_STREAM_BLEND_DESC blend_state;
+				D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK sample_mask;
+				D3D12_PIPELINE_STATE_STREAM_RASTERIZER rasterizer_state;
+				D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL depth_stencil_state;
+				D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS render_target_formats;
+				D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
+				D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
+			} stream_data = {};
+
+			stream_data.root_signature.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+			stream_data.root_signature.data = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+			stream_data.as.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS;
+			reshade::d3d12::convert_shader_desc(as_desc, stream_data.as.data);
+			stream_data.ms.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
+			reshade::d3d12::convert_shader_desc(ms_desc, stream_data.ms.data);
+			stream_data.blend_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
+			reshade::d3d12::convert_blend_desc(blend_desc, stream_data.blend_state.data);
+			stream_data.sample_mask.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
+			stream_data.sample_mask.data = sample_mask;
+			stream_data.rasterizer_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER;
+			reshade::d3d12::convert_rasterizer_desc(rasterizer_desc, stream_data.rasterizer_state.data);
+			stream_data.depth_stencil_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL;
+			reshade::d3d12::convert_depth_stencil_desc(depth_stencil_desc, stream_data.depth_stencil_state.data);
+			stream_data.render_target_formats.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS;
+			stream_data.render_target_formats.data.NumRenderTargets = render_target_formats.count;
+			for (uint32_t i = 0; i < render_target_formats.count; ++i)
+				stream_data.render_target_formats.data.RTFormats[i] = reshade::d3d12::convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
+			stream_data.depth_stencil_format.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT;
+			stream_data.depth_stencil_format.data = reshade::d3d12::convert_format(depth_stencil_format);
+			stream_data.sample_desc.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC;
+			stream_data.sample_desc.data.Count = sample_count;
+
+			D3D12_PIPELINE_STATE_STREAM_DESC stream_desc;
+			stream_desc.pPipelineStateSubobjectStream = &stream_data;
+			stream_desc.SizeInBytes = sizeof(stream_desc);
+
+			if (com_ptr<ID3D12PipelineState> pipeline;
+				SUCCEEDED(device2->CreatePipelineState(&stream_desc, IID_PPV_ARGS(&pipeline))))
+			{
+				pipeline_extra_data extra_data;
+				extra_data.topology = convert_primitive_topology(topology);
+
+				std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
+
+				pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+				*out_handle = to_handle(pipeline.release());
+				return true;
+			}
 		}
 	}
 	else
@@ -847,7 +1214,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		internal_desc.PrimitiveTopologyType = reshade::d3d12::convert_primitive_topology_type(topology);
 
 		internal_desc.NumRenderTargets = render_target_formats.count;
-		for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
+		for (uint32_t i = 0; i < render_target_formats.count; ++i)
 			internal_desc.RTVFormats[i] = reshade::d3d12::convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
 		internal_desc.DSVFormat = reshade::d3d12::convert_format(depth_stencil_format);
 
@@ -1236,6 +1603,19 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 			_orig->CopyDescriptors(1, &dst_range_start, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.data(), heap_type);
 #endif
 		}
+		else if (update.type == api::descriptor_type::acceleration_structure)
+		{
+			for (uint32_t k = 0; k < update.count; ++k, dst_range_start.ptr += _descriptor_handle_size[heap_type])
+			{
+				D3D12_SHADER_RESOURCE_VIEW_DESC view_desc;
+				view_desc.Format = DXGI_FORMAT_UNKNOWN;
+				view_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+				view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::resource_view *>(update.descriptors)[k].handle;
+
+				_orig->CreateShaderResourceView(nullptr, &view_desc, dst_range_start);
+			}
+		}
 		else
 		{
 			assert(false);
@@ -1436,7 +1816,89 @@ bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
 	return SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->Signal(value));
 }
 
-void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
+void reshade::d3d12::device_impl::get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	com_ptr<ID3D12Device5> device5;
+	if (SUCCEEDED(_orig->QueryInterface(&device5)))
+	{
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc;
+		desc.Type = convert_acceleration_structure_type(type);
+		desc.Flags = convert_acceleration_structure_build_flags(flags, api::acceleration_structure_build_mode::build);
+		desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
+		if (type == api::acceleration_structure_type::top_level)
+		{
+			assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
+
+			desc.NumDescs = inputs->instances.count;
+			desc.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
+			desc.InstanceDescs = (inputs->instances.buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(inputs->instances.buffer.handle)->GetGPUVirtualAddress() : 0) + inputs->instances.offset;
+		}
+		else
+		{
+			for (uint32_t i = 0; i < input_count; ++i)
+				convert_acceleration_structure_build_input(inputs[i], geometries[i]);
+
+			desc.NumDescs = static_cast<UINT>(geometries.size());
+			desc.pGeometryDescs = geometries.data();
+		}
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
+		device5->GetRaytracingAccelerationStructurePrebuildInfo(&desc, &info);
+
+		if (out_size != nullptr)
+			*out_size = info.ResultDataMaxSizeInBytes;
+		if (out_build_scratch_size != nullptr)
+			*out_build_scratch_size = info.ScratchDataSizeInBytes;
+		if (out_update_scratch_size != nullptr)
+			*out_update_scratch_size = info.UpdateScratchDataSizeInBytes;
+	}
+	else
+	{
+		if (out_size != nullptr)
+			*out_size = 0;
+		if (out_build_scratch_size != nullptr)
+			*out_build_scratch_size = 0;
+		if (out_update_scratch_size != nullptr)
+			*out_update_scratch_size = 0;
+	}
+}
+
+bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups)
+{
+	com_ptr<ID3D12StateObjectProperties> props;
+	if (pipeline.handle != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(pipeline.handle)->QueryInterface(&props)))
+	{
+		UINT extra_data_size = 0;
+		reinterpret_cast<ID3D12StateObject *>(pipeline.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr);
+		std::vector<WCHAR> extra_data(extra_data_size / sizeof(WCHAR));
+		reinterpret_cast<ID3D12StateObject *>(pipeline.handle)->GetPrivateData(extra_data_guid, &extra_data_size, extra_data.data());
+
+		WCHAR *group_exports = extra_data.data();
+		for (uint32_t i = 0; i < first && group_exports < (extra_data.data() + extra_data_size / sizeof(WCHAR)); ++i)
+			group_exports += wcslen(group_exports) + 1;
+
+		for (uint32_t i = 0; i < count; ++i, group_exports += wcslen(group_exports) + 1)
+		{
+			if (group_exports >= (extra_data.data() + extra_data_size / sizeof(WCHAR)))
+				return false;
+
+			void *const identifier = props->GetShaderIdentifier(group_exports);
+			if (identifier == nullptr)
+				return false;
+
+			std::memcpy(static_cast<uint8_t *>(groups) + i * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bool acceleration_structure)
 {
 	assert(resource != nullptr);
 
@@ -1448,9 +1910,11 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource)
 		{
 			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
-			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width });
+			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width }, acceleration_structure);
 		}
 	}
+#else
+	UNREFERENCED_PARAMETER(acceleration_structure);
 #endif
 }
 void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
@@ -1464,8 +1928,8 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 		if (const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(),
-				[resource](const std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE> &buffer_info) {
-					return buffer_info.first == resource;
+				[resource](const auto &buffer_info) {
+					return std::get<0>(buffer_info) == resource;
 				});
 			it != _buffer_gpu_addresses.end())
 		{
@@ -1499,12 +1963,14 @@ reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_fi
 }
 
 #if RESHADE_ADDON >= 2
-bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const
+bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset, bool *out_acceleration_structure) const
 {
 	assert(out_offset != nullptr && out_resource != nullptr);
 
 	*out_offset = 0;
 	*out_resource = { 0 };
+	if (out_acceleration_structure != nullptr)
+		*out_acceleration_structure = false;
 
 	if (!address)
 		return true;
@@ -1513,15 +1979,17 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 	for (const auto &buffer_info : _buffer_gpu_addresses)
 	{
-		if (address < buffer_info.second.StartAddress)
+		if (address < std::get<1>(buffer_info).StartAddress)
 			continue;
 
-		const UINT64 address_offset = address - buffer_info.second.StartAddress;
-		if (address_offset >= buffer_info.second.SizeInBytes)
+		const UINT64 address_offset = address - std::get<1>(buffer_info).StartAddress;
+		if (address_offset >= std::get<1>(buffer_info).SizeInBytes)
 			continue;
 
 		*out_offset = address_offset;
-		*out_resource = to_handle(buffer_info.first);
+		*out_resource = to_handle(std::get<0>(buffer_info));
+		if (out_acceleration_structure != nullptr)
+			*out_acceleration_structure = std::get<2>(buffer_info);
 		return true;
 	}
 

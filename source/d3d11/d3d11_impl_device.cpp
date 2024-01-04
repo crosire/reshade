@@ -15,10 +15,10 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 {
 }
 
-reshade::api::device_properties reshade::d3d11::device_impl::get_properties() const
+bool reshade::d3d11::device_impl::get_property(api::device_properties property, void *data) const
 {
-	api::device_properties props;
-	props.api_version = _orig->GetFeatureLevel();
+	LARGE_INTEGER umd_version = {};
+	DXGI_ADAPTER_DESC adapter_desc = {};
 
 	if (com_ptr<IDXGIDevice> dxgi_device;
 		SUCCEEDED(_orig->QueryInterface(&dxgi_device)))
@@ -26,25 +26,32 @@ reshade::api::device_properties reshade::d3d11::device_impl::get_properties() co
 		if (com_ptr<IDXGIAdapter> dxgi_adapter;
 			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
 		{
-			LARGE_INTEGER umd_version;
-			if (SUCCEEDED(dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version)))
-			{
-				props.driver_version = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
-			}
-
-			DXGI_ADAPTER_DESC adapter_desc;
-			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)))
-			{
-				props.vendor_id = adapter_desc.VendorId;
-				props.device_id = adapter_desc.DeviceId;
-
-				static_assert(std::size(props.description) >= std::size(adapter_desc.Description));
-				utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), props.description);
-			}
+			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
+			dxgi_adapter->GetDesc(&adapter_desc);
 		}
 	}
 
-	return props;
+	switch (property)
+	{
+	case api::device_properties::api_version:
+		*static_cast<uint32_t *>(data) = _orig->GetFeatureLevel();
+		return true;
+	case api::device_properties::driver_version:
+		*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+		return umd_version.LowPart != 0;
+	case api::device_properties::vendor_id:
+		*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
+		return adapter_desc.VendorId != 0;
+	case api::device_properties::device_id:
+		*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
+		return adapter_desc.DeviceId != 0;
+	case api::device_properties::description:
+		static_assert(std::size(adapter_desc.Description) <= 256);
+		utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
+		return true;
+	default:
+		return false;
+	}
 }
 
 bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) const
@@ -106,6 +113,8 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 			return true;
 		else
 			return false;
+	case api::device_caps::amplification_and_mesh_shader:
+	case api::device_caps::ray_tracing:
 	default:
 		return false;
 	}
@@ -1548,5 +1557,20 @@ bool reshade::d3d11::device_impl::signal(api::fence fence, uint64_t value)
 		return SUCCEEDED(keyed_mutex->ReleaseSync(value));
 	}
 
+	return false;
+}
+
+void reshade::d3d11::device_impl::get_acceleration_structure_size(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	if (out_size != nullptr)
+		*out_size = 0;
+	if (out_build_scratch_size != nullptr)
+		*out_build_scratch_size = 0;
+	if (out_update_scratch_size != nullptr)
+		*out_update_scratch_size = 0;
+}
+
+bool reshade::d3d11::device_impl::get_pipeline_shader_group_handles(api::pipeline, uint32_t, uint32_t, void *)
+{
 	return false;
 }
