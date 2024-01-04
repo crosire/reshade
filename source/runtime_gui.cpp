@@ -3418,9 +3418,10 @@ void reshade::runtime::draw_variable_editor()
 				is_default_value = std::memcmp(value.as_int, variable.initializer_value.as_int, variable.type.components() * sizeof(int)) == 0;
 				break;
 			case reshadefx::type::t_float:
+				const float threshold = variable.annotation_as_float("ui_step", 0, 0.001f) * 0.75f + FLT_EPSILON;
 				get_uniform_value(variable, value.as_float, variable.type.components());
 				for (size_t i = 0; is_default_value && i < variable.type.components(); i++)
-					is_default_value = std::abs(value.as_float[i] - variable.initializer_value.as_float[i]) < FLT_EPSILON;
+					is_default_value = std::abs(value.as_float[i] - variable.initializer_value.as_float[i]) < threshold;
 				break;
 			}
 
