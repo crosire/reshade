@@ -1522,7 +1522,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		addon_definition = "ADDON_";
 		std::transform(info.name.begin(), info.name.end(), std::back_inserter(addon_definition),
 			[](const std::string::value_type c) { return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ? c : (c >= 'a' && c <= 'z') ? static_cast<std::string::value_type>(c - 'a' + 'A') : '_'; });
-		preprocessor_definitions.emplace_back(addon_definition, std::to_string(info.version_number));
+		preprocessor_definitions.emplace_back(addon_definition, std::to_string(info.version));
 	}
 #endif
 
