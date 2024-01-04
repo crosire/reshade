@@ -793,5 +793,11 @@ namespace reshade { namespace api
 		/// Overrides the color space used for presentation.
 		/// </summary>
 		virtual void set_color_space(color_space color_space) = 0;
+
+		/// <summary>
+		/// Resets the value of the specified uniform <paramref name="variable"/>.
+		/// </summary>
+		/// <param name="variable">Opaque handle to the uniform variable.</param>
+		virtual void reset_uniform_value(effect_uniform_variable variable) = 0;
 	};
 } }

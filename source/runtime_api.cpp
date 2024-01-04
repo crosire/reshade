@@ -1417,3 +1417,9 @@ bool reshade::runtime::open_overlay(bool /*open*/, api::input_source /*source*/)
 	return false;
 }
 #endif
+
+void reshade::runtime::reset_uniform_value([[maybe_unused]] api::effect_uniform_variable handle)
+{
+	if (auto variable = reinterpret_cast<uniform *>(handle.handle))
+		reset_uniform_value(*variable);
+}
