@@ -15,6 +15,8 @@ namespace reshade::vulkan
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
 	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
 	static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(api::buffer_range));
+	static_assert(sizeof(VkAccelerationStructureKHR) == sizeof(api::resource_view));
+	static_assert(sizeof(VkAccelerationStructureInstanceKHR) == sizeof(api::acceleration_structure_instance));
 
 	template <VkObjectType type>
 	struct object_data;
@@ -147,6 +149,14 @@ namespace reshade::vulkan
 		VkQueryType type;
 	};
 
+	template <>
+	struct object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>
+	{
+		using Handle = VkAccelerationStructureKHR;
+
+		VkAccelerationStructureCreateInfoKHR create_info;
+	};
+
 	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
 	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
 
@@ -171,7 +181,7 @@ namespace reshade::vulkan
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
-	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features) -> VkPipelineStageFlags;
+	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features, bool enabled_ray_tracing) -> VkPipelineStageFlags;
 
 	void convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags);
 	void convert_usage_to_buffer_usage_flags(api::resource_usage usage, VkBufferUsageFlags &buffer_flags);
@@ -186,8 +196,10 @@ namespace reshade::vulkan
 
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkImageViewCreateInfo &create_info);
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info);
+	void convert_resource_view_desc(const api::resource_view_desc &desc, VkAccelerationStructureCreateInfoKHR &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
+	api::resource_view_desc convert_resource_view_desc(const VkAccelerationStructureCreateInfoKHR &create_info);
 
 	void convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states);
 	std::vector<api::dynamic_state> convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info);
@@ -231,6 +243,20 @@ namespace reshade::vulkan
 	auto convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op;
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
+
+	auto convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags;
+	auto convert_pipeline_flags(VkPipelineCreateFlags value) -> api::pipeline_flags;
+	auto convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR;
+	auto convert_shader_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::shader_group_type;
+	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR;
+	auto convert_acceleration_structure_type(VkAccelerationStructureTypeKHR value) -> api::acceleration_structure_type;
+	auto convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> VkCopyAccelerationStructureModeKHR;
+	auto convert_acceleration_structure_copy_mode(VkCopyAccelerationStructureModeKHR value) -> api::acceleration_structure_copy_mode;
+	auto convert_acceleration_structure_build_flags(api::acceleration_structure_build_flags value) -> VkBuildAccelerationStructureFlagsKHR;
+	auto convert_acceleration_structure_build_flags(VkBuildAccelerationStructureFlagsKHR value) -> api::acceleration_structure_build_flags;
+
+	void convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, VkAccelerationStructureGeometryKHR &geometry, VkAccelerationStructureBuildRangeInfoKHR &range_info);
+	api::acceleration_structure_build_input convert_acceleration_structure_build_input(const VkAccelerationStructureGeometryKHR &geometry, const VkAccelerationStructureBuildRangeInfoKHR &range_info);
 }
 
 template <typename T>

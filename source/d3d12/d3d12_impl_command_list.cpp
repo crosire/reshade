@@ -199,19 +199,32 @@ void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(ui
 void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	// Cannot bind state to individual pipeline stages
-	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics);
+	assert(stages == api::pipeline_stage::all || stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics || stages == api::pipeline_stage::all_ray_tracing);
 
-	const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
-	_orig->SetPipelineState(pipeline_object);
-
-	pipeline_extra_data extra_data;
-	UINT extra_data_size = sizeof(extra_data);
-	if (stages == api::pipeline_stage::all_graphics &&
-		pipeline_object != nullptr &&
-		SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	if (stages == api::pipeline_stage::all_ray_tracing)
 	{
-		_orig->IASetPrimitiveTopology(extra_data.topology);
-		_orig->OMSetBlendFactor(extra_data.blend_constant);
+		const auto pipeline_object = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
+
+		com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+		if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+			cmd_list4->SetPipelineState1(pipeline_object);
+		else
+			assert(false);
+	}
+	else
+	{
+		const auto pipeline_object = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
+		_orig->SetPipelineState(pipeline_object);
+
+		pipeline_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (stages == api::pipeline_stage::all_graphics &&
+			pipeline_object != nullptr &&
+			SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+		{
+			_orig->IASetPrimitiveTopology(extra_data.topology);
+			_orig->OMSetBlendFactor(extra_data.blend_constant);
+		}
 	}
 }
 void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
@@ -231,6 +244,11 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 		}
 		case api::dynamic_state::front_stencil_reference_value:
 			_orig->OMSetStencilRef(values[i]);
+			break;
+		case api::dynamic_state::ray_tracing_pipeline_stack_size:
+			// ID3D12StateObjectProperties *props = ...;
+			// props->SetPipelineStackSize(values[i]);
+			assert(false);
 			break;
 		default:
 			assert(false);
@@ -263,7 +281,7 @@ void reshade::d3d12::command_list_impl::push_constants(api::shader_stage stages,
 {
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if ((stages & api::shader_stage::all_compute) != 0)
+	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -333,6 +351,19 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.p, convert_descriptor_type_to_heap_type(update.type));
 #endif
 	}
+	else if (update.type == api::descriptor_type::acceleration_structure)
+	{
+		for (uint32_t k = 0; k < update.count; ++k, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC view_desc;
+			view_desc.Format = DXGI_FORMAT_UNKNOWN;
+			view_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+			view_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			view_desc.RaytracingAccelerationStructure.Location = static_cast<const api::resource_view *>(update.descriptors)[k].handle;
+
+			_device_impl->_orig->CreateShaderResourceView(nullptr, &view_desc, base_handle);
+		}
+	}
 	else
 	{
 		assert(false);
@@ -359,7 +390,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 	}
 #endif
 
-	if ((stages & api::shader_stage::all_compute) != 0)
+	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -429,7 +460,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if ((stages & api::shader_stage::all_compute) != 0)
+	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
 		if (root_signature != _current_root_signature[1])
 		{
@@ -527,6 +558,50 @@ void reshade::d3d12::command_list_impl::dispatch(uint32_t group_count_x, uint32_
 	_has_commands = true;
 
 	_orig->Dispatch(group_count_x, group_count_y, group_count_z);
+}
+void reshade::d3d12::command_list_impl::dispatch_mesh(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+{
+	_has_commands = true;
+
+	com_ptr<ID3D12GraphicsCommandList6> cmd_list6;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list6)))
+	{
+		cmd_list6->DispatchMesh(group_count_x, group_count_y, group_count_z);
+	}
+	else
+	{
+		assert(false);
+	}
+}
+void reshade::d3d12::command_list_impl::dispatch_rays(api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
+{
+	_has_commands = true;
+
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		D3D12_DISPATCH_RAYS_DESC desc;
+		desc.RayGenerationShaderRecord.StartAddress = (raygen.handle != 0 ? reinterpret_cast<ID3D12Resource *>(raygen.handle)->GetGPUVirtualAddress() : 0) + raygen_offset;
+		desc.RayGenerationShaderRecord.SizeInBytes = raygen_size;
+		desc.MissShaderTable.StartAddress = (miss.handle != 0 ? reinterpret_cast<ID3D12Resource *>(miss.handle)->GetGPUVirtualAddress() : 0) + miss_offset;
+		desc.MissShaderTable.SizeInBytes = miss_size;
+		desc.MissShaderTable.StrideInBytes = miss_stride;
+		desc.HitGroupTable.StartAddress = (hit_group.handle != 0 ? reinterpret_cast<ID3D12Resource *>(hit_group.handle)->GetGPUVirtualAddress() : 0) + hit_group_offset;
+		desc.HitGroupTable.SizeInBytes = hit_group_size;
+		desc.HitGroupTable.StrideInBytes = hit_group_stride;
+		desc.CallableShaderTable.StartAddress = (callable.handle != 0 ? reinterpret_cast<ID3D12Resource *>(callable.handle)->GetGPUVirtualAddress() : 0) + callable_offset;
+		desc.CallableShaderTable.SizeInBytes = callable_size;
+		desc.CallableShaderTable.StrideInBytes = callable_stride;
+		desc.Width = width;
+		desc.Height = height;
+		desc.Depth = depth;
+
+		cmd_list4->DispatchRays(&desc);
+	}
+	else
+	{
+		assert(false);
+	}
 }
 void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(api::indirect_command, api::resource, uint64_t, uint32_t, uint32_t)
 {
@@ -921,6 +996,62 @@ void reshade::d3d12::command_list_impl::copy_query_heap_results(api::query_heap 
 	assert(stride == sizeof(uint64_t));
 
 	_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), first, count, reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset);
+}
+
+void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode)
+{
+	_has_commands = true;
+
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		cmd_list4->CopyRaytracingAccelerationStructure(dest.handle, source.handle, convert_acceleration_structure_copy_mode(mode));
+	}
+	else
+	{
+		assert(false);
+	}
+}
+void reshade::d3d12::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)
+{
+	_has_commands = true;
+
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC desc = {};
+		desc.DestAccelerationStructureData = dest.handle;
+		desc.Inputs.Type = static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE>(type);
+		desc.Inputs.Flags = convert_acceleration_structure_build_flags(flags, mode);
+		desc.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		desc.SourceAccelerationStructureData = source.handle;
+		desc.ScratchAccelerationStructureData = (scratch.handle != 0 ? reinterpret_cast<ID3D12Resource *>(scratch.handle)->GetGPUVirtualAddress() : 0) + scratch_offset;
+
+		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
+
+		if (type == api::acceleration_structure_type::top_level)
+		{
+			assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
+
+			desc.Inputs.NumDescs = inputs->instances.count;
+			desc.Inputs.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
+			desc.Inputs.InstanceDescs = (inputs->instances.buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(inputs->instances.buffer.handle)->GetGPUVirtualAddress() : 0) + inputs->instances.offset;
+		}
+		else
+		{
+			for (uint32_t i = 0; i < input_count; ++i)
+				convert_acceleration_structure_build_input(inputs[i], geometries[i]);
+
+			desc.Inputs.NumDescs = static_cast<UINT>(geometries.size());
+			desc.Inputs.pGeometryDescs = geometries.data();
+		}
+
+		cmd_list4->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
+	}
+	else
+	{
+		assert(false);
+	}
 }
 
 void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float color[4])

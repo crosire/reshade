@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cassert>
+#include <vulkan/vulkan.h>
 #include <vulkan/vk_layer.h>
 
 // Windows SDK headers define these, which breaks the dispatch table

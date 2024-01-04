@@ -111,18 +111,13 @@ reshade::opengl::device_impl::~device_impl()
 	gl.DeleteTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 }
 
-reshade::api::device_properties reshade::opengl::device_impl::get_properties() const
+bool reshade::opengl::device_impl::get_property(api::device_properties property, void *data) const
 {
-	api::device_properties props;
-
 	GLint major = 0, minor = 0;
 	gl.GetIntegerv(GL_MAJOR_VERSION, &major);
 	gl.GetIntegerv(GL_MINOR_VERSION, &minor);
-	props.api_version = (major << 12) | (minor << 8);
 
-	const GLubyte *const name = gl.GetString(GL_RENDERER);
-	std::strncpy(props.description, reinterpret_cast<const char *>(name), sizeof(props.description));
-
+	unsigned int vendor_id = 0, device_id = 0;
 	// Query vendor and device ID from Windows assuming we are running on the primary display device
 	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
 	DISPLAY_DEVICEA dd = { sizeof(dd) };
@@ -130,12 +125,34 @@ reshade::api::device_properties reshade::opengl::device_impl::get_properties() c
 	{
 		if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
 		{
-			std::sscanf(dd.DeviceID, "PCI\\VEN_%x&DEV_%x", &props.vendor_id, &props.device_id);
+			std::sscanf(dd.DeviceID, "PCI\\VEN_%x&DEV_%x", &vendor_id, &device_id);
 			break;
 		}
 	}
 
-	return props;
+	switch (property)
+	{
+	case api::device_properties::api_version:
+		*static_cast<uint32_t *>(data) = (major << 12) | (minor << 8);
+		return true;
+	case api::device_properties::driver_version:
+		*static_cast<uint32_t *>(data) = 0;
+		return false;
+	case api::device_properties::vendor_id:
+		*static_cast<uint32_t *>(data) = vendor_id;
+		return vendor_id != 0;
+	case api::device_properties::device_id:
+		*static_cast<uint32_t *>(data) = device_id;
+		return device_id != 0;
+	case api::device_properties::description:
+	{
+		const GLubyte *const name = gl.GetString(GL_RENDERER);
+		std::strncpy(static_cast<char *>(data), reinterpret_cast<const char *>(name), 256);
+		return true;
+	}
+	default:
+		return false;
+	}
 }
 
 bool reshade::opengl::device_impl::check_capability(api::device_caps capability) const
@@ -195,6 +212,8 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::shared_fence_nt_handle:
 		// TODO: Implement using 'GL_EXT_semaphore' and 'GL_EXT_semaphore_win32' extensions
 		return false;
+	case api::device_caps::amplification_and_mesh_shader:
+	case api::device_caps::ray_tracing:
 	default:
 		return false;
 	}
@@ -2421,4 +2440,19 @@ bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
 	sync_object = gl.FenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 	gl.Finish();
 	return sync_object != 0;
+}
+
+void reshade::opengl::device_impl::get_acceleration_structure_size(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
+{
+	if (out_size != nullptr)
+		*out_size = 0;
+	if (out_build_scratch_size != nullptr)
+		*out_build_scratch_size = 0;
+	if (out_update_scratch_size != nullptr)
+		*out_update_scratch_size = 0;
+}
+
+bool reshade::opengl::device_impl::get_pipeline_shader_group_handles(api::pipeline, uint32_t, uint32_t, void *)
+{
+	return false;
 }

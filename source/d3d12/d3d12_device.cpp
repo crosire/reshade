@@ -236,107 +236,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-#if RESHADE_ADDON >= 2
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
-	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
-
-	const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc = *pDesc;
-
-	reshade::api::shader_desc vs_desc = reshade::d3d12::convert_shader_desc(internal_desc.VS);
-	reshade::api::shader_desc ps_desc = reshade::d3d12::convert_shader_desc(internal_desc.PS);
-	reshade::api::shader_desc ds_desc = reshade::d3d12::convert_shader_desc(internal_desc.DS);
-	reshade::api::shader_desc hs_desc = reshade::d3d12::convert_shader_desc(internal_desc.HS);
-	reshade::api::shader_desc gs_desc = reshade::d3d12::convert_shader_desc(internal_desc.GS);
-	auto stream_output_desc = reshade::d3d12::convert_stream_output_desc(internal_desc.StreamOutput);
-	auto blend_desc = reshade::d3d12::convert_blend_desc(internal_desc.BlendState);
-	auto rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(internal_desc.RasterizerState);
-	auto depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(internal_desc.DepthStencilState);
-	auto input_layout = reshade::d3d12::convert_input_layout_desc(internal_desc.InputLayout.NumElements, internal_desc.InputLayout.pInputElementDescs);
-	reshade::api::primitive_topology topology = reshade::d3d12::convert_primitive_topology_type(internal_desc.PrimitiveTopologyType);
-
-	reshade::api::format depth_stencil_format = reshade::d3d12::convert_format(internal_desc.DSVFormat);
-	assert(internal_desc.NumRenderTargets <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
-	reshade::api::format render_target_formats[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
-	for (UINT i = 0; i < internal_desc.NumRenderTargets; ++i)
-		render_target_formats[i] = reshade::d3d12::convert_format(internal_desc.RTVFormats[i]);
-
-	uint32_t sample_mask = internal_desc.SampleMask;
-	uint32_t sample_count = internal_desc.SampleDesc.Count;
-
-	std::vector<reshade::api::dynamic_state> dynamic_states = {
-		reshade::api::dynamic_state::primitive_topology,
-		reshade::api::dynamic_state::blend_constant,
-		reshade::api::dynamic_state::front_stencil_reference_value,
-		reshade::api::dynamic_state::back_stencil_reference_value
-	};
-	if (internal_desc.Flags & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS)
-	{
-		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
-		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_clamp);
-		dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_slope_scaled);
-	}
-
-	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc },
-		{ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc },
-		{ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc },
-		{ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc },
-		{ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc },
-		{ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc },
-		{ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc },
-		{ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask },
-		{ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc },
-		{ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc },
-		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() },
-		{ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology },
-		{ reshade::api::pipeline_subobject_type::render_target_formats, internal_desc.NumRenderTargets, render_target_formats },
-		{ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format },
-		{ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count },
-		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
-	};
 
 	HRESULT hr = S_OK;
-	if (riid == __uuidof(ID3D12PipelineState) &&
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects))
-	{
-		reshade::api::pipeline pipeline;
-		hr = create_pipeline(to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, &pipeline) ? S_OK : E_FAIL;
-		*ppPipelineState = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
-	}
-	else
-	{
-		hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
-	}
-#else
-	const HRESULT hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
-#endif
-
-	if (SUCCEEDED(hr))
-	{
 #if RESHADE_ADDON >= 2
-		if (riid == __uuidof(ID3D12PipelineState))
-		{
-			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
-
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
-
-			if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
-			{
-				register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
-					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-				});
-			}
-		}
-		else
-		{
-			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateGraphicsPipelineState" << '.';
-		}
+	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
+		riid != __uuidof(ID3D12PipelineState) ||
+		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
-	}
+		hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+
 #if RESHADE_VERBOSE_LOG
-	else
+	if (FAILED(hr) && ppPipelineState != nullptr)
 	{
 		LOG(WARN) << "ID3D12Device::CreateGraphicsPipelineState" << " failed with error code " << hr << '.';
 	}
@@ -346,60 +258,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-#if RESHADE_ADDON >= 2
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
-	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
-		return _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
-
-	const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc = *pDesc;
-
-	reshade::api::shader_desc cs_desc = reshade::d3d12::convert_shader_desc(internal_desc.CS);
-
-	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc }
-	};
 
 	HRESULT hr = S_OK;
-	if (riid == __uuidof(ID3D12PipelineState) &&
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects))
-	{
-		reshade::api::pipeline handle;
-		hr = create_pipeline(to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, &handle) ? S_OK : E_FAIL;
-		*ppPipelineState = reinterpret_cast<ID3D12PipelineState *>(handle.handle);
-	}
-	else
-	{
-		hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
-	}
-#else
-	const HRESULT hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
-#endif
-
-	if (SUCCEEDED(hr))
-	{
 #if RESHADE_ADDON >= 2
-		if (riid == __uuidof(ID3D12PipelineState))
-		{
-			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
-
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, to_handle(internal_desc.pRootSignature), static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
-
-			if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
-			{
-				register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
-					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-				});
-			}
-		}
-		else
-		{
-			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateComputePipelineState" << '.';
-		}
+	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
+		riid != __uuidof(ID3D12PipelineState) ||
+		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
-	}
+		hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
+
 #if RESHADE_VERBOSE_LOG
-	else
+	if (FAILED(hr) && ppPipelineState != nullptr)
 	{
 		LOG(WARN) << "ID3D12Device::CreateComputePipelineState" << " failed with error code " << hr << '.';
 	}
@@ -506,250 +377,16 @@ UINT    STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DE
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
 {
+	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
-	if (ppvRootSignature == nullptr)
-		return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
-
-	// Copy root signature blob in case static sampler descriptions might get modified
-	std::vector<uint32_t> data_mem;
-	if (reshade::has_addon_event<reshade::addon_event::create_sampler>())
-	{
-		data_mem.assign(static_cast<const uint32_t *>(pBlobWithRootSignature), static_cast<const uint32_t *>(pBlobWithRootSignature) + (blobLengthInBytes / sizeof(uint32_t)));
-		pBlobWithRootSignature = data_mem.data();
-	}
-
-	// Parse DXBC root signature, convert it and call descriptor table and pipeline layout events
-	std::vector<reshade::api::pipeline_layout_param> params;
-	std::vector<std::vector<reshade::api::descriptor_range>> ranges;
-
-	constexpr uint32_t DXBC = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
-	constexpr uint32_t RTS0 = uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24);
-
-	if (const auto data = static_cast<uint32_t *>(const_cast<void *>(pBlobWithRootSignature));
-		data != nullptr &&
-		blobLengthInBytes >= (sizeof(uint32_t) * 8) &&
-		data[0] == DXBC &&
-		data[5] == 0x00000001 /* DXBC version */)
-	{
-		assert(blobLengthInBytes == data[6]);
-
-		for (uint32_t i = 0, *chunk; i < data[7]; ++i)
-		{
-			const uint32_t chunk_offset = data[8 + i];
-			chunk = data + (chunk_offset / sizeof(uint32_t));
-
-			if (chunk[0] != RTS0)
-				continue;
-			else
-				chunk += 2;
-
-			const uint32_t version = chunk[0];
-			if (version != D3D_ROOT_SIGNATURE_VERSION_1_0 && version != D3D_ROOT_SIGNATURE_VERSION_1_1 && version != D3D_ROOT_SIGNATURE_VERSION_1_2)
-				continue;
-
-			if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>())
-			{
-				const uint32_t param_count = chunk[1];
-				const uint32_t param_offset = chunk[2];
-				auto param_list = chunk + (param_offset / sizeof(uint32_t));
-
-				params.resize(param_count);
-				ranges.resize(param_count);
-
-				for (uint32_t k = 0; k < param_count; ++k, param_list += 3)
-				{
-					const auto param_type = static_cast<D3D12_ROOT_PARAMETER_TYPE>(param_list[0]);
-					const auto shader_visibility = static_cast<D3D12_SHADER_VISIBILITY>(param_list[1]);
-					auto param_data = chunk + (param_list[2] / sizeof(uint32_t));
-
-					switch (param_type)
-					{
-						case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
-						{
-							const uint32_t range_count = param_data[0];
-							uint32_t descriptor_offset = 0;
-
-							ranges[k].resize(range_count);
-
-							// Convert descriptor ranges
-							switch (version)
-							{
-								case D3D_ROOT_SIGNATURE_VERSION_1_0:
-								{
-									auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(chunk + (param_data[1] / sizeof(uint32_t)));
-
-									for (uint32_t j = 0; j < range_count; ++j, ++range_data)
-									{
-										reshade::api::descriptor_range &range = ranges[k][j];
-										range.dx_register_index = range_data->BaseShaderRegister;
-										range.dx_register_space = range_data->RegisterSpace;
-										range.count = range_data->NumDescriptors;
-										range.array_size = 1;
-										range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-										range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-
-										if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-											range.binding = descriptor_offset;
-										else
-											range.binding = range_data->OffsetInDescriptorsFromTableStart;
-
-										if (range_data->NumDescriptors == UINT_MAX)
-											// Only the last entry in a table can have an unbounded size
-											assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-										else
-											descriptor_offset = range.binding + range.count;
-									}
-									break;
-								}
-								case D3D_ROOT_SIGNATURE_VERSION_1_1:
-								case D3D_ROOT_SIGNATURE_VERSION_1_2:
-								{
-									auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(chunk + (param_data[1] / sizeof(uint32_t)));
-
-									for (uint32_t j = 0; j < range_count; ++j, ++range_data)
-									{
-										reshade::api::descriptor_range &range = ranges[k][j];
-										range.dx_register_index = range_data->BaseShaderRegister;
-										range.dx_register_space = range_data->RegisterSpace;
-										range.count = range_data->NumDescriptors;
-										range.array_size = 1;
-										range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-										range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-
-										if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-											range.binding = descriptor_offset;
-										else
-											range.binding = range_data->OffsetInDescriptorsFromTableStart;
-
-										if (range_data->NumDescriptors == UINT_MAX)
-											// Only the last entry in a table can have an unbounded size
-											assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-										else
-											descriptor_offset = range.binding + range.count;
-									}
-									break;
-								}
-							}
-
-							params[k].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-							params[k].descriptor_table.count = range_count;
-							params[k].descriptor_table.ranges = ranges[k].data();
-							break;
-						}
-						case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
-						{
-							auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
-
-							params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
-
-							// Convert root constant description
-							reshade::api::constant_range &root_constant = params[k].push_constants;
-							root_constant.binding = 0;
-							root_constant.dx_register_index = constant_data->ShaderRegister;
-							root_constant.dx_register_space = constant_data->RegisterSpace;
-							root_constant.count = constant_data->Num32BitValues;
-							root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-							break;
-						}
-						case D3D12_ROOT_PARAMETER_TYPE_CBV:
-						case D3D12_ROOT_PARAMETER_TYPE_SRV:
-						case D3D12_ROOT_PARAMETER_TYPE_UAV:
-						{
-							auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
-
-							params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
-
-							reshade::api::descriptor_range &range = params[k].push_descriptors;
-							range.binding = 0;
-							range.dx_register_index = descriptor_data->ShaderRegister;
-							range.dx_register_space = descriptor_data->RegisterSpace;
-							range.count = 1;
-							range.array_size = 1;
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-
-							if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
-								range.type = reshade::api::descriptor_type::constant_buffer;
-							else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
-								range.type = reshade::api::descriptor_type::shader_resource_view;
-							else
-								range.type = reshade::api::descriptor_type::unordered_access_view;
-							break;
-						}
-					}
-				}
-			}
-
-			if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::create_sampler>())
-			{
-				const uint32_t sampler_count = chunk[3];
-				const uint32_t sampler_offset = chunk[4];
-
-				if (sampler_count != 0)
-				{
-					const uint32_t k = static_cast<uint32_t>(params.size());
-					params.emplace_back();
-					ranges.emplace_back();
-
-					ranges[k].resize(sampler_count);
-
-					auto sampler_data = reinterpret_cast<D3D12_STATIC_SAMPLER_DESC *>(chunk + (sampler_offset / sizeof(uint32_t)));
-
-					for (uint32_t j = 0; j < sampler_count; ++j)
-					{
-						auto desc = reshade::d3d12::convert_sampler_desc(sampler_data[j]);
-
-						if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
-						{
-							reshade::d3d12::convert_sampler_desc(desc, sampler_data[j]);
-						}
-
-						reshade::api::descriptor_range &range = ranges[k][j];
-						range.binding = j;
-						range.dx_register_index = sampler_data[j].ShaderRegister;
-						range.dx_register_space = sampler_data[j].RegisterSpace;
-						range.count = 1;
-						range.visibility = reshade::d3d12::convert_shader_visibility(sampler_data[j].ShaderVisibility);
-						range.type = reshade::api::descriptor_type::sampler;
-					}
-
-					params[k].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-					params[k].descriptor_table.count = sampler_count;
-					params[k].descriptor_table.ranges = ranges[k].data();
-				}
-			}
-			break;
-		}
-	}
+	if (ppvRootSignature == nullptr ||
+		riid != __uuidof(ID3D12RootSignature) ||
+		!invoke_create_and_init_pipeline_layout_event(nodeMask, pBlobWithRootSignature, blobLengthInBytes, *reinterpret_cast<ID3D12RootSignature **>(ppvRootSignature), hr))
 #endif
+		hr = _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
 
-	const HRESULT hr = _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
-	if (SUCCEEDED(hr))
-	{
-#if RESHADE_ADDON >= 2
-		if (riid == __uuidof(ID3D12RootSignature))
-		{
-			const auto root_signature = static_cast<ID3D12RootSignature *>(*ppvRootSignature);
-
-			if (!params.empty())
-			{
-				reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(params.size()), params.data(), reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
-
-				if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline_layout>())
-				{
-					register_destruction_callback_d3dx(root_signature, [this, root_signature]() {
-						reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
-					});
-				}
-			}
-		}
-		else
-		{
-			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::CreateRootSignature" << '.';
-		}
-#endif
-	}
 #if RESHADE_VERBOSE_LOG
-	else
+	if (FAILED(hr) && ppvRootSignature != nullptr)
 	{
 		LOG(WARN) << "ID3D12Device::CreateRootSignature" << " failed with error code " << hr << '.';
 	}
@@ -790,11 +427,29 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 #if RESHADE_ADDON
 	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
+	auto usage = reshade::api::resource_usage::shader_resource;
+	const bool acceleration_structure = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+
+	if (acceleration_structure)
+	{
+		if (pResource != nullptr)
+		{
+			desc.buffer.offset -= pResource->GetGPUVirtualAddress();
+			desc.buffer.size = pResource->GetDesc().Width - desc.buffer.offset;
+		}
+
+		usage = reshade::api::resource_usage::acceleration_structure;
+	}
 
 	// Calling with no resource is valid and used to initialize a null descriptor (see https://docs.microsoft.com/windows/win32/api/d3d12/nf-d3d12-id3d12device-createshaderresourceview)
 	if (pResource != nullptr &&
-		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc))
+		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), usage, desc))
 	{
+		if (acceleration_structure)
+		{
+			desc.buffer.offset += pResource->GetGPUVirtualAddress();
+		}
+
 		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
@@ -807,10 +462,10 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 
 #if RESHADE_ADDON
-	const reshade::api::resource_view descriptor_value = to_handle(DestDescriptor);
+	const reshade::api::resource_view descriptor_value = acceleration_structure ? reshade::api::resource_view { internal_desc.RaytracingAccelerationStructure.Location } : to_handle(DestDescriptor);
 
 	register_resource_view(DestDescriptor, pResource, desc);
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, descriptor_value);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(this, to_handle(pResource), usage, desc, descriptor_value);
 #endif
 
 #if RESHADE_ADDON >= 2
@@ -821,7 +476,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	update.table = table;
 	update.binding = 0;
 	update.array_offset = 0;
-	update.type = reshade::api::descriptor_type::shader_resource_view;
+	update.type = acceleration_structure ? reshade::api::descriptor_type::acceleration_structure : reshade::api::descriptor_type::shader_resource_view;
 	update.count = 1;
 	update.descriptors = &descriptor_value;
 
@@ -1126,23 +781,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -1196,23 +836,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -1261,13 +886,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -1290,11 +909,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pOb
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID riid, void **ppvObj)
 {
-	if (ppvObj == nullptr)
-		return _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
-
 	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) &&
+		ppvObj != nullptr)
 	{
 		if (riid == __uuidof(ID3D12Resource) ||
 			riid == __uuidof(ID3D12Resource1) ||
@@ -1313,26 +930,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID 
 
 			assert((desc.flags & reshade::api::resource_flags::shared) == reshade::api::resource_flags::shared);
 
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, reshade::api::resource_usage::general, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, reshade::api::resource_usage::general, resource);
 #endif
 		}
-		else
-		{
-			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device::OpenSharedHandle" << '.';
-		}
 	}
-#if RESHADE_VERBOSE_LOG
-	else
-	{
-		LOG(WARN) << "ID3D12Device::OpenSharedHandle" << " failed with error code " << hr << '.';
-	}
-#endif
 
 	return hr;
 }
@@ -1455,13 +1056,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 {
 	assert(_interface_version >= 1);
 
-#if RESHADE_ADDON >= 2
-	if (ppPipelineLibrary == nullptr)
-		return static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
-#endif
-
 	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) &&
+		ppPipelineLibrary != nullptr)
 	{
 #if RESHADE_ADDON >= 2
 		if (riid == __uuidof(ID3D12PipelineLibrary) ||
@@ -1488,12 +1085,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 		}
 #endif
 	}
-#if RESHADE_VERBOSE_LOG
-	else
-	{
-		LOG(WARN) << "ID3D12Device1::CreatePipelineLibrary" << " failed with error code " << hr << '.';
-	}
-#endif
 
 	return hr;
 }
@@ -1525,225 +1116,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 {
 	assert(_interface_version >= 2);
 
-#if RESHADE_ADDON >= 2
 	if (pDesc == nullptr)
 		return E_INVALIDARG;
-	if (ppPipelineState == nullptr) // This can happen when application only wants to validate input parameters
-		return static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
-
-	reshade::api::pipeline_layout layout = {};
-
-	reshade::api::shader_desc vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, cs_desc, as_desc, ms_desc;
-	reshade::api::stream_output_desc stream_output_desc;
-	reshade::api::blend_desc blend_desc;
-	reshade::api::rasterizer_desc rasterizer_desc;
-	reshade::api::depth_stencil_desc depth_stencil_desc;
-	std::vector<reshade::api::input_element> input_layout;
-	reshade::api::primitive_topology topology;
-	reshade::api::format depth_stencil_format;
-	reshade::api::format render_target_formats[8];
-	uint32_t sample_mask;
-	uint32_t sample_count;
-	std::vector<reshade::api::dynamic_state> dynamic_states = {
-		reshade::api::dynamic_state::primitive_topology,
-		reshade::api::dynamic_state::blend_constant,
-		reshade::api::dynamic_state::front_stencil_reference_value,
-		reshade::api::dynamic_state::back_stencil_reference_value
-	};
-
-	std::vector<reshade::api::pipeline_subobject> subobjects;
-
-	for (uintptr_t p = reinterpret_cast<uintptr_t>(pDesc->pPipelineStateSubobjectStream); p < (reinterpret_cast<uintptr_t>(pDesc->pPipelineStateSubobjectStream) + pDesc->SizeInBytes);)
-	{
-		switch (*reinterpret_cast<const D3D12_PIPELINE_STATE_SUBOBJECT_TYPE *>(p))
-		{
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
-			layout = to_handle(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE *>(p)->data);
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VS:
-			vs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS:
-			ps_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DS:
-			ds_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_HS:
-			hs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_HS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_HS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_GS:
-			gs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_GS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_GS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CS:
-			cs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_CS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_STREAM_OUTPUT:
-			stream_output_desc = reshade::d3d12::convert_stream_output_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND:
-			blend_desc = reshade::d3d12::convert_blend_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_BLEND_DESC *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_BLEND_DESC);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK:
-			sample_mask = reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK *>(p)->data;
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER:
-			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL:
-			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT:
-			input_layout = reshade::d3d12::convert_input_layout_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.NumElements, reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.pInputElementDescs);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_IB_STRIP_CUT_VALUE:
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_IB_STRIP_CUT_VALUE);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY:
-			topology = reshade::d3d12::convert_primitive_topology_type(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS:
-			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets <= 8);
-			for (UINT i = 0; i < reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets; ++i)
-				render_target_formats[i] = reshade::d3d12::convert_format(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.RTFormats[i]);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::render_target_formats, reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets, render_target_formats });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT:
-			depth_stencil_format = reshade::d3d12::convert_format(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC:
-			sample_count = reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC *>(p)->data.Count;
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK:
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_NODE_MASK);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO:
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CACHED_PSO);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS:
-			if (reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_FLAGS *>(p)->data & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS)
-			{
-				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
-				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_clamp);
-				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_slope_scaled);
-			}
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_FLAGS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1:
-			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1 *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING:
-			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING *>(p)->data.ViewInstanceCount <= D3D12_MAX_VIEW_INSTANCE_COUNT);
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
-			as_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_AS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
-			ms_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_MS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL2:
-			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL2 *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL2);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER1:
-			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER1 *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER1);
-			continue;
-		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER2:
-			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER2 *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
-			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER1);
-			continue;
-		default:
-			// Unknown sub-object type, break out of the loop
-			assert(false);
-		}
-		break;
-	}
-
-	subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
 
 	HRESULT hr = S_OK;
-	if (riid == __uuidof(ID3D12PipelineState) &&
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
-	{
-		reshade::api::pipeline pipeline;
-		hr = create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pipeline) ? S_OK : E_FAIL;
-		*ppPipelineState = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
-	}
-	else
-	{
-		hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
-	}
-#else
-	const HRESULT hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
-#endif
-
-	if (SUCCEEDED(hr))
-	{
 #if RESHADE_ADDON >= 2
-		if (riid == __uuidof(ID3D12PipelineState))
-		{
-			const auto pipeline = static_cast<ID3D12PipelineState *>(*ppPipelineState);
-
-			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), to_handle(pipeline));
-
-			if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
-			{
-				register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
-					reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
-				});
-			}
-		}
-		else
-		{
-			LOG(WARN) << "Unknown interface " << riid << " in " << "ID3D12Device2::CreatePipelineState" << '.';
-		}
+	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
+		riid != __uuidof(ID3D12PipelineState) ||
+		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
-	}
+		hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
+
 #if RESHADE_VERBOSE_LOG
-	else
+	if (FAILED(hr) && ppPipelineState != nullptr)
 	{
 		LOG(WARN) << "ID3D12Device2::CreatePipelineState" << " failed with error code " << hr << '.';
 	}
@@ -1858,23 +1243,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -1930,13 +1300,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -1987,7 +1351,26 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateMetaCommand(REFGUID CommandId, UINT
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJECT_DESC *pDesc, REFIID riid, void **ppStateObject)
 {
 	assert(_interface_version >= 5);
-	return static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(pDesc, riid, ppStateObject);
+
+	if (pDesc == nullptr)
+		return E_INVALIDARG;
+
+	HRESULT hr = S_OK;
+#if RESHADE_ADDON >= 2
+	if (ppStateObject == nullptr ||
+		riid != __uuidof(ID3D12StateObject) ||
+		!invoke_create_and_init_pipeline_event(*pDesc, nullptr, *reinterpret_cast<ID3D12StateObject **>(ppStateObject), hr))
+#endif
+		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(pDesc, riid, ppStateObject);
+
+#if RESHADE_VERBOSE_LOG
+	if (FAILED(hr) && ppStateObject != nullptr)
+	{
+		LOG(WARN) << "ID3D12Device5::CreateStateObject" << " failed with error code " << hr << '.';
+	}
+#endif
+
+	return hr;
 }
 void    STDMETHODCALLTYPE D3D12Device::GetRaytracingAccelerationStructurePrebuildInfo(const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
 {
@@ -2009,7 +1392,26 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetBackgroundProcessingMode(D3D12_BACKGRO
 HRESULT STDMETHODCALLTYPE D3D12Device::AddToStateObject(const D3D12_STATE_OBJECT_DESC *pAddition, ID3D12StateObject *pStateObjectToGrowFrom, REFIID riid, void **ppNewStateObject)
 {
 	assert(_interface_version >= 7);
-	return static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject);
+
+	if (pAddition == nullptr)
+		return E_INVALIDARG;
+
+	HRESULT hr = S_OK;
+#if RESHADE_ADDON >= 2
+	if (ppNewStateObject == nullptr ||
+		riid != __uuidof(ID3D12StateObject) ||
+		!invoke_create_and_init_pipeline_event(*pAddition, pStateObjectToGrowFrom, *reinterpret_cast<ID3D12StateObject **>(ppNewStateObject), hr))
+#endif
+		hr = static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(pAddition, pStateObjectToGrowFrom, riid, ppNewStateObject);
+
+#if RESHADE_VERBOSE_LOG
+	if (FAILED(hr) && ppNewStateObject != nullptr)
+	{
+		LOG(WARN) << "ID3D12Device7::AddToStateObject" << " failed with error code " << hr << '.';
+	}
+#endif
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession1(const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc, REFIID riid, void **ppSession)
 {
@@ -2058,23 +1460,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -2126,23 +1513,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -2271,23 +1643,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource3(const D3D12_HEAP
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -2339,23 +1696,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource2(ID3D12Heap *pHeap, 
 
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
-#if RESHADE_ADDON >= 2
-			if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::map_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
-			if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
-				reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
-				reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
-#endif
-
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -2406,13 +1748,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_GetDevice));
 
 #if RESHADE_ADDON
-			register_resource(resource);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
-
-			register_destruction_callback_d3dx(resource, [this, resource]() {
-				reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-				unregister_resource(resource);
-			});
+			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
 		else
@@ -2481,3 +1817,795 @@ D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocat
 	assert(_interface_version >= 12);
 	return static_cast<ID3D12Device12 *>(_orig)->GetResourceAllocationInfo3(visibleMask, numResourceDescs, pResourceDescs, pNumCastableFormats, ppCastableFormats, pResourceAllocationInfo1);
 }
+
+#if RESHADE_ADDON
+void D3D12Device::invoke_init_resource_event(const reshade::api::resource_desc &desc, reshade::api::resource_usage initial_state, ID3D12Resource *resource)
+{
+#if RESHADE_ADDON >= 2
+	if (reshade::has_addon_event<reshade::addon_event::map_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::map_texture_region>())
+		reshade::hooks::install("ID3D12Resource::Map", reshade::hooks::vtable_from_instance(resource), 8, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Map));
+	if (reshade::has_addon_event<reshade::addon_event::unmap_buffer_region>() ||
+		reshade::has_addon_event<reshade::addon_event::unmap_texture_region>())
+		reshade::hooks::install("ID3D12Resource::Unmap", reshade::hooks::vtable_from_instance(resource), 9, reinterpret_cast<reshade::hook::address>(&ID3D12Resource_Unmap));
+#endif
+
+	register_resource(resource, initial_state == reshade::api::resource_usage::acceleration_structure);
+	reshade::invoke_addon_event<reshade::addon_event::init_resource>(this, desc, nullptr, initial_state, to_handle(resource));
+
+	register_destruction_callback_d3dx(resource, [this, resource]() {
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+		unregister_resource(resource);
+	});
+
+	if (initial_state == reshade::api::resource_usage::acceleration_structure)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+			this,
+			to_handle(resource),
+			reshade::api::resource_usage::acceleration_structure,
+			reshade::api::resource_view_desc(reshade::api::resource_view_type::acceleration_structure, reshade::api::format::unknown, 0, UINT64_MAX),
+			reshade::api::resource_view { resource->GetGPUVirtualAddress() });
+	}
+}
+#endif
+
+#if RESHADE_ADDON >= 2
+
+#include <dxcapi.h>
+#include <d3d12shader.h>
+
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT_DESC &internal_desc, ID3D12StateObject *existing_d3d_pipeline, ID3D12StateObject *&d3d_pipeline, HRESULT &hr)
+{
+	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
+		!reshade::has_addon_event<reshade::addon_event::create_pipeline>() &&
+		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		return false;
+
+	const auto dxcompiler_module = GetModuleHandleW(L"dxcompiler.dll");
+	if (dxcompiler_module == nullptr)
+		return false;
+
+	const auto dxc_create_instance = reinterpret_cast<decltype(&DxcCreateInstance)>(GetProcAddress(dxcompiler_module, "DxcCreateInstance"));
+	if (dxc_create_instance == nullptr)
+		return false;
+
+	com_ptr<IDxcUtils> dxc_utils;
+	if (FAILED(dxc_create_instance(CLSID_DxcUtils, IID_PPV_ARGS(&dxc_utils))))
+		return false;
+
+	std::vector<com_ptr<ID3D12LibraryReflection>> reflections;
+
+	reshade::api::pipeline_layout layout = {};
+
+	std::vector<reshade::api::shader_desc> raygen_desc;
+	std::vector<reshade::api::shader_desc> any_hit_desc;
+	std::vector<reshade::api::shader_desc> closest_hit_desc;
+	std::vector<reshade::api::shader_desc> miss_desc;
+	std::vector<reshade::api::shader_desc> intersection_desc;
+	std::vector<reshade::api::shader_desc> callable_desc;
+	std::vector<reshade::api::pipeline> libraries;
+	std::vector<reshade::api::shader_group> shader_groups;
+
+	reshade::api::pipeline_flags flags = reshade::api::pipeline_flags::none;
+	if (internal_desc.Type == D3D12_STATE_OBJECT_TYPE_COLLECTION)
+		flags |= reshade::api::pipeline_flags::library;
+
+	if (existing_d3d_pipeline != nullptr)
+		libraries.push_back({ reinterpret_cast<uintptr_t>(existing_d3d_pipeline) });
+
+	std::vector<reshade::api::dynamic_state> dynamic_states = {
+		reshade::api::dynamic_state::ray_tracing_pipeline_stack_size
+	};
+
+	std::vector<reshade::api::pipeline_subobject> subobjects;
+
+	for (UINT i = 0; i < internal_desc.NumSubobjects; ++i)
+	{
+		const D3D12_STATE_SUBOBJECT &subobject = internal_desc.pSubobjects[i];
+
+		switch (subobject.Type)
+		{
+		case D3D12_STATE_SUBOBJECT_TYPE_STATE_OBJECT_CONFIG:
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE:
+			layout = to_handle(static_cast<const D3D12_GLOBAL_ROOT_SIGNATURE *>(subobject.pDesc)->pGlobalRootSignature);
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE:
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY:
+		{
+			const auto &desc = *static_cast<const D3D12_DXIL_LIBRARY_DESC *>(subobject.pDesc);
+
+			reshade::api::shader_desc shader_desc;
+			shader_desc.code = desc.DXILLibrary.pShaderBytecode;
+			shader_desc.code_size = desc.DXILLibrary.BytecodeLength;
+
+			DxcBuffer dxc_buffer;
+			dxc_buffer.Ptr = desc.DXILLibrary.pShaderBytecode;
+			dxc_buffer.Size = desc.DXILLibrary.BytecodeLength;
+			dxc_buffer.Encoding = DXC_CP_ACP;
+
+			com_ptr<ID3D12LibraryReflection> reflection;
+			if (SUCCEEDED(dxc_utils->CreateReflection(&dxc_buffer, IID_PPV_ARGS(&reflection))))
+			{
+				D3D12_LIBRARY_DESC library_desc = {};
+				reflection->GetDesc(&library_desc);
+
+				for (UINT function_index = 0; function_index < library_desc.FunctionCount; ++function_index)
+				{
+					ID3D12FunctionReflection *const function = reflection->GetFunctionByIndex(function_index);
+
+					D3D12_FUNCTION_DESC function_desc = {};
+					function->GetDesc(&function_desc);
+
+					// Filter exports if any are defined
+					if (desc.NumExports != 0 &&
+						std::find_if(desc.pExports, desc.pExports + desc.NumExports,
+							[&function_desc](const D3D12_EXPORT_DESC &e) {
+								std::string name;
+								utf8::unchecked::utf16to8(e.Name, e.Name + wcslen(e.Name), std::back_inserter(name));
+								return function_desc.Name == name;
+							}) == desc.pExports + desc.NumExports)
+						continue;
+
+					shader_desc.entry_point = function_desc.Name;
+
+					switch (static_cast<D3D12_SHADER_VERSION_TYPE>(D3D12_SHVER_GET_TYPE(function_desc.Version)))
+					{
+					case D3D12_SHVER_RAY_GENERATION_SHADER:
+						raygen_desc.push_back(shader_desc);
+						shader_groups.push_back({ reshade::api::shader_group_type::raygen, static_cast<uint32_t>(raygen_desc.size() - 1) });
+						break;
+					case D3D12_SHVER_INTERSECTION_SHADER:
+						intersection_desc.push_back(shader_desc);
+						break;
+					case D3D12_SHVER_ANY_HIT_SHADER:
+						any_hit_desc.push_back(shader_desc);
+						break;
+					case D3D12_SHVER_CLOSEST_HIT_SHADER:
+						closest_hit_desc.push_back(shader_desc);
+						break;
+					case D3D12_SHVER_MISS_SHADER:
+						miss_desc.push_back(shader_desc);
+						shader_groups.push_back({ reshade::api::shader_group_type::miss, static_cast<uint32_t>(miss_desc.size() - 1) });
+						break;
+					case D3D12_SHVER_CALLABLE_SHADER:
+						callable_desc.push_back(shader_desc);
+						shader_groups.push_back({ reshade::api::shader_group_type::callable, static_cast<uint32_t>(callable_desc.size() - 1) });
+						break;
+					}
+				}
+
+				reflections.emplace_back(std::move(reflection)); // Keep reflection object alive (so the name string is not freed)
+			}
+			break;
+		}
+		case D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION:
+			libraries.push_back({ reinterpret_cast<uintptr_t>(static_cast<const D3D12_EXISTING_COLLECTION_DESC *>(subobject.pDesc)->pExistingCollection) });
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
+			// Used to e.g. associate local root signatures with specific exports
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_DXIL_SUBOBJECT_TO_EXPORTS_ASSOCIATION:
+			// Currently unsupported
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG:
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_payload_size, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_SHADER_CONFIG *>(subobject.pDesc)->MaxPayloadSizeInBytes) });
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_attribute_size, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_SHADER_CONFIG *>(subobject.pDesc)->MaxAttributeSizeInBytes) });
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG:
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG *>(subobject.pDesc)->MaxTraceRecursionDepth) });
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP:
+		{
+			const auto &desc = *static_cast<const D3D12_HIT_GROUP_DESC *>(subobject.pDesc);
+
+			reshade::api::shader_group &shader_group = shader_groups.emplace_back();
+			switch (desc.Type)
+			{
+			case D3D12_HIT_GROUP_TYPE_TRIANGLES:
+				shader_group.type = reshade::api::shader_group_type::hit_group_triangles;
+				break;
+			case D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE:
+				shader_group.type = reshade::api::shader_group_type::hit_group_aabbs;
+				break;
+			}
+
+			if (desc.AnyHitShaderImport != nullptr)
+			{
+				std::string any_hit_name;
+				utf8::unchecked::utf16to8(desc.AnyHitShaderImport, desc.AnyHitShaderImport + wcslen(desc.AnyHitShaderImport), std::back_inserter(any_hit_name));
+				if (const auto it = std::find_if(any_hit_desc.begin(), any_hit_desc.end(), [&any_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == any_hit_name; });
+					it != any_hit_desc.end())
+					shader_group.hit_group.any_hit_shader_index = static_cast<uint32_t>(std::distance(any_hit_desc.begin(), it));
+			}
+
+			if (desc.ClosestHitShaderImport != nullptr)
+			{
+				std::string closest_hit_name;
+				utf8::unchecked::utf16to8(desc.ClosestHitShaderImport, desc.ClosestHitShaderImport + wcslen(desc.ClosestHitShaderImport), std::back_inserter(closest_hit_name));
+				if (const auto it = std::find_if(closest_hit_desc.begin(), closest_hit_desc.end(), [&closest_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == closest_hit_name; });
+					it != closest_hit_desc.end())
+					shader_group.hit_group.closest_hit_shader_index = static_cast<uint32_t>(std::distance(closest_hit_desc.begin(), it));
+			}
+
+			if (desc.IntersectionShaderImport != nullptr)
+			{
+				std::string intersection_name;
+				utf8::unchecked::utf16to8(desc.IntersectionShaderImport, desc.IntersectionShaderImport + wcslen(desc.IntersectionShaderImport), std::back_inserter(intersection_name));
+				if (const auto it = std::find_if(intersection_desc.begin(), intersection_desc.end(), [&intersection_name](const reshade::api::shader_desc &shader) { return shader.entry_point == intersection_name; });
+					it != intersection_desc.end())
+					shader_group.hit_group.intersection_shader_index = static_cast<uint32_t>(std::distance(intersection_desc.begin(), it));
+			}
+			break;
+		}
+		case D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1:
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG1 *>(subobject.pDesc)->MaxTraceRecursionDepth) });
+			flags |= reshade::d3d12::convert_pipeline_flags(static_cast<const D3D12_RAYTRACING_PIPELINE_CONFIG1 *>(subobject.pDesc)->Flags);
+			break;
+		default:
+			// Unknown sub-object type
+			assert(false);
+		}
+	}
+
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::libraries, static_cast<uint32_t>(libraries.size()), libraries.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::flags, 1, &flags });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
+
+	if (existing_d3d_pipeline != nullptr) // Do not invoke 'create_pipeline' event for 'AddToStateObject' calls
+	{
+		assert(_interface_version >= 7);
+		hr = static_cast<ID3D12Device7 *>(_orig)->AddToStateObject(&internal_desc, existing_d3d_pipeline, IID_PPV_ARGS(&d3d_pipeline));
+	}
+	else if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
+	{
+		reshade::api::pipeline pipeline;
+		hr = device_impl::create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pipeline) ? S_OK : E_FAIL;
+		d3d_pipeline = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
+	}
+	else
+	{
+		assert(_interface_version >= 5);
+		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), to_handle(d3d_pipeline));
+
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(d3d_pipeline, [this, d3d_pipeline]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(d3d_pipeline));
+			});
+		}
+	}
+
+	return true;
+}
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STATE_STREAM_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool with_create_pipeline)
+{
+	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
+		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
+		(with_create_pipeline && !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
+		return false;
+
+	reshade::api::pipeline_layout layout = {};
+
+	reshade::api::shader_desc vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, cs_desc, as_desc, ms_desc;
+	reshade::api::stream_output_desc stream_output_desc;
+	reshade::api::blend_desc blend_desc;
+	reshade::api::rasterizer_desc rasterizer_desc;
+	reshade::api::depth_stencil_desc depth_stencil_desc;
+	std::vector<reshade::api::input_element> input_layout;
+	reshade::api::primitive_topology topology;
+
+	reshade::api::format depth_stencil_format;
+	reshade::api::format render_target_formats[8];
+
+	uint32_t sample_mask;
+	uint32_t sample_count;
+
+	std::vector<reshade::api::dynamic_state> dynamic_states = {
+		reshade::api::dynamic_state::primitive_topology,
+		reshade::api::dynamic_state::blend_constant,
+		reshade::api::dynamic_state::front_stencil_reference_value,
+		reshade::api::dynamic_state::back_stencil_reference_value
+	};
+
+	std::vector<reshade::api::pipeline_subobject> subobjects;
+
+	for (uintptr_t p = reinterpret_cast<uintptr_t>(internal_desc.pPipelineStateSubobjectStream); p < (reinterpret_cast<uintptr_t>(internal_desc.pPipelineStateSubobjectStream) + internal_desc.SizeInBytes);)
+	{
+		switch (*reinterpret_cast<const D3D12_PIPELINE_STATE_SUBOBJECT_TYPE *>(p))
+		{
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE:
+			layout = to_handle(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE *>(p)->data);
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VS:
+			vs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS:
+			ps_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DS:
+			ds_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_HS:
+			hs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_HS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_HS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_GS:
+			gs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_GS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_GS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CS:
+			cs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_CS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_STREAM_OUTPUT:
+			stream_output_desc = reshade::d3d12::convert_stream_output_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND:
+			blend_desc = reshade::d3d12::convert_blend_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_BLEND_DESC *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::blend_state, 1, &blend_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_BLEND_DESC);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK:
+			sample_mask = reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK *>(p)->data;
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_mask, 1, &sample_mask });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER:
+			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL:
+			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT:
+			input_layout = reshade::d3d12::convert_input_layout_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.NumElements, reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.pInputElementDescs);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_IB_STRIP_CUT_VALUE:
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_IB_STRIP_CUT_VALUE);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY:
+			topology = reshade::d3d12::convert_primitive_topology_type(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS:
+			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets <= 8);
+			for (UINT i = 0; i < reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets; ++i)
+				render_target_formats[i] = reshade::d3d12::convert_format(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.RTFormats[i]);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::render_target_formats, reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS *>(p)->data.NumRenderTargets, render_target_formats });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT:
+			depth_stencil_format = reshade::d3d12::convert_format(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_format, 1, &depth_stencil_format });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC:
+			sample_count = reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC *>(p)->data.Count;
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK:
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_NODE_MASK);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO:
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CACHED_PSO);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS:
+			if ((reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_FLAGS *>(p)->data & D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS) != 0)
+			{
+				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias);
+				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_clamp);
+				dynamic_states.push_back(reshade::api::dynamic_state::depth_bias_slope_scaled);
+			}
+			// Ignore 'D3D12_PIPELINE_STATE_FLAG_DYNAMIC_INDEX_BUFFER_STRIP_CUT'
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_FLAGS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL1:
+			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1 *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL1);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING:
+			assert(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING *>(p)->data.ViewInstanceCount <= D3D12_MAX_VIEW_INSTANCE_COUNT);
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VIEW_INSTANCING);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
+			as_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_AS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
+			ms_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_MS *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL2:
+			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL2 *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL2);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER1:
+			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER1 *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER1);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER2:
+			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER2 *>(p)->data);
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER2);
+			continue;
+		default:
+			// Unknown sub-object type, break out of the loop
+			assert(false);
+		}
+		break;
+	}
+
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
+
+	if (with_create_pipeline)
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
+		{
+			reshade::api::pipeline pipeline;
+			hr = device_impl::create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pipeline) ? S_OK : E_FAIL;
+			d3d_pipeline = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
+		}
+		else
+		{
+			if (_interface_version < 2)
+				return false;
+
+			hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
+		}
+	}
+	else
+	{
+		assert(d3d_pipeline != nullptr);
+		hr = S_OK;
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), to_handle(d3d_pipeline));
+
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		{
+			register_destruction_callback_d3dx(d3d_pipeline, [this, d3d_pipeline]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(d3d_pipeline));
+			});
+		}
+	}
+
+	return true;
+}
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPELINE_STATE_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool with_create_pipeline)
+{
+	struct
+	{
+		D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
+		D3D12_PIPELINE_STATE_STREAM_CS cs;
+		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
+		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
+	} stream_data = {
+		{ internal_desc.pRootSignature },
+		{ internal_desc.CS },
+		{ internal_desc.NodeMask },
+		{ internal_desc.CachedPSO },
+		{ internal_desc.Flags }
+	};
+
+	return invoke_create_and_init_pipeline_event(D3D12_PIPELINE_STATE_STREAM_DESC { sizeof(stream_data), &stream_data }, d3d_pipeline, hr, with_create_pipeline);
+}
+bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIPELINE_STATE_DESC &internal_desc, ID3D12PipelineState *&d3d_pipeline, HRESULT &hr, bool with_create_pipeline)
+{
+	struct
+	{
+		D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
+		D3D12_PIPELINE_STATE_STREAM_VS vs;
+		D3D12_PIPELINE_STATE_STREAM_PS ps;
+		D3D12_PIPELINE_STATE_STREAM_DS ds;
+		D3D12_PIPELINE_STATE_STREAM_HS hs;
+		D3D12_PIPELINE_STATE_STREAM_GS gs;
+		D3D12_PIPELINE_STATE_STREAM_STREAM_OUTPUT stream_output;
+		D3D12_PIPELINE_STATE_STREAM_BLEND_DESC blend_state;
+		D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK sample_mask;
+		D3D12_PIPELINE_STATE_STREAM_RASTERIZER rasterizer_state;
+		D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL depth_stencil_state;
+		D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT input_layout;
+		D3D12_PIPELINE_STATE_STREAM_IB_STRIP_CUT_VALUE ib_strip_cut_value;
+		D3D12_PIPELINE_STATE_STREAM_PRIMITIVE_TOPOLOGY primitive_topology_type;
+		D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS render_target_formats;
+		D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
+		D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
+		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
+		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
+	} stream_data = {
+		{ internal_desc.pRootSignature },
+		{ internal_desc.VS },
+		{ internal_desc.PS },
+		{ internal_desc.DS },
+		{ internal_desc.HS },
+		{ internal_desc.GS },
+		{ internal_desc.StreamOutput },
+		{ internal_desc.BlendState },
+		{ internal_desc.SampleMask },
+		{ internal_desc.RasterizerState },
+		{ internal_desc.DepthStencilState },
+		{ internal_desc.InputLayout },
+		{ internal_desc.IBStripCutValue },
+		{ internal_desc.PrimitiveTopologyType },
+		{ D3D12_RT_FORMAT_ARRAY { { internal_desc.RTVFormats[0], internal_desc.RTVFormats[1], internal_desc.RTVFormats[2], internal_desc.RTVFormats[3], internal_desc.RTVFormats[4], internal_desc.RTVFormats[5], internal_desc.RTVFormats[6], internal_desc.RTVFormats[7] }, internal_desc.NumRenderTargets } },
+		{ internal_desc.DSVFormat },
+		{ internal_desc.SampleDesc },
+		{ internal_desc.NodeMask },
+		{ internal_desc.CachedPSO },
+		{ internal_desc.Flags }
+	};
+
+	return invoke_create_and_init_pipeline_event(D3D12_PIPELINE_STATE_STREAM_DESC { sizeof(stream_data), &stream_data }, d3d_pipeline, hr, with_create_pipeline);
+}
+
+bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, const void *blob, size_t blob_size, ID3D12RootSignature *&root_signature, HRESULT &hr)
+{
+	// Copy root signature blob in case static sampler descriptions might get modified
+	std::vector<uint8_t> data_mem;
+	if (reshade::has_addon_event<reshade::addon_event::create_sampler>())
+	{
+		data_mem.assign(static_cast<const uint8_t *>(blob), static_cast<const uint8_t *>(blob) + blob_size);
+		blob = data_mem.data();
+	}
+
+	// Parse DXBC root signature, convert it and call descriptor table and pipeline layout events
+	std::vector<reshade::api::pipeline_layout_param> params;
+	std::vector<std::vector<reshade::api::descriptor_range>> ranges;
+
+	constexpr uint32_t DXBC = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
+	constexpr uint32_t RTS0 = uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24);
+
+	if (const auto data = static_cast<uint32_t *>(const_cast<void *>(blob));
+		data != nullptr &&
+		blob_size >= (sizeof(uint32_t) * 8) &&
+		data[0] == DXBC &&
+		data[5] == 0x00000001 /* DXBC version */)
+	{
+		assert(blob_size == data[6]);
+
+		for (uint32_t i = 0, *chunk; i < data[7]; ++i)
+		{
+			const uint32_t chunk_offset = data[8 + i];
+			chunk = data + (chunk_offset / sizeof(uint32_t));
+
+			if (chunk[0] != RTS0)
+				continue;
+			else
+				chunk += 2;
+
+			const uint32_t version = chunk[0];
+			if (version != D3D_ROOT_SIGNATURE_VERSION_1_0 && version != D3D_ROOT_SIGNATURE_VERSION_1_1 && version != D3D_ROOT_SIGNATURE_VERSION_1_2)
+				continue;
+
+			if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>())
+			{
+				const uint32_t param_count = chunk[1];
+				const uint32_t param_offset = chunk[2];
+				auto param_list = chunk + (param_offset / sizeof(uint32_t));
+
+				params.resize(param_count);
+				ranges.resize(param_count);
+
+				for (uint32_t k = 0; k < param_count; ++k, param_list += 3)
+				{
+					const auto param_type = static_cast<D3D12_ROOT_PARAMETER_TYPE>(param_list[0]);
+					const auto shader_visibility = static_cast<D3D12_SHADER_VISIBILITY>(param_list[1]);
+					auto param_data = chunk + (param_list[2] / sizeof(uint32_t));
+
+					switch (param_type)
+					{
+					case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+					{
+						const uint32_t range_count = param_data[0];
+						uint32_t descriptor_offset = 0;
+
+						ranges[k].resize(range_count);
+
+						// Convert descriptor ranges
+						switch (version)
+						{
+						case D3D_ROOT_SIGNATURE_VERSION_1_0:
+						{
+							auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(chunk + (param_data[1] / sizeof(uint32_t)));
+
+							for (uint32_t j = 0; j < range_count; ++j, ++range_data)
+							{
+								reshade::api::descriptor_range &range = ranges[k][j];
+								range.dx_register_index = range_data->BaseShaderRegister;
+								range.dx_register_space = range_data->RegisterSpace;
+								range.count = range_data->NumDescriptors;
+								range.array_size = 1;
+								range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+								range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+								if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+									range.binding = descriptor_offset;
+								else
+									range.binding = range_data->OffsetInDescriptorsFromTableStart;
+
+								if (range_data->NumDescriptors == UINT_MAX)
+									// Only the last entry in a table can have an unbounded size
+									assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+								else
+									descriptor_offset = range.binding + range.count;
+							}
+							break;
+						}
+						case D3D_ROOT_SIGNATURE_VERSION_1_1:
+						case D3D_ROOT_SIGNATURE_VERSION_1_2:
+						{
+							auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(chunk + (param_data[1] / sizeof(uint32_t)));
+
+							for (uint32_t j = 0; j < range_count; ++j, ++range_data)
+							{
+								reshade::api::descriptor_range &range = ranges[k][j];
+								range.dx_register_index = range_data->BaseShaderRegister;
+								range.dx_register_space = range_data->RegisterSpace;
+								range.count = range_data->NumDescriptors;
+								range.array_size = 1;
+								range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+								range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+								if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+									range.binding = descriptor_offset;
+								else
+									range.binding = range_data->OffsetInDescriptorsFromTableStart;
+
+								if (range_data->NumDescriptors == UINT_MAX)
+									// Only the last entry in a table can have an unbounded size
+									assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+								else
+									descriptor_offset = range.binding + range.count;
+							}
+							break;
+						}
+						}
+
+						params[k].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+						params[k].descriptor_table.count = range_count;
+						params[k].descriptor_table.ranges = ranges[k].data();
+						break;
+					}
+					case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
+					{
+						auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
+
+						params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
+
+						// Convert root constant description
+						reshade::api::constant_range &root_constant = params[k].push_constants;
+						root_constant.binding = 0;
+						root_constant.dx_register_index = constant_data->ShaderRegister;
+						root_constant.dx_register_space = constant_data->RegisterSpace;
+						root_constant.count = constant_data->Num32BitValues;
+						root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						break;
+					}
+					case D3D12_ROOT_PARAMETER_TYPE_CBV:
+					case D3D12_ROOT_PARAMETER_TYPE_SRV:
+					case D3D12_ROOT_PARAMETER_TYPE_UAV:
+					{
+						auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
+
+						params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+
+						reshade::api::descriptor_range &range = params[k].push_descriptors;
+						range.binding = 0;
+						range.dx_register_index = descriptor_data->ShaderRegister;
+						range.dx_register_space = descriptor_data->RegisterSpace;
+						range.count = 1;
+						range.array_size = 1;
+						range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+						if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
+							range.type = reshade::api::descriptor_type::constant_buffer;
+						else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
+							range.type = reshade::api::descriptor_type::shader_resource_view;
+						else
+							range.type = reshade::api::descriptor_type::unordered_access_view;
+						break;
+					}
+					}
+				}
+			}
+
+			if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::create_sampler>())
+			{
+				const uint32_t sampler_count = chunk[3];
+				const uint32_t sampler_offset = chunk[4];
+
+				if (sampler_count != 0)
+				{
+					const uint32_t k = static_cast<uint32_t>(params.size());
+					params.emplace_back();
+					ranges.emplace_back();
+
+					ranges[k].resize(sampler_count);
+
+					auto sampler_data = reinterpret_cast<D3D12_STATIC_SAMPLER_DESC *>(chunk + (sampler_offset / sizeof(uint32_t)));
+
+					for (uint32_t j = 0; j < sampler_count; ++j)
+					{
+						auto desc = reshade::d3d12::convert_sampler_desc(sampler_data[j]);
+
+						if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
+						{
+							reshade::d3d12::convert_sampler_desc(desc, sampler_data[j]);
+						}
+
+						reshade::api::descriptor_range &range = ranges[k][j];
+						range.binding = j;
+						range.dx_register_index = sampler_data[j].ShaderRegister;
+						range.dx_register_space = sampler_data[j].RegisterSpace;
+						range.count = 1;
+						range.visibility = reshade::d3d12::convert_shader_visibility(sampler_data[j].ShaderVisibility);
+						range.type = reshade::api::descriptor_type::sampler;
+					}
+
+					params[k].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+					params[k].descriptor_table.count = sampler_count;
+					params[k].descriptor_table.ranges = ranges[k].data();
+				}
+			}
+			break;
+		}
+	}
+	else
+	{
+		// Probably a DXIL root signature
+	}
+
+	hr = _orig->CreateRootSignature(node_mask, blob, blob_size, IID_PPV_ARGS(&root_signature));
+	if (SUCCEEDED(hr) && !params.empty())
+	{
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(params.size()), params.data(), reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
+
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline_layout>())
+		{
+			register_destruction_callback_d3dx(root_signature, [this, root_signature]() {
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
+			});
+		}
+	}
+
+	return true;
+}
+
+#endif

@@ -555,6 +555,14 @@ void reshade::d3d11::device_context_impl::dispatch(uint32_t group_count_x, uint3
 {
 	_orig->Dispatch(group_count_x, group_count_y, group_count_z);
 }
+void reshade::d3d11::device_context_impl::dispatch_mesh(uint32_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
+void reshade::d3d11::device_context_impl::dispatch_rays(api::resource, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
+{
+	assert(false);
+}
 void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	assert(offset <= std::numeric_limits<UINT>::max());
@@ -676,6 +684,15 @@ void reshade::d3d11::device_context_impl::end_query(api::query_heap heap, api::q
 	_orig->End(reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index].get());
 }
 void reshade::d3d11::device_context_impl::copy_query_heap_results(api::query_heap, api::query_type, uint32_t, uint32_t, api::resource, uint64_t, uint32_t)
+{
+	assert(false);
+}
+
+void reshade::d3d11::device_context_impl::copy_acceleration_structure(api::resource_view, api::resource_view, api::acceleration_structure_copy_mode)
+{
+	assert(false);
+}
+void reshade::d3d11::device_context_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::resource_view, api::resource_view, api::acceleration_structure_build_mode)
 {
 	assert(false);
 }

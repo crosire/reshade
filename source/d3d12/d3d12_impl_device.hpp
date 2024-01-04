@@ -26,7 +26,7 @@ namespace reshade::d3d12
 
 		api::device_api get_api() const final { return api::device_api::d3d12; }
 
-		api::device_properties get_properties() const;
+		bool get_property(api::device_properties property, void *data) const final;
 
 		bool check_capability(api::device_caps capability) const final;
 		bool check_format_support(api::format format, api::resource_usage usage) const final;
@@ -44,6 +44,8 @@ namespace reshade::d3d12
 
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
+
+		uint64_t get_resource_view_gpu_address(api::resource_view handle) const final;
 
 		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
 		void unmap_buffer_region(api::resource resource) final;
@@ -90,10 +92,14 @@ namespace reshade::d3d12
 		bool wait(api::fence fence, uint64_t value, uint64_t timeout) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
+		void get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
+
+		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups) final;
+
 		command_list_immediate_impl *get_first_immediate_command_list();
 
 #if RESHADE_ADDON >= 2
-		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset) const;
+		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset, bool *out_acceleration_structure = nullptr) const;
 
 		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
@@ -122,7 +128,7 @@ namespace reshade::d3d12
 		}
 
 	protected:
-		void register_resource(ID3D12Resource *resource);
+		void register_resource(ID3D12Resource *resource, bool acceleration_structure);
 		void unregister_resource(ID3D12Resource *resource);
 
 #if RESHADE_ADDON >= 2
@@ -157,7 +163,7 @@ namespace reshade::d3d12
 		mutable std::shared_mutex _resource_mutex;
 #if RESHADE_ADDON >= 2
 		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
-		std::vector<std::pair<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE>> _buffer_gpu_addresses; // TODO: Replace with interval tree
+		std::vector<std::tuple<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE, bool>> _buffer_gpu_addresses; // TODO: Replace with interval tree
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
 

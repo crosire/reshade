@@ -40,73 +40,6 @@ Direct3DSwapChain9::~Direct3DSwapChain9()
 	reshade::destroy_effect_runtime(this);
 }
 
-void Direct3DSwapChain9::on_init()
-{
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
-#endif
-
-	reshade::init_effect_runtime(this);
-
-	_is_initialized = true;
-}
-void Direct3DSwapChain9::on_reset()
-{
-	// May be called without a previous call to 'on_init' if a device reset had failed
-	if (!_is_initialized)
-		return;
-
-	reshade::reset_effect_runtime(this);
-
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
-#endif
-
-	_back_buffer.reset();
-
-	_is_initialized = false;
-}
-
-void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
-{
-	assert(_is_initialized);
-
-	if (SUCCEEDED(_device->_orig->BeginScene()))
-	{
-		_hwnd = window_override;
-
-#if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			_device,
-			this,
-			reinterpret_cast<const reshade::api::rect *>(source_rect),
-			reinterpret_cast<const reshade::api::rect *>(dest_rect),
-			dirty_region != nullptr ? dirty_region->rdh.nCount : 0,
-			dirty_region != nullptr ? reinterpret_cast<const reshade::api::rect *>(dirty_region->Buffer) : nullptr);
-#endif
-
-		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
-		if (is_presenting_entire_surface(source_rect, window_override))
-			reshade::present_effect_runtime(this, _device);
-
-		_hwnd = nullptr;
-
-		_device->_orig->EndScene();
-	}
-}
-
-void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
-{
-	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
-
-	// Ignore D3DERR_DEVICELOST, since it can frequently occur when minimizing out of exclusive fullscreen
-	if (hr == D3DERR_DEVICEREMOVED || hr == D3DERR_DEVICEHUNG)
-	{
-		LOG(ERROR) << "Device was lost with " << hr << '!';
-		// Do not clean up resources, since application has to call 'IDirect3DDevice9::Reset' anyway, which will take care of that
-	}
-}
-
 bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
@@ -246,4 +179,73 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX 
 {
 	assert(_extended_interface);
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetDisplayModeEx(pMode, pRotation);
+}
+
+void Direct3DSwapChain9::on_init()
+{
+	assert(!_is_initialized);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+#endif
+
+	reshade::init_effect_runtime(this);
+
+	_is_initialized = true;
+}
+void Direct3DSwapChain9::on_reset()
+{
+	// May be called without a previous call to 'on_init' if a device reset had failed
+	if (!_is_initialized)
+		return;
+
+	reshade::reset_effect_runtime(this);
+
+#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+#endif
+
+	_back_buffer.reset();
+
+	_is_initialized = false;
+}
+
+void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
+{
+	assert(_is_initialized);
+
+	if (SUCCEEDED(_device->_orig->BeginScene()))
+	{
+		_hwnd = window_override;
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			_device,
+			this,
+			reinterpret_cast<const reshade::api::rect *>(source_rect),
+			reinterpret_cast<const reshade::api::rect *>(dest_rect),
+			dirty_region != nullptr ? dirty_region->rdh.nCount : 0,
+			dirty_region != nullptr ? reinterpret_cast<const reshade::api::rect *>(dirty_region->Buffer) : nullptr);
+#endif
+
+		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
+		if (is_presenting_entire_surface(source_rect, window_override))
+			reshade::present_effect_runtime(this, _device);
+
+		_hwnd = nullptr;
+
+		_device->_orig->EndScene();
+	}
+}
+
+void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
+{
+	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
+
+	// Ignore D3DERR_DEVICELOST, since it can frequently occur when minimizing out of exclusive fullscreen
+	if (hr == D3DERR_DEVICEREMOVED || hr == D3DERR_DEVICEHUNG)
+	{
+		LOG(ERROR) << "Device was lost with " << hr << '!';
+		// Do not clean up resources, since application has to call 'IDirect3DDevice9::Reset' anyway, which will take care of that
+	}
 }
