@@ -3660,11 +3660,11 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	assert(width != 0 && height != 0);
 	assert(color_format != api::format::unknown && stencil_format != api::format::unknown);
 
-	color_format = api::format_to_typeless(color_format);
+	const api::format color_format_typeless = api::format_to_typeless(color_format);
 
 	if (_effect_color_tex != 0)
 	{
-		if (_effect_width == width && _effect_height == height && _effect_color_format == color_format && _effect_stencil_format == stencil_format)
+		if (_effect_width == width && _effect_height == height && _effect_color_format == color_format_typeless && _effect_stencil_format == stencil_format)
 			return true;
 
 		_graphics_queue->wait_idle();
@@ -3683,21 +3683,21 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	}
 
 	if (!_device->create_resource(
-			api::resource_desc(width, height, 1, 1, color_format, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			api::resource_desc(width, height, 1, 1, color_format_typeless, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
 	{
-		LOG(ERROR) << "Failed to create effect color resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(color_format) << ")!";
+		LOG(ERROR) << "Failed to create effect color resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(color_format_typeless) << ")!";
 		return false;
 	}
 
 #if RESHADE_ADDON
 	// Reload effects to update 'BUFFER_WIDTH', 'BUFFER_HEIGHT' and 'BUFFER_COLOR_BIT_DEPTH' definitions (unless this is the 'update_effect_color_and_stencil_tex' call in 'on_init')
-	const bool force_reload = _is_initialized && (width != _effect_width || height != _effect_height || format_color_bit_depth(color_format) != format_color_bit_depth(_effect_color_format));
+	const bool force_reload = _is_initialized && (width != _effect_width || height != _effect_height || format_color_bit_depth(color_format_typeless) != format_color_bit_depth(_effect_color_format));
 #endif
 
 	_effect_width = width;
 	_effect_height = height;
-	_effect_color_format = color_format;
+	_effect_color_format = color_format_typeless;
 
 	_device->set_resource_name(_effect_color_tex, "ReShade back buffer");
 
