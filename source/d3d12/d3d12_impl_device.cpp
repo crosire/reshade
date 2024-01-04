@@ -483,12 +483,15 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		}
 		case api::resource_usage::acceleration_structure:
 		{
-			assert(desc.type == api::resource_view_type::acceleration_structure);
+			assert(desc.type == api::resource_view_type::unknown || desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure);
 
 			const D3D12_GPU_VIRTUAL_ADDRESS address = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetGPUVirtualAddress() +
 				(desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure ? desc.buffer.offset : 0);
 
-			register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(address) }, reinterpret_cast<ID3D12Resource *>(resource.handle), desc);
+			register_resource_view(
+				D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(address) },
+				reinterpret_cast<ID3D12Resource *>(resource.handle),
+				desc.type != api::resource_view_type::unknown ? desc : api::resource_view_desc(api::resource_view_type::acceleration_structure, api::format::unknown, 0, UINT64_MAX));
 			*out_handle = { address };
 			return true;
 		}
@@ -552,6 +555,7 @@ uint64_t reshade::d3d12::device_impl::get_resource_view_gpu_address(api::resourc
 		case api::resource_view_type::acceleration_structure:
 			return handle.handle;
 		default:
+			assert(false);
 			break;
 		}
 	}

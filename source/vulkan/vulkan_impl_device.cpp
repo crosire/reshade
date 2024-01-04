@@ -1285,17 +1285,19 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		create_info.layout = (VkPipelineLayout)layout.handle;
 		create_info.maxPipelineRayRecursionDepth = max_recursion_depth;
 
-		VkPipelineLibraryCreateInfoKHR library_info{ VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
+		VkPipelineLibraryCreateInfoKHR library_info { VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
 		library_info.libraryCount = static_cast<uint32_t>(libraries.size());
 		library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
-
-		create_info.pLibraryInfo = &library_info;
 
 		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
 		interface_info.maxPipelineRayPayloadSize = max_payload_size;
 		interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
 
-		create_info.pLibraryInterface = &interface_info;
+		if ((flags & api::pipeline_flags::library) != 0)
+		{
+			create_info.pLibraryInfo = &library_info;
+			create_info.pLibraryInterface = &interface_info;
+		}
 
 		const size_t max_shader_stage_count = raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size();
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
