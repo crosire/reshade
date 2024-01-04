@@ -219,6 +219,8 @@ namespace reshade { namespace api
 		resolve_dest = 0x1000,
 		resolve_source = 0x2000,
 
+		acceleration_structure = 0x400000,
+
 		// The following are special resource states and may only be used in barriers:
 
 		general = 0x80000000,
@@ -331,7 +333,8 @@ namespace reshade { namespace api
 		texture_2d_multisample_array,
 		texture_3d,
 		texture_cube,
-		texture_cube_array
+		texture_cube_array,
+		acceleration_structure
 	};
 
 	/// <summary>
@@ -344,6 +347,8 @@ namespace reshade { namespace api
 			type(resource_view_type::buffer), format(format), buffer({ offset, size }) {}
 		constexpr resource_view_desc(format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(resource_view_type::texture_2d), format(format), texture({ first_level, levels, first_layer, layers }) {}
+		constexpr resource_view_desc(resource_view_type type, format format, uint64_t offset, uint64_t size) :
+			type(type), format(format), buffer({ offset, size }) {}
 		constexpr resource_view_desc(resource_view_type type, format format, uint32_t first_level, uint32_t levels, uint32_t first_layer, uint32_t layers) :
 			type(type), format(format), texture({ first_level, levels, first_layer, layers }) {}
 		constexpr explicit resource_view_desc(format format) : type(resource_view_type::texture_2d), format(format), texture({ 0, 1, 0, 1 }) {}
@@ -360,7 +365,7 @@ namespace reshade { namespace api
 		union
 		{
 			/// <summary>
-			/// Used when view type is a buffer.
+			/// Used when view type is a buffer or acceleration structure.
 			/// </summary>
 			struct
 			{
@@ -405,7 +410,7 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.</para>
-	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'VkImageView' handle.</para>
+	/// <para>Depending on the render API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor), 'D3D12_GPU_VIRTUAL_ADDRESS' (to an acceleration structrue), 'VkImageView' or 'VkAccelerationStructureKHR' handle.</para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);
 
@@ -524,5 +529,148 @@ namespace reshade { namespace api
 		/// Value the render target resource is cleared to when <see cref="load_op"/> is <see cref="render_pass_load_op::clear"/>.
 		/// </summary>
 		float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	};
+
+	/// <summary>
+	/// The available acceleration structure types.
+	/// </summary>
+	enum class acceleration_structure_type
+	{
+		top_level = 0,
+		bottom_level = 1,
+		generic = 2
+	};
+
+	/// <summary>
+	/// The available acceleration structure copy modes.
+	/// </summary>
+	enum class acceleration_structure_copy_mode
+	{
+		clone = 0,
+		compact = 1,
+		serialize = 2,
+		deserialize = 3
+	};
+
+	/// <summary>
+	/// The available acceleration structure build modes.
+	/// </summary>
+	enum class acceleration_structure_build_mode
+	{
+		build = 0,
+		update = 1
+	};
+
+	/// <summary>
+	/// The available acceleration structure build flags.
+	/// </summary>
+	enum class acceleration_structure_build_flags : uint32_t
+	{
+		none = 0,
+		allow_update = (1 << 0),
+		allow_compaction = (1 << 1),
+		prefer_fast_trace = (1 << 2),
+		prefer_fast_build = (1 << 3),
+		minimize_memory_usage = (1 << 4)
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(acceleration_structure_build_flags);
+
+	/// <summary>
+	/// The available acceleration structure build input types.
+	/// </summary>
+	enum class acceleration_structure_build_input_type : uint32_t
+	{
+		triangles = 0,
+		aabbs = 1,
+		instances = 2
+	};
+
+	/// <summary>
+	/// The available acceleration structure build input flags.
+	/// </summary>
+	enum class acceleration_structure_build_input_flags : uint32_t
+	{
+		none = 0,
+		opaque = (1 << 0),
+		no_duplicate_any_hit_invocation = (1 << 1)
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(acceleration_structure_build_input_flags);
+
+	/// <summary>
+	/// Describes an instance in a top-level acceleration structure.
+	/// The data in <see cref="acceleration_structure_build_input::instances::buffer"/> should be an array of this structure.
+	/// </summary>
+	struct acceleration_structure_instance
+	{
+		float transform[3][4];
+		uint32_t custom_index : 24;
+		uint32_t mask : 8;
+		uint32_t shader_binding_table_offset : 24;
+		uint32_t flags : 8;
+		uint64_t acceleration_structure_gpu_address;
+	};
+
+	/// <summary>
+	/// Describes a build input for an acceleration structure build.
+	/// </summary>
+	struct acceleration_structure_build_input
+	{
+		constexpr acceleration_structure_build_input() : triangles() {}
+		constexpr acceleration_structure_build_input(api::resource vertex_buffer, uint64_t vertex_offset, uint32_t vertex_count, uint64_t vertex_stride, api::format vertex_format, api::resource index_buffer, uint64_t index_offset, uint32_t index_count, api::format index_format, uint64_t transform_address = 0) : type(acceleration_structure_build_input_type::triangles), triangles({ vertex_buffer, vertex_offset, vertex_count, vertex_stride, vertex_format, index_buffer, index_offset, index_count, index_format, transform_address }) {}
+		constexpr acceleration_structure_build_input(api::resource aabb_buffer, uint64_t aabb_offset, uint32_t aabb_count, uint64_t aabb_stride) : type(acceleration_structure_build_input_type::aabbs), aabbs({ aabb_buffer, aabb_offset, aabb_count, aabb_stride }) {}
+		constexpr acceleration_structure_build_input(api::resource instance_buffer, uint64_t instance_offset, uint32_t instance_count, bool array_of_pointers = false) : type(acceleration_structure_build_input_type::instances), instances({ instance_buffer, instance_offset, instance_count, array_of_pointers }) {}
+
+		/// <summary>
+		/// Type of the build input.
+		/// </summary>
+		acceleration_structure_build_input_type type = acceleration_structure_build_input_type::triangles;
+
+		union
+		{
+			/// <summary>
+			/// Used when build input type is <see cref="acceleration_structure_build_input_type::triangles"/>.
+			/// </summary>
+			struct
+			{
+				api::resource vertex_buffer = {};
+				uint64_t vertex_offset = 0;
+				uint32_t vertex_count = 0;
+				uint64_t vertex_stride = 0;
+				api::format vertex_format = api::format::unknown;
+				api::resource index_buffer = {};
+				uint64_t index_offset = 0;
+				uint32_t index_count = 0;
+				api::format index_format = api::format::unknown;
+				api::resource transform_buffer = {};
+				uint64_t transform_offset = 0;
+			} triangles;
+
+			/// <summary>
+			/// Used when build input type is <see cref="acceleration_structure_build_input_type::aabbs"/>.
+			/// </summary>
+			struct
+			{
+				api::resource buffer = {};
+				uint64_t offset = 0;
+				uint32_t count = 0;
+				uint64_t stride = 0;
+			} aabbs;
+
+			/// <summary>
+			/// Used when build input type is <see cref="acceleration_structure_build_input_type::instances"/>.
+			/// </summary>
+			struct
+			{
+				api::resource buffer = {};
+				uint64_t offset = 0;
+				uint32_t count = 0;
+				bool array_of_pointers = false;
+			} instances;
+		};
+
+		/// <summary>
+		/// Flags that describe additional parameters.
+		/// </summary>
+		acceleration_structure_build_input_flags flags = acceleration_structure_build_input_flags::none;
 	};
 } }

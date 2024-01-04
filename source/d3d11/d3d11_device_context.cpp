@@ -163,100 +163,6 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::SetPrivateDataInterface(REFGUID gu
 	return _orig->SetPrivateDataInterface(guid, pData);
 }
 
-#if RESHADE_ADDON >= 2
-void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11SamplerState *const *objects)
-{
-	assert(objects != nullptr || count == 0);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-#ifndef _WIN64
-	temp_mem<reshade::api::sampler, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> descriptors_mem(count);
-	for (UINT i = 0; i < count; ++i)
-		descriptors_mem[i] = to_handle(objects[i]);
-	const auto descriptors = descriptors_mem.p;
-#else
-	static_assert(sizeof(*objects) == sizeof(reshade::api::sampler));
-	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
-#endif
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::device_impl'
-		reshade::d3d11::global_pipeline_layout, 0,
-		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::sampler, descriptors });
-}
-void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11ShaderResourceView *const *objects)
-{
-	assert(objects != nullptr || count == 0);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-#ifndef _WIN64
-	temp_mem<reshade::api::resource_view, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> descriptors_mem(count);
-	for (UINT i = 0; i < count; ++i)
-		descriptors_mem[i] = to_handle(objects[i]);
-	const auto descriptors = descriptors_mem.p;
-#else
-	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
-	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
-#endif
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::device_impl'
-		reshade::d3d11::global_pipeline_layout, 1,
-		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::shader_resource_view, descriptors });
-}
-void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects)
-{
-	assert(objects != nullptr || count == 0);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-#ifndef _WIN64
-	temp_mem<reshade::api::resource_view, D3D11_1_UAV_SLOT_COUNT> descriptors_mem(count);
-	for (UINT i = 0; i < count; ++i)
-		descriptors_mem[i] = to_handle(objects[i]);
-	const auto descriptors = descriptors_mem.p;
-#else
-	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
-	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
-#endif
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::device_impl'
-		reshade::d3d11::global_pipeline_layout, 3,
-		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::unordered_access_view, descriptors });
-}
-void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant, const UINT *constant_count)
-{
-	assert(objects != nullptr || count == 0);
-
-	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
-		return;
-
-	temp_mem<reshade::api::buffer_range, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> descriptors_mem(count);
-	for (UINT i = 0; i < count; ++i)
-		descriptors_mem[i] = { to_handle(objects[i]), (first_constant != nullptr) ? static_cast<uint64_t>(first_constant[i]) * 16 : 0, (constant_count != nullptr) ? static_cast<uint64_t>(constant_count[i]) * 16 : UINT64_MAX };
-	const auto descriptors = descriptors_mem.p;
-
-	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
-		this,
-		stage,
-		// See global pipeline layout specified in 'device_impl::device_impl'
-		reshade::d3d11::global_pipeline_layout, 2,
-		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::constant_buffer, descriptors });
-}
-#endif
-
 void    STDMETHODCALLTYPE D3D11DeviceContext::VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)
 {
 	_orig->VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers);
@@ -1572,3 +1478,97 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Wait(ID3D11Fence *pFence, UINT64 V
 	assert(_interface_version >= 4);
 	return static_cast<ID3D11DeviceContext4 *>(_orig)->Wait(pFence, Value);
 }
+
+#if RESHADE_ADDON >= 2
+void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11SamplerState *const *objects)
+{
+	assert(objects != nullptr || count == 0);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+#ifndef _WIN64
+	temp_mem<reshade::api::sampler, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT> descriptors_mem(count);
+	for (UINT i = 0; i < count; ++i)
+		descriptors_mem[i] = to_handle(objects[i]);
+	const auto descriptors = descriptors_mem.p;
+#else
+	static_assert(sizeof(*objects) == sizeof(reshade::api::sampler));
+	const auto descriptors = reinterpret_cast<const reshade::api::sampler *>(objects);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::device_impl'
+		reshade::d3d11::global_pipeline_layout, 0,
+		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::sampler, descriptors });
+}
+void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11ShaderResourceView *const *objects)
+{
+	assert(objects != nullptr || count == 0);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+#ifndef _WIN64
+	temp_mem<reshade::api::resource_view, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> descriptors_mem(count);
+	for (UINT i = 0; i < count; ++i)
+		descriptors_mem[i] = to_handle(objects[i]);
+	const auto descriptors = descriptors_mem.p;
+#else
+	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
+	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::device_impl'
+		reshade::d3d11::global_pipeline_layout, 1,
+		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::shader_resource_view, descriptors });
+}
+void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects)
+{
+	assert(objects != nullptr || count == 0);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+#ifndef _WIN64
+	temp_mem<reshade::api::resource_view, D3D11_1_UAV_SLOT_COUNT> descriptors_mem(count);
+	for (UINT i = 0; i < count; ++i)
+		descriptors_mem[i] = to_handle(objects[i]);
+	const auto descriptors = descriptors_mem.p;
+#else
+	static_assert(sizeof(*objects) == sizeof(reshade::api::resource_view));
+	const auto descriptors = reinterpret_cast<const reshade::api::resource_view *>(objects);
+#endif
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::device_impl'
+		reshade::d3d11::global_pipeline_layout, 3,
+		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::unordered_access_view, descriptors });
+}
+void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant, const UINT *constant_count)
+{
+	assert(objects != nullptr || count == 0);
+
+	if (!reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+		return;
+
+	temp_mem<reshade::api::buffer_range, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT> descriptors_mem(count);
+	for (UINT i = 0; i < count; ++i)
+		descriptors_mem[i] = { to_handle(objects[i]), (first_constant != nullptr) ? static_cast<uint64_t>(first_constant[i]) * 16 : 0, (constant_count != nullptr) ? static_cast<uint64_t>(constant_count[i]) * 16 : UINT64_MAX };
+	const auto descriptors = descriptors_mem.p;
+
+	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+		this,
+		stage,
+		// See global pipeline layout specified in 'device_impl::device_impl'
+		reshade::d3d11::global_pipeline_layout, 2,
+		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::constant_buffer, descriptors });
+}
+#endif

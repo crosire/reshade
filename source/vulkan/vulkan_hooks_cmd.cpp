@@ -1765,6 +1765,18 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 			static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 			update.descriptors = write.pBufferInfo;
 			break;
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			if (const auto write_acceleration_structure = find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(write.pNext, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR))
+			{
+				assert(update.count == write_acceleration_structure->accelerationStructureCount);
+				update.descriptors = write_acceleration_structure->pAccelerationStructures;
+			}
+			else
+			{
+				update.count = 0;
+				update.descriptors = nullptr;
+			}
+			break;
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
@@ -1830,4 +1842,173 @@ void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
 
 	GET_DISPATCH_PTR_FROM(CmdEndQueryIndexedEXT, device_impl);
 	trampoline(commandBuffer, queryPool, query, index);
+}
+
+void VKAPI_CALL vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos)
+{
+	assert(pInfos != nullptr && ppBuildRangeInfos != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	GET_DISPATCH_PTR_FROM(CmdBuildAccelerationStructuresKHR, device_impl);
+
+#if RESHADE_ADDON >= 2
+	if (reshade::has_addon_event<reshade::addon_event::build_acceleration_structure>())
+	{
+		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+		for (uint32_t i = 0; i < infoCount; ++i)
+		{
+			const VkAccelerationStructureBuildGeometryInfoKHR &info = pInfos[i];
+			const VkAccelerationStructureBuildRangeInfoKHR *const range_infos = ppBuildRangeInfos[i];
+
+			std::vector<reshade::api::acceleration_structure_build_input> build_inputs;
+			build_inputs.reserve(info.geometryCount);
+			for (uint32_t k = 0; k < info.geometryCount; ++k)
+				build_inputs.push_back(reshade::vulkan::convert_acceleration_structure_build_input(info.ppGeometries != nullptr ? *info.ppGeometries[k] : info.pGeometries[k], range_infos[k]));
+
+			if (reshade::invoke_addon_event<reshade::addon_event::build_acceleration_structure>(
+					cmd_impl,
+					reshade::vulkan::convert_acceleration_structure_type(info.type),
+					reshade::vulkan::convert_acceleration_structure_build_flags(info.flags),
+					static_cast<uint32_t>(build_inputs.size()),
+					build_inputs.data(),
+					reshade::api::resource {},
+					info.scratchData.deviceAddress,
+					reshade::api::resource_view { (uint64_t)info.srcAccelerationStructure },
+					reshade::api::resource_view { (uint64_t)info.dstAccelerationStructure },
+					static_cast<reshade::api::acceleration_structure_build_mode>(info.mode)))
+				continue;
+
+			trampoline(commandBuffer, 1, &info, &range_infos);
+		}
+	}
+	else
+#endif
+	trampoline(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
+}
+void VKAPI_CALL vkCmdBuildAccelerationStructuresIndirectKHR(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, const VkDeviceAddress *pIndirectDeviceAddresses, const uint32_t *pIndirectStrides, const uint32_t *const *ppMaxPrimitiveCounts)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+	GET_DISPATCH_PTR_FROM(CmdBuildAccelerationStructuresIndirectKHR, device_impl);
+	trampoline(commandBuffer, infoCount, pInfos, pIndirectDeviceAddresses, pIndirectStrides, ppMaxPrimitiveCounts);
+}
+
+void VKAPI_CALL vkCmdCopyAccelerationStructureKHR(VkCommandBuffer commandBuffer, const VkCopyAccelerationStructureInfoKHR *pInfo)
+{
+	assert(pInfo != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON >= 2
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_acceleration_structure>(
+			cmd_impl,
+			reshade::api::resource_view { (uint64_t)pInfo->src },
+			reshade::api::resource_view { (uint64_t)pInfo->dst },
+			reshade::vulkan::convert_acceleration_structure_copy_mode(pInfo->mode)))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdCopyAccelerationStructureKHR, device_impl);
+	trampoline(commandBuffer, pInfo);
+}
+
+void VKAPI_CALL vkCmdTraceRaysKHR(VkCommandBuffer commandBuffer, const VkStridedDeviceAddressRegionKHR *pRaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pMissShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pHitShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pCallableShaderBindingTable, uint32_t width, uint32_t height, uint32_t depth)
+{
+	assert(pRaygenShaderBindingTable != nullptr && pMissShaderBindingTable != nullptr && pHitShaderBindingTable != nullptr && pCallableShaderBindingTable != nullptr);
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_rays>(
+			cmd_impl,
+			reshade::api::resource {},
+			pRaygenShaderBindingTable->deviceAddress,
+			pRaygenShaderBindingTable->size,
+			reshade::api::resource {},
+			pMissShaderBindingTable->deviceAddress,
+			pMissShaderBindingTable->size,
+			pMissShaderBindingTable->stride,
+			reshade::api::resource {},
+			pHitShaderBindingTable->deviceAddress,
+			pHitShaderBindingTable->size,
+			pHitShaderBindingTable->stride,
+			reshade::api::resource {},
+			pCallableShaderBindingTable->deviceAddress,
+			pCallableShaderBindingTable->size,
+			pCallableShaderBindingTable->stride,
+			width, height, depth))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdTraceRaysKHR, device_impl);
+	trampoline(commandBuffer, pRaygenShaderBindingTable, pMissShaderBindingTable, pHitShaderBindingTable, pCallableShaderBindingTable, width, height, depth);
+}
+void VKAPI_CALL vkCmdTraceRaysIndirectKHR(VkCommandBuffer commandBuffer, const VkStridedDeviceAddressRegionKHR *pRaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pMissShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pHitShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pCallableShaderBindingTable, VkDeviceAddress indirectDeviceAddress)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+	GET_DISPATCH_PTR_FROM(CmdTraceRaysIndirectKHR, device_impl);
+	trampoline(commandBuffer, pRaygenShaderBindingTable, pMissShaderBindingTable, pHitShaderBindingTable, pCallableShaderBindingTable, indirectDeviceAddress);
+}
+void VKAPI_CALL vkCmdTraceRaysIndirect2KHR(VkCommandBuffer commandBuffer, VkDeviceAddress indirectDeviceAddress)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(cmd_impl, reshade::api::indirect_command::dispatch_rays, reshade::api::resource {}, indirectDeviceAddress, 1, 0))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdTraceRaysIndirect2KHR, device_impl);
+	trampoline(commandBuffer, indirectDeviceAddress);
+}
+
+void VKAPI_CALL vkCmdDrawMeshTasksEXT(VkCommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_mesh>(cmd_impl, groupCountX, groupCountY, groupCountZ))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksEXT, device_impl);
+	trampoline(commandBuffer, groupCountX, groupCountY, groupCountZ);
+}
+void VKAPI_CALL vkCmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(cmd_impl, reshade::api::indirect_command::dispatch_mesh, reshade::api::resource { (uint64_t)buffer }, offset, drawCount, stride))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectEXT, device_impl);
+	trampoline(commandBuffer, buffer, offset, drawCount, stride);
+}
+void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(cmd_impl, reshade::api::indirect_command::dispatch_mesh, reshade::api::resource { (uint64_t)buffer }, offset, maxDrawCount, stride))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectCountEXT, device_impl);
+	trampoline(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }

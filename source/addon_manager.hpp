@@ -95,7 +95,9 @@ namespace reshade
 			ev != addon_event::generate_mipmaps &&
 			ev != addon_event::begin_query &&
 			ev != addon_event::end_query &&
-			ev != addon_event::copy_query_heap_results,
+			ev != addon_event::copy_query_heap_results &&
+			ev != addon_event::copy_acceleration_structure &&
+			ev != addon_event::build_acceleration_structure,
 			"Event that is disabled with limited add-on support was used!");
 
 		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly

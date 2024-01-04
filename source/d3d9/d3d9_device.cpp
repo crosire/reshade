@@ -77,139 +77,6 @@ Direct3DDevice9::~Direct3DDevice9()
 #endif
 }
 
-#if RESHADE_ADDON
-void Direct3DDevice9::on_init()
-{
-	device_impl::on_init();
-
-	reshade::invoke_addon_event<reshade::addon_event::init_device>(this);
-
-	const reshade::api::pipeline_layout_param global_pipeline_layout_params[8] = {
-		/* s# */ reshade::api::descriptor_range { 0, 0, 0, 4, reshade::api::shader_stage::vertex, 1, reshade::api::descriptor_type::sampler_with_resource_view }, // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
-		/* s# */ reshade::api::descriptor_range { 0, 0, 0, _caps.MaxSimultaneousTextures, reshade::api::shader_stage::pixel, 1, reshade::api::descriptor_type::sampler_with_resource_view },
-		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-		/* vs_3_0 c# */ reshade::api::constant_range { 0, 0, 0, _caps.MaxVertexShaderConst * 4, reshade::api::shader_stage::vertex },
-		/* vs_3_0 i# */ reshade::api::constant_range { 0, 0, 0, 16 * 4, reshade::api::shader_stage::vertex },
-		/* vs_3_0 b# */ reshade::api::constant_range { 0, 0, 0, 16 * 1, reshade::api::shader_stage::vertex },
-		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-		/* ps_3_0 c# */ reshade::api::constant_range { 0, 0, 0, 224 * 4, reshade::api::shader_stage::pixel },
-		/* ps_3_0 i# */ reshade::api::constant_range { 0, 0, 0,  16 * 4, reshade::api::shader_stage::pixel },
-		/* ps_3_0 b# */ reshade::api::constant_range { 0, 0, 0,  16 * 1, reshade::api::shader_stage::pixel },
-	};
-	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, reshade::d3d9::global_pipeline_layout);
-
-	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
-	reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
-
-	init_auto_depth_stencil();
-}
-void Direct3DDevice9::on_reset()
-{
-	reset_auto_depth_stencil();
-
-	// Force add-ons to release all resources associated with this device before performing reset
-	reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
-	reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
-
-	for (DWORD i = 0; i < _caps.MaxSimultaneousTextures; ++i)
-		_orig->SetTexture(i, nullptr);
-	for (DWORD i = 0; i < _caps.MaxStreams; ++i)
-		_orig->SetStreamSource(0, nullptr, 0, 0);
-	_orig->SetIndices(nullptr);
-
-	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, nullptr);
-	// Release reference to the potentially replaced auto depth-stencil resource
-	_orig->SetDepthStencilSurface(nullptr);
-
-	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::d3d9::global_pipeline_layout);
-
-	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(this);
-
-	device_impl::on_reset();
-}
-
-void Direct3DDevice9::init_auto_depth_stencil()
-{
-	assert(_auto_depth_stencil == nullptr);
-
-	com_ptr<IDirect3DSurface9> auto_depth_stencil;
-	if (FAILED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
-		return;
-
-	D3DSURFACE_DESC old_desc;
-	auto_depth_stencil->GetDesc(&old_desc);
-	auto desc = reshade::d3d9::convert_resource_desc(old_desc, 1, FALSE, _caps);
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
-	{
-		D3DSURFACE_DESC new_desc = old_desc;
-		reshade::d3d9::convert_resource_desc(desc, new_desc, nullptr, nullptr, _caps);
-
-		// Need to replace auto depth-stencil if an add-on modified the description
-		if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
-			SUCCEEDED(create_surface_replacement(new_desc, &auto_depth_stencil_replacement)))
-			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
-	}
-
-	IDirect3DSurface9 *const surface = auto_depth_stencil.release(); // This internal reference is later released in 'reset_auto_depth_stencil' below
-	_auto_depth_stencil = new Direct3DDepthStencilSurface9(this, surface, old_desc);
-
-	// The auto depth-stencil starts with a public reference count of zero
-	_auto_depth_stencil->_ref = 0;
-
-	// In case surface was replaced with a texture resource
-	com_ptr<IDirect3DResource9> resource;
-	if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
-		desc.type = reshade::api::resource_type::texture_2d;
-	else
-		resource = surface;
-
-	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-		this,
-		desc,
-		nullptr,
-		reshade::api::resource_usage::depth_stencil,
-		to_handle(resource.get()));
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		this,
-		to_handle(resource.get()),
-		reshade::api::resource_usage::depth_stencil,
-		reshade::api::resource_view_desc(desc.texture.format),
-		to_handle(surface));
-
-	if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
-	{
-		register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-		});
-	}
-	if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
-	{
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, surface == resource ? 1 : 0);
-	}
-
-	// Communicate default state to add-ons
-	SetDepthStencilSurface(_auto_depth_stencil);
-}
-void Direct3DDevice9::reset_auto_depth_stencil()
-{
-	_current_depth_stencil.reset();
-
-	if (_auto_depth_stencil == nullptr)
-		return;
-
-	assert(_auto_depth_stencil->_ref == 0);
-	// Release the internal reference that was added in 'init_auto_depth_stencil' above
-	_auto_depth_stencil->_orig->Release();
-
-	delete _auto_depth_stencil;
-	_auto_depth_stencil = nullptr;
-}
-#endif
-
 bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
@@ -2536,3 +2403,136 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3D
 	assert(_implicit_swapchain->_extended_interface);
 	return static_cast<IDirect3DSwapChain9Ex *>(_implicit_swapchain)->GetDisplayModeEx(pMode, pRotation);
 }
+
+#if RESHADE_ADDON
+void Direct3DDevice9::on_init()
+{
+	device_impl::on_init();
+
+	reshade::invoke_addon_event<reshade::addon_event::init_device>(this);
+
+	const reshade::api::pipeline_layout_param global_pipeline_layout_params[8] = {
+		/* s# */ reshade::api::descriptor_range { 0, 0, 0, 4, reshade::api::shader_stage::vertex, 1, reshade::api::descriptor_type::sampler_with_resource_view }, // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
+		/* s# */ reshade::api::descriptor_range { 0, 0, 0, _caps.MaxSimultaneousTextures, reshade::api::shader_stage::pixel, 1, reshade::api::descriptor_type::sampler_with_resource_view },
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
+		/* vs_3_0 c# */ reshade::api::constant_range { 0, 0, 0, _caps.MaxVertexShaderConst * 4, reshade::api::shader_stage::vertex },
+		/* vs_3_0 i# */ reshade::api::constant_range { 0, 0, 0, 16 * 4, reshade::api::shader_stage::vertex },
+		/* vs_3_0 b# */ reshade::api::constant_range { 0, 0, 0, 16 * 1, reshade::api::shader_stage::vertex },
+		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
+		/* ps_3_0 c# */ reshade::api::constant_range { 0, 0, 0, 224 * 4, reshade::api::shader_stage::pixel },
+		/* ps_3_0 i# */ reshade::api::constant_range { 0, 0, 0,  16 * 4, reshade::api::shader_stage::pixel },
+		/* ps_3_0 b# */ reshade::api::constant_range { 0, 0, 0,  16 * 1, reshade::api::shader_stage::pixel },
+	};
+	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, reshade::d3d9::global_pipeline_layout);
+
+	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
+	reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
+
+	init_auto_depth_stencil();
+}
+void Direct3DDevice9::on_reset()
+{
+	reset_auto_depth_stencil();
+
+	// Force add-ons to release all resources associated with this device before performing reset
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
+	reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
+
+	for (DWORD i = 0; i < _caps.MaxSimultaneousTextures; ++i)
+		_orig->SetTexture(i, nullptr);
+	for (DWORD i = 0; i < _caps.MaxStreams; ++i)
+		_orig->SetStreamSource(0, nullptr, 0, 0);
+	_orig->SetIndices(nullptr);
+
+	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
+		_orig->SetRenderTarget(i, nullptr);
+	// Release reference to the potentially replaced auto depth-stencil resource
+	_orig->SetDepthStencilSurface(nullptr);
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(this, reshade::d3d9::global_pipeline_layout);
+
+	reshade::invoke_addon_event<reshade::addon_event::destroy_device>(this);
+
+	device_impl::on_reset();
+}
+
+void Direct3DDevice9::init_auto_depth_stencil()
+{
+	assert(_auto_depth_stencil == nullptr);
+
+	com_ptr<IDirect3DSurface9> auto_depth_stencil;
+	if (FAILED(_orig->GetDepthStencilSurface(&auto_depth_stencil)))
+		return;
+
+	D3DSURFACE_DESC old_desc;
+	auto_depth_stencil->GetDesc(&old_desc);
+	auto desc = reshade::d3d9::convert_resource_desc(old_desc, 1, FALSE, _caps);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
+	{
+		D3DSURFACE_DESC new_desc = old_desc;
+		reshade::d3d9::convert_resource_desc(desc, new_desc, nullptr, nullptr, _caps);
+
+		// Need to replace auto depth-stencil if an add-on modified the description
+		if (com_ptr<IDirect3DSurface9> auto_depth_stencil_replacement;
+			SUCCEEDED(create_surface_replacement(new_desc, &auto_depth_stencil_replacement)))
+			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
+	}
+
+	IDirect3DSurface9 *const surface = auto_depth_stencil.release(); // This internal reference is later released in 'reset_auto_depth_stencil' below
+	_auto_depth_stencil = new Direct3DDepthStencilSurface9(this, surface, old_desc);
+
+	// The auto depth-stencil starts with a public reference count of zero
+	_auto_depth_stencil->_ref = 0;
+
+	// In case surface was replaced with a texture resource
+	com_ptr<IDirect3DResource9> resource;
+	if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
+		desc.type = reshade::api::resource_type::texture_2d;
+	else
+		resource = surface;
+
+	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+		this,
+		desc,
+		nullptr,
+		reshade::api::resource_usage::depth_stencil,
+		to_handle(resource.get()));
+	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+		this,
+		to_handle(resource.get()),
+		reshade::api::resource_usage::depth_stencil,
+		reshade::api::resource_view_desc(desc.texture.format),
+		to_handle(surface));
+
+	if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+	{
+		register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
+		});
+	}
+	if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
+	{
+		register_destruction_callback_d3d9(surface, [this, surface]() {
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
+		}, surface == resource ? 1 : 0);
+	}
+
+	// Communicate default state to add-ons
+	SetDepthStencilSurface(_auto_depth_stencil);
+}
+void Direct3DDevice9::reset_auto_depth_stencil()
+{
+	_current_depth_stencil.reset();
+
+	if (_auto_depth_stencil == nullptr)
+		return;
+
+	assert(_auto_depth_stencil->_ref == 0);
+	// Release the internal reference that was added in 'init_auto_depth_stencil' above
+	_auto_depth_stencil->_orig->Release();
+
+	delete _auto_depth_stencil;
+	_auto_depth_stencil = nullptr;
+}
+#endif

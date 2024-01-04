@@ -1039,12 +1039,12 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 }
 void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
+#if RESHADE_FX
 	constexpr int effect_only = 0b001;
 	constexpr int preset_only = 0b010;
 	constexpr int global_only = 0b100;
 	constexpr int global_scope = 0b111;
 
-#if RESHADE_FX
 	if (name == nullptr)
 		return;
 
@@ -1193,26 +1193,86 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 	if (effect_name == nullptr)
 		effect_name = "";
 
-	std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
-	std::vector<std::pair<std::string, std::string>>::iterator definition_it;
-
-	if (name != nullptr &&
-		get_preprocessor_definition(effect_name, name, definition_scope, definition_it))
+	if (name == nullptr) // This feature only works if the name is NULL
 	{
+		constexpr int effect_only = 0b001;
+		constexpr int preset_only = 0b010;
+		constexpr int global_only = 0b100;
+		constexpr int global_scope = 0b111;
+
+		const int find_flag = *effect_name == '\0' ? global_scope :
+			strchr(effect_name, '.') != nullptr ? effect_only :
+			strncmp(effect_name, "GLOBAL", 6) == 0 ? global_only :
+			strncmp(effect_name, "PRESET", 6) == 0 ? preset_only : global_scope;
+
+		size_t estimate_size = 0;
+		std::vector<std::string> preprocessor_definitions;
+		const auto emplace_to_list = [&estimate_size, &preprocessor_definitions](const std::pair<std::string, std::string> &adding)
+			{
+				if (std::all_of(preprocessor_definitions.cbegin(), preprocessor_definitions.cend(),
+					[&adding](const std::string &added) { return added != adding.first; }))
+				{
+					estimate_size += adding.first.size() + 1; // '\0'
+					preprocessor_definitions.emplace_back(adding.first);
+				}
+			};
+
+		if (find_flag & effect_only)
+		{
+			if (auto it = _preset_preprocessor_definitions.find(effect_name); it != _preset_preprocessor_definitions.end())
+				std::for_each(it->second.begin(), it->second.end(), emplace_to_list);
+		}
+		if (find_flag & preset_only)
+		{
+			if (auto it = _preset_preprocessor_definitions.find({}); it != _preset_preprocessor_definitions.end())
+				std::for_each(it->second.begin(), it->second.end(), emplace_to_list);
+		}
+		if (find_flag & global_only)
+		{
+			std::for_each(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(), emplace_to_list);
+		}
+
+		std::string value_str; value_str.reserve(estimate_size);
+		for (const std::string &definition : preprocessor_definitions)
+			value_str.append(definition).append(1, '\0');
+
 		if (size != nullptr)
 		{
 			if (value == nullptr)
 			{
-				*size = definition_it->second.size() + 1;
+				*size = value_str.size() + 1;
 			}
 			else if (*size != 0)
 			{
-				*size = definition_it->second.copy(value, *size - 1);
+				*size = value_str.copy(value, *size - 1);
 				value[*size++] = '\0';
 			}
 		}
 
-		return true;
+		return true; // Just enumerate the definitions so always returns true while the arguments are correct
+	}
+	else
+	{
+		std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
+		std::vector<std::pair<std::string, std::string>>::iterator definition_it;
+
+		if (get_preprocessor_definition(effect_name, name, definition_scope, definition_it))
+		{
+			if (size != nullptr)
+			{
+				if (value == nullptr)
+				{
+					*size = definition_it->second.size() + 1;
+				}
+				else if (*size != 0)
+				{
+					*size = definition_it->second.copy(value, *size - 1);
+					value[*size++] = '\0';
+				}
+			}
+
+			return true;
+		}
 	}
 #endif
 

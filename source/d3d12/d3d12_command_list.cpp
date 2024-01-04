@@ -501,7 +501,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootSignature(ID3D12R
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		0,
 		0, nullptr);
@@ -529,7 +529,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootDescriptorTable(U
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		1, reinterpret_cast<const reshade::api::descriptor_table *>(&BaseDescriptor));
@@ -555,7 +555,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstant(UIN
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
@@ -583,7 +583,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRoot32BitConstants(UI
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		DestOffsetIn32BitValues,
@@ -619,7 +619,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::constant_buffer, &buffer_range });
@@ -655,16 +655,17 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceVie
 		return;
 
 	reshade::api::buffer_range buffer_range;
-	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+	bool acceleration_structure;
+	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset, &acceleration_structure))
 		return;
 	buffer_range.size = UINT64_MAX;
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
-		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::shader_resource_view, &buffer_range });
+		reshade::api::descriptor_table_update { {}, 0, 0, 1, acceleration_structure ? reshade::api::descriptor_type::acceleration_structure : reshade::api::descriptor_type::shader_resource_view, acceleration_structure ? static_cast<void *>(&BufferLocation) : static_cast<void *>(&buffer_range) });
 #endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootShaderResourceView(UINT RootParameterIndex, D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -703,7 +704,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootUnorderedAccessVi
 
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
-		reshade::api::shader_stage::all_compute,
+		reshade::api::shader_stage::all_compute | reshade::api::shader_stage::all_ray_tracing,
 		to_handle(_current_root_signature[1]),
 		RootParameterIndex,
 		reshade::api::descriptor_table_update { {}, 0, 0, 1, reshade::api::descriptor_type::unordered_access_view, &buffer_range });
@@ -1036,6 +1037,38 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ExecuteMetaCommand(ID3D12MetaCo
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::BuildRaytracingAccelerationStructure(const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC *pDesc, UINT NumPostbuildInfoDescs, const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pPostbuildInfoDescs)
 {
+	assert(pDesc != nullptr);
+
+#if RESHADE_ADDON >= 2
+	if (reshade::has_addon_event<reshade::addon_event::build_acceleration_structure>())
+	{
+		std::vector<reshade::api::acceleration_structure_build_input> build_inputs;
+		if (pDesc->Inputs.Type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+		{
+			build_inputs.push_back({ reshade::api::resource {}, pDesc->Inputs.InstanceDescs, pDesc->Inputs.NumDescs, pDesc->Inputs.DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS });
+		}
+		else
+		{
+			build_inputs.reserve(pDesc->Inputs.NumDescs);
+			for (UINT k = 0; k < pDesc->Inputs.NumDescs; ++k)
+				build_inputs.push_back(reshade::d3d12::convert_acceleration_structure_build_input(pDesc->Inputs.DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS ? *pDesc->Inputs.ppGeometryDescs[k] : pDesc->Inputs.pGeometryDescs[k]));
+		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::build_acceleration_structure>(
+				this,
+				reshade::d3d12::convert_acceleration_structure_type(pDesc->Inputs.Type),
+				reshade::d3d12::convert_acceleration_structure_build_flags(pDesc->Inputs.Flags),
+				static_cast<uint32_t>(build_inputs.size()),
+				build_inputs.data(),
+				reshade::api::resource {},
+				pDesc->ScratchAccelerationStructureData,
+				reshade::api::resource_view { pDesc->SourceAccelerationStructureData },
+				reshade::api::resource_view { pDesc->DestAccelerationStructureData },
+				(pDesc->Inputs.Flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE) != 0 ? reshade::api::acceleration_structure_build_mode::update : reshade::api::acceleration_structure_build_mode::build))
+			return;
+	}
+#endif
+
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BuildRaytracingAccelerationStructure(pDesc, NumPostbuildInfoDescs, pPostbuildInfoDescs);
 }
@@ -1046,6 +1079,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EmitRaytracingAccelerationStruc
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyRaytracingAccelerationStructure(D3D12_GPU_VIRTUAL_ADDRESS DestAccelerationStructureData, D3D12_GPU_VIRTUAL_ADDRESS SourceAccelerationStructureData, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE Mode)
 {
+#if RESHADE_ADDON >= 2
+	if (reshade::invoke_addon_event<reshade::addon_event::copy_acceleration_structure>(
+			this,
+			reshade::api::resource_view { SourceAccelerationStructureData },
+			reshade::api::resource_view { DestAccelerationStructureData },
+			reshade::d3d12::convert_acceleration_structure_copy_mode(Mode)))
+		return;
+#endif
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->CopyRaytracingAccelerationStructure(DestAccelerationStructureData, SourceAccelerationStructureData, Mode);
 }
@@ -1053,9 +1094,37 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetPipelineState1(ID3D12StateOb
 {
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->SetPipelineState1(pStateObject);
+
+#if RESHADE_ADDON >= 2
+	// Currently 'SetPipelineState1' is only used for setting ray tracing pipeline state
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all_ray_tracing, to_handle(pStateObject));
+#endif
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchRays(const D3D12_DISPATCH_RAYS_DESC *pDesc)
 {
+	assert(pDesc != nullptr);
+
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_rays>(
+			this,
+			reshade::api::resource {},
+			pDesc->RayGenerationShaderRecord.StartAddress,
+			pDesc->RayGenerationShaderRecord.SizeInBytes,
+			reshade::api::resource {},
+			pDesc->MissShaderTable.StartAddress,
+			pDesc->MissShaderTable.SizeInBytes,
+			pDesc->MissShaderTable.StrideInBytes,
+			reshade::api::resource {},
+			pDesc->HitGroupTable.StartAddress,
+			pDesc->HitGroupTable.SizeInBytes,
+			pDesc->HitGroupTable.StrideInBytes,
+			reshade::api::resource {},
+			pDesc->CallableShaderTable.StartAddress,
+			pDesc->CallableShaderTable.SizeInBytes,
+			pDesc->CallableShaderTable.StrideInBytes,
+			pDesc->Width, pDesc->Height, pDesc->Depth))
+		return;
+#endif
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(pDesc);
 }
@@ -1073,6 +1142,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::RSSetShadingRateImage(ID3D12Res
 
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchMesh(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
+#if RESHADE_ADDON
+	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_mesh>(this, ThreadGroupCountX, ThreadGroupCountX, ThreadGroupCountZ))
+		return;
+#endif
 	assert(_interface_version >= 6);
 	static_cast<ID3D12GraphicsCommandList6 *>(_orig)->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 }

@@ -53,7 +53,6 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(create_pipeline);
 		CASE(destroy_pipeline);
 		CASE(init_pipeline_layout);
-		CASE(create_pipeline_layout);
 		CASE(destroy_pipeline_layout);
 		CASE(copy_descriptor_tables);
 		CASE(update_descriptor_tables);
@@ -78,6 +77,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(draw);
 		CASE(draw_indexed);
 		CASE(dispatch);
+		CASE(dispatch_mesh);
+		CASE(dispatch_rays);
 		CASE(draw_or_dispatch_indirect);
 		CASE(copy_resource);
 		CASE(copy_buffer_region);
@@ -93,6 +94,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(begin_query);
 		CASE(end_query);
 		CASE(copy_query_heap_results);
+		CASE(copy_acceleration_structure);
+		CASE(build_acceleration_structure);
 		CASE(reset_command_list);
 		CASE(close_command_list);
 		CASE(execute_command_list);
@@ -380,9 +383,16 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 		query_file_version_info(info.name, "ProductName");
 		query_file_version_info(info.author, "CompanyName");
-		query_file_version_info(info.version, "FileVersion");
 		query_file_version_info(info.description, "FileDescription");
+
+		if (VS_FIXEDFILEINFO *fixed_file_version_info = nullptr;
+			VerQueryValueW(version_data.data(), L"\\", reinterpret_cast<LPVOID *>(&fixed_file_version_info), nullptr))
+			info.version = HIWORD(fixed_file_version_info->dwFileVersionMS) * 10000 + LOWORD(fixed_file_version_info->dwFileVersionMS) * 100 + HIWORD(fixed_file_version_info->dwFileVersionLS);
 	}
+
+	// The version number must not be zero
+	if (0 == info.version)
+		info.version = 1;
 
 	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME"));
 		name != nullptr)
@@ -416,7 +426,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		return false; // Disable this add-on
 	}
 
-	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << (info.version.empty() ? "1.0.0.0" : info.version) << " using ReShade API version " << api_version << '.';
+	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << (info.version / 10000) << '.' << ((info.version / 100) % 100) << '.' << (info.version % 100) << " using ReShade API version " << api_version << '.';
 
 	reshade::addon_loaded_info.push_back(std::move(info));
 

@@ -3070,7 +3070,7 @@ void reshade::runtime::draw_gui_addons()
 				ImGui::Text(_("File:"));
 			if (!info.author.empty())
 				ImGui::Text(_("Author:"));
-			if (!info.version.empty())
+			if (info.version > 1)
 				ImGui::Text(_("Version:"));
 			if (!info.description.empty())
 				ImGui::Text(_("Description:"));
@@ -3083,8 +3083,8 @@ void reshade::runtime::draw_gui_addons()
 				ImGui::TextUnformatted(info.file.c_str());
 			if (!info.author.empty())
 				ImGui::TextUnformatted(info.author.c_str());
-			if (!info.version.empty())
-				ImGui::TextUnformatted(info.version.c_str());
+			if (info.version > 1)
+				ImGui::Text("%u.%u.%u", info.version / 10000, (info.version / 100) % 100, info.version % 100);
 			if (!info.description.empty())
 			{
 				ImGui::PushTextWrapPos();
@@ -3395,8 +3395,9 @@ void reshade::runtime::draw_variable_editor()
 			switch (variable.type.base)
 			{
 			case reshadefx::type::t_bool:
-				get_uniform_value(variable, value.as_uint, 1);
-				is_default_value = (value.as_uint[0] != 0) == (variable.initializer_value.as_uint[0] != 0);
+				get_uniform_value(variable, value.as_uint, variable.type.components());
+				for (size_t i = 0; is_default_value && i < variable.type.components(); i++)
+					is_default_value = (value.as_uint[i] != 0) == (variable.initializer_value.as_uint[i] != 0);
 				break;
 			case reshadefx::type::t_int:
 			case reshadefx::type::t_uint:
@@ -3404,19 +3405,23 @@ void reshade::runtime::draw_variable_editor()
 				is_default_value = std::memcmp(value.as_int, variable.initializer_value.as_int, variable.type.components() * sizeof(int)) == 0;
 				break;
 			case reshadefx::type::t_float:
+				const float threshold = variable.annotation_as_float("ui_step", 0, 0.001f) * 0.75f + FLT_EPSILON;
 				get_uniform_value(variable, value.as_float, variable.type.components());
-				is_default_value = std::memcmp(value.as_float, variable.initializer_value.as_float, variable.type.components() * sizeof(float)) == 0;
+				for (size_t i = 0; is_default_value && i < variable.type.components(); i++)
+					is_default_value = std::abs(value.as_float[i] - variable.initializer_value.as_float[i]) < threshold;
 				break;
 			}
 
+#if RESHADE_ADDON
 			if (invoke_addon_event<addon_event::reshade_overlay_uniform_variable>(this, api::effect_uniform_variable{ reinterpret_cast<uintptr_t>(&variable) }))
 			{
 				reshadefx::constant new_value;
 				switch (variable.type.base)
 				{
 				case reshadefx::type::t_bool:
-					get_uniform_value(variable, new_value.as_uint, 1);
-					modified = (new_value.as_uint[0] != 0) != (value.as_uint[0] != 0);
+					get_uniform_value(variable, new_value.as_uint, variable.type.components());
+					for (size_t i = 0; !modified && i < variable.type.components(); i++)
+						modified = (new_value.as_uint[i] != 0) != (value.as_uint[i] != 0);
 					break;
 				case reshadefx::type::t_int:
 				case reshadefx::type::t_uint:
@@ -3425,11 +3430,13 @@ void reshade::runtime::draw_variable_editor()
 					break;
 				case reshadefx::type::t_float:
 					get_uniform_value(variable, new_value.as_float, variable.type.components());
-					modified = std::memcmp(new_value.as_float, value.as_float, variable.type.components() * sizeof(float)) != 0;
+					for (size_t i = 0; !modified && i < variable.type.components(); i++)
+						modified = std::abs(new_value.as_float[i] - value.as_float[i]) > FLT_EPSILON;
 					break;
 				}
 			}
 			else
+#endif
 			{
 				// Add spacing before variable widget
 				for (int i = 0, spacing = variable.annotation_as_int("ui_spacing"); i < spacing; ++i)
@@ -3456,12 +3463,12 @@ void reshade::runtime::draw_variable_editor()
 					case reshadefx::type::t_bool:
 					{
 						if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), *reinterpret_cast<bool *>(&value.as_uint[0]));
+							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool &>(value.as_uint));
 						else
-							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(&value.as_uint[0]));
+							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(value.as_uint));
 
 						if (modified)
-							set_uniform_value(variable, value.as_uint, 1);
+							set_uniform_value(variable, value.as_uint, variable.type.components());
 						break;
 					}
 					case reshadefx::type::t_int:
@@ -3919,12 +3926,14 @@ void reshade::runtime::draw_technique_editor()
 			// Prevent user from disabling the technique when it is set to always be enabled via annotation
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
+#if RESHADE_ADDON
 			if (bool was_enabled = tech.enabled;
 				invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
 			{
 				modified = tech.enabled != was_enabled;
 			}
 			else
+#endif
 			{
 				ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
 

@@ -23,6 +23,7 @@ extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_reshade_base_path;
 extern std::filesystem::path g_target_executable_path;
 
+extern std::filesystem::path get_base_path(bool default_to_target_executable_path = false);
 extern std::filesystem::path get_module_path(HMODULE module);
 
 #define HR_CHECK(exp) { const HRESULT res = (exp); assert(SUCCEEDED(res)); }
@@ -67,7 +68,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	g_module_handle = hInstance;
 	g_reshade_dll_path = get_module_path(hInstance);
 	g_target_executable_path = g_reshade_dll_path;
-	g_reshade_base_path = g_reshade_dll_path.parent_path();
+	g_reshade_base_path = get_base_path();
 
 	std::error_code ec;
 	reshade::log::open_log_file(g_reshade_base_path / L"ReShade.log", ec);

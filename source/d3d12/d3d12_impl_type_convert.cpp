@@ -93,6 +93,9 @@ auto reshade::d3d12::convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api
 		result |= api::resource_usage::resolve_dest;
 	if ((access & D3D12_BARRIER_ACCESS_RESOLVE_SOURCE) != 0)
 		result |= api::resource_usage::resolve_source;
+	if ((access & (D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE)) != 0)
+		result |= api::resource_usage::acceleration_structure;
+
 	return result;
 }
 auto reshade::d3d12::convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage
@@ -155,7 +158,8 @@ auto reshade::d3d12::convert_resource_states_to_usage(D3D12_RESOURCE_STATES stat
 		api::resource_usage::copy_dest == D3D12_RESOURCE_STATE_COPY_DEST &&
 		api::resource_usage::copy_source == D3D12_RESOURCE_STATE_COPY_SOURCE &&
 		api::resource_usage::resolve_dest == D3D12_RESOURCE_STATE_RESOLVE_DEST &&
-		api::resource_usage::resolve_source == D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+		api::resource_usage::resolve_source == D3D12_RESOURCE_STATE_RESOLVE_SOURCE &&
+		api::resource_usage::acceleration_structure == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
 
 	return states == D3D12_RESOURCE_STATE_COMMON ? api::resource_usage::general : static_cast<api::resource_usage>(states);
 }
@@ -196,6 +200,9 @@ auto reshade::d3d12::convert_usage_to_access(api::resource_usage state) -> D3D12
 		result |= D3D12_BARRIER_ACCESS_RESOLVE_DEST;
 	if ((state & api::resource_usage::resolve_source) != 0)
 		result |= D3D12_BARRIER_ACCESS_RESOLVE_SOURCE;
+	if ((state & api::resource_usage::acceleration_structure) != 0)
+		result |= D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE;
+
 	return result;
 }
 auto reshade::d3d12::convert_usage_to_resource_states(api::resource_usage state) -> D3D12_RESOURCE_STATES
@@ -420,7 +427,7 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
 	// Mipmap generation is using compute shaders and therefore needs unordered access flag (see 'command_list_impl::generate_mipmaps')
-	if ((desc.usage & api::resource_usage::unordered_access) != 0 || (desc.flags & api::resource_flags::generate_mipmaps) != 0)
+	if ((desc.usage & (api::resource_usage::unordered_access | api::resource_usage::acceleration_structure)) != 0 || (desc.flags & api::resource_flags::generate_mipmaps) != 0)
 		internal_desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -478,7 +485,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		desc.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 
 		if (desc.type == api::resource_type::texture_2d)
-			desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+			desc.usage |= (desc.texture.samples > 1) ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
 	}
 
 	switch (heap_props.Type)
@@ -515,6 +522,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0)
 	{
 		desc.usage |= api::resource_usage::unordered_access;
+		// Buffers that have unordered access may be used as acceleration structures
+		if (desc.type == api::resource_type::buffer)
+			desc.usage |= api::resource_usage::acceleration_structure;
 		// Resources that have unordered access are usable with the 'generate_mipmaps' function
 		if (internal_desc.MipLevels > 1)
 			desc.flags |= api::resource_flags::generate_mipmaps;
@@ -681,6 +691,10 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		else
 			internal_desc.TextureCubeArray.NumCubes = desc.texture.layer_count / 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
+		break;
+	case api::resource_view_type::acceleration_structure:
+		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+		internal_desc.RaytracingAccelerationStructure.Location = desc.buffer.offset;
 		break;
 	}
 }
@@ -881,6 +895,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
+		desc.type = api::resource_view_type::acceleration_structure;
 		desc.buffer.offset = internal_desc.RaytracingAccelerationStructure.Location;
 		break;
 	}
@@ -1603,6 +1618,7 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 		assert(false);
 		[[fallthrough]];
 	case api::descriptor_type::shader_resource_view:
+	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	case api::descriptor_type::unordered_access_view:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
@@ -1639,6 +1655,7 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 	case api::descriptor_type::constant_buffer:
 	case api::descriptor_type::shader_resource_view:
 	case api::descriptor_type::unordered_access_view:
+	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	case api::descriptor_type::sampler:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
@@ -1744,5 +1761,138 @@ auto reshade::d3d12::convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_
 		result |= D3D12_FENCE_FLAG_SHARED;
 	if ((value & api::fence_flags::non_monitored) != 0)
 		result |= D3D12_FENCE_FLAG_NON_MONITORED;
+	return result;
+}
+
+auto reshade::d3d12::convert_pipeline_flags(api::pipeline_flags value) -> D3D12_RAYTRACING_PIPELINE_FLAGS
+{
+	D3D12_RAYTRACING_PIPELINE_FLAGS result = D3D12_RAYTRACING_PIPELINE_FLAG_NONE;
+	if ((value & api::pipeline_flags::skip_triangles) != 0)
+		result |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES;
+	if ((value & api::pipeline_flags::skip_aabbs) != 0)
+		result |= D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES;
+
+	return result;
+}
+auto reshade::d3d12::convert_pipeline_flags(D3D12_RAYTRACING_PIPELINE_FLAGS value) -> api::pipeline_flags
+{
+	api::pipeline_flags result = api::pipeline_flags::none;
+	if ((value & D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES) != 0)
+		result |= api::pipeline_flags::skip_triangles;
+	if ((value & D3D12_RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES) != 0)
+		result |= api::pipeline_flags::skip_aabbs;
+
+	return result;
+}
+auto reshade::d3d12::convert_acceleration_structure_type(api::acceleration_structure_type value) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE
+{
+	return static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE>(value);
+}
+auto reshade::d3d12::convert_acceleration_structure_type(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE value) -> api::acceleration_structure_type
+{
+	return static_cast<api::acceleration_structure_type>(value);
+}
+auto reshade::d3d12::convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE
+{
+	switch (value)
+	{
+	case api::acceleration_structure_copy_mode::clone:
+		return D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE;
+	case api::acceleration_structure_copy_mode::compact:
+		return D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT;
+	case api::acceleration_structure_copy_mode::serialize:
+		return D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_SERIALIZE;
+	case api::acceleration_structure_copy_mode::deserialize:
+		return D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_DESERIALIZE;
+	default:
+		assert(false);
+		return static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE>(UINT_MAX);
+	}
+}
+auto reshade::d3d12::convert_acceleration_structure_copy_mode(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE value) -> api::acceleration_structure_copy_mode
+{
+	switch (value)
+	{
+	case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_CLONE:
+		return api::acceleration_structure_copy_mode::clone;
+	case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_COMPACT:
+		return api::acceleration_structure_copy_mode::compact;
+	case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_SERIALIZE:
+		return api::acceleration_structure_copy_mode::serialize;
+	case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_DESERIALIZE:
+		return api::acceleration_structure_copy_mode::deserialize;
+	default:
+	case D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE_VISUALIZATION_DECODE_FOR_TOOLS:
+		assert(false);
+		return static_cast<api::acceleration_structure_copy_mode>(UINT_MAX);
+	}
+}
+auto reshade::d3d12::convert_acceleration_structure_build_flags(api::acceleration_structure_build_flags value, api::acceleration_structure_build_mode mode) -> D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS
+{
+	auto result = static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS>(value);
+
+	if (mode == api::acceleration_structure_build_mode::update)
+		result |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+
+	return result;
+}
+auto reshade::d3d12::convert_acceleration_structure_build_flags(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS value) -> api::acceleration_structure_build_flags
+{
+	return static_cast<api::acceleration_structure_build_flags>(value & ~D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE);
+}
+
+void reshade::d3d12::convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, D3D12_RAYTRACING_GEOMETRY_DESC &geometry)
+{
+	assert(build_input.type != api::acceleration_structure_build_input_type::instances);
+	geometry.Type = static_cast<D3D12_RAYTRACING_GEOMETRY_TYPE>(build_input.type);
+
+	switch (geometry.Type)
+	{
+	case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+		geometry.Triangles.Transform3x4 = (build_input.triangles.transform_buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(build_input.triangles.transform_buffer.handle)->GetGPUVirtualAddress() : 0) + build_input.triangles.transform_offset;
+		geometry.Triangles.IndexFormat = convert_format(build_input.triangles.index_format);
+		geometry.Triangles.VertexFormat = convert_format(build_input.triangles.vertex_format);
+		geometry.Triangles.IndexCount = build_input.triangles.index_count;
+		geometry.Triangles.VertexCount = build_input.triangles.vertex_count;
+		geometry.Triangles.IndexBuffer = (build_input.triangles.index_buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(build_input.triangles.index_buffer.handle)->GetGPUVirtualAddress() : 0) + build_input.triangles.index_offset;
+		geometry.Triangles.VertexBuffer.StartAddress = (build_input.triangles.vertex_buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(build_input.triangles.vertex_buffer.handle)->GetGPUVirtualAddress() : 0) + build_input.triangles.vertex_offset;
+		geometry.Triangles.VertexBuffer.StrideInBytes = build_input.triangles.vertex_stride;
+		break;
+	case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+		geometry.AABBs.AABBCount = build_input.aabbs.count;
+		geometry.AABBs.AABBs.StartAddress = (build_input.aabbs.buffer.handle != 0 ? reinterpret_cast<ID3D12Resource *>(build_input.aabbs.buffer.handle)->GetGPUVirtualAddress() : 0) + build_input.aabbs.offset;
+		geometry.AABBs.AABBs.StrideInBytes = build_input.aabbs.stride;
+		break;
+	}
+
+	geometry.Flags = static_cast<D3D12_RAYTRACING_GEOMETRY_FLAGS>(build_input.flags);
+}
+reshade::api::acceleration_structure_build_input reshade::d3d12::convert_acceleration_structure_build_input(const D3D12_RAYTRACING_GEOMETRY_DESC &geometry)
+{
+	api::acceleration_structure_build_input result = {};
+	result.type = static_cast<api::acceleration_structure_build_input_type>(geometry.Type);
+
+	switch (geometry.Type)
+	{
+	case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+		result.triangles.vertex_offset = geometry.Triangles.VertexBuffer.StartAddress;
+		result.triangles.vertex_count = geometry.Triangles.VertexCount;
+		result.triangles.vertex_stride = geometry.Triangles.VertexBuffer.StrideInBytes;
+		result.triangles.vertex_format = convert_format(geometry.Triangles.VertexFormat);
+		result.triangles.index_offset = geometry.Triangles.IndexBuffer;
+		result.triangles.index_count = geometry.Triangles.IndexCount;
+		result.triangles.index_format = convert_format(geometry.Triangles.IndexFormat);
+		result.triangles.transform_offset = geometry.Triangles.Transform3x4;
+		break;
+	case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+		result.aabbs.offset = geometry.AABBs.AABBs.StartAddress;
+		assert(geometry.AABBs.AABBCount <= std::numeric_limits<uint32_t>::max());
+		result.aabbs.count = static_cast<uint32_t>(geometry.AABBs.AABBCount);
+		result.aabbs.stride = geometry.AABBs.AABBs.StrideInBytes;
+		break;
+	}
+
+	result.flags = static_cast<api::acceleration_structure_build_input_flags>(geometry.Flags);
+
 	return result;
 }

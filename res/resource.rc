@@ -108,7 +108,7 @@ IDR_LICENSE_UTFCPP      RCDATA                  "..\\deps\\utfcpp\\LICENSE"
 
 IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
 
-IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.txt"
+IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.md"
 #endif
 
 #endif    // Neutral (Default) resources
