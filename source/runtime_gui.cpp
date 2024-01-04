@@ -3919,8 +3919,6 @@ void reshade::runtime::draw_technique_editor()
 			// Prevent user from disabling the technique when it is set to always be enabled via annotation
 			const bool force_enabled = tech.annotation_as_int("enabled");
 
-			ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
-
 			if (bool was_enabled = tech.enabled;
 				invoke_addon_event<addon_event::reshade_overlay_technique>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }))
 			{
@@ -3928,6 +3926,8 @@ void reshade::runtime::draw_technique_editor()
 			}
 			else
 			{
+				ImGui::BeginDisabled(tech.annotation_as_uint("noedit") != 0);
+
 				// Gray out disabled techniques
 				ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(tech.enabled ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
@@ -3948,9 +3948,20 @@ void reshade::runtime::draw_technique_editor()
 				}
 
 				ImGui::PopStyleColor();
-			}
 
-			ImGui::EndDisabled();
+				ImGui::EndDisabled();
+
+				// Display tooltip
+				if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
+					!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
+				{
+					if (ImGui::BeginTooltip())
+					{
+						ImGui::TextUnformatted(tooltip.data());
+						ImGui::EndTooltip();
+					}
+				}
+			}
 
 			if (ImGui::IsItemActive())
 				_selected_technique = index;
@@ -3958,17 +3969,6 @@ void reshade::runtime::draw_technique_editor()
 				_focused_effect = tech.effect_index;
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly | ImGuiHoveredFlags_AllowWhenDisabled))
 				hovered_technique_index = index;
-
-			// Display tooltip
-			if (const std::string_view tooltip = get_localized_annotation(tech, "ui_tooltip", _language);
-				!tooltip.empty() && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled))
-			{
-				if (ImGui::BeginTooltip())
-				{
-					ImGui::TextUnformatted(tooltip.data());
-					ImGui::EndTooltip();
-				}
-			}
 
 			// Create context menu
 			if (ImGui::BeginPopupContextItem("##context"))
