@@ -1357,9 +1357,13 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 		if (back_buffer_desc.texture.samples > 1)
 			return; // Multisampled render targets are not supported
 
+		api::format color_format = back_buffer_desc.texture.format;
+		if (api::format_to_typeless(color_format) == color_format)
+			color_format = _device->get_resource_view_desc(rtv).format;
+
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Never perform an immediate reload here, as the list of techniques must not be modified in case this was called from within 'enumerate_techniques'!
-		if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, back_buffer_desc.texture.format, _effect_stencil_format))
+		if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_stencil_format))
 			return;
 	}
 
