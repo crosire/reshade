@@ -3346,7 +3346,7 @@ void reshade::runtime::draw_variable_editor()
 
 	ImGui::BeginChild("##variables", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
 	if (_variable_editor_tabs)
-		ImGui::BeginTabBar("##variables");
+		ImGui::BeginTabBar("##variables", ImGuiTabBarFlags_TabListPopupButton | ImGuiTabBarFlags_FittingPolicyScroll);
 
 	for (size_t effect_index = 0, id = 0; effect_index < _effects.size(); ++effect_index)
 	{
