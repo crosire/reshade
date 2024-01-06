@@ -453,7 +453,7 @@ IMPLEMENT_INTRINSIC_SPIRV(f16tof32, 0, {
 	type arg_scalar_type = args[0].type;
 	arg_scalar_type.rows = 1;
 
-	spv::Id data[4];
+	spv::Id res[4];
 	for (unsigned int i = 0; i < args[0].type.rows; ++i)
 	{
 		assert(i < 4);
@@ -471,7 +471,7 @@ IMPLEMENT_INTRINSIC_SPIRV(f16tof32, 0, {
 			.add(arg_scalar)
 			.result;
 
-		data[i] = add_instruction(spv::OpCompositeExtract, convert_type(res_scalar_type))
+		res[i] = add_instruction(spv::OpCompositeExtract, convert_type(res_scalar_type))
 			.add(arg_vector)
 			.add(0u)
 			.result;
@@ -480,10 +480,10 @@ IMPLEMENT_INTRINSIC_SPIRV(f16tof32, 0, {
 	if (res_type.rows > 1)
 		return
 		add_instruction(spv::OpCompositeConstruct, convert_type(res_type))
-			.add(data, data + res_type.rows)
+			.add(res, res + res_type.rows)
 			.result;
 	else
-		return data[0];
+		return res[0];
 	})
 
 // ret f32tof16(x)
@@ -517,7 +517,7 @@ IMPLEMENT_INTRINSIC_SPIRV(f32tof16, 0, {
 
 	const spv::Id constant_zero = emit_constant(arg_scalar_type, 0u);
 
-	spv::Id data[4];
+	spv::Id res[4];
 	for (unsigned int i = 0; i < args[0].type.rows; ++i)
 	{
 		assert(i < 4);
@@ -534,7 +534,7 @@ IMPLEMENT_INTRINSIC_SPIRV(f32tof16, 0, {
 			.add(constant_zero)
 			.result;
 
-		data[i] = add_instruction(spv::OpExtInst, convert_type(res_scalar_type))
+		res[i] = add_instruction(spv::OpExtInst, convert_type(res_scalar_type))
 			.add(_glsl_ext)
 			.add(spv::GLSLstd450PackHalf2x16)
 			.add(arg_vector)
@@ -544,10 +544,10 @@ IMPLEMENT_INTRINSIC_SPIRV(f32tof16, 0, {
 	if (res_type.rows > 1)
 		return
 		add_instruction(spv::OpCompositeConstruct, convert_type(res_type))
-			.add(data, data + res_type.rows)
+			.add(res, res + res_type.rows)
 			.result;
 	else
-		return data[0];
+		return res[0];
 	})
 
 // ret firstbitlow
@@ -1307,7 +1307,7 @@ IMPLEMENT_INTRINSIC_SPIRV(max, 1, {
 		.result;
 	})
 
-// ret degree(x)
+// ret degrees(x)
 DEFINE_INTRINSIC(degrees, 0, float, float)
 DEFINE_INTRINSIC(degrees, 0, float2, float2)
 DEFINE_INTRINSIC(degrees, 0, float3, float3)
@@ -2151,6 +2151,264 @@ IMPLEMENT_INTRINSIC_SPIRV(tex3D, 1, {
 		.add(args[1].base)
 		.add(args[2].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask)
 		.add(args[2].base)
+		.result;
+	if (res_type.rows == 1)
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+	else
+		return res;
+	})
+
+// ret tex1Dgrad(s, coords, ddx, ddy)
+// ret tex1Dgrad(s, coords, ddx, ddy, offset)
+DEFINE_INTRINSIC(tex1Dgrad, 0, int, sampler1d_int, float, float, float)
+DEFINE_INTRINSIC(tex1Dgrad, 0, uint, sampler1d_uint, float, float, float)
+DEFINE_INTRINSIC(tex1Dgrad, 0, float, sampler1d_float, float, float, float)
+DEFINE_INTRINSIC(tex1Dgrad, 0, float4, sampler1d_float4, float, float, float)
+DEFINE_INTRINSIC(tex1Dgrad, 1, int, sampler1d_int, float, float, float, int)
+DEFINE_INTRINSIC(tex1Dgrad, 1, uint, sampler1d_uint, float, float, float, int)
+DEFINE_INTRINSIC(tex1Dgrad, 1, float, sampler1d_float, float, float, float, int)
+DEFINE_INTRINSIC(tex1Dgrad, 1, float4, sampler1d_float4, float, float, float, int)
+IMPLEMENT_INTRINSIC_GLSL(tex1Dgrad, 0, {
+	code += "textureGrad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex1Dgrad, 1, {
+	code += "textureGradOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x";
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex1Dgrad, 0, {
+	if (_shader_model >= 40) {
+		code += id_to_name(args[0].base) + ".t.SampleGrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+	}
+	else {
+		code += "tex1Dgrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex1Dgrad, 1, {
+	if (_shader_model >= 40) {
+		code += id_to_name(args[0].base) + ".t.SampleGrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ')';
+	}
+	else {
+		code += "tex1Dgrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + " + id_to_name(args[4].base) + " * " + id_to_name(args[0].base) + ".pixelsize, " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex1Dgrad, 0, {
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsGradMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+	else
+		return res;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex1Dgrad, 1, {
+	if (!args[4].is_constant)
+		add_capability(spv::CapabilityImageGatherExtended);
+
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsGradMask | (args[4].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask))
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.result;
+	if (res_type.rows == 1)
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+	else
+		return res;
+	})
+
+// ret tex2Dgrad(s, coords, ddx, ddy)
+// ret tex2Dgrad(s, coords, ddx, ddy, offset)
+DEFINE_INTRINSIC(tex2Dgrad, 0, int, sampler2d_int, float2, float2, float2)
+DEFINE_INTRINSIC(tex2Dgrad, 0, uint, sampler2d_uint, float2, float2, float2)
+DEFINE_INTRINSIC(tex2Dgrad, 0, float, sampler2d_float, float2, float2, float2)
+DEFINE_INTRINSIC(tex2Dgrad, 0, float4, sampler2d_float4, float2, float2, float2)
+DEFINE_INTRINSIC(tex2Dgrad, 1, int, sampler2d_int, float2, float2, float2, int2)
+DEFINE_INTRINSIC(tex2Dgrad, 1, uint, sampler2d_uint, float2, float2, float2, int2)
+DEFINE_INTRINSIC(tex2Dgrad, 1, float, sampler2d_float, float2, float2, float2, int2)
+DEFINE_INTRINSIC(tex2Dgrad, 1, float4, sampler2d_float4, float2, float2, float2, int2)
+IMPLEMENT_INTRINSIC_GLSL(tex2Dgrad, 0, {
+	code += "textureGrad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex2Dgrad, 1, {
+	code += "textureGradOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x";
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex2Dgrad, 0, {
+	if (_shader_model >= 40) {
+		code += id_to_name(args[0].base) + ".t.SampleGrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+	}
+	else {
+		code += "tex2Dgrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex2Dgrad, 1, {
+	if (_shader_model >= 40) {
+		code += id_to_name(args[0].base) + ".t.SampleGrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ')';
+	}
+	else {
+		code += "tex2Dgrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + " + id_to_name(args[4].base) + " * " + id_to_name(args[0].base) + ".pixelsize, " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2Dgrad, 0, {
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsGradMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+	else
+		return res;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex2Dgrad, 1, {
+	if (!args[4].is_constant)
+		add_capability(spv::CapabilityImageGatherExtended);
+
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsGradMask | (args[4].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask))
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
+		.result;
+	if (res_type.rows == 1)
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+	else
+		return res;
+	})
+
+// ret tex3Dgrad(s, coords, ddx, ddy)
+// ret tex3Dgrad(s, coords, ddx, ddy, offset)
+DEFINE_INTRINSIC(tex3Dgrad, 0, int, sampler3d_int, float3, float3, float3)
+DEFINE_INTRINSIC(tex3Dgrad, 0, uint, sampler3d_uint, float3, float3, float3)
+DEFINE_INTRINSIC(tex3Dgrad, 0, float, sampler3d_float, float3, float3, float3)
+DEFINE_INTRINSIC(tex3Dgrad, 0, float4, sampler3d_float4, float3, float3, float3)
+DEFINE_INTRINSIC(tex3Dgrad, 1, int, sampler3d_int, float3, float3, float3, int2)
+DEFINE_INTRINSIC(tex3Dgrad, 1, uint, sampler3d_uint, float3, float3, float3, int2)
+DEFINE_INTRINSIC(tex3Dgrad, 1, float, sampler3d_float, float3, float3, float3, int2)
+DEFINE_INTRINSIC(tex3Dgrad, 1, float4, sampler3d_float4, float3, float3, float3, int2)
+IMPLEMENT_INTRINSIC_GLSL(tex3Dgrad, 0, {
+	code += "textureGrad(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x"; // Collapse last argument from a 4-component vector
+	})
+IMPLEMENT_INTRINSIC_GLSL(tex3Dgrad, 1, {
+	code += "textureGradOffset(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ')';
+	if (res_type.rows == 1)
+		code += ".x";
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex3Dgrad, 0, {
+	if (_shader_model >= 40) {
+		code += id_to_name(args[0].base) + ".t.SampleGrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+	}
+	else {
+		code += "tex3Dgrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
+	})
+IMPLEMENT_INTRINSIC_HLSL(tex3Dgrad, 1, {
+	if (_shader_model >= 40) {
+		code += id_to_name(args[0].base) + ".t.SampleGrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ", " + id_to_name(args[4].base) + ')';
+	}
+	else {
+		code += "tex3Dgrad(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + " + " + id_to_name(args[4].base) + " * " + id_to_name(args[0].base) + ".pixelsize, " + id_to_name(args[2].base) + ", " + id_to_name(args[3].base) + ')';
+		if (res_type.rows == 1)
+			code += ".x";
+	}
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex3Dgrad, 0, {
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsGradMask)
+		.add(args[2].base)
+		.add(args[3].base)
+		.result;
+	if (res_type.rows == 1)
+		// Collapse last argument from a 4-component vector
+		return
+		add_instruction(spv::OpCompositeExtract, convert_type(res_type))
+			.add(res)
+			.add(0u)
+			.result;
+	else
+		return res;
+	})
+IMPLEMENT_INTRINSIC_SPIRV(tex3Dgrad, 1, {
+	if (!args[4].is_constant)
+		add_capability(spv::CapabilityImageGatherExtended);
+
+	type res_vector_type = res_type;
+	res_vector_type.rows = 4;
+
+	const spv::Id res = add_instruction(spv::OpImageSampleExplicitLod, convert_type(res_vector_type))
+		.add(args[0].base)
+		.add(args[1].base)
+		.add(spv::ImageOperandsGradMask | (args[4].is_constant ? spv::ImageOperandsConstOffsetMask : spv::ImageOperandsOffsetMask))
+		.add(args[2].base)
+		.add(args[3].base)
+		.add(args[4].base)
 		.result;
 	if (res_type.rows == 1)
 		return
