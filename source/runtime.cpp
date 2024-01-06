@@ -29,7 +29,7 @@
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
-#include <stb_image_resize.h>
+#include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
@@ -4479,51 +4479,61 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 		return;
 	}
 
-	int type_size;
-	int num_channels;
+	uint32_t pixel_size;
+	stbir_datatype data_type;
+	stbir_pixel_layout pixel_layout;
 	switch (tex.format)
 	{
 	case reshadefx::texture_format::r8:
-		type_size = 1;
-		num_channels = 1;
+		pixel_size = 1 * 1;
+		data_type = STBIR_TYPE_UINT8;
+		pixel_layout = STBIR_1CHANNEL;
 		break;
-	case reshadefx::texture_format::r16:
-	case reshadefx::texture_format::r16f:
-		type_size = 2;
-		num_channels = 1;
-		break;
-	case reshadefx::texture_format::r32i:
-	case reshadefx::texture_format::r32u:
 	case reshadefx::texture_format::r32f:
-		type_size = 4;
-		num_channels = 1;
+		pixel_size = 4 * 1;
+		data_type = STBIR_TYPE_FLOAT;
+		pixel_layout = STBIR_1CHANNEL;
 		break;
 	case reshadefx::texture_format::rg8:
-		type_size = 1;
-		num_channels = 2;
+		pixel_size = 1 * 2;
+		data_type = STBIR_TYPE_UINT8;
+		pixel_layout = STBIR_2CHANNEL;
 		break;
 	case reshadefx::texture_format::rg16:
+		pixel_size = 2 * 2;
+		data_type = STBIR_TYPE_UINT16;
+		pixel_layout = STBIR_2CHANNEL;
+		break;
 	case reshadefx::texture_format::rg16f:
-		type_size = 2;
-		num_channels = 1;
+		pixel_size = 2 * 2;
+		data_type = STBIR_TYPE_HALF_FLOAT;
+		pixel_layout = STBIR_2CHANNEL;
 		break;
 	case reshadefx::texture_format::rg32f:
-		type_size = 4;
-		num_channels = 2;
+		pixel_size = 4 * 2;
+		data_type = STBIR_TYPE_FLOAT;
+		pixel_layout = STBIR_2CHANNEL;
 		break;
 	case reshadefx::texture_format::rgba8:
 	case reshadefx::texture_format::rgb10a2:
-		type_size = 1;
-		num_channels = 4;
+		pixel_size = 1 * 4;
+		data_type = STBIR_TYPE_UINT8;
+		pixel_layout = STBIR_RGBA;
 		break;
 	case reshadefx::texture_format::rgba16:
+		pixel_size = 2 * 4;
+		data_type = STBIR_TYPE_UINT16;
+		pixel_layout = STBIR_RGBA;
+		break;
 	case reshadefx::texture_format::rgba16f:
-		type_size = 2;
-		num_channels = 4;
+		pixel_size = 2 * 4;
+		data_type = STBIR_TYPE_HALF_FLOAT;
+		pixel_layout = STBIR_RGBA;
 		break;
 	case reshadefx::texture_format::rgba32f:
-		type_size = 4;
-		num_channels = 4;
+		pixel_size = 4 * 4;
+		data_type = STBIR_TYPE_FLOAT;
+		pixel_layout = STBIR_RGBA;
 		break;
 	default:
 		return;
@@ -4537,21 +4547,14 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 	{
 		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << '.';
 
-		resized.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * static_cast<size_t>(type_size * num_channels));
+		resized.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * static_cast<size_t>(pixel_size));
 
-		if (type_size == 4)
-			stbir_resize_float(static_cast<const float *>(pixels), width, height, 0, reinterpret_cast<float *>(resized.data()), tex.width, tex.height, 0, num_channels);
-		else if (type_size == 2)
-			stbir_resize_uint16_generic(static_cast<const uint16_t *>(pixels), width, height, 0, reinterpret_cast<uint16_t *>(resized.data()), tex.width, tex.height, 0, num_channels, -1, 0, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT, STBIR_COLORSPACE_LINEAR, nullptr);
-		else
-			stbir_resize_uint8(static_cast<const uint8_t *>(pixels), width, height, 0, resized.data(), tex.width, tex.height, 0, num_channels);
-
-		upload_data = resized.data();
+		upload_data = stbir_resize(pixels, width, height, 0, resized.data(), tex.width, tex.height, 0, pixel_layout, data_type, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT);
 	}
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-	_device->update_texture_region({ upload_data, tex.width * static_cast<uint32_t>(type_size * num_channels), tex.width * tex.height * static_cast<uint32_t>(type_size * num_channels) }, tex.resource, 0);
+	_device->update_texture_region({ upload_data, tex.width * pixel_size, tex.width * tex.height * pixel_size }, tex.resource, 0);
 	cmd_list->barrier(tex.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 	if (tex.levels > 1)

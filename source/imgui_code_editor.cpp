@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <utf8/unchecked.h>
 
-static inline int get_parenthesis_type(utf8::uint32_t c)
+static inline int get_parenthesis_type(utf8::utfchar32_t c)
 {
 	switch (c)
 	{
@@ -308,7 +308,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	// If cursor is on a parenthesis or bracket, find the matching sibling to highlight
 	text_pos parenthesis_pos[2];
 	{
-		utf8::uint32_t parenthesis_c = 0;
+		utf8::utfchar32_t parenthesis_c = 0;
 		text_pos search_pos = _cursor_pos;
 
 		// Check if character to the right or left of the cursor is a parenthesis or bracket
@@ -757,7 +757,7 @@ void reshade::imgui::code_editor::set_text(const std::string_view text)
 
 	for (auto it = text.begin(); it < text.end();)
 	{
-		const utf8::uint32_t c = utf8::unchecked::next(it);
+		const utf8::utfchar32_t c = utf8::unchecked::next(it);
 		if (c == '\r')
 			continue; // Ignore the carriage return character
 		else if (c == '\n')
@@ -1637,7 +1637,7 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 	if (text.empty())
 		return false; // Cannot search for empty text
 
-	const auto compare_c = [this](utf8::uint32_t clhs, utf8::uint32_t crhs) {
+	const auto compare_c = [this](utf8::utfchar32_t clhs, utf8::utfchar32_t crhs) {
 		return _search_case_sensitive ? clhs == crhs : std::tolower(clhs) == std::tolower(crhs);
 	};
 

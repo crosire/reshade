@@ -9,7 +9,7 @@
 
 struct D3D12DeviceDownlevel;
 
-struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : ID3D12Device12, public reshade::d3d12::device_impl
+struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : ID3D12Device13, public reshade::d3d12::device_impl
 {
 	D3D12Device(ID3D12Device *original);
 	~D3D12Device();
@@ -124,6 +124,9 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final :
 	#pragma endregion
 	#pragma region ID3D12Device12
 	D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE GetResourceAllocationInfo3(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC1 *pResourceDescs, const UINT32 *pNumCastableFormats, const DXGI_FORMAT *const *ppCastableFormats, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1) override;
+	#pragma endregion
+	#pragma region ID3D12Device13
+	HRESULT STDMETHODCALLTYPE OpenExistingHeapFromAddress1(const void *pAddress, SIZE_T size, REFIID riid, void **ppvHeap) override;
 	#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);

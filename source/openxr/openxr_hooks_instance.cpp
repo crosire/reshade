@@ -6,7 +6,7 @@
 #include "openxr_hooks.hpp"
 #include "dll_log.hpp"
 #include "lockfree_linear_map.hpp"
-#include <common/loader_interfaces.h>
+#include <openxr/openxr_loader_negotiation.h>
 
 lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
 
