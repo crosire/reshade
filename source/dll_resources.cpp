@@ -56,25 +56,26 @@ std::string reshade::resources::set_current_language(const std::string &language
 	ULONG num = 0, size = 0;
 	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, nullptr, &size))
 		return language;
-	std::wstring languages; languages.resize(size);
+	std::vector<WCHAR> languages(size);
 	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, languages.data(), &size))
 		return language;
 
 	std::string prev_language;
 	if (num != 0)
 		// Extract first language from the double null-terminated multi-string buffer
-		utf8::unchecked::utf16to8(languages.cbegin(), std::find(languages.cbegin(), languages.cend(), L'\0'), std::back_inserter(prev_language));
+		utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(prev_language));
 
 	if (language == prev_language)
 		return language;
 
 	// Create new double null-terminated buffer with the new language
 	languages.clear();
-	languages.reserve(language.size() + 7);
-	utf8::unchecked::utf8to16(language.cbegin(), language.cend(), std::back_inserter(languages));
-	languages.append(L"\0en-US\0", 7);
+	languages.reserve(language.size() + 2);
+	utf8::unchecked::utf8to16(language.begin(), language.end(), std::back_inserter(languages));
+	languages.push_back(L'\0');
+	languages.push_back(L'\0');
 
-	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.c_str(), nullptr);
+	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);
 
 	return prev_language;
 }
