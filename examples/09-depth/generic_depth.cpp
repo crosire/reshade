@@ -277,19 +277,21 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 };
 
 // Checks whether the aspect ratio of the two sets of dimensions is similar or not
-static bool check_aspect_ratio(float width_to_check, float height_to_check, uint32_t width, uint32_t height)
+static bool check_aspect_ratio(float width_to_check, float height_to_check, float width, float height)
 {
 	if (width_to_check == 0.0f || height_to_check == 0.0f)
 		return true;
 
-	const float w = static_cast<float>(width);
-	float w_ratio = w / width_to_check;
-	const float h = static_cast<float>(height);
-	float h_ratio = h / height_to_check;
-	const float aspect_ratio = (w / h) - (width_to_check / height_to_check);
+	if (s_use_aspect_ratio_heuristics == 3)
+		return width_to_check == width && height_to_check == height;
+
+	float w_ratio = width / width_to_check;
+	float h_ratio = height / height_to_check;
+	const float aspect_ratio_delta = (width / height) - (width_to_check / height_to_check);
 
 	// Accept if dimensions are similar in value or almost exact multiples
-	return std::fabs(aspect_ratio) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) || (s_use_aspect_ratio_heuristics == 2 && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
+	return std::fabs(aspect_ratio_delta) <= 0.1f && ((w_ratio <= 1.85f && w_ratio >= 0.5f && h_ratio <= 1.85f && h_ratio >= 0.5f) ||
+		(s_use_aspect_ratio_heuristics == 2 && std::modf(w_ratio, &w_ratio) <= 0.02f && std::modf(h_ratio, &h_ratio) <= 0.02f));
 }
 
 static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, resource depth_stencil, clear_op op)
@@ -320,7 +322,7 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 		break;
 	case clear_op::fullscreen_draw:
 		// Mass Effect 3 in Mass Effect Legendary Edition sometimes uses a larger common depth buffer for shadow map and scene rendering, where the former uses a 1024x1024 viewport and the latter uses a viewport matching the render resolution
-		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, depth_stencil_backup->frame_width, depth_stencil_backup->frame_height);
+		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, static_cast<float>(depth_stencil_backup->frame_width), static_cast<float>(depth_stencil_backup->frame_height));
 		break;
 	case clear_op::unbind_depth_stencil_view:
 		break;
@@ -389,6 +391,9 @@ static void on_init_device(device *device)
 	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
 	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+
+	if (s_use_aspect_ratio_heuristics > 3)
+		s_use_aspect_ratio_heuristics = 1;
 }
 static void on_init_command_list(command_list *cmd_list)
 {
@@ -813,7 +818,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		if (desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0))
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
-		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), frame_width, frame_height))
+		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height)))
 			continue; // Not a good fit
 
 		const depth_stencil_frame_stats &snapshot = info.last_counters;
@@ -1025,23 +1030,16 @@ static void draw_settings_overlay(effect_runtime *runtime)
 {
 	bool force_reset = false;
 
-	if (bool use_aspect_ratio_heuristics = s_use_aspect_ratio_heuristics != 0;
-		ImGui::Checkbox("Use aspect ratio heuristics", &use_aspect_ratio_heuristics))
+	const char *const heuristic_items[] = {
+		"None",
+		"Similar aspect ratio",
+		"Multiples of resolution (for DLSS or resolution scaling)",
+		"Match resolution exactly"
+	};
+	if (ImGui::Combo("Aspect ratio heuristics", reinterpret_cast<int *>(&s_use_aspect_ratio_heuristics), heuristic_items, static_cast<int>(std::size(heuristic_items))))
 	{
-		s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics ? 1 : 0;
 		reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 		force_reset = true;
-	}
-
-	if (s_use_aspect_ratio_heuristics)
-	{
-		if (bool use_aspect_ratio_heuristics_ex = s_use_aspect_ratio_heuristics == 2;
-			ImGui::Checkbox("Use extended aspect ratio heuristics (for DLSS or resolution scaling)", &use_aspect_ratio_heuristics_ex))
-		{
-			s_use_aspect_ratio_heuristics = use_aspect_ratio_heuristics_ex ? 2 : 1;
-			reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
-			force_reset = true;
-		}
 	}
 
 	if (bool copy_before_clear_operations = s_preserve_depth_buffers != 0;
@@ -1051,6 +1049,9 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 		force_reset = true;
 	}
+
+	if (s_preserve_depth_buffers == 0)
+		ImGui::SetItemTooltip("Enable this when the depth buffer is empty");
 
 	device *const device = runtime->get_device();
 	const bool is_d3d12_or_vulkan = device->get_api() == device_api::d3d12 || device->get_api() == device_api::vulkan;
@@ -1106,23 +1107,26 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					(a.desc.texture.width == b.desc.texture.width && a.desc.texture.height == b.desc.texture.height && a.resource < b.resource));
 		});
 
+	uint32_t frame_width, frame_height;
+	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
+
 	bool has_msaa_depth_stencil = false;
 	bool has_no_clear_operations = false;
 
 	for (const depth_stencil_item &item : sorted_item_list)
 	{
-		char label[512] = "";
-		sprintf_s(label, "%c 0x%016llx", (item.resource == data.selected_depth_stencil ? '>' : ' '), item.resource.handle);
-
 		bool disabled = item.unusable;
 		if (item.desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0)) // Disable widget for MSAA textures
 			has_msaa_depth_stencil = disabled = true;
 
-		if (disabled)
-		{
-			ImGui::BeginDisabled();
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-		}
+		const bool selected = item.resource == data.selected_depth_stencil;
+		const bool candidate = !s_use_aspect_ratio_heuristics || check_aspect_ratio(static_cast<float>(item.desc.texture.width), static_cast<float>(item.desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height));
+
+		char label[512] = "";
+		sprintf_s(label, "%c 0x%016llx", (selected ? '>' : ' '), item.resource.handle);
+
+		ImGui::BeginDisabled(disabled);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[disabled ? ImGuiCol_TextDisabled : selected || candidate ? ImGuiCol_ButtonActive : ImGuiCol_Text]);
 
 		if (bool value = (item.resource == data.override_depth_stencil);
 			ImGui::Checkbox(label, &value))
@@ -1141,11 +1145,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			item.snapshot.total_stats.vertices,
 			(item.desc.texture.samples > 1 ? " MSAA" : ""));
 
-		if (disabled)
-		{
-			ImGui::PopStyleColor();
-			ImGui::EndDisabled();
-		}
+		ImGui::PopStyleColor();
+		ImGui::EndDisabled();
 
 		if (s_preserve_depth_buffers && item.resource == data.selected_depth_stencil)
 		{
