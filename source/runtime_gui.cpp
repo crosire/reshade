@@ -2797,6 +2797,11 @@ void reshade::runtime::draw_gui_log()
 	std::filesystem::path log_path = global_config().path();
 	log_path.replace_extension(L".log");
 
+	if (ImGui::Button(ICON_FK_FOLDER " Open in explorer"))
+		utils::open_explorer(log_path);
+
+	ImGui::SameLine();
+
 	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(16.0f * _font_size + 2 * _imgui_context->Style.ItemSpacing.x));
 
 	ImGui::SameLine();
@@ -3759,6 +3764,10 @@ void reshade::runtime::draw_technique_editor()
 
 	if (!_last_reload_successful)
 	{
+		ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+		ImGui::TextWrapped("These effect files (.fx) are not available due to errors.");
+		ImGui::PopStyleColor();
+
 		// Add fake items at the top for effects that failed to compile
 		for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
 		{
@@ -3897,6 +3906,12 @@ void reshade::runtime::draw_technique_editor()
 
 			ImGui::PopID();
 		}
+
+		ImGui::Spacing();
+		ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+		ImGui::TextWrapped("To correct the problem, hover cursor over the effect to see what the error and/or open the 'Log' tab to see the recent errors.");
+		ImGui::PopStyleColor();
+		ImGui::Spacing();
 	}
 
 	size_t force_reload_effect = std::numeric_limits<size_t>::max();
