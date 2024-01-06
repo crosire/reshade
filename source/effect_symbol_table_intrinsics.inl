@@ -424,6 +424,132 @@ IMPLEMENT_INTRINSIC_SPIRV(asfloat, 1, {
 		.result;
 	})
 
+// ret f16tof32(x)
+DEFINE_INTRINSIC(f16tof32, 0, float, uint)
+DEFINE_INTRINSIC(f16tof32, 0, float2, uint2)
+DEFINE_INTRINSIC(f16tof32, 0, float3, uint3)
+DEFINE_INTRINSIC(f16tof32, 0, float4, uint4)
+IMPLEMENT_INTRINSIC_GLSL(f16tof32, 0, {
+	if (args[0].type.rows > 1)
+		code += "vec" + std::to_string(args[0].type.rows) + '(';
+	for (unsigned int i = 0; i < args[0].type.rows; ++i)
+	{
+		assert(i < 4);
+		code += "unpackHalf2x16(" + id_to_name(args[0].base) + '.' + "xyzw"[i] + ").x";
+		if (i < args[0].type.rows - 1)
+			code += ", ";
+	}
+	if (args[0].type.rows > 1)
+		code += ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(f16tof32, 0, {
+	code += "f16tof32(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(f16tof32, 0, {
+	type res_scalar_type = res_type;
+	res_scalar_type.rows = 1;
+	type res_vector_type = res_type;
+	res_vector_type.rows = 2;
+	type arg_scalar_type = args[0].type;
+	arg_scalar_type.rows = 1;
+
+	spv::Id data[4];
+	for (unsigned int i = 0; i < args[0].type.rows; ++i)
+	{
+		assert(i < 4);
+
+		spv::Id arg_scalar = args[0].base;
+		if (args[0].type.rows > 1)
+			arg_scalar = add_instruction(spv::OpCompositeExtract, convert_type(arg_scalar_type))
+				.add(arg_scalar)
+				.add(i)
+				.result;
+
+		spv::Id arg_vector = add_instruction(spv::OpExtInst, convert_type(res_vector_type))
+			.add(_glsl_ext)
+			.add(spv::GLSLstd450UnpackHalf2x16)
+			.add(arg_scalar)
+			.result;
+
+		data[i] = add_instruction(spv::OpCompositeExtract, convert_type(res_scalar_type))
+			.add(arg_vector)
+			.add(0u)
+			.result;
+	}
+
+	if (res_type.rows > 1)
+		return
+		add_instruction(spv::OpCompositeConstruct, convert_type(res_type))
+			.add(data, data + res_type.rows)
+			.result;
+	else
+		return data[0];
+	})
+
+// ret f32tof16(x)
+DEFINE_INTRINSIC(f32tof16, 0, uint, float)
+DEFINE_INTRINSIC(f32tof16, 0, uint2, float2)
+DEFINE_INTRINSIC(f32tof16, 0, uint3, float3)
+DEFINE_INTRINSIC(f32tof16, 0, uint4, float4)
+IMPLEMENT_INTRINSIC_GLSL(f32tof16, 0, {
+	if (args[0].type.rows > 1)
+		code += "uvec" + std::to_string(args[0].type.rows) + '(';
+	for (unsigned int i = 0; i < args[0].type.rows; ++i)
+	{
+		assert(i < 4);
+		code += "packHalf2x16(vec2(" + id_to_name(args[0].base) + '.' + "xyzw"[i] + ", 0.0))";
+		if (i < args[0].type.rows - 1)
+			code += ", ";
+	}
+	if (args[0].type.rows > 1)
+		code += ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(f32tof16, 0, {
+	code += "f32tof16(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(f32tof16, 0, {
+	type res_scalar_type = res_type;
+	res_scalar_type.rows = 1;
+	type arg_scalar_type = args[0].type;
+	arg_scalar_type.rows = 1;
+	type arg_vector_type = args[0].type;
+	arg_vector_type.rows = 2;
+
+	const spv::Id constant_zero = emit_constant(arg_scalar_type, 0u);
+
+	spv::Id data[4];
+	for (unsigned int i = 0; i < args[0].type.rows; ++i)
+	{
+		assert(i < 4);
+
+		spv::Id arg_scalar = args[0].base;
+		if (args[0].type.rows > 1)
+			arg_scalar = add_instruction(spv::OpCompositeExtract, convert_type(arg_scalar_type))
+				.add(arg_scalar)
+				.add(i)
+				.result;
+
+		spv::Id arg_vector = add_instruction(spv::OpCompositeConstruct, convert_type(arg_vector_type))
+			.add(arg_scalar)
+			.add(constant_zero)
+			.result;
+
+		data[i] = add_instruction(spv::OpExtInst, convert_type(res_scalar_type))
+			.add(_glsl_ext)
+			.add(spv::GLSLstd450PackHalf2x16)
+			.add(arg_vector)
+			.result;
+	}
+
+	if (res_type.rows > 1)
+		return
+		add_instruction(spv::OpCompositeConstruct, convert_type(res_type))
+			.add(data, data + res_type.rows)
+			.result;
+	else
+		return data[0];
+	})
+
 // ret firstbitlow
 DEFINE_INTRINSIC(firstbitlow, 0, uint, uint)
 DEFINE_INTRINSIC(firstbitlow, 0, uint2, uint2)
