@@ -2004,7 +2004,6 @@ void reshade::runtime::draw_gui_home()
 			if (ImGui::Button(_("Skip Tutorial"), ImVec2(max_button_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
 			{
 				_tutorial_index = 4;
-				_no_font_scaling = true;
 
 				save_config();
 			}
@@ -2019,12 +2018,7 @@ void reshade::runtime::draw_gui_home()
 				_tutorial_index++;
 
 				if (_tutorial_index == 4)
-				{
-					// Disable font scaling after tutorial
-					_no_font_scaling = true;
-
 					save_config();
-				}
 			}
 		}
 	}
