@@ -7,420 +7,701 @@
 #if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON
 
 #include <new>
-#include <imgui.h>
 #include "imgui_function_table_18971.hpp"
 
-imgui_function_table_18971 g_imgui_function_table_18971 = {
-	ImGui::GetIO,
-	ImGui::GetStyle,
-	ImGui::GetVersion,
-	ImGui::Begin,
-	ImGui::End,
-	ImGui::BeginChild,
-	ImGui::BeginChild,
-	ImGui::EndChild,
-	ImGui::IsWindowAppearing,
-	ImGui::IsWindowCollapsed,
-	ImGui::IsWindowFocused,
-	ImGui::IsWindowHovered,
-	ImGui::GetWindowDrawList,
-	ImGui::GetWindowDpiScale,
-	ImGui::GetWindowPos,
-	ImGui::GetWindowSize,
-	ImGui::GetWindowWidth,
-	ImGui::GetWindowHeight,
-	ImGui::SetNextWindowPos,
-	ImGui::SetNextWindowSize,
-	ImGui::SetNextWindowSizeConstraints,
-	ImGui::SetNextWindowContentSize,
-	ImGui::SetNextWindowCollapsed,
-	ImGui::SetNextWindowFocus,
-	ImGui::SetNextWindowScroll,
-	ImGui::SetNextWindowBgAlpha,
-	ImGui::SetWindowPos,
-	ImGui::SetWindowSize,
-	ImGui::SetWindowCollapsed,
-	ImGui::SetWindowFocus,
-	ImGui::SetWindowFontScale,
-	ImGui::SetWindowPos,
-	ImGui::SetWindowSize,
-	ImGui::SetWindowCollapsed,
-	ImGui::SetWindowFocus,
-	ImGui::GetContentRegionAvail,
-	ImGui::GetContentRegionMax,
-	ImGui::GetWindowContentRegionMin,
-	ImGui::GetWindowContentRegionMax,
-	ImGui::GetScrollX,
-	ImGui::GetScrollY,
-	ImGui::SetScrollX,
-	ImGui::SetScrollY,
-	ImGui::GetScrollMaxX,
-	ImGui::GetScrollMaxY,
-	ImGui::SetScrollHereX,
-	ImGui::SetScrollHereY,
-	ImGui::SetScrollFromPosX,
-	ImGui::SetScrollFromPosY,
-	ImGui::PushFont,
-	ImGui::PopFont,
-	ImGui::PushStyleColor,
-	ImGui::PushStyleColor,
-	ImGui::PopStyleColor,
-	ImGui::PushStyleVar,
-	ImGui::PushStyleVar,
-	ImGui::PopStyleVar,
-	ImGui::PushTabStop,
-	ImGui::PopTabStop,
-	ImGui::PushButtonRepeat,
-	ImGui::PopButtonRepeat,
-	ImGui::PushItemWidth,
-	ImGui::PopItemWidth,
-	ImGui::SetNextItemWidth,
-	ImGui::CalcItemWidth,
-	ImGui::PushTextWrapPos,
-	ImGui::PopTextWrapPos,
-	ImGui::GetFont,
-	ImGui::GetFontSize,
-	ImGui::GetFontTexUvWhitePixel,
-	ImGui::GetColorU32,
-	ImGui::GetColorU32,
-	ImGui::GetColorU32,
-	ImGui::GetStyleColorVec4,
-	ImGui::Separator,
-	ImGui::SameLine,
-	ImGui::NewLine,
-	ImGui::Spacing,
-	ImGui::Dummy,
-	ImGui::Indent,
-	ImGui::Unindent,
-	ImGui::BeginGroup,
-	ImGui::EndGroup,
-	ImGui::GetCursorPos,
-	ImGui::GetCursorPosX,
-	ImGui::GetCursorPosY,
-	ImGui::SetCursorPos,
-	ImGui::SetCursorPosX,
-	ImGui::SetCursorPosY,
-	ImGui::GetCursorStartPos,
-	ImGui::GetCursorScreenPos,
-	ImGui::SetCursorScreenPos,
-	ImGui::AlignTextToFramePadding,
-	ImGui::GetTextLineHeight,
-	ImGui::GetTextLineHeightWithSpacing,
-	ImGui::GetFrameHeight,
-	ImGui::GetFrameHeightWithSpacing,
-	ImGui::PushID,
-	ImGui::PushID,
-	ImGui::PushID,
-	ImGui::PushID,
-	ImGui::PopID,
-	ImGui::GetID,
-	ImGui::GetID,
-	ImGui::GetID,
-	ImGui::TextUnformatted,
-	ImGui::TextV,
-	ImGui::TextColoredV,
-	ImGui::TextDisabledV,
-	ImGui::TextWrappedV,
-	ImGui::LabelTextV,
-	ImGui::BulletTextV,
-	ImGui::SeparatorText,
-	ImGui::Button,
-	ImGui::SmallButton,
-	ImGui::InvisibleButton,
-	ImGui::ArrowButton,
-	ImGui::Checkbox,
-	ImGui::CheckboxFlags,
-	ImGui::CheckboxFlags,
-	ImGui::RadioButton,
-	ImGui::RadioButton,
-	ImGui::ProgressBar,
-	ImGui::Bullet,
-	ImGui::Image,
-	ImGui::ImageButton,
-	ImGui::BeginCombo,
-	ImGui::EndCombo,
-	ImGui::Combo,
-	ImGui::Combo,
-	ImGui::Combo,
-	ImGui::DragFloat,
-	ImGui::DragFloat2,
-	ImGui::DragFloat3,
-	ImGui::DragFloat4,
-	ImGui::DragFloatRange2,
-	ImGui::DragInt,
-	ImGui::DragInt2,
-	ImGui::DragInt3,
-	ImGui::DragInt4,
-	ImGui::DragIntRange2,
-	ImGui::DragScalar,
-	ImGui::DragScalarN,
-	ImGui::SliderFloat,
-	ImGui::SliderFloat2,
-	ImGui::SliderFloat3,
-	ImGui::SliderFloat4,
-	ImGui::SliderAngle,
-	ImGui::SliderInt,
-	ImGui::SliderInt2,
-	ImGui::SliderInt3,
-	ImGui::SliderInt4,
-	ImGui::SliderScalar,
-	ImGui::SliderScalarN,
-	ImGui::VSliderFloat,
-	ImGui::VSliderInt,
-	ImGui::VSliderScalar,
-	ImGui::InputText,
-	ImGui::InputTextMultiline,
-	ImGui::InputTextWithHint,
-	ImGui::InputFloat,
-	ImGui::InputFloat2,
-	ImGui::InputFloat3,
-	ImGui::InputFloat4,
-	ImGui::InputInt,
-	ImGui::InputInt2,
-	ImGui::InputInt3,
-	ImGui::InputInt4,
-	ImGui::InputDouble,
-	ImGui::InputScalar,
-	ImGui::InputScalarN,
-	ImGui::ColorEdit3,
-	ImGui::ColorEdit4,
-	ImGui::ColorPicker3,
-	ImGui::ColorPicker4,
-	ImGui::ColorButton,
-	ImGui::SetColorEditOptions,
-	ImGui::TreeNode,
-	ImGui::TreeNodeV,
-	ImGui::TreeNodeV,
-	ImGui::TreeNodeEx,
-	ImGui::TreeNodeExV,
-	ImGui::TreeNodeExV,
-	ImGui::TreePush,
-	ImGui::TreePush,
-	ImGui::TreePop,
-	ImGui::GetTreeNodeToLabelSpacing,
-	ImGui::CollapsingHeader,
-	ImGui::CollapsingHeader,
-	ImGui::SetNextItemOpen,
-	ImGui::Selectable,
-	ImGui::Selectable,
-	ImGui::BeginListBox,
-	ImGui::EndListBox,
-	ImGui::ListBox,
-	ImGui::ListBox,
-	ImGui::PlotLines,
-	ImGui::PlotLines,
-	ImGui::PlotHistogram,
-	ImGui::PlotHistogram,
-	ImGui::Value,
-	ImGui::Value,
-	ImGui::Value,
-	ImGui::Value,
-	ImGui::BeginMenuBar,
-	ImGui::EndMenuBar,
-	ImGui::BeginMainMenuBar,
-	ImGui::EndMainMenuBar,
-	ImGui::BeginMenu,
-	ImGui::EndMenu,
-	ImGui::MenuItem,
-	ImGui::MenuItem,
-	ImGui::BeginTooltip,
-	ImGui::EndTooltip,
-	ImGui::SetTooltipV,
-	ImGui::BeginItemTooltip,
-	ImGui::SetItemTooltipV,
-	ImGui::BeginPopup,
-	ImGui::BeginPopupModal,
-	ImGui::EndPopup,
-	ImGui::OpenPopup,
-	ImGui::OpenPopup,
-	ImGui::OpenPopupOnItemClick,
-	ImGui::CloseCurrentPopup,
-	ImGui::BeginPopupContextItem,
-	ImGui::BeginPopupContextWindow,
-	ImGui::BeginPopupContextVoid,
-	ImGui::IsPopupOpen,
-	ImGui::BeginTable,
-	ImGui::EndTable,
-	ImGui::TableNextRow,
-	ImGui::TableNextColumn,
-	ImGui::TableSetColumnIndex,
-	ImGui::TableSetupColumn,
-	ImGui::TableSetupScrollFreeze,
-	ImGui::TableHeadersRow,
-	ImGui::TableHeader,
-	ImGui::TableGetSortSpecs,
-	ImGui::TableGetColumnCount,
-	ImGui::TableGetColumnIndex,
-	ImGui::TableGetRowIndex,
-	ImGui::TableGetColumnName,
-	ImGui::TableGetColumnFlags,
-	ImGui::TableSetColumnEnabled,
-	ImGui::TableSetBgColor,
-	ImGui::Columns,
-	ImGui::NextColumn,
-	ImGui::GetColumnIndex,
-	ImGui::GetColumnWidth,
-	ImGui::SetColumnWidth,
-	ImGui::GetColumnOffset,
-	ImGui::SetColumnOffset,
-	ImGui::GetColumnsCount,
-	ImGui::BeginTabBar,
-	ImGui::EndTabBar,
-	ImGui::BeginTabItem,
-	ImGui::EndTabItem,
-	ImGui::TabItemButton,
-	ImGui::SetTabItemClosed,
-	ImGui::DockSpace,
-	ImGui::SetNextWindowDockID,
-	ImGui::SetNextWindowClass,
-	ImGui::GetWindowDockID,
-	ImGui::IsWindowDocked,
-	ImGui::BeginDragDropSource,
-	ImGui::SetDragDropPayload,
-	ImGui::EndDragDropSource,
-	ImGui::BeginDragDropTarget,
-	ImGui::AcceptDragDropPayload,
-	ImGui::EndDragDropTarget,
-	ImGui::GetDragDropPayload,
-	ImGui::BeginDisabled,
-	ImGui::EndDisabled,
-	ImGui::PushClipRect,
-	ImGui::PopClipRect,
-	ImGui::SetItemDefaultFocus,
-	ImGui::SetKeyboardFocusHere,
-	ImGui::SetNextItemAllowOverlap,
-	ImGui::IsItemHovered,
-	ImGui::IsItemActive,
-	ImGui::IsItemFocused,
-	ImGui::IsItemClicked,
-	ImGui::IsItemVisible,
-	ImGui::IsItemEdited,
-	ImGui::IsItemActivated,
-	ImGui::IsItemDeactivated,
-	ImGui::IsItemDeactivatedAfterEdit,
-	ImGui::IsItemToggledOpen,
-	ImGui::IsAnyItemHovered,
-	ImGui::IsAnyItemActive,
-	ImGui::IsAnyItemFocused,
-	ImGui::GetItemID,
-	ImGui::GetItemRectMin,
-	ImGui::GetItemRectMax,
-	ImGui::GetItemRectSize,
-	ImGui::GetBackgroundDrawList,
-	ImGui::GetForegroundDrawList,
-	ImGui::GetBackgroundDrawList,
-	ImGui::GetForegroundDrawList,
-	ImGui::IsRectVisible,
-	ImGui::IsRectVisible,
-	ImGui::GetTime,
-	ImGui::GetFrameCount,
-	ImGui::GetDrawListSharedData,
-	ImGui::GetStyleColorName,
-	ImGui::SetStateStorage,
-	ImGui::GetStateStorage,
-	ImGui::BeginChildFrame,
-	ImGui::EndChildFrame,
-	ImGui::CalcTextSize,
-	ImGui::ColorConvertU32ToFloat4,
-	ImGui::ColorConvertFloat4ToU32,
-	ImGui::ColorConvertRGBtoHSV,
-	ImGui::ColorConvertHSVtoRGB,
-	ImGui::IsKeyDown,
-	ImGui::IsKeyPressed,
-	ImGui::IsKeyReleased,
-	ImGui::GetKeyPressedAmount,
-	ImGui::GetKeyName,
-	ImGui::SetNextFrameWantCaptureKeyboard,
-	ImGui::IsMouseDown,
-	ImGui::IsMouseClicked,
-	ImGui::IsMouseReleased,
-	ImGui::IsMouseDoubleClicked,
-	ImGui::GetMouseClickedCount,
-	ImGui::IsMouseHoveringRect,
-	ImGui::IsMousePosValid,
-	ImGui::IsAnyMouseDown,
-	ImGui::GetMousePos,
-	ImGui::GetMousePosOnOpeningCurrentPopup,
-	ImGui::IsMouseDragging,
-	ImGui::GetMouseDragDelta,
-	ImGui::ResetMouseDragDelta,
-	ImGui::GetMouseCursor,
-	ImGui::SetMouseCursor,
-	ImGui::SetNextFrameWantCaptureMouse,
-	ImGui::GetClipboardText,
-	ImGui::SetClipboardText,
-	ImGui::SetAllocatorFunctions,
-	ImGui::GetAllocatorFunctions,
-	ImGui::MemAlloc,
-	ImGui::MemFree,
-	[](const ImGuiStorage *_this, ImGuiID key, int default_val) -> int { return _this->GetInt(key, default_val); },
-	[](ImGuiStorage *_this, ImGuiID key, int val) -> void { _this->SetInt(key, val); },
-	[](const ImGuiStorage *_this, ImGuiID key, bool default_val) -> bool { return _this->GetBool(key, default_val); },
-	[](ImGuiStorage *_this, ImGuiID key, bool val) -> void { _this->SetBool(key, val); },
-	[](const ImGuiStorage *_this, ImGuiID key, float default_val) -> float { return _this->GetFloat(key, default_val); },
-	[](ImGuiStorage *_this, ImGuiID key, float val) -> void { _this->SetFloat(key, val); },
-	[](const ImGuiStorage *_this, ImGuiID key) -> void* { return _this->GetVoidPtr(key); },
-	[](ImGuiStorage *_this, ImGuiID key, void* val) -> void { _this->SetVoidPtr(key, val); },
-	[](ImGuiStorage *_this, ImGuiID key, int default_val) -> int* { return _this->GetIntRef(key, default_val); },
-	[](ImGuiStorage *_this, ImGuiID key, bool default_val) -> bool* { return _this->GetBoolRef(key, default_val); },
-	[](ImGuiStorage *_this, ImGuiID key, float default_val) -> float* { return _this->GetFloatRef(key, default_val); },
-	[](ImGuiStorage *_this, ImGuiID key, void* default_val) -> void** { return _this->GetVoidPtrRef(key, default_val); },
-	[](ImGuiStorage *_this, int val) -> void { _this->SetAllInt(val); },
-	[](ImGuiStorage *_this) -> void { _this->BuildSortByKey(); },
-	[](ImGuiListClipper *_this) -> void { new(_this) ImGuiListClipper(); },
-	[](ImGuiListClipper *_this) -> void { _this->~ImGuiListClipper(); },
-	[](ImGuiListClipper *_this, int items_count, float items_height) -> void { _this->Begin(items_count, items_height); },
-	[](ImGuiListClipper *_this) -> void { _this->End(); },
-	[](ImGuiListClipper *_this) -> bool { return _this->Step(); },
-	[](ImGuiListClipper *_this, int item_begin, int item_end) -> void { _this->IncludeRangeByIndices(item_begin, item_end); },
-	[](ImDrawList *_this, const ImVec2& clip_rect_min, const ImVec2& clip_rect_max, bool intersect_with_current_clip_rect) -> void { _this->PushClipRect(clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); },
-	[](ImDrawList *_this) -> void { _this->PushClipRectFullScreen(); },
-	[](ImDrawList *_this) -> void { _this->PopClipRect(); },
-	[](ImDrawList *_this, ImTextureID texture_id) -> void { _this->PushTextureID(texture_id); },
-	[](ImDrawList *_this) -> void { _this->PopTextureID(); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, ImU32 col, float thickness) -> void { _this->AddLine(p1, p2, col, thickness); },
-	[](ImDrawList *_this, const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness) -> void { _this->AddRect(p_min, p_max, col, rounding, flags, thickness); },
-	[](ImDrawList *_this, const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags) -> void { _this->AddRectFilled(p_min, p_max, col, rounding, flags); },
-	[](ImDrawList *_this, const ImVec2& p_min, const ImVec2& p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left) -> void { _this->AddRectFilledMultiColor(p_min, p_max, col_upr_left, col_upr_right, col_bot_right, col_bot_left); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness) -> void { _this->AddQuad(p1, p2, p3, p4, col, thickness); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col) -> void { _this->AddQuadFilled(p1, p2, p3, p4, col); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col, float thickness) -> void { _this->AddTriangle(p1, p2, p3, col, thickness); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col) -> void { _this->AddTriangleFilled(p1, p2, p3, col); },
-	[](ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments, float thickness) -> void { _this->AddCircle(center, radius, col, num_segments, thickness); },
-	[](ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments) -> void { _this->AddCircleFilled(center, radius, col, num_segments); },
-	[](ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments, float thickness) -> void { _this->AddNgon(center, radius, col, num_segments, thickness); },
-	[](ImDrawList *_this, const ImVec2& center, float radius, ImU32 col, int num_segments) -> void { _this->AddNgonFilled(center, radius, col, num_segments); },
-	[](ImDrawList *_this, const ImVec2& pos, ImU32 col, const char* text_begin, const char* text_end) -> void { _this->AddText(pos, col, text_begin, text_end); },
-	[](ImDrawList *_this, const ImFont* font, float font_size, const ImVec2& pos, ImU32 col, const char* text_begin, const char* text_end, float wrap_width, const ImVec4* cpu_fine_clip_rect) -> void { _this->AddText(font, font_size, pos, col, text_begin, text_end, wrap_width, cpu_fine_clip_rect); },
-	[](ImDrawList *_this, const ImVec2* points, int num_points, ImU32 col, ImDrawFlags flags, float thickness) -> void { _this->AddPolyline(points, num_points, col, flags, thickness); },
-	[](ImDrawList *_this, const ImVec2* points, int num_points, ImU32 col) -> void { _this->AddConvexPolyFilled(points, num_points, col); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness, int num_segments) -> void { _this->AddBezierCubic(p1, p2, p3, p4, col, thickness, num_segments); },
-	[](ImDrawList *_this, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, ImU32 col, float thickness, int num_segments) -> void { _this->AddBezierQuadratic(p1, p2, p3, col, thickness, num_segments); },
-	[](ImDrawList *_this, ImTextureID user_texture_id, const ImVec2& p_min, const ImVec2& p_max, const ImVec2& uv_min, const ImVec2& uv_max, ImU32 col) -> void { _this->AddImage(user_texture_id, p_min, p_max, uv_min, uv_max, col); },
-	[](ImDrawList *_this, ImTextureID user_texture_id, const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, const ImVec2& uv1, const ImVec2& uv2, const ImVec2& uv3, const ImVec2& uv4, ImU32 col) -> void { _this->AddImageQuad(user_texture_id, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col); },
-	[](ImDrawList *_this, ImTextureID user_texture_id, const ImVec2& p_min, const ImVec2& p_max, const ImVec2& uv_min, const ImVec2& uv_max, ImU32 col, float rounding, ImDrawFlags flags) -> void { _this->AddImageRounded(user_texture_id, p_min, p_max, uv_min, uv_max, col, rounding, flags); },
-	[](ImDrawList *_this, const ImVec2& center, float radius, float a_min, float a_max, int num_segments) -> void { _this->PathArcTo(center, radius, a_min, a_max, num_segments); },
-	[](ImDrawList *_this, const ImVec2& center, float radius, int a_min_of_12, int a_max_of_12) -> void { _this->PathArcToFast(center, radius, a_min_of_12, a_max_of_12); },
-	[](ImDrawList *_this, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, int num_segments) -> void { _this->PathBezierCubicCurveTo(p2, p3, p4, num_segments); },
-	[](ImDrawList *_this, const ImVec2& p2, const ImVec2& p3, int num_segments) -> void { _this->PathBezierQuadraticCurveTo(p2, p3, num_segments); },
-	[](ImDrawList *_this, const ImVec2& rect_min, const ImVec2& rect_max, float rounding, ImDrawFlags flags) -> void { _this->PathRect(rect_min, rect_max, rounding, flags); },
-	[](ImDrawList *_this, ImDrawCallback callback, void* callback_data) -> void { _this->AddCallback(callback, callback_data); },
-	[](ImDrawList *_this) -> void { _this->AddDrawCmd(); },
-	[](const ImDrawList *_this) -> ImDrawList* { return _this->CloneOutput(); },
-	[](ImDrawList *_this, int idx_count, int vtx_count) -> void { _this->PrimReserve(idx_count, vtx_count); },
-	[](ImDrawList *_this, int idx_count, int vtx_count) -> void { _this->PrimUnreserve(idx_count, vtx_count); },
-	[](ImDrawList *_this, const ImVec2& a, const ImVec2& b, ImU32 col) -> void { _this->PrimRect(a, b, col); },
-	[](ImDrawList *_this, const ImVec2& a, const ImVec2& b, const ImVec2& uv_a, const ImVec2& uv_b, ImU32 col) -> void { _this->PrimRectUV(a, b, uv_a, uv_b, col); },
-	[](ImDrawList *_this, const ImVec2& a, const ImVec2& b, const ImVec2& c, const ImVec2& d, const ImVec2& uv_a, const ImVec2& uv_b, const ImVec2& uv_c, const ImVec2& uv_d, ImU32 col) -> void { _this->PrimQuadUV(a, b, c, d, uv_a, uv_b, uv_c, uv_d, col); },
-	[](ImFont *_this) -> void { new(_this) ImFont(); },
-	[](ImFont *_this) -> void { _this->~ImFont(); },
-	[](const ImFont *_this, ImWchar c) -> const ImFontGlyph* { return _this->FindGlyph(c); },
-	[](const ImFont *_this, ImWchar c) -> const ImFontGlyph* { return _this->FindGlyphNoFallback(c); },
-	[](const ImFont *_this, float size, float max_width, float wrap_width, const char* text_begin, const char* text_end, const char** remaining) -> ImVec2 { return _this->CalcTextSizeA(size, max_width, wrap_width, text_begin, text_end, remaining); },
-	[](const ImFont *_this, float scale, const char* text, const char* text_end, float wrap_width) -> const char* { return _this->CalcWordWrapPositionA(scale, text, text_end, wrap_width); },
-	[](const ImFont *_this, ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, ImWchar c) -> void { _this->RenderChar(draw_list, size, pos, col, c); },
-	[](const ImFont *_this, ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip) -> void { _this->RenderText(draw_list, size, pos, col, clip_rect, text_begin, text_end, wrap_width, cpu_fine_clip); },
+static void convert(const imgui_io_19000 &new_io, imgui_io_18971 &io)
+{
+	io.ConfigFlags = new_io.ConfigFlags;
+	io.BackendFlags = new_io.BackendFlags;
+	io.DisplaySize = new_io.DisplaySize;
+	io.DeltaTime = new_io.DeltaTime;
+	io.IniSavingRate = new_io.IniSavingRate;
+	io.IniFilename = new_io.IniFilename;
+	io.LogFilename = new_io.LogFilename;
+	io.UserData = new_io.UserData;
 
-};
+	// It's not safe to access the internal fields of 'FontAtlas'
+	io.Fonts = new_io.Fonts;
+	io.FontGlobalScale = new_io.FontGlobalScale;
+	io.FontAllowUserScaling = new_io.FontAllowUserScaling;
+	io.FontDefault = nullptr;
+	io.DisplayFramebufferScale = new_io.DisplayFramebufferScale;
+
+	io.ConfigDockingNoSplit = new_io.ConfigDockingNoSplit;
+	io.ConfigDockingWithShift = new_io.ConfigDockingWithShift;
+	io.ConfigDockingAlwaysTabBar = new_io.ConfigDockingAlwaysTabBar;
+	io.ConfigDockingTransparentPayload = new_io.ConfigDockingTransparentPayload;
+
+	io.ConfigViewportsNoAutoMerge = new_io.ConfigViewportsNoAutoMerge;
+	io.ConfigViewportsNoTaskBarIcon = new_io.ConfigViewportsNoTaskBarIcon;
+	io.ConfigViewportsNoDecoration = new_io.ConfigViewportsNoDecoration;
+	io.ConfigViewportsNoDefaultParent = new_io.ConfigViewportsNoDefaultParent;
+
+	io.MouseDrawCursor = new_io.MouseDrawCursor;
+	io.ConfigMacOSXBehaviors = new_io.ConfigMacOSXBehaviors;
+	io.ConfigInputTrickleEventQueue = new_io.ConfigInputTrickleEventQueue;
+	io.ConfigInputTextCursorBlink = new_io.ConfigInputTextCursorBlink;
+	io.ConfigInputTextEnterKeepActive = new_io.ConfigInputTextEnterKeepActive;
+	io.ConfigDragClickToInputText = new_io.ConfigDragClickToInputText;
+	io.ConfigWindowsResizeFromEdges = new_io.ConfigWindowsResizeFromEdges;
+	io.ConfigWindowsMoveFromTitleBarOnly = new_io.ConfigWindowsMoveFromTitleBarOnly;
+	io.ConfigMemoryCompactTimer = new_io.ConfigMemoryCompactTimer;
+
+	io.MouseDoubleClickTime = new_io.MouseDoubleClickTime;
+	io.MouseDoubleClickMaxDist = new_io.MouseDoubleClickMaxDist;
+	io.MouseDragThreshold = new_io.MouseDragThreshold;
+	io.KeyRepeatDelay = new_io.KeyRepeatDelay;
+	io.KeyRepeatRate = new_io.KeyRepeatRate;
+
+	io.ConfigDebugBeginReturnValueOnce = new_io.ConfigDebugBeginReturnValueOnce;
+	io.ConfigDebugBeginReturnValueLoop = new_io.ConfigDebugBeginReturnValueLoop;
+	io.ConfigDebugIgnoreFocusLoss = new_io.ConfigDebugIgnoreFocusLoss;
+	io.ConfigDebugIniSettings = new_io.ConfigDebugIniSettings;
+
+	io.BackendPlatformName = new_io.BackendPlatformName;
+	io.BackendRendererName = new_io.BackendRendererName;
+	io.BackendPlatformUserData = new_io.BackendPlatformUserData;
+	io.BackendRendererUserData = new_io.BackendRendererUserData;
+	io.BackendLanguageUserData = new_io.BackendLanguageUserData;
+
+	io.GetClipboardTextFn = new_io.GetClipboardTextFn;
+	io.SetClipboardTextFn = new_io.SetClipboardTextFn;
+	io.ClipboardUserData = new_io.ClipboardUserData;
+	io.SetPlatformImeDataFn = new_io.SetPlatformImeDataFn;
+	io.ImeWindowHandle = nullptr;
+
+	io.WantCaptureMouse = new_io.WantCaptureMouse;
+	io.WantCaptureKeyboard = new_io.WantCaptureKeyboard;
+	io.WantTextInput = new_io.WantTextInput;
+	io.WantSetMousePos = new_io.WantSetMousePos;
+	io.WantSaveIniSettings = new_io.WantSaveIniSettings;
+	io.NavActive = new_io.NavActive;
+	io.NavVisible = new_io.NavVisible;
+	io.Framerate = new_io.Framerate;
+	io.MetricsRenderVertices = new_io.MetricsRenderVertices;
+	io.MetricsRenderIndices = new_io.MetricsRenderIndices;
+	io.MetricsRenderWindows = new_io.MetricsRenderWindows;
+	io.MetricsActiveWindows = new_io.MetricsActiveWindows;
+	io.MetricsActiveAllocations = 0;
+	io.MouseDelta = new_io.MouseDelta;
+
+	for (int i = 0; i < 652; ++i)
+		io.KeyMap[i] = 0;
+	for (int i = 0; i < 652; ++i)
+		io.KeysDown[i] = false; // ImGui::IsKeyDown(i)
+	for (int i = 0; i < 16; ++i)
+		io.NavInputs[i] = 0.0f;
+
+	io.Ctx = new_io.Ctx;
+
+	io.MousePos = new_io.MousePos;
+	for (int i = 0; i < 5; ++i)
+		io.MouseDown[i] = new_io.MouseDown[i];
+	io.MouseWheel = new_io.MouseWheel;
+	io.MouseWheelH = new_io.MouseWheelH;
+	io.MouseSource = new_io.MouseSource;
+	io.MouseHoveredViewport = new_io.MouseHoveredViewport;
+	io.KeyCtrl = new_io.KeyCtrl;
+	io.KeyShift = new_io.KeyShift;
+	io.KeyAlt = new_io.KeyAlt;
+	io.KeySuper = new_io.KeySuper;
+}
+
+static void convert(const imgui_style_19000 &new_style, imgui_style_18971 &style)
+{
+	style.Alpha = new_style.Alpha;
+	style.DisabledAlpha = new_style.DisabledAlpha;
+	style.WindowPadding = new_style.WindowPadding;
+	style.WindowRounding = new_style.WindowRounding;
+	style.WindowBorderSize = new_style.WindowBorderSize;
+	style.WindowMinSize = new_style.WindowMinSize;
+	style.WindowTitleAlign = new_style.WindowTitleAlign;
+	style.WindowMenuButtonPosition = new_style.WindowMenuButtonPosition;
+	style.ChildRounding = new_style.ChildRounding;
+	style.ChildBorderSize = new_style.ChildBorderSize;
+	style.PopupRounding = new_style.PopupRounding;
+	style.PopupBorderSize = new_style.PopupBorderSize;
+	style.FramePadding = new_style.FramePadding;
+	style.FrameRounding = new_style.FrameRounding;
+	style.FrameBorderSize = new_style.FrameBorderSize;
+	style.ItemSpacing = new_style.ItemSpacing;
+	style.ItemInnerSpacing = new_style.ItemInnerSpacing;
+	style.CellPadding = new_style.CellPadding;
+	style.TouchExtraPadding = new_style.TouchExtraPadding;
+	style.IndentSpacing = new_style.IndentSpacing;
+	style.ColumnsMinSpacing = new_style.ColumnsMinSpacing;
+	style.ScrollbarSize = new_style.ScrollbarSize;
+	style.ScrollbarRounding = new_style.ScrollbarRounding;
+	style.GrabMinSize = new_style.GrabMinSize;
+	style.GrabRounding = new_style.GrabRounding;
+	style.LogSliderDeadzone = new_style.LogSliderDeadzone;
+	style.TabRounding = new_style.TabRounding;
+	style.TabBorderSize = new_style.TabBorderSize;
+	style.TabMinWidthForCloseButton = new_style.TabMinWidthForCloseButton;
+	style.ColorButtonPosition = new_style.ColorButtonPosition;
+	style.ButtonTextAlign = new_style.ButtonTextAlign;
+	style.SelectableTextAlign = new_style.SelectableTextAlign;
+	style.SeparatorTextBorderSize = new_style.SeparatorTextBorderSize;
+	style.SeparatorTextAlign = new_style.SeparatorTextAlign;
+	style.SeparatorTextPadding = new_style.SeparatorTextPadding;
+	style.DisplayWindowPadding = new_style.DisplayWindowPadding;
+	style.DisplaySafeAreaPadding = new_style.DisplaySafeAreaPadding;
+	style.MouseCursorScale = new_style.MouseCursorScale;
+	style.AntiAliasedLines = new_style.AntiAliasedLines;
+	style.AntiAliasedLinesUseTex = new_style.AntiAliasedLinesUseTex;
+	style.AntiAliasedFill = new_style.AntiAliasedFill;
+	style.CurveTessellationTol = new_style.CurveTessellationTol;
+	style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
+	for (int i = 0; i < 55; ++i)
+		style.Colors[i] = new_style.Colors[i];
+	style.HoverStationaryDelay = new_style.HoverStationaryDelay;
+	style.HoverDelayShort = new_style.HoverDelayShort;
+	style.HoverDelayNormal = new_style.HoverDelayNormal;
+	style.HoverFlagsForTooltipMouse = new_style.HoverFlagsForTooltipMouse;
+	style.HoverFlagsForTooltipNav = new_style.HoverFlagsForTooltipNav;
+}
+
+static auto convert_window_flags(ImGuiWindowFlags old_flags) -> ImGuiWindowFlags
+{
+	int new_flags = 0;
+	if (old_flags & (1 << 18))
+		new_flags |= ImGuiWindowFlags_NoNavInputs;
+	if (old_flags & (1 << 19))
+		new_flags |= ImGuiWindowFlags_NoNavFocus;
+	if (old_flags & (1 << 20))
+		new_flags |= ImGuiWindowFlags_UnsavedDocument;
+	if (old_flags & (1 << 21))
+		new_flags |= ImGuiWindowFlags_NoDocking;
+
+	return (old_flags & 0xFFC0FFFF) | new_flags;
+}
+static auto convert_hovered_flags(ImGuiHoveredFlags old_flags) -> ImGuiHoveredFlags
+{
+	int new_flags = 0;
+	if (old_flags & (1 << 11))
+		new_flags |= ImGuiHoveredFlags_ForTooltip;
+	if (old_flags & (1 << 12))
+		new_flags |= ImGuiHoveredFlags_Stationary;
+	if (old_flags & (1 << 13))
+		new_flags |= ImGuiHoveredFlags_DelayNone;
+	if (old_flags & (1 << 14))
+		new_flags |= ImGuiHoveredFlags_DelayShort;
+	if (old_flags & (1 << 15))
+		new_flags |= ImGuiHoveredFlags_DelayNormal;
+	if (old_flags & (1 << 16))
+		new_flags |= ImGuiHoveredFlags_NoSharedDelay;
+
+	return (old_flags & 0x00FFFFFF) | new_flags;
+}
+static auto convert_tree_node_flags(ImGuiTreeNodeFlags old_flags) -> ImGuiTreeNodeFlags
+{
+	int new_flags = 0;
+	if (old_flags & (1 << 13))
+		new_flags |= ImGuiTreeNodeFlags_NavLeftJumpsBackHere;
+
+	return (old_flags & 0xFFFF9FFF) | new_flags;
+}
+
+static auto convert_key(ImGuiKey old_value) -> ImGuiKey
+{
+	return old_value <= ImGuiKey_F12 ? old_value : old_value <= (ImGuiKey_KeypadEqual - (ImGuiKey_F24 - ImGuiKey_F12)) ? static_cast<ImGuiKey>(old_value - (ImGuiKey_F24 - ImGuiKey_F12)) : static_cast<ImGuiKey>(old_value - (ImGuiKey_F24 - ImGuiKey_F12) - (ImGuiKey_AppForward - ImGuiKey_KeypadEqual));
+}
+static auto convert_style_var(ImGuiStyleVar old_value) -> ImGuiStyleVar
+{
+	return old_value <= ImGuiStyleVar_TabRounding ? old_value : old_value + 1;
+}
+
+const imgui_function_table_18971 init_imgui_function_table_18971() { return {
+	[]() -> imgui_io_18971 & {
+		static imgui_io_18971 io = {};
+		convert(g_imgui_function_table_19000.GetIO(), io);
+		return io;
+	},
+	[]() -> imgui_style_18971 & {
+		static imgui_style_18971 style = {};
+		convert(g_imgui_function_table_19000.GetStyle(), style);
+		return style;
+	},
+	g_imgui_function_table_19000.GetVersion,
+	[](const char *name, bool *p_open, ImGuiWindowFlags flags) -> bool { return g_imgui_function_table_19000.Begin(name, p_open, convert_window_flags(flags)); },
+	g_imgui_function_table_19000.End,
+	[](const char *str_id, const ImVec2 &size, bool border, ImGuiWindowFlags flags) -> bool {
+		ImGuiChildFlags child_flags = border ? ImGuiChildFlags_Border : ImGuiChildFlags_None;
+		if (flags & (1 << 16))
+			child_flags |= ImGuiChildFlags_AlwaysUseWindowPadding;
+		ImVec2 full_size = size;
+		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		{
+			flags ^= ImGuiWindowFlags_AlwaysAutoResize;
+			child_flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize;
+			if (size.x == 0.0f)
+				full_size.x = g_imgui_function_table_19000.GetContentRegionAvail().x;
+			if (size.y == 0.0f)
+				full_size.y = g_imgui_function_table_19000.GetContentRegionAvail().y;
+		}
+		return g_imgui_function_table_19000.BeginChild(str_id, full_size, child_flags, convert_window_flags(flags));
+	},
+	[](ImGuiID id, const ImVec2 &size, bool border, ImGuiWindowFlags flags) -> bool {
+		ImGuiChildFlags child_flags = border ? ImGuiChildFlags_Border : ImGuiChildFlags_None;
+		if (flags & (1 << 16))
+			child_flags |= ImGuiChildFlags_AlwaysUseWindowPadding;
+		ImVec2 full_size = size;
+		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		{
+			flags ^= ImGuiWindowFlags_AlwaysAutoResize;
+			child_flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize;
+			if (size.x == 0.0f)
+				full_size.x = g_imgui_function_table_19000.GetContentRegionAvail().x;
+			if (size.y == 0.0f)
+				full_size.y = g_imgui_function_table_19000.GetContentRegionAvail().y;
+		}
+		return g_imgui_function_table_19000.BeginChild2(id, full_size, child_flags, convert_window_flags(flags));
+	},
+	g_imgui_function_table_19000.EndChild,
+	g_imgui_function_table_19000.IsWindowAppearing,
+	g_imgui_function_table_19000.IsWindowCollapsed,
+	g_imgui_function_table_19000.IsWindowFocused,
+	[](ImGuiHoveredFlags flags) -> bool { return g_imgui_function_table_19000.IsWindowHovered(convert_hovered_flags(flags)); },
+	g_imgui_function_table_19000.GetWindowDrawList,
+	g_imgui_function_table_19000.GetWindowDpiScale,
+	g_imgui_function_table_19000.GetWindowPos,
+	g_imgui_function_table_19000.GetWindowSize,
+	g_imgui_function_table_19000.GetWindowWidth,
+	g_imgui_function_table_19000.GetWindowHeight,
+	g_imgui_function_table_19000.SetNextWindowPos,
+	g_imgui_function_table_19000.SetNextWindowSize,
+	g_imgui_function_table_19000.SetNextWindowSizeConstraints,
+	g_imgui_function_table_19000.SetNextWindowContentSize,
+	g_imgui_function_table_19000.SetNextWindowCollapsed,
+	g_imgui_function_table_19000.SetNextWindowFocus,
+	g_imgui_function_table_19000.SetNextWindowScroll,
+	g_imgui_function_table_19000.SetNextWindowBgAlpha,
+	g_imgui_function_table_19000.SetWindowPos,
+	g_imgui_function_table_19000.SetWindowSize,
+	g_imgui_function_table_19000.SetWindowCollapsed,
+	g_imgui_function_table_19000.SetWindowFocus,
+	g_imgui_function_table_19000.SetWindowFontScale,
+	g_imgui_function_table_19000.SetWindowPos2,
+	g_imgui_function_table_19000.SetWindowSize2,
+	g_imgui_function_table_19000.SetWindowCollapsed2,
+	g_imgui_function_table_19000.SetWindowFocus2,
+	g_imgui_function_table_19000.GetContentRegionAvail,
+	g_imgui_function_table_19000.GetContentRegionMax,
+	g_imgui_function_table_19000.GetWindowContentRegionMin,
+	g_imgui_function_table_19000.GetWindowContentRegionMax,
+	g_imgui_function_table_19000.GetScrollX,
+	g_imgui_function_table_19000.GetScrollY,
+	g_imgui_function_table_19000.SetScrollX,
+	g_imgui_function_table_19000.SetScrollY,
+	g_imgui_function_table_19000.GetScrollMaxX,
+	g_imgui_function_table_19000.GetScrollMaxY,
+	g_imgui_function_table_19000.SetScrollHereX,
+	g_imgui_function_table_19000.SetScrollHereY,
+	g_imgui_function_table_19000.SetScrollFromPosX,
+	g_imgui_function_table_19000.SetScrollFromPosY,
+	g_imgui_function_table_19000.PushFont,
+	g_imgui_function_table_19000.PopFont,
+	g_imgui_function_table_19000.PushStyleColor,
+	g_imgui_function_table_19000.PushStyleColor2,
+	g_imgui_function_table_19000.PopStyleColor,
+	[](ImGuiStyleVar idx, float val) { g_imgui_function_table_19000.PushStyleVar(convert_style_var(idx), val); },
+	[](ImGuiStyleVar idx, const ImVec2 &val) { g_imgui_function_table_19000.PushStyleVar2(convert_style_var(idx), val); },
+	g_imgui_function_table_19000.PopStyleVar,
+	g_imgui_function_table_19000.PushTabStop,
+	g_imgui_function_table_19000.PopTabStop,
+	g_imgui_function_table_19000.PushButtonRepeat,
+	g_imgui_function_table_19000.PopButtonRepeat,
+	g_imgui_function_table_19000.PushItemWidth,
+	g_imgui_function_table_19000.PopItemWidth,
+	g_imgui_function_table_19000.SetNextItemWidth,
+	g_imgui_function_table_19000.CalcItemWidth,
+	g_imgui_function_table_19000.PushTextWrapPos,
+	g_imgui_function_table_19000.PopTextWrapPos,
+	g_imgui_function_table_19000.GetFont,
+	g_imgui_function_table_19000.GetFontSize,
+	g_imgui_function_table_19000.GetFontTexUvWhitePixel,
+	g_imgui_function_table_19000.GetColorU32,
+	g_imgui_function_table_19000.GetColorU322,
+	g_imgui_function_table_19000.GetColorU323,
+	g_imgui_function_table_19000.GetStyleColorVec4,
+	g_imgui_function_table_19000.Separator,
+	g_imgui_function_table_19000.SameLine,
+	g_imgui_function_table_19000.NewLine,
+	g_imgui_function_table_19000.Spacing,
+	g_imgui_function_table_19000.Dummy,
+	g_imgui_function_table_19000.Indent,
+	g_imgui_function_table_19000.Unindent,
+	g_imgui_function_table_19000.BeginGroup,
+	g_imgui_function_table_19000.EndGroup,
+	g_imgui_function_table_19000.GetCursorPos,
+	g_imgui_function_table_19000.GetCursorPosX,
+	g_imgui_function_table_19000.GetCursorPosY,
+	g_imgui_function_table_19000.SetCursorPos,
+	g_imgui_function_table_19000.SetCursorPosX,
+	g_imgui_function_table_19000.SetCursorPosY,
+	g_imgui_function_table_19000.GetCursorStartPos,
+	g_imgui_function_table_19000.GetCursorScreenPos,
+	g_imgui_function_table_19000.SetCursorScreenPos,
+	g_imgui_function_table_19000.AlignTextToFramePadding,
+	g_imgui_function_table_19000.GetTextLineHeight,
+	g_imgui_function_table_19000.GetTextLineHeightWithSpacing,
+	g_imgui_function_table_19000.GetFrameHeight,
+	g_imgui_function_table_19000.GetFrameHeightWithSpacing,
+	g_imgui_function_table_19000.PushID,
+	g_imgui_function_table_19000.PushID2,
+	g_imgui_function_table_19000.PushID3,
+	g_imgui_function_table_19000.PushID4,
+	g_imgui_function_table_19000.PopID,
+	g_imgui_function_table_19000.GetID,
+	g_imgui_function_table_19000.GetID2,
+	g_imgui_function_table_19000.GetID3,
+	g_imgui_function_table_19000.TextUnformatted,
+	g_imgui_function_table_19000.TextV,
+	g_imgui_function_table_19000.TextColoredV,
+	g_imgui_function_table_19000.TextDisabledV,
+	g_imgui_function_table_19000.TextWrappedV,
+	g_imgui_function_table_19000.LabelTextV,
+	g_imgui_function_table_19000.BulletTextV,
+	g_imgui_function_table_19000.SeparatorText,
+	g_imgui_function_table_19000.Button,
+	g_imgui_function_table_19000.SmallButton,
+	g_imgui_function_table_19000.InvisibleButton,
+	g_imgui_function_table_19000.ArrowButton,
+	g_imgui_function_table_19000.Checkbox,
+	g_imgui_function_table_19000.CheckboxFlags,
+	g_imgui_function_table_19000.CheckboxFlags2,
+	g_imgui_function_table_19000.RadioButton,
+	g_imgui_function_table_19000.RadioButton2,
+	g_imgui_function_table_19000.ProgressBar,
+	g_imgui_function_table_19000.Bullet,
+	g_imgui_function_table_19000.Image,
+	g_imgui_function_table_19000.ImageButton,
+	g_imgui_function_table_19000.BeginCombo,
+	g_imgui_function_table_19000.EndCombo,
+	g_imgui_function_table_19000.Combo,
+	g_imgui_function_table_19000.Combo2,
+	[](const char *label, int *current_item, bool (*callback)(void *user_data, int idx, const char **out_text), void *user_data, int items_count, int popup_max_height_in_items) -> bool {
+		struct old_to_new_data_type { void *user_data; bool (*old_callback)(void *, int, const char **); } old_to_new_data = { user_data, callback };
+		return g_imgui_function_table_19000.Combo3(
+			label,
+			current_item,
+			[](void *user_data, int idx) -> const char *{
+				const char *element = nullptr;
+				static_cast<old_to_new_data_type *>(user_data)->old_callback(static_cast<old_to_new_data_type *>(user_data)->user_data, idx, &element);
+				return element;
+			},
+			&old_to_new_data,
+			items_count,
+			popup_max_height_in_items);
+	},
+	g_imgui_function_table_19000.DragFloat,
+	g_imgui_function_table_19000.DragFloat2,
+	g_imgui_function_table_19000.DragFloat3,
+	g_imgui_function_table_19000.DragFloat4,
+	g_imgui_function_table_19000.DragFloatRange2,
+	g_imgui_function_table_19000.DragInt,
+	g_imgui_function_table_19000.DragInt2,
+	g_imgui_function_table_19000.DragInt3,
+	g_imgui_function_table_19000.DragInt4,
+	g_imgui_function_table_19000.DragIntRange2,
+	g_imgui_function_table_19000.DragScalar,
+	g_imgui_function_table_19000.DragScalarN,
+	g_imgui_function_table_19000.SliderFloat,
+	g_imgui_function_table_19000.SliderFloat2,
+	g_imgui_function_table_19000.SliderFloat3,
+	g_imgui_function_table_19000.SliderFloat4,
+	g_imgui_function_table_19000.SliderAngle,
+	g_imgui_function_table_19000.SliderInt,
+	g_imgui_function_table_19000.SliderInt2,
+	g_imgui_function_table_19000.SliderInt3,
+	g_imgui_function_table_19000.SliderInt4,
+	g_imgui_function_table_19000.SliderScalar,
+	g_imgui_function_table_19000.SliderScalarN,
+	g_imgui_function_table_19000.VSliderFloat,
+	g_imgui_function_table_19000.VSliderInt,
+	g_imgui_function_table_19000.VSliderScalar,
+	g_imgui_function_table_19000.InputText,
+	g_imgui_function_table_19000.InputTextMultiline,
+	g_imgui_function_table_19000.InputTextWithHint,
+	g_imgui_function_table_19000.InputFloat,
+	g_imgui_function_table_19000.InputFloat2,
+	g_imgui_function_table_19000.InputFloat3,
+	g_imgui_function_table_19000.InputFloat4,
+	g_imgui_function_table_19000.InputInt,
+	g_imgui_function_table_19000.InputInt2,
+	g_imgui_function_table_19000.InputInt3,
+	g_imgui_function_table_19000.InputInt4,
+	g_imgui_function_table_19000.InputDouble,
+	g_imgui_function_table_19000.InputScalar,
+	g_imgui_function_table_19000.InputScalarN,
+	g_imgui_function_table_19000.ColorEdit3,
+	g_imgui_function_table_19000.ColorEdit4,
+	g_imgui_function_table_19000.ColorPicker3,
+	g_imgui_function_table_19000.ColorPicker4,
+	g_imgui_function_table_19000.ColorButton,
+	g_imgui_function_table_19000.SetColorEditOptions,
+	g_imgui_function_table_19000.TreeNode,
+	g_imgui_function_table_19000.TreeNodeV,
+	g_imgui_function_table_19000.TreeNodeV2,
+	[](const char *label, ImGuiTreeNodeFlags flags) -> bool { return g_imgui_function_table_19000.TreeNodeEx(label, convert_tree_node_flags(flags)); },
+	[](const char *str_id, ImGuiTreeNodeFlags flags, const char *fmt, va_list args) -> bool { return g_imgui_function_table_19000.TreeNodeExV(str_id, convert_tree_node_flags(flags), fmt, args); },
+	[](const void *ptr_id, ImGuiTreeNodeFlags flags, const char *fmt, va_list args) -> bool { return g_imgui_function_table_19000.TreeNodeExV2(ptr_id, convert_tree_node_flags(flags), fmt, args); },
+	g_imgui_function_table_19000.TreePush,
+	g_imgui_function_table_19000.TreePush2,
+	g_imgui_function_table_19000.TreePop,
+	g_imgui_function_table_19000.GetTreeNodeToLabelSpacing,
+	[](const char *label, ImGuiTreeNodeFlags flags) -> bool { return g_imgui_function_table_19000.CollapsingHeader(label, convert_tree_node_flags(flags)); },
+	[](const char *label, bool *p_visible, ImGuiTreeNodeFlags flags) -> bool { return g_imgui_function_table_19000.CollapsingHeader2(label, p_visible, convert_tree_node_flags(flags)); },
+	g_imgui_function_table_19000.SetNextItemOpen,
+	g_imgui_function_table_19000.Selectable,
+	g_imgui_function_table_19000.Selectable2,
+	g_imgui_function_table_19000.BeginListBox,
+	g_imgui_function_table_19000.EndListBox,
+	g_imgui_function_table_19000.ListBox,
+	[](const char *label, int *current_item, bool (*callback)(void *user_data, int idx, const char **out_text), void *user_data, int items_count, int height_in_items) -> bool {
+
+		struct old_to_new_data_type { void *user_data; bool (*old_callback)(void *, int, const char **); } old_to_new_data = { user_data, callback };
+		return g_imgui_function_table_19000.ListBox2(
+			label,
+			current_item,
+			[](void *user_data, int idx) -> const char *{
+				const char *element = nullptr;
+				static_cast<old_to_new_data_type *>(user_data)->old_callback(static_cast<old_to_new_data_type *>(user_data)->user_data, idx, &element);
+				return element;
+			},
+			&old_to_new_data,
+			items_count,
+			height_in_items);
+	},
+	g_imgui_function_table_19000.PlotLines,
+	g_imgui_function_table_19000.PlotLines2,
+	g_imgui_function_table_19000.PlotHistogram,
+	g_imgui_function_table_19000.PlotHistogram2,
+	g_imgui_function_table_19000.Value,
+	g_imgui_function_table_19000.Value2,
+	g_imgui_function_table_19000.Value3,
+	g_imgui_function_table_19000.Value4,
+	g_imgui_function_table_19000.BeginMenuBar,
+	g_imgui_function_table_19000.EndMenuBar,
+	g_imgui_function_table_19000.BeginMainMenuBar,
+	g_imgui_function_table_19000.EndMainMenuBar,
+	g_imgui_function_table_19000.BeginMenu,
+	g_imgui_function_table_19000.EndMenu,
+	g_imgui_function_table_19000.MenuItem,
+	g_imgui_function_table_19000.MenuItem2,
+	g_imgui_function_table_19000.BeginTooltip,
+	g_imgui_function_table_19000.EndTooltip,
+	g_imgui_function_table_19000.SetTooltipV,
+	g_imgui_function_table_19000.BeginItemTooltip,
+	g_imgui_function_table_19000.SetItemTooltipV,
+	[](const char *str_id, ImGuiWindowFlags flags) -> bool { return g_imgui_function_table_19000.BeginPopup(str_id, convert_window_flags(flags)); },
+	[](const char *name, bool *p_open, ImGuiWindowFlags flags) -> bool { return g_imgui_function_table_19000.BeginPopupModal(name, p_open, convert_window_flags(flags)); },
+	g_imgui_function_table_19000.EndPopup,
+	g_imgui_function_table_19000.OpenPopup,
+	g_imgui_function_table_19000.OpenPopup2,
+	g_imgui_function_table_19000.OpenPopupOnItemClick,
+	g_imgui_function_table_19000.CloseCurrentPopup,
+	g_imgui_function_table_19000.BeginPopupContextItem,
+	g_imgui_function_table_19000.BeginPopupContextWindow,
+	g_imgui_function_table_19000.BeginPopupContextVoid,
+	g_imgui_function_table_19000.IsPopupOpen,
+	g_imgui_function_table_19000.BeginTable,
+	g_imgui_function_table_19000.EndTable,
+	g_imgui_function_table_19000.TableNextRow,
+	g_imgui_function_table_19000.TableNextColumn,
+	g_imgui_function_table_19000.TableSetColumnIndex,
+	g_imgui_function_table_19000.TableSetupColumn,
+	g_imgui_function_table_19000.TableSetupScrollFreeze,
+	g_imgui_function_table_19000.TableHeadersRow,
+	g_imgui_function_table_19000.TableHeader,
+	g_imgui_function_table_19000.TableGetSortSpecs,
+	g_imgui_function_table_19000.TableGetColumnCount,
+	g_imgui_function_table_19000.TableGetColumnIndex,
+	g_imgui_function_table_19000.TableGetRowIndex,
+	g_imgui_function_table_19000.TableGetColumnName,
+	g_imgui_function_table_19000.TableGetColumnFlags,
+	g_imgui_function_table_19000.TableSetColumnEnabled,
+	g_imgui_function_table_19000.TableSetBgColor,
+	g_imgui_function_table_19000.Columns,
+	g_imgui_function_table_19000.NextColumn,
+	g_imgui_function_table_19000.GetColumnIndex,
+	g_imgui_function_table_19000.GetColumnWidth,
+	g_imgui_function_table_19000.SetColumnWidth,
+	g_imgui_function_table_19000.GetColumnOffset,
+	g_imgui_function_table_19000.SetColumnOffset,
+	g_imgui_function_table_19000.GetColumnsCount,
+	g_imgui_function_table_19000.BeginTabBar,
+	g_imgui_function_table_19000.EndTabBar,
+	g_imgui_function_table_19000.BeginTabItem,
+	g_imgui_function_table_19000.EndTabItem,
+	g_imgui_function_table_19000.TabItemButton,
+	g_imgui_function_table_19000.SetTabItemClosed,
+	g_imgui_function_table_19000.DockSpace,
+	g_imgui_function_table_19000.SetNextWindowDockID,
+	g_imgui_function_table_19000.SetNextWindowClass,
+	g_imgui_function_table_19000.GetWindowDockID,
+	g_imgui_function_table_19000.IsWindowDocked,
+	g_imgui_function_table_19000.BeginDragDropSource,
+	g_imgui_function_table_19000.SetDragDropPayload,
+	g_imgui_function_table_19000.EndDragDropSource,
+	g_imgui_function_table_19000.BeginDragDropTarget,
+	g_imgui_function_table_19000.AcceptDragDropPayload,
+	g_imgui_function_table_19000.EndDragDropTarget,
+	g_imgui_function_table_19000.GetDragDropPayload,
+	g_imgui_function_table_19000.BeginDisabled,
+	g_imgui_function_table_19000.EndDisabled,
+	g_imgui_function_table_19000.PushClipRect,
+	g_imgui_function_table_19000.PopClipRect,
+	g_imgui_function_table_19000.SetItemDefaultFocus,
+	g_imgui_function_table_19000.SetKeyboardFocusHere,
+	g_imgui_function_table_19000.SetNextItemAllowOverlap,
+	[](ImGuiHoveredFlags flags) -> bool { return g_imgui_function_table_19000.IsItemHovered(convert_hovered_flags(flags)); },
+	g_imgui_function_table_19000.IsItemActive,
+	g_imgui_function_table_19000.IsItemFocused,
+	g_imgui_function_table_19000.IsItemClicked,
+	g_imgui_function_table_19000.IsItemVisible,
+	g_imgui_function_table_19000.IsItemEdited,
+	g_imgui_function_table_19000.IsItemActivated,
+	g_imgui_function_table_19000.IsItemDeactivated,
+	g_imgui_function_table_19000.IsItemDeactivatedAfterEdit,
+	g_imgui_function_table_19000.IsItemToggledOpen,
+	g_imgui_function_table_19000.IsAnyItemHovered,
+	g_imgui_function_table_19000.IsAnyItemActive,
+	g_imgui_function_table_19000.IsAnyItemFocused,
+	g_imgui_function_table_19000.GetItemID,
+	g_imgui_function_table_19000.GetItemRectMin,
+	g_imgui_function_table_19000.GetItemRectMax,
+	g_imgui_function_table_19000.GetItemRectSize,
+	g_imgui_function_table_19000.GetBackgroundDrawList,
+	g_imgui_function_table_19000.GetForegroundDrawList,
+	g_imgui_function_table_19000.GetBackgroundDrawList2,
+	g_imgui_function_table_19000.GetForegroundDrawList2,
+	g_imgui_function_table_19000.IsRectVisible,
+	g_imgui_function_table_19000.IsRectVisible2,
+	g_imgui_function_table_19000.GetTime,
+	g_imgui_function_table_19000.GetFrameCount,
+	g_imgui_function_table_19000.GetDrawListSharedData,
+	g_imgui_function_table_19000.GetStyleColorName,
+	g_imgui_function_table_19000.SetStateStorage,
+	g_imgui_function_table_19000.GetStateStorage,
+	[](ImGuiID id, const ImVec2 &size, ImGuiWindowFlags flags) -> bool {
+		ImGuiChildFlags child_flags = ImGuiChildFlags_FrameStyle;
+		if (flags & (1 << 16))
+			child_flags |= ImGuiChildFlags_AlwaysUseWindowPadding;
+		ImVec2 full_size = size;
+		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		{
+			flags ^= ImGuiWindowFlags_AlwaysAutoResize;
+			child_flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize;
+			if (size.x == 0.0f)
+				full_size.x = g_imgui_function_table_19000.GetContentRegionAvail().x;
+			if (size.y == 0.0f)
+				full_size.y = g_imgui_function_table_19000.GetContentRegionAvail().y;
+		}
+		return g_imgui_function_table_19000.BeginChild2(id, full_size, child_flags, convert_window_flags(flags));
+	},
+	[]() { g_imgui_function_table_19000.EndChild(); },
+	g_imgui_function_table_19000.CalcTextSize,
+	g_imgui_function_table_19000.ColorConvertU32ToFloat4,
+	g_imgui_function_table_19000.ColorConvertFloat4ToU32,
+	g_imgui_function_table_19000.ColorConvertRGBtoHSV,
+	g_imgui_function_table_19000.ColorConvertHSVtoRGB,
+	[](ImGuiKey key) -> bool { return g_imgui_function_table_19000.IsKeyDown(convert_key(key)); },
+	[](ImGuiKey key, bool repeat) -> bool { return g_imgui_function_table_19000.IsKeyPressed(convert_key(key), repeat); },
+	[](ImGuiKey key) -> bool { return g_imgui_function_table_19000.IsKeyReleased(convert_key(key)); },
+	[](ImGuiKey key, float repeat_delay, float rate) -> int { return g_imgui_function_table_19000.GetKeyPressedAmount(convert_key(key), repeat_delay, rate); },
+	[](ImGuiKey key) -> const char * { return g_imgui_function_table_19000.GetKeyName(convert_key(key)); },
+	g_imgui_function_table_19000.SetNextFrameWantCaptureKeyboard,
+	g_imgui_function_table_19000.IsMouseDown,
+	g_imgui_function_table_19000.IsMouseClicked,
+	g_imgui_function_table_19000.IsMouseReleased,
+	g_imgui_function_table_19000.IsMouseDoubleClicked,
+	g_imgui_function_table_19000.GetMouseClickedCount,
+	g_imgui_function_table_19000.IsMouseHoveringRect,
+	g_imgui_function_table_19000.IsMousePosValid,
+	g_imgui_function_table_19000.IsAnyMouseDown,
+	g_imgui_function_table_19000.GetMousePos,
+	g_imgui_function_table_19000.GetMousePosOnOpeningCurrentPopup,
+	g_imgui_function_table_19000.IsMouseDragging,
+	g_imgui_function_table_19000.GetMouseDragDelta,
+	g_imgui_function_table_19000.ResetMouseDragDelta,
+	g_imgui_function_table_19000.GetMouseCursor,
+	g_imgui_function_table_19000.SetMouseCursor,
+	g_imgui_function_table_19000.SetNextFrameWantCaptureMouse,
+	g_imgui_function_table_19000.GetClipboardText,
+	g_imgui_function_table_19000.SetClipboardText,
+	g_imgui_function_table_19000.SetAllocatorFunctions,
+	g_imgui_function_table_19000.GetAllocatorFunctions,
+	g_imgui_function_table_19000.MemAlloc,
+	g_imgui_function_table_19000.MemFree,
+	g_imgui_function_table_19000.ImGuiStorage_GetInt,
+	g_imgui_function_table_19000.ImGuiStorage_SetInt,
+	g_imgui_function_table_19000.ImGuiStorage_GetBool,
+	g_imgui_function_table_19000.ImGuiStorage_SetBool,
+	g_imgui_function_table_19000.ImGuiStorage_GetFloat,
+	g_imgui_function_table_19000.ImGuiStorage_SetFloat,
+	g_imgui_function_table_19000.ImGuiStorage_GetVoidPtr,
+	g_imgui_function_table_19000.ImGuiStorage_SetVoidPtr,
+	g_imgui_function_table_19000.ImGuiStorage_GetIntRef,
+	g_imgui_function_table_19000.ImGuiStorage_GetBoolRef,
+	g_imgui_function_table_19000.ImGuiStorage_GetFloatRef,
+	g_imgui_function_table_19000.ImGuiStorage_GetVoidPtrRef,
+	g_imgui_function_table_19000.ImGuiStorage_SetAllInt,
+	g_imgui_function_table_19000.ImGuiStorage_BuildSortByKey,
+	g_imgui_function_table_19000.ConstructImGuiListClipper,
+	g_imgui_function_table_19000.DestructImGuiListClipper,
+	g_imgui_function_table_19000.ImGuiListClipper_Begin,
+	g_imgui_function_table_19000.ImGuiListClipper_End,
+	g_imgui_function_table_19000.ImGuiListClipper_Step,
+	g_imgui_function_table_19000.ImGuiListClipper_IncludeItemsByIndex,
+	g_imgui_function_table_19000.ImDrawList_PushClipRect,
+	g_imgui_function_table_19000.ImDrawList_PushClipRectFullScreen,
+	g_imgui_function_table_19000.ImDrawList_PopClipRect,
+	g_imgui_function_table_19000.ImDrawList_PushTextureID,
+	g_imgui_function_table_19000.ImDrawList_PopTextureID,
+	g_imgui_function_table_19000.ImDrawList_AddLine,
+	g_imgui_function_table_19000.ImDrawList_AddRect,
+	g_imgui_function_table_19000.ImDrawList_AddRectFilled,
+	g_imgui_function_table_19000.ImDrawList_AddRectFilledMultiColor,
+	g_imgui_function_table_19000.ImDrawList_AddQuad,
+	g_imgui_function_table_19000.ImDrawList_AddQuadFilled,
+	g_imgui_function_table_19000.ImDrawList_AddTriangle,
+	g_imgui_function_table_19000.ImDrawList_AddTriangleFilled,
+	g_imgui_function_table_19000.ImDrawList_AddCircle,
+	g_imgui_function_table_19000.ImDrawList_AddCircleFilled,
+	g_imgui_function_table_19000.ImDrawList_AddNgon,
+	g_imgui_function_table_19000.ImDrawList_AddNgonFilled,
+	g_imgui_function_table_19000.ImDrawList_AddText,
+	g_imgui_function_table_19000.ImDrawList_AddText2,
+	g_imgui_function_table_19000.ImDrawList_AddPolyline,
+	g_imgui_function_table_19000.ImDrawList_AddConvexPolyFilled,
+	g_imgui_function_table_19000.ImDrawList_AddBezierCubic,
+	g_imgui_function_table_19000.ImDrawList_AddBezierQuadratic,
+	g_imgui_function_table_19000.ImDrawList_AddImage,
+	g_imgui_function_table_19000.ImDrawList_AddImageQuad,
+	g_imgui_function_table_19000.ImDrawList_AddImageRounded,
+	g_imgui_function_table_19000.ImDrawList_PathArcTo,
+	g_imgui_function_table_19000.ImDrawList_PathArcToFast,
+	g_imgui_function_table_19000.ImDrawList_PathBezierCubicCurveTo,
+	g_imgui_function_table_19000.ImDrawList_PathBezierQuadraticCurveTo,
+	g_imgui_function_table_19000.ImDrawList_PathRect,
+	g_imgui_function_table_19000.ImDrawList_AddCallback,
+	g_imgui_function_table_19000.ImDrawList_AddDrawCmd,
+	g_imgui_function_table_19000.ImDrawList_CloneOutput,
+	g_imgui_function_table_19000.ImDrawList_PrimReserve,
+	g_imgui_function_table_19000.ImDrawList_PrimUnreserve,
+	g_imgui_function_table_19000.ImDrawList_PrimRect,
+	g_imgui_function_table_19000.ImDrawList_PrimRectUV,
+	g_imgui_function_table_19000.ImDrawList_PrimQuadUV,
+	g_imgui_function_table_19000.ConstructImFont,
+	g_imgui_function_table_19000.DestructImFont,
+	g_imgui_function_table_19000.ImFont_FindGlyph,
+	g_imgui_function_table_19000.ImFont_FindGlyphNoFallback,
+	g_imgui_function_table_19000.ImFont_CalcTextSizeA,
+	g_imgui_function_table_19000.ImFont_CalcWordWrapPositionA,
+	g_imgui_function_table_19000.ImFont_RenderChar,
+	g_imgui_function_table_19000.ImFont_RenderText,
+
+}; }
 
 #endif

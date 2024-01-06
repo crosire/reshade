@@ -130,7 +130,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		ImGui::SetNextWindowFocus();
 	}
 
-	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
+	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border ? ImGuiChildFlags_Border : ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 	ImGui::PushTabStop(true);
 
 	char buf[128] = "", *buf_end = buf;

@@ -23,7 +23,7 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
 
-	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), false, ImGuiWindowFlags_NoScrollWithMouse))
+	if (ImGui::BeginChild("##paths", ImVec2(item_width, (paths.size() + 1) * item_height), ImGuiChildFlags_None, ImGuiWindowFlags_NoScrollWithMouse))
 	{
 		for (int i = 0; i < static_cast<int>(paths.size()); ++i)
 		{
@@ -122,7 +122,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			ImGui::SetKeyboardFocusHere(1);
 	}
 
-	ImGui::BeginChild("##files", ImVec2(width, 200), true, ImGuiWindowFlags_NavFlattened);
+	ImGui::BeginChild("##files", ImVec2(width, 200), ImGuiChildFlags_Border, ImGuiWindowFlags_NavFlattened);
 
 	if (parent_path.has_parent_path() && parent_path != parent_path.root_path())
 	{
@@ -319,8 +319,8 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 	std::string hint = _("Search");
 	hint += " " ICON_FK_SEARCH;
 
-	if (ImGui::InputTextEx("##filter", hint.c_str(), filter, filter_size,
-			ImVec2(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f), 0), ImGuiInputTextFlags_AutoSelectAll))
+	ImGui::SetNextItemWidth(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f));
+	if (ImGui::InputTextWithHint("##filter", hint.c_str(), filter, filter_size, ImGuiInputTextFlags_AutoSelectAll))
 		res = true;
 
 	if (show_clear_button)

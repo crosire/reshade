@@ -227,12 +227,11 @@ $function_table_init = @"
 #if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON
 
 #include <new>
-#include <imgui.h>
 #include "imgui_function_table_$version.hpp"
 
-imgui_function_table_$version g_imgui_function_table_$version = {
+const imgui_function_table_$version init_imgui_function_table_$version() { return {
 $function_table_init
-};
+}; }
 
 #endif
 "@
@@ -288,7 +287,11 @@ $function_table = @"
 
 #pragma once
 
+#include <imgui.h>
+
 $function_table
+
+extern const imgui_function_table_$version g_imgui_function_table_$version;
 "@
 
 $function_table | Out-File -FilePath "..\source\imgui_function_table_$version.hpp" -Encoding ASCII

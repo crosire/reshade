@@ -100,42 +100,6 @@ void reshade::runtime::init_gui()
 
 	ImGuiIO &imgui_io = _imgui_context->IO;
 	imgui_io.IniFilename = nullptr;
-	imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
-	imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
-	imgui_io.KeyMap[ImGuiKey_RightArrow] = 0x27; // VK_RIGHT
-	imgui_io.KeyMap[ImGuiKey_UpArrow] = 0x26; // VK_UP
-	imgui_io.KeyMap[ImGuiKey_DownArrow] = 0x28; // VK_DOWN
-	imgui_io.KeyMap[ImGuiKey_PageUp] = 0x21; // VK_PRIOR
-	imgui_io.KeyMap[ImGuiKey_PageDown] = 0x22; // VK_NEXT
-	imgui_io.KeyMap[ImGuiKey_Home] = 0x24; // VK_HOME
-	imgui_io.KeyMap[ImGuiKey_End] = 0x23; // VK_END
-	imgui_io.KeyMap[ImGuiKey_Insert] = 0x2D; // VK_INSERT
-	imgui_io.KeyMap[ImGuiKey_Delete] = 0x2E; // VK_DELETE
-	imgui_io.KeyMap[ImGuiKey_Backspace] = 0x08; // VK_BACK
-	imgui_io.KeyMap[ImGuiKey_Space] = 0x20; // VK_SPACE
-	imgui_io.KeyMap[ImGuiKey_Enter] = 0x0D; // VK_RETURN
-	imgui_io.KeyMap[ImGuiKey_Escape] = 0x1B; // VK_ESCAPE
-	imgui_io.KeyMap[ImGuiKey_A] = 'A';
-	imgui_io.KeyMap[ImGuiKey_C] = 'C';
-	imgui_io.KeyMap[ImGuiKey_F] = 'F';
-	imgui_io.KeyMap[ImGuiKey_H] = 'H';
-	imgui_io.KeyMap[ImGuiKey_R] = 'R';
-	imgui_io.KeyMap[ImGuiKey_V] = 'V';
-	imgui_io.KeyMap[ImGuiKey_X] = 'X';
-	imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
-	imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
-	imgui_io.KeyMap[ImGuiKey_F1] = 0x70; // VK_F1
-	imgui_io.KeyMap[ImGuiKey_F2] = 0x71; // VK_F2
-	imgui_io.KeyMap[ImGuiKey_F3] = 0x72; // VK_F3
-	imgui_io.KeyMap[ImGuiKey_F4] = 0x73; // VK_F4
-	imgui_io.KeyMap[ImGuiKey_F5] = 0x74; // VK_F5
-	imgui_io.KeyMap[ImGuiKey_F6] = 0x75; // VK_F6
-	imgui_io.KeyMap[ImGuiKey_F7] = 0x76; // VK_F7
-	imgui_io.KeyMap[ImGuiKey_F8] = 0x77; // VK_F8
-	imgui_io.KeyMap[ImGuiKey_F9] = 0x78; // VK_F9
-	imgui_io.KeyMap[ImGuiKey_F10] = 0x79; // VK_F10
-	imgui_io.KeyMap[ImGuiKey_F11] = 0x80; // VK_F11
-	imgui_io.KeyMap[ImGuiKey_F12] = 0x81; // VK_F12
 	imgui_io.ConfigFlags = ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_NavEnableKeyboard;
 	imgui_io.BackendFlags = ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_RendererHasVtxOffset;
 
@@ -162,6 +126,9 @@ void reshade::runtime::build_font_atlas()
 
 	if (atlas->IsBuilt())
 		return;
+
+	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
+	ImGui::SetCurrentContext(_imgui_context);
 
 	// Remove any existing fonts from atlas first
 	atlas->Clear();
@@ -300,6 +267,8 @@ void reshade::runtime::build_font_atlas()
 			atlas->AddFontDefault(&cfg);
 		}
 	}
+
+	ImGui::SetCurrentContext(backup_context);
 
 	_show_splash = true;
 
@@ -921,22 +890,126 @@ void reshade::runtime::draw_gui()
 		// Scale mouse position in case render resolution does not match the window size
 		unsigned int max_position[2];
 		_input->max_mouse_position(max_position);
-		imgui_io.MousePos.x = _input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]);
-		imgui_io.MousePos.y = _input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]);
+		imgui_io.AddMousePosEvent(
+			_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
+			_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
 
 		// Add wheel delta to the current absolute mouse wheel position
-		imgui_io.MouseWheel += _input->mouse_wheel_delta();
+		imgui_io.AddMouseWheelEvent(0.0f, _input->mouse_wheel_delta());
 
 		// Update all the button states
-		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
-		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
-		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
-		for (unsigned int i = 0; i < 256; i++)
-			imgui_io.KeysDown[i] = _input->is_key_down(i);
-		for (unsigned int i = 0; i < 5; i++)
-			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
-		for (wchar_t c : _input->text_input())
-			imgui_io.AddInputCharacter(c);
+		constexpr std::pair<ImGuiKey, unsigned int> key_mappings[] = {
+			{ ImGuiKey_Tab, 0x09 /* VK_TAB */ },
+			{ ImGuiKey_LeftArrow, 0x25 /* VK_LEFT */ },
+			{ ImGuiKey_RightArrow, 0x27 /* VK_RIGHT */ },
+			{ ImGuiKey_UpArrow, 0x26 /* VK_UP */ },
+			{ ImGuiKey_DownArrow, 0x28 /* VK_DOWN */ },
+			{ ImGuiKey_PageUp, 0x21 /* VK_PRIOR */ },
+			{ ImGuiKey_PageDown, 0x22 /* VK_NEXT */ },
+			{ ImGuiKey_Home, 0x24 /* VK_HOME */ },
+			{ ImGuiKey_End, 0x24 /* VK_END */ },
+			{ ImGuiKey_Insert, 0x2D /* VK_INSERT */ },
+			{ ImGuiKey_Delete, 0x2E /* VK_DELETE */ },
+			{ ImGuiKey_Backspace, 0x08 /* VK_BACK */ },
+			{ ImGuiKey_Space, 0x20 /* VK_SPACE */ },
+			{ ImGuiKey_Enter, 0x0D /* VK_RETURN */ },
+			{ ImGuiKey_Escape, 0x1B /* VK_ESCAPE */ },
+			{ ImGuiKey_LeftCtrl, 0xA2 /* VK_LCONTROL */ },
+			{ ImGuiKey_LeftShift, 0xA0 /* VK_LSHIFT */ },
+			{ ImGuiKey_LeftAlt, 0xA4 /* VK_LMENU */ },
+			{ ImGuiKey_LeftSuper, 0x5B /* VK_LWIN */ },
+			{ ImGuiKey_RightCtrl, 0xA3 /* VK_RCONTROL */ },
+			{ ImGuiKey_RightShift, 0xA1 /* VK_RSHIFT */ },
+			{ ImGuiKey_RightAlt, 0xA5 /* VK_RMENU */ },
+			{ ImGuiKey_RightSuper, 0x5C /* VK_RWIN */ },
+			{ ImGuiKey_Menu, 0x5D /* VK_APPS */ },
+			{ ImGuiKey_0, '0' },
+			{ ImGuiKey_1, '1' },
+			{ ImGuiKey_2, '2' },
+			{ ImGuiKey_3, '3' },
+			{ ImGuiKey_4, '4' },
+			{ ImGuiKey_5, '5' },
+			{ ImGuiKey_6, '6' },
+			{ ImGuiKey_7, '7' },
+			{ ImGuiKey_8, '8' },
+			{ ImGuiKey_9, '9' },
+			{ ImGuiKey_A, 'A' },
+			{ ImGuiKey_B, 'B' },
+			{ ImGuiKey_C, 'C' },
+			{ ImGuiKey_D, 'D' },
+			{ ImGuiKey_E, 'E' },
+			{ ImGuiKey_F, 'F' },
+			{ ImGuiKey_G, 'G' },
+			{ ImGuiKey_H, 'H' },
+			{ ImGuiKey_I, 'I' },
+			{ ImGuiKey_J, 'J' },
+			{ ImGuiKey_K, 'K' },
+			{ ImGuiKey_L, 'L' },
+			{ ImGuiKey_M, 'M' },
+			{ ImGuiKey_N, 'N' },
+			{ ImGuiKey_O, 'O' },
+			{ ImGuiKey_P, 'P' },
+			{ ImGuiKey_Q, 'Q' },
+			{ ImGuiKey_R, 'R' },
+			{ ImGuiKey_S, 'S' },
+			{ ImGuiKey_T, 'T' },
+			{ ImGuiKey_U, 'U' },
+			{ ImGuiKey_V, 'V' },
+			{ ImGuiKey_W, 'W' },
+			{ ImGuiKey_X, 'X' },
+			{ ImGuiKey_Y, 'Y' },
+			{ ImGuiKey_Z, 'Z' },
+			{ ImGuiKey_F1, 0x70 /* VK_F1 */ },
+			{ ImGuiKey_F2, 0x71 /* VK_F2 */ },
+			{ ImGuiKey_F3, 0x72 /* VK_F3 */ },
+			{ ImGuiKey_F4, 0x73 /* VK_F4 */ },
+			{ ImGuiKey_F5, 0x74 /* VK_F5 */ },
+			{ ImGuiKey_F6, 0x75 /* VK_F6 */ },
+			{ ImGuiKey_F7, 0x76 /* VK_F7 */ },
+			{ ImGuiKey_F8, 0x77 /* VK_F8 */ },
+			{ ImGuiKey_F9, 0x78 /* VK_F9 */ },
+			{ ImGuiKey_F10, 0x79 /* VK_F10 */ },
+			{ ImGuiKey_F11, 0x80 /* VK_F11 */ },
+			{ ImGuiKey_F12, 0x81 /* VK_F12 */ },
+			{ ImGuiKey_Apostrophe, 0xDE /* VK_OEM_7 */ },
+			{ ImGuiKey_Comma, 0xBC /* VK_OEM_COMMA */ },
+			{ ImGuiKey_Minus, 0xBD /* VK_OEM_MINUS */ },
+			{ ImGuiKey_Period, 0xBE /* VK_OEM_PERIOD */ },
+			{ ImGuiKey_Slash, 0xBF /* VK_OEM_2 */ },
+			{ ImGuiKey_Semicolon, 0xBA /* VK_OEM_1 */ },
+			{ ImGuiKey_Equal, 0xBB /* VK_OEM_PLUS */ },
+			{ ImGuiKey_LeftBracket, 0xDB /* VK_OEM_4 */ },
+			{ ImGuiKey_Backslash, 0xDC /* VK_OEM_5 */ },
+			{ ImGuiKey_RightBracket, 0xDD /* VK_OEM_6 */ },
+			{ ImGuiKey_GraveAccent, 0xC0 /* VK_OEM_3 */ },
+			{ ImGuiKey_CapsLock, 0x14 /* VK_CAPITAL */ },
+			{ ImGuiKey_ScrollLock, 0x91 /* VK_SCROLL */ },
+			{ ImGuiKey_NumLock, 0x90 /* VK_NUMLOCK */ },
+			{ ImGuiKey_PrintScreen, 0x2C /* VK_SNAPSHOT */ },
+			{ ImGuiKey_Pause, 0x13 /* VK_PAUSE */ },
+			{ ImGuiKey_Keypad0, 0x60 /* VK_NUMPAD0 */ },
+			{ ImGuiKey_Keypad1, 0x61 /* VK_NUMPAD1 */ },
+			{ ImGuiKey_Keypad2, 0x62 /* VK_NUMPAD2 */ },
+			{ ImGuiKey_Keypad3, 0x63 /* VK_NUMPAD3 */ },
+			{ ImGuiKey_Keypad4, 0x64 /* VK_NUMPAD4 */ },
+			{ ImGuiKey_Keypad5, 0x65 /* VK_NUMPAD5 */ },
+			{ ImGuiKey_Keypad6, 0x66 /* VK_NUMPAD6 */ },
+			{ ImGuiKey_Keypad7, 0x67 /* VK_NUMPAD7 */ },
+			{ ImGuiKey_Keypad8, 0x68 /* VK_NUMPAD8 */ },
+			{ ImGuiKey_Keypad9, 0x69 /* VK_NUMPAD9 */ },
+			{ ImGuiKey_KeypadDecimal, 0x6E /* VK_DECIMAL */ },
+			{ ImGuiKey_KeypadDivide, 0x6F /* VK_DIVIDE */ },
+			{ ImGuiKey_KeypadMultiply, 0x6A /* VK_MULTIPLY */ },
+			{ ImGuiKey_KeypadSubtract, 0x6D /* VK_SUBTRACT */ },
+			{ ImGuiKey_KeypadAdd, 0x6B /* VK_ADD */ },
+		};
+
+		for (const std::pair<ImGuiKey, unsigned int> &mapping : key_mappings)
+			imgui_io.AddKeyEvent(mapping.first, _input->is_key_down(mapping.second));
+		for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
+			imgui_io.AddMouseButtonEvent(i, _input->is_mouse_button_down(i));
+		for (ImWchar16 c : _input->text_input())
+			imgui_io.AddInputCharacterUTF16(c);
 	}
 
 	if (_input_gamepad != nullptr)
@@ -945,22 +1018,32 @@ void reshade::runtime::draw_gui()
 		{
 			imgui_io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 
-			imgui_io.NavInputs[ImGuiNavInput_Activate] = _input_gamepad->is_button_down(input_gamepad::button_a) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_Cancel] = _input_gamepad->is_button_down(input_gamepad::button_b) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_Input] = _input_gamepad->is_button_down(input_gamepad::button_y) != 0 ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_Menu] = _input_gamepad->is_button_down(input_gamepad::button_x) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_DpadLeft] = _input_gamepad->is_button_down(input_gamepad::button_dpad_left) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_DpadRight] = _input_gamepad->is_button_down(input_gamepad::button_dpad_right) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_DpadUp] = _input_gamepad->is_button_down(input_gamepad::button_dpad_up) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_DpadDown] = _input_gamepad->is_button_down(input_gamepad::button_dpad_down) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_LStickLeft] = -std::min(_input_gamepad->left_thumb_axis_x(), 0.0f);
-			imgui_io.NavInputs[ImGuiNavInput_LStickRight] = std::max(_input_gamepad->left_thumb_axis_x(), 0.0f);
-			imgui_io.NavInputs[ImGuiNavInput_LStickUp] = std::max(_input_gamepad->left_thumb_axis_y(), 0.0f);
-			imgui_io.NavInputs[ImGuiNavInput_LStickDown] = -std::min(_input_gamepad->left_thumb_axis_y(), 0.0f);
-			imgui_io.NavInputs[ImGuiNavInput_FocusPrev] = _input_gamepad->is_button_down(input_gamepad::button_left_shoulder) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_FocusNext] = _input_gamepad->is_button_down(input_gamepad::button_right_shoulder) ? 1.0f : 0.0f;
-			imgui_io.NavInputs[ImGuiNavInput_TweakSlow] = _input_gamepad->left_trigger_position();
-			imgui_io.NavInputs[ImGuiNavInput_TweakFast] = _input_gamepad->right_trigger_position();
+			constexpr std::pair<ImGuiKey, input_gamepad::button> button_mappings[] = {
+				{ ImGuiKey_GamepadStart, input_gamepad::button_start },
+				{ ImGuiKey_GamepadBack, input_gamepad::button_back },
+				{ ImGuiKey_GamepadFaceLeft, input_gamepad::button_x },
+				{ ImGuiKey_GamepadFaceRight, input_gamepad::button_b },
+				{ ImGuiKey_GamepadFaceUp, input_gamepad::button_y },
+				{ ImGuiKey_GamepadFaceDown, input_gamepad::button_a },
+				{ ImGuiKey_GamepadDpadLeft, input_gamepad::button_dpad_left },
+				{ ImGuiKey_GamepadDpadRight, input_gamepad::button_dpad_right },
+				{ ImGuiKey_GamepadDpadUp, input_gamepad::button_dpad_up },
+				{ ImGuiKey_GamepadDpadDown, input_gamepad::button_dpad_down },
+				{ ImGuiKey_GamepadL1, input_gamepad::button_left_shoulder },
+				{ ImGuiKey_GamepadR1, input_gamepad::button_right_shoulder },
+				{ ImGuiKey_GamepadL3, input_gamepad::button_left_thumb },
+				{ ImGuiKey_GamepadR3, input_gamepad::button_right_thumb },
+			};
+
+			for (const std::pair<ImGuiKey, input_gamepad::button> &mapping : button_mappings)
+				imgui_io.AddKeyEvent(mapping.first, _input_gamepad->is_button_down(mapping.second));
+
+			imgui_io.AddKeyAnalogEvent(ImGuiKey_GamepadL2, _input_gamepad->left_trigger_position() != 0.0f, _input_gamepad->left_trigger_position());
+			imgui_io.AddKeyAnalogEvent(ImGuiKey_GamepadR2, _input_gamepad->right_trigger_position() != 0.0f, _input_gamepad->right_trigger_position());
+			imgui_io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickLeft, _input_gamepad->left_thumb_axis_x() < 0.0f, -std::min(_input_gamepad->left_thumb_axis_x(), 0.0f));
+			imgui_io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickRight, _input_gamepad->left_thumb_axis_x() > 0.0f, std::max(_input_gamepad->left_thumb_axis_x(), 0.0f));
+			imgui_io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickUp, _input_gamepad->left_thumb_axis_y() > 0.0f, std::max(_input_gamepad->left_thumb_axis_y(), 0.0f));
+			imgui_io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickDown, _input_gamepad->left_thumb_axis_y() < 0.0f, -std::min(_input_gamepad->left_thumb_axis_y(), 0.0f));
 		}
 		else
 		{
@@ -1775,7 +1858,7 @@ void reshade::runtime::draw_gui_home()
 		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (
 			_performance_mode ? 0 : (17 /* splitter */ + (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0))));
 
-		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), true))
+		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), ImGuiChildFlags_Border))
 		{
 			if (_effect_load_skipping && _show_force_load_effects_button)
 			{
@@ -1840,7 +1923,7 @@ void reshade::runtime::draw_gui_home()
 
 		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 175 : 0);
 
-		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), true))
+		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), ImGuiChildFlags_Border))
 		{
 			ImGui::BeginDisabled(_is_in_preset_transition);
 			draw_variable_editor();
@@ -1885,9 +1968,9 @@ void reshade::runtime::draw_gui_home()
 		const float assume_content_avail = ImGui::GetContentRegionAvail().x - _imgui_context->Style.FramePadding.x * 2;
 		const float require_frame_height = ImGui::CalcTextSize(tutorial_text.data(), tutorial_text.data() + tutorial_text.size(), false, assume_content_avail).y + _imgui_context->Style.FramePadding.y * 2;
 		const ImVec2 frame_size = ImVec2(ImGui::GetContentRegionAvail().x, std::min(maximum_frame_height, require_frame_height));
-		ImGui::BeginChildFrame(ImGui::GetID("tutorial"), frame_size);
+		ImGui::BeginChild(ImGui::GetID("tutorial"), frame_size, ImGuiChildFlags_FrameStyle);
 		ImGui::TextWrapped("%*s", tutorial_text.size(), tutorial_text.c_str());
-		ImGui::EndChildFrame();
+		ImGui::EndChild();
 
 		const float max_button_width = ImGui::GetContentRegionAvail().x;
 
@@ -2124,12 +2207,8 @@ void reshade::runtime::draw_gui_settings()
 				lang_index = static_cast<int>(std::distance(languages.begin(), it) + 1);
 
 			if (ImGui::Combo(_("Language"), &lang_index,
-					[](void *data, int idx, const char **out_text) {
-						if (idx == 0)
-							*out_text = "System Default";
-						else
-							*out_text = (*static_cast<const std::vector<std::string> *>(data))[idx - 1].c_str();
-						return true;
+					[](void *data, int idx) -> const char * {
+						return idx == 0 ? "System Default" : (*static_cast<const std::vector<std::string> *>(data))[idx - 1].c_str();
 					}, &languages, static_cast<int>(languages.size() + 1)))
 			{
 				modified = true;
@@ -2176,7 +2255,7 @@ void reshade::runtime::draw_gui_settings()
 		{
 			ImVec4 *const colors = _imgui_context->Style.Colors;
 
-			if (ImGui::BeginChild("##colors", ImVec2(0, 105), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
+			if (ImGui::BeginChild("##colors", ImVec2(0, 105), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
 			{
 				ImGui::PushItemWidth(-160);
 				modified_custom_style |= ImGui::ColorEdit3("Background", &colors[ImGuiCol_WindowBg].x);
@@ -2238,7 +2317,7 @@ void reshade::runtime::draw_gui_settings()
 		}
 		if (_style_index == 4) // Custom Advanced
 		{
-			if (ImGui::BeginChild("##colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
+			if (ImGui::BeginChild("##colors", ImVec2(0, 300), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
 			{
 				ImGui::PushItemWidth(-160);
 				for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
@@ -2263,7 +2342,7 @@ void reshade::runtime::draw_gui_settings()
 
 		if (_editor_style_index == 2)
 		{
-			if (ImGui::BeginChild("##editor_colors", ImVec2(0, 300), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
+			if (ImGui::BeginChild("##editor_colors", ImVec2(0, 300), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
 			{
 				ImGui::PushItemWidth(-160);
 				for (ImGuiCol i = 0; i < imgui::code_editor::color_palette_max; i++)
@@ -2811,7 +2890,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	if (ImGui::BeginChild("log", ImVec2(0, 0), true, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
+	if (ImGui::BeginChild("log", ImVec2(0, 0), ImGuiChildFlags_Border, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		// Limit number of log lines to read, to avoid stalling when log gets too big
 		constexpr size_t LINE_LIMIT = 1000;
@@ -2995,7 +3074,7 @@ void reshade::runtime::draw_gui_addons()
 
 	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
 
-	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), false, ImGuiWindowFlags_NavFlattened);
+	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
 
 	if (!addon_all_loaded)
 	{
@@ -3023,7 +3102,7 @@ void reshade::runtime::draw_gui_addons()
 		const ImGuiID settings_id = ImGui::GetID(info.name.c_str());
 		float settings_height = ImGui::GetStateStorage()->GetFloat(settings_id);
 
-		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), true, ImGuiWindowFlags_NoScrollbar);
+		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), ImGuiChildFlags_Border, ImGuiWindowFlags_NoScrollbar);
 
 		const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
 
@@ -3225,7 +3304,7 @@ void reshade::runtime::draw_variable_editor()
 		_was_preprocessor_popup_edited = false;
 	}
 
-	ImGui::BeginChild("##variables", ImVec2(0, 0), false, ImGuiWindowFlags_NavFlattened);
+	ImGui::BeginChild("##variables", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables");
 

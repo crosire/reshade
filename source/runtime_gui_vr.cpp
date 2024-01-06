@@ -120,9 +120,9 @@ void reshade::runtime::draw_gui_vr()
 	imgui_io.DisplaySize.y = static_cast<float>(OVERLAY_HEIGHT);
 	imgui_io.Fonts->TexID = _font_atlas_srv.handle;
 
-	imgui_io.KeysDown[0x08] = false;
-	imgui_io.KeysDown[0x09] = false;
-	imgui_io.KeysDown[0x0D] = false;
+	imgui_io.AddKeyEvent(ImGuiKey_Backspace, false);
+	imgui_io.AddKeyEvent(ImGuiKey_Tab, false);
+	imgui_io.AddKeyEvent(ImGuiKey_Enter, false);
 
 	bool keyboard_closed = false;
 
@@ -132,20 +132,21 @@ void reshade::runtime::draw_gui_vr()
 		switch (ev.eventType)
 		{
 		case vr::VREvent_MouseMove:
-			imgui_io.MousePos.x = ev.data.mouse.x;
-			imgui_io.MousePos.y = (_renderer_id & 0x10000) != 0 ? ev.data.mouse.y : OVERLAY_HEIGHT - ev.data.mouse.y;
+			imgui_io.AddMousePosEvent(
+				ev.data.mouse.x,
+				(_renderer_id & 0x10000) != 0 ? ev.data.mouse.y : OVERLAY_HEIGHT - ev.data.mouse.y);
 			break;
 		case vr::VREvent_MouseButtonDown:
 			switch (ev.data.mouse.button)
 			{
 			case vr::VRMouseButton_Left:
-				imgui_io.MouseDown[ImGuiMouseButton_Left] = true;
+				imgui_io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
 				break;
 			case vr::VRMouseButton_Right:
-				imgui_io.MouseDown[ImGuiMouseButton_Right] = true;
+				imgui_io.AddMouseButtonEvent(ImGuiMouseButton_Right, true);
 				break;
 			case vr::VRMouseButton_Middle:
-				imgui_io.MouseDown[ImGuiMouseButton_Middle] = true;
+				imgui_io.AddMouseButtonEvent(ImGuiMouseButton_Middle, true);
 				break;
 			}
 			break;
@@ -153,19 +154,18 @@ void reshade::runtime::draw_gui_vr()
 			switch (ev.data.mouse.button)
 			{
 			case vr::VRMouseButton_Left:
-				imgui_io.MouseDown[ImGuiMouseButton_Left] = false;
+				imgui_io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
 				break;
 			case vr::VRMouseButton_Right:
-				imgui_io.MouseDown[ImGuiMouseButton_Right] = false;
+				imgui_io.AddMouseButtonEvent(ImGuiMouseButton_Right, false);
 				break;
 			case vr::VRMouseButton_Middle:
-				imgui_io.MouseDown[ImGuiMouseButton_Middle] = false;
+				imgui_io.AddMouseButtonEvent(ImGuiMouseButton_Middle, false);
 				break;
 			}
 			break;
 		case vr::VREvent_ScrollSmooth:
-			imgui_io.MouseWheel += ev.data.scroll.ydelta;
-			imgui_io.MouseWheelH += ev.data.scroll.xdelta;
+			imgui_io.AddMouseWheelEvent(ev.data.scroll.xdelta, ev.data.scroll.ydelta);
 			break;
 		case vr::VREvent_KeyboardClosed:
 			ImGui::ClearActiveID();
@@ -173,13 +173,12 @@ void reshade::runtime::draw_gui_vr()
 			break;
 		case vr::VREvent_KeyboardCharInput:
 			if (ev.data.keyboard.cNewInput[0] == '\b')
-				imgui_io.KeysDown[0x08] = true;
+				imgui_io.AddKeyEvent(ImGuiKey_Backspace, true);
 			if (ev.data.keyboard.cNewInput[0] == '\t')
-				imgui_io.KeysDown[0x09] = true;
+				imgui_io.AddKeyEvent(ImGuiKey_Tab, true);
 			if (ev.data.keyboard.cNewInput[0] == '\n')
-				imgui_io.KeysDown[0x0D] = true;
-			for (int i = 0; i < 8 && ev.data.keyboard.cNewInput[i] != 0; ++i)
-				imgui_io.AddInputCharacter(ev.data.keyboard.cNewInput[i]);
+				imgui_io.AddKeyEvent(ImGuiKey_Enter, true);
+			imgui_io.AddInputCharactersUTF8(ev.data.keyboard.cNewInput);
 			break;
 		}
 	}
