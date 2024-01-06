@@ -1852,8 +1852,32 @@ void D3D12Device::invoke_init_resource_event(const reshade::api::resource_desc &
 
 #if RESHADE_ADDON >= 2
 
-#include <dxcapi.h>
 #include <d3d12shader.h>
+
+static const void *find_dxbc_part(const void *blob, size_t blob_size, uint32_t tag)
+{
+	constexpr uint32_t DXBC_TAG = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
+
+	const auto data = static_cast<uint32_t *>(const_cast<void *>(blob));
+	if (data == nullptr ||
+		blob_size < (sizeof(uint32_t) * 8) ||
+		data[0] != DXBC_TAG ||
+		data[5] != 0x00000001 /* DXBC version */)
+		return nullptr;
+
+	assert(blob_size == data[6]);
+
+	for (uint32_t i = 0, *part; i < data[7]; ++i)
+	{
+		const uint32_t part_offset = data[8 + i];
+		part = data + (part_offset / sizeof(uint32_t));
+
+		if (part[0] == tag)
+			return part + 2;
+	}
+
+	return nullptr;
+}
 
 bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT_DESC &internal_desc, ID3D12StateObject *existing_d3d_pipeline, ID3D12StateObject *&d3d_pipeline, HRESULT &hr)
 {
@@ -1861,20 +1885,6 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		!reshade::has_addon_event<reshade::addon_event::create_pipeline>() &&
 		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		return false;
-
-	const auto dxcompiler_module = GetModuleHandleW(L"dxcompiler.dll");
-	if (dxcompiler_module == nullptr)
-		return false;
-
-	const auto dxc_create_instance = reinterpret_cast<decltype(&DxcCreateInstance)>(GetProcAddress(dxcompiler_module, "DxcCreateInstance"));
-	if (dxc_create_instance == nullptr)
-		return false;
-
-	com_ptr<IDxcUtils> dxc_utils;
-	if (FAILED(dxc_create_instance(CLSID_DxcUtils, IID_PPV_ARGS(&dxc_utils))))
-		return false;
-
-	std::vector<com_ptr<ID3D12LibraryReflection>> reflections;
 
 	reshade::api::pipeline_layout layout = {};
 
@@ -1917,67 +1927,95 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		{
 			const auto &desc = *static_cast<const D3D12_DXIL_LIBRARY_DESC *>(subobject.pDesc);
 
-			reshade::api::shader_desc shader_desc;
-			shader_desc.code = desc.DXILLibrary.pShaderBytecode;
-			shader_desc.code_size = desc.DXILLibrary.BytecodeLength;
-
-			DxcBuffer dxc_buffer;
-			dxc_buffer.Ptr = desc.DXILLibrary.pShaderBytecode;
-			dxc_buffer.Size = desc.DXILLibrary.BytecodeLength;
-			dxc_buffer.Encoding = DXC_CP_ACP;
-
-			com_ptr<ID3D12LibraryReflection> reflection;
-			if (SUCCEEDED(dxc_utils->CreateReflection(&dxc_buffer, IID_PPV_ARGS(&reflection))))
+			// See https://github.com/microsoft/DirectXShaderCompiler/blob/main/include/dxc/DxilContainer/DxilRuntimeReflection.h#L23
+			if (const auto part = static_cast<const uint32_t *>(
+					find_dxbc_part(
+						desc.DXILLibrary.pShaderBytecode,
+						desc.DXILLibrary.BytecodeLength,
+						uint32_t('R') | (uint32_t('D') << 8) | (uint32_t('A') << 16) | (uint32_t('T') << 24))))
 			{
-				D3D12_LIBRARY_DESC library_desc = {};
-				reflection->GetDesc(&library_desc);
+				const char *string_table = nullptr;
 
-				for (UINT function_index = 0; function_index < library_desc.FunctionCount; ++function_index)
+				for (uint32_t part_index = 0; part_index < part[1]; ++part_index)
 				{
-					ID3D12FunctionReflection *const function = reflection->GetFunctionByIndex(function_index);
+					const uint32_t part_offset = part[2 + part_index];
+					auto rdat_part = part + part_offset / sizeof(uint32_t);
 
-					D3D12_FUNCTION_DESC function_desc = {};
-					function->GetDesc(&function_desc);
-
-					// Filter exports if any are defined
-					if (desc.NumExports != 0 &&
-						std::find_if(desc.pExports, desc.pExports + desc.NumExports,
-							[&function_desc](const D3D12_EXPORT_DESC &e) {
-								std::string name;
-								utf8::unchecked::utf16to8(e.Name, e.Name + wcslen(e.Name), std::back_inserter(name));
-								return function_desc.Name == name;
-							}) == desc.pExports + desc.NumExports)
-						continue;
-
-					shader_desc.entry_point = function_desc.Name;
-
-					switch (static_cast<D3D12_SHADER_VERSION_TYPE>(D3D12_SHVER_GET_TYPE(function_desc.Version)))
+					switch (rdat_part[0])
 					{
-					case D3D12_SHVER_RAY_GENERATION_SHADER:
-						raygen_desc.push_back(shader_desc);
-						shader_groups.push_back({ reshade::api::shader_group_type::raygen, static_cast<uint32_t>(raygen_desc.size() - 1) });
+					case 1: // StringBuffer
+						string_table = reinterpret_cast<const char *>(rdat_part + 2);
 						break;
-					case D3D12_SHVER_INTERSECTION_SHADER:
-						intersection_desc.push_back(shader_desc);
-						break;
-					case D3D12_SHVER_ANY_HIT_SHADER:
-						any_hit_desc.push_back(shader_desc);
-						break;
-					case D3D12_SHVER_CLOSEST_HIT_SHADER:
-						closest_hit_desc.push_back(shader_desc);
-						break;
-					case D3D12_SHVER_MISS_SHADER:
-						miss_desc.push_back(shader_desc);
-						shader_groups.push_back({ reshade::api::shader_group_type::miss, static_cast<uint32_t>(miss_desc.size() - 1) });
-						break;
-					case D3D12_SHVER_CALLABLE_SHADER:
-						callable_desc.push_back(shader_desc);
-						shader_groups.push_back({ reshade::api::shader_group_type::callable, static_cast<uint32_t>(callable_desc.size() - 1) });
+					case 4: // FunctionTable
+						if (string_table == nullptr)
+							break;
+
+						const uint32_t record_count = rdat_part[2];
+						const uint32_t record_stride = rdat_part[3];
+
+						for (uint32_t record_index = 0; record_index < record_count; ++record_index)
+						{
+							// See https://github.com/microsoft/DirectXShaderCompiler/blob/main/include/dxc/DxilContainer/RDAT_LibraryTypes.inl
+							struct rdat_function_info
+							{
+								uint32_t name;
+								uint32_t unmangled_name;
+								uint32_t resources;
+								uint32_t dependencies;
+								uint32_t shader_kind;
+								uint32_t payload_size;
+								uint32_t attribute_size;
+								uint32_t feature_flags1;
+								uint32_t feature_flags2;
+								uint32_t shader_kind_mask;
+								uint32_t min_shader_version;
+							};
+
+							const auto function_info = reinterpret_cast<const rdat_function_info *>(rdat_part + 4 + record_index * (record_stride / sizeof(uint32_t)));
+
+							// Filter exports if any are defined
+							if (desc.NumExports != 0 &&
+								std::find_if(desc.pExports, desc.pExports + desc.NumExports,
+									[record_name = string_table + function_info->unmangled_name](const D3D12_EXPORT_DESC &e) {
+										std::string name;
+										utf8::unchecked::utf16to8(e.Name, e.Name + wcslen(e.Name), std::back_inserter(name));
+										return name == record_name;
+									}) == desc.pExports + desc.NumExports)
+								continue;
+
+							reshade::api::shader_desc shader_desc;
+							shader_desc.code = desc.DXILLibrary.pShaderBytecode;
+							shader_desc.code_size = desc.DXILLibrary.BytecodeLength;
+							shader_desc.entry_point = string_table + function_info->unmangled_name;
+
+							switch (static_cast<D3D12_SHADER_VERSION_TYPE>(function_info->shader_kind))
+							{
+							case D3D12_SHVER_RAY_GENERATION_SHADER:
+								shader_groups.push_back({ reshade::api::shader_group_type::raygen, static_cast<uint32_t>(raygen_desc.size()) });
+								raygen_desc.push_back(shader_desc);
+								break;
+							case D3D12_SHVER_INTERSECTION_SHADER:
+								intersection_desc.push_back(shader_desc);
+								break;
+							case D3D12_SHVER_ANY_HIT_SHADER:
+								any_hit_desc.push_back(shader_desc);
+								break;
+							case D3D12_SHVER_CLOSEST_HIT_SHADER:
+								closest_hit_desc.push_back(shader_desc);
+								break;
+							case D3D12_SHVER_MISS_SHADER:
+								shader_groups.push_back({ reshade::api::shader_group_type::miss, static_cast<uint32_t>(miss_desc.size()) });
+								miss_desc.push_back(shader_desc);
+								break;
+							case D3D12_SHVER_CALLABLE_SHADER:
+								shader_groups.push_back({ reshade::api::shader_group_type::callable, static_cast<uint32_t>(callable_desc.size()) });
+								callable_desc.push_back(shader_desc);
+								break;
+							}
+						}
 						break;
 					}
 				}
-
-				reflections.emplace_back(std::move(reflection)); // Keep reflection object alive (so the name string is not freed)
 			}
 			break;
 		}
@@ -2050,6 +2088,11 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		}
 	}
 
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::raygen_shader, static_cast<uint32_t>(raygen_desc.size()), raygen_desc.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::any_hit_shader, static_cast<uint32_t>(any_hit_desc.size()), any_hit_desc.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::closest_hit_shader, static_cast<uint32_t>(closest_hit_desc.size()), closest_hit_desc.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::miss_shader, static_cast<uint32_t>(miss_desc.size()), miss_desc.data() });
+	subobjects.push_back({ reshade::api::pipeline_subobject_type::callable_shader, static_cast<uint32_t>(callable_desc.size()), callable_desc.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::libraries, static_cast<uint32_t>(libraries.size()), libraries.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::flags, 1, &flags });
@@ -2389,207 +2432,185 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 	std::vector<reshade::api::pipeline_layout_param> params;
 	std::vector<std::vector<reshade::api::descriptor_range>> ranges;
 
-	constexpr uint32_t DXBC = uint32_t('D') | (uint32_t('X') << 8) | (uint32_t('B') << 16) | (uint32_t('C') << 24);
-	constexpr uint32_t RTS0 = uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24);
-
-	if (const auto data = static_cast<uint32_t *>(const_cast<void *>(blob));
-		data != nullptr &&
-		blob_size >= (sizeof(uint32_t) * 8) &&
-		data[0] == DXBC &&
-		data[5] == 0x00000001 /* DXBC version */)
+	if (const auto part = static_cast<uint32_t *>(const_cast<void *>(
+			find_dxbc_part(
+				blob,
+				blob_size,
+				uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24)))))
 	{
-		assert(blob_size == data[6]);
+		const uint32_t version = part[0];
 
-		for (uint32_t i = 0, *chunk; i < data[7]; ++i)
+		if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() && (
+			version == D3D_ROOT_SIGNATURE_VERSION_1_0 || version == D3D_ROOT_SIGNATURE_VERSION_1_1 || version == D3D_ROOT_SIGNATURE_VERSION_1_2))
 		{
-			const uint32_t chunk_offset = data[8 + i];
-			chunk = data + (chunk_offset / sizeof(uint32_t));
+			const uint32_t param_count = part[1];
+			const uint32_t param_offset = part[2];
+			auto param_list = part + (param_offset / sizeof(uint32_t));
 
-			if (chunk[0] != RTS0)
-				continue;
-			else
-				chunk += 2;
+			params.resize(param_count);
+			ranges.resize(param_count);
 
-			const uint32_t version = chunk[0];
-			if (version != D3D_ROOT_SIGNATURE_VERSION_1_0 && version != D3D_ROOT_SIGNATURE_VERSION_1_1 && version != D3D_ROOT_SIGNATURE_VERSION_1_2)
-				continue;
-
-			if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>())
+			for (uint32_t param_index = 0; param_index < param_count; ++param_index, param_list += 3)
 			{
-				const uint32_t param_count = chunk[1];
-				const uint32_t param_offset = chunk[2];
-				auto param_list = chunk + (param_offset / sizeof(uint32_t));
+				const auto param_type = static_cast<D3D12_ROOT_PARAMETER_TYPE>(param_list[0]);
+				const auto shader_visibility = static_cast<D3D12_SHADER_VISIBILITY>(param_list[1]);
+				auto param_data = part + (param_list[2] / sizeof(uint32_t));
 
-				params.resize(param_count);
-				ranges.resize(param_count);
-
-				for (uint32_t k = 0; k < param_count; ++k, param_list += 3)
+				switch (param_type)
 				{
-					const auto param_type = static_cast<D3D12_ROOT_PARAMETER_TYPE>(param_list[0]);
-					const auto shader_visibility = static_cast<D3D12_SHADER_VISIBILITY>(param_list[1]);
-					auto param_data = chunk + (param_list[2] / sizeof(uint32_t));
+				case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+				{
+					const uint32_t range_count = param_data[0];
+					uint32_t descriptor_offset = 0;
 
-					switch (param_type)
+					ranges[param_index].resize(range_count);
+
+					// Convert descriptor ranges
+					switch (version)
 					{
-					case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+					case D3D_ROOT_SIGNATURE_VERSION_1_0:
 					{
-						const uint32_t range_count = param_data[0];
-						uint32_t descriptor_offset = 0;
+						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(part + (param_data[1] / sizeof(uint32_t)));
 
-						ranges[k].resize(range_count);
-
-						// Convert descriptor ranges
-						switch (version)
+						for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
 						{
-						case D3D_ROOT_SIGNATURE_VERSION_1_0:
-						{
-							auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(chunk + (param_data[1] / sizeof(uint32_t)));
+							reshade::api::descriptor_range &range = ranges[param_index][range_index];
+							range.dx_register_index = range_data->BaseShaderRegister;
+							range.dx_register_space = range_data->RegisterSpace;
+							range.count = range_data->NumDescriptors;
+							range.array_size = 1;
+							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
-							for (uint32_t j = 0; j < range_count; ++j, ++range_data)
-							{
-								reshade::api::descriptor_range &range = ranges[k][j];
-								range.dx_register_index = range_data->BaseShaderRegister;
-								range.dx_register_space = range_data->RegisterSpace;
-								range.count = range_data->NumDescriptors;
-								range.array_size = 1;
-								range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-								range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+								range.binding = descriptor_offset;
+							else
+								range.binding = range_data->OffsetInDescriptorsFromTableStart;
 
-								if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-									range.binding = descriptor_offset;
-								else
-									range.binding = range_data->OffsetInDescriptorsFromTableStart;
-
-								if (range_data->NumDescriptors == UINT_MAX)
-									// Only the last entry in a table can have an unbounded size
-									assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-								else
-									descriptor_offset = range.binding + range.count;
-							}
-							break;
+							if (range_data->NumDescriptors == UINT_MAX)
+								// Only the last entry in a table can have an unbounded size
+								assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+							else
+								descriptor_offset = range.binding + range.count;
 						}
-						case D3D_ROOT_SIGNATURE_VERSION_1_1:
-						case D3D_ROOT_SIGNATURE_VERSION_1_2:
-						{
-							auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(chunk + (param_data[1] / sizeof(uint32_t)));
-
-							for (uint32_t j = 0; j < range_count; ++j, ++range_data)
-							{
-								reshade::api::descriptor_range &range = ranges[k][j];
-								range.dx_register_index = range_data->BaseShaderRegister;
-								range.dx_register_space = range_data->RegisterSpace;
-								range.count = range_data->NumDescriptors;
-								range.array_size = 1;
-								range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-								range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-
-								if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-									range.binding = descriptor_offset;
-								else
-									range.binding = range_data->OffsetInDescriptorsFromTableStart;
-
-								if (range_data->NumDescriptors == UINT_MAX)
-									// Only the last entry in a table can have an unbounded size
-									assert(j == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-								else
-									descriptor_offset = range.binding + range.count;
-							}
-							break;
-						}
-						}
-
-						params[k].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-						params[k].descriptor_table.count = range_count;
-						params[k].descriptor_table.ranges = ranges[k].data();
 						break;
 					}
-					case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
+					case D3D_ROOT_SIGNATURE_VERSION_1_1:
+					case D3D_ROOT_SIGNATURE_VERSION_1_2:
 					{
-						auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
+						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(part + (param_data[1] / sizeof(uint32_t)));
 
-						params[k].type = reshade::api::pipeline_layout_param_type::push_constants;
+						for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+						{
+							reshade::api::descriptor_range &range = ranges[param_index][range_index];
+							range.dx_register_index = range_data->BaseShaderRegister;
+							range.dx_register_space = range_data->RegisterSpace;
+							range.count = range_data->NumDescriptors;
+							range.array_size = 1;
+							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
-						// Convert root constant description
-						reshade::api::constant_range &root_constant = params[k].push_constants;
-						root_constant.binding = 0;
-						root_constant.dx_register_index = constant_data->ShaderRegister;
-						root_constant.dx_register_space = constant_data->RegisterSpace;
-						root_constant.count = constant_data->Num32BitValues;
-						root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-						break;
-					}
-					case D3D12_ROOT_PARAMETER_TYPE_CBV:
-					case D3D12_ROOT_PARAMETER_TYPE_SRV:
-					case D3D12_ROOT_PARAMETER_TYPE_UAV:
-					{
-						auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
+							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+								range.binding = descriptor_offset;
+							else
+								range.binding = range_data->OffsetInDescriptorsFromTableStart;
 
-						params[k].type = reshade::api::pipeline_layout_param_type::push_descriptors;
-
-						reshade::api::descriptor_range &range = params[k].push_descriptors;
-						range.binding = 0;
-						range.dx_register_index = descriptor_data->ShaderRegister;
-						range.dx_register_space = descriptor_data->RegisterSpace;
-						range.count = 1;
-						range.array_size = 1;
-						range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-
-						if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
-							range.type = reshade::api::descriptor_type::constant_buffer;
-						else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
-							range.type = reshade::api::descriptor_type::shader_resource_view;
-						else
-							range.type = reshade::api::descriptor_type::unordered_access_view;
+							if (range_data->NumDescriptors == UINT_MAX)
+								// Only the last entry in a table can have an unbounded size
+								assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+							else
+								descriptor_offset = range.binding + range.count;
+						}
 						break;
 					}
 					}
+
+					params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+					params[param_index].descriptor_table.count = range_count;
+					params[param_index].descriptor_table.ranges = ranges[param_index].data();
+					break;
+				}
+				case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
+				{
+					auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
+
+					params[param_index].type = reshade::api::pipeline_layout_param_type::push_constants;
+
+					// Convert root constant description
+					reshade::api::constant_range &root_constant = params[param_index].push_constants;
+					root_constant.binding = 0;
+					root_constant.dx_register_index = constant_data->ShaderRegister;
+					root_constant.dx_register_space = constant_data->RegisterSpace;
+					root_constant.count = constant_data->Num32BitValues;
+					root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+					break;
+				}
+				case D3D12_ROOT_PARAMETER_TYPE_CBV:
+				case D3D12_ROOT_PARAMETER_TYPE_SRV:
+				case D3D12_ROOT_PARAMETER_TYPE_UAV:
+				{
+					auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
+
+					params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+
+					reshade::api::descriptor_range &range = params[param_index].push_descriptors;
+					range.binding = 0;
+					range.dx_register_index = descriptor_data->ShaderRegister;
+					range.dx_register_space = descriptor_data->RegisterSpace;
+					range.count = 1;
+					range.array_size = 1;
+					range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+
+					if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
+						range.type = reshade::api::descriptor_type::constant_buffer;
+					else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
+						range.type = reshade::api::descriptor_type::shader_resource_view;
+					else
+						range.type = reshade::api::descriptor_type::unordered_access_view;
+					break;
+				}
 				}
 			}
-
-			if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::create_sampler>())
-			{
-				const uint32_t sampler_count = chunk[3];
-				const uint32_t sampler_offset = chunk[4];
-
-				if (sampler_count != 0)
-				{
-					const uint32_t k = static_cast<uint32_t>(params.size());
-					params.emplace_back();
-					ranges.emplace_back();
-
-					ranges[k].resize(sampler_count);
-
-					auto sampler_data = reinterpret_cast<D3D12_STATIC_SAMPLER_DESC *>(chunk + (sampler_offset / sizeof(uint32_t)));
-
-					for (uint32_t j = 0; j < sampler_count; ++j)
-					{
-						auto desc = reshade::d3d12::convert_sampler_desc(sampler_data[j]);
-
-						if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
-						{
-							reshade::d3d12::convert_sampler_desc(desc, sampler_data[j]);
-						}
-
-						reshade::api::descriptor_range &range = ranges[k][j];
-						range.binding = j;
-						range.dx_register_index = sampler_data[j].ShaderRegister;
-						range.dx_register_space = sampler_data[j].RegisterSpace;
-						range.count = 1;
-						range.visibility = reshade::d3d12::convert_shader_visibility(sampler_data[j].ShaderVisibility);
-						range.type = reshade::api::descriptor_type::sampler;
-					}
-
-					params[k].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-					params[k].descriptor_table.count = sampler_count;
-					params[k].descriptor_table.ranges = ranges[k].data();
-				}
-			}
-			break;
 		}
-	}
-	else
-	{
-		// Probably a DXIL root signature
+
+		if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::create_sampler>())
+		{
+			const uint32_t sampler_count = part[3];
+			const uint32_t sampler_offset = part[4];
+
+			if (sampler_count != 0)
+			{
+				const uint32_t param_index = static_cast<uint32_t>(params.size());
+				params.emplace_back();
+				ranges.emplace_back();
+
+				ranges[param_index].resize(sampler_count);
+
+				auto sampler_data = reinterpret_cast<D3D12_STATIC_SAMPLER_DESC *>(part + (sampler_offset / sizeof(uint32_t)));
+
+				for (uint32_t sampler_index = 0; sampler_index < sampler_count; ++sampler_index)
+				{
+					auto desc = reshade::d3d12::convert_sampler_desc(sampler_data[sampler_index]);
+
+					if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
+					{
+						reshade::d3d12::convert_sampler_desc(desc, sampler_data[sampler_index]);
+					}
+
+					reshade::api::descriptor_range &range = ranges[param_index][sampler_index];
+					range.binding = sampler_index;
+					range.dx_register_index = sampler_data[sampler_index].ShaderRegister;
+					range.dx_register_space = sampler_data[sampler_index].RegisterSpace;
+					range.count = 1;
+					range.visibility = reshade::d3d12::convert_shader_visibility(sampler_data[sampler_index].ShaderVisibility);
+					range.type = reshade::api::descriptor_type::sampler;
+				}
+
+				params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+				params[param_index].descriptor_table.count = sampler_count;
+				params[param_index].descriptor_table.ranges = ranges[param_index].data();
+			}
+		}
 	}
 
 	hr = _orig->CreateRootSignature(node_mask, blob, blob_size, IID_PPV_ARGS(&root_signature));
