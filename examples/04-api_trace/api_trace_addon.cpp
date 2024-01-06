@@ -36,10 +36,28 @@ namespace
 			return "pixel";
 		case shader_stage::compute:
 			return "compute";
+		case shader_stage::amplification:
+			return "amplification";
+		case shader_stage::mesh:
+			return "mesh";
+		case shader_stage::raygen:
+			return "raygen";
+		case shader_stage::any_hit:
+			return "any_hit";
+		case shader_stage::closest_hit:
+			return "closest_hit";
+		case shader_stage::miss:
+			return "miss";
+		case shader_stage::intersection:
+			return "intersection";
+		case shader_stage::callable:
+			return "callable";
 		case shader_stage::all:
 			return "all";
 		case shader_stage::all_graphics:
 			return "all_graphics";
+		case shader_stage::all_ray_tracing:
+			return "all_raytracing";
 		default:
 			return "unknown";
 		}
@@ -60,6 +78,10 @@ namespace
 			return "pixel_shader";
 		case pipeline_stage::compute_shader:
 			return "compute_shader";
+		case pipeline_stage::amplification_shader:
+			return "amplification_shader";
+		case pipeline_stage::mesh_shader:
+			return "mesh_shader";
 		case pipeline_stage::input_assembler:
 			return "input_assembler";
 		case pipeline_stage::stream_output:
@@ -74,6 +96,8 @@ namespace
 			return "all";
 		case pipeline_stage::all_graphics:
 			return "all_graphics";
+		case pipeline_stage::all_ray_tracing:
+			return "all_ray_tracing";
 		case pipeline_stage::all_shader_stages:
 			return "all_shader_stages";
 		default:
@@ -94,6 +118,8 @@ namespace
 			return "unordered_access_view";
 		case descriptor_type::constant_buffer:
 			return "constant_buffer";
+		case descriptor_type::acceleration_structure:
+			return "acceleration_structure";
 		default:
 			return "unknown";
 		}
@@ -236,6 +262,8 @@ namespace
 			return "resolve_dest";
 		case resource_usage::resolve_source:
 			return "resolve_source";
+		case resource_usage::acceleration_structure:
+			return "acceleration_structure";
 		case resource_usage::general:
 			return "general";
 		case resource_usage::present:
@@ -264,6 +292,47 @@ namespace
 			return "stream_output_statistics_2";
 		case query_type::stream_output_statistics_3:
 			return "stream_output_statistics_3";
+		default:
+			return "unknown";
+		}
+	}
+	inline auto to_string(acceleration_structure_type value)
+	{
+		switch (value)
+		{
+		case acceleration_structure_type::top_level:
+			return "top_level";
+		case acceleration_structure_type::bottom_level:
+			return "bottom_level";
+		default:
+		case acceleration_structure_type::generic:
+			return "generic";
+		}
+	}
+	inline auto to_string(acceleration_structure_copy_mode value)
+	{
+		switch (value)
+		{
+		case acceleration_structure_copy_mode::clone:
+			return "clone";
+		case acceleration_structure_copy_mode::compact:
+			return "compact";
+		case acceleration_structure_copy_mode::serialize:
+			return "serialize";
+		case acceleration_structure_copy_mode::deserialize:
+			return "deserialize";
+		default:
+			return "unknown";
+		}
+	}
+	inline auto to_string(acceleration_structure_build_mode value)
+	{
+		switch (value)
+		{
+		case acceleration_structure_build_mode::build:
+			return "build";
+		case acceleration_structure_build_mode::update:
+			return "update";
 		default:
 			return "unknown";
 		}
@@ -367,11 +436,12 @@ static void on_barrier(command_list *, uint32_t num_resources, const resource *r
 	}
 #endif
 
-	std::stringstream s;
 	for (uint32_t i = 0; i < num_resources; ++i)
-		s << "barrier(" << (void *)resources[i].handle << ", " << to_string(old_states[i]) << ", " << to_string(new_states[i]) << ")" << std::endl;
-
-	reshade::log_message(reshade::log_level::info, s.str().c_str());
+	{
+		std::stringstream s;
+		s << "barrier(" << (void *)resources[i].handle << ", " << to_string(old_states[i]) << ", " << to_string(new_states[i]) << ")";
+		reshade::log_message(reshade::log_level::info, s.str().c_str());
+	}
 }
 
 static void on_begin_render_pass(command_list *, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds)
@@ -442,11 +512,12 @@ static void on_bind_pipeline_states(command_list *, uint32_t count, const dynami
 	if (!s_do_capture)
 		return;
 
-	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)
-		s << "bind_pipeline_state(" << to_string(states[i]) << ", " << values[i] << ")" << std::endl;
-
-	reshade::log_message(reshade::log_level::info, s.str().c_str());
+	{
+		std::stringstream s;
+		s << "bind_pipeline_state(" << to_string(states[i]) << ", " << values[i] << ")";
+		reshade::log_message(reshade::log_level::info, s.str().c_str());
+	}
 }
 static void on_bind_viewports(command_list *, uint32_t first, uint32_t count, const viewport *viewports)
 {
@@ -501,6 +572,7 @@ static void on_push_descriptors(command_list *, shader_stage stages, pipeline_la
 			break;
 		case descriptor_type::shader_resource_view:
 		case descriptor_type::unordered_access_view:
+		case descriptor_type::acceleration_structure:
 			for (uint32_t i = 0; i < update.count; ++i)
 				assert(static_cast<const resource_view *>(update.descriptors)[i].handle == 0 || s_resource_views.find(static_cast<const resource_view *>(update.descriptors)[i].handle) != s_resource_views.end());
 			break;
@@ -524,11 +596,12 @@ static void on_bind_descriptor_tables(command_list *, shader_stage stages, pipel
 	if (!s_do_capture)
 		return;
 
-	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)
-		s << "bind_descriptor_table(" << to_string(stages) << ", " << (void *)layout.handle << ", " << (first + i) << ", " << (void *)tables[i].handle << ")" << std::endl;
-
-	reshade::log_message(reshade::log_level::info, s.str().c_str());
+	{
+		std::stringstream s;
+		s << "bind_descriptor_table(" << to_string(stages) << ", " << (void *)layout.handle << ", " << (first + i) << ", " << (void *)tables[i].handle << ")";
+		reshade::log_message(reshade::log_level::info, s.str().c_str());
+	}
 }
 static void on_bind_index_buffer(command_list *, resource buffer, uint64_t offset, uint32_t index_size)
 {
@@ -560,11 +633,12 @@ static void on_bind_vertex_buffers(command_list *, uint32_t first, uint32_t coun
 	}
 #endif
 
-	std::stringstream s;
 	for (uint32_t i = 0; i < count; ++i)
-		s << "bind_vertex_buffer(" << (first + i) << ", " << (void *)buffers[i].handle << ", " << (offsets != nullptr ? offsets[i] : 0) << ", " << (strides != nullptr ? strides[i] : 0) << ")" << std::endl;
-
-	reshade::log_message(reshade::log_level::info, s.str().c_str());
+	{
+		std::stringstream s;
+		s << "bind_vertex_buffer(" << (first + i) << ", " << (void *)buffers[i].handle << ", " << (offsets != nullptr ? offsets[i] : 0) << ", " << (strides != nullptr ? strides[i] : 0) << ")";
+		reshade::log_message(reshade::log_level::info, s.str().c_str());
+	}
 }
 
 static bool on_draw(command_list *, uint32_t vertices, uint32_t instances, uint32_t first_vertex, uint32_t first_instance)
@@ -603,6 +677,30 @@ static bool on_dispatch(command_list *, uint32_t group_count_x, uint32_t group_c
 
 	return false;
 }
+static bool on_dispatch_mesh(command_list *, uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+{
+	if (!s_do_capture)
+		return false;
+
+	std::stringstream s;
+	s << "dispatch_mesh(" << group_count_x << ", " << group_count_y << ", " << group_count_z << ")";
+
+	reshade::log_message(reshade::log_level::info, s.str().c_str());
+
+	return false;
+}
+static bool on_dispatch_rays(command_list *, resource raygen, uint64_t raygen_offset, uint64_t raygen_size, resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
+{
+	if (!s_do_capture)
+		return false;
+
+	std::stringstream s;
+	s << "dispatch_rays(" << (void *)raygen.handle << ", " << raygen_offset << ", " << raygen_size << ", " << (void *)miss.handle << ", " << miss_offset << ", " << miss_size << ", " << miss_stride << (void *)hit_group.handle << ", " << hit_group_offset << ", " << hit_group_size << ", " << hit_group_stride << ", " << (void *)callable.handle << ", " << callable_offset << ", " << callable_size << ", " << callable_stride << ", " << width << ", " << height << ", " << depth << ")";
+
+	reshade::log_message(reshade::log_level::info, s.str().c_str());
+
+	return false;
+}
 static bool on_draw_or_dispatch_indirect(command_list *, indirect_command type, resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	if (!s_do_capture)
@@ -622,6 +720,12 @@ static bool on_draw_or_dispatch_indirect(command_list *, indirect_command type, 
 		break;
 	case indirect_command::dispatch:
 		s << "dispatch_indirect(" << (void *)buffer.handle << ", " << offset << ", " << draw_count << ", " << stride << ")";
+		break;
+	case indirect_command::dispatch_mesh:
+		s << "dispatch_mesh_indirect(" << (void *)buffer.handle << ", " << offset << ", " << draw_count << ", " << stride << ")";
+		break;
+	case indirect_command::dispatch_rays:
+		s << "dispatch_rays_indirect(" << (void *)buffer.handle << ", " << offset << ", " << draw_count << ", " << stride << ")";
 		break;
 	}
 
@@ -828,6 +932,45 @@ static bool on_clear_unordered_access_view_float(command_list *, resource_view u
 	return false;
 }
 
+static bool on_copy_acceleration_structure(command_list *, resource_view source, resource_view dest, acceleration_structure_copy_mode mode)
+{
+	if (!s_do_capture)
+		return false;
+
+#ifndef NDEBUG
+	{	const std::shared_lock<std::shared_mutex> lock(s_mutex);
+
+		assert(s_resource_views.find(source.handle) != s_resource_views.end() && s_resource_views.find(dest.handle) != s_resource_views.end());
+	}
+#endif
+
+	std::stringstream s;
+	s << "copy_acceleration_structure(" << (void *)source.handle << ", " << (void *)dest.handle << ", " << to_string(mode) << ")";
+
+	reshade::log_message(reshade::log_level::info, s.str().c_str());
+
+	return false;
+}
+static bool on_build_acceleration_structure(command_list *, acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, resource scratch, uint64_t scratch_offset, resource_view source, resource_view dest, acceleration_structure_build_mode mode)
+{
+	if (!s_do_capture)
+		return false;
+
+#ifndef NDEBUG
+	{	const std::shared_lock<std::shared_mutex> lock(s_mutex);
+
+		assert((source.handle == 0 || s_resource_views.find(source.handle) != s_resource_views.end()) && s_resource_views.find(dest.handle) != s_resource_views.end());
+	}
+#endif
+
+	std::stringstream s;
+	s << "build_acceleration_structure(" << to_string(type) << ", " << std::hex << static_cast<uint32_t>(flags) << std::dec << ", " << input_count << ", { ... }, " << (void *)scratch.handle << ", " << scratch_offset << ", " << (void *)source.handle << ", " << (void *)dest.handle << ", " << to_string(mode) << ")";
+
+	reshade::log_message(reshade::log_level::info, s.str().c_str());
+
+	return false;
+}
+
 static bool on_generate_mipmaps(command_list *, resource_view srv)
 {
 	if (!s_do_capture)
@@ -949,6 +1092,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::draw>(on_draw);
 		reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 		reshade::register_event<reshade::addon_event::dispatch>(on_dispatch);
+		reshade::register_event<reshade::addon_event::dispatch_mesh>(on_dispatch_mesh);
+		reshade::register_event<reshade::addon_event::dispatch_rays>(on_dispatch_rays);
 		reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_or_dispatch_indirect);
 		reshade::register_event<reshade::addon_event::copy_resource>(on_copy_resource);
 		reshade::register_event<reshade::addon_event::copy_buffer_region>(on_copy_buffer_region);
@@ -960,6 +1105,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		reshade::register_event<reshade::addon_event::clear_render_target_view>(on_clear_render_target_view);
 		reshade::register_event<reshade::addon_event::clear_unordered_access_view_uint>(on_clear_unordered_access_view_uint);
 		reshade::register_event<reshade::addon_event::clear_unordered_access_view_float>(on_clear_unordered_access_view_float);
+		reshade::register_event<reshade::addon_event::copy_acceleration_structure>(on_copy_acceleration_structure);
+		reshade::register_event<reshade::addon_event::build_acceleration_structure>(on_build_acceleration_structure);
 		reshade::register_event<reshade::addon_event::generate_mipmaps>(on_generate_mipmaps);
 		reshade::register_event<reshade::addon_event::begin_query>(on_begin_query);
 		reshade::register_event<reshade::addon_event::end_query>(on_end_query);

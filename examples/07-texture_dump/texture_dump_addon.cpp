@@ -80,7 +80,7 @@ static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint
 
 	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
 	if (void *mapped_ptr;
-		device->map_buffer_region(src, src_offset, ~0ULL, map_access::read_only, &mapped_ptr))
+		device->map_buffer_region(src, src_offset, ~0ull, map_access::read_only, &mapped_ptr))
 	{
 		subresource_data mapped_data;
 		mapped_data.data = mapped_ptr;

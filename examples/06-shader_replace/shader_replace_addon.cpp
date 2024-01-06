@@ -77,6 +77,14 @@ static bool on_create_pipeline(device *device, pipeline_layout, uint32_t subobje
 		case pipeline_subobject_type::geometry_shader:
 		case pipeline_subobject_type::pixel_shader:
 		case pipeline_subobject_type::compute_shader:
+		case pipeline_subobject_type::amplification_shader:
+		case pipeline_subobject_type::mesh_shader:
+		case pipeline_subobject_type::raygen_shader:
+		case pipeline_subobject_type::any_hit_shader:
+		case pipeline_subobject_type::closest_hit_shader:
+		case pipeline_subobject_type::miss_shader:
+		case pipeline_subobject_type::intersection_shader:
+		case pipeline_subobject_type::callable_shader:
 			replaced_stages |= load_shader_code(device_type, *static_cast<shader_desc *>(subobjects[i].data), s_data_to_delete);
 			break;
 		}
