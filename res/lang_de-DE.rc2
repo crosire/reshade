@@ -51,6 +51,7 @@ BEGIN
 27907 "Die ausgewählte Datei ist kein valides Preset!"
 2606 "Willkommen! Da dies der erste Start von ReShade ist, folgt ein kurzes Tutorial, um die wichtigsten Funktionen zu erläutern.\n\nSollte es schwer fallen diesen Text zu lesen, drücke die 'Strg'-Taste und ändere die Schriftgröße mit dem Mausrad. Die Fenstergröße lässt sich auch einstellen, einfach die rechte Kante greifen und verschieben.\n\nAlternativ kann die Tastatur zur Navigation genutzt werden, sollte die Mauseingabe nicht funktionieren. Dazu die Pfeiltasten zum Navigieren, die Leertaste zum Aktivieren oder Aktivieren eines Objekts und die Escape-Taste zum Verlassen eines Objekts nutzen. Drücke 'Strg + Tab', um zwischen Tabs bzw. Fenstern zu wechseln (damit kann auch dieses Fenster fokusiert werden, sollten andere Navigationstasten erst nicht reagieren).\n\nDrücke auf die 'Weiter'-Schaltfläche, um das Tutorial fortzusetzen."
 25545 "Lade ..."
+45052 "Bewege den Mauszeiger über die roten Einträge, um die Fehlermeldungen zu sehen, oder überprüfe das Log, um mehr Details zu erhalten."
 45409 "Effekte sind deaktiviert. Drücke '%s', um sie wieder zu aktivieren."
 24836 "Aktive nach oben"
 46707 "Alle einklappen"

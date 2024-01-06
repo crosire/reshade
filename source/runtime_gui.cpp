@@ -1787,11 +1787,20 @@ void reshade::runtime::draw_gui_home()
 		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other threads during that time
 	}
 
-	if (!_effects_enabled)
-		ImGui::Text(_("Effects are disabled. Press '%s' to enable them again."), input::key_name(_effects_key_data).c_str());
-
 	if (_tutorial_index > 1)
 	{
+		if (!_last_reload_successful)
+		{
+			ImGui::PushTextWrapPos();
+			ImGui::TextColored(COLOR_RED, _("There were errors loading some effects."));
+			ImGui::TextColored(COLOR_RED, _("Hover the cursor over each red entry below to see the error messages or check the log for more details."));
+			ImGui::PopTextWrapPos();
+			ImGui::Spacing();
+		}
+
+		if (!_effects_enabled)
+			ImGui::Text(_("Effects are disabled. Press '%s' to enable them again."), input::key_name(_effects_key_data).c_str());
+
 		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 12.5f * _font_size))))
 		{
 			_effects_expanded_state = 3;
@@ -3068,14 +3077,6 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
-
-	ImGui::Spacing();
-
-	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
-
-	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
-
 	if (!addon_all_loaded)
 	{
 		ImGui::PushTextWrapPos();
@@ -3088,6 +3089,14 @@ void reshade::runtime::draw_gui_addons()
 		ImGui::PopTextWrapPos();
 		ImGui::Spacing();
 	}
+
+	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
+
+	ImGui::Spacing();
+
+	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
+
+	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
 
 	std::vector<std::string> disabled_addons;
 	config.get("ADDON", "DisabledAddons", disabled_addons);

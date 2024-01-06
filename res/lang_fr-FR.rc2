@@ -51,6 +51,7 @@ BEGIN
 27907 "Le fichier sélectionné n'est pas une configuration valide!"
 2606 "Bienvenue ! Car c'est le premier démarrage de ReShade, voici une présentation rapide des fonctionnalités les plus importantes.\n\nSi vous avez des difficultés à lire ce texte, appuyez sur la touche 'Ctrl' et ajustez la taille de la police avec la molette de la souris. La taille de cette fenêtre est aussi variable, cliquez simplement sur le bord droit et déplacez le.\n\nVous pouvez aussi utiliser le clavier pour la navigation au cas où la souris ne fonctionnerait pas. Utilisez les flèches pour naviguer, la barre espace pour confirmer une action ou sélectionner un contrôle et 'Échap' pour le quitter. Faite 'Ctrl + Tab' pour changer d'onglet ou de fenêtre (utilisez aussi cette commande pour mettre le focus sur cette fenêtre si les flèches ne fonctionnent pas tout de suite).\n\nCliquez sur le bouton 'Continuer' pour poursuivre le didacticiel."
 25545 "Chargement ..."
+45052 "Passez le curseur sur chaque entrée rouge ci-dessous pour voir les messages d'erreur ou consultez les logs pour plus de détails."
 45409 "Les effets sont désactivés. Appuyez sur '%s' pour les réactiver."
 24836 "Actifs en premier"
 46707 "Tout réduire"
