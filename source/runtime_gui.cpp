@@ -1002,6 +1002,10 @@ void reshade::runtime::draw_gui()
 			{ ImGuiKey_KeypadMultiply, 0x6A /* VK_MULTIPLY */ },
 			{ ImGuiKey_KeypadSubtract, 0x6D /* VK_SUBTRACT */ },
 			{ ImGuiKey_KeypadAdd, 0x6B /* VK_ADD */ },
+			{ ImGuiMod_Ctrl, 0x11 /* VK_CONTROL */ },
+			{ ImGuiMod_Shift, 0x10 /* VK_SHIFT */ },
+			{ ImGuiMod_Alt, 0x12 /* VK_MENU */ },
+			{ ImGuiMod_Super, 0x5D /* VK_APPS */ },
 		};
 
 		for (const std::pair<ImGuiKey, unsigned int> &mapping : key_mappings)
