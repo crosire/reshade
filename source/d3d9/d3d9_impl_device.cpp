@@ -1763,7 +1763,9 @@ bool reshade::d3d9::device_impl::allocate_descriptor_tables(uint32_t count, api:
 {
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
-	if (layout_impl != nullptr)
+	if (layout_impl != nullptr &&
+		layout_param < layout_impl->ranges.size() &&
+		layout_impl->ranges[layout_param].count != UINT32_MAX)
 	{
 		for (uint32_t i = 0; i < count; ++i)
 		{
