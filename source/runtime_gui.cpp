@@ -2026,6 +2026,8 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
+	ImGui::BeginChild("##settings", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
+
 	bool modified = false;
 	bool modified_custom_style = false;
 
@@ -2084,9 +2086,6 @@ void reshade::runtime::draw_gui_settings()
 			clear_effect_cache();
 		ImGui::SetItemTooltip(_("Clear effect cache located in \"%s\"."), _effect_cache_path.u8string().c_str());
 #endif
-
-		if (ImGui::Button(_("Open base folder in explorer"), ImVec2(ImGui::CalcItemWidth(), 0)))
-			utils::open_explorer(_config_path);
 	}
 
 	if (ImGui::CollapsingHeader(_("Screenshots"), ImGuiTreeNodeFlags_DefaultOpen))
@@ -2443,6 +2442,16 @@ void reshade::runtime::draw_gui_settings()
 		save_config();
 	if (modified_custom_style)
 		save_custom_style();
+
+	ImGui::EndChild();
+
+	ImGui::Spacing();
+
+	std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+	open_button_label += _("Open base folder in explorer");
+
+	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
+		utils::open_explorer(_config_path);
 }
 void reshade::runtime::draw_gui_statistics()
 {
@@ -2897,7 +2906,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	if (ImGui::BeginChild("log", ImVec2(0, 0), ImGuiChildFlags_Border, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
+	if (ImGui::BeginChild("##log", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_Border, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		// Limit number of log lines to read, to avoid stalling when log gets too big
 		constexpr size_t LINE_LIMIT = 1000;
@@ -2942,6 +2951,14 @@ void reshade::runtime::draw_gui_log()
 		}
 	}
 	ImGui::EndChild();
+
+	ImGui::Spacing();
+
+	std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+	open_button_label += _("Open folder in explorer");
+
+	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
+		utils::open_explorer(log_path);
 }
 void reshade::runtime::draw_gui_about()
 {
@@ -3092,112 +3109,110 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
-	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y;
-
-	ImGui::BeginChild("##addons", ImVec2(0, -bottom_height), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
-
-	std::vector<std::string> disabled_addons;
-	config.get("ADDON", "DisabledAddons", disabled_addons);
-
-	const float child_window_width = ImGui::GetContentRegionAvail().x;
-
-	for (addon_info &info : addon_loaded_info)
+	if (ImGui::BeginChild("##addons", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened))
 	{
-		if (!filter_text(info.name, _addons_filter))
-			continue;
+		std::vector<std::string> disabled_addons;
+		config.get("ADDON", "DisabledAddons", disabled_addons);
 
-		const ImGuiID settings_id = ImGui::GetID(info.name.c_str());
-		float settings_height = ImGui::GetStateStorage()->GetFloat(settings_id);
+		const float child_window_width = ImGui::GetContentRegionAvail().x;
 
-		ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), ImGuiChildFlags_Border, ImGuiWindowFlags_NoScrollbar);
-
-		const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
-
-		bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), builtin);
-		if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
-			ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
-
-		ImGui::SameLine();
-
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled));
-
-		const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(),
-			[&info](const std::string_view addon_name) {
-				const size_t at_pos = addon_name.find('@');
-				if (at_pos == std::string_view::npos)
-					return addon_name == info.name;
-				return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
-			});
-
-		bool enabled = (disabled_it == disabled_addons.end());
-		if (ImGui::Checkbox(info.name.c_str(), &enabled))
+		for (addon_info &info : addon_loaded_info)
 		{
-			if (enabled)
-				disabled_addons.erase(disabled_it);
-			else
-				disabled_addons.push_back(builtin ? info.name : info.name + '@' + info.file);
+			if (!filter_text(info.name, _addons_filter))
+				continue;
 
-			config.set("ADDON", "DisabledAddons", disabled_addons);
-		}
+			const ImGuiID settings_id = ImGui::GetID(info.name.c_str());
+			float settings_height = ImGui::GetStateStorage()->GetFloat(settings_id);
 
-		ImGui::PopStyleColor();
+			ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, settings_height + _imgui_context->Style.FramePadding.y * 2), ImGuiChildFlags_Border, ImGuiWindowFlags_NoScrollbar);
 
-		if (enabled == (info.handle == nullptr))
-		{
+			const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
+
+			bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), builtin);
+			if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
+				ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
+
 			ImGui::SameLine();
-			ImGui::TextUnformatted(enabled ? _("(will be enabled on next application restart)") : _("(will be disabled on next application restart)"));
-		}
 
-		if (open)
-		{
-			ImGui::Spacing();
-			ImGui::BeginGroup();
+			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(info.handle != nullptr ? ImGuiCol_Text : ImGuiCol_TextDisabled));
 
-			if (!builtin)
-				ImGui::Text(_("File:"));
-			if (!info.author.empty())
-				ImGui::Text(_("Author:"));
-			if (info.version > 1)
-				ImGui::Text(_("Version:"));
-			if (!info.description.empty())
-				ImGui::Text(_("Description:"));
+			const auto disabled_it = std::find_if(disabled_addons.begin(), disabled_addons.end(),
+				[&info](const std::string_view addon_name) {
+					const size_t at_pos = addon_name.find('@');
+					if (at_pos == std::string_view::npos)
+						return addon_name == info.name;
+					return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+				});
 
-			ImGui::EndGroup();
-			ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
-			ImGui::BeginGroup();
-
-			if (!builtin)
-				ImGui::TextUnformatted(info.file.c_str());
-			if (!info.author.empty())
-				ImGui::TextUnformatted(info.author.c_str());
-			if (info.version > 1)
-				ImGui::Text("%u.%u.%u", info.version / 10000, (info.version / 100) % 100, info.version % 100);
-			if (!info.description.empty())
+			bool enabled = (disabled_it == disabled_addons.end());
+			if (ImGui::Checkbox(info.name.c_str(), &enabled))
 			{
-				ImGui::PushTextWrapPos();
-				ImGui::TextUnformatted(info.description.c_str());
-				ImGui::PopTextWrapPos();
+				if (enabled)
+					disabled_addons.erase(disabled_it);
+				else
+					disabled_addons.push_back(builtin ? info.name : info.name + '@' + info.file);
+
+				config.set("ADDON", "DisabledAddons", disabled_addons);
 			}
 
-			ImGui::EndGroup();
+			ImGui::PopStyleColor();
 
-			if (info.settings_overlay_callback != nullptr)
+			if (enabled == (info.handle == nullptr))
+			{
+				ImGui::SameLine();
+				ImGui::TextUnformatted(enabled ? _("(will be enabled on next application restart)") : _("(will be disabled on next application restart)"));
+			}
+
+			if (open)
 			{
 				ImGui::Spacing();
-				ImGui::Separator();
-				ImGui::Spacing();
+				ImGui::BeginGroup();
 
-				info.settings_overlay_callback(this);
+				if (!builtin)
+					ImGui::Text(_("File:"));
+				if (!info.author.empty())
+					ImGui::Text(_("Author:"));
+				if (info.version > 1)
+					ImGui::Text(_("Version:"));
+				if (!info.description.empty())
+					ImGui::Text(_("Description:"));
+
+				ImGui::EndGroup();
+				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
+				ImGui::BeginGroup();
+
+				if (!builtin)
+					ImGui::TextUnformatted(info.file.c_str());
+				if (!info.author.empty())
+					ImGui::TextUnformatted(info.author.c_str());
+				if (info.version > 1)
+					ImGui::Text("%u.%u.%u", info.version / 10000, (info.version / 100) % 100, info.version % 100);
+				if (!info.description.empty())
+				{
+					ImGui::PushTextWrapPos();
+					ImGui::TextUnformatted(info.description.c_str());
+					ImGui::PopTextWrapPos();
+				}
+
+				ImGui::EndGroup();
+
+				if (info.settings_overlay_callback != nullptr)
+				{
+					ImGui::Spacing();
+					ImGui::Separator();
+					ImGui::Spacing();
+
+					info.settings_overlay_callback(this);
+				}
 			}
+
+			settings_height = ImGui::GetCursorPosY();
+
+			ImGui::EndChild();
+
+			ImGui::GetStateStorage()->SetFloat(settings_id, settings_height);
 		}
-
-		settings_height = ImGui::GetCursorPosY();
-
-		ImGui::EndChild();
-
-		ImGui::GetStateStorage()->SetFloat(settings_id, settings_height);
 	}
-
 	ImGui::EndChild();
 
 	ImGui::Spacing();
@@ -3884,7 +3899,10 @@ void reshade::runtime::draw_technique_editor()
 
 			if (ImGui::BeginPopup("##context"))
 			{
-				if (ImGui::Button(_("Open folder in explorer"), ImVec2(18.0f * _font_size, 0)))
+				std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+				open_button_label += _("Open folder in explorer");
+
+				if (ImGui::Button(open_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
@@ -4117,7 +4135,10 @@ void reshade::runtime::draw_technique_editor()
 				if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
 					ImGui::Separator();
 
-				if (ImGui::Button(_("Open folder in explorer"), ImVec2(18.0f * _font_size, 0)))
+				std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+				open_button_label += _("Open folder in explorer");
+
+				if (ImGui::Button(open_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
