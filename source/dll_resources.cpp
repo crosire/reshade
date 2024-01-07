@@ -61,7 +61,7 @@ std::string reshade::resources::set_current_language(const std::string &language
 	{
 		if (previous.resize(size);
 			GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, previous.data(), &size))
-			utf8::unchecked::utf8to16(previous.cbegin(), previous.cend(), std::back_inserter(prev_language));
+			utf8::unchecked::utf16to8(previous.cbegin(), previous.cend(), std::back_inserter(prev_language));
 	}
 
 	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, L"\0", nullptr);
