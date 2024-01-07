@@ -5,8 +5,9 @@
 
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
-#include "input.hpp"
+#include "ini_file.hpp"
 #include "addon_manager.hpp"
+#include "input.hpp"
 
 extern bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec);
 
@@ -261,7 +262,7 @@ bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]]
 		const std::string_view ann_name(name);
 
 		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-			[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
+				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
 			it != variable->annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
@@ -332,6 +333,26 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 	if (size != nullptr)
 		*size = 0;
 	return false;
+}
+
+void reshade::runtime::reset_uniform_value([[maybe_unused]] api::effect_uniform_variable handle)
+{
+#if RESHADE_FX
+	const auto variable = reinterpret_cast<uniform *>(handle.handle);
+	if (variable == nullptr)
+		return;
+
+#if RESHADE_ADDON
+	const bool was_is_in_api_call = _is_in_api_call;
+	_is_in_api_call = true;
+#endif
+
+	reset_uniform_value(*variable);
+
+#if RESHADE_ADDON
+	_is_in_api_call = was_is_in_api_call;
+#endif
+#endif
 }
 
 void reshade::runtime::get_uniform_value_bool([[maybe_unused]] api::effect_uniform_variable handle, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
@@ -1033,6 +1054,10 @@ void reshade::runtime::set_technique_state([[maybe_unused]] api::effect_techniqu
 #endif
 }
 
+constexpr int EFFECT_SCOPE_FLAG = 0b001;
+constexpr int PRESET_SCOPE_FLAG = 0b010;
+constexpr int GLOBAL_SCOPE_FLAG = 0b100;
+
 void reshade::runtime::set_preprocessor_definition(const char *name, const char *value)
 {
 	set_preprocessor_definition_for_effect(nullptr, name, value);
@@ -1040,96 +1065,87 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
 #if RESHADE_FX
-	constexpr int effect_only = 0b001;
-	constexpr int preset_only = 0b010;
-	constexpr int global_only = 0b100;
-	constexpr int global_scope = 0b111;
-
 	if (name == nullptr)
 		return;
 
-	if (effect_name == nullptr)
-		effect_name = "";
+	std::string effect_name_string;
+	if (effect_name != nullptr)
+		effect_name_string = effect_name;
 
-	const int find_flag = *effect_name == '\0' ? global_scope :
-		strchr(effect_name, '.') != nullptr ? effect_only :
-		strncmp(effect_name, "GLOBAL", 6) == 0 ? global_only :
-		strncmp(effect_name, "PRESET", 6) == 0 ? preset_only : global_scope;
+	const int scope_mask =
+		effect_name_string.find('.') != std::string::npos ? EFFECT_SCOPE_FLAG :
+		effect_name_string.compare(0, 6, "PRESET") == 0 ? PRESET_SCOPE_FLAG :
+		effect_name_string.compare(0, 6, "GLOBAL") == 0 ? GLOBAL_SCOPE_FLAG :
+		EFFECT_SCOPE_FLAG | PRESET_SCOPE_FLAG | GLOBAL_SCOPE_FLAG;
+	int scope_mask_updated = 0;
 
-	int updated = 0;
 	if (value == nullptr || *value == '\0')
 	{
-		if (find_flag & effect_only)
+		if ((scope_mask & EFFECT_SCOPE_FLAG) != 0)
 		{
-			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name); preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
+			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name_string);
+				preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
 			{
 				if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
-						[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
+						[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
 					it != preset_it->second.end())
 				{
 					preset_it->second.erase(it, preset_it->second.end());
-					updated = effect_only;
+					scope_mask_updated |= EFFECT_SCOPE_FLAG;
 				}
 			}
 		}
-		if (find_flag & preset_only)
+		if ((scope_mask & PRESET_SCOPE_FLAG) != 0)
 		{
-			if (const auto preset_it = _preset_preprocessor_definitions.find({}); preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
+			if (const auto preset_it = _preset_preprocessor_definitions.find({});
+				preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
 			{
 				if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
-						[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
+						[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
 					it != preset_it->second.end())
 				{
 					preset_it->second.erase(it, preset_it->second.end());
-					updated = preset_only;
+					scope_mask_updated |= PRESET_SCOPE_FLAG;
 				}
 			}
 		}
-		if (find_flag & global_only)
+		if ((scope_mask & GLOBAL_SCOPE_FLAG) != 0)
 		{
 			if (const auto it = std::remove_if(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(),
-					[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
+					[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
 				it != _global_preprocessor_definitions.end())
 			{
 				_global_preprocessor_definitions.erase(it, _global_preprocessor_definitions.end());
-				updated = global_only;
+				scope_mask_updated |= GLOBAL_SCOPE_FLAG;
 			}
 		}
 	}
 	else
 	{
-		if (find_flag == global_scope)
+		if (scope_mask == EFFECT_SCOPE_FLAG)
 		{
-			std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
-			std::vector<std::pair<std::string, std::string>>::iterator definition_it;
-
-			if (get_preprocessor_definition(effect_name, name, definition_scope, definition_it) &&
-				definition_scope != &_global_preprocessor_definitions && (*effect_name == '\0' || definition_scope != &_preset_preprocessor_definitions[{}]))
-				definition_it->second = value;
-			else
-				_preset_preprocessor_definitions[effect_name].emplace_back(name, value);
-
-			updated = preset_only;
-		}
-		else if (find_flag & effect_only)
-		{
-			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name); preset_it != _preset_preprocessor_definitions.end())
+			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name_string);
+				preset_it != _preset_preprocessor_definitions.end())
 			{
 				if (auto it = std::find_if(preset_it->second.begin(), preset_it->second.end(),
-						[name = std::string_view(name)](const auto &definition) { return definition.first == name; });
+						[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
 					it != preset_it->second.end())
 				{
-					if (it->second != value)
-						it->second = value, updated = effect_only;
+					if (value != it->second)
+					{
+						it->second = value;
+						scope_mask_updated = EFFECT_SCOPE_FLAG;
+					}
 				}
 				else
 				{
 					preset_it->second.emplace_back(name, value);
-					updated = effect_only;
+					scope_mask_updated = EFFECT_SCOPE_FLAG;
 				}
 			}
 		}
-		else if (find_flag & preset_only)
+		else
+		if (scope_mask == PRESET_SCOPE_FLAG)
 		{
 			if (const auto preset_it = _preset_preprocessor_definitions.find({});
 				preset_it != _preset_preprocessor_definitions.end())
@@ -1138,49 +1154,73 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 						[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
 					it != preset_it->second.end())
 				{
-					if (it->second != value)
-						it->second = value, updated = preset_only;
+					if (value != it->second)
+					{
+						it->second = value;
+						scope_mask_updated = PRESET_SCOPE_FLAG;
+					}
 				}
 				else
 				{
 					preset_it->second.emplace_back(name, value);
-					updated = preset_only;
+					scope_mask_updated = PRESET_SCOPE_FLAG;
 				}
 			}
 		}
-		else if (find_flag & global_only)
+		else
+		if (scope_mask == GLOBAL_SCOPE_FLAG)
 		{
 			if (const auto it = std::find_if(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(),
 					[name = std::string_view(name)](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
 				it != _global_preprocessor_definitions.end())
 			{
-				if (it->second != value)
-					it->second = value, updated = global_only;
+				if (value != it->second)
+				{
+					it->second = value;
+					scope_mask_updated = GLOBAL_SCOPE_FLAG;
+				}
 			}
 			else
 			{
 				_global_preprocessor_definitions.emplace_back(name, value);
-				updated = global_only;
+				scope_mask_updated = GLOBAL_SCOPE_FLAG;
 			}
 		}
+		else
+		{
+			std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
+			std::vector<std::pair<std::string, std::string>>::iterator definition_it;
+
+			if (get_preprocessor_definition(effect_name_string, name, scope_mask, definition_scope, definition_it) &&
+				definition_scope != &_global_preprocessor_definitions && (effect_name_string.empty() || definition_scope != &_preset_preprocessor_definitions[{}]))
+				definition_it->second = value;
+			else
+				_preset_preprocessor_definitions[effect_name_string].emplace_back(name, value);
+
+			scope_mask_updated = PRESET_SCOPE_FLAG;
+		}
 	}
-	if (updated)
+
+	if (scope_mask_updated != 0)
 	{
-		if (*effect_name == '\0' || (updated & (global_only | preset_only)))
+		if ((scope_mask_updated & (GLOBAL_SCOPE_FLAG)) != 0)
+		{
+			ini_file::load_cache(_config_path).set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
+		}
+
+		if ((scope_mask_updated & (GLOBAL_SCOPE_FLAG | PRESET_SCOPE_FLAG)) != 0)
 		{
 			_should_reload_effect = _effects.size();
 		}
 		else
 		{
 			const size_t effect_index = std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
-				[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect_name == effect.source_file.filename(); }));
+				[effect_name = std::filesystem::u8path(effect_name_string)](const effect &effect) { return effect_name == effect.source_file.filename(); }));
 
-			if (_should_reload_effect == std::numeric_limits<size_t>::max() || _should_reload_effect != effect_index)
+			if (effect_index != _should_reload_effect || _should_reload_effect == std::numeric_limits<size_t>::max())
 				_should_reload_effect = effect_index;
 		}
 	}
-	if (updated & global_only)
-		_should_save_config = true;
 #endif
 }
 bool reshade::runtime::get_preprocessor_definition(const char *name, char *value, size_t *size) const
@@ -1190,61 +1230,62 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] char *value, size_t *size) const
 {
 #if RESHADE_FX
-	if (effect_name == nullptr)
-		effect_name = "";
+	std::string effect_name_string;
+	if (effect_name != nullptr)
+		effect_name_string = effect_name;
 
-	if (name == nullptr) // This feature only works if the name is NULL
+	const int scope_mask =
+		effect_name_string.find('.') != std::string::npos ? EFFECT_SCOPE_FLAG :
+		effect_name_string.compare(0, 6, "PRESET") == 0 ? PRESET_SCOPE_FLAG :
+		effect_name_string.compare(0, 6, "GLOBAL") == 0 ? GLOBAL_SCOPE_FLAG :
+		EFFECT_SCOPE_FLAG | PRESET_SCOPE_FLAG | GLOBAL_SCOPE_FLAG;
+
+	if (name == nullptr) // Enumerate existing definitions when there is no name to query
 	{
-		constexpr int effect_only = 0b001;
-		constexpr int preset_only = 0b010;
-		constexpr int global_only = 0b100;
-		constexpr int global_scope = 0b111;
-
-		const int find_flag = *effect_name == '\0' ? global_scope :
-			strchr(effect_name, '.') != nullptr ? effect_only :
-			strncmp(effect_name, "GLOBAL", 6) == 0 ? global_only :
-			strncmp(effect_name, "PRESET", 6) == 0 ? preset_only : global_scope;
-
 		size_t estimate_size = 0;
-		std::vector<std::string> preprocessor_definitions;
-		const auto emplace_to_list = [&estimate_size, &preprocessor_definitions](const std::pair<std::string, std::string> &adding)
-			{
-				if (std::all_of(preprocessor_definitions.cbegin(), preprocessor_definitions.cend(),
-					[&adding](const std::string &added) { return added != adding.first; }))
-				{
-					estimate_size += adding.first.size() + 1; // '\0'
-					preprocessor_definitions.emplace_back(adding.first);
-				}
-			};
+		std::vector<std::string> definitions;
 
-		if (find_flag & effect_only)
+		const auto emplace_to_list = [&estimate_size, &definitions](const std::pair<std::string, std::string> &adding)
 		{
-			if (auto it = _preset_preprocessor_definitions.find(effect_name); it != _preset_preprocessor_definitions.end())
+			if (std::all_of(definitions.cbegin(), definitions.cend(),
+					[&adding](const std::string &added) { return added != adding.first; }))
+			{
+				estimate_size += adding.first.size() + 1; // '\0'
+				definitions.emplace_back(adding.first);
+			}
+		};
+
+		if ((scope_mask & EFFECT_SCOPE_FLAG) != 0)
+		{
+			if (auto it = _preset_preprocessor_definitions.find(effect_name_string);
+				it != _preset_preprocessor_definitions.end())
 				std::for_each(it->second.begin(), it->second.end(), emplace_to_list);
 		}
-		if (find_flag & preset_only)
+		if ((scope_mask & PRESET_SCOPE_FLAG) != 0)
 		{
-			if (auto it = _preset_preprocessor_definitions.find({}); it != _preset_preprocessor_definitions.end())
+			if (auto it = _preset_preprocessor_definitions.find({});
+				it != _preset_preprocessor_definitions.end())
 				std::for_each(it->second.begin(), it->second.end(), emplace_to_list);
 		}
-		if (find_flag & global_only)
+		if ((scope_mask & GLOBAL_SCOPE_FLAG) != 0)
 		{
 			std::for_each(_global_preprocessor_definitions.begin(), _global_preprocessor_definitions.end(), emplace_to_list);
 		}
 
-		std::string value_str; value_str.reserve(estimate_size);
-		for (const std::string &definition : preprocessor_definitions)
-			value_str.append(definition).append(1, '\0');
+		std::string definitions_string;
+		definitions_string.reserve(estimate_size);
+		for (const std::string &definition : definitions)
+			definitions_string += definition + '\0';
 
 		if (size != nullptr)
 		{
 			if (value == nullptr)
 			{
-				*size = value_str.size() + 1;
+				*size = definitions_string.size() + 1;
 			}
 			else if (*size != 0)
 			{
-				*size = value_str.copy(value, *size - 1);
+				*size = definitions_string.copy(value, *size - 1);
 				value[*size++] = '\0';
 			}
 		}
@@ -1256,7 +1297,7 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 		std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
 		std::vector<std::pair<std::string, std::string>>::iterator definition_it;
 
-		if (get_preprocessor_definition(effect_name, name, definition_scope, definition_it))
+		if (get_preprocessor_definition(effect_name_string, name, scope_mask, definition_scope, definition_it))
 		{
 			if (size != nullptr)
 			{
@@ -1282,49 +1323,39 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 }
 
 #if RESHADE_FX
-bool reshade::runtime::get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const
+bool reshade::runtime::get_preprocessor_definition(const std::string &effect_name, const std::string &name, int scope_mask, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const
 {
-	constexpr int effect_only = 0b001;
-	constexpr int preset_only = 0b010;
-	constexpr int global_only = 0b100;
-	constexpr int global_scope = 0b111;
-
 	const auto find_preprocessor_definition = [&name, &scope, &value](std::vector<std::pair<std::string, std::string>> &definitions)
+	{
+		if (value = std::find_if(definitions.begin(), definitions.end(),
+				[&name](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
+			value != definitions.end())
 		{
-			if (value = std::find_if(definitions.begin(), definitions.end(),
-					[&name](const std::pair<std::string, std::string> &definition) { return definition.first == name; });
-				value != definitions.end())
-			{
-				scope = &definitions;
-				return true;
-			}
-			else
-			{
-				scope = nullptr;
-				return false;
-			}
-		};
+			scope = &definitions;
+			return true;
+		}
+		else
+		{
+			scope = nullptr;
+			return false;
+		}
+	};
 
-	const int find_flag = effect_name.empty() ? global_scope :
-		effect_name.find('.') != std::string::npos ? effect_only :
-		effect_name.compare(0, 6, "GLOBAL") == 0 ? global_only :
-		effect_name.compare(0, 6, "PRESET") == 0 ? preset_only : global_scope;
-
-	if (find_flag & effect_only)
+	if ((scope_mask & EFFECT_SCOPE_FLAG) != 0)
 	{
 		if (const auto it = _preset_preprocessor_definitions.find(effect_name);
 			it != _preset_preprocessor_definitions.end() &&
 			find_preprocessor_definition(const_cast<std::vector<std::pair<std::string, std::string>> &>(it->second)))
 			return true;
 	}
-	if (find_flag & preset_only)
+	if ((scope_mask & PRESET_SCOPE_FLAG) != 0)
 	{
 		if (const auto it = _preset_preprocessor_definitions.find({});
 			it != _preset_preprocessor_definitions.end() &&
 			find_preprocessor_definition(const_cast<std::vector<std::pair<std::string, std::string>> &>(it->second)))
 			return true;
 	}
-	if (find_flag & global_only)
+	if ((scope_mask & GLOBAL_SCOPE_FLAG) != 0)
 	{
 		if (find_preprocessor_definition(const_cast<std::vector<std::pair<std::string, std::string>> &>(_global_preprocessor_definitions)))
 			return true;
@@ -1506,11 +1537,3 @@ bool reshade::runtime::open_overlay(bool /*open*/, api::input_source /*source*/)
 	return false;
 }
 #endif
-
-void reshade::runtime::reset_uniform_value([[maybe_unused]] api::effect_uniform_variable handle)
-{
-#if RESHADE_FX
-	if (auto variable = reinterpret_cast<uniform *>(handle.handle))
-		reset_uniform_value(*variable);
-#endif
-}

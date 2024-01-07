@@ -625,6 +625,9 @@ void reshade::d3d11::device_context_impl::draw_or_dispatch_indirect(api::indirec
 		for (UINT i = 0; i < draw_count; ++i)
 			_orig->DispatchIndirect(reinterpret_cast<ID3D11Buffer *>(buffer.handle), static_cast<UINT>(offset) + i * stride);
 		break;
+	default:
+		assert(false);
+		break;
 	}
 }
 

@@ -229,7 +229,7 @@ namespace reshade
 			set_uniform_value(variable, values, 4, 0);
 		}
 
-		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
+		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, int scope_mask, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
 #else
 		void save_current_preset() const final {}
 #endif
@@ -261,7 +261,6 @@ namespace reshade
 
 		bool _is_initialized = false;
 		bool _preset_save_successful = true;
-		bool _should_save_config = false;
 		std::filesystem::path _config_path;
 
 		bool _ignore_shortcuts = false;

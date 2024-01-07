@@ -645,7 +645,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			if (_copy_state == nullptr)
 				return;
 
-			// Capture and restore state, render targets, depth stencil surface and viewport (which all may change next)
+			// Capture and restore state, render targets, depth-stencil surface and viewport (which all may change next)
 			_backup_state.capture();
 
 			// Perform copy using rasterization pipeline

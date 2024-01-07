@@ -56,7 +56,7 @@ std::string reshade::resources::set_current_language(const std::string &language
 	ULONG num = 0, size = 0;
 	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, nullptr, &size))
 		return language;
-	std::wstring languages(size, L'\0');
+	std::vector<WCHAR> languages(size);
 	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, languages.data(), &size))
 		return language;
 
@@ -68,13 +68,16 @@ std::string reshade::resources::set_current_language(const std::string &language
 	if (language == prev_language)
 		return language;
 
+	constexpr WCHAR english_language[] = L"en-US";
+
 	// Create new double null-terminated buffer with the new language
 	languages.clear();
-	languages.reserve(language.size() + 2 + 5);
+	languages.reserve(language.size() + std::size(english_language) + 2);
 	utf8::unchecked::utf8to16(language.begin(), language.end(), std::back_inserter(languages));
 	languages.push_back(L'\0');
 	if (!language.empty())
-		languages.append(L"en-US", 5);
+		// Fall back to English by default if a resource does not exist in the specified language
+		languages.insert(languages.end(), english_language, english_language + std::size(english_language));
 	languages.push_back(L'\0');
 
 	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);

@@ -1028,6 +1028,9 @@ void reshade::opengl::render_context_impl::draw_or_dispatch_indirect(api::indire
 			gl.DispatchComputeIndirect(static_cast<GLintptr>(offset + static_cast<uint64_t>(i) * stride));
 		}
 		break;
+	default:
+		assert(false);
+		break;
 	}
 }
 

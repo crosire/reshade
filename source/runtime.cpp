@@ -925,12 +925,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	if (_input_gamepad != nullptr)
 		_input_gamepad->next_frame();
 
-	if (_should_save_config)
-	{
-		_should_save_config = false;
-		save_config();
-	}
-
 	// Save modified INI files
 	if (!ini_file::flush_cache())
 		_preset_save_successful = false;
@@ -2103,6 +2097,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
 
+#if 1
 				// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
 				// On AMD for instance creating a graphics pipeline just fails with a generic 'VK_ERROR_OUT_OF_HOST_MEMORY'. On NVIDIA artifacts occur on some driver versions.
 				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
@@ -2177,6 +2172,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				cso.resize(spirv.size() * sizeof(uint32_t));
 				std::memcpy(cso.data(), spirv.data(), cso.size());
+#else
+				cso.resize(effect.module.code.size());
+				std::memcpy(cso.data(), effect.module.code.data(), effect.module.code.size());
+#endif
 			}
 		}
 

@@ -1793,18 +1793,6 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (!_last_reload_successful)
-		{
-			ImGui::PushTextWrapPos();
-			ImGui::TextColored(COLOR_RED, _("There were errors loading some effects."));
-			ImGui::TextColored(COLOR_RED, _("Hover the cursor over each red entry below to see the error messages or check the log for more details."));
-			ImGui::PopTextWrapPos();
-			ImGui::Spacing();
-		}
-
-		if (!_effects_enabled)
-			ImGui::Text(_("Effects are disabled. Press '%s' to enable them again."), input::key_name(_effects_key_data).c_str());
-
 		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 12.5f * _font_size))))
 		{
 			_effects_expanded_state = 3;
@@ -1867,6 +1855,21 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::Spacing();
+
+		if (!_last_reload_successful)
+		{
+			ImGui::PushTextWrapPos();
+			ImGui::TextColored(COLOR_RED, _("There were errors loading some effects."));
+			ImGui::TextColored(COLOR_RED, _("Hover the cursor over each red entry below to see the error messages or check the log for more details."));
+			ImGui::PopTextWrapPos();
+			ImGui::Spacing();
+		}
+
+		if (!_effects_enabled)
+		{
+			ImGui::Text(_("Effects are disabled. Press '%s' to enable them again."), input::key_name(_effects_key_data).c_str());
+			ImGui::Spacing();
+		}
 
 		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (
 			_performance_mode ? 0 : (17 /* splitter */ + (_variable_editor_height + (_tutorial_index == 3 ? 175 : 0))));
@@ -1977,22 +1980,27 @@ void reshade::runtime::draw_gui_home()
 	}
 	else
 	{
-		const float maximum_frame_height = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeight() - _imgui_context->Style.ItemSpacing.y;
-		const float assume_content_avail = ImGui::GetContentRegionAvail().x - _imgui_context->Style.FramePadding.x * 2;
-		const float require_frame_height = ImGui::CalcTextSize(tutorial_text.data(), tutorial_text.data() + tutorial_text.size(), false, assume_content_avail).y + _imgui_context->Style.FramePadding.y * 2;
-		const ImVec2 frame_size = ImVec2(ImGui::GetContentRegionAvail().x, std::min(maximum_frame_height, require_frame_height));
-		ImGui::BeginChild(ImGui::GetID("tutorial"), frame_size, ImGuiChildFlags_FrameStyle);
-		ImGui::TextWrapped("%*s", tutorial_text.size(), tutorial_text.c_str());
-		ImGui::EndChild();
+		const float max_frame_width = ImGui::GetContentRegionAvail().x;
+		const float max_frame_height = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeight() - _imgui_context->Style.ItemSpacing.y;
+		const float required_frame_height = ImGui::CalcTextSize(
+			tutorial_text.data(), tutorial_text.data() + tutorial_text.size(),
+			false,
+			max_frame_width - _imgui_context->Style.FramePadding.x * 2).y + _imgui_context->Style.FramePadding.y * 2;
 
-		const float max_button_width = ImGui::GetContentRegionAvail().x;
+		if (ImGui::BeginChild("##tutorial", ImVec2(max_frame_width, std::min(max_frame_height, required_frame_height)), ImGuiChildFlags_FrameStyle))
+		{
+			ImGui::PushTextWrapPos();
+			ImGui::TextUnformatted(tutorial_text.data(), tutorial_text.data() + tutorial_text.size());
+			ImGui::PopTextWrapPos();
+		}
+		ImGui::EndChild();
 
 		if (_tutorial_index == 0)
 		{
 			std::string tutorial_button_label = _("Continue");
 			tutorial_button_label += "###tutorial_button";
 
-			if (ImGui::Button(tutorial_button_label.c_str(), ImVec2(max_button_width * 0.66666666f, 0)))
+			if (ImGui::Button(tutorial_button_label.c_str(), ImVec2(max_frame_width * 0.66666666f, 0)))
 			{
 				_tutorial_index++;
 
@@ -2001,7 +2009,7 @@ void reshade::runtime::draw_gui_home()
 
 			ImGui::SameLine();
 
-			if (ImGui::Button(_("Skip Tutorial"), ImVec2(max_button_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
+			if (ImGui::Button(_("Skip Tutorial"), ImVec2(max_frame_width * 0.33333333f - _imgui_context->Style.ItemSpacing.x, 0)))
 			{
 				_tutorial_index = 4;
 
@@ -2013,7 +2021,7 @@ void reshade::runtime::draw_gui_home()
 			std::string tutorial_button_label = _tutorial_index == 3 ? _("Finish") : _("Continue");
 			tutorial_button_label += "###tutorial_button";
 
-			if (ImGui::Button(tutorial_button_label.c_str(), ImVec2(max_button_width, 0)))
+			if (ImGui::Button(tutorial_button_label.c_str(), ImVec2(max_frame_width, 0)))
 			{
 				_tutorial_index++;
 
@@ -3092,6 +3100,10 @@ void reshade::runtime::draw_gui_addons()
 	ImGui::Separator();
 	ImGui::Spacing();
 
+	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
+
+	ImGui::Spacing();
+
 	if (!addon_all_loaded)
 	{
 		ImGui::PushTextWrapPos();
@@ -3104,10 +3116,6 @@ void reshade::runtime::draw_gui_addons()
 		ImGui::PopTextWrapPos();
 		ImGui::Spacing();
 	}
-
-	imgui::search_input_box(_addons_filter, sizeof(_addons_filter));
-
-	ImGui::Spacing();
 
 	if (ImGui::BeginChild("##addons", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened))
 	{
@@ -3735,7 +3743,7 @@ void reshade::runtime::draw_variable_editor()
 					std::vector<std::pair<std::string, std::string>>::iterator definition_it;
 
 					char value[256];
-					if (get_preprocessor_definition(effect_name, definition.first, definition_scope, definition_it))
+					if (get_preprocessor_definition(effect_name, definition.first, 0b111, definition_scope, definition_it))
 						value[definition_it->second.copy(value, sizeof(value) - 1)] = '\0';
 					else
 						value[0] = '\0';
