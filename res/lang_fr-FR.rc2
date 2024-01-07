@@ -28,6 +28,7 @@ BEGIN
 47148 "Impossible d'enregistrer la capture d'écran car le chemin suivant n'a pas pu être créé : %s"
 24217 "Capture d'écran enregistrée avec succès : %s"
 5525 "Changement de la configuration %s ..."
+54879 "Ajustez la taille de la police (%d) avec 'Ctrl' et la molette de la souris"
 14954 "Accueil###home"
 29911 "Add-ons###addons"
 30421 "Paramètres###settings"

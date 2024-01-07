@@ -432,7 +432,6 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 
 	config.set("OVERLAY", "ClockFormat", _clock_format);
 	config.set("OVERLAY", "FPSPosition", _fps_pos);
-	config.set("OVERLAY", "NoFontScaling", _no_font_scaling);
 	config.set("OVERLAY", "ShowClock", _show_clock);
 #if RESHADE_FX
 	config.set("OVERLAY", "ShowForceLoadEffectsButton", _show_force_load_effects_button);
@@ -1286,6 +1285,8 @@ void reshade::runtime::draw_gui()
 
 	if (_show_overlay)
 	{
+		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
+
 		// Change font size if user presses the control key and moves the mouse wheel
 		if (imgui_io.KeyCtrl && imgui_io.MouseWheel != 0 && !_no_font_scaling)
 		{
@@ -1293,6 +1294,21 @@ void reshade::runtime::draw_gui()
 			_editor_font_size = ImClamp(_editor_font_size + static_cast<int>(imgui_io.MouseWheel), 8, 32);
 			imgui_io.Fonts->TexReady = false;
 			save_config();
+
+			_is_font_scaling = true;
+		}
+
+		if (_is_font_scaling)
+		{
+			if (!imgui_io.KeyCtrl)
+				_is_font_scaling = false;
+
+			ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, _imgui_context->Style.WindowPadding * 2.0f);
+			ImGui::Begin("FontScaling", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+			ImGui::Text(_("Scaling font size (%d) with 'Ctrl' + mouse wheel"), _font_size);
+			ImGui::End();
+			ImGui::PopStyleVar();
 		}
 
 		const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
@@ -1309,7 +1325,6 @@ void reshade::runtime::draw_gui()
 		};
 
 		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
-		const ImGuiViewport *const viewport = ImGui::GetMainViewport();
 
 		// Set up default dock layout if this was not done yet
 		const bool init_window_layout = !ImGui::DockBuilderGetNode(root_space_id);

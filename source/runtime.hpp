@@ -444,6 +444,7 @@ namespace reshade
 		unsigned int _reload_count = 0;
 #endif
 
+		bool _is_font_scaling = false;
 		bool _no_font_scaling = false;
 		bool _block_input_next_frame = false;
 		unsigned int _overlay_key_data[4];

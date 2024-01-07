@@ -28,6 +28,7 @@ BEGIN
 47148 "Fehler beim Speichern des Bildschirmfotos, da die Datei nicht erstellt werden konnte: %s"
 24217 "Bildschirmfoto erfolgreich gespeichert nach %s"
 5525 "Ändere Preset zu %s ..."
+54879 "Schriftgröße (%d) wird mit 'Strg' + Mausrad skaliert"
 14954 "Start###home"
 29911 "Erweiterungen###addons"
 30421 "Einstellungen###settings"

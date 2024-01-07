@@ -28,6 +28,7 @@ BEGIN
 47148 "Unable to save screenshot because path could not be created: %s"
 24217 "Screenshot successfully saved to %s"
 5525 "Switching preset to %s ..."
+54879 "Scaling font size (%d) with 'Ctrl' + mouse wheel"
 14954 "Home###home"
 29911 "Add-ons###addons"
 30421 "Settings###settings"
