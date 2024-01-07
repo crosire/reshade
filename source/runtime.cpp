@@ -333,6 +333,10 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	init_gui();
 #endif
 
+	// Ensure config path is absolute, in case an add-on created an effect runtime with a relative path
+	std::error_code ec;
+	resolve_path(_config_path, ec);
+
 	load_config();
 
 	fpng::fpng_init();
