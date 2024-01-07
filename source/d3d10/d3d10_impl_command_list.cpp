@@ -33,24 +33,46 @@ void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx, api::pipeline_stage
 		ctx->OMSetBlendState(blend_state.get(), blend_constant, sample_mask);
 }
 
-void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *, const api::resource_usage *old_states, const api::resource_usage *new_states)
+void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
-	bool transitions_away_from_shader_resource_usage = false;
+	uint32_t transitions_away_from_shader_resource_usage = 0;
+	temp_mem<ID3D10Resource *> shader_resource_resources(count);
+
 	for (uint32_t i = 0; i < count; ++i)
 	{
 		if ((old_states[i] & api::resource_usage::shader_resource) != 0 && (new_states[i] & api::resource_usage::shader_resource) == 0 &&
 			// Ignore transitions to copy source or destination states, since those are not affected by the current SRV bindings
 			(new_states[i] & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != 0)
-			transitions_away_from_shader_resource_usage = true;
+			shader_resource_resources[transitions_away_from_shader_resource_usage++] = reinterpret_cast<ID3D10Resource *>(resources[i].handle);
 	}
 
-	// TODO: This should really only unbind the specific resources passed to this barrier command
-	if (transitions_away_from_shader_resource_usage)
+	if (transitions_away_from_shader_resource_usage != 0)
 	{
-		ID3D10ShaderResourceView *null_srv[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-		_orig->VSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srv);
-		_orig->GSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srv);
-		_orig->PSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srv);
+#define UNBIND_SHADER_RESOURCE_VIEWS(stage) \
+		bool update_##stage = false; \
+		ID3D10ShaderResourceView *srvs_##stage[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {}; \
+		_orig->stage##GetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs_##stage); \
+		for (UINT i = 0; i < D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i) \
+		{ \
+			if (srvs_##stage[i] != nullptr) \
+			{ \
+				com_ptr<ID3D10Resource> resource; \
+				srvs_##stage[i]->GetResource(&resource); \
+				if (std::find(shader_resource_resources.p, shader_resource_resources.p + transitions_away_from_shader_resource_usage, resource) != shader_resource_resources.p + transitions_away_from_shader_resource_usage) \
+				{ \
+					srvs_##stage[i] = nullptr; \
+					update_##stage = true; \
+				} \
+			} \
+		} \
+		if (update_##stage) \
+			_orig->stage##SetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs_##stage);
+
+		UNBIND_SHADER_RESOURCE_VIEWS(VS);
+		UNBIND_SHADER_RESOURCE_VIEWS(GS);
+		UNBIND_SHADER_RESOURCE_VIEWS(PS);
+
+#undef UNBIND_SHADER_RESOURCE_VIEWS
 	}
 }
 
