@@ -2368,7 +2368,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPE
 	} stream_data = {
 		{ internal_desc.pRootSignature },
 		{ internal_desc.CS },
-		{ internal_desc.NodeMask },
+		{ internal_desc.NodeMask != 0 ? internal_desc.NodeMask : 1 },
 		{ internal_desc.CachedPSO },
 		{ internal_desc.Flags }
 	};
@@ -2417,7 +2417,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIP
 		{ D3D12_RT_FORMAT_ARRAY { { internal_desc.RTVFormats[0], internal_desc.RTVFormats[1], internal_desc.RTVFormats[2], internal_desc.RTVFormats[3], internal_desc.RTVFormats[4], internal_desc.RTVFormats[5], internal_desc.RTVFormats[6], internal_desc.RTVFormats[7] }, internal_desc.NumRenderTargets } },
 		{ internal_desc.DSVFormat },
 		{ internal_desc.SampleDesc },
-		{ internal_desc.NodeMask },
+		{ internal_desc.NodeMask != 0 ? internal_desc.NodeMask : 1 }, // See https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_node_mask#remarks
 		{ internal_desc.CachedPSO },
 		{ internal_desc.Flags }
 	};
