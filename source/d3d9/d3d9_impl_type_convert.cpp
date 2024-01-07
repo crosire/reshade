@@ -338,7 +338,7 @@ void reshade::d3d9::convert_resource_usage_to_d3d_usage(api::resource_usage usag
 {
 	// Copying textures is implemented using the rasterization pipeline (see 'device_impl::copy_resource' implementation), so needs render target usage
 	// When the destination in 'IDirect3DDevice9::StretchRect' is a texture surface, it too has to have render target usage (see https://docs.microsoft.com/windows/win32/api/d3d9helper/nf-d3d9helper-idirect3ddevice9-stretchrect)
-	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
+	if ((usage & (api::resource_usage::render_target | api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0 && (usage & api::resource_usage::depth_stencil) == 0)
 		d3d_usage |= D3DUSAGE_RENDERTARGET;
 	else
 		d3d_usage &= ~D3DUSAGE_RENDERTARGET;
