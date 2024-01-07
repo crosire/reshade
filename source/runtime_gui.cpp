@@ -1058,7 +1058,7 @@ void reshade::runtime::draw_gui()
 	ImGui::NewFrame();
 
 #if RESHADE_LOCALIZATION
-	const std::string prev_language = resources::set_current_language(_selected_language);
+	const std::string prev_languages = resources::set_current_language(_selected_language);
 	_current_language = resources::get_current_language();
 #endif
 
@@ -1467,7 +1467,7 @@ void reshade::runtime::draw_gui()
 #endif
 
 #if RESHADE_LOCALIZATION
-	resources::set_current_language(prev_language);
+	resources::unset_current_language(prev_languages);
 #endif
 
 	// Disable keyboard shortcuts while typing into input boxes
@@ -2206,16 +2206,16 @@ void reshade::runtime::draw_gui_settings()
 	{
 #if RESHADE_LOCALIZATION
 		{
-			std::vector<std::string> languages = resources::get_languages();
+			static const std::vector<std::string> languages = resources::get_languages();
 
 			int lang_index = 0;
 			if (const auto it = std::find(languages.begin(), languages.end(), _selected_language); it != languages.end())
 				lang_index = static_cast<int>(std::distance(languages.begin(), it) + 1);
 
 			if (ImGui::Combo(_("Language"), &lang_index,
-					[](void *data, int idx) -> const char * {
-						return idx == 0 ? "System Default" : (*static_cast<const std::vector<std::string> *>(data))[idx - 1].c_str();
-					}, &languages, static_cast<int>(languages.size() + 1)))
+					[](void *, int idx) -> const char * {
+						return idx == 0 ? "System Default" : languages[idx - 1].c_str();
+					}, nullptr, static_cast<int>(languages.size() + 1)))
 			{
 				modified = true;
 				if (lang_index == 0)

@@ -195,7 +195,7 @@ void reshade::runtime::draw_gui_vr()
 	}
 
 #if RESHADE_LOCALIZATION
-	const std::string prev_language = resources::set_current_language(_selected_language);
+	const std::string prev_languages = resources::set_current_language(_selected_language);
 	_current_language = resources::get_current_language();
 #endif
 
@@ -297,7 +297,7 @@ void reshade::runtime::draw_gui_vr()
 	ImGui::End(); // VR Viewport window
 
 #if RESHADE_LOCALIZATION
-	resources::set_current_language(prev_language);
+	resources::unset_current_language(prev_languages);
 #endif
 
 	ImGui::Render();

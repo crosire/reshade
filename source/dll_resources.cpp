@@ -39,50 +39,80 @@ std::string reshade::resources::load_string(unsigned short id)
 #if RESHADE_LOCALIZATION
 std::string reshade::resources::get_current_language()
 {
-	ULONG num = 0, size = 0;
-	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
-		return std::string();
-	std::vector<WCHAR> languages(size);
-	if (!GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, languages.data(), &size) || num == 0)
-		return std::string();
+	std::vector<std::string> languages;
+	if (ULONG num = 0, size = 0;
+		GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
+	{
+		std::wstring wbuf; wbuf.resize(size);
+		if (GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, wbuf.data(), &size))
+		{
+			std::string cbuf; cbuf.reserve(wbuf.size());
+			utf8::unchecked::utf16to8(wbuf.begin(), wbuf.end(), std::back_inserter(cbuf));
 
-	std::string language;
-	// Extract first language from the double null-terminated multi-string buffer
-	utf8::unchecked::utf16to8(languages.begin(), std::find(languages.begin(), languages.end(), L'\0'), std::back_inserter(language));
-	return language;
+			for (size_t i = 0; i < cbuf.size();)
+				i += languages.emplace_back(&cbuf[i]).size() + 1;
+
+			if (!languages.empty() && languages.back().empty())
+				languages.pop_back();
+		}
+	}
+
+	static const std::vector<std::string> availables = get_languages();
+
+	if (const auto it = std::find_if(languages.cbegin(), languages.cend(),
+			[](const std::string &lang) { return std::find(availables.cbegin(), availables.cend(), lang) != availables.cend(); });
+		it != languages.cend())
+		return *it;
+	else
+		return std::string();
 }
 std::string reshade::resources::set_current_language(const std::string &language)
 {
-	std::string prev_language;
+	std::string previous;
 	if (ULONG num = 0, size = 0;
 		GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, nullptr, &size))
 	{
-		std::wstring previous; previous.resize(size);
-		if (GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, previous.data(), &size))
-			utf8::unchecked::utf16to8(previous.cbegin(), previous.cend(), std::back_inserter(prev_language));
+		std::wstring languages; languages.resize(size);
+		if (previous.reserve(size);
+		GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, languages.data(), &size))
+			utf8::unchecked::utf16to8(languages.cbegin(), languages.cend(), std::back_inserter(previous));
 	}
 
-	std::wstring languages;
+	std::wstring current;
 	if (language.empty() || language.front() == '\0')
 	{
 		if (ULONG num = 0, size = 0;
 			SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, L"\0", nullptr) &&
 			GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
 		{
-			if (languages.resize(size);
-				GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, languages.data(), &size))
-				languages.resize(std::distance(languages.cbegin(), std::find(languages.cbegin(), languages.cend(), L'\0')));
+			if (current.resize(size);
+				GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, current.data(), &size))
+				current.resize(std::distance(current.cbegin(), std::find(current.cbegin(), current.cend(), L'\0')));
+			else
+				current.clear();
 		}
 	}
 	else
 	{
-		utf8::unchecked::utf8to16(language.cbegin(), language.cend(), std::back_inserter(languages));
+		utf8::unchecked::utf8to16(language.cbegin(), language.cend(), std::back_inserter(current));
 	}
 
-	languages.append(L"\0en-US\0", 7);
-	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.c_str(), nullptr);
+	if (!current.empty())
+	{
+		current.append(L"\0en-US\0", 7);
+		SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, current.c_str(), nullptr);
+	}
 
-	return prev_language;
+	return previous;
+}
+void reshade::resources::unset_current_language(const std::string &previous)
+{
+	std::wstring languages; languages.reserve(previous.size());
+	utf8::unchecked::utf8to16(previous.cbegin(), previous.cend(), std::back_inserter(languages));
+	if (languages.empty() || languages.back() != L'\0')
+		languages.append(1, L'\0');
+
+	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.c_str(), nullptr);
 }
 
 std::vector<std::string> reshade::resources::get_languages()

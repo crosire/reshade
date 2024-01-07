@@ -40,8 +40,14 @@ namespace reshade::resources
 	/// Changes the language used to look up resources for the current thread.
 	/// </summary>
 	/// <param name="language">Language name of the new language to set.</param>
-	/// <returns>Language name of the language that was set before the change.</returns>
+	/// <returns>Language names of the language that was set before the change.</returns>
 	std::string set_current_language(const std::string &language);
+	/// <summary>
+	/// *TODO*
+	/// </summary>
+	/// <param name="previous">*TODO*</param>
+	/// <returns>Language names of the language that was set before the change.</returns>
+	void unset_current_language(const std::string &previous);
 
 	/// <summary>
 	/// Returns a list of languages for which a string table is embeded in the DLL resources.
