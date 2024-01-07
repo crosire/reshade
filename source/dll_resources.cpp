@@ -53,23 +53,20 @@ std::string reshade::resources::get_current_language()
 }
 std::string reshade::resources::set_current_language(const std::string &language)
 {
-	ULONG num = 0, size = 0;
-
 	std::string prev_language;
-	if (std::wstring previous;
+	if (ULONG num = 0, size = 0;
 		GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, nullptr, &size))
 	{
-		if (previous.resize(size);
-			GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, previous.data(), &size))
+		std::wstring previous; previous.resize(size);
+		if (GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_THREAD_LANGUAGES, &num, previous.data(), &size))
 			utf8::unchecked::utf16to8(previous.cbegin(), previous.cend(), std::back_inserter(prev_language));
 	}
-
-	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, L"\0", nullptr);
 
 	std::wstring languages;
 	if (language.empty() || language.front() == '\0')
 	{
-		if (num = 0, size = 0;
+		if (ULONG num = 0, size = 0;
+			SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, L"\0", nullptr) &&
 			GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME | MUI_UI_FALLBACK, &num, nullptr, &size))
 		{
 			if (languages.resize(size);
