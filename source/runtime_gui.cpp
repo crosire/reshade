@@ -2049,7 +2049,13 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
-	ImGui::BeginChild("##settings", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
+	std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+	open_button_label += _("Open base folder in explorer");
+
+	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
+		utils::open_explorer(_config_path);
+
+	ImGui::Spacing();
 
 	bool modified = false;
 	bool modified_custom_style = false;
@@ -2465,16 +2471,6 @@ void reshade::runtime::draw_gui_settings()
 		save_config();
 	if (modified_custom_style)
 		save_custom_style();
-
-	ImGui::EndChild();
-
-	ImGui::Spacing();
-
-	std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
-	open_button_label += _("Open base folder in explorer");
-
-	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
-		utils::open_explorer(_config_path);
 }
 void reshade::runtime::draw_gui_statistics()
 {
