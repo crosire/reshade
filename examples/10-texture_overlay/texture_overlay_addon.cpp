@@ -334,16 +334,16 @@ static void draw_overlay(effect_runtime *runtime)
 
 	ImGui::Checkbox("Show only used this frame", &data.filter);
 
-	const bool save_all_textures = ImGui::Button("Save All", ImVec2(ImGui::GetWindowContentRegionWidth(), 0));
+	const bool save_all_textures = ImGui::Button("Save All", ImVec2(ImGui::GetContentRegionAvail().x, 0));
 
 	ImGui::TextUnformatted("You can hover over a texture below with the mouse cursor to replace it with green.");
 	ImGui::TextUnformatted("Clicking one will save it as an image to disk.");
 
-	ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth());
+	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
 	ImGui::SliderFloat("##scale", &data.scale, 0.01f, 2.0f, "%.3f", ImGuiSliderFlags_NoInput);
 	ImGui::PopItemWidth();
 
-	const auto total_width = ImGui::GetWindowContentRegionWidth();
+	const auto total_width = ImGui::GetContentRegionAvail().x;
 	const auto num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * data.scale * 13)));
 	const auto single_image_max_size = (total_width / num_columns) - 5.0f;
 
