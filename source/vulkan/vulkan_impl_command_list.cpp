@@ -948,14 +948,14 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format)
+void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
 {
 	_has_commands = true;
 
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	const VkImageAspectFlags aspect_flags = aspect_flags_from_format(src_data->create_info.format);
+	const VkImageAspectFlags aspect_flags = aspect_flags_from_format(convert_format(format));
 
 	if ((aspect_flags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) == 0)
 	{
@@ -1029,10 +1029,11 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		}
 
 		assert(dst_x == rendering_info.renderArea.offset.x && dst_y == rendering_info.renderArea.offset.y && dst_z == 0);
+		assert(src_data->default_view != VK_NULL_HANDLE && dst_data->default_view != VK_NULL_HANDLE);
 
 		VkRenderingAttachmentInfo depth_attachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		depth_attachment.imageView = src_data->default_view;
-		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL; // TODO: Transition image layout correctly
+		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		depth_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 		depth_attachment.resolveImageView = dst_data->default_view;
 		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -1060,8 +1061,30 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 			rendering_info.pStencilAttachment = &stencil_attachment;
 		}
 
+		// Transition state to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL (since it will be in 'resource_usage::resolve_source/dest' at this point)
+		VkImageMemoryBarrier barriers[2];
+		barriers[0] = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		barriers[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		barriers[0].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barriers[0].image = (VkImage)src.handle;
+		barriers[0].subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, 1 };
+		barriers[1] = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		barriers[1].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barriers[1].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barriers[1].image = (VkImage)dst.handle;
+		barriers[1].subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, 1 };
+		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 2, barriers);
+
 		vk.CmdBeginRendering(_orig, &rendering_info);
 		vk.CmdEndRendering(_orig);
+
+		std::swap(barriers[0].oldLayout, barriers[0].newLayout);
+		std::swap(barriers[1].oldLayout, barriers[1].newLayout);
+		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 2, barriers);
 	}
 }
 

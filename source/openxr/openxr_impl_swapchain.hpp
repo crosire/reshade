@@ -17,7 +17,7 @@ namespace reshade::openxr
 		right
 	};
 
-	class swapchain_impl : public api::api_object_impl<XrSession, api::swapchain> // TODO_OXR: Or XrInstance, or?
+	class swapchain_impl : public api::api_object_impl<XrSession, api::swapchain>
 	{
 	public:
 		swapchain_impl(api::device *device, api::command_queue *graphics_queue, XrSession session);

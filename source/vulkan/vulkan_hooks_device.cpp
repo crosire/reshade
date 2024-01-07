@@ -42,7 +42,7 @@ static void create_default_view(reshade::vulkan::device_impl *device_impl, VkIma
 	assert(data->default_view == VK_NULL_HANDLE);
 
 	// Need to create a default view that is used in 'vkCmdClearColorImage' and 'vkCmdClearDepthStencilImage'
-	if ((data->create_info.usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == VK_IMAGE_USAGE_TRANSFER_DST_BIT &&
+	if ((data->create_info.usage & (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0 &&
 		(data->create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
 	{
 		VkImageViewCreateInfo default_view_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -1071,7 +1071,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(swapchain_impl);
 
-	// Create default views for swap chain images (do this after the "init_swapchain" event, so that the images are known to add-ons)
+	// Create default views for swap chain images (do this after the 'init_swapchain' event, so that the images are known to add-ons)
 	for (uint32_t i = 0; i < num_images; ++i)
 		create_default_view(device_impl, swapchain_images[i]);
 #endif
@@ -1400,8 +1400,6 @@ VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMe
 	}
 
 #if RESHADE_ADDON
-	create_default_view(device_impl, image);
-
 	const auto image_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(image);
 	image_data->memory = memory;
 	image_data->memory_offset = memoryOffset;
@@ -1412,6 +1410,9 @@ VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMe
 		nullptr,
 		image_data->create_info.initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined,
 		reshade::api::resource { (uint64_t)image });
+
+	// Create default view after the 'init_resource' event, so that the image is known to add-ons (since it calls 'init_resource_view' internally)
+	create_default_view(device_impl, image);
 #endif
 
 	return result;
@@ -1433,8 +1434,6 @@ VkResult VKAPI_CALL vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount, 
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < bindInfoCount; ++i)
 	{
-		create_default_view(device_impl, pBindInfos[i].image);
-
 		const auto image_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(pBindInfos[i].image);
 		image_data->memory = pBindInfos[i].memory;
 		image_data->memory_offset = pBindInfos[i].memoryOffset;
@@ -1445,6 +1444,8 @@ VkResult VKAPI_CALL vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount, 
 			nullptr,
 			image_data->create_info.initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined,
 			reshade::api::resource { (uint64_t)pBindInfos[i].image });
+
+		create_default_view(device_impl, pBindInfos[i].image);
 	}
 #endif
 

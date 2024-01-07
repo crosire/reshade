@@ -1198,6 +1198,7 @@ namespace reshade { namespace api
 		back_stencil_depth_fail_op = 187,
 
 		// Ray tracing state
+
 		ray_tracing_pipeline_stack_size = 2000
 	};
 
