@@ -1324,7 +1324,7 @@ void reshade::runtime::draw_gui()
 			{ _("About###about"), &runtime::draw_gui_about }
 		};
 
-		const ImGuiID root_space_id = ImGui::GetID("Dockspace");
+		const ImGuiID root_space_id = ImGui::GetID("ViewportDockspace");
 
 		// Set up default dock layout if this was not done yet
 		const bool init_window_layout = !ImGui::DockBuilderGetNode(root_space_id);
