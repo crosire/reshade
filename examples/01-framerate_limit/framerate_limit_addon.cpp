@@ -69,8 +69,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 	case DLL_PROCESS_ATTACH:
 		if (!reshade::register_addon(hModule))
 			return FALSE;
-		reshade::register_overlay(nullptr, draw_settings);
 		reshade::register_event<reshade::addon_event::present>(on_present);
+		reshade::register_overlay(nullptr, draw_settings);
 		break;
 	case DLL_PROCESS_DETACH:
 		reshade::unregister_addon(hModule);

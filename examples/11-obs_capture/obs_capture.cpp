@@ -6,6 +6,7 @@
  * Adapted from https://github.com/obsproject/obs-studio/blob/master/plugins/win-capture/graphics-hook/d3d11-capture.cpp
  */
 
+#include <imgui.h>
 #include <reshade.hpp>
 #include "obs_hook_info.hpp"
 
@@ -40,9 +41,10 @@ struct capture_data
 	};
 } data;
 
-static bool capture_impl_init(reshade::api::device *device, reshade::api::resource back_buffer, void *window)
+static bool s_before_effects = false;
+
+static bool capture_impl_init(reshade::api::device *device, const reshade::api::resource_desc &desc, void *window)
 {
-	const reshade::api::resource_desc desc = device->get_resource_desc(back_buffer);
 	data.format = reshade::api::format_to_default_typed(desc.texture.format, 0);
 	data.multisampled = desc.texture.samples > 1;
 	data.cx = desc.texture.width;
@@ -195,26 +197,40 @@ static void capture_impl_shmem(reshade::api::command_queue *queue, reshade::api:
 	data.shmem.cur_tex = next_tex;
 }
 
-static void on_present(reshade::api::effect_runtime *runtime)
+static void capture_impl_frame(reshade::api::effect_runtime *runtime)
 {
-	if (global_hook_info == nullptr)
-		return;
-
-	const reshade::api::resource back_buffer = runtime->get_current_back_buffer();
-
-	if (capture_should_stop())
-		capture_impl_free(runtime->get_device());
-
-	if (capture_should_init())
-		capture_impl_init(runtime->get_device(), back_buffer, runtime->get_hwnd());
-
 	if (capture_ready())
 	{
+		const reshade::api::resource back_buffer = runtime->get_current_back_buffer();
+
 		if (data.using_shtex)
 			capture_impl_shtex(runtime->get_command_queue(), back_buffer);
 		else
 			capture_impl_shmem(runtime->get_command_queue(), back_buffer);
 	}
+}
+
+static void on_reshade_begin_effects(reshade::api::effect_runtime *runtime, reshade::api::command_list *, reshade::api::resource_view, reshade::api::resource_view)
+{
+	if (!s_before_effects)
+		return;
+
+	capture_impl_frame(runtime);
+}
+
+static void on_present(reshade::api::effect_runtime *runtime)
+{
+	if (global_hook_info == nullptr)
+		return;
+
+	if (capture_should_stop())
+		capture_impl_free(runtime->get_device());
+
+	if (capture_should_init())
+		capture_impl_init(runtime->get_device(), runtime->get_device()->get_resource_desc(runtime->get_back_buffer(0)), runtime->get_hwnd());
+
+	if (!s_before_effects)
+		capture_impl_frame(runtime);
 }
 
 static void on_destroy(reshade::api::effect_runtime *runtime)
@@ -223,6 +239,11 @@ static void on_destroy(reshade::api::effect_runtime *runtime)
 		return;
 
 	capture_impl_free(runtime->get_device());
+}
+
+static void draw_settings(reshade::api::effect_runtime *)
+{
+	ImGui::Checkbox("Send before effects", &s_before_effects);
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "OBS Capture";
@@ -239,9 +260,11 @@ extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon_module, HMODULE re
 		return false;
 	}
 
-	// Change this event to e.g. 'reshade_begin_effects' to send images to OBS before ReShade effects are applied, or 'reshade_render_technique' to send after a specific technique.
+	reshade::register_event<reshade::addon_event::reshade_begin_effects>(on_reshade_begin_effects);
 	reshade::register_event<reshade::addon_event::reshade_present>(on_present);
 	reshade::register_event<reshade::addon_event::destroy_effect_runtime>(on_destroy);
+
+	reshade::register_overlay(nullptr, draw_settings);
 
 	return true;
 }
