@@ -47,12 +47,101 @@ private:
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
+	bool _uses_bitwise_intrinsics = false;
 
 	void write_result(module &module) override
 	{
 		module = std::move(_module);
 
 		std::string preamble;
+
+#define IMPLEMENT_INTRINSIC_FALLBACK_ASINT(n) \
+		"int" #n " __asint(float" #n " v) {" \
+			"float" #n " e = 0;" \
+			"float" #n " f = frexp(v, e) * 2 - 1;" /* frexp does not include sign bit in HLSL, so can use as is */ \
+			"float" #n " m = ldexp(f, 23);" \
+			"return (v == 0) ? 0 : (v < 0 ? 2147483648 : 0) + (" /* Zero (does not handle negative zero) */ \
+			/*	isnan(v) ? 2147483647 : */ /* NaN */ \
+			/*	isinf(v) ? 2139095040 : */ /* Infinity */ \
+				"ldexp(e + 126, 23) + m);" \
+		"}"
+#define IMPLEMENT_INTRINSIC_FALLBACK_ASUINT(n) \
+		"int" #n " __asuint(float" #n " v) { return __asint(v); }"
+#define IMPLEMENT_INTRINSIC_FALLBACK_ASFLOAT(n) \
+		"float" #n " __asfloat(int" #n " v) {" \
+			"float" #n " m = v % exp2(23);" \
+			"float" #n " f = ldexp(m, -23);" \
+			"float" #n " e = floor(ldexp(v, -23) % 256);" \
+			"return (v > 2147483647 ? -1 : 1) * (" \
+			/*	e == 0 ? ldexp(f, -126) : */ /* Denormalized */ \
+			/*	e == 255 ? (m == 0 ? 1.#INF : -1.#IND) : */ /* Infinity and NaN */ \
+				"ldexp(1 + f, e - 127));" \
+		"}"
+
+		// See https://graphics.stanford.edu/%7Eseander/bithacks.html#CountBitsSetParallel
+#define IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS(n) \
+		"uint" #n " __countbits(uint" #n " v) {" \
+			"v = v - ((v >> 1) & 0x55555555);" \
+			"v = (v & 0x33333333) + ((v >> 2) & 0x33333333);" \
+			"v = (v + (v >> 4)) & 0x0F0F0F0F;" \
+			"v *= 0x01010101;" \
+			"return v >> 24;" \
+		"}"
+#define IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS_LOOP(n) \
+		"uint" #n " __countbits(uint" #n " v) {" \
+			"uint" #n " c = 0;" \
+			"while (any(v > 0)) {" \
+				"c += v % 2;" \
+				"v /= 2;" \
+			"}" \
+			"return c;" \
+		"}"
+
+		// See https://graphics.stanford.edu/%7Eseander/bithacks.html#ReverseParallel
+#define IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS(n) \
+		"uint" #n " __reversebits(uint" #n " v) {" \
+			"v = ((v >> 1) & 0x55555555) | ((v & 0x55555555) << 1);" \
+			"v = ((v >> 2) & 0x33333333) | ((v & 0x33333333) << 2);" \
+			"v = ((v >> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4);" \
+			"v = ((v >> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8);" \
+			"return (v >> 16) | (v << 16);" \
+		"}"
+#define IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS_LOOP(n) \
+		"uint" #n " __reversebits(uint" #n " v) {" \
+			"uint" #n " r = 0;" \
+			"for (int i = 0; i < 32; i++) {" \
+				"r *= 2;" \
+				"r += floor(x % 2);" \
+				"v /= 2;" \
+			"}" \
+			"return r;" \
+		"}"
+
+		// See https://graphics.stanford.edu/%7Eseander/bithacks.html#ZerosOnRightParallel
+#define IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW(n) \
+		"uint" #n " __firstbitlow(uint" #n " v) {" \
+			"uint" #n " c = (v != 0) ? 31 : 32;" \
+			"v &= -int" #n "(v);" \
+			"c = (v & 0x0000FFFF) ? c - 16 : c;" \
+			"c = (v & 0x00FF00FF) ? c -  8 : c;" \
+			"c = (v & 0x0F0F0F0F) ? c -  4 : c;" \
+			"c = (v & 0x33333333) ? c -  2 : c;" \
+			"c = (v & 0x55555555) ? c -  1 : c;" \
+			"return c;" \
+		"}"
+#define IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW_LOOP(n) \
+		"uint" #n " __firstbitlow(uint" #n " v) {" \
+			"uint" #n " c = (v != 0) ? 31 : 32;" \
+			"for (int i = 0; i < 32; i++) {" \
+				"c = c > i && (v % 2) != 0 ? i : c;" \
+				"v /= 2;" \
+			"}" \
+			"return c;" \
+		"}"
+
+
+#define IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(n) \
+		"uint" #n " __firstbithigh(uint" #n " v) { return __firstbitlow(__reversebits(v)); }"
 
 		if (_shader_model >= 40)
 		{
@@ -69,6 +158,28 @@ private:
 				"struct __sampler1D_float4 { Texture1D<float4> t; SamplerState s; };\n"
 				"struct __sampler2D_float4 { Texture2D<float4> t; SamplerState s; };\n"
 				"struct __sampler3D_float4 { Texture3D<float4> t; SamplerState s; };\n";
+
+			if (_uses_bitwise_intrinsics && _shader_model < 50)
+				preamble +=
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS(4) "\n"
+
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS(4) "\n"
+
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW(4) "\n"
+
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(4) "\n";
 
 			if (!_cbuffer_block.empty())
 			{
@@ -88,39 +199,47 @@ private:
 
 			if (_uses_bitwise_cast)
 				preamble +=
-					"int __asint(float v) {"
-					"	if (v == 0) return 0;" // Zero (does not handle negative zero)
-					//	if (isinf(v)) return v < 0 ? 4286578688 : 2139095040; // Infinity
-					//	if (isnan(v)) return 2147483647; // NaN (does not handle negative NaN)
-					"	float e = 0;"
-					"	float f = frexp(v, e) * 2 - 1;" // frexp does not include sign bit in HLSL, so can use as is
-					"	float m = ldexp(f, 23);"
-					"	return (v < 0 ? 2147483648 : 0) + ldexp(e + 126, 23) + m;"
-					"}\n"
-					"int2 __asint(float2 v) { return int2(__asint(v.x), __asint(v.y)); }\n"
-					"int3 __asint(float3 v) { return int3(__asint(v.x), __asint(v.y), __asint(v.z)); }\n"
-					"int4 __asint(float4 v) { return int4(__asint(v.x), __asint(v.y), __asint(v.z), __asint(v.w)); }\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASINT(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASINT(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASINT(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASINT(4) "\n"
 
-					"int __asuint(float v) { return __asint(v); }\n"
-					"int2 __asuint(float2 v) { return int2(__asint(v.x), __asint(v.y)); }\n"
-					"int3 __asuint(float3 v) { return int3(__asint(v.x), __asint(v.y), __asint(v.z)); }\n"
-					"int4 __asuint(float4 v) { return int4(__asint(v.x), __asint(v.y), __asint(v.z), __asint(v.w)); }\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASUINT(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASUINT(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASUINT(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASUINT(4) "\n"
 
-					"float __asfloat(int v) {"
-					"	float m = v % exp2(23);"
-					"	float f = ldexp(m, -23);"
-					"	float e = floor(ldexp(v, -23) % 256);"
-					"	return (v > 2147483647 ? -1 : 1) * ("
-					//		e == 0 ? ldexp(f, -126) : // Denormalized
-					//		e == 255 ? (m == 0 ? 1.#INF : -1.#IND) : // Infinity and NaN
-					"		ldexp(1 + f, e - 127));"
-					"}\n"
-					"float2 __asfloat(int2 v) { return float2(__asfloat(v.x), __asfloat(v.y)); }\n"
-					"float3 __asfloat(int3 v) { return float3(__asfloat(v.x), __asfloat(v.y), __asfloat(v.z)); }\n"
-					"float4 __asfloat(int4 v) { return float4(__asfloat(v.x), __asfloat(v.y), __asfloat(v.z), __asfloat(v.w)); }\n";
+					IMPLEMENT_INTRINSIC_FALLBACK_ASFLOAT(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASFLOAT(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASFLOAT(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_ASFLOAT(4) "\n";
+
+			if (_uses_bitwise_intrinsics)
+				preamble +=
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS_LOOP(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS_LOOP(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS_LOOP(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_COUNTBITS_LOOP(4) "\n"
+
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS_LOOP(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS_LOOP(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS_LOOP(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_REVERSEBITS_LOOP(4) "\n"
+
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW_LOOP(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW_LOOP(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW_LOOP(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITLOW_LOOP(4) "\n"
+
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(1) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(2) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(3) "\n"
+					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(4) "\n";
 
 			if (!_cbuffer_block.empty())
+			{
 				preamble += _cbuffer_block;
+			}
 
 			// Offsets were multiplied in 'define_uniform', so adjust total size here accordingly
 			module.total_uniform_size *= 4;

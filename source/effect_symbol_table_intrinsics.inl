@@ -559,6 +559,7 @@ IMPLEMENT_INTRINSIC_GLSL(firstbitlow, 0, {
 	code += "findLSB(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(firstbitlow, 0, {
+	_uses_bitwise_intrinsics = true;
 	if (_shader_model < 50)
 		code += "__";
 	code += "firstbitlow(" + id_to_name(args[0].base) + ')';
@@ -588,11 +589,13 @@ IMPLEMENT_INTRINSIC_GLSL(firstbithigh, 1, {
 	code += "findMSB(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(firstbithigh, 0, {
+	_uses_bitwise_intrinsics = true;
 	if (_shader_model < 50)
 		code += "__";
 	code += "firstbithigh(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(firstbithigh, 1, {
+	_uses_bitwise_intrinsics = true;
 	if (_shader_model < 50)
 		code += "__";
 	code += "firstbithigh(" + id_to_name(args[0].base) + ')';
@@ -623,6 +626,7 @@ IMPLEMENT_INTRINSIC_GLSL(countbits, 0, {
 	code += "bitCount(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(countbits, 0, {
+	_uses_bitwise_intrinsics = true;
 	if (_shader_model < 50)
 		code += "__";
 	code += "countbits(" + id_to_name(args[0].base) + ')';
@@ -643,6 +647,7 @@ IMPLEMENT_INTRINSIC_GLSL(reversebits, 0, {
 	code += "bitfieldReverse(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(reversebits, 0, {
+	_uses_bitwise_intrinsics = true;
 	if (_shader_model < 50)
 		code += "__";
 	code += "reversebits(" + id_to_name(args[0].base) + ')';
