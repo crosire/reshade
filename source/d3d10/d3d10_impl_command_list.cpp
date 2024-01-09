@@ -50,8 +50,8 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *r
 	{
 #define UNBIND_SHADER_RESOURCE_VIEWS(stage) \
 		bool update_##stage = false; \
-		ID3D10ShaderResourceView *srvs_##stage[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {}; \
-		_orig->stage##GetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs_##stage); \
+		com_ptr<ID3D10ShaderResourceView> srvs_##stage[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT]; \
+		_orig->stage##GetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D10ShaderResourceView **>(srvs_##stage)); \
 		for (UINT i = 0; i < D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i) \
 		{ \
 			if (srvs_##stage[i] != nullptr) \
@@ -60,13 +60,13 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *r
 				srvs_##stage[i]->GetResource(&resource); \
 				if (std::find(shader_resource_resources.p, shader_resource_resources.p + transitions_away_from_shader_resource_usage, resource) != shader_resource_resources.p + transitions_away_from_shader_resource_usage) \
 				{ \
-					srvs_##stage[i] = nullptr; \
+					srvs_##stage[i].reset(); \
 					update_##stage = true; \
 				} \
 			} \
 		} \
 		if (update_##stage) \
-			_orig->stage##SetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs_##stage);
+			_orig->stage##SetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D10ShaderResourceView *const *>(srvs_##stage));
 
 		UNBIND_SHADER_RESOURCE_VIEWS(VS);
 		UNBIND_SHADER_RESOURCE_VIEWS(GS);

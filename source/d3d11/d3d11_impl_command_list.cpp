@@ -70,8 +70,8 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	{
 #define UNBIND_SHADER_RESOURCE_VIEWS(stage) \
 		bool update_##stage = false; \
-		ID3D11ShaderResourceView *srvs_##stage[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {}; \
-		_orig->stage##GetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs_##stage); \
+		com_ptr<ID3D11ShaderResourceView> srvs_##stage[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT]; \
+		_orig->stage##GetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D11ShaderResourceView **>(srvs_##stage)); \
 		for (UINT i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i) \
 		{ \
 			if (srvs_##stage[i] != nullptr) \
@@ -80,13 +80,13 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 				srvs_##stage[i]->GetResource(&resource); \
 				if (std::find(shader_resource_resources.p, shader_resource_resources.p + transitions_away_from_shader_resource_usage, resource) != shader_resource_resources.p + transitions_away_from_shader_resource_usage) \
 				{ \
-					srvs_##stage[i] = nullptr; \
+					srvs_##stage[i].reset(); \
 					update_##stage = true; \
 				} \
 			} \
 		} \
 		if (update_##stage) \
-			_orig->stage##SetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs_##stage);
+			_orig->stage##SetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D11ShaderResourceView *const *>(srvs_##stage));
 
 		UNBIND_SHADER_RESOURCE_VIEWS(VS);
 #if 0
@@ -110,8 +110,8 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 
 #define UNBIND_UNORDERED_ACCESS_VIEWS(stage) \
 		bool update_##stage = false; \
-		ID3D11UnorderedAccessView *uavs_##stage[D3D11_1_UAV_SLOT_COUNT] = {}; \
-		_orig->stage##GetUnorderedAccessViews(0, max_uav_bindings, uavs_##stage); \
+		com_ptr<ID3D11UnorderedAccessView> uavs_##stage[D3D11_1_UAV_SLOT_COUNT]; \
+		_orig->stage##GetUnorderedAccessViews(0, max_uav_bindings, reinterpret_cast<ID3D11UnorderedAccessView **>(uavs_##stage)); \
 		for (UINT i = 0; i < max_uav_bindings; ++i) \
 		{ \
 			if (uavs_##stage[i] != nullptr) \
@@ -120,13 +120,13 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 				uavs_##stage[i]->GetResource(&resource); \
 				if (std::find(unordered_access_resources.p, unordered_access_resources.p + transitions_away_from_unordered_access_usage, resource) != unordered_access_resources.p + transitions_away_from_unordered_access_usage) \
 				{ \
-					uavs_##stage[i] = nullptr; \
+					uavs_##stage[i].reset(); \
 					update_##stage = true; \
 				} \
 			} \
 		} \
 		if (update_##stage) \
-			_orig->stage##SetUnorderedAccessViews(0, max_uav_bindings, uavs_##stage, nullptr);
+			_orig->stage##SetUnorderedAccessViews(0, max_uav_bindings, reinterpret_cast<ID3D11UnorderedAccessView *const *>(uavs_##stage), nullptr);
 
 		UNBIND_UNORDERED_ACCESS_VIEWS(CS);
 
