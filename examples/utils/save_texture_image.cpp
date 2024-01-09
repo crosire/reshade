@@ -3,22 +3,16 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-// The subdirectory to save textures to
-#define SAVE_DIR L"texdump"
-#define SAVE_FORMAT L".png"
-#define SAVE_HASH_TEXMOD 1
-// Skip any textures that were already dumped this session, to reduce lag at the cost of increased memory usage
-#define SAVE_ENABLE_HASH_SET 1
-
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <reshade.hpp>
+#include "config.hpp"
 #include "crc32_hash.hpp"
 #include <vector>
 #include <filesystem>
 #include <stb_image_write.h>
 
-#if SAVE_ENABLE_HASH_SET
+#if RESHADE_ADDON_TEXTURE_SAVE_ENABLE_HASH_SET
 #include <set>
 #endif
 
@@ -95,7 +89,7 @@ static void unpack_bc4_value(uint8_t alpha_0, uint8_t alpha_1, uint32_t alpha_in
 
 bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 {
-#if SAVE_HASH_TEXMOD
+#if RESHADE_ADDON_TEXTURE_SAVE_HASH_TEXMOD
 	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
 	const uint32_t hash = ~compute_crc32(
 		static_cast<const uint8_t *>(data.data),
@@ -110,7 +104,7 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
 #endif
 
-#if SAVE_ENABLE_HASH_SET
+#if RESHADE_ADDON_TEXTURE_SAVE_ENABLE_HASH_SET
 	static std::set<uint32_t> hash_set;
 	if (hash_set.find(hash) != hash_set.end())
 	{
@@ -416,7 +410,7 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 
 	std::filesystem::path dump_path = file_prefix;
 	dump_path  = dump_path.parent_path();
-	dump_path /= SAVE_DIR;
+	dump_path /= RESHADE_ADDON_TEXTURE_SAVE_DIR;
 
 	if (std::filesystem::exists(dump_path) == false)
 		std::filesystem::create_directory(dump_path);
@@ -425,7 +419,7 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 	swprintf_s(hash_string, L"0x%08X", hash);
 
 	dump_path /= hash_string;
-	dump_path += SAVE_FORMAT;
+	dump_path += RESHADE_ADDON_TEXTURE_SAVE_FORMAT;
 
 	if (dump_path.extension() == L".bmp")
 		return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;

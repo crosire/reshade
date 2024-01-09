@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-// The subdirectory to load shader binaries from
-#define LOAD_DIR L""
-
 #include <reshade.hpp>
+#include "config.hpp"
 #include "crc32_hash.hpp"
 #include <fstream>
 #include <filesystem>
@@ -35,7 +33,7 @@ static bool load_shader_code(device_api device_type, shader_desc &desc, std::vec
 
 	std::filesystem::path replace_path = file_prefix;
 	replace_path  = replace_path.parent_path();
-	replace_path /= LOAD_DIR;
+	replace_path /= RESHADE_ADDON_SHADER_LOAD_DIR;
 
 	wchar_t hash_string[11];
 	swprintf_s(hash_string, L"0x%08X", shader_hash);
@@ -100,7 +98,7 @@ static void on_after_create_pipeline(device *, pipeline_layout, uint32_t, const 
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Shader Replace";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces shader binaries before they are used by the application with binaries from disk.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that replaces shader binaries before they are used by the application with binaries from disk (\"" RESHADE_ADDON_SHADER_LOAD_DIR "\" directory).";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

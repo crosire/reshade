@@ -3,14 +3,10 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-// The subdirectory to load textures from
-#define LOAD_DIR L"texreplace"
-#define LOAD_FORMAT L".png"
-#define LOAD_HASH_TEXMOD 1
-
 #define STB_IMAGE_IMPLEMENTATION
 
 #include <reshade.hpp>
+#include "config.hpp"
 #include "crc32_hash.hpp"
 #include <vector>
 #include <filesystem>
@@ -20,7 +16,7 @@ using namespace reshade::api;
 
 bool load_texture_image(const resource_desc &desc, subresource_data &data, std::vector<std::vector<uint8_t>> &data_to_delete)
 {
-#if LOAD_HASH_TEXMOD
+#if RESHADE_ADDON_TEXTURE_LOAD_HASH_TEXMOD
 	// Behavior of the original TexMod (see https://github.com/codemasher/texmod/blob/master/uMod_DX9/uMod_TextureFunction.cpp#L41)
 	const uint32_t hash = ~compute_crc32(
 		static_cast<const uint8_t *>(data.data),
@@ -41,13 +37,13 @@ bool load_texture_image(const resource_desc &desc, subresource_data &data, std::
 
 	std::filesystem::path replace_path = file_prefix;
 	replace_path  = replace_path.parent_path();
-	replace_path /= LOAD_DIR;
+	replace_path /= RESHADE_ADDON_TEXTURE_LOAD_DIR;
 
 	wchar_t hash_string[11];
 	swprintf_s(hash_string, L"0x%08X", hash);
 
 	replace_path /= hash_string;
-	replace_path += LOAD_FORMAT;
+	replace_path += RESHADE_ADDON_TEXTURE_LOAD_FORMAT;
 
 	// Check if a replacement file for this texture hash exists and if so, overwrite the texture data with its contents
 	if (!std::filesystem::exists(replace_path))

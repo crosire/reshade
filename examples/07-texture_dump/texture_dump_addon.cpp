@@ -4,6 +4,7 @@
  */
 
 #include <reshade.hpp>
+#include "config.hpp"
 
 using namespace reshade::api;
 
@@ -128,7 +129,7 @@ static void on_unmap_texture(device *, resource resource, uint32_t subresource)
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Texture Dump";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all textures used by the application to image files on disk.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Example add-on that dumps all textures used by the application to image files on disk (\"" RESHADE_ADDON_TEXTURE_SAVE_DIR "\" directory).";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
