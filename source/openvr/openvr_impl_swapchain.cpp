@@ -9,7 +9,7 @@
 #include "d3d11/d3d11_device_context.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "opengl/opengl_impl_swapchain.hpp"
+#include "opengl/opengl_impl_device_context.hpp"
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
 
@@ -48,7 +48,7 @@ reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
-	extern thread_local reshade::opengl::render_context_impl *g_current_context;
+	extern thread_local reshade::opengl::device_context_impl *g_current_context;
 	// Do not access '_device' object to check the device API, in case it was already destroyed
 	if (_is_opengl && g_current_context == nullptr)
 	{

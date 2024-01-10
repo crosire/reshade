@@ -96,6 +96,8 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 #include "d3d12/d3d12_impl_device.hpp"
 #include "d3d12/d3d12_impl_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
+#include "opengl/opengl_impl_device.hpp"
+#include "opengl/opengl_impl_device_context.hpp"
 #include "opengl/opengl_impl_swapchain.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
 #include "vulkan/vulkan_impl_command_queue.hpp"
@@ -126,6 +128,7 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 
 		const auto device_impl = new reshade::d3d9::device_impl(device.get());
 		swapchain_impl = new reshade::d3d9::swapchain_impl(device_impl, swapchain.get());
+		graphics_queue_impl = device_impl;
 		break;
 	}
 	case reshade::api::device_api::d3d10:
@@ -139,6 +142,7 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 
 		const auto device_impl = new reshade::d3d10::device_impl(device.get());
 		swapchain_impl = new reshade::d3d10::swapchain_impl(device_impl, swapchain.get());
+		graphics_queue_impl = device_impl;
 		break;
 	}
 	case reshade::api::device_api::d3d11:
@@ -193,8 +197,9 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 
 		gl3wInit();
 
-		swapchain_impl = new reshade::opengl::swapchain_impl(hdc, static_cast<HGLRC>(opaque_device));
-		graphics_queue_impl = static_cast<reshade::opengl::swapchain_impl *>(swapchain_impl);
+		const auto device_impl = new reshade::opengl::device_impl(hdc, static_cast<HGLRC>(opaque_device));
+		swapchain_impl = new reshade::opengl::swapchain_impl(device_impl, hdc);
+		graphics_queue_impl = new reshade::opengl::device_context_impl(device_impl, static_cast<HGLRC>(opaque_device));
 		break;
 	}
 	default:
@@ -247,6 +252,8 @@ void ReShadeDestroyEffectRuntime(reshade::api::effect_runtime *runtime)
 		break;
 	case reshade::api::device_api::opengl:
 		delete static_cast<reshade::opengl::swapchain_impl *>(swapchain);
+		delete static_cast<reshade::opengl::device_context_impl *>(graphics_queue);
+		delete static_cast<reshade::opengl::device_impl *>(device);
 		break;
 	case reshade::api::device_api::vulkan:
 		delete static_cast<reshade::vulkan::swapchain_impl *>(swapchain);

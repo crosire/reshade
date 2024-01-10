@@ -3,15 +3,24 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include "opengl_impl_device.hpp"
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-#define gl gl3wProcs.gl
-
-reshade::opengl::swapchain_impl::swapchain_impl(HDC hdc, HGLRC initial_hglrc, bool compatibility_context) :
-	device_impl(hdc, initial_hglrc, compatibility_context), render_context_impl(this, initial_hglrc), swapchain_base(this)
+reshade::opengl::swapchain_impl::swapchain_impl(device_impl *device, HDC hdc) :
+	api_object_impl(hdc),
+	_device_impl(device)
 {
-	_hdcs.insert(hdc);
+}
+
+reshade::api::device *reshade::opengl::swapchain_impl::get_device()
+{
+	return _device_impl;
+}
+
+void *reshade::opengl::swapchain_impl::get_hwnd() const
+{
+	return WindowFromDC(_orig);
 }
 
 reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer(uint32_t index)
@@ -19,17 +28,4 @@ reshade::api::resource reshade::opengl::swapchain_impl::get_back_buffer(uint32_t
 	assert(index == 0);
 
 	return make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-}
-
-void reshade::opengl::swapchain_impl::destroy_resource_view(api::resource_view handle)
-{
-	device_impl::destroy_resource_view(handle);
-
-	// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is reused
-	for (const auto &fbo_data : _fbo_lookup)
-	{
-		gl.DeleteFramebuffers(1, &fbo_data.second);
-	}
-
-	_fbo_lookup.clear();
 }

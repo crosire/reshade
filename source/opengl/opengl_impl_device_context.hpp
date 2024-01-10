@@ -5,15 +5,19 @@
 
 #pragma once
 
+#include <GL/gl3w.h>
+#include "reshade_api_object_impl.hpp"
+#include <unordered_map>
+
 namespace reshade::opengl
 {
 	class device_impl;
 
-	class render_context_impl : public api::api_object_impl<HGLRC, api::command_queue, api::command_list>
+	class device_context_impl : public api::api_object_impl<HGLRC, api::command_queue, api::command_list>
 	{
 	public:
-		render_context_impl(device_impl *device, HGLRC hglrc);
-		~render_context_impl();
+		device_context_impl(device_impl *device, HGLRC hglrc);
+		~device_context_impl();
 
 		api::device *get_device() final;
 
@@ -33,8 +37,6 @@ namespace reshade::opengl
 
 		void bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dest, uint32_t dest_subresource, const api::resource_desc &dest_desc);
 		void bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
-
-		api::resource_view get_framebuffer_attachment(GLuint framebuffer, GLenum type, uint32_t index) const;
 
 		void update_current_window_height(api::resource_view default_attachment);
 

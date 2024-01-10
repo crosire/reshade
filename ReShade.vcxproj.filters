@@ -650,7 +650,7 @@
     <ClInclude Include="source\opengl\opengl_impl_device.hpp">
       <Filter>core\api\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\opengl_impl_render_context.hpp">
+    <ClInclude Include="source\opengl\opengl_impl_device_context.hpp">
       <Filter>core\api\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_impl_state_block.hpp">

@@ -4,7 +4,7 @@
  */
 
 #include "opengl_impl_device.hpp"
-#include "opengl_impl_render_context.hpp"
+#include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 #include "hook_manager.hpp"
@@ -29,7 +29,7 @@ struct DrawElementsIndirectCommand
 };
 
 // Initialize thread local variable in this translation unit, to avoid the compiler generating calls to '__dyn_tls_on_demand_init' on every use in the frequently called functions below
-thread_local reshade::opengl::render_context_impl *g_current_context = nullptr;
+thread_local reshade::opengl::device_context_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
 
@@ -412,11 +412,13 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 	if (gl.CheckFramebufferStatus(target) != GL_FRAMEBUFFER_COMPLETE)
 		return;
 
+	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 	// Get object from current binding in case it was not specified
 	if (framebuffer == 0)
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&framebuffer));
 
-	const reshade::api::resource_view default_attachment = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, 0);
+	const reshade::api::resource_view default_attachment = device->get_framebuffer_attachment(framebuffer, GL_COLOR, 0);
 	g_current_context->update_current_window_height(default_attachment);
 
 	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
@@ -428,13 +430,13 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 			rtvs[0] = default_attachment;
 			for (count = 1; count < 8; ++count)
 			{
-				rtvs[count] = g_current_context->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+				rtvs[count] = device->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
 				if (rtvs[count].handle == 0)
 					break;
 			}
 		}
 
-		dsv = g_current_context->get_framebuffer_attachment(framebuffer, GL_DEPTH_STENCIL, 0);
+		dsv = device->get_framebuffer_attachment(framebuffer, GL_DEPTH_STENCIL, 0);
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
@@ -500,7 +502,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
 		assert(src_fbo != 0);
 
-		src = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
+		src = device->get_resource_from_view(device->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	reshade::api::resource dst = reshade::opengl::make_resource_handle(dst_target, dst_object);
@@ -510,7 +512,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 		assert(dst_fbo != 0);
 
-		dst = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
+		dst = device->get_resource_from_view(device->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
 	}
 
 	const reshade::api::subresource_box src_box = { x, y, z, x + width, y + height, z + depth };
@@ -715,6 +717,8 @@ extern "C" void APIENTRY glClear(GLbitfield mask)
 		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
 		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>()))
 	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint dst_fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 
@@ -723,7 +727,7 @@ extern "C" void APIENTRY glClear(GLbitfield mask)
 			GLfloat color_value[4] = {};
 			gl.GetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
 
-			const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(dst_fbo, current_mask, 0);
+			const reshade::api::resource_view view = device->get_framebuffer_attachment(dst_fbo, current_mask, 0);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_current_context, view, color_value, 0, nullptr))
 				mask ^= current_mask;
@@ -735,7 +739,7 @@ extern "C" void APIENTRY glClear(GLbitfield mask)
 			GLint   stencil_value = 0;
 			gl.GetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
 
-			const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(dst_fbo, current_mask, 0);
+			const reshade::api::resource_view view = device->get_framebuffer_attachment(dst_fbo, current_mask, 0);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, mask & GL_DEPTH_BUFFER_BIT ? &depth_value : nullptr, mask & GL_STENCIL_BUFFER_BIT ? reinterpret_cast<const uint8_t *>(&stencil_value) : nullptr, 0, nullptr))
 				mask ^= current_mask;
@@ -2296,10 +2300,12 @@ void APIENTRY glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *valu
 	{
 		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
 
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		const reshade::api::resource_view view = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
@@ -2322,10 +2328,12 @@ void APIENTRY glClearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint *va
 	{
 		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
 
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		const reshade::api::resource_view view = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
@@ -2348,10 +2356,12 @@ void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *va
 	{
 		assert(buffer == GL_COLOR || (buffer == GL_DEPTH && drawbuffer == 0));
 
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		const reshade::api::resource_view view = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
@@ -2373,10 +2383,12 @@ void APIENTRY glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GL
 	{
 		assert(buffer == GL_DEPTH_STENCIL && drawbuffer == 0);
 
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
 		GLint fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
-		const reshade::api::resource_view dsv = g_current_context->get_framebuffer_attachment(fbo, buffer, drawbuffer);
+		const reshade::api::resource_view dsv = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
 		if (dsv.handle != 0 &&
 			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 			return;
@@ -2407,8 +2419,8 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			if ((mask & flag) != flag)
 				continue;
 
-			reshade::api::resource src = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(src_fbo, flag, 0));
-			reshade::api::resource dst = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(dst_fbo, flag, 0));
+			reshade::api::resource src = device->get_resource_from_view(device->get_framebuffer_attachment(src_fbo, flag, 0));
+			reshade::api::resource dst = device->get_resource_from_view(device->get_framebuffer_attachment(dst_fbo, flag, 0));
 
 			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
@@ -4064,7 +4076,9 @@ void APIENTRY glClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint
 	{
 		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
 
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		const reshade::api::resource_view view = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
@@ -4087,7 +4101,9 @@ void APIENTRY glClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLin
 	{
 		assert(buffer == GL_COLOR || (buffer == GL_STENCIL && drawbuffer == 0));
 
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		const reshade::api::resource_view view = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
@@ -4110,7 +4126,9 @@ void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint
 	{
 		assert(buffer == GL_COLOR || (buffer == GL_DEPTH && drawbuffer == 0));
 
-		const reshade::api::resource_view view = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		const reshade::api::resource_view view = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
 		if (view.handle != 0)
 		{
 			if (buffer != GL_COLOR ?
@@ -4132,7 +4150,9 @@ void APIENTRY glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint
 	{
 		assert(buffer == GL_DEPTH_STENCIL && drawbuffer == 0);
 
-		const reshade::api::resource_view dsv = g_current_context->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		const reshade::api::resource_view dsv = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
 		if (dsv.handle != 0 &&
 			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 			return;
@@ -4158,8 +4178,8 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 			if ((mask & flag) != flag)
 				continue;
 
-			reshade::api::resource src = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(readFramebuffer, flag, 0));
-			reshade::api::resource dst = device->get_resource_from_view(g_current_context->get_framebuffer_attachment(drawFramebuffer, flag, 0));
+			reshade::api::resource src = device->get_resource_from_view(device->get_framebuffer_attachment(readFramebuffer, flag, 0));
+			reshade::api::resource dst = device->get_resource_from_view(device->get_framebuffer_attachment(drawFramebuffer, flag, 0));
 
 			if (device->get_resource_desc(src).texture.samples <= 1)
 			{

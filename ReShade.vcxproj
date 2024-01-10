@@ -715,7 +715,7 @@
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device.hpp" />
-    <ClInclude Include="source\opengl\opengl_impl_render_context.hpp" />
+    <ClInclude Include="source\opengl\opengl_impl_device_context.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_state_block.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_swapchain.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_type_convert.hpp" />

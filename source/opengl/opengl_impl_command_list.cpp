@@ -4,7 +4,7 @@
  */
 
 #include "opengl_impl_device.hpp"
-#include "opengl_impl_render_context.hpp"
+#include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include <algorithm>
 
@@ -146,7 +146,7 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 	}
 }
 
-void reshade::opengl::render_context_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
+void reshade::opengl::device_context_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
 	GLbitfield barriers = 0;
 
@@ -185,7 +185,7 @@ void reshade::opengl::render_context_impl::barrier(uint32_t count, const api::re
 	gl.MemoryBarrier(barriers);
 }
 
-void reshade::opengl::render_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
+void reshade::opengl::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	temp_mem<api::resource_view, 8> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)
@@ -219,10 +219,10 @@ void reshade::opengl::render_context_impl::begin_render_pass(uint32_t count, con
 		}
 	}
 }
-void reshade::opengl::render_context_impl::end_render_pass()
+void reshade::opengl::device_context_impl::end_render_pass()
 {
 }
-void reshade::opengl::render_context_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::opengl::device_context_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
 	bind_framebuffer_with_resource_views(GL_FRAMEBUFFER, count, rtvs, dsv);
 
@@ -255,7 +255,7 @@ void reshade::opengl::render_context_impl::bind_render_targets_and_depth_stencil
 	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, has_srgb_attachment);
 }
 
-void reshade::opengl::render_context_impl::bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dst, uint32_t dst_subresource, const api::resource_desc &dst_desc)
+void reshade::opengl::device_context_impl::bind_framebuffer_with_resource(GLenum target, GLenum attachment, api::resource dst, uint32_t dst_subresource, const api::resource_desc &dst_desc)
 {
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
@@ -308,7 +308,7 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource(GLenum
 
 	assert(gl.CheckFramebufferStatus(target) == GL_FRAMEBUFFER_COMPLETE);
 }
-void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
+void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
 	if ((count == 1 && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT) || (count == 0 && (dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)))
 	{
@@ -395,7 +395,7 @@ void reshade::opengl::render_context_impl::bind_framebuffer_with_resource_views(
 	update_current_window_height(count != 0 ? rtvs[0] : dsv);
 }
 
-void reshade::opengl::render_context_impl::update_current_window_height(api::resource_view default_attachment)
+void reshade::opengl::device_context_impl::update_current_window_height(api::resource_view default_attachment)
 {
 	if (default_attachment.handle == 0)
 		return;
@@ -474,7 +474,7 @@ void reshade::opengl::render_context_impl::update_current_window_height(api::res
 	_current_window_height = height;
 }
 
-void reshade::opengl::render_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
+void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	if (pipeline.handle == 0)
 		return;
@@ -500,7 +500,7 @@ void reshade::opengl::render_context_impl::bind_pipeline(api::pipeline_stage sta
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
 }
-void reshade::opengl::render_context_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
+void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -758,7 +758,7 @@ void reshade::opengl::render_context_impl::bind_pipeline_states(uint32_t count, 
 		}
 	}
 }
-void reshade::opengl::render_context_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
+void reshade::opengl::device_context_impl::bind_viewports(uint32_t first, uint32_t count, const api::viewport *viewports)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -766,7 +766,7 @@ void reshade::opengl::render_context_impl::bind_viewports(uint32_t first, uint32
 		gl.DepthRangeIndexed(first + i, static_cast<GLdouble>(viewports[i].min_depth), static_cast<GLdouble>(viewports[i].max_depth));
 	}
 }
-void reshade::opengl::render_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
+void reshade::opengl::device_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	GLint clip_origin = GL_LOWER_LEFT;
 	if (gl.ClipControl != nullptr)
@@ -786,7 +786,7 @@ void reshade::opengl::render_context_impl::bind_scissor_rects(uint32_t first, ui
 	}
 }
 
-void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
+void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
 	assert(first == 0);
 
@@ -814,7 +814,7 @@ void reshade::opengl::render_context_impl::push_constants(api::shader_stage, api
 		gl.UnmapBuffer(GL_UNIFORM_BUFFER);
 	}
 }
-void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
+void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
 {
 	assert(update.table.handle == 0 && update.array_offset == 0);
 
@@ -922,7 +922,7 @@ void reshade::opengl::render_context_impl::push_descriptors(api::shader_stage, a
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
+void reshade::opengl::device_context_impl::bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -936,7 +936,7 @@ void reshade::opengl::render_context_impl::bind_descriptor_tables(api::shader_st
 	}
 }
 
-void reshade::opengl::render_context_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
+void reshade::opengl::device_context_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
 	assert(offset == 0);
 
@@ -958,7 +958,7 @@ void reshade::opengl::render_context_impl::bind_index_buffer(api::resource buffe
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
+void reshade::opengl::device_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -967,7 +967,7 @@ void reshade::opengl::render_context_impl::bind_vertex_buffers(uint32_t first, u
 		gl.BindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
 }
-void reshade::opengl::render_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
+void reshade::opengl::device_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -987,27 +987,27 @@ void reshade::opengl::render_context_impl::bind_stream_output_buffers(uint32_t f
 	}
 }
 
-void reshade::opengl::render_context_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
+void reshade::opengl::device_context_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
 {
 	gl.DrawArraysInstancedBaseInstance(_current_prim_mode, first_vertex, vertex_count, instance_count, first_instance);
 }
-void reshade::opengl::render_context_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
+void reshade::opengl::device_context_impl::draw_indexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance)
 {
 	gl.DrawElementsInstancedBaseVertexBaseInstance(_current_prim_mode, index_count, _current_index_type, reinterpret_cast<void *>(static_cast<uintptr_t>(first_index) * get_index_type_size(_current_index_type)), instance_count, vertex_offset, first_instance);
 }
-void reshade::opengl::render_context_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
+void reshade::opengl::device_context_impl::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
 	gl.DispatchCompute(group_count_x, group_count_y, group_count_z);
 }
-void reshade::opengl::render_context_impl::dispatch_mesh(uint32_t, uint32_t, uint32_t)
+void reshade::opengl::device_context_impl::dispatch_mesh(uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
-void reshade::opengl::render_context_impl::dispatch_rays(api::resource, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
+void reshade::opengl::device_context_impl::dispatch_rays(api::resource, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, api::resource, uint64_t, uint64_t, uint64_t, uint32_t, uint32_t, uint32_t)
 {
 	assert(false);
 }
-void reshade::opengl::render_context_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
+void reshade::opengl::device_context_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
 	switch (type)
 	{
@@ -1034,7 +1034,7 @@ void reshade::opengl::render_context_impl::draw_or_dispatch_indirect(api::indire
 	}
 }
 
-void reshade::opengl::render_context_impl::copy_resource(api::resource src, api::resource dst)
+void reshade::opengl::device_context_impl::copy_resource(api::resource src, api::resource dst)
 {
 	const api::resource_desc desc = _device_impl->get_resource_desc(src);
 
@@ -1055,7 +1055,7 @@ void reshade::opengl::render_context_impl::copy_resource(api::resource src, api:
 		}
 	}
 }
-void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
+void reshade::opengl::device_context_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -1101,7 +1101,7 @@ void reshade::opengl::render_context_impl::copy_buffer_region(api::resource src,
 		gl.CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 	}
 }
-void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
+void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
 	const GLenum dst_target = dst.handle >> 40;
 	const GLuint dst_object = dst.handle & 0xFFFFFFFF;
@@ -1290,7 +1290,7 @@ void reshade::opengl::render_context_impl::copy_buffer_to_texture(api::resource 
 	gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, prev_unpack_skip_pixels);
 	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_images);
 }
-void reshade::opengl::render_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
+void reshade::opengl::device_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
 {
 	assert(src.handle != 0 && dst.handle != 0);
 
@@ -1386,7 +1386,7 @@ void reshade::opengl::render_context_impl::copy_texture_region(api::resource src
 			gl.Enable(GL_FRAMEBUFFER_SRGB);
 	}
 }
-void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
+void reshade::opengl::device_context_impl::copy_texture_to_buffer(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint64_t dst_offset, uint32_t row_length, uint32_t slice_height)
 {
 	const GLenum src_target = src.handle >> 40;
 	const GLuint src_object = src.handle & 0xFFFFFFFF;
@@ -1557,7 +1557,7 @@ void reshade::opengl::render_context_impl::copy_texture_to_buffer(api::resource 
 	gl.PixelStorei(GL_PACK_SKIP_PIXELS, prev_pack_skip_pixels);
 	gl.PixelStorei(GL_PACK_SKIP_IMAGES, prev_pack_skip_images);
 }
-void reshade::opengl::render_context_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format)
+void reshade::opengl::device_context_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format)
 {
 	api::subresource_box dst_box;
 	dst_box.left  = dst_x;
@@ -1582,7 +1582,7 @@ void reshade::opengl::render_context_impl::resolve_texture_region(api::resource 
 	copy_texture_region(src, src_subresource, src_box, dst, dst_subresource, &dst_box, api::filter_mode::min_mag_mip_point);
 }
 
-void reshade::opengl::render_context_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
+void reshade::opengl::device_context_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
@@ -1608,7 +1608,7 @@ void reshade::opengl::render_context_impl::clear_depth_stencil_view(api::resourc
 
 	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
-void reshade::opengl::render_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
+void reshade::opengl::device_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
 	assert(rtv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
@@ -1621,16 +1621,16 @@ void reshade::opengl::render_context_impl::clear_render_target_view(api::resourc
 
 	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
-void reshade::opengl::render_context_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
+void reshade::opengl::device_context_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
-void reshade::opengl::render_context_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const api::rect *)
+void reshade::opengl::device_context_impl::clear_unordered_access_view_float(api::resource_view, const float[4], uint32_t, const api::rect *)
 {
 	assert(false);
 }
 
-void reshade::opengl::render_context_impl::generate_mipmaps(api::resource_view srv)
+void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view srv)
 {
 	assert(srv.handle != 0);
 
@@ -1672,7 +1672,7 @@ void reshade::opengl::render_context_impl::generate_mipmaps(api::resource_view s
 #endif
 }
 
-void reshade::opengl::render_context_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
+void reshade::opengl::device_context_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)
 {
 	assert(heap.handle != 0);
 
@@ -1689,7 +1689,7 @@ void reshade::opengl::render_context_impl::begin_query(api::query_heap heap, api
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
+void reshade::opengl::device_context_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
 {
 	assert(heap.handle != 0);
 
@@ -1709,7 +1709,7 @@ void reshade::opengl::render_context_impl::end_query(api::query_heap heap, api::
 		break;
 	}
 }
-void reshade::opengl::render_context_impl::copy_query_heap_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
+void reshade::opengl::device_context_impl::copy_query_heap_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, api::resource dst, uint64_t dst_offset, uint32_t stride)
 {
 	assert(heap.handle != 0);
 
@@ -1721,26 +1721,26 @@ void reshade::opengl::render_context_impl::copy_query_heap_results(api::query_he
 	}
 }
 
-void reshade::opengl::render_context_impl::copy_acceleration_structure(api::resource_view, api::resource_view, api::acceleration_structure_copy_mode)
+void reshade::opengl::device_context_impl::copy_acceleration_structure(api::resource_view, api::resource_view, api::acceleration_structure_copy_mode)
 {
 	assert(false);
 }
-void reshade::opengl::render_context_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::resource_view, api::resource_view, api::acceleration_structure_build_mode)
+void reshade::opengl::device_context_impl::build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::resource_view, api::resource_view, api::acceleration_structure_build_mode)
 {
 	assert(false);
 }
 
-void reshade::opengl::render_context_impl::begin_debug_event(const char *label, const float[4])
+void reshade::opengl::device_context_impl::begin_debug_event(const char *label, const float[4])
 {
 	assert(label != nullptr);
 
 	gl.PushDebugGroup(GL_DEBUG_SOURCE_THIRD_PARTY, 0, -1, label);
 }
-void reshade::opengl::render_context_impl::end_debug_event()
+void reshade::opengl::device_context_impl::end_debug_event()
 {
 	gl.PopDebugGroup();
 }
-void reshade::opengl::render_context_impl::insert_debug_marker(const char *label, const float[4])
+void reshade::opengl::device_context_impl::insert_debug_marker(const char *label, const float[4])
 {
 	assert(label != nullptr);
 

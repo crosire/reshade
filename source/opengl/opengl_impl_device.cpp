@@ -4,7 +4,6 @@
  */
 
 #include "opengl_impl_device.hpp"
-#include "opengl_impl_render_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
@@ -12,7 +11,8 @@
 #define gl gl3wProcs.gl
 
 reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, bool compatibility_context) :
-	api_object_impl(shared_hglrc), _compatibility_context(compatibility_context)
+	api_object_impl(shared_hglrc),
+	_compatibility_context(compatibility_context)
 {
 	// The pixel format has to be the same for all device contexts used with this rendering context, so can cache information about it here
 	// See https://docs.microsoft.com/windows/win32/api/wingdi/nf-wingdi-wglmakecurrent
@@ -1190,7 +1190,7 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	}
 }
 
-reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffer_attachment(GLuint fbo, GLenum type, uint32_t index) const
+reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attachment(GLuint fbo, GLenum type, uint32_t index) const
 {
 	// Zero is valid too, in which case the default frame buffer is referenced, instead of a FBO
 	if (fbo == 0)
@@ -1200,7 +1200,7 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 			if (type == GL_COLOR || type == GL_COLOR_BUFFER_BIT)
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 
-			if (_device_impl->_default_depth_format != api::format::unknown)
+			if (_default_depth_format != api::format::unknown)
 				return make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 		}
 
@@ -1232,7 +1232,7 @@ reshade::api::resource_view reshade::opengl::render_context_impl::get_framebuffe
 	}
 
 	GLenum target = GL_NONE, object = 0;
-	if (_device_impl->_supports_dsa)
+	if (_supports_dsa)
 	{
 		gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 

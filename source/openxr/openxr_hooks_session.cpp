@@ -9,8 +9,7 @@
 #include "d3d11/d3d11_device_context.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "opengl/opengl_impl_device.hpp"
-#include "opengl/opengl_impl_render_context.hpp"
+#include "opengl/opengl_impl_device_context.hpp"
 #include "opengl/opengl_impl_type_convert.hpp"
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
@@ -112,7 +111,7 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		else
 		if (const auto binding_opengl = find_in_structure_chain<XrGraphicsBindingOpenGLWin32KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR))
 		{
-			extern thread_local reshade::opengl::render_context_impl *g_current_context;
+			extern thread_local reshade::opengl::device_context_impl *g_current_context;
 
 			if (g_current_context != nullptr)
 			{

@@ -13,7 +13,7 @@ namespace reshade::opengl
 {
 	class device_impl : public api::api_object_impl<HGLRC, api::device>
 	{
-		friend class render_context_impl;
+		friend class device_context_impl;
 
 	public:
 		device_impl(HDC initial_hdc, HGLRC shared_hglrc, bool compatibility_context = false);
@@ -45,6 +45,8 @@ namespace reshade::opengl
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 
 		uint64_t get_resource_view_gpu_address(api::resource_view) const final { return 0; }
+
+		api::resource_view get_framebuffer_attachment(GLuint framebuffer, GLenum type, uint32_t index) const;
 
 		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
 		void unmap_buffer_region(api::resource resource) final;

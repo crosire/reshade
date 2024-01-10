@@ -9,8 +9,7 @@
 #include "d3d11/d3d11_device_context.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "opengl/opengl_impl_device.hpp"
-#include "opengl/opengl_impl_render_context.hpp"
+#include "opengl/opengl_impl_device_context.hpp"
 #include "opengl/opengl_impl_type_convert.hpp"
 #include "vulkan/vulkan_hooks.hpp"
 #include "vulkan/vulkan_impl_device.hpp"
@@ -161,7 +160,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor, vr::EVREye eye, GLuint object, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	extern thread_local reshade::opengl::render_context_impl *g_current_context;
+	extern thread_local reshade::opengl::device_context_impl *g_current_context;
 
 	if (g_current_context == nullptr)
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);

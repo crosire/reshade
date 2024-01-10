@@ -96,13 +96,13 @@ namespace reshade::opengl
 
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
-	inline auto make_resource_handle(GLenum target, GLuint object) -> api::resource
+	constexpr auto make_resource_handle(GLenum target, GLuint object) -> api::resource
 	{
 		if (!object)
 			return { 0 };
 		return { (static_cast<uint64_t>(target) << 40) | object };
 	}
-	inline auto make_resource_view_handle(GLenum target, GLuint object, bool standalone_object = false) -> api::resource_view
+	constexpr auto make_resource_view_handle(GLenum target, GLuint object, bool standalone_object = false) -> api::resource_view
 	{
 		return { (static_cast<uint64_t>(target) << 40) | (static_cast<uint64_t>(standalone_object ? 0x1 : 0) << 32) | object };
 	}

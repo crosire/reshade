@@ -4,12 +4,12 @@
  */
 
 #include "opengl_impl_device.hpp"
-#include "opengl_impl_render_context.hpp"
+#include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 
 #define gl gl3wProcs.gl
 
-reshade::opengl::render_context_impl::render_context_impl(device_impl *device, HGLRC hglrc) :
+reshade::opengl::device_context_impl::device_context_impl(device_impl *device, HGLRC hglrc) :
 	api_object_impl(hglrc),
 	_device_impl(device)
 {
@@ -47,7 +47,7 @@ reshade::opengl::render_context_impl::render_context_impl(device_impl *device, H
 	// Generate push constants buffer name
 	gl.GenBuffers(1, &_push_constants);
 }
-reshade::opengl::render_context_impl::~render_context_impl()
+reshade::opengl::device_context_impl::~device_context_impl()
 {
 	// Destroy framebuffers
 	for (const auto &fbo_data : _fbo_lookup)
@@ -61,22 +61,22 @@ reshade::opengl::render_context_impl::~render_context_impl()
 	gl.DeleteSamplers(1, &_mipmap_sampler);
 }
 
-reshade::api::device *reshade::opengl::render_context_impl::get_device()
+reshade::api::device *reshade::opengl::device_context_impl::get_device()
 {
 	return _device_impl;
 }
 
-void reshade::opengl::render_context_impl::flush_immediate_command_list() const
+void reshade::opengl::device_context_impl::flush_immediate_command_list() const
 {
 	gl.Flush();
 }
 
-void reshade::opengl::render_context_impl::wait_idle() const
+void reshade::opengl::device_context_impl::wait_idle() const
 {
 	gl.Finish();
 }
 
-bool reshade::opengl::render_context_impl::wait(api::fence fence, uint64_t value)
+bool reshade::opengl::device_context_impl::wait(api::fence fence, uint64_t value)
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
@@ -105,7 +105,7 @@ bool reshade::opengl::render_context_impl::wait(api::fence fence, uint64_t value
 		return false;
 	}
 }
-bool reshade::opengl::render_context_impl::signal(api::fence fence, uint64_t value)
+bool reshade::opengl::device_context_impl::signal(api::fence fence, uint64_t value)
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
