@@ -2055,7 +2055,7 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
-	std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+	std::string open_button_label = ICON_FK_FOLDER " ";
 	open_button_label += _("Open base folder in explorer");
 
 	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
@@ -2979,7 +2979,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+	std::string open_button_label = ICON_FK_FOLDER " ";
 	open_button_label += _("Open folder in explorer");
 
 	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
@@ -3917,7 +3917,7 @@ void reshade::runtime::draw_technique_editor()
 
 			if (ImGui::BeginPopup("##context"))
 			{
-				std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+				std::string open_button_label = ICON_FK_FOLDER " ";
 				open_button_label += _("Open folder in explorer");
 
 				if (ImGui::Button(open_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
@@ -4153,7 +4153,7 @@ void reshade::runtime::draw_technique_editor()
 				if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
 					ImGui::Separator();
 
-				std::string open_button_label = ICON_FK_FOLDER_OPEN " ";
+				std::string open_button_label = ICON_FK_FOLDER " ";
 				open_button_label += _("Open folder in explorer");
 
 				if (ImGui::Button(open_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
