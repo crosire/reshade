@@ -41,6 +41,8 @@ bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 	// Finally try to canonicalize the path too
 	if (std::filesystem::path canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
+	else
+		path = path.lexically_normal();
 	return !ec; // The canonicalization step fails if the path does not exist
 }
 
