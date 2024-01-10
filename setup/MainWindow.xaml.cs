@@ -46,7 +46,7 @@ namespace ReShade.Setup
 				ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12 | (SecurityProtocolType)0x3000 /* Tls13 */;
 			}
 
-			var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+			string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
 			// Parse command line arguments
 			for (int i = 0; i < args.Length; i++)
@@ -237,9 +237,8 @@ namespace ReShade.Setup
 				// Ensure the file exists
 				File.Open(targetPath, FileMode.OpenOrCreate).Dispose();
 
-				var user = WindowsIdentity.GetCurrent().User;
-				var access = File.GetAccessControl(targetPath);
-				access.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.Modify, AccessControlType.Allow));
+				FileSecurity access = File.GetAccessControl(targetPath);
+				access.AddAccessRule(new FileSystemAccessRule(WindowsIdentity.GetCurrent().User, FileSystemRights.Modify, AccessControlType.Allow));
 				File.SetAccessControl(targetPath, access);
 				return true;
 			}
@@ -304,7 +303,7 @@ namespace ReShade.Setup
 
 			if (!string.IsNullOrEmpty(targetPathEffects))
 			{
-				iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths);
+				iniFile.GetValue("GENERAL", "EffectSearchPaths", out string[] effectSearchPaths);
 
 				paths = new List<string>(effectSearchPaths ?? new string[0]);
 				paths.RemoveAll(string.IsNullOrWhiteSpace);
@@ -315,7 +314,7 @@ namespace ReShade.Setup
 
 			if (!string.IsNullOrEmpty(targetPathTextures))
 			{
-				iniFile.GetValue("GENERAL", "TextureSearchPaths", out var textureSearchPaths);
+				iniFile.GetValue("GENERAL", "TextureSearchPaths", out string[] textureSearchPaths);
 
 				paths = new List<string>(textureSearchPaths ?? new string[0]);
 				paths.RemoveAll(string.IsNullOrWhiteSpace);
@@ -340,7 +339,7 @@ namespace ReShade.Setup
 
 			var iniFile = new IniFile(currentInfo.configPath);
 
-			if (iniFile.GetValue("GENERAL", "EffectSearchPaths", out var effectSearchPaths))
+			if (iniFile.GetValue("GENERAL", "EffectSearchPaths", out string[] effectSearchPaths))
 			{
 				searchPaths = effectSearchPaths
 					.Where(searchPath => !string.IsNullOrWhiteSpace(searchPath))
@@ -505,7 +504,7 @@ namespace ReShade.Setup
 
 				try
 				{
-					using (var compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
+					using (Stream compatibilityStream = client.OpenRead("https://raw.githubusercontent.com/crosire/reshade-shaders/list/Compatibility.ini"))
 					{
 						compatibilityIni = new IniFile(compatibilityStream);
 					}
@@ -548,12 +547,19 @@ namespace ReShade.Setup
 			bool isApiVulkan = false;
 			currentInfo.targetOpenXR = false;
 
+			string basePath = Path.GetDirectoryName(currentInfo.targetPath);
+
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
 			DownloadCompatibilityIni();
 
-			var executableName = Path.GetFileName(currentInfo.targetPath);
+			string executableName = Path.GetFileName(currentInfo.targetPath);
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
+				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
+				{
+					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+				}
+
 				string api = compatibilityIni.GetString(executableName, "RenderApi");
 
 				if (api == "D3D8" || api == "D3D9")
@@ -605,7 +611,20 @@ namespace ReShade.Setup
 				}
 			}
 
-			if (isApiD3D9)
+			// In case this game is modded with NVIDIA RTX Remix, install to the Remix Bridge
+			string targetPathRemixBridge = Path.Combine(basePath, ".trex", "NvRemixBridge.exe");
+			if (File.Exists(targetPathRemixBridge))
+			{
+				isApiVulkan = true;
+				currentInfo.is64Bit = true;
+				currentInfo.targetPath = targetPathRemixBridge;
+			}
+
+			if (isApiVulkan)
+			{
+				currentInfo.targetApi = Api.Vulkan;
+			}
+			else if (isApiD3D9)
 			{
 				currentInfo.targetApi = Api.D3D9;
 			}
@@ -616,10 +635,6 @@ namespace ReShade.Setup
 			else if (isApiOpenGL)
 			{
 				currentInfo.targetApi = Api.OpenGL;
-			}
-			else if (isApiVulkan)
-			{
-				currentInfo.targetApi = Api.Vulkan;
 			}
 
 			if (isHeadless)
@@ -641,8 +656,8 @@ namespace ReShade.Setup
 		{
 			UpdateStatus("Checking installation status ...");
 
-			var basePath = Path.GetDirectoryName(currentInfo.targetPath);
-			var executableName = Path.GetFileName(currentInfo.targetPath);
+			string basePath = Path.GetDirectoryName(currentInfo.targetPath);
+			string executableName = Path.GetFileName(currentInfo.targetPath);
 
 			DownloadCompatibilityIni();
 
@@ -686,11 +701,11 @@ namespace ReShade.Setup
 
 			currentInfo.configPath = Path.Combine(basePath, "ReShade.ini");
 
-			var isReShade = false;
+			bool isReShade = false;
 
 			if (currentInfo.targetApi == Api.Vulkan || currentInfo.targetOpenXR)
 			{
-				var moduleName = currentInfo.is64Bit ? "ReShade64" : "ReShade32";
+				string moduleName = currentInfo.is64Bit ? "ReShade64" : "ReShade32";
 				currentInfo.modulePath = Path.Combine(commonPath, moduleName, moduleName + ".dll");
 
 				if (currentOperation == InstallOperation.Install && File.Exists(currentInfo.configPath))
@@ -802,7 +817,7 @@ namespace ReShade.Setup
 				// Extract archive attached to this executable
 				MemoryStream output;
 
-				using (var input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
+				using (FileStream input = File.OpenRead(Assembly.GetExecutingAssembly().Location))
 				{
 					output = new MemoryStream((int)input.Length);
 
@@ -931,7 +946,7 @@ namespace ReShade.Setup
 
 					try
 					{
-						var module = zip.GetEntry(Path.GetFileName(layerModulePath)) ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
+						ZipArchiveEntry module = zip.GetEntry(Path.GetFileName(layerModulePath)) ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
 						module.ExtractToFile(layerModulePath, true);
 					}
 					catch (SystemException ex)
@@ -946,7 +961,7 @@ namespace ReShade.Setup
 
 						try
 						{
-							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPath)) ?? throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
+							ZipArchiveEntry manifest = zip.GetEntry(Path.GetFileName(layerManifestPath)) ?? throw new FileFormatException("Setup archive is missing Vulkan layer manifest file.");
 							manifest.ExtractToFile(layerManifestPath, true);
 
 							// Register this layer manifest
@@ -968,7 +983,7 @@ namespace ReShade.Setup
 
 						try
 						{
-							var manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR)) ?? throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
+							ZipArchiveEntry manifest = zip.GetEntry(Path.GetFileName(layerManifestPathXR)) ?? throw new FileFormatException("Setup archive is missing OpenXR layer manifest file.");
 							manifest.ExtractToFile(layerManifestPathXR, true);
 
 							// Register this layer manifest
@@ -988,7 +1003,7 @@ namespace ReShade.Setup
 				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
 				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys) == false || !appKeys.Contains(currentInfo.targetPath))
 				{
-					var appKeysList = appKeys != null ? appKeys.ToList() : new List<string>();
+					List<string> appKeysList = appKeys != null ? appKeys.ToList() : new List<string>();
 					appKeysList.Add(currentInfo.targetPath);
 					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
 					appConfig.SaveFile();
@@ -1000,7 +1015,7 @@ namespace ReShade.Setup
 
 				try
 				{
-					var module = zip.GetEntry(currentInfo.is64Bit ? "ReShade64.dll" : "ReShade32.dll") ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
+					ZipArchiveEntry module = zip.GetEntry(currentInfo.is64Bit ? "ReShade64.dll" : "ReShade32.dll") ?? throw new FileFormatException("Setup archive is missing ReShade DLL file.");
 					module.ExtractToFile(currentInfo.modulePath, true);
 				}
 				catch (SystemException ex)
@@ -1034,7 +1049,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				try
 				{
-					foreach (var premadeConfigPath in new[] { "ReShade.ini", Path.Combine(Path.GetDirectoryName(currentInfo.configPath), "GShade.ini") })
+					foreach (string premadeConfigPath in new[] { "ReShade.ini", Path.Combine(Path.GetDirectoryName(currentInfo.configPath), "GShade.ini") })
 					{
 						if (File.Exists(premadeConfigPath))
 						{
@@ -1309,7 +1324,7 @@ In that event here are some steps you can try to resolve this:
 				var appConfig = new IniFile(Path.Combine(commonPath, "ReShadeApps.ini"));
 				if (appConfig.GetValue(string.Empty, "Apps", out string[] appKeys))
 				{
-					var appKeysList = appKeys.ToList();
+					List<string> appKeysList = appKeys.ToList();
 					appKeysList.Remove(currentInfo.targetPath);
 					appConfig.SetValue(string.Empty, "Apps", appKeysList.ToArray());
 
@@ -1379,7 +1394,7 @@ In that event here are some steps you can try to resolve this:
 					File.Delete(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"));
 				}
 
-				foreach (var searchPath in effectSearchPaths)
+				foreach (KeyValuePair<string, bool> searchPath in effectSearchPaths)
 				{
 					if (searchPath.Key.StartsWith(basePath) && Directory.Exists(searchPath.Key))
 					{
@@ -1437,25 +1452,26 @@ In that event here are some steps you can try to resolve this:
 
 			string downloadPath = Path.GetTempFileName();
 
-			var client = new WebClient();
-
-			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
+			using (var client = new WebClient())
 			{
-				// Avoid negative percentage values
-				if (e.TotalBytesToReceive > 0)
+				client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
 				{
-					UpdateStatus("Downloading " + package.Name + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
-				}
-			};
+					// Avoid negative percentage values
+					if (e.TotalBytesToReceive > 0)
+					{
+						UpdateStatus("Downloading " + package.Name + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
+					}
+				};
 
-			try
-			{
-				client.DownloadFile(new Uri(package.DownloadUrl), downloadPath);
-			}
-			catch (WebException ex)
-			{
-				UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + ex.Message);
-				return;
+				try
+				{
+					client.DownloadFile(new Uri(package.DownloadUrl), downloadPath);
+				}
+				catch (WebException ex)
+				{
+					UpdateStatusAndFinish(false, "Failed to download from " + package.DownloadUrl + ":\n" + ex.Message);
+					return;
+				}
 			}
 
 			InstallStep_InstallEffectPackage(package, downloadPath);
@@ -1549,6 +1565,7 @@ In that event here are some steps you can try to resolve this:
 					.Where(searchPath => (searchPath.Value ? !targetPathEffects.StartsWith(searchPath.Key) : searchPath.Key != targetPathEffects) && Directory.Exists(searchPath.Key))
 					.SelectMany(searchPath => Directory.EnumerateFiles(searchPath.Key, "*.fx", searchPath.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly))
 					.Where(effectPath => effects.Select(x => Path.GetFileName(x)).Contains(Path.GetFileName(effectPath)) == true);
+
 				if (existingEffectFiles.Any())
 				{
 					string existingPathEffects = Path.GetDirectoryName(existingEffectFiles.First());
@@ -1619,25 +1636,26 @@ In that event here are some steps you can try to resolve this:
 
 			string downloadPath = Path.GetTempFileName();
 
-			var client = new WebClient();
-
-			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
+			using (var client = new WebClient())
 			{
-				// Avoid negative percentage values
-				if (e.TotalBytesToReceive > 0)
+				client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) =>
 				{
-					UpdateStatus("Downloading " + addon.Name + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
-				}
-			};
+					// Avoid negative percentage values
+					if (e.TotalBytesToReceive > 0)
+					{
+						UpdateStatus("Downloading " + addon.Name + " ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)");
+					}
+				};
 
-			try
-			{
-				client.DownloadFile(new Uri(addon.DownloadUrl), downloadPath);
-			}
-			catch (WebException ex)
-			{
-				UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + ex.Message);
-				return;
+				try
+				{
+					client.DownloadFile(new Uri(addon.DownloadUrl), downloadPath);
+				}
+				catch (WebException ex)
+				{
+					UpdateStatusAndFinish(false, "Failed to download from " + addon.DownloadUrl + ":\n" + ex.Message);
+					return;
+				}
 			}
 
 			InstallStep_InstallAddon(addon, downloadPath);
@@ -1688,7 +1706,7 @@ In that event here are some steps you can try to resolve this:
 
 			string targetAddonPath = Path.GetDirectoryName(currentInfo.targetPath);
 
-			var globalConfigPath = Path.Combine(targetAddonPath, "ReShade.ini");
+			string globalConfigPath = Path.Combine(targetAddonPath, "ReShade.ini");
 			if (File.Exists(globalConfigPath))
 			{
 				var globalConfig = new IniFile(globalConfigPath);
