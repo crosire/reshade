@@ -2982,10 +2982,14 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
 		[this, effect_index](texture &tex) {
 			tex.shared.erase(std::remove(tex.shared.begin(), tex.shared.end(), effect_index), tex.shared.end());
-			if (tex.shared.empty()) {
+			if (tex.shared.empty())
+			{
 				destroy_texture(tex);
 				return true;
 			}
+			// If this texture is still used by another effect, move ownership to that other effect
+			if (effect_index == tex.effect_index)
+				tex.effect_index = tex.shared.front();
 			return false;
 		}), _textures.end());
 	// Clean up techniques belonging to this effect
