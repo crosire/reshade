@@ -62,13 +62,14 @@ struct resource_hash
 
 struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 {
+	const bool is_queue;
 	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
 	std::unordered_map<resource, depth_stencil_frame_stats, resource_hash> counters_per_used_depth_stencil;
 	bool first_draw_since_bind = true;
 	draw_stats best_copy_stats;
 
-	state_tracking()
+	state_tracking(bool is_queue) : is_queue(is_queue)
 	{
 		// Reserve some space upfront to avoid rehashing during command recording
 		counters_per_used_depth_stencil.reserve(32);
@@ -76,11 +77,13 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 
 	void reset()
 	{
-		reset_on_present();
+		best_copy_stats = { 0, 0 };
+		counters_per_used_depth_stencil.clear();
 		current_depth_stencil = { 0 };
 	}
 	void reset_on_present()
 	{
+		assert(is_queue);
 		best_copy_stats = { 0, 0 };
 		counters_per_used_depth_stencil.clear();
 	}
@@ -305,6 +308,11 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 		return;
 
+	// If this is queue state (happens if this is a immediate command list), need to protect access to it, since another thread may be in a present call, which can reset it
+	std::shared_lock<std::shared_mutex> lock(s_mutex, std::defer_lock);
+	if (state.is_queue)
+		lock.lock();
+
 	bool do_copy = true;
 	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[depth_stencil];
 
@@ -397,11 +405,11 @@ static void on_init_device(device *device)
 }
 static void on_init_command_list(command_list *cmd_list)
 {
-	cmd_list->create_private_data<state_tracking>();
+	cmd_list->create_private_data<state_tracking>(false);
 }
 static void on_init_command_queue(command_queue *cmd_queue)
 {
-	cmd_queue->create_private_data<state_tracking>();
+	cmd_queue->create_private_data<state_tracking>(true);
 
 	if ((cmd_queue->get_type() & command_queue_type::graphics) == 0)
 		return;
@@ -576,6 +584,11 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 		cmd_list->get_device()->get_api() != device_api::vulkan)
 		on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, clear_op::fullscreen_draw);
 
+	// If this is queue state (happens if this is a immediate command list), need to protect access to it, since another thread may be in a present call, which can reset it
+	std::shared_lock<std::shared_mutex> lock(s_mutex, std::defer_lock);
+	if (state.is_queue)
+		lock.lock();
+
 	state.first_draw_since_bind = false;
 
 	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
@@ -604,6 +617,11 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	auto &state = cmd_list->get_private_data<state_tracking>();
 	if (state.current_depth_stencil == 0)
 		return false; // This is a draw call with no depth-stencil bound
+
+	// If this is queue state (happens if this is a immediate command list), need to protect access to it, since another thread may be in a present call, which can reset it
+	std::shared_lock<std::shared_mutex> lock(s_mutex, std::defer_lock);
+	if (state.is_queue)
+		lock.lock();
 
 	depth_stencil_frame_stats &counters = state.counters_per_used_depth_stencil[state.current_depth_stencil];
 	counters.total_stats.drawcalls += draw_count;
@@ -681,17 +699,18 @@ static void on_reset(command_list *cmd_list)
 }
 static void on_execute_primary(command_queue *queue, command_list *cmd_list)
 {
+	// Skip merging state when this execution event is just the immediate command list getting flushed
+	if (cmd_list == queue->get_immediate_command_list())
+		return;
+
 	auto &target_state = queue->get_private_data<state_tracking>();
 	const auto &source_state = cmd_list->get_private_data<state_tracking>();
+	assert(target_state.is_queue && !source_state.is_queue);
 
-	// Skip merging state when this execution event is just the immediate command list getting flushed
-	if (std::addressof(target_state) != std::addressof(source_state))
-	{
-		// Need to protect access to the queue state, since another thread may be in a present call, which can reset this state
-		const std::unique_lock<std::shared_mutex> lock(s_mutex);
+	// Need to protect access to the queue state, since another thread may be in a present call, which can reset this state
+	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-		target_state.merge(source_state);
-	}
+	target_state.merge(source_state);
 }
 static void on_execute_secondary(command_list *cmd_list, command_list *secondary_cmd_list)
 {
@@ -707,6 +726,11 @@ static void on_execute_secondary(command_list *cmd_list, command_list *secondary
 	}
 	else
 	{
+		// If this is queue state (happens if this is a immediate command list), need to protect access to it, since another thread may be in a present call, which can reset it
+		std::shared_lock<std::shared_mutex> lock(s_mutex, std::defer_lock);
+		if (target_state.is_queue)
+			lock.lock();
+
 		target_state.merge(source_state);
 	}
 }
@@ -718,7 +742,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-	state_tracking queue_state;
+	state_tracking queue_state(true);
 	// Merge state from all graphics queues
 	for (command_queue *const queue : device_data.queues)
 	{
