@@ -331,8 +331,7 @@ static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_map<HDC, wgl_swapchain *> s_opengl_swapchains;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, wgl_device *> s_opengl_devices;
-static std::unordered_map<HGLRC, wgl_device_context *> s_opengl_contexts;
+static std::unordered_map<HGLRC, reshade::opengl::device_context_impl *> s_opengl_contexts;
 
 extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -854,83 +853,81 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		if (const auto it = s_opengl_contexts.find(hglrc);
 			it != s_opengl_contexts.end())
 		{
-			// Separate contexts are only created for shared render contexts
-			// It is important that the context that it is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
-			const HGLRC prev_hglrc = wglGetCurrentContext();
-			if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
+			const auto device = static_cast<wgl_device *>(it->second->get_device());
+
+			if (it->second != device)
 			{
-				delete it->second;
+				// Separate contexts are only created for shared render contexts
+				// It is important that the context that it is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
+				const HGLRC prev_hglrc = wglGetCurrentContext();
+				if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
+				{
+					delete static_cast<wgl_device_context *>(it->second);
+				}
+				else
+				{
+					LOG(WARN) << "Unable to make context current! Leaking resources ...";
+				}
 			}
 			else
 			{
-				LOG(WARN) << "Unable to make context current! Leaking resources ...";
-			}
+				const HDC prev_hdc = wglGetCurrentDC();
+				const HGLRC prev_hglrc = wglGetCurrentContext();
 
-			if (it->second == g_current_context)
-				g_current_context = nullptr;
+				// Set the render context current so its resources can be cleaned up
+				bool hglrc_is_current = true;
+				HWND dummy_window_handle = nullptr;
 
-			s_opengl_contexts.erase(it);
-		}
-
-		if (const auto it = s_opengl_devices.find(hglrc);
-			it != s_opengl_devices.end())
-		{
-			const HDC prev_hdc = wglGetCurrentDC();
-			const HGLRC prev_hglrc = wglGetCurrentContext();
-
-			// Set the render context current so its resources can be cleaned up
-			bool hglrc_is_current = true;
-			HWND dummy_window_handle = nullptr;
-
-			if (prev_hglrc != hglrc)
-			{
-				// In case the original was destroyed already, create a dummy window to get a valid context
-				dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
-				const HDC hdc = GetDC(dummy_window_handle);
-				const PIXELFORMATDESCRIPTOR dummy_pfd = { sizeof(dummy_pfd), 1, PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL };
-				reshade::hooks::call(wglSetPixelFormat)(hdc, it->second->get_pixel_format(), &dummy_pfd);
-
-				hglrc_is_current = reshade::hooks::call(wglMakeCurrent)(hdc, hglrc);
-			}
-
-			if (hglrc_is_current)
-			{
-				// Delete any swap chains referencing this device
-				for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
+				if (prev_hglrc != hglrc)
 				{
-					wgl_swapchain *const swapchain = swapchain_it->second;
+					// In case the original was destroyed already, create a dummy window to get a valid context
+					dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
+					const HDC hdc = GetDC(dummy_window_handle);
+					const PIXELFORMATDESCRIPTOR dummy_pfd = { sizeof(dummy_pfd), 1, PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL };
+					reshade::hooks::call(wglSetPixelFormat)(hdc, device->get_pixel_format(), &dummy_pfd);
 
-					if (it->second == swapchain->get_device())
-					{
-						delete swapchain;
-
-						swapchain_it = s_opengl_swapchains.erase(swapchain_it);
-					}
-					else
-					{
-						++swapchain_it;
-					}
+					hglrc_is_current = reshade::hooks::call(wglMakeCurrent)(hdc, hglrc);
 				}
 
-				delete it->second;
+				if (hglrc_is_current)
+				{
+					// Delete any swap chains referencing this device
+					for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
+					{
+						wgl_swapchain *const swapchain = swapchain_it->second;
 
-				// Restore previous device and render context
-				if (prev_hglrc != hglrc)
-					reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
-			}
-			else
-			{
-				LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
-			}
+						if (device == swapchain->get_device())
+						{
+							delete swapchain;
 
-			if (dummy_window_handle != nullptr)
-				DestroyWindow(dummy_window_handle);
+							swapchain_it = s_opengl_swapchains.erase(swapchain_it);
+						}
+						else
+						{
+							++swapchain_it;
+						}
+					}
+
+					delete device;
+
+					// Restore previous device and render context
+					if (prev_hglrc != hglrc)
+						reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
+				}
+				else
+				{
+					LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
+				}
+
+				if (dummy_window_handle != nullptr)
+					DestroyWindow(dummy_window_handle);
+			}
 
 			// Ensure the render context is not still current after deleting
 			if (it->second == g_current_context)
 				g_current_context = nullptr;
 
-			s_opengl_devices.erase(it);
+			s_opengl_contexts.erase(it);
 		}
 
 		s_legacy_contexts.erase(hglrc);
@@ -1007,8 +1004,6 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	const HWND hwnd = WindowFromDC(hdc);
-
 	const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
 
 	if (const auto it = s_shared_contexts.find(hglrc);
@@ -1021,8 +1016,8 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 #endif
 	}
 
-	if (const auto it = s_opengl_devices.find(shared_hglrc);
-		it != s_opengl_devices.end())
+	if (const auto it = s_opengl_contexts.find(shared_hglrc);
+		it != s_opengl_contexts.end())
 	{
 		g_current_context = it->second;
 	}
@@ -1063,7 +1058,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
 			s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end());
 
-		s_opengl_devices.emplace(shared_hglrc, device);
+		s_opengl_contexts.emplace(shared_hglrc, device);
 		g_current_context = device;
 	}
 
@@ -1086,9 +1081,13 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 	}
 
+	const HWND hwnd = WindowFromDC(hdc);
+
 	if (const auto it = s_opengl_swapchains.find(hdc);
 		it != s_opengl_swapchains.end())
 	{
+		assert(hwnd != nullptr);
+
 		RECT window_rect = {};
 		GetClientRect(hwnd, &window_rect);
 
