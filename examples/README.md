@@ -61,3 +61,7 @@ To build this example, first place a built version of the FFmpeg SDK into a subd
 Renders the ReShade post-processing effects at a different point during the frame, e.g. to apply them before the user interface of the game.
 
 This example makes use of a standalone utility (see [state_tracking.cpp and state_tracking.hpp](/examples/utils/state_tracking.hpp)) that tracks all render state currently bound on a command list, making it possible to query information about it at any time, e.g. to re-apply state after it was modified by a call to `reshade::api::effect_runtime::render_effects()`.
+
+## [14-ray_tracing](/examples/14-ray_tracing)
+
+Shows how to use the ReShade API to create acceleration structures and trace rays using DXR or Vulkan Ray Tracing. The example traces rays against a single triangle and blits the resulting image to the back buffer.
