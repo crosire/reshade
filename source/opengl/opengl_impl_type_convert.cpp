@@ -1675,7 +1675,7 @@ GLenum reshade::opengl::get_binding_for_target(GLenum target)
 	case GL_UNIFORM_BUFFER:
 		return GL_UNIFORM_BUFFER_BINDING;
 	case GL_TEXTURE_BUFFER:
-		return GL_TEXTURE_BINDING_BUFFER;
+		return GL_TEXTURE_BUFFER_BINDING; // GL_TEXTURE_BINDING_BUFFER does not seem to work
 	case GL_TRANSFORM_FEEDBACK_BUFFER:
 		return GL_TRANSFORM_FEEDBACK_BUFFER_BINDING;
 	case GL_COPY_READ_BUFFER:
