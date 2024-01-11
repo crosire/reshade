@@ -803,7 +803,7 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 		return; // Avoid waiting on graphics queue when nothing changes
 
 	// Make sure all previous frames have finished before updating descriptors (since they may be in use otherwise)
-	if (_is_initialized)
+	if (_is_initialized && (_device->get_api() == api::device_api::d3d12 || _device->get_api() == api::device_api::vulkan))
 		_graphics_queue->wait_idle();
 
 	_device->update_descriptor_tables(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
