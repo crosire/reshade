@@ -514,16 +514,14 @@ private:
 		case texture_format::r32u:
 			s += "uint";
 			break;
-		case texture_format::r8:
-		case texture_format::r16:
-		case texture_format::r16f:
-		case texture_format::r32f:
-			s += "float";
-			break;
 		default:
 			assert(false);
 			[[fallthrough]];
 		case texture_format::unknown:
+		case texture_format::r8:
+		case texture_format::r16:
+		case texture_format::r16f:
+		case texture_format::r32f:
 		case texture_format::rg8:
 		case texture_format::rg16:
 		case texture_format::rg16f:
