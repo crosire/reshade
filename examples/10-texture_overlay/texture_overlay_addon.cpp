@@ -307,9 +307,12 @@ static bool save_texture_image(command_queue *queue, resource tex, const resourc
 		cmd_list->barrier(tex, resource_usage::shader_resource, resource_usage::copy_source);
 		cmd_list->copy_texture_region(tex, 0, nullptr, intermediate, 0, nullptr);
 		cmd_list->barrier(tex, resource_usage::copy_source, resource_usage::shader_resource);
-	}
 
-	queue->wait_idle();
+		fence copy_sync_fence = {};
+		if (!device->create_fence(0, fence_flags::none, &copy_sync_fence) || !queue->signal(copy_sync_fence, 1) || !device->wait(copy_sync_fence, 1))
+			queue->wait_idle();
+		device->destroy_fence(copy_sync_fence);
+	}
 
 	subresource_data mapped_data = {};
 	if (device->map_texture_region(intermediate, 0, nullptr, map_access::read_only, &mapped_data))

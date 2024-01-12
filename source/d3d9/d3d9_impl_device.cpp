@@ -1980,7 +1980,7 @@ bool reshade::d3d9::device_impl::wait(api::fence fence, uint64_t value, uint64_t
 
 	while (true)
 	{
-		const HRESULT hr = impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, 0);
+		const HRESULT hr = impl->event_queries[value % std::size(impl->event_queries)]->GetData(nullptr, 0, D3DGETDATA_FLUSH);
 		if (hr == S_OK)
 			return true;
 		if (hr != S_FALSE)
@@ -2005,7 +2005,7 @@ bool reshade::d3d9::device_impl::signal(api::fence fence, uint64_t value)
 		return false;
 	impl->current_value = value;
 
-	return impl->event_queries[value % std::size(impl->event_queries)]->Issue(D3DISSUE_END), true;
+	return SUCCEEDED(impl->event_queries[value % std::size(impl->event_queries)]->Issue(D3DISSUE_END));
 }
 
 void reshade::d3d9::device_impl::get_acceleration_structure_size(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const

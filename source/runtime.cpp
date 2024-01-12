@@ -5107,9 +5107,10 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	cmd_list->copy_texture_region(resource, 0, nullptr, intermediate, 0, nullptr);
 	cmd_list->barrier(resource, api::resource_usage::copy_source, state);
 
-	// Wait for any rendering by the application finish before submitting
-	// It may have submitted that to a different queue, so simply wait for all to idle here
-	_graphics_queue->wait_idle();
+	api::fence copy_sync_fence = {};
+	if (!_device->create_fence(0, api::fence_flags::none, &copy_sync_fence) || !_graphics_queue->signal(copy_sync_fence, 1) || !_device->wait(copy_sync_fence, 1))
+		_graphics_queue->wait_idle();
+	_device->destroy_fence(copy_sync_fence);
 
 	// Copy data from intermediate image into output buffer
 	api::subresource_data mapped_data = {};

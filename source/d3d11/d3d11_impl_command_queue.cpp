@@ -66,7 +66,7 @@ bool reshade::d3d11::device_context_impl::wait(api::fence fence, uint64_t value)
 			if (hr != S_FALSE)
 				break;
 
-			Sleep(0);
+			Sleep(1);
 		}
 
 		return false;
