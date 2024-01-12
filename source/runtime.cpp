@@ -3676,7 +3676,8 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 		if (_effect_width == width && _effect_height == height && _effect_color_format == color_format_typeless && _effect_stencil_format == stencil_format)
 			return true;
 
-		_graphics_queue->wait_idle();
+		if (_device->get_api() == api::device_api::d3d12 || _device->get_api() == api::device_api::vulkan)
+			_graphics_queue->wait_idle();
 
 		_device->destroy_resource(_effect_color_tex);
 		_effect_color_tex = {};
