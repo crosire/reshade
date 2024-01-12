@@ -303,6 +303,7 @@ namespace reshade { namespace api
 		memory_heap heap = memory_heap::unknown;
 		/// <summary>
 		/// Flags that specify how this resource may be used.
+		/// This should contain all resource states the resource will ever be transitioned to (including the initial state specified for resource creation).
 		/// </summary>
 		resource_usage usage = resource_usage::undefined;
 		/// <summary>

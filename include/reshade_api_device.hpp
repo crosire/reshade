@@ -332,14 +332,14 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="desc">Description of the resource to create.</param>
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <see langword="nullptr"/> to indicate no initial data to upload.</param>
-		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>.</param>
+		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>. It should also be part of the <see cref="resource_desc::usage"/> flags of the description.</param>
 		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created resource.</param>
 		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <see cref="resource_desc::flags"/> contains <see cref="resource_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created resource. When that variable is a valid handle, the resource is imported from that shared handle.</param>
 		/// <returns><see langword="true"/> if the resource was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
 		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out_handle, void **shared_handle = nullptr) = 0;
 		/// <summary>
 		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
-		/// Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this and never try to destroy resources created by the application!
+		/// Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this (e.g. with <see cref="command_queue::wait_idle"/>) and never try to destroy resources created by the application!
 		/// </summary>
 		virtual void destroy_resource(resource handle) = 0;
 
@@ -656,7 +656,8 @@ namespace reshade { namespace api
 	{
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resource"/> to the command stream.
-		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/> a UAV barrier is added, otherwise a state transition is performed.
+		/// Multiple barriers are more efficiently issued using the <see cref="command_list::barrier"/> overload that takes arrays.
+		/// When both <paramref name="old_state"/> and <paramref name="new_state"/> are <see cref="resource_usage::unordered_access"/>, a UAV barrier is added, otherwise a state transition is performed.
 		/// </summary>
 		/// <param name="resource">Resource to transition.</param>
 		/// <param name="old_state">Usage flags describing how the <paramref name="resource"/> was used before this barrier.</param>
