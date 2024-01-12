@@ -3516,7 +3516,7 @@ void reshade::runtime::draw_variable_editor()
 			}
 
 			// Skip rendering invisible items
-			if (category_closed || (!category_visible && variable.annotation_as_uint("ui_category_toggle") == 0))
+			if (category_closed || (!category_visible && !variable.annotation_as_uint("ui_category_toggle")))
 				continue;
 
 			bool modified = false;
