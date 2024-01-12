@@ -84,6 +84,12 @@ namespace reshade
 	{
 		uniform(const reshadefx::uniform_info &init) : uniform_info(init) {}
 
+		auto has_annotation(const std::string_view ann_name) const
+		{
+			const auto it = std::find_if(annotations.cbegin(), annotations.cend(),
+				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
+			return it != annotations.cend();
+		}
 		auto annotation_as_int(const std::string_view ann_name, size_t i = 0, int default_value = 0) const
 		{
 			const auto it = std::find_if(annotations.cbegin(), annotations.cend(),

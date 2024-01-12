@@ -3425,6 +3425,7 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::PopStyleVar();
 
 		bool category_closed = false;
+		bool category_visible = true;
 		std::string current_category;
 
 		size_t active_variable = 0;
@@ -3461,43 +3462,61 @@ void reshade::runtime::draw_variable_editor()
 						category_label += "###" + current_category; // Ensure widget ID does not change with varying width
 					}
 
-					ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
-					if (!variable.annotation_as_int("ui_category_closed"))
-						flags |= ImGuiTreeNodeFlags_DefaultOpen;
-
-					category_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
-
-					if (ImGui::BeginPopupContextItem(category_label.c_str()))
+					if (category_visible = true;
+						variable.annotation_as_uint("ui_category_toggle") != 0)
 					{
-						char temp[64];
-						ImFormatString(temp, sizeof(temp), _("Reset all in '%s' to default"), current_category.c_str());
-						std::string reset_category_button_label = ICON_FK_UNDO " ";
-						reset_category_button_label += temp;
+						reshadefx::constant current;
+						get_uniform_value(variable, current.as_uint, variable.type.components());
 
-						if (imgui::confirm_button(reset_category_button_label.c_str(), ImGui::GetContentRegionAvail().x, _("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
+						for (size_t i = 0; category_visible && i < variable.type.components(); i++)
+							category_visible = current.as_uint[i] != 0;
+					}
+
+					if (category_visible)
+					{
+						ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
+						if (!variable.annotation_as_int("ui_category_closed"))
+							flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+						category_closed = !ImGui::TreeNodeEx(category_label.c_str(), flags);
+
+						if (ImGui::BeginPopupContextItem(category_label.c_str()))
 						{
-							for (uniform &variable_it : effect.uniforms)
-								if (variable_it.special == special_uniform::none && !variable_it.annotation_as_uint("noreset") &&
-									variable_it.annotation_as_string("ui_category") == category)
-									reset_uniform_value(variable_it);
+							char temp[64];
+							ImFormatString(temp, sizeof(temp), _("Reset all in '%s' to default"), current_category.c_str());
+							std::string reset_category_button_label = ICON_FK_UNDO " ";
+							reset_category_button_label += temp;
 
-							if (_auto_save_preset)
-								save_current_preset();
-							else
-								_preset_is_modified = true;
+							if (imgui::confirm_button(reset_category_button_label.c_str(), ImGui::GetContentRegionAvail().x, _("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
+							{
+								for (uniform &variable_it : effect.uniforms)
+									if (variable_it.special == special_uniform::none && !variable_it.annotation_as_uint("noreset") &&
+										variable_it.annotation_as_string("ui_category") == category)
+										reset_uniform_value(variable_it);
+
+								if (_auto_save_preset)
+									save_current_preset();
+								else
+									_preset_is_modified = true;
+							}
+
+							ImGui::EndPopup();
 						}
-
-						ImGui::EndPopup();
+					}
+					else
+					{
+						category_closed = false;
 					}
 				}
 				else
 				{
 					category_closed = false;
+					category_visible = true;
 				}
 			}
 
 			// Skip rendering invisible items
-			if (category_closed)
+			if (category_closed || (!category_visible && !variable.has_annotation("ui_category_toggle")))
 				continue;
 
 			bool modified = false;
