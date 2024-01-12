@@ -3462,11 +3462,10 @@ void reshade::runtime::draw_variable_editor()
 						category_label += "###" + current_category; // Ensure widget ID does not change with varying width
 					}
 
-					if (variable.annotation_as_uint("ui_category_toggle") != 0)
+					if (category_visible = true;
+						variable.annotation_as_uint("ui_category_toggle") != 0)
 						get_uniform_value(variable, &category_visible);
-					else
-						category_visible = true;
-
+					
 					if (category_visible)
 					{
 						ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_NoTreePushOnOpen;
