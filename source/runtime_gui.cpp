@@ -3462,15 +3462,10 @@ void reshade::runtime::draw_variable_editor()
 						category_label += "###" + current_category; // Ensure widget ID does not change with varying width
 					}
 
-					if (category_visible = true;
-						variable.annotation_as_uint("ui_category_toggle") != 0)
-					{
-						reshadefx::constant current;
-						get_uniform_value(variable, current.as_uint, variable.type.components());
-
-						for (size_t i = 0; category_visible && i < variable.type.components(); i++)
-							category_visible = current.as_uint[i] != 0;
-					}
+					if (variable.annotation_as_uint("ui_category_toggle") != 0)
+						get_uniform_value(variable, &category_visible);
+					else
+						category_visible = true;
 
 					if (category_visible)
 					{
