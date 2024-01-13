@@ -16,8 +16,12 @@ using namespace reshadefx;
 class codegen_glsl final : public codegen
 {
 public:
-	codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
-		: _debug_info(debug_info), _vulkan_semantics(vulkan_semantics), _uniforms_to_spec_constants(uniforms_to_spec_constants), _enable_16bit_types(enable_16bit_types), _flip_vert_y(flip_vert_y)
+	codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y) :
+		_debug_info(debug_info),
+		_vulkan_semantics(vulkan_semantics),
+		_uniforms_to_spec_constants(uniforms_to_spec_constants),
+		_enable_16bit_types(enable_16bit_types),
+		_flip_vert_y(flip_vert_y)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -298,21 +302,21 @@ private:
 			assert(false);
 		}
 	}
-	void write_constant(std::string &s, const type &type, const constant &data) const
+	void write_constant(std::string &s, const type &data_type, const constant &data) const
 	{
-		if (type.is_array())
+		if (data_type.is_array())
 		{
-			auto elem_type = type;
+			type elem_type = data_type;
 			elem_type.array_length = 0;
 
 			write_type<false, false>(s, elem_type);
-			s += '[' + std::to_string(type.array_length) + "](";
+			s += '[' + std::to_string(data_type.array_length) + "](";
 
-			for (unsigned int a = 0; a < type.array_length; ++a)
+			for (unsigned int a = 0; a < data_type.array_length; ++a)
 			{
 				write_constant(s, elem_type, a < static_cast<unsigned int>(data.array_data.size()) ? data.array_data[a] : constant {});
 
-				if (a < type.array_length - 1)
+				if (a < data_type.array_length - 1)
 					s += ", ";
 			}
 
@@ -321,14 +325,14 @@ private:
 		}
 
 		// There can only be numeric constants
-		assert(type.is_numeric());
+		assert(data_type.is_numeric());
 
-		if (!type.is_scalar())
-			write_type<false, false>(s, type), s += '(';
+		if (!data_type.is_scalar())
+			write_type<false, false>(s, data_type), s += '(';
 
-		for (unsigned int i = 0, components = type.components(); i < components; ++i)
+		for (unsigned int i = 0, components = data_type.components(); i < components; ++i)
 		{
-			switch (type.base)
+			switch (data_type.base)
 			{
 			case type::t_bool:
 				s += data.as_uint[i] ? "true" : "false";
@@ -363,7 +367,7 @@ private:
 				s += ", ";
 		}
 
-		if (!type.is_scalar())
+		if (!data_type.is_scalar())
 			s += ')';
 	}
 	void write_location(std::string &s, const location &loc) const
@@ -450,7 +454,8 @@ private:
 		if constexpr (naming_type != naming::reserved)
 			name = escape_name(std::move(name));
 		if constexpr (naming_type == naming::general)
-			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
+			if (std::find_if(_names.begin(), _names.end(),
+					[&name](const auto &names_it) { return names_it.second == name; }) != _names.end())
 				name += '_' + std::to_string(id); // Append a numbered suffix if the name already exists
 		_names[id] = std::move(name);
 	}
@@ -462,9 +467,9 @@ private:
 		if (semantic.compare(0, 9, "SV_TARGET") == 0)
 			return static_cast<uint32_t>(std::strtoul(semantic.c_str() + 9, nullptr, 10));
 
-		if (const auto it = _semantic_to_location.find(semantic);
-			it != _semantic_to_location.end())
-			return it->second;
+		if (const auto location_it = _semantic_to_location.find(semantic);
+			location_it != _semantic_to_location.end())
+			return location_it->second;
 
 		// Extract the semantic index from the semantic name (e.g. 2 for "TEXCOORD2")
 		size_t digit_index = semantic.size() - 1;
@@ -472,8 +477,8 @@ private:
 			digit_index--;
 		digit_index++;
 
-		const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
 		const std::string semantic_base = semantic.substr(0, digit_index);
+		const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
 
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
@@ -785,7 +790,7 @@ private:
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
-			auto &param = info.parameter_list[i];
+			struct_member_info &param = info.parameter_list[i];
 
 			param.definition = make_id();
 			define_name<naming::unique>(param.definition, param.name);
@@ -819,9 +824,8 @@ private:
 				'_' + std::to_string(num_threads[1]) +
 				'_' + std::to_string(num_threads[2]);
 
-		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const auto &ep) { return ep.name == func.unique_name; });
-			it != _module.entry_points.end())
+		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
 			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
@@ -883,7 +887,7 @@ private:
 			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
 		}
 
-		const auto num_params = func.parameter_list.size();
+		const size_t num_params = func.parameter_list.size();
 		for (size_t i = 0; i < num_params; ++i)
 		{
 			type param_type = func.parameter_list[i].type;
@@ -898,8 +902,10 @@ private:
 					const struct_info &definition = get_struct(param_type.definition);
 
 					for (unsigned int a = 0, array_length = std::max(1u, param_type.array_length); a < array_length; a++)
+					{
 						for (const struct_member_info &member : definition.member_list)
 							create_varying_variable(member.type, param_type.qualifiers | type::q_in, "_in_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic);
+					}
 				}
 				else
 				{
@@ -914,8 +920,10 @@ private:
 					const struct_info &definition = get_struct(param_type.definition);
 
 					for (unsigned int a = 0, array_length = std::max(1u, param_type.array_length); a < array_length; a++)
+					{
 						for (const struct_member_info &member : definition.member_list)
 							create_varying_variable(member.type, param_type.qualifiers | type::q_out, "_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic);
+					}
 				}
 				else
 				{
@@ -957,10 +965,12 @@ private:
 
 						for (const struct_member_info &member : definition.member_list)
 						{
-							std::string in_param_name = "_in_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name;
+							std::string in_param_name;
 							if (const auto it = semantic_to_varying_variable.find(member.semantic);
-								it != semantic_to_varying_variable.end() && it->second != in_param_name)
+								it != semantic_to_varying_variable.end())
 								in_param_name = it->second;
+							else
+								in_param_name = "_in_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name;
 
 							if (member.type.is_array())
 							{
@@ -1286,7 +1296,7 @@ private:
 
 		std::string type, expr_code = id_to_name(exp.base);
 
-		for (const auto &op : exp.chain)
+		for (const expression::operation &op : exp.chain)
 		{
 			switch (op.op)
 			{
@@ -1379,7 +1389,7 @@ private:
 
 		code += '\t' + id_to_name(exp.base);
 
-		for (const auto &op : exp.chain)
+		for (const expression::operation &op : exp.chain)
 		{
 			switch (op.op)
 			{
@@ -1430,33 +1440,33 @@ private:
 			code += id_to_name(value) + ";\n";
 	}
 
-	id   emit_constant(const type &type, const constant &data) override
+	id   emit_constant(const type &data_type, const constant &data) override
 	{
 		const id res = make_id();
 
-		if (type.is_array() || type.is_struct())
+		if (data_type.is_array() || data_type.is_struct())
 		{
-			assert(type.has(type::q_const));
+			assert(data_type.has(type::q_const));
 
 			std::string &code = _blocks.at(_current_block);
 
 			code += '\t';
 
 			// GLSL requires constants to be initialized, but struct initialization is not supported right now
-			if (!type.is_struct())
+			if (!data_type.is_struct())
 				code += "const ";
 
-			write_type(code, type);
+			write_type(code, data_type);
 			code += ' ' + id_to_name(res);
 
 			// Array constants need to be stored in a constant variable as they cannot be used in-place
-			if (type.is_array())
-				code += '[' + std::to_string(type.array_length) + ']';
+			if (data_type.is_array())
+				code += '[' + std::to_string(data_type.array_length) + ']';
 
 			// Struct initialization is not supported right now
-			if (!type.is_struct()) {
+			if (!data_type.is_struct()) {
 				code += " = ";
-				write_constant(code, type, data);
+				write_constant(code, data_type, data);
 			}
 
 			code += ";\n";
@@ -1464,7 +1474,7 @@ private:
 		}
 
 		std::string code;
-		write_constant(code, type, data);
+		write_constant(code, data_type, data);
 		define_name<naming::expression>(res, std::move(code));
 
 		return res;
@@ -1504,7 +1514,7 @@ private:
 
 		return res;
 	}
-	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &type, id lhs, id rhs) override
+	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &exp_type, id lhs, id rhs) override
 	{
 		const id res = make_id();
 
@@ -1532,7 +1542,7 @@ private:
 			break;
 		case tokenid::star:
 		case tokenid::star_equal:
-			if (type.is_matrix())
+			if (exp_type.is_matrix())
 				intrinsic = "matrixCompMult";
 			else
 				operator_code = '*';
@@ -1543,7 +1553,7 @@ private:
 			break;
 		case tokenid::percent:
 		case tokenid::percent_equal:
-			if (type.is_floating_point())
+			if (exp_type.is_floating_point())
 				intrinsic = "fmodHLSL",
 				_uses_fmod = true;
 			else
@@ -1570,51 +1580,51 @@ private:
 			operator_code = ">>";
 			break;
 		case tokenid::pipe_pipe:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "compOr",
 				_uses_componentwise_or = true;
 			else
 				operator_code = "||";
 			break;
 		case tokenid::ampersand_ampersand:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "compAnd",
 				_uses_componentwise_and = true;
 			else
 				operator_code = "&&";
 			break;
 		case tokenid::less:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "lessThan";
 			else
 				operator_code = '<';
 			break;
 		case tokenid::less_equal:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "lessThanEqual";
 			else
 				operator_code = "<=";
 			break;
 		case tokenid::greater:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "greaterThan";
 			else
 				operator_code = '>';
 			break;
 		case tokenid::greater_equal:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "greaterThanEqual";
 			else
 				operator_code = ">=";
 			break;
 		case tokenid::equal_equal:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "equal";
 			else
 				operator_code = "==";
 			break;
 		case tokenid::exclaim_equal:
-			if (type.is_vector())
+			if (exp_type.is_vector())
 				intrinsic = "notEqual";
 			else
 				operator_code = "!=";
@@ -1739,11 +1749,11 @@ private:
 
 		return res;
 	}
-	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
+	id   emit_construct(const location &loc, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
-			assert((arg.type.is_scalar() || type.is_array()) && arg.chain.empty() && arg.base != 0);
+		for (const expression &arg : args)
+			assert((arg.type.is_scalar() || res_type.is_array()) && arg.chain.empty() && arg.base != 0);
 #endif
 
 		const id res = make_id();
@@ -1753,18 +1763,18 @@ private:
 		write_location(code, loc);
 
 		code += '\t';
-		write_type(code, type);
+		write_type(code, res_type);
 		code += ' ' + id_to_name(res);
 
-		if (type.is_array())
-			code += '[' + std::to_string(type.array_length) + ']';
+		if (res_type.is_array())
+			code += '[' + std::to_string(res_type.array_length) + ']';
 
 		code += " = ";
 
-		write_type<false, false>(code, type);
+		write_type<false, false>(code, res_type);
 
-		if (type.is_array())
-			code += '[' + std::to_string(type.array_length) + ']';
+		if (res_type.is_array())
+			code += '[' + std::to_string(res_type.array_length) + ']';
 
 		code += '(';
 
@@ -1828,7 +1838,7 @@ private:
 		_blocks.erase(true_statement_block);
 		_blocks.erase(false_statement_block);
 	}
-	id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &type) override
+	id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &res_type) override
 	{
 		assert(condition_value != 0 && condition_block != 0 && true_value != 0 && true_statement_block != 0 && false_value != 0 && false_statement_block != 0);
 
@@ -1845,7 +1855,7 @@ private:
 		code += _blocks.at(condition_block);
 
 		code += '\t';
-		write_type(code, type);
+		write_type(code, res_type);
 		code += ' ' + id_to_name(res) + ";\n";
 
 		write_location(code, loc);
@@ -1901,8 +1911,8 @@ private:
 		if (condition_block == 0)
 		{
 			// Convert the last SSA variable initializer to an assignment statement
-			auto pos_assign = continue_data.rfind(condition_name);
-			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
+			const size_t pos_assign = continue_data.rfind(condition_name);
+			const size_t pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
 			// We need to add the continue block to all "continue" statements as well
@@ -1930,9 +1940,9 @@ private:
 			if (std::count(condition_data.begin(), condition_data.end(), '\n') == 1)
 			{
 				// Convert SSA variable initializer back to a condition expression
-				auto pos_assign = condition_data.find('=');
+				const size_t pos_assign = condition_data.find('=');
 				condition_data.erase(0, pos_assign + 2);
-				auto pos_semicolon = condition_data.rfind(';');
+				const size_t pos_semicolon = condition_data.rfind(';');
 				condition_data.erase(pos_semicolon);
 
 				condition_name = std::move(condition_data);
@@ -1945,8 +1955,8 @@ private:
 				increase_indentation_level(condition_data);
 
 				// Convert the last SSA variable initializer to an assignment statement
-				auto pos_assign = condition_data.rfind(condition_name);
-				auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
+				const size_t pos_assign = condition_data.rfind(condition_name);
+				const size_t pos_prev_assign = condition_data.rfind('\t', pos_assign);
 				condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 			}
 
@@ -2072,7 +2082,7 @@ private:
 
 		code += "\tdiscard;\n";
 
-		const auto &return_type = _functions.back()->return_type;
+		const type &return_type = _functions.back()->return_type;
 		if (!return_type.is_void())
 		{
 			// Add a return statement to exit functions in case discard is the last control flow statement

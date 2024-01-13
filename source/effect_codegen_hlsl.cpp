@@ -17,8 +17,10 @@ using namespace reshadefx;
 class codegen_hlsl final : public codegen
 {
 public:
-	codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
-		: _shader_model(shader_model), _debug_info(debug_info), _uniforms_to_spec_constants(uniforms_to_spec_constants)
+	codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants) :
+		_shader_model(shader_model),
+		_debug_info(debug_info),
+		_uniforms_to_spec_constants(uniforms_to_spec_constants)
 	{
 		// Create default block and reserve a memory block to avoid frequent reallocations
 		std::string &block = _blocks.emplace(0, std::string()).first->second;
@@ -397,20 +399,20 @@ private:
 		if (type.cols > 1)
 			s += 'x' + std::to_string(type.cols);
 	}
-	void write_constant(std::string &s, const type &type, const constant &data) const
+	void write_constant(std::string &s, const type &data_type, const constant &data) const
 	{
-		if (type.is_array())
+		if (data_type.is_array())
 		{
-			auto elem_type = type;
+			type elem_type = data_type;
 			elem_type.array_length = 0;
 
 			s += "{ ";
 
-			for (unsigned int a = 0; a < type.array_length; ++a)
+			for (unsigned int a = 0; a < data_type.array_length; ++a)
 			{
 				write_constant(s, elem_type, a < static_cast<unsigned int>(data.array_data.size()) ? data.array_data[a] : constant {});
 
-				if (a < type.array_length - 1)
+				if (a < data_type.array_length - 1)
 					s += ", ";
 			}
 
@@ -418,24 +420,24 @@ private:
 			return;
 		}
 
-		if (type.is_struct())
+		if (data_type.is_struct())
 		{
 			// The can only be zero initializer struct constants
 			assert(data.as_uint[0] == 0);
 
-			s += '(' + id_to_name(type.definition) + ")0";
+			s += '(' + id_to_name(data_type.definition) + ")0";
 			return;
 		}
 
 		// There can only be numeric constants
-		assert(type.is_numeric());
+		assert(data_type.is_numeric());
 
-		if (!type.is_scalar())
-			write_type<false, false>(s, type), s += '(';
+		if (!data_type.is_scalar())
+			write_type<false, false>(s, data_type), s += '(';
 
-		for (unsigned int i = 0, components = type.components(); i < components; ++i)
+		for (unsigned int i = 0, components = data_type.components(); i < components; ++i)
 		{
-			switch (type.base)
+			switch (data_type.base)
 			{
 			case type::t_bool:
 				s += data.as_uint[i] ? "true" : "false";
@@ -470,7 +472,7 @@ private:
 				s += ", ";
 		}
 
-		if (!type.is_scalar())
+		if (!data_type.is_scalar())
 			s += ')';
 	}
 	template <bool force_source = false>
@@ -554,7 +556,8 @@ private:
 				return; // Filter out names that may clash with automatic ones
 		name = escape_name(std::move(name));
 		if constexpr (naming_type == naming::general)
-			if (std::find_if(_names.begin(), _names.end(), [&name](const auto &it) { return it.second == name; }) != _names.end())
+			if (std::find_if(_names.begin(), _names.end(),
+					[&name](const auto &names_it) { return names_it.second == name; }) != _names.end())
 				name += '_' + std::to_string(id); // Append a numbered suffix if the name already exists
 		_names[id] = std::move(name);
 	}
@@ -583,8 +586,8 @@ private:
 				digit_index--;
 			digit_index++;
 
-			const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
 			const std::string semantic_base = semantic.substr(0, digit_index);
+			const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
 
 			if (semantic_base == "TEXCOORD")
 			{
@@ -732,14 +735,20 @@ private:
 		if (_shader_model >= 40)
 		{
 			// Try and reuse a sampler binding with the same sampler description
-			const auto existing_sampler = std::find_if(_module.samplers.begin(), _module.samplers.end(),
-				[&info](const auto &it) {
-					return it.filter == info.filter && it.address_u == info.address_u && it.address_v == info.address_v && it.address_w == info.address_w && it.min_lod == info.min_lod && it.max_lod == info.max_lod && it.lod_bias == info.lod_bias;
+			const auto existing_sampler_it = std::find_if(_module.samplers.begin(), _module.samplers.end(),
+				[&info](const sampler_info &existing_info) {
+					return
+						existing_info.filter == info.filter &&
+						existing_info.address_u == info.address_u &&
+						existing_info.address_v == info.address_v &&
+						existing_info.address_w == info.address_w &&
+						existing_info.min_lod == info.min_lod &&
+						existing_info.max_lod == info.max_lod &&
+						existing_info.lod_bias == info.lod_bias;
 				});
-
-			if (existing_sampler != _module.samplers.end())
+			if (existing_sampler_it != _module.samplers.end())
 			{
-				info.binding = existing_sampler->binding;
+				info.binding = existing_sampler_it->binding;
 			}
 			else
 			{
@@ -951,7 +960,7 @@ private:
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
-			auto &param = info.parameter_list[i];
+			struct_member_info &param = info.parameter_list[i];
 
 			param.definition = make_id();
 			define_name<naming::unique>(param.definition, param.name);
@@ -995,9 +1004,8 @@ private:
 		else if (_shader_model < 40)
 			func.unique_name = 'E' + func.unique_name;
 
-		if (const auto it = std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const auto &ep) { return ep.name == func.unique_name; });
-			it != _module.entry_points.end())
+		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
+				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
 			return;
 
 		_module.entry_points.push_back({ func.unique_name, stype });
@@ -1006,14 +1014,14 @@ private:
 		if (_shader_model >= 40 && stype != shader_type::cs)
 			return;
 
-		auto entry_point = func;
+		function_info entry_point = func;
 
 		const auto is_color_semantic = [](const std::string &semantic) {
 			return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
 		const auto is_position_semantic = [](const std::string &semantic) {
 			return semantic == "SV_POSITION" || semantic == "POSITION"; };
 
-		const auto ret = make_id();
+		const id ret = make_id();
 		define_name<naming::general>(ret, "ret");
 
 		std::string position_variable_name;
@@ -1147,7 +1155,7 @@ private:
 
 		std::string type, expr_code = id_to_name(exp.base);
 
-		for (const auto &op : exp.chain)
+		for (const expression::operation &op : exp.chain)
 		{
 			switch (op.op)
 			{
@@ -1214,7 +1222,7 @@ private:
 			"_m30", "_m31", "_m32", "_m33"
 		};
 
-		for (const auto &op : exp.chain)
+		for (const expression::operation &op : exp.chain)
 		{
 			switch (op.op)
 			{
@@ -1242,30 +1250,30 @@ private:
 		code += " = " + id_to_name(value) + ";\n";
 	}
 
-	id   emit_constant(const type &type, const constant &data) override
+	id   emit_constant(const type &data_type, const constant &data) override
 	{
 		const id res = make_id();
 
-		if (type.is_array())
+		if (data_type.is_array())
 		{
-			assert(type.has(type::q_const));
+			assert(data_type.has(type::q_const));
 
 			std::string &code = _blocks.at(_current_block);
 
 			// Array constants need to be stored in a constant variable as they cannot be used in-place
 			code += '\t';
 			code += "const ";
-			write_type(code, type);
+			write_type(code, data_type);
 			code += ' ' + id_to_name(res);
-			code += '[' + std::to_string(type.array_length) + ']';
+			code += '[' + std::to_string(data_type.array_length) + ']';
 			code += " = ";
-			write_constant(code, type, data);
+			write_constant(code, data_type, data);
 			code += ";\n";
 			return res;
 		}
 
 		std::string code;
-		write_constant(code, type, data);
+		write_constant(code, data_type, data);
 		define_name<naming::expression>(res, std::move(code));
 
 		return res;
@@ -1512,11 +1520,11 @@ private:
 
 		return res;
 	}
-	id   emit_construct(const location &loc, const type &type, const std::vector<expression> &args) override
+	id   emit_construct(const location &loc, const type &res_type, const std::vector<expression> &args) override
 	{
 #ifndef NDEBUG
-		for (const auto &arg : args)
-			assert((arg.type.is_scalar() || type.is_array()) && arg.chain.empty() && arg.base != 0);
+		for (const expression &arg : args)
+			assert((arg.type.is_scalar() || res_type.is_array()) && arg.chain.empty() && arg.base != 0);
 #endif
 
 		const id res = make_id();
@@ -1526,18 +1534,18 @@ private:
 		write_location(code, loc);
 
 		code += '\t';
-		write_type(code, type);
+		write_type(code, res_type);
 		code += ' ' + id_to_name(res);
 
-		if (type.is_array())
-			code += '[' + std::to_string(type.array_length) + ']';
+		if (res_type.is_array())
+			code += '[' + std::to_string(res_type.array_length) + ']';
 
 		code += " = ";
 
-		if (type.is_array())
+		if (res_type.is_array())
 			code += "{ ";
 		else
-			write_type<false, false>(code, type), code += '(';
+			write_type<false, false>(code, res_type), code += '(';
 
 		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
 		{
@@ -1547,7 +1555,7 @@ private:
 				code += ", ";
 		}
 
-		if (type.is_array())
+		if (res_type.is_array())
 			code += " }";
 		else
 			code += ')';
@@ -1594,7 +1602,7 @@ private:
 		_blocks.erase(true_statement_block);
 		_blocks.erase(false_statement_block);
 	}
-	id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &type) override
+	id   emit_phi(const location &loc, id condition_value, id condition_block, id true_value, id true_statement_block, id false_value, id false_statement_block, const type &res_type) override
 	{
 		assert(condition_value != 0 && condition_block != 0 && true_value != 0 && true_statement_block != 0 && false_value != 0 && false_statement_block != 0);
 
@@ -1611,7 +1619,7 @@ private:
 		code += _blocks.at(condition_block);
 
 		code += '\t';
-		write_type(code, type);
+		write_type(code, res_type);
 		code += ' ' + id_to_name(res) + ";\n";
 
 		write_location(code, loc);
@@ -1658,8 +1666,8 @@ private:
 		if (condition_block == 0)
 		{
 			// Convert the last SSA variable initializer to an assignment statement
-			auto pos_assign = continue_data.rfind(condition_name);
-			auto pos_prev_assign = continue_data.rfind('\t', pos_assign);
+			const size_t pos_assign = continue_data.rfind(condition_name);
+			const size_t pos_prev_assign = continue_data.rfind('\t', pos_assign);
 			continue_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 
 			// We need to add the continue block to all "continue" statements as well
@@ -1696,9 +1704,9 @@ private:
 			if (!use_break_statement_for_condition && std::count(condition_data.begin(), condition_data.end(), '\n') == 1)
 			{
 				// Convert SSA variable initializer back to a condition expression
-				auto pos_assign = condition_data.find('=');
+				const size_t pos_assign = condition_data.find('=');
 				condition_data.erase(0, pos_assign + 2);
-				auto pos_semicolon = condition_data.rfind(';');
+				const size_t pos_semicolon = condition_data.rfind(';');
 				condition_data.erase(pos_semicolon);
 
 				condition_name = std::move(condition_data);
@@ -1711,8 +1719,8 @@ private:
 				increase_indentation_level(condition_data);
 
 				// Convert the last SSA variable initializer to an assignment statement
-				auto pos_assign = condition_data.rfind(condition_name);
-				auto pos_prev_assign = condition_data.rfind('\t', pos_assign);
+				const size_t pos_assign = condition_data.rfind(condition_name);
+				const size_t pos_prev_assign = condition_data.rfind('\t', pos_assign);
 				condition_data.erase(pos_prev_assign + 1, pos_assign - pos_prev_assign - 1);
 			}
 
@@ -1904,7 +1912,7 @@ private:
 
 		code += "\tdiscard;\n";
 
-		const auto &return_type = _functions.back()->return_type;
+		const type &return_type = _functions.back()->return_type;
 		if (!return_type.is_void())
 		{
 			// HLSL compiler doesn't handle discard like a shader kill

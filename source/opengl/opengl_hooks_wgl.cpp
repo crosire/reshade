@@ -17,7 +17,7 @@
 
 #define gl gl3wProcs.gl
 
-struct attribute
+struct wgl_attribute
 {
 	enum
 	{
@@ -382,77 +382,77 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 	{
 		switch (attrib[0])
 		{
-		case attribute::WGL_DRAW_TO_WINDOW_ARB:
+		case wgl_attribute::WGL_DRAW_TO_WINDOW_ARB:
 			LOG(INFO) << "  | WGL_DRAW_TO_WINDOW_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_DRAW_TO_BITMAP_ARB:
+		case wgl_attribute::WGL_DRAW_TO_BITMAP_ARB:
 			LOG(INFO) << "  | WGL_DRAW_TO_BITMAP_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_ACCELERATION_ARB:
+		case wgl_attribute::WGL_ACCELERATION_ARB:
 			LOG(INFO) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 			break;
-		case attribute::WGL_SWAP_LAYER_BUFFERS_ARB:
+		case wgl_attribute::WGL_SWAP_LAYER_BUFFERS_ARB:
 			layerplanes = layerplanes || attrib[1] != FALSE;
 			LOG(INFO) << "  | WGL_SWAP_LAYER_BUFFERS_ARB              | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_SWAP_METHOD_ARB:
+		case wgl_attribute::WGL_SWAP_METHOD_ARB:
 			LOG(INFO) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 			break;
-		case attribute::WGL_NUMBER_OVERLAYS_ARB:
+		case wgl_attribute::WGL_NUMBER_OVERLAYS_ARB:
 			layerplanes = layerplanes || attrib[1] != 0;
 			LOG(INFO) << "  | WGL_NUMBER_OVERLAYS_ARB                 | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_NUMBER_UNDERLAYS_ARB:
+		case wgl_attribute::WGL_NUMBER_UNDERLAYS_ARB:
 			layerplanes = layerplanes || attrib[1] != 0;
 			LOG(INFO) << "  | WGL_NUMBER_UNDERLAYS_ARB                | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_SUPPORT_GDI_ARB:
+		case wgl_attribute::WGL_SUPPORT_GDI_ARB:
 			LOG(INFO) << "  | WGL_SUPPORT_GDI_ARB                     | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_SUPPORT_OPENGL_ARB:
+		case wgl_attribute::WGL_SUPPORT_OPENGL_ARB:
 			LOG(INFO) << "  | WGL_SUPPORT_OPENGL_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_DOUBLE_BUFFER_ARB:
+		case wgl_attribute::WGL_DOUBLE_BUFFER_ARB:
 			doublebuffered = attrib[1] != FALSE;
 			LOG(INFO) << "  | WGL_DOUBLE_BUFFER_ARB                   | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_STEREO_ARB:
+		case wgl_attribute::WGL_STEREO_ARB:
 			LOG(INFO) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_PIXEL_TYPE_ARB:
+		case wgl_attribute::WGL_PIXEL_TYPE_ARB:
 			LOG(INFO) << "  | WGL_PIXEL_TYPE_ARB                      | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 			break;
-		case attribute::WGL_COLOR_BITS_ARB:
+		case wgl_attribute::WGL_COLOR_BITS_ARB:
 			LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_RED_BITS_ARB:
+		case wgl_attribute::WGL_RED_BITS_ARB:
 			LOG(INFO) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_GREEN_BITS_ARB:
+		case wgl_attribute::WGL_GREEN_BITS_ARB:
 			LOG(INFO) << "  | WGL_GREEN_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_BLUE_BITS_ARB:
+		case wgl_attribute::WGL_BLUE_BITS_ARB:
 			LOG(INFO) << "  | WGL_BLUE_BITS_ARB                       | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_ALPHA_BITS_ARB:
+		case wgl_attribute::WGL_ALPHA_BITS_ARB:
 			LOG(INFO) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_DEPTH_BITS_ARB:
+		case wgl_attribute::WGL_DEPTH_BITS_ARB:
 			LOG(INFO) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_STENCIL_BITS_ARB:
+		case wgl_attribute::WGL_STENCIL_BITS_ARB:
 			LOG(INFO) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_DRAW_TO_PBUFFER_ARB:
+		case wgl_attribute::WGL_DRAW_TO_PBUFFER_ARB:
 			LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
-		case attribute::WGL_SAMPLE_BUFFERS_ARB:
+		case wgl_attribute::WGL_SAMPLE_BUFFERS_ARB:
 			LOG(INFO) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_SAMPLES_ARB:
+		case wgl_attribute::WGL_SAMPLES_ARB:
 			LOG(INFO) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
 			break;
-		case attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB:
+		case wgl_attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB:
 			LOG(INFO) << "  | WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 			break;
 		default:
@@ -562,7 +562,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 	if (s_hooks_installed && reshade::hooks::call(wglGetPixelFormatAttribivARB) != nullptr)
 	{
-		int attrib_names[2] = { attribute::WGL_SAMPLES_ARB, attribute::WGL_SWAP_METHOD_ARB }, attrib_values[2] = {};
+		int attrib_names[2] = { wgl_attribute::WGL_SAMPLES_ARB, wgl_attribute::WGL_SWAP_METHOD_ARB }, attrib_values[2] = {};
 		if (reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, 2, attrib_names, attrib_values))
 		{
 			if (attrib_values[0] != 0)
@@ -587,26 +587,26 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 		if (s_hooks_installed && reshade::hooks::call(wglChoosePixelFormatARB) != nullptr)
 		{
 			int i = 14;
-			attribute attribs[17] = {
-				{ attribute::WGL_DRAW_TO_WINDOW_ARB, (pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0 },
-				{ attribute::WGL_DRAW_TO_BITMAP_ARB, (pfd.dwFlags & PFD_DRAW_TO_BITMAP) != 0 },
-				{ attribute::WGL_SUPPORT_GDI_ARB, (pfd.dwFlags & PFD_SUPPORT_GDI) != 0 },
-				{ attribute::WGL_SUPPORT_OPENGL_ARB, (pfd.dwFlags & PFD_SUPPORT_OPENGL) != 0 },
-				{ attribute::WGL_DOUBLE_BUFFER_ARB, (pfd.dwFlags & PFD_DOUBLEBUFFER) != 0 },
-				{ attribute::WGL_STEREO_ARB, (pfd.dwFlags & PFD_STEREO) != 0 },
-				{ attribute::WGL_RED_BITS_ARB, pfd.cRedBits },
-				{ attribute::WGL_GREEN_BITS_ARB, pfd.cGreenBits },
-				{ attribute::WGL_BLUE_BITS_ARB, pfd.cBlueBits },
-				{ attribute::WGL_ALPHA_BITS_ARB, pfd.cAlphaBits },
-				{ attribute::WGL_DEPTH_BITS_ARB, pfd.cDepthBits },
-				{ attribute::WGL_STENCIL_BITS_ARB, pfd.cStencilBits },
-				{ attribute::WGL_SAMPLE_BUFFERS_ARB, desc.back_buffer.texture.samples > 1 },
-				{ attribute::WGL_SAMPLES_ARB, desc.back_buffer.texture.samples > 1 ? desc.back_buffer.texture.samples : 0 },
+			wgl_attribute attribs[17] = {
+				{ wgl_attribute::WGL_DRAW_TO_WINDOW_ARB, (pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0 },
+				{ wgl_attribute::WGL_DRAW_TO_BITMAP_ARB, (pfd.dwFlags & PFD_DRAW_TO_BITMAP) != 0 },
+				{ wgl_attribute::WGL_SUPPORT_GDI_ARB, (pfd.dwFlags & PFD_SUPPORT_GDI) != 0 },
+				{ wgl_attribute::WGL_SUPPORT_OPENGL_ARB, (pfd.dwFlags & PFD_SUPPORT_OPENGL) != 0 },
+				{ wgl_attribute::WGL_DOUBLE_BUFFER_ARB, (pfd.dwFlags & PFD_DOUBLEBUFFER) != 0 },
+				{ wgl_attribute::WGL_STEREO_ARB, (pfd.dwFlags & PFD_STEREO) != 0 },
+				{ wgl_attribute::WGL_RED_BITS_ARB, pfd.cRedBits },
+				{ wgl_attribute::WGL_GREEN_BITS_ARB, pfd.cGreenBits },
+				{ wgl_attribute::WGL_BLUE_BITS_ARB, pfd.cBlueBits },
+				{ wgl_attribute::WGL_ALPHA_BITS_ARB, pfd.cAlphaBits },
+				{ wgl_attribute::WGL_DEPTH_BITS_ARB, pfd.cDepthBits },
+				{ wgl_attribute::WGL_STENCIL_BITS_ARB, pfd.cStencilBits },
+				{ wgl_attribute::WGL_SAMPLE_BUFFERS_ARB, desc.back_buffer.texture.samples > 1 },
+				{ wgl_attribute::WGL_SAMPLES_ARB, desc.back_buffer.texture.samples > 1 ? desc.back_buffer.texture.samples : 0 },
 			};
 
 			if (desc.present_mode)
 			{
-				attribs[i].name = attribute::WGL_SWAP_METHOD_ARB;
+				attribs[i].name = wgl_attribute::WGL_SWAP_METHOD_ARB;
 				attribs[i++].value = static_cast<int>(desc.present_mode);
 			}
 
@@ -614,7 +614,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 				desc.back_buffer.texture.format == reshade::api::format::b8g8r8a8_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::b8g8r8x8_unorm_srgb ||
 				desc.back_buffer.texture.format == reshade::api::format::bc1_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::bc2_unorm_srgb || desc.back_buffer.texture.format == reshade::api::format::bc3_unorm_srgb)
 			{
-				attribs[i].name = attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB;
+				attribs[i].name = wgl_attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB;
 				attribs[i++].value = 1;
 			}
 
@@ -729,7 +729,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	int i = 0, major = 1, minor = 0, flags = 0;
 	bool compatibility = false;
-	attribute attribs[8] = {};
+	wgl_attribute attribs[8] = {};
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5; attrib += 2, ++i)
 	{
@@ -738,17 +738,17 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 
 		switch (attrib[0])
 		{
-		case attribute::WGL_CONTEXT_MAJOR_VERSION_ARB:
+		case wgl_attribute::WGL_CONTEXT_MAJOR_VERSION_ARB:
 			major = attrib[1];
 			break;
-		case attribute::WGL_CONTEXT_MINOR_VERSION_ARB:
+		case wgl_attribute::WGL_CONTEXT_MINOR_VERSION_ARB:
 			minor = attrib[1];
 			break;
-		case attribute::WGL_CONTEXT_FLAGS_ARB:
+		case wgl_attribute::WGL_CONTEXT_FLAGS_ARB:
 			flags = attrib[1];
 			break;
-		case attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
-			compatibility = (attrib[1] & attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB) != 0;
+		case wgl_attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
+			compatibility = (attrib[1] & wgl_attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB) != 0;
 			break;
 		}
 	}
@@ -757,14 +757,14 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 		compatibility = true;
 
 #ifndef NDEBUG
-	flags |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
+	flags |= wgl_attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
 
 	// This works because the specs specifically notes that "If an attribute is specified more than once, then the last value specified is used."
-	attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
+	attribs[i].name = wgl_attribute::WGL_CONTEXT_FLAGS_ARB;
 	attribs[i++].value = flags;
-	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
-	attribs[i++].value = compatibility ? attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
+	attribs[i].name = wgl_attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
+	attribs[i++].value = compatibility ? wgl_attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : wgl_attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 
 	LOG(INFO) << "> Requesting " << (compatibility ? "compatibility" : "core") << " OpenGL context for version " << major << '.' << minor << '.';
 
@@ -776,14 +776,14 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 		{
 			switch (attribs[k].name)
 			{
-			case attribute::WGL_CONTEXT_MAJOR_VERSION_ARB:
+			case wgl_attribute::WGL_CONTEXT_MAJOR_VERSION_ARB:
 				attribs[k].value = 4;
 				break;
-			case attribute::WGL_CONTEXT_MINOR_VERSION_ARB:
+			case wgl_attribute::WGL_CONTEXT_MINOR_VERSION_ARB:
 				attribs[k].value = 3;
 				break;
-			case attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
-				attribs[k].value = attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
+			case wgl_attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
+				attribs[k].value = wgl_attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
 				break;
 			}
 		}

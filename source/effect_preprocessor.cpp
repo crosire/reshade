@@ -52,7 +52,7 @@ enum macro_replacement
 	macro_replacement_stringize = '\xFE',
 };
 
-static const int precedence_lookup[] = {
+static const int s_precedence_lookup[] = {
 	0, 1, 2, 3, 4, // bitwise operators
 	5, 6, 7, 7, 7, 7, // logical operators
 	8, 8, // left shift, right shift
@@ -906,8 +906,8 @@ bool reshadefx::preprocessor::evaluate_expression()
 					break;
 
 				if (left_associative ?
-					(precedence_lookup[op] > precedence_lookup[prev_op]) :
-					(precedence_lookup[op] >= precedence_lookup[prev_op]))
+					(s_precedence_lookup[op] > s_precedence_lookup[prev_op]) :
+					(s_precedence_lookup[op] >= s_precedence_lookup[prev_op]))
 					break;
 
 				stack_index--;
