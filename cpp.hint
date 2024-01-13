@@ -1,0 +1,10 @@
+// ReShade.vcxproj
+
+#define VR_Interface_Impl(type, method_name, vtable_index, interface_version, impl, return_type, ...) static return_type type##_##method_name##_##interface_version(vr::type *pThis, ##__VA_ARGS__) {}
+
+// ReShadeFX.vcxproj
+
+#define DEFINE_INTRINSIC(name, i, ret_type, ...)
+#define IMPLEMENT_INTRINSIC_GLSL(name, i, code)
+#define IMPLEMENT_INTRINSIC_HLSL(name, i, code)
+#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code)
