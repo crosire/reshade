@@ -150,7 +150,7 @@ BEGIN
 21655 "Öffne Webseite"
 40136 "Entwickelt von crosire."
 49329 "Dieses Projekt nutzt Open-Source-Bibliotheken mit folgenden Lizenzen:"
-63124 "Hohe Netzwerkaktivität entdeckt.\nAlle Erweiterungen sind deaktiviert, um Cheating zu verhindern."
+63124 "Hohe Netzwerkaktivität entdeckt.\nAlle Erweiterungen sind deaktiviert, um Cheating zu verhindern.\n\nSollte dies kein Mehrspielerspiel sein, dann kann stattdessen die ReShade-Variante mit voller Erweiterungsunterstützung benutzt werden, welche Erweiterungen nicht deaktiviert."
 59709 "Diese ReShade-Variante hat nur limitierte Erweiterungsfunktionen."
 25266 "Erweiterungen-Suchpfad"
 63926 "Manche Erweiterungen wurden nicht geladen, da diese ReShade-Variante nur limitierte Erweiterungsfunktionen hat."

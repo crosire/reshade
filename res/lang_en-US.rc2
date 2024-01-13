@@ -150,7 +150,7 @@ BEGIN
 21655 " Open website "
 40136 "Developed and maintained by crosire."
 49329 "This project makes use of several open source libraries, licenses of which are listed below:"
-63124 "High network activity discovered.\nAll add-ons are disabled to prevent exploitation."
+63124 "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.\n\nIf this is not a multiplayer game, use the ReShade build with full add-on support instead, which will not disable add-ons."
 59709 "This build of ReShade has only limited add-on functionality."
 25266 "Add-on search path"
 63926 "Some add-ons were not loaded because this build of ReShade has only limited add-on functionality."

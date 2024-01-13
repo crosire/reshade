@@ -3100,7 +3100,9 @@ void reshade::runtime::draw_gui_addons()
 #if RESHADE_ADDON == 1
 	if (!addon_enabled)
 	{
+		ImGui::PushTextWrapPos();
 		ImGui::TextColored(COLOR_YELLOW, _("High network activity discovered.\nAll add-ons are disabled to prevent exploitation."));
+		ImGui::PopTextWrapPos();
 		return;
 	}
 
