@@ -387,12 +387,15 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 		if (VS_FIXEDFILEINFO *fixed_file_version_info = nullptr;
 			VerQueryValueW(version_data.data(), L"\\", reinterpret_cast<LPVOID *>(&fixed_file_version_info), nullptr))
-			info.version = HIWORD(fixed_file_version_info->dwFileVersionMS) * 10000 + LOWORD(fixed_file_version_info->dwFileVersionMS) * 100 + HIWORD(fixed_file_version_info->dwFileVersionLS);
+		{
+			info.version = {
+				HIWORD(fixed_file_version_info->dwFileVersionMS),
+				LOWORD(fixed_file_version_info->dwFileVersionMS),
+				HIWORD(fixed_file_version_info->dwFileVersionLS),
+				LOWORD(fixed_file_version_info->dwFileVersionLS)
+			};
+		}
 	}
-
-	// The version number must not be zero
-	if (0 == info.version)
-		info.version = 1;
 
 	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME"));
 		name != nullptr)
@@ -426,7 +429,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		return false; // Disable this add-on
 	}
 
-	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << (info.version / 10000) << '.' << ((info.version / 100) % 100) << '.' << (info.version % 100) << " using ReShade API version " << api_version << '.';
+	LOG(INFO) << "Registered add-on \"" << info.name << "\" v" << info.version.number.major << '.' << info.version.number.minor << '.' << info.version.number.build << '.' << info.version.number.revision << " using ReShade API version " << api_version << '.';
 
 	reshade::addon_loaded_info.push_back(std::move(info));
 
