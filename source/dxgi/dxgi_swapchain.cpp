@@ -14,6 +14,7 @@
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "addon_manager.hpp"
+#include "runtime_manager.hpp"
 
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc);
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, HWND window);

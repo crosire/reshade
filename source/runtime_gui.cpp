@@ -6,7 +6,7 @@
 #if RESHADE_GUI
 
 #include "runtime.hpp"
-#include "runtime_objects.hpp"
+#include "runtime_internal.hpp"
 #include "version.h"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"

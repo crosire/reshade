@@ -11,6 +11,7 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
+#include "runtime_manager.hpp"
 #include "lockfree_linear_map.hpp"
 
 // Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel and Optimus

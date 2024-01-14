@@ -6,6 +6,7 @@
 #include "openxr_impl_swapchain.hpp"
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
+#include "runtime_manager.hpp"
 
 reshade::openxr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, XrSession session) :
 	api_object_impl(session),

@@ -366,6 +366,9 @@
     <ClCompile Include="source\runtime_gui_vr.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\runtime_manager.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="source\runtime_update_check.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
@@ -680,7 +683,10 @@
     <ClInclude Include="source\runtime.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtime_objects.hpp">
+    <ClInclude Include="source\runtime_internal.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\runtime_manager.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\state_block.hpp">

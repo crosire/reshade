@@ -4,7 +4,7 @@
  */
 
 #include "runtime.hpp"
-#include "runtime_objects.hpp"
+#include "runtime_internal.hpp"
 #include "ini_file.hpp"
 #include "addon_manager.hpp"
 #include "input.hpp"

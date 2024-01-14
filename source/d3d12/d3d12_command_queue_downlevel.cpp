@@ -8,6 +8,7 @@
 #include "d3d12_command_queue.hpp"
 #include "d3d12_command_queue_downlevel.hpp"
 #include "addon_manager.hpp"
+#include "runtime_manager.hpp"
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	swapchain_d3d12on7_impl(queue->_device, original),
