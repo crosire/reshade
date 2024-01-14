@@ -285,7 +285,7 @@ namespace reshadefx
 		const struct_info &get_struct(id id) const
 		{
 			return *std::find_if(_structs.begin(), _structs.end(),
-				[id](const auto &it) { return it.definition == id; });
+				[id](const struct_info &info) { return info.definition == id; });
 		}
 		/// <summary>
 		/// Looks up an existing texture binding.
@@ -295,7 +295,7 @@ namespace reshadefx
 		texture_info &get_texture(id id)
 		{
 			return *std::find_if(_module.textures.begin(), _module.textures.end(),
-				[id](const auto &it) { return it.id == id; });
+				[id](const texture_info &info) { return info.id == id; });
 		}
 		/// <summary>
 		/// Looks up an existing sampler binding.
@@ -305,7 +305,7 @@ namespace reshadefx
 		const sampler_info &get_sampler(id id) const
 		{
 			return *std::find_if(_module.samplers.begin(), _module.samplers.end(),
-				[id](const auto &it) { return it.id == id; });
+				[id](const sampler_info &info) { return info.id == id; });
 		}
 		/// <summary>
 		/// Looks up an existing storage binding.
@@ -315,7 +315,7 @@ namespace reshadefx
 		const storage_info &get_storage(id id) const
 		{
 			return *std::find_if(_module.storages.begin(), _module.storages.end(),
-				[id](const auto &it) { return it.id == id; });
+				[id](const storage_info &info) { return info.id == id; });
 		}
 		/// <summary>
 		/// Looks up an existing function definition.
@@ -325,7 +325,7 @@ namespace reshadefx
 		function_info &get_function(id id)
 		{
 			return *std::find_if(_functions.begin(), _functions.end(),
-				[id](const auto &it) { return it->definition == id; })->get();
+				[id](const std::unique_ptr<function_info> &info) { return info->definition == id; })->get();
 		}
 
 	protected:

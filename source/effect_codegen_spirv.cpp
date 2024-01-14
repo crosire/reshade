@@ -379,7 +379,7 @@ private:
 		const type_lookup lookup { info, is_ptr, array_stride, { storage, format } };
 
 		if (const auto lookup_it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-				[&lookup](const std::pair<type_lookup, spv::Id> &lookup_it) { return lookup_it.first == lookup; });
+				[&lookup](const std::pair<type_lookup, spv::Id> &lookup_entry) { return lookup_entry.first == lookup; });
 			lookup_it != _type_lookup.end())
 			return lookup_it->second;
 
@@ -542,7 +542,7 @@ private:
 	spv::Id convert_type(const function_blocks &info)
 	{
 		if (const auto lookup_it = std::find_if(_function_type_lookup.begin(), _function_type_lookup.end(),
-				[&lookup = info](const std::pair<function_blocks, spv::Id> &lookup_it) { return lookup_it.first == lookup; });
+				[&lookup = info](const std::pair<function_blocks, spv::Id> &lookup_entry) { return lookup_entry.first == lookup; });
 			lookup_it != _function_type_lookup.end())
 			return lookup_it->second;
 
@@ -587,7 +587,7 @@ private:
 		}
 
 		if (const auto lookup_it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
-				[&lookup](const std::pair<type_lookup, spv::Id> &lookup_it) { return lookup_it.first == lookup; });
+				[&lookup](const std::pair<type_lookup, spv::Id> &lookup_entry) { return lookup_entry.first == lookup; });
 			lookup_it != _type_lookup.end())
 			return lookup_it->second;
 

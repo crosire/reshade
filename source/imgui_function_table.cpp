@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON
+
 #include "imgui_function_table_19000.hpp"
 #include "imgui_function_table_18971.hpp"
 #include "imgui_function_table_18600.hpp"
@@ -15,3 +17,5 @@ extern const imgui_function_table_18600 init_imgui_function_table_18600();
 const imgui_function_table_19000 g_imgui_function_table_19000 = init_imgui_function_table_19000();
 const imgui_function_table_18971 g_imgui_function_table_18971 = init_imgui_function_table_18971();
 const imgui_function_table_18600 g_imgui_function_table_18600 = init_imgui_function_table_18600();
+
+#endif
