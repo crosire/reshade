@@ -3196,7 +3196,7 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::Text(_("File:"));
 				if (!info.author.empty())
 					ImGui::Text(_("Author:"));
-				if (info.version > 1)
+				if (info.version.value)
 					ImGui::Text(_("Version:"));
 				if (!info.description.empty())
 					ImGui::Text(_("Description:"));
@@ -3209,8 +3209,8 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::TextUnformatted(info.file.c_str());
 				if (!info.author.empty())
 					ImGui::TextUnformatted(info.author.c_str());
-				if (info.version > 1)
-					ImGui::Text("%u.%u.%u", info.version / 10000, (info.version / 100) % 100, info.version % 100);
+				if (info.version.value)
+					ImGui::Text("%u.%u.%u.%u", info.version.number.major, info.version.number.minor, info.version.number.build, info.version.number.revision);
 				if (!info.description.empty())
 				{
 					ImGui::PushTextWrapPos();

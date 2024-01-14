@@ -26,7 +26,17 @@ namespace reshade
 		std::string description;
 		std::string file;
 		std::string author;
-		uint32_t version = 1;
+		union version
+		{
+			struct number
+			{
+				uint16_t major;
+				uint16_t minor;
+				uint16_t build;
+				uint16_t revision;
+			} number;
+			uint64_t value;
+		} version;
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI
