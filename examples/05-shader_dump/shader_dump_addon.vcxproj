@@ -131,6 +131,7 @@
     <ClCompile Include="shader_dump_addon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\utils\config.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

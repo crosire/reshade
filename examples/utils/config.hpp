@@ -4,10 +4,10 @@
  */
 
 // The subdirectory to save shader binaries to
-#define RESHADE_ADDON_SHADER_SAVE_DIR ".\\"
+#define RESHADE_ADDON_SHADER_SAVE_DIR ".\\shaderdump"
 
 // The subdirectory to load shader binaries from
-#define RESHADE_ADDON_SHADER_LOAD_DIR ".\\"
+#define RESHADE_ADDON_SHADER_LOAD_DIR ".\\shaderreplace"
 
 // The subdirectory to save textures to
 #define RESHADE_ADDON_TEXTURE_SAVE_DIR ".\\texdump"

@@ -133,6 +133,7 @@
     <ClCompile Include="texture_overlay_addon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\utils\config.hpp" />
     <ClInclude Include="..\utils\descriptor_tracking.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
