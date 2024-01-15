@@ -183,7 +183,14 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearState(ID3D12PipelineState 
 {
 	_orig->ClearState(pPipelineState);
 
+	_current_root_signature[0] = nullptr;
+	_current_root_signature[1] = nullptr;
+	_current_descriptor_heaps[0] = nullptr;
+	_current_descriptor_heaps[1] = nullptr;
 #if RESHADE_ADDON >= 2
+	_previous_descriptor_heaps[0] = nullptr;
+	_previous_descriptor_heaps[1] = nullptr;
+
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all, to_handle(pPipelineState));
 
 	// When ClearState is called, all currently bound resources are unbound.
