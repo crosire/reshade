@@ -282,18 +282,34 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 	return res;
 }
 
-bool reshade::imgui::font_input_box(const char *name, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
+bool reshade::imgui::font_input_box(const char *name, const std::filesystem::path &def, std::filesystem::path &path, bool latin_only, std::filesystem::path &dialog_path, int &size)
 {
 	bool res = false;
 	const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
+	const std::filesystem::path def_fs = def.empty() ? L"ProggyClean.ttf" : def;
+	const std::filesystem::path path_fs = path.empty() ? def_fs : path;
+	const bool show_fallback = latin_only && path_fs != L"ProggyClean.ttf";
+
 	ImGui::BeginGroup();
 	ImGui::PushID(name);
 
-	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80);
-	if (file_input_box("##font", hint, path, dialog_path, { L".ttf", L".ttc" }))
-		res = true;
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80 - (show_fallback ? (spacing + ImGui::GetFrameHeight()) : 0));
 
+	if (file_input_box("##font", def_fs.u8string().c_str(), path, dialog_path, {L".ttf", L".ttc"}))
+		res = true;
+	if (show_fallback)
+	{
+		ImGui::SameLine(0, spacing);
+		if (ImGui::Button("A", ImVec2(ImGui::GetFrameHeight(), 0)))
+		{
+			if (def.empty())
+				path.clear();
+			else
+				path = L"ProggyClean.ttf";
+			res = true;
+		}
+	}
 	ImGui::SameLine(0, spacing);
 	ImGui::SetNextItemWidth(80);
 	ImGui::SliderInt("##size", &size, 8, 32, "%d", ImGuiSliderFlags_AlwaysClamp);

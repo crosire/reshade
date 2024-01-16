@@ -147,6 +147,7 @@ void reshade::runtime::build_font_atlas()
 		glyph_ranges = atlas->GetGlyphRangesCyrillic();
 
 		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
+		_default_latin_font_path = _default_font_path;
 	}
 	else
 	if (language.find("ja") == 0)
@@ -154,6 +155,7 @@ void reshade::runtime::build_font_atlas()
 		glyph_ranges = atlas->GetGlyphRangesJapanese();
 
 		_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
+		_default_latin_font_path = _default_font_path;
 
 		// Morisawa BIZ UDGothic Regular, available since Windows 10 October 2018 Update (1809) Build 17763.1
 		if (std::filesystem::exists(L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc", ec))
@@ -165,6 +167,7 @@ void reshade::runtime::build_font_atlas()
 		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 
 		_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+		_default_latin_font_path = _default_font_path;
 	}
 	else
 #endif
@@ -172,10 +175,11 @@ void reshade::runtime::build_font_atlas()
 		glyph_ranges = atlas->GetGlyphRangesDefault();
 
 		_default_font_path.clear();
+		_default_latin_font_path.clear();
 	}
 
 	// Set default editor font
-	if (std::filesystem::exists(L"C:\\Windows\\Fonts\\CascadiaMono.ttf"))
+	if (std::filesystem::exists(L"C:\\Windows\\Fonts\\CascadiaMono.ttf", ec))
 		_default_editor_font_path = L"C:\\Windows\\Fonts\\CascadiaMono.ttf";
 
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
@@ -186,7 +190,7 @@ void reshade::runtime::build_font_atlas()
 
 #if RESHADE_LOCALIZATION
 	// Add latin font
-	resolved_font_path = _latin_font_path;
+	resolved_font_path = _latin_font_path.empty() ? _default_latin_font_path : _latin_font_path;
 	if (!_default_font_path.empty())
 	{
 		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, atlas->GetGlyphRangesDefault()) != nullptr))
@@ -2403,20 +2407,23 @@ void reshade::runtime::draw_gui_settings()
 		}
 		#pragma endregion
 
-		if (imgui::font_input_box(_("Global font"), _default_font_path.empty() ? "ProggyClean.ttf" : _default_font_path.u8string().c_str(), _font_path, _file_selection_path, _font_size))
+		// Latin font + main font + icon font
+		const bool latin_only = _imgui_context->IO.Fonts->Fonts[0]->ConfigDataCount <= 2;
+
+		if (imgui::font_input_box(_("Global font"), _default_font_path, _font_path, latin_only, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (_imgui_context->IO.Fonts->Fonts[0]->ConfigDataCount > 2 && // Latin font + main font + icon font
-			imgui::font_input_box(_("Latin font"), "ProggyClean.ttf", _latin_font_path, _file_selection_path, _font_size))
+		if (!latin_only &&
+			imgui::font_input_box(_("Latin font"), _default_latin_font_path, _latin_font_path, true, _file_selection_path, _font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path.empty() ? "ProggyClean.ttf" : _default_editor_font_path.u8string().c_str(), _editor_font_path, _file_selection_path, _editor_font_size))
+		if (imgui::font_input_box(_("Text editor font"), _default_editor_font_path, _editor_font_path, latin_only, _file_selection_path, _editor_font_size))
 		{
 			modified = true;
 			_imgui_context->IO.Fonts->TexReady = false;
