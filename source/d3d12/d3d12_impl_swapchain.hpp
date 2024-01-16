@@ -30,7 +30,7 @@ namespace reshade::d3d12
 		bool check_color_space_support(api::color_space color_space) const final;
 
 		api::color_space get_color_space() const final;
-		void set_color_space(DXGI_COLOR_SPACE_TYPE type) { _color_space = type; }
+		void set_color_space_native(DXGI_COLOR_SPACE_TYPE type) { _color_space = type; }
 
 	private:
 		device_impl *const _device_impl;

@@ -504,19 +504,30 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	else
 		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << ColorSpace << ')' << " ...";
 
-	// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
-	switch (_direct3d_version)
-	{
-	case 11:
-		static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_color_space(ColorSpace);
-		break;
-	case 12:
-		static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_color_space(ColorSpace);
-		break;
-	}
+	on_reset();
 
 	assert(_interface_version >= 3);
-	return static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
+	assert(!g_in_dxgi_runtime);
+	g_in_dxgi_runtime = true;
+	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
+	g_in_dxgi_runtime = false;
+	if (SUCCEEDED(hr))
+	{
+		// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
+		switch (_direct3d_version)
+		{
+		case 11:
+			static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_color_space_native(ColorSpace);
+			break;
+		case 12:
+			static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_color_space_native(ColorSpace);
+			break;
+		}
+	}
+
+	on_init();
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
 {
