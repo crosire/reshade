@@ -80,7 +80,7 @@ std::string reshade::resources::set_current_language(const std::string &language
 		languages.insert(languages.end(), english_language, english_language + std::size(english_language));
 	languages.push_back(L'\0');
 
-	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), nullptr);
+	SetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, languages.data(), &num);
 
 	return prev_language;
 }

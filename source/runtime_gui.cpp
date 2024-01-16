@@ -153,11 +153,10 @@ void reshade::runtime::build_font_atlas()
 	{
 		glyph_ranges = atlas->GetGlyphRangesJapanese();
 
-		_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
-
 		// Morisawa BIZ UDGothic Regular, available since Windows 10 October 2018 Update (1809) Build 17763.1
-		if (std::filesystem::exists(L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc", ec))
-			_default_font_path = L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
+		_default_font_path = L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
+		if (!std::filesystem::exists(_default_font_path, ec))
+			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
 	}
 	else
 	if (language.find("zh") == 0)
@@ -165,6 +164,8 @@ void reshade::runtime::build_font_atlas()
 		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
 
 		_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+		if (!std::filesystem::exists(_default_font_path, ec))
+			_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc"; // SimSun
 	}
 	else
 #endif
@@ -173,10 +174,6 @@ void reshade::runtime::build_font_atlas()
 
 		_default_font_path.clear();
 	}
-
-	// Set default editor font
-	if (std::filesystem::exists(L"C:\\Windows\\Fonts\\CascadiaMono.ttf"))
-		_default_editor_font_path = L"C:\\Windows\\Fonts\\CascadiaMono.ttf";
 
 	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 
