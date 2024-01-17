@@ -39,7 +39,7 @@ static void save_shader_code(device_api device_type, const shader_desc &desc)
 	wchar_t hash_string[11];
 	swprintf_s(hash_string, L"0x%08X", shader_hash);
 
-	dump_path += hash_string;
+	dump_path /= hash_string;
 	dump_path += extension;
 
 	std::ofstream file(dump_path, std::ios::binary);
