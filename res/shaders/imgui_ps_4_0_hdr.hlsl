@@ -24,22 +24,22 @@ cbuffer PSPushConstants : register(b0)
 
 
 // PQ constants as per Rec. ITU-R BT.2100-2 Table 4
-static const float PQ_m1 =  0.1593017578125;
-static const float PQ_m2 = 78.84375;
-static const float PQ_c1 =  0.8359375;
-static const float PQ_c2 = 18.8515625;
-static const float PQ_c3 = 18.6875;
+static const float PQ_m1 =  0.1593017578125f;
+static const float PQ_m2 = 78.84375f;
+static const float PQ_c1 =  0.8359375f;
+static const float PQ_c2 = 18.8515625f;
+static const float PQ_c3 = 18.6875f;
 
 // HLG constants as per Rec. ITU-R BT.2100-2 Table 5
-static const float HLG_a = 0.17883277;
-static const float HLG_b = 0.28466892; // 1 - 4 * HLG_a
-static const float HLG_c = 0.55991072952956202016; // 0.5 - HLG_a * ln(4 * HLG_a)
+static const float HLG_a = 0.17883277f;
+static const float HLG_b = 0.28466892f; // 1 - 4 * HLG_a
+static const float HLG_c = 0.559910714626312255859375f; // 0.5 - HLG_a * ln(4 * HLG_a)
 
 
 static const float3x3 bt709_to_bt2020 = {
-	0.627225305694944,  0.329476882715808,  0.0432978115892484,
-	0.0690418812810714, 0.919605681354755,  0.0113524373641739,
-	0.0163911702607078, 0.0880887513437058, 0.895520078395586};
+	0.627403914928436279296875f,      0.3292830288410186767578125f,  0.0433130674064159393310546875f,
+	0.069097287952899932861328125f,   0.9195404052734375f,           0.011362315155565738677978515625f,
+	0.01639143936336040496826171875f, 0.08801330626010894775390625f, 0.895595252513885498046875f };
 
 // PQ inverse EOTF as per Rec. ITU-R BT.2100-2 Table 4 (end)
 // for input 1.0 = 10000 nits here
@@ -56,7 +56,7 @@ float hlg_inverse_eotf(float col)
 {
 	if (col <= (1.f / 12.f))
 	{
-		return sqrt(3.0 * col);
+		return sqrt(3.f * col);
 	}
 	else
 	{
