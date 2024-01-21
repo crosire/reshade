@@ -100,18 +100,25 @@ struct wgl_attribute
 
 DECLARE_HANDLE(HPBUFFERARB);
 
+static bool s_hooks_installed = false;
+static std::shared_mutex s_global_mutex;
+static std::unordered_set<HDC> s_pbuffer_device_contexts;
+static std::unordered_set<HGLRC> s_legacy_contexts;
+static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
+static std::unordered_map<HGLRC, reshade::opengl::device_context_impl *> s_opengl_contexts;
+static std::vector<std::pair<HDC, reshade::opengl::swapchain_impl *>> s_opengl_swapchains;
+
+extern thread_local reshade::opengl::device_context_impl *g_current_context;
+
 class wgl_device : public reshade::opengl::device_impl, public reshade::opengl::device_context_impl
 {
 	friend class wgl_swapchain;
-	friend class wgl_device_context;
 
 public:
 	wgl_device(HDC initial_hdc, HGLRC hglrc, bool compatibility_context) :
 		device_impl(initial_hdc, hglrc, compatibility_context),
 		device_context_impl(this, hglrc)
 	{
-		contexts.push_back(this);
-
 #if RESHADE_ADDON
 		reshade::load_addons();
 
@@ -178,12 +185,10 @@ public:
 
 		// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is reused
 		// This is necessary since framebuffers include dimension information, so 'glBlitFramebuffer' etc. will clip the image if an outdated one is used
-		for (reshade::opengl::device_context_impl *const context : contexts)
-			context->invalidate_framebuffer_cache();
+		for (const std::pair<HGLRC, reshade::opengl::device_context_impl *> context_info : s_opengl_contexts)
+			if (context_info.second->get_device() == this)
+				context_info.second->invalidate_framebuffer_cache();
 	}
-
-private:
-	std::vector<reshade::opengl::device_context_impl *> contexts;
 };
 class wgl_device_context : public reshade::opengl::device_context_impl
 {
@@ -191,8 +196,6 @@ public:
 	wgl_device_context(wgl_device *device, HGLRC hglrc) :
 		device_context_impl(device, hglrc)
 	{
-		device->contexts.push_back(this);
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
 		reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
@@ -204,9 +207,6 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
 		reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
 #endif
-
-		const auto device = static_cast<wgl_device *>(get_device());
-		device->contexts.erase(std::remove(device->contexts.begin(), device->contexts.end(), this), device->contexts.end());
 	}
 };
 
@@ -333,16 +333,6 @@ private:
 	unsigned int _last_height = 0;
 	bool _init_effect_runtime = true;
 };
-
-static bool s_hooks_installed = false;
-static std::shared_mutex s_global_mutex;
-static std::unordered_set<HDC> s_pbuffer_device_contexts;
-static std::unordered_set<HGLRC> s_legacy_contexts;
-static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-static std::unordered_map<HGLRC, reshade::opengl::device_context_impl *> s_opengl_contexts;
-static std::vector<std::pair<HDC, wgl_swapchain *>> s_opengl_swapchains;
-
-extern thread_local reshade::opengl::device_context_impl *g_current_context;
 
 extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -911,7 +901,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 					// Delete any swap chains referencing this device
 					for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
 					{
-						wgl_swapchain *const swapchain = swapchain_it->second;
+						const auto swapchain = static_cast<wgl_swapchain *>(swapchain_it->second);
 
 						if (device == swapchain->get_device())
 						{
@@ -1102,12 +1092,12 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	wgl_swapchain *swapchain = nullptr;
 
 	if (const auto swapchain_it = std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
-			[hdc, hwnd, device](const std::pair<HDC, wgl_swapchain *> &swapchain_info) { return (swapchain_info.first == hdc || (hwnd != nullptr && WindowFromDC(swapchain_info.first) == hwnd)) && swapchain_info.second->get_device() == device; });
+			[hdc, hwnd, device](const std::pair<HDC, reshade::opengl::swapchain_impl *> &swapchain_info) { return (swapchain_info.first == hdc || (hwnd != nullptr && WindowFromDC(swapchain_info.first) == hwnd)) && swapchain_info.second->get_device() == device; });
 		swapchain_it != s_opengl_swapchains.end())
 	{
 		assert(hwnd != nullptr);
 
-		swapchain = swapchain_it->second;
+		swapchain = static_cast<wgl_swapchain *>(swapchain_it->second);
 	}
 	else
 	{
@@ -1285,13 +1275,13 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
 
 		if (const auto swapchain_it = std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
-				[hdc, hwnd = WindowFromDC(hdc)](const std::pair<HDC, wgl_swapchain *> &swapchain_info) {
+				[hdc, hwnd = WindowFromDC(hdc)](const std::pair<HDC, reshade::opengl::swapchain_impl *> &swapchain_info) {
 					// Fall back to checking for the same window, in case the device context handle has changed (without 'CS_OWNDC')
 					return (swapchain_info.first == hdc || (hwnd != nullptr && WindowFromDC(swapchain_info.first) == hwnd)) && swapchain_info.second->get_device() == g_current_context->get_device();
 				});
 			swapchain_it != s_opengl_swapchains.end())
 		{
-			wgl_swapchain *const swapchain = swapchain_it->second;
+			const auto swapchain = static_cast<wgl_swapchain *>(swapchain_it->second);
 			swapchain->on_present(g_current_context);
 		}
 	}
