@@ -774,9 +774,50 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 			assert((src_box->back - src_box->front) <= 1);
 		}
 
+		D3D12_RESOLVE_MODE resolve_mode;
+		switch (format)
+		{
+		default:
+			// MIN or MAX can be used with any render target or depth-stencil format
+			resolve_mode = D3D12_RESOLVE_MODE_MIN;
+			break;
+		case api::format::r8_unorm:
+		case api::format::r8_snorm:
+		case api::format::r8g8_unorm:
+		case api::format::r8g8_snorm:
+		case api::format::r8g8b8a8_unorm:
+		case api::format::r8g8b8a8_unorm_srgb:
+		case api::format::r8g8b8a8_snorm:
+		case api::format::b8g8r8a8_unorm:
+		case api::format::b8g8r8a8_unorm_srgb:
+		case api::format::b8g8r8x8_unorm:
+		case api::format::b8g8r8x8_unorm_srgb:
+		case api::format::r10g10b10a2_unorm:
+		case api::format::r16_unorm:
+		case api::format::r16_snorm:
+		case api::format::r16_float:
+		case api::format::r16g16_unorm:
+		case api::format::r16g16_snorm:
+		case api::format::r16g16_float:
+		case api::format::r16g16b16a16_unorm:
+		case api::format::r16g16b16a16_snorm:
+		case api::format::r16g16b16a16_float:
+		case api::format::r32_float:
+		case api::format::r32g32_float:
+		case api::format::r32g32b32_float:
+		case api::format::r32g32b32a32_float:
+		case api::format::d16_unorm:
+		case api::format::d32_float:
+		case api::format::r24_unorm_x8_uint:
+		case api::format::r32_float_x8_uint:
+			// AVERAGE can be used with any non-integer format (see https://microsoft.github.io/DirectX-Specs/d3d/ProgrammableSamplePositions.html#resolvesubresourceregion)
+			resolve_mode = D3D12_RESOLVE_MODE_AVERAGE;
+			break;
+		}
+
 		cmd_list1->ResolveSubresourceRegion(
 			reinterpret_cast<ID3D12Resource *>(dst.handle), dst_subresource, dst_x, dst_y,
-			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, src_box != nullptr ? &src_rect : nullptr, convert_format(format), D3D12_RESOLVE_MODE_MIN);
+			reinterpret_cast<ID3D12Resource *>(src.handle), src_subresource, src_box != nullptr ? &src_rect : nullptr, convert_format(format), resolve_mode);
 	}
 	else
 	{

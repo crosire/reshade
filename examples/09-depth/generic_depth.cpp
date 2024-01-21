@@ -961,7 +961,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 						assert(device->check_capability(device_caps::resolve_depth_stencil));
 
 						cmd_list->barrier(best_match, old_state, resource_usage::resolve_source);
-						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, best_match_desc.texture.format);
+						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, format_to_default_typed(best_match_desc.texture.format));
 						cmd_list->barrier(best_match, resource_usage::resolve_source, old_state);
 					}
 					else
