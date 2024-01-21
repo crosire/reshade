@@ -100,8 +100,6 @@ struct wgl_attribute
 
 DECLARE_HANDLE(HPBUFFERARB);
 
-extern thread_local reshade::opengl::device_context_impl *g_current_context;
-
 class wgl_device : public reshade::opengl::device_impl, public reshade::opengl::device_context_impl
 {
 	friend class wgl_swapchain;
@@ -158,22 +156,19 @@ public:
 
 	auto get_pixel_format() const { return _pixel_format; }
 
-	void update_default_fbo(unsigned int width, unsigned int height)
+	void update_default_framebuffer(reshade::opengl::device_context_impl *context, unsigned int width, unsigned int height)
 	{
-		assert(width != 0 && height != 0);
-		assert(g_current_context != nullptr); // Is set before this is called in 'wglMakeCurrent'
-
 		_default_fbo_desc.texture.width = width;
 		_default_fbo_desc.texture.height = height;
 
 		constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-		g_current_context->update_current_window_height(default_rtv);
+		context->update_current_window_height(default_rtv);
 
 #if RESHADE_ADDON
 		constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 
 		// Communicate default state to add-ons
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, 1, &default_rtv, _default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(context, 1, &default_rtv, _default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
 #endif
 	}
 
@@ -218,17 +213,9 @@ public:
 class wgl_swapchain : public reshade::opengl::swapchain_impl
 {
 public:
-	wgl_swapchain(wgl_device *device, HDC hdc) : swapchain_impl(device, hdc)
+	wgl_swapchain(wgl_device *device, HDC hdc) :
+		swapchain_impl(device, hdc)
 	{
-		reshade::create_effect_runtime(this, g_current_context);
-
-		GLint scissor_box[4] = {};
-		gl.GetIntegerv(GL_SCISSOR_BOX, scissor_box);
-		assert(scissor_box[0] == 0 && scissor_box[1] == 0);
-
-		// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
-		if (scissor_box[2] != 0 && scissor_box[3] != 0)
-			on_init(scissor_box[2], scissor_box[3]);
 	}
 	~wgl_swapchain()
 	{
@@ -241,9 +228,14 @@ public:
 	{
 		assert(width != 0 && height != 0);
 
-		const auto device = static_cast<wgl_device *>(get_device());
+		if (_last_width == width && _last_height == height)
+			return;
+		else
+			on_reset();
 
 #if RESHADE_ADDON
+		const auto device = static_cast<wgl_device *>(get_device());
+
 		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
@@ -261,9 +253,7 @@ public:
 
 		_last_width = width;
 		_last_height = height;
-		device->update_default_fbo(width, height);
-
-		reshade::init_effect_runtime(this);
+		_init_effect_runtime = true;
 	}
 	void on_reset()
 	{
@@ -288,7 +278,7 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
 #endif
 	}
-	void on_present()
+	void on_present(reshade::opengl::device_context_impl *context)
 	{
 		RECT window_rect = {};
 		GetClientRect(static_cast<HWND>(get_hwnd()), &window_rect);
@@ -305,20 +295,30 @@ public:
 		// Do not use default FBO description of device to compare, since it may be shared and changed repeatedly by multiple swap chains
 		if (width != _last_width || height != _last_height)
 		{
-			LOG(INFO) << "Resizing device context " << reinterpret_cast<HDC>(get_native()) << " to " << width << "x" << height << " ...";
+			LOG(INFO) << "Resizing device context " << _orig << " to " << width << "x" << height << " ...";
 
-			on_reset(); on_init(width, height);
+			on_init(width, height);
+
+			static_cast<wgl_device *>(get_device())->update_default_framebuffer(context, width, height);
+		}
+
+		if (_init_effect_runtime)
+		{
+			reshade::create_effect_runtime(this, context);
+			reshade::init_effect_runtime(this);
+
+			_init_effect_runtime = false;
 		}
 
 #if RESHADE_ADDON
 		// Behave as if immediate command list is flushed
-		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(g_current_context, g_current_context);
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(context, context);
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(g_current_context, this, nullptr, nullptr, 0, nullptr);
+		reshade::invoke_addon_event<reshade::addon_event::present>(context, this, nullptr, nullptr, 0, nullptr);
 #endif
 
 		// Assume that the correct OpenGL context is still current here
-		reshade::present_effect_runtime(this, g_current_context);
+		reshade::present_effect_runtime(this, context);
 
 #ifndef NDEBUG
 		GLenum type = GL_NONE; char message[512] = "";
@@ -331,6 +331,7 @@ public:
 private:
 	unsigned int _last_width = 0;
 	unsigned int _last_height = 0;
+	bool _init_effect_runtime = true;
 };
 
 static bool s_hooks_installed = false;
@@ -340,6 +341,8 @@ static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::device_context_impl *> s_opengl_contexts;
 static std::vector<std::pair<HDC, wgl_swapchain *>> s_opengl_swapchains;
+
+extern thread_local reshade::opengl::device_context_impl *g_current_context;
 
 extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -879,6 +882,12 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			}
 			else
 			{
+				if (std::any_of(s_opengl_contexts.begin(), s_opengl_contexts.end(),
+						[hglrc, device](const std::pair<HGLRC, reshade::opengl::device_context_impl *> &context_info) { return context_info.first != hglrc && device == context_info.second->get_device(); }))
+				{
+					LOG(WARN) << "Another context referencing the context being destroyed still exists! Application may crash.";
+				}
+
 				const HDC prev_hdc = wglGetCurrentDC();
 				const HGLRC prev_hglrc = wglGetCurrentContext();
 
@@ -1090,6 +1099,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 
 	const HWND hwnd = WindowFromDC(hdc);
+	wgl_swapchain *swapchain = nullptr;
 
 	if (const auto swapchain_it = std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
 			[hdc, hwnd, device](const std::pair<HDC, wgl_swapchain *> &swapchain_info) { return (swapchain_info.first == hdc || (hwnd != nullptr && WindowFromDC(swapchain_info.first) == hwnd)) && swapchain_info.second->get_device() == device; });
@@ -1097,10 +1107,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		assert(hwnd != nullptr);
 
-		RECT window_rect = {};
-		GetClientRect(hwnd, &window_rect);
-
-		device->update_default_fbo(static_cast<unsigned int>(window_rect.right), static_cast<unsigned int>(window_rect.bottom));
+		swapchain = swapchain_it->second;
 	}
 	else
 	{
@@ -1117,9 +1124,39 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				LOG(WARN) << "Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
 			}
 
-			s_opengl_swapchains.emplace_back(hdc, new wgl_swapchain(device, hdc));
+			assert(wglGetPixelFormat(hdc) == device->get_pixel_format());
+
+			swapchain = new wgl_swapchain(device, hdc);
+			s_opengl_swapchains.emplace_back(hdc, swapchain);
 		}
 	}
+
+	unsigned int width = 0;
+	unsigned int height = 0;
+	if (hwnd != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(hwnd, &window_rect);
+
+		width = static_cast<unsigned int>(window_rect.right);
+		height = static_cast<unsigned int>(window_rect.bottom);
+	}
+	else
+	{
+		// This may not be accurate, could instead e.g. use 'wglQueryPbufferARB'
+		GLint scissor_box[4] = {};
+		gl.GetIntegerv(GL_SCISSOR_BOX, scissor_box);
+		assert(scissor_box[0] == 0 && scissor_box[1] == 0);
+
+		width = scissor_box[2] - scissor_box[0];
+		height = scissor_box[3] - scissor_box[1];
+	}
+
+	// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
+	if (swapchain != nullptr && width != 0 && height != 0)
+		swapchain->on_init(width, height);
+
+	device->update_default_framebuffer(g_current_context, width, height);
 
 	return TRUE;
 }
@@ -1255,7 +1292,7 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 			swapchain_it != s_opengl_swapchains.end())
 		{
 			wgl_swapchain *const swapchain = swapchain_it->second;
-			swapchain->on_present();
+			swapchain->on_present(g_current_context);
 		}
 	}
 
