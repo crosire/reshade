@@ -39,6 +39,7 @@ namespace reshade::opengl
 		void bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
 		void update_current_window_height(api::resource_view default_attachment);
+		void invalidate_framebuffer_cache();
 
 		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
@@ -106,7 +107,7 @@ namespace reshade::opengl
 		GLuint _push_constants = 0;
 		GLuint _push_constants_size = 0;
 
-	protected:
+		bool _fbo_lookup_valid = true;
 		std::unordered_map<size_t, GLuint> _fbo_lookup;
 	};
 }

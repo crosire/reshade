@@ -105,12 +105,15 @@ extern thread_local reshade::opengl::device_context_impl *g_current_context;
 class wgl_device : public reshade::opengl::device_impl, public reshade::opengl::device_context_impl
 {
 	friend class wgl_swapchain;
+	friend class wgl_device_context;
 
 public:
 	wgl_device(HDC initial_hdc, HGLRC hglrc, bool compatibility_context) :
 		device_impl(initial_hdc, hglrc, compatibility_context),
 		device_context_impl(this, hglrc)
 	{
+		contexts.push_back(this);
+
 #if RESHADE_ADDON
 		reshade::load_addons();
 
@@ -179,10 +182,13 @@ public:
 		device_impl::destroy_resource_view(handle);
 
 		// Destroy all framebuffers, to ensure they are recreated even if a resource view handle is reused
-		for (const auto &fbo_data : _fbo_lookup)
-			gl.DeleteFramebuffers(1, &fbo_data.second);
-		_fbo_lookup.clear();
+		// This is necessary since framebuffers include dimension information, so 'glBlitFramebuffer' etc. will clip the image if an outdated one is used
+		for (reshade::opengl::device_context_impl *const context : contexts)
+			context->invalidate_framebuffer_cache();
 	}
+
+private:
+	std::vector<reshade::opengl::device_context_impl *> contexts;
 };
 class wgl_device_context : public reshade::opengl::device_context_impl
 {
@@ -190,6 +196,8 @@ public:
 	wgl_device_context(wgl_device *device, HGLRC hglrc) :
 		device_context_impl(device, hglrc)
 	{
+		device->contexts.push_back(this);
+
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
 		reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
@@ -201,6 +209,9 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(this);
 		reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(this);
 #endif
+
+		const auto device = static_cast<wgl_device *>(get_device());
+		device->contexts.erase(std::remove(device->contexts.begin(), device->contexts.end(), this), device->contexts.end());
 	}
 };
 

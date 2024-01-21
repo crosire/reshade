@@ -269,8 +269,19 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource(GLenum
 	size_t hash = 0;
 	hash_combine(hash, dst.handle);
 	hash_combine(hash, dst_subresource);
+	// Include texture description, in case a texture handle is reused and framebuffer cache was not invalidated
+	hash_combine(hash, dst_desc.texture.width);
+	hash_combine(hash, dst_desc.texture.height);
+	hash_combine(hash, static_cast<uint32_t>(dst_desc.texture.format));
 
-	if (const auto it = _fbo_lookup.find(hash);
+	if (!_fbo_lookup_valid)
+	{
+		for (const auto &fbo_data : _fbo_lookup)
+			gl.DeleteFramebuffers(1, &fbo_data.second);
+		_fbo_lookup.clear();
+		_fbo_lookup_valid = true;
+	}
+	else if (const auto it = _fbo_lookup.find(hash);
 		it != _fbo_lookup.end())
 	{
 		gl.BindFramebuffer(target, it->second);
@@ -324,7 +335,14 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 		hash_combine(hash, rtvs[i].handle);
 	hash_combine(hash, dsv.handle);
 
-	if (const auto it = _fbo_lookup.find(hash);
+	if (!_fbo_lookup_valid)
+	{
+		for (const auto &fbo_data : _fbo_lookup)
+			gl.DeleteFramebuffers(1, &fbo_data.second);
+		_fbo_lookup.clear();
+		_fbo_lookup_valid = true;
+	}
+	else if (const auto it = _fbo_lookup.find(hash);
 		it != _fbo_lookup.end())
 	{
 		gl.BindFramebuffer(target, it->second);
@@ -472,6 +490,10 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 	}
 
 	_current_window_height = height;
+}
+void reshade::opengl::device_context_impl::invalidate_framebuffer_cache()
+{
+	_fbo_lookup_valid = false;
 }
 
 void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
