@@ -199,7 +199,10 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::shared_resource_nt_handle:
 		return !is_windows7();
 	case api::device_caps::resolve_depth_stencil:
-		return true;
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS2 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS2, &options, sizeof(options))))
+			return options.ProgrammableSamplePositionsTier >= D3D12_PROGRAMMABLE_SAMPLE_POSITIONS_TIER_1;
+		return false;
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
 		return !is_windows7();
