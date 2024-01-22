@@ -891,6 +891,13 @@ namespace ReShade.Setup
 					{
 						Directory.CreateDirectory(commonPath);
 					}
+
+					// Make sure the DLLs will have permissions set up for 'ALL_APPLICATION_PACKAGES', so that loading the layer won't fail in UWP apps
+					var sid = new SecurityIdentifier("S-1-15-2-1");
+
+					DirectorySecurity access = Directory.GetAccessControl(commonPath);
+					access.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.ReadAndExecute, AccessControlType.Allow));
+					Directory.SetAccessControl(commonPath, access);
 				}
 				catch (SystemException ex)
 				{
