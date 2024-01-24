@@ -230,7 +230,7 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 
 			for (uint32_t j = 0; j < range.count; ++j)
 			{
-				resource_view descriptor = descriptor_data.get_shader_resource_view(heap, base_offset + j);
+				resource_view descriptor = descriptor_data.get_resource_view(heap, base_offset + j);
 				if (descriptor.handle == 0)
 					continue;
 
