@@ -414,6 +414,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		if (internal_desc.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
 		{
 			BitScanReverse(&internal_desc.MultiSampleQuality, desc.texture.samples);
+			internal_desc.MultiSampleQuality--; // Minimum bit position is at index one, convert that to a quality level of zero
 		}
 		else
 		{
@@ -588,7 +589,10 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 	if (internal_desc.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)
 		desc.texture.samples = static_cast<uint16_t>(internal_desc.MultiSampleType);
 	else if (internal_desc.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE)
-		desc.texture.samples = static_cast<uint16_t>(1 << internal_desc.MultiSampleQuality);
+		// The meanings of the quality levels are defined by the driver and do not correspond to the number of samples
+		// Multiple quality levels may use the same number of samples, but different filters for example
+		// But to be able to convert, just handle this as if there were a direct mapping (with quality level zero starting at two samples)
+		desc.texture.samples = static_cast<uint16_t>(1 << (internal_desc.MultiSampleQuality + 1));
 	else
 		desc.texture.samples = 1;
 
