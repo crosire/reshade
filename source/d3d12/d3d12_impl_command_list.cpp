@@ -452,7 +452,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 	}
 #endif
 
-	if (_current_descriptor_heaps[0] != heaps[0] || _current_descriptor_heaps[1] != heaps[1])
+	if (_current_descriptor_heaps[0] != heaps[0] || _current_descriptor_heaps[1] != heaps[1] || count == 0) // Force descriptor heap update when there are no tables
 	{
 		std::copy_n(heaps, 2, _current_descriptor_heaps);
 		_orig->SetDescriptorHeaps(heaps[1] != nullptr ? 2 : 1, heaps);
