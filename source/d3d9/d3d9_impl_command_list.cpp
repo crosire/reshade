@@ -93,25 +93,28 @@ void reshade::d3d9::device_impl::end_render_pass()
 }
 void reshade::d3d9::device_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	assert(count <= _caps.NumSimultaneousRTs);
-
-	bool srgb_write_enable = false;
-
-	for (DWORD i = 0; i < count; ++i)
+	if (count != 0)
 	{
-		_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull));
+		assert(count <= _caps.NumSimultaneousRTs);
 
-		if (rtvs[i].handle & 1ull)
-			srgb_write_enable = true;
+		bool srgb_write_enable = false;
+
+		for (DWORD i = 0; i < count; ++i)
+		{
+			_orig->SetRenderTarget(i, reinterpret_cast<IDirect3DSurface9 *>(rtvs[i].handle & ~1ull));
+
+			if (rtvs[i].handle & 1ull)
+				srgb_write_enable = true;
+		}
+
+		// Unset remaining render targets
+		for (DWORD i = count; i < _caps.NumSimultaneousRTs; ++i)
+			_orig->SetRenderTarget(i, nullptr);
+
+		_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, srgb_write_enable);
 	}
 
-	// Unset remaining render targets
-	for (DWORD i = count; i < _caps.NumSimultaneousRTs; ++i)
-		_orig->SetRenderTarget(i, nullptr);
-
 	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
-
-	_orig->SetRenderState(D3DRS_SRGBWRITEENABLE, srgb_write_enable);
 }
 
 void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
@@ -659,8 +662,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			assert((dst_desc.Usage & D3DUSAGE_RENDERTARGET) != 0);
 
 			_orig->SetRenderTarget(0, target_surface.get());
-			for (DWORD target = 1; target < _caps.NumSimultaneousRTs; ++target)
-				_orig->SetRenderTarget(target, nullptr);
+			for (DWORD i = 1; i < _caps.NumSimultaneousRTs; ++i)
+				_orig->SetRenderTarget(i, nullptr);
 			_orig->SetDepthStencilSurface(nullptr);
 
 			if (dst_box != nullptr)

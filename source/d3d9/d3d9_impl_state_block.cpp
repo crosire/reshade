@@ -71,8 +71,8 @@ void reshade::d3d9::state_block::apply_and_release()
 	_device->SetRenderState(D3DRS_SRGBWRITEENABLE, _srgb_write);
 	_device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, _srgb_texture);
 
-	for (DWORD target = 0; target < _num_simultaneous_rts; target++)
-		_device->SetRenderTarget(target, _render_targets[target].get());
+	for (DWORD i = 0; i < _num_simultaneous_rts; i++)
+		_device->SetRenderTarget(i, _render_targets[i].get());
 	_device->SetDepthStencilSurface(_depth_stencil.get());
 
 	// Set viewport after render targets have been set, since 'SetRenderTarget' causes the viewport to be set to the full size of the render target
