@@ -462,7 +462,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 
 	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 	{
-		if (root_signature != _current_root_signature[1])
+		if (root_signature != _current_root_signature[1] || count == 0) // Force root signature update when there are no tables
 		{
 			_current_root_signature[1] = root_signature;
 			_orig->SetComputeRootSignature(root_signature);
@@ -473,7 +473,7 @@ void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage
 	}
 	if ((stages & api::shader_stage::all_graphics) != 0)
 	{
-		if (root_signature != _current_root_signature[0])
+		if (root_signature != _current_root_signature[0] || count == 0)
 		{
 			_current_root_signature[0] = root_signature;
 			_orig->SetGraphicsRootSignature(root_signature);
