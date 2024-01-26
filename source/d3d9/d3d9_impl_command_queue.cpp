@@ -33,11 +33,11 @@ uint64_t reshade::d3d9::device_impl::get_timestamp_frequency() const
 	{
 		temp_query->Issue(D3DISSUE_END);
 
-		wait_idle();
+		UINT64 frequency = 0;
+		while (temp_query->GetData(&frequency, sizeof(frequency), D3DGETDATA_FLUSH) == S_FALSE)
+			Sleep(1);
 
-		UINT64 frequency;
-		if (temp_query->GetData(&frequency, sizeof(frequency), 0) == S_OK)
-			return frequency;
+		return frequency;
 	}
 
 	return 0;

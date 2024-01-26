@@ -7,6 +7,7 @@
 
 void reshade::d3d10::device_impl::wait_idle() const
 {
+#if 0
 	D3D10_QUERY_DESC temp_query_desc;
 	temp_query_desc.Query = D3D10_QUERY_EVENT;
 	temp_query_desc.MiscFlags = 0;
@@ -18,6 +19,7 @@ void reshade::d3d10::device_impl::wait_idle() const
 		while (temp_query->GetData(nullptr, 0, 0) == S_FALSE)
 			Sleep(0);
 	}
+#endif
 }
 
 void reshade::d3d10::device_impl::flush_immediate_command_list() const
@@ -37,11 +39,11 @@ uint64_t reshade::d3d10::device_impl::get_timestamp_frequency() const
 		temp_query->Begin();
 		temp_query->End();
 
-		wait_idle();
+		D3D10_QUERY_DATA_TIMESTAMP_DISJOINT temp_query_data = {};
+		while (temp_query->GetData(&temp_query_data, sizeof(temp_query_data), 0) == S_FALSE)
+			Sleep(1);
 
-		D3D10_QUERY_DATA_TIMESTAMP_DISJOINT temp_query_data;
-		if (temp_query->GetData(&temp_query_data, sizeof(temp_query_data), 0) == S_OK)
-			return temp_query_data.Frequency;
+		return temp_query_data.Frequency;
 	}
 
 	return 0;

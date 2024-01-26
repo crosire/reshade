@@ -28,6 +28,7 @@ reshade::api::command_list *reshade::d3d11::device_context_impl::get_immediate_c
 
 void reshade::d3d11::device_context_impl::wait_idle() const
 {
+#if 0
 	assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE);
 
 	D3D11_QUERY_DESC temp_query_desc;
@@ -41,6 +42,7 @@ void reshade::d3d11::device_context_impl::wait_idle() const
 		while (_orig->GetData(temp_query.get(), nullptr, 0, 0) == S_FALSE)
 			Sleep(0);
 	}
+#endif
 }
 
 void reshade::d3d11::device_context_impl::flush_immediate_command_list() const
@@ -115,6 +117,8 @@ bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t valu
 
 uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
 {
+	assert(_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE);
+
 	D3D11_QUERY_DESC temp_query_desc;
 	temp_query_desc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
 	temp_query_desc.MiscFlags = 0;
@@ -125,11 +129,11 @@ uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
 		_orig->Begin(temp_query.get());
 		_orig->End(temp_query.get());
 
-		wait_idle();
+		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT temp_query_data = {};
+		while (_orig->GetData(temp_query.get(), &temp_query_data, sizeof(temp_query_data), 0) == S_FALSE)
+			Sleep(1);
 
-		D3D11_QUERY_DATA_TIMESTAMP_DISJOINT temp_query_data;
-		if (_orig->GetData(temp_query.get(), &temp_query_data, sizeof(temp_query_data), 0) == S_OK)
-			return temp_query_data.Frequency;
+		return temp_query_data.Frequency;
 	}
 
 	return 0;
