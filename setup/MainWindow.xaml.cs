@@ -1271,7 +1271,8 @@ In that event here are some steps you can try to resolve this:
 			if (!config.HasValue("INPUT"))
 			{
 				config.SetValue("INPUT", "KeyOverlay", "36,0,0,0");
-				config.SetValue("INPUT", "GamepadNavigation", "1");
+				// Only enable gamepad input in cases where keyboard and mouse input is known to not work (when installed to UWP apps or the NVIDIA RTX Remix Bridge)
+				config.SetValue("INPUT", "GamepadNavigation", currentInfo.targetPath.Contains("WindowsApps") || Path.GetFileName(currentInfo.targetPath) == "NvRemixBridge.exe" ? "1" : "0");
 			}
 
 			config.SaveFile();
