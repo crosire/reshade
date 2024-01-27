@@ -17,8 +17,6 @@ Direct3DDepthStencilSurface9::Direct3DDepthStencilSurface9(Direct3DDevice9 *devi
 	const auto device_proxy = device;
 	_orig->SetPrivateData(__uuidof(device_proxy), &device_proxy, sizeof(device_proxy), 0);
 #endif
-	const auto surface_proxy = this;
-	_orig->SetPrivateData(__uuidof(surface_proxy), &surface_proxy, sizeof(surface_proxy), 0);
 }
 
 HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::QueryInterface(REFIID riid, void **ppvObj)
@@ -64,9 +62,6 @@ ULONG   STDMETHODCALLTYPE Direct3DDepthStencilSurface9::Release()
 	{
 		if (_orig->Release() == 0)
 		{
-			// Remove pointer to this proxy object from the private data of the device
-			_orig->SetPrivateData(__uuidof(this), nullptr, 0, 0);
-
 			// Make sure there won't be an attempt to release this surface again because it's still current despite a reference count of zero (happens in Star Wars: The Force Unleashed 2)
 			if (this == _device->_current_depth_stencil)
 				_device->_current_depth_stencil.release();
