@@ -285,7 +285,7 @@ void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime)
 
 extern "C" __declspec(dllexport) const void *ReShadeGetImGuiFunctionTable(uint32_t version)
 {
-	if (version == 19000)
+	if (version == 19000 || version == 19010)
 		return &g_imgui_function_table_19000;
 	if (version == 18971)
 		return &g_imgui_function_table_18971;

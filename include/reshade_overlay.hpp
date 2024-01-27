@@ -6,7 +6,7 @@
 
 #if defined(IMGUI_VERSION_NUM)
 
-#if IMGUI_VERSION_NUM != 19000
+#if IMGUI_VERSION_NUM != 19000 && IMGUI_VERSION_NUM != 19010
 #error Unexpected ImGui version, please update the "imgui.h" header to version 19000!
 #endif
 
@@ -139,7 +139,7 @@ struct imgui_function_table_19000
 	bool(*RadioButton2)(const char* label, int* v, int v_button);
 	void(*ProgressBar)(float fraction, const ImVec2& size_arg, const char* overlay);
 	void(*Bullet)();
-	void(*Image)(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col);
+	void(*Image)(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col);
 	bool(*ImageButton)(const char* str_id, ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& bg_col, const ImVec4& tint_col);
 	bool(*BeginCombo)(const char* label, const char* preview_value, ImGuiComboFlags flags);
 	void(*EndCombo)();
@@ -572,7 +572,7 @@ namespace ImGui
 	inline bool RadioButton(const char* label, int* v, int v_button) { return imgui_function_table_instance()->RadioButton2(label, v, v_button); }
 	inline void ProgressBar(float fraction, const ImVec2& size_arg, const char* overlay) { imgui_function_table_instance()->ProgressBar(fraction, size_arg, overlay); }
 	inline void Bullet() { imgui_function_table_instance()->Bullet(); }
-	inline void Image(ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col) { imgui_function_table_instance()->Image(user_texture_id, size, uv0, uv1, tint_col, border_col); }
+	inline void Image(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col) { imgui_function_table_instance()->Image(user_texture_id, image_size, uv0, uv1, tint_col, border_col); }
 	inline bool ImageButton(const char* str_id, ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& bg_col, const ImVec4& tint_col) { return imgui_function_table_instance()->ImageButton(str_id, user_texture_id, image_size, uv0, uv1, bg_col, tint_col); }
 	inline bool BeginCombo(const char* label, const char* preview_value, ImGuiComboFlags flags) { return imgui_function_table_instance()->BeginCombo(label, preview_value, flags); }
 	inline void EndCombo() { imgui_function_table_instance()->EndCombo(); }
