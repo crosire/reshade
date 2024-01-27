@@ -326,7 +326,7 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 		assert(dsv.handle == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT);
 
 		gl.BindFramebuffer(target, 0);
-		_current_window_height = _device_impl->_default_fbo_desc.texture.height;
+		_current_window_height = _default_fbo_height;
 		return;
 	}
 
@@ -413,6 +413,11 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 	update_current_window_height(count != 0 ? rtvs[0] : dsv);
 }
 
+void reshade::opengl::device_context_impl::update_default_framebuffer(unsigned int width, unsigned int height)
+{
+	_default_fbo_width = width;
+	_default_fbo_height = _current_window_height = height;
+}
 void reshade::opengl::device_context_impl::update_current_window_height(api::resource_view default_attachment)
 {
 	if (default_attachment.handle == 0)
@@ -482,7 +487,7 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 		}
 		break;
 	case GL_FRAMEBUFFER_DEFAULT:
-		height = _device_impl->_default_fbo_desc.texture.height;
+		height = _default_fbo_height;
 		break;
 	default:
 		assert(false);

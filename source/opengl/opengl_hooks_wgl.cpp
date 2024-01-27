@@ -163,22 +163,6 @@ public:
 
 	auto get_pixel_format() const { return _pixel_format; }
 
-	void update_default_framebuffer(reshade::opengl::device_context_impl *context, unsigned int width, unsigned int height)
-	{
-		_default_fbo_desc.texture.width = width;
-		_default_fbo_desc.texture.height = height;
-
-		constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-		context->update_current_window_height(default_rtv);
-
-#if RESHADE_ADDON
-		constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-
-		// Communicate default state to add-ons
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(context, 1, &default_rtv, _default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
-#endif
-	}
-
 	void destroy_resource_view(reshade::api::resource_view handle) final
 	{
 		device_impl::destroy_resource_view(handle);
@@ -188,6 +172,19 @@ public:
 		for (const std::pair<HGLRC, reshade::opengl::device_context_impl *> context_info : s_opengl_contexts)
 			if (context_info.second->get_device() == this)
 				context_info.second->invalidate_framebuffer_cache();
+	}
+
+	reshade::api::resource_desc get_resource_desc(reshade::api::resource resource) const final
+	{
+		reshade::api::resource_desc desc = device_impl::get_resource_desc(resource);
+
+		if (g_current_context != nullptr && (resource.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
+		{
+			desc.texture.width = g_current_context->_default_fbo_width;
+			desc.texture.height = g_current_context->_default_fbo_height;
+		}
+
+		return desc;
 	}
 };
 class wgl_device_context : public reshade::opengl::device_context_impl
@@ -299,7 +296,18 @@ public:
 
 			on_init(width, height);
 
-			static_cast<wgl_device *>(get_device())->update_default_framebuffer(context, width, height);
+			context->update_default_framebuffer(width, height);
+
+#if RESHADE_ADDON
+			constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+
+			// Communicate default state to add-ons
+			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
+				context,
+				1, &default_rtv,
+				static_cast<reshade::opengl::device_impl *>(get_device())->get_resource_format(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT) != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
+#endif
 		}
 
 		if (_init_effect_runtime)
@@ -1146,7 +1154,18 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (swapchain != nullptr && width != 0 && height != 0)
 		swapchain->on_init(width, height);
 
-	device->update_default_framebuffer(g_current_context, width, height);
+	g_current_context->update_default_framebuffer(width, height);
+
+#if RESHADE_ADDON
+	constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+	constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+
+	// Communicate default state to add-ons
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
+		g_current_context,
+		1, &default_rtv,
+		device->get_resource_format(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_ATTACHMENT) != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
+#endif
 
 	return TRUE;
 }

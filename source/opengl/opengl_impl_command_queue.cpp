@@ -11,7 +11,9 @@
 
 reshade::opengl::device_context_impl::device_context_impl(device_impl *device, HGLRC hglrc) :
 	api_object_impl(hglrc),
-	_device_impl(device)
+	_device_impl(device),
+	_default_fbo_width(device->_default_fbo_desc.texture.width),
+	_default_fbo_height(device->_default_fbo_desc.texture.height)
 {
 	// Create mipmap generation program used in the 'generate_mipmaps' function
 	{

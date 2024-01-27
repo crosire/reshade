@@ -34,9 +34,9 @@ namespace reshade::opengl
 		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle, HANDLE *shared_handle = nullptr) final;
 		void destroy_resource(api::resource handle) final;
 
-		api::resource_desc get_resource_desc(api::resource resource) const final;
+		api::resource_desc get_resource_desc(api::resource resource) const override;
 
-		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
+		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) override;
 		void destroy_resource_view(api::resource_view handle) override;
 
 		api::format get_resource_format(GLenum target, GLenum object) const;
