@@ -113,6 +113,8 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(reshade_set_current_preset_path);
 		CASE(reshade_reorder_techniques);
 		CASE(reshade_open_overlay);
+		CASE(reshade_overlay_uniform_variable);
+		CASE(reshade_overlay_technique);
 	}
 #undef  CASE
 	return "unknown";

@@ -67,7 +67,7 @@ static std::filesystem::path make_relative_path(const std::filesystem::path &pat
 	std::filesystem::path proximate_path = path.lexically_proximate(g_reshade_base_path);
 	if (proximate_path.native().rfind(L"..", 0) != std::wstring::npos)
 		return path; // Do not use relative path if preset is in a parent directory
-	if (proximate_path.is_relative())
+	if (proximate_path.is_relative() && !proximate_path.empty() && proximate_path.native().front() != L'.')
 		// Prefix preset path with dot character to better indicate it being a relative path
 		proximate_path = L"." / proximate_path;
 	return proximate_path;
