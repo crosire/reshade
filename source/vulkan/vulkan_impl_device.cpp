@@ -482,7 +482,17 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (initial_data != nullptr)
 				{
-					update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
+					if (get_first_immediate_command_list())
+					{
+						update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
+					}
+					else
+					{
+						// Cannot upload initial data without a command list
+						destroy_resource(*out_handle);
+						*out_handle = { 0 };
+						break;
+					}
 				}
 				return true;
 			}
@@ -583,11 +593,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				*out_handle = { (uint64_t)object };
 
-				if (initial_data != nullptr)
-				{
-					// Only makes sense to upload initial data if it is not thrown away on the first layout transition
-					assert(initial_state != api::resource_usage::undefined);
-				}
+				// Only makes sense to upload initial data if it is not thrown away on the first layout transition
+				assert(initial_data == nullptr || initial_state != api::resource_usage::undefined);
 
 				if (initial_state != api::resource_usage::undefined)
 				{
@@ -614,6 +621,13 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						// Always flush right away, in case resource is destroyed again before an explicit flush of the immediate command list
 						VkSubmitInfo semaphore_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 						immediate_command_list->flush(semaphore_info);
+					}
+					else if (initial_data != nullptr)
+					{
+						// Cannot upload initial data without a command list
+						destroy_resource(*out_handle);
+						*out_handle = { 0 };
+						break;
 					}
 				}
 				return true;
