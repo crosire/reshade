@@ -1458,7 +1458,7 @@ In that event here are some steps you can try to resolve this:
 		{
 			UpdateStatus("Downloading " + package.Name + " from " + package.DownloadUrl + " ...");
 
-			string downloadPath = Path.GetTempFileName();
+			string downloadPath = Path.Combine(Path.GetTempPath(), "ReShadeSetupDownload.tmp");
 
 			using (var client = new WebClient())
 			{
@@ -1642,7 +1642,7 @@ In that event here are some steps you can try to resolve this:
 		{
 			UpdateStatus("Downloading " + addon.Name + " from " + addon.DownloadUrl + " ...");
 
-			string downloadPath = Path.GetTempFileName();
+			string downloadPath = Path.Combine(Path.GetTempPath(), "ReShadeSetupDownload.tmp");
 
 			using (var client = new WebClient())
 			{
