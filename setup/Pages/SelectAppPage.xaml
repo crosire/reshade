@@ -6,7 +6,7 @@
       mc:Ignorable="d"
       d:DesignWidth="510" d:DesignHeight="638"
       Width="Auto" Height="Auto"
-      FocusManager.FocusedElement="{Binding ElementName=AppList}">
+      FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
       <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select a game or application:" />
