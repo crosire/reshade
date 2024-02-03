@@ -137,6 +137,9 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	std::vector<std::filesystem::path> file_entries;
 	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
+		if (entry.path().has_filename() && entry.path().filename().native().front() == L'.')
+			continue; // Skip "hidden" files and directories
+
 		if (entry.is_directory())
 		{
 			const bool selected = (entry == path);
