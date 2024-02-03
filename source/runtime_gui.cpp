@@ -159,6 +159,13 @@ void reshade::runtime::build_font_atlas()
 			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
 	}
 	else
+	if (language.find("ko") == 0)
+	{
+		glyph_ranges = atlas->GetGlyphRangesKorean();
+
+		_default_font_path = L"C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
+	}
+	else
 	if (language.find("zh") == 0)
 	{
 		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
@@ -2988,7 +2995,7 @@ void reshade::runtime::draw_gui_about()
 {
 	ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
-	ImGui::SameLine((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) - 7.3f * _font_size);
+	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(_(" Open website ")).x);
 	if (ImGui::SmallButton(_(" Open website ")))
 		utils::execute_command("https://reshade.me");
 
