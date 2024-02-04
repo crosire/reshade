@@ -121,7 +121,11 @@ namespace ReShade.Setup.Utilities
 				{
 					while (imports->OriginalFirstThunk != 0)
 					{
-						modules.Add(Marshal.PtrToStringAnsi(ImageRvaToVa(image.FileHeader, image.MappedAddress, imports->Name, IntPtr.Zero)));
+						string module = Marshal.PtrToStringAnsi(ImageRvaToVa(image.FileHeader, image.MappedAddress, imports->Name, IntPtr.Zero));
+						if (!string.IsNullOrEmpty(module))
+						{
+							modules.Add(module);
+						}
 
 						++imports;
 					}
