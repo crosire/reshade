@@ -1005,8 +1005,10 @@ void reshade::imgui::code_editor::undo(unsigned int steps)
 		return;
 
 	// Reset selection
-	_select_beg = _select_end = _cursor_pos;
-	_interactive_beg = _interactive_end = _cursor_pos;
+	_select_beg = _cursor_pos;
+	_select_end = _cursor_pos;
+	_interactive_beg = _cursor_pos;
+	_interactive_end = _cursor_pos;
 
 	_undo_operation_active = true;
 
@@ -1024,6 +1026,7 @@ void reshade::imgui::code_editor::undo(unsigned int steps)
 		{
 			_cursor_pos = record.removed_beg;
 			insert_text(record.removed);
+			select(record.removed_beg, record.removed_end);
 		}
 	}
 
@@ -1036,8 +1039,10 @@ void reshade::imgui::code_editor::redo(unsigned int steps)
 		return;
 
 	// Reset selection
-	_select_beg = _select_end = _cursor_pos;
-	_interactive_beg = _interactive_end = _cursor_pos;
+	_select_beg = _cursor_pos;
+	_select_end = _cursor_pos;
+	_interactive_beg = _cursor_pos;
+	_interactive_end = _cursor_pos;
 
 	_undo_operation_active = true;
 
@@ -1055,6 +1060,7 @@ void reshade::imgui::code_editor::redo(unsigned int steps)
 		{
 			_cursor_pos = record.added_beg;
 			insert_text(record.added);
+			select(record.added_beg, record.added_end);
 		}
 	}
 
@@ -1227,6 +1233,9 @@ void reshade::imgui::code_editor::delete_selection()
 
 	// Reset selection
 	_cursor_pos = _select_beg;
+	_interactive_beg = _cursor_pos;
+	_interactive_end = _cursor_pos;
+
 	select(_cursor_pos, _cursor_pos);
 }
 void reshade::imgui::code_editor::delete_lines(size_t first_line, size_t last_line)
