@@ -2447,7 +2447,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 	{
 		const uint32_t version = part[0];
 
-		if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() && (
+		if ((reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>()) && (
 			version == D3D_ROOT_SIGNATURE_VERSION_1_0 || version == D3D_ROOT_SIGNATURE_VERSION_1_1 || version == D3D_ROOT_SIGNATURE_VERSION_1_2))
 		{
 			const uint32_t param_count = part[1];
@@ -2580,7 +2580,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 			}
 		}
 
-		if (reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::create_sampler>())
+		if (reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::create_sampler>())
 		{
 			const uint32_t sampler_count = part[3];
 			const uint32_t sampler_offset = part[4];
@@ -2620,10 +2620,21 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		}
 	}
 
-	hr = _orig->CreateRootSignature(node_mask, blob, blob_size, IID_PPV_ARGS(&root_signature));
-	if (SUCCEEDED(hr) && !params.empty())
+	reshade::api::pipeline_layout_desc desc = { static_cast<uint32_t>(params.size()), params.data() };
+	
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, &desc)) {
+		reshade::api::pipeline_layout layout = {};
+		hr = (uint32_t)this->create_pipeline_layout(desc.count, desc.params, &layout);
+		const auto custom_sig = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
+		root_signature = custom_sig;
+	}
+	else
 	{
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(params.size()), params.data(), reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
+		hr = _orig->CreateRootSignature(node_mask, blob, blob_size, IID_PPV_ARGS(&root_signature));
+	}
+	if (SUCCEEDED(hr) && desc.count != 0)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, desc.count, desc.params, reshade::api::pipeline_layout { reinterpret_cast<uintptr_t>(root_signature) });
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline_layout>())
 		{

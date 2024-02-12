@@ -199,6 +199,14 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
+	/// Describes a pipeline layout.
+	/// </summary>
+	struct pipeline_layout_desc {
+		uint32_t count;
+		pipeline_layout_param *params;
+	};
+
+	/// <summary>
 	/// An opaque handle to a pipeline layout object.
 	/// <para>In D3D12 this is a pointer to a 'ID3D12RootSignature' object, in Vulkan a 'VkPipelineLayout' handle.</para>
 	/// </summary>
