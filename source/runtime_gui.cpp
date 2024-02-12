@@ -342,6 +342,7 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 #endif
 	config.get("OVERLAY", "ShowFPS", _show_fps);
 	config.get("OVERLAY", "ShowFrameTime", _show_frametime);
+	config.get("OVERLAY", "ShowPresetName", _show_preset_name);
 	config.get("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
 #if RESHADE_FX
 	if (!global_config().get("OVERLAY", "TutorialProgress", _tutorial_index))
@@ -443,6 +444,7 @@ void reshade::runtime::save_config_gui(ini_file &config) const
 #endif
 	config.set("OVERLAY", "ShowFPS", _show_fps);
 	config.set("OVERLAY", "ShowFrameTime", _show_frametime);
+	config.set("OVERLAY", "ShowPresetName", _show_preset_name);
 	config.set("OVERLAY", "ShowScreenshotMessage", _show_screenshot_message);
 #if RESHADE_FX
 	global_config().set("OVERLAY", "TutorialProgress", _tutorial_index);
@@ -836,7 +838,8 @@ void reshade::runtime::draw_gui()
 	const bool show_clock = _show_clock == 1 || (_show_overlay && _show_clock > 1);
 	const bool show_fps = _show_fps == 1 || (_show_overlay && _show_fps > 1);
 	const bool show_frametime = _show_frametime == 1 || (_show_overlay && _show_frametime > 1);
-	bool show_statistics_window = show_clock || show_fps || show_frametime;
+	const bool show_preset_name = _show_preset_name == 1 || (_show_overlay && _show_preset_name > 1);
+	bool show_statistics_window = show_clock || show_fps || show_frametime || show_preset_name;
 #if RESHADE_ADDON
 	for (const addon_info &info : addon_loaded_info)
 	{
@@ -1233,7 +1236,7 @@ void reshade::runtime::draw_gui()
 		{
 			fps_window_size  = fps_window->Size;
 			fps_window_size.y = std::max(fps_window_size.y, _imgui_context->Style.FramePadding.y * 4.0f + _imgui_context->Style.ItemSpacing.y +
-				(_imgui_context->Style.ItemSpacing.y + _imgui_context->FontBaseSize * _fps_scale) * ((show_clock ? 1 : 0) + (show_fps ? 1 : 0) + (show_frametime ? 1 : 0)));
+				(_imgui_context->Style.ItemSpacing.y + _imgui_context->FontBaseSize * _fps_scale) * ((show_clock ? 1 : 0) + (show_fps ? 1 : 0) + (show_frametime ? 1 : 0) + (show_preset_name ? 1 : 0)));
 		}
 
 		if (_fps_pos % 2)
@@ -1281,6 +1284,13 @@ void reshade::runtime::draw_gui()
 			if (_fps_pos % 2)
 				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(temp).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp);
+		}
+		if (show_preset_name)
+		{
+			const std::string preset_name = _current_preset_path.stem().u8string();
+			if (_fps_pos % 2)
+				ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(preset_name.c_str(), preset_name.c_str() + preset_name.size()).x + _imgui_context->Style.ItemSpacing.x);
+			ImGui::TextUnformatted(preset_name.c_str());
 		}
 
 		ImGui::Dummy(ImVec2(200, 0)); // Force a minimum window width
@@ -2162,9 +2172,9 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TimeSecond%%      Second component of current time\n"
 				"  %%TimeMS%%          Milliseconds fraction of current time\n"
 				"  %%Count%%           Number of screenshots taken this session\n"),
-				g_target_executable_path.stem().string().c_str(),
+				g_target_executable_path.stem().u8string().c_str(),
 #if RESHADE_FX
-				_current_preset_path.stem().string().c_str(),
+				_current_preset_path.stem().u8string().c_str(),
 #else
 				"..."
 #endif
@@ -2224,9 +2234,9 @@ void reshade::runtime::draw_gui_settings()
 				"  %%TargetExt%%       File extension of the screenshot file (%s)\n"
 				"  %%TargetName%%      File name without extension of the screenshot file (%s)\n"
 				"  %%Count%%           Number of screenshots taken this session\n"),
-				g_target_executable_path.stem().string().c_str(),
+				g_target_executable_path.stem().u8string().c_str(),
 #if RESHADE_FX
-				_current_preset_path.stem().string().c_str(),
+				_current_preset_path.stem().u8string().c_str(),
 #else
 				"..."
 #endif
@@ -2464,6 +2474,8 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::checkbox_tristate(_("Show FPS"), &_show_fps);
 			ImGui::SameLine(0, 10);
 			modified |= imgui::checkbox_tristate(_("Show frame time"), &_show_frametime);
+			ImGui::SameLine(0, 10);
+			modified |= imgui::checkbox_tristate(_("Show present name"), &_show_preset_name);
 			ImGui::EndGroup();
 			ImGui::SetItemTooltip(_("Check to always show, fill out to only show while overlay is open."));
 

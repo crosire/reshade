@@ -438,6 +438,7 @@ namespace reshade
 		unsigned int _show_fps = 2;
 		unsigned int _show_clock = false;
 		unsigned int _show_frametime = false;
+		unsigned int _show_preset_name = false;
 		bool _show_screenshot_message = true;
 #if RESHADE_FX
 		bool _show_preset_transition_message = true;
