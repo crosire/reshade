@@ -870,7 +870,9 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
 		_orig->SetDescriptorHeaps(1, &view_heap);
 
-	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, nullptr, table_base);
+	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
+	convert_resource_view_desc(_device_impl->get_resource_view_desc(uav), internal_desc);
+	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &internal_desc, table_base);
 	_orig->ClearUnorderedAccessViewUint(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, resource, values, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
@@ -897,7 +899,9 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap)
 		_orig->SetDescriptorHeaps(1, &view_heap);
 
-	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, nullptr, table_base);
+	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
+	convert_resource_view_desc(_device_impl->get_resource_view_desc(uav), internal_desc);
+	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &internal_desc, table_base);
 	_orig->ClearUnorderedAccessViewFloat(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, resource, values, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
