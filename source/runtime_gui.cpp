@@ -2478,7 +2478,7 @@ void reshade::runtime::draw_gui_settings()
 			ImGui::SameLine(0, 10);
 			modified |= imgui::checkbox_tristate(_("Show frame time"), &_show_frametime);
 			ImGui::SameLine(0, 10);
-			modified |= imgui::checkbox_tristate(_("Show present name"), &_show_preset_name);
+			modified |= imgui::checkbox_tristate(_("Show preset name"), &_show_preset_name);
 			ImGui::EndGroup();
 			ImGui::SetItemTooltip(_("Check to always show, fill out to only show while overlay is open."));
 
