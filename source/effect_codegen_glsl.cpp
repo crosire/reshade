@@ -53,6 +53,8 @@ private:
 	bool _enable_control_flow_attributes = false;
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
+	std::string _current_function_declaration;
+	std::vector<std::tuple<type, constant, id>> _constant_lookup;
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_fmod = false;
@@ -730,11 +732,18 @@ private:
 	}
 	id   define_variable(const location &loc, const type &type, std::string name, bool global, id initializer_value) override
 	{
+		// Constant variables can just point to the initializer SSA variable, since they cannot be modified anyway, thus saving an unnecessary assignment
+		if (initializer_value != 0 && type.has(type::q_const))
+			return initializer_value;
+
 		const id res = make_id();
 
 		// GLSL does not allow local sampler variables, so try to remap those
 		if (!global && type.is_sampler())
-			return (_remapped_sampler_variables[res] = 0), res;
+		{
+			_remapped_sampler_variables[res] = 0;
+			return res;
+		}
 
 		if (!name.empty())
 			define_name<naming::general>(res, name);
@@ -745,9 +754,6 @@ private:
 
 		if (!global)
 			code += '\t';
-
-		if (initializer_value != 0 && type.has(type::q_const))
-			code += "const ";
 
 		write_type(code, type);
 		code += ' ' + id_to_name(res);
@@ -779,7 +785,8 @@ private:
 		else
 			define_name<naming::reserved>(info.definition, "main");
 
-		std::string &code = _blocks.at(_current_block);
+		assert(_current_block == 0 && _current_function_declaration.empty());
+		std::string &code = _current_function_declaration;
 
 		write_location(code, loc);
 
@@ -858,7 +865,7 @@ private:
 			if (type.is_boolean())
 				type.base = type::t_float;
 
-			std::string &code = _blocks.at(_current_block);
+			std::string &code = _blocks.at(0);
 
 			const uint32_t location = semantic_to_location(semantic, std::max(1u, type.array_length));
 
@@ -1448,15 +1455,28 @@ private:
 		{
 			assert(data_type.has(type::q_const));
 
-			std::string &code = _blocks.at(_current_block);
+			if (const auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(),
+					[&data_type, &data](std::tuple<type, constant, id> &x) {
+						if (!(std::get<0>(x) == data_type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
+							return false;
+						for (size_t i = 0; i < data.array_data.size(); ++i)
+							if (std::memcmp(&std::get<1>(x).array_data[i].as_uint[0], &data.array_data[i].as_uint[0], sizeof(uint32_t) * 16) != 0)
+								return false;
+						return true;
+					});
+				it != _constant_lookup.end())
+				return std::get<2>(*it); // Reuse existing constant instead of duplicating the definition
+			else if (data_type.is_array())
+				_constant_lookup.push_back({ data_type, data, res });
 
-			code += '\t';
+			// Put constant variable into global scope, so that it can be reused in different blocks
+			std::string &code = _blocks.at(0);
 
 			// GLSL requires constants to be initialized, but struct initialization is not supported right now
 			if (!data_type.is_struct())
 				code += "const ";
 
-			write_type(code, data_type);
+			write_type<false, false>(code, data_type);
 			code += ' ' + id_to_name(res);
 
 			// Array constants need to be stored in a constant variable as they cannot be used in-place
@@ -2150,7 +2170,8 @@ private:
 	{
 		assert(_last_block != 0);
 
-		_blocks.at(0) += "{\n" + _blocks.at(_last_block) + "}\n";
+		_blocks.at(0) += _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n";
+		_current_function_declaration.clear();
 	}
 };
 

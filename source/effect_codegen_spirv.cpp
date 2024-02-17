@@ -1814,7 +1814,7 @@ private:
 						return true;
 					});
 				it != _constant_lookup.end())
-				return std::get<2>(*it); // Re-use existing constant instead of duplicating the definition
+				return std::get<2>(*it); // Reuse existing constant instead of duplicating the definition
 		}
 
 		spv::Id result;
