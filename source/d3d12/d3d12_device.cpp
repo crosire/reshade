@@ -2436,6 +2436,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 	}
 
 	// Parse DXBC root signature, convert it and call descriptor table and pipeline layout events
+	uint32_t param_count = 0;
 	std::vector<reshade::api::pipeline_layout_param> params;
 	std::vector<std::vector<reshade::api::descriptor_range>> ranges;
 
@@ -2449,9 +2450,10 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 
 		const uint32_t version = part[0];
 
-		if (has_pipeline_layout_event && (version == D3D_ROOT_SIGNATURE_VERSION_1_0 || version == D3D_ROOT_SIGNATURE_VERSION_1_1 || version == D3D_ROOT_SIGNATURE_VERSION_1_2))
+		if (has_pipeline_layout_event &&
+			(version == D3D_ROOT_SIGNATURE_VERSION_1_0 || version == D3D_ROOT_SIGNATURE_VERSION_1_1 || version == D3D_ROOT_SIGNATURE_VERSION_1_2))
 		{
-			const uint32_t param_count = part[1];
+			param_count = part[1];
 			const uint32_t param_offset = part[2];
 			auto param_list = part + (param_offset / sizeof(uint32_t));
 
@@ -2588,8 +2590,8 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 
 			if (sampler_count != 0)
 			{
-				const uint32_t param_index = static_cast<uint32_t>(params.size());
-				params.emplace_back();
+				const uint32_t param_index = param_count++;
+				params.emplace_back(); // Static samplers do not count towards the root signature size limit
 				ranges.emplace_back();
 
 				ranges[param_index].resize(sampler_count);
@@ -2621,12 +2623,13 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		}
 	}
 
-	reshade::api::pipeline_layout_desc desc = { static_cast<uint32_t>(params.size()), params.data() };
-	
-	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, desc))
+	reshade::api::pipeline_layout_param *param_data = params.data();
+
+	if (param_count != 0 &&
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, param_count, param_data))
 	{
 		reshade::api::pipeline_layout layout;
-		hr = device_impl::create_pipeline_layout(desc.count, desc.params, &layout) ? S_OK : E_FAIL;
+		hr = device_impl::create_pipeline_layout(param_count, param_data, &layout) ? S_OK : E_FAIL;
 		root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 	}
 	else
@@ -2634,9 +2637,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		hr = _orig->CreateRootSignature(node_mask, blob, blob_size, IID_PPV_ARGS(&root_signature));
 	}
 
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && param_count != 0)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, desc.count, desc.params, to_handle(root_signature));
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, param_count, param_data, to_handle(root_signature));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline_layout>())
 		{

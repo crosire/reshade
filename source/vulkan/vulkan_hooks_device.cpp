@@ -2236,12 +2236,12 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	VkResult result = VK_SUCCESS;
 #if RESHADE_ADDON >= 2
 	const uint32_t set_desc_count = pCreateInfo->setLayoutCount;
-	const uint32_t total_param_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
+	uint32_t param_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
 
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout);
 	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
 
-	std::vector<reshade::api::pipeline_layout_param> params(total_param_count);
+	std::vector<reshade::api::pipeline_layout_param> params(param_count);
 
 	for (uint32_t i = 0; i < set_desc_count; ++i)
 	{
@@ -2269,7 +2269,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		}
 	}
 
-	for (uint32_t i = set_desc_count; i < total_param_count; ++i)
+	for (uint32_t i = set_desc_count; i < param_count; ++i)
 	{
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
 
@@ -2278,16 +2278,16 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
 
-	reshade::api::pipeline_layout_desc desc = { total_param_count, params.data() };
+	reshade::api::pipeline_layout_param *param_data = params.data();
 
 	if (pAllocator == nullptr && // Cannot replace pipeline layout if custom allocator is used, since corresponding 'vkDestroyPipeline' would be called with mismatching allocator callbacks
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, desc))
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, param_count, param_data))
 	{
 		static_assert(sizeof(*pPipelineLayout) == sizeof(reshade::api::pipeline_layout));
 
 		assert(pCreateInfo->pNext == nullptr); // 'device_impl::create_pipeline_layout' does not support extension structures
 
-		result = device_impl->create_pipeline_layout(desc.count, desc.params, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+		result = device_impl->create_pipeline_layout(param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 	else
 #endif
@@ -2304,7 +2304,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	}
 
 #if RESHADE_ADDON >= 2
-	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, desc.count, desc.params, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
+	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, param_count, param_data, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
 #endif
 
 	return result;
