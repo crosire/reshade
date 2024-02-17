@@ -68,6 +68,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 
 	if (transitions_away_from_shader_resource_usage != 0)
 	{
+#if 1
 #define UNBIND_SHADER_RESOURCE_VIEWS(stage) \
 		bool update_##stage = false; \
 		com_ptr<ID3D11ShaderResourceView> srvs_##stage[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT]; \
@@ -87,6 +88,11 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 		} \
 		if (update_##stage) \
 			_orig->stage##SetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D11ShaderResourceView *const *>(srvs_##stage));
+#else
+#define UNBIND_SHADER_RESOURCE_VIEWS(stage) \
+		ID3D11ShaderResourceView *null_srvs_##stage[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {}; \
+		_orig->stage##SetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, null_srvs_##stage);
+#endif
 
 		UNBIND_SHADER_RESOURCE_VIEWS(VS);
 #if 0
@@ -108,6 +114,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
 			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0;
 
+#if 1
 #define UNBIND_UNORDERED_ACCESS_VIEWS(stage) \
 		bool update_##stage = false; \
 		com_ptr<ID3D11UnorderedAccessView> uavs_##stage[D3D11_1_UAV_SLOT_COUNT]; \
@@ -127,6 +134,11 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 		} \
 		if (update_##stage) \
 			_orig->stage##SetUnorderedAccessViews(0, max_uav_bindings, reinterpret_cast<ID3D11UnorderedAccessView *const *>(uavs_##stage), nullptr);
+#else
+#define UNBIND_UNORDERED_ACCESS_VIEWS(stage) \
+		ID3D11UnorderedAccessView *null_uavs_##stage[D3D11_1_UAV_SLOT_COUNT] = {}; \
+		_orig->CSSetUnorderedAccessViews(0, max_uav_bindings, null_uavs_##stage, nullptr);
+#endif
 
 		UNBIND_UNORDERED_ACCESS_VIEWS(CS);
 
