@@ -700,6 +700,20 @@ namespace reshade
 		init_pipeline_layout,
 
 		/// <summary>
+		/// Called on pipeline layout creation, before:
+		/// <list type="bullet">
+		/// <item><description>ID3D12Device::CreateRootSignature</description></item>
+		/// <item><description>vkCreatePipelineLayout</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::pipeline_layout_desc &amp;desc)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// Is not called in D3D9, D3D10, D3D11 or OpenGL.
+		/// To overwrite the pipeline description, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		create_pipeline_layout,
+
+		/// <summary>
 		/// Called on pipeline layout destruction, before:
 		/// <list type="bullet">
 		/// <item><description>ID3D12RootSignature::Release</description></item>
@@ -707,7 +721,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::pipeline_layout layout)</c></para>
 		/// </summary>
-		destroy_pipeline_layout = 31,
+		destroy_pipeline_layout,
 
 		/// <summary>
 		/// Called before:
@@ -1718,6 +1732,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline, void, api::device *device, api::pipeline pipeline);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_pipeline_layout, void, api::device *device, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout layout);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_pipeline_layout, bool, api::device *device, api::pipeline_layout_desc &desc);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_pipeline_layout, void, api::device *device, api::pipeline_layout layout);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::copy_descriptor_tables, bool, api::device *device, uint32_t count, const api::descriptor_table_copy *copies);
