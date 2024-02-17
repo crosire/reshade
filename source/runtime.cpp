@@ -3224,13 +3224,20 @@ bool reshade::runtime::create_texture(texture &tex)
 		flags |= api::resource_flags::generate_mipmaps;
 
 	// Clear texture to zero since by default its contents are undefined
-	std::vector<uint8_t> zero_data(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * 16);
-	std::vector<api::subresource_data> initial_data(tex.levels);
-	for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
+	const float clear_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	std::vector<uint8_t> zero_data;
+	std::vector<api::subresource_data> initial_data;
+	if (!tex.render_target)
 	{
-		initial_data[level].data = zero_data.data();
-		initial_data[level].row_pitch = width * 16;
-		initial_data[level].slice_pitch = initial_data[level].row_pitch * height;
+		zero_data.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * 16);
+		initial_data.resize(tex.levels);
+		for (uint32_t level = 0, width = tex.width, height = tex.height; level < tex.levels; ++level, width /= 2, height /= 2)
+		{
+			initial_data[level].data = zero_data.data();
+			initial_data[level].row_pitch = width * 16;
+			initial_data[level].slice_pitch = initial_data[level].row_pitch * height;
+		}
 	}
 
 	if (!_device->create_resource(api::resource_desc(type, tex.width, tex.height, tex.depth, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
@@ -3276,6 +3283,13 @@ bool reshade::runtime::create_texture(texture &tex)
 			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format_srgb) << ")!";
 			return false;
 		}
+
+		api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
+		cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::render_target);
+		cmd_list->clear_render_target_view(tex.rtv[0], clear_color);
+		cmd_list->barrier(tex.resource, api::resource_usage::render_target, api::resource_usage::shader_resource);
+		if (tex.levels > 1)
+			cmd_list->generate_mipmaps(tex.srv[0]);
 	}
 
 	if (tex.storage_access && _renderer_id >= 0xb000)
@@ -3778,6 +3792,8 @@ void reshade::runtime::update_effects()
 
 		if (!create_effect(effect_index))
 		{
+			_graphics_queue->wait_idle();
+
 			// Destroy all textures belonging to this effect
 			for (texture &tex : _textures)
 				if (tex.effect_index == effect_index && tex.shared.size() <= 1)
