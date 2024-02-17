@@ -985,7 +985,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (nullptr != swapchain_impl)
 	{
-		// Re-use the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
+		// Reuse the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 		reshade::reset_effect_runtime(swapchain_impl);
 
 		// Get back buffer images of old swap chain

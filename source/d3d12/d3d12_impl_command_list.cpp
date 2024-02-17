@@ -9,6 +9,9 @@
 #include "dll_log.hpp"
 #include <algorithm>
 
+// IID_ID3D12GraphicsCommandListExt
+static constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
+
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
 {
 	pix3blob[0] = (0x2ull /* PIXEvent_BeginEvent_NoArgs */ << 10);
@@ -24,6 +27,25 @@ reshade::d3d12::command_list_impl::command_list_impl(device_impl *device, ID3D12
 	api_object_impl(cmd_list),
 	_device_impl(device)
 {
+	if (_orig != nullptr)
+		on_init();
+}
+
+void reshade::d3d12::command_list_impl::on_init()
+{
+	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
+	com_ptr<IUnknown> cmd_list_ex;
+	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	{
+		_orig->Release();
+		_orig = cmd_list4.release();
+		_supports_ray_tracing = true;
+
+		// VKD3D does not implement 'ID3D12GraphicsCommandList4::BeginRenderPass' despite anouncing support for the 'ID3D12GraphicsCommandList4' interface as of VKD3D v2.6
+		// This means we cannot use the 'BeginRenderPass' code path if we are running VKD3D, which next line tries to detect by querying for 'IID_ID3D12GraphicsCommandListExt' support
+		if (_orig->QueryInterface(s_command_list_ex_guid, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
+			_supports_render_passes = true;
+	}
 }
 
 reshade::api::device *reshade::d3d12::command_list_impl::get_device()
@@ -91,21 +113,13 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 	_orig->ResourceBarrier(k, barriers.p);
 }
 
-// IID_ID3D12GraphicsCommandListExt
-static constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
-
 void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	_has_commands = true;
 
 	assert(count <= D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
-	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	com_ptr<IUnknown> cmd_list_ex;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)) &&
-		// VKD3D does not implement 'ID3D12GraphicsCommandList4::BeginRenderPass' despite anouncing support for the 'ID3D12GraphicsCommandList4' interface as of VKD3D v2.6
-		// This means we cannot use the 'BeginRenderPass' code path if we are running VKD3D, which next line tries to detect by querying for 'IID_ID3D12GraphicsCommandListExt' support
-		_orig->QueryInterface(s_command_list_ex_guid, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
+	if (_supports_render_passes)
 	{
 		temp_mem<D3D12_RENDER_PASS_RENDER_TARGET_DESC, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rt_desc(count);
 		for (uint32_t i = 0; i < count; ++i)
@@ -142,7 +156,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 			}
 		}
 
-		cmd_list4->BeginRenderPass(count, rt_desc.p, ds != nullptr && ds->view.handle != 0 ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(count, rt_desc.p, ds != nullptr && ds->view.handle != 0 ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
 	}
 	else
 	{
@@ -171,12 +185,9 @@ void reshade::d3d12::command_list_impl::end_render_pass()
 {
 	assert(_has_commands);
 
-	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	com_ptr<IUnknown> cmd_list_ex;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)) &&
-		_orig->QueryInterface(s_command_list_ex_guid, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
+	if (_supports_render_passes)
 	{
-		cmd_list4->EndRenderPass();
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
 	}
 }
 void reshade::d3d12::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
@@ -205,9 +216,8 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages
 	{
 		const auto pipeline_object = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
 
-		com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-		if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
-			cmd_list4->SetPipelineState1(pipeline_object);
+		if (_supports_ray_tracing)
+			static_cast<ID3D12GraphicsCommandList4 *>(_orig)->SetPipelineState1(pipeline_object);
 		else
 			assert(false);
 	}
@@ -566,20 +576,15 @@ void reshade::d3d12::command_list_impl::dispatch_mesh(uint32_t group_count_x, ui
 
 	com_ptr<ID3D12GraphicsCommandList6> cmd_list6;
 	if (SUCCEEDED(_orig->QueryInterface(&cmd_list6)))
-	{
 		cmd_list6->DispatchMesh(group_count_x, group_count_y, group_count_z);
-	}
 	else
-	{
 		assert(false);
-	}
 }
 void reshade::d3d12::command_list_impl::dispatch_rays(api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
 {
 	_has_commands = true;
 
-	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	if (_supports_ray_tracing)
 	{
 		D3D12_DISPATCH_RAYS_DESC desc;
 		desc.RayGenerationShaderRecord.StartAddress = (raygen.handle != 0 ? reinterpret_cast<ID3D12Resource *>(raygen.handle)->GetGPUVirtualAddress() : 0) + raygen_offset;
@@ -597,7 +602,7 @@ void reshade::d3d12::command_list_impl::dispatch_rays(api::resource raygen, uint
 		desc.Height = height;
 		desc.Depth = depth;
 
-		cmd_list4->DispatchRays(&desc);
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(&desc);
 	}
 	else
 	{
@@ -1048,22 +1053,16 @@ void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::resourc
 {
 	_has_commands = true;
 
-	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
-	{
-		cmd_list4->CopyRaytracingAccelerationStructure(dest.handle, source.handle, convert_acceleration_structure_copy_mode(mode));
-	}
+	if (_supports_ray_tracing)
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->CopyRaytracingAccelerationStructure(dest.handle, source.handle, convert_acceleration_structure_copy_mode(mode));
 	else
-	{
 		assert(false);
-	}
 }
 void reshade::d3d12::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)
 {
 	_has_commands = true;
 
-	com_ptr<ID3D12GraphicsCommandList4> cmd_list4;
-	if (SUCCEEDED(_orig->QueryInterface(&cmd_list4)))
+	if (_supports_ray_tracing)
 	{
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC desc = {};
 		desc.DestAccelerationStructureData = dest.handle;
@@ -1092,7 +1091,7 @@ void reshade::d3d12::command_list_impl::build_acceleration_structure(api::accele
 			desc.Inputs.pGeometryDescs = geometries.data();
 		}
 
-		cmd_list4->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
 	}
 	else
 	{

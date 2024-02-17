@@ -71,8 +71,12 @@ namespace reshade::d3d12
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
+		void on_init();
+
 		device_impl *const _device_impl;
 		bool _has_commands = false;
+		bool _supports_ray_tracing = false;
+		bool _supports_render_passes = false;
 
 		// Currently bound root signature (graphics at index 0, compute at index 1)
 		ID3D12RootSignature *_current_root_signature[2] = {};

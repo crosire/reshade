@@ -30,7 +30,10 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 
 	// Create and open the command list for recording
 	if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
+	{
 		_orig->SetName(L"ReShade immediate command list");
+		on_init();
+	}
 }
 reshade::d3d12::command_list_immediate_impl::~command_list_immediate_impl()
 {
@@ -82,7 +85,11 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 		// A command list that failed to close can never be reset, so destroy it and create a new one
 		_orig->Release(); _orig = nullptr;
 		if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
+		{
 			_orig->SetName(L"ReShade immediate command list");
+			on_init();
+		}
+
 		return false;
 	}
 
