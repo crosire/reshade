@@ -396,7 +396,7 @@ private:
 			s += "r32i";
 			break;
 		case texture_format::r32u:
-			s += "r32u";
+			s += "r32ui";
 			break;
 		case texture_format::r32f:
 			s += "r32f";
