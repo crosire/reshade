@@ -201,9 +201,10 @@ namespace reshade { namespace api
 	/// <summary>
 	/// Describes a pipeline layout.
 	/// </summary>
-	struct pipeline_layout_desc {
+	struct pipeline_layout_desc
+	{
 		uint32_t count;
-		pipeline_layout_param *params;
+		const pipeline_layout_param *params;
 	};
 
 	/// <summary>
