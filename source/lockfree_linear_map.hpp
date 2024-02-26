@@ -48,7 +48,7 @@ public:
 	/// <param name="args">Constructor arguments to use for creation.</param>
 	/// <returns>Reference to the newly added value.</returns>
 	template <typename... Args>
-	TValue &emplace(TKey key, Args... args)
+	TValue &emplace(TKey key, Args &&... args)
 	{
 		// Create a pointer to the new value using copy construction
 		TValue *const new_value = new TValue(std::forward<Args>(args)...);
