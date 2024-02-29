@@ -321,16 +321,21 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 	if (counters.current_stats.drawcalls == 0 && (device->get_api() != device_api::vulkan))
 		return;
 
+	const draw_stats current_stats = counters.current_stats;
+
+	// Reset draw call stats for clears
+	counters.current_stats = { 0, 0 };
+
 	// Ignore clears when the last viewport rendered to only affected a small subset of the depth-stencil (fixes flickering in some games)
 	switch (op)
 	{
 	case clear_op::clear_depth_stencil_view:
 		// Mirror's Edge and Portal occasionally render something into a small viewport (16x16 in Mirror's Edge, 512x512 in Portal to render underwater geometry)
-		do_copy = counters.current_stats.last_viewport.width > 1024 || (counters.current_stats.last_viewport.width == 0 || depth_stencil_backup->frame_width <= 1024);
+		do_copy = current_stats.last_viewport.width > 1024 || (current_stats.last_viewport.width == 0 || depth_stencil_backup->frame_width <= 1024);
 		break;
 	case clear_op::fullscreen_draw:
 		// Mass Effect 3 in Mass Effect Legendary Edition sometimes uses a larger common depth buffer for shadow map and scene rendering, where the former uses a 1024x1024 viewport and the latter uses a viewport matching the render resolution
-		do_copy = check_aspect_ratio(counters.current_stats.last_viewport.width, counters.current_stats.last_viewport.height, static_cast<float>(depth_stencil_backup->frame_width), static_cast<float>(depth_stencil_backup->frame_height));
+		do_copy = check_aspect_ratio(current_stats.last_viewport.width, current_stats.last_viewport.height, static_cast<float>(depth_stencil_backup->frame_width), static_cast<float>(depth_stencil_backup->frame_height));
 		break;
 	case clear_op::unbind_depth_stencil_view:
 		break;
@@ -344,38 +349,38 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 			if (depth_stencil_backup->force_clear_index == 0)
 			{
 				// Use greater equals operator here to handle case where the same scene is first rendered into a shadow map and then for real (e.g. Mirror's Edge main menu)
-				do_copy = counters.current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && counters.current_stats.drawcalls >= state.best_copy_stats.drawcalls);
+				do_copy = current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
 			else
 			if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
 			{
 				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
-				do_copy = counters.current_stats.vertices >= 5000;
+				do_copy = current_stats.vertices >= 5000;
 			}
 			else
 			{
 				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
 			}
 
-			counters.clears.push_back({ counters.current_stats, op, do_copy });
+			counters.clears.push_back({ current_stats, op, do_copy });
 		}
 
 		// Make a backup copy of the depth texture before it is cleared
 		if (do_copy)
 		{
-			state.best_copy_stats = counters.current_stats;
+			state.best_copy_stats = current_stats;
+
+			counters.copied_during_frame = true;
+
+			// Unlock before calling into the device, since e.g. in D3D11 this can cause delayed destruction of resources (calls 'CDevice::FlushDeletionPool'), which calls 'on_destroy_resource' below, which tries to lock the same mutex
+			lock.unlock();
 
 			// A resource has to be in this state for a clear operation, so can assume it here
 			cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
 			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
 			cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
-
-			counters.copied_during_frame = true;
 		}
 	}
-
-	// Reset draw call stats for clears
-	counters.current_stats = { 0, 0 };
 }
 
 static void update_effect_runtime(effect_runtime *runtime)
