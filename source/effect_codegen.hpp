@@ -98,10 +98,8 @@ namespace reshadefx
 		/// <summary>
 		/// Makes a function a shader entry point.
 		/// </summary>
-		/// <param name="function">Function to use as entry point. May be overwritten to point to a new unique function for this entry point.</param>
-		/// <param name="type">Shader type (vertex, pixel or compute shader).</param>
-		/// <param name="num_threads">Number of local threads it this is a compute entry point.</param>
-		virtual void define_entry_point(function_info &function, shader_type type, int num_threads[3] = nullptr) = 0;
+		/// <param name="function">Function to use as entry point. May be overwritten to point to a new uniquely generated function.</param>
+		virtual void define_entry_point(function_info &function) = 0;
 
 		/// <summary>
 		/// Resolves the access chain and add a load operation to the output.

@@ -549,7 +549,7 @@ private:
 	std::string semantic_to_builtin(std::string name, const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
-			return stype == shader_type::ps ? "gl_FragCoord" : "gl_Position";
+			return stype == shader_type::pixel ? "gl_FragCoord" : "gl_Position";
 		if (semantic == "SV_POINTSIZE")
 			return "gl_PointSize";
 		if (semantic == "SV_DEPTH")
@@ -828,33 +828,33 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func, shader_type stype, int num_threads[3]) override
+	void define_entry_point(function_info &func) override
 	{
 		// Modify entry point name so each thread configuration is made separate
-		if (stype == shader_type::cs)
+		if (func.shader_type == shader_type::compute)
 			func.unique_name = 'E' + func.unique_name +
-				'_' + std::to_string(num_threads[0]) +
-				'_' + std::to_string(num_threads[1]) +
-				'_' + std::to_string(num_threads[2]);
+				'_' + std::to_string(func.num_threads[0]) +
+				'_' + std::to_string(func.num_threads[1]) +
+				'_' + std::to_string(func.num_threads[2]);
 
 		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, stype });
+		_module.entry_points.push_back({ func.unique_name, func.shader_type });
 
 		_blocks.at(0) += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
-		if (stype == shader_type::cs)
-			_blocks.at(0) += "layout(local_size_x = " + std::to_string(num_threads[0]) +
-			                      ", local_size_y = " + std::to_string(num_threads[1]) +
-			                      ", local_size_z = " + std::to_string(num_threads[2]) + ") in;\n";
+		if (func.shader_type == shader_type::compute)
+			_blocks.at(0) += "layout(local_size_x = " + std::to_string(func.num_threads[0]) +
+			                      ", local_size_y = " + std::to_string(func.num_threads[1]) +
+			                      ", local_size_z = " + std::to_string(func.num_threads[2]) + ") in;\n";
 
 		function_info entry_point;
 		entry_point.return_type = { type::t_void };
 
 		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
 
-		const auto create_varying_variable = [this, stype, &semantic_to_varying_variable](type type, unsigned int extra_qualifiers, const std::string &name, const std::string &semantic) {
+		const auto create_varying_variable = [this, stype = func.shader_type, &semantic_to_varying_variable](type type, unsigned int extra_qualifiers, const std::string &name, const std::string &semantic) {
 			// Skip built in variables
 			if (!semantic_to_builtin(std::string(), semantic, stype).empty())
 				return;
@@ -1018,7 +1018,7 @@ private:
 									code += '(';
 								}
 
-								code += semantic_to_builtin(std::move(in_param_name), member.semantic, stype);
+								code += semantic_to_builtin(std::move(in_param_name), member.semantic, func.shader_type);
 
 								if (member.type.is_boolean())
 									code += ')';
@@ -1111,7 +1111,7 @@ private:
 						code += '(';
 					}
 
-					code += semantic_to_builtin("_in_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
+					code += semantic_to_builtin("_in_param" + std::to_string(i), func.parameter_list[i].semantic, func.shader_type);
 
 					if (param_type.is_boolean())
 						code += ')';
@@ -1131,7 +1131,7 @@ private:
 		// All other output types can write to the output variable directly
 		else if (!func.return_type.is_void())
 		{
-			code += semantic_to_builtin("_return", func.return_semantic, stype);
+			code += semantic_to_builtin("_return", func.return_semantic, func.shader_type);
 			code += " = ";
 		}
 
@@ -1197,7 +1197,7 @@ private:
 						else
 						{
 							code += '\t';
-							code += semantic_to_builtin("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic, stype);
+							code += semantic_to_builtin("_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic, func.shader_type);
 							code += " = ";
 
 							if (member.type.is_boolean())
@@ -1254,7 +1254,7 @@ private:
 				else
 				{
 					code += '\t';
-					code += semantic_to_builtin("_out_param" + std::to_string(i), func.parameter_list[i].semantic, stype);
+					code += semantic_to_builtin("_out_param" + std::to_string(i), func.parameter_list[i].semantic, func.shader_type);
 					code += " = ";
 
 					if (param_type.is_boolean())
@@ -1283,13 +1283,13 @@ private:
 			for (const struct_member_info &member : definition.member_list)
 			{
 				code += '\t';
-				code += semantic_to_builtin("_return_" + member.name, member.semantic, stype);
+				code += semantic_to_builtin("_return_" + member.name, member.semantic, func.shader_type);
 				code += " = _return." + escape_name(member.name) + ";\n";
 			}
 		}
 
 		// Add code to flip the output vertically
-		if (_flip_vert_y && stype == shader_type::vs)
+		if (_flip_vert_y && func.shader_type == shader_type::vertex)
 			code += "\tgl_Position.y = -gl_Position.y;\n";
 
 		leave_block_and_return(0);

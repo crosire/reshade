@@ -36,7 +36,8 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 	while (!peek(tokenid::end_of_file))
 	{
-		parse_top(current_success);
+		if (!parse_top(current_success))
+			return false;
 		if (!current_success)
 			parse_success = false;
 	}
@@ -44,24 +45,18 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 	return parse_success;
 }
 
-void reshadefx::parser::parse_top(bool &parse_success)
+bool reshadefx::parser::parse_top(bool &parse_success)
 {
 	if (accept(tokenid::namespace_))
 	{
 		// Anonymous namespaces are not supported right now, so an identifier is a must
 		if (!expect(tokenid::identifier))
-		{
-			parse_success = false;
-			return;
-		}
+			return false;
 
 		const std::string name = std::move(_token.literal_as_string);
 
 		if (!expect('{'))
-		{
-			parse_success = false;
-			return;
-		}
+			return false;
 
 		enter_namespace(name);
 
@@ -71,7 +66,8 @@ void reshadefx::parser::parse_top(bool &parse_success)
 		// Recursively parse top level statements until the namespace is closed again
 		while (!peek('}')) // Empty namespaces are valid
 		{
-			parse_top(current_success);
+			if (!parse_top(current_success))
+				return false;
 			if (!current_success)
 				parse_success_namespace = false;
 		}
@@ -91,34 +87,108 @@ void reshadefx::parser::parse_top(bool &parse_success)
 	}
 	else
 	{
+		location attribute_location;
+		shader_type stype = shader_type::unknown;
+		int num_threads[3] = { 0, 0, 0 };
+
+		// Read any function attributes first
+		while (accept('['))
+		{
+			if (!expect(tokenid::identifier))
+				return false;
+
+			const std::string attribute = std::move(_token.literal_as_string);
+
+			if (attribute == "shader")
+			{
+				attribute_location = _token_next.location;
+
+				if (!expect('(') || !expect(tokenid::string_literal))
+					return false;
+
+				if (_token.literal_as_string == "vertex")
+					stype = shader_type::vertex;
+				else if (_token.literal_as_string == "pixel")
+					stype = shader_type::pixel;
+				else if (_token.literal_as_string == "compute")
+					stype = shader_type::compute;
+
+				if (!expect(')'))
+					return false;
+			}
+			else if (attribute == "numthreads")
+			{
+				attribute_location = _token_next.location;
+
+				expression x, y, z;
+				if (!expect('(') || !parse_expression_multary(x, 8) || !expect(',') || !parse_expression_multary(y, 8) || !expect(',') || !parse_expression_multary(z, 8) || !expect(')'))
+					return false;
+
+				if (!x.is_constant)
+				{
+					error(x.location, 3011, "value must be a literal expression");
+					parse_success = false;
+				}
+				if (!y.is_constant)
+				{
+					error(y.location, 3011, "value must be a literal expression");
+					parse_success = false;
+				}
+				if (!z.is_constant)
+				{
+					error(z.location, 3011, "value must be a literal expression");
+					parse_success = false;
+				}
+				x.add_cast_operation({ type::t_int, 1, 1 });
+				y.add_cast_operation({ type::t_int, 1, 1 });
+				z.add_cast_operation({ type::t_int, 1, 1 });
+				num_threads[0] = x.constant.as_int[0];
+				num_threads[1] = y.constant.as_int[0];
+				num_threads[2] = z.constant.as_int[0];
+			}
+			else
+			{
+				warning(_token.location, 0, "unknown attribute '" + attribute + "'");
+			}
+
+			if (!expect(']'))
+				return false;
+		}
+
 		if (type type = {}; parse_type(type)) // Type found, this can be either a variable or a function declaration
 		{
 			parse_success = expect(tokenid::identifier);
 			if (!parse_success)
-				return;
+				return true;
 
 			if (peek('('))
 			{
 				const std::string name = std::move(_token.literal_as_string);
 
 				// This is definitely a function declaration, so parse it
-				if (!parse_function(type, name))
+				if (!parse_function(type, name, stype, num_threads))
 				{
 					// Insert dummy function into symbol table, so later references can be resolved despite the error
 					insert_symbol(name, { symbol_type::function, UINT32_MAX, { type::t_function } }, true);
 					parse_success = false;
-					return;
+					return true;
 				}
 			}
 			else
 			{
+				if (!attribute_location.source.empty())
+				{
+					error(attribute_location, 0, "attribute is valid only on functions");
+					parse_success = false;
+				}
+
 				// There may be multiple variable names after the type, handle them all
 				unsigned int count = 0;
 				do {
 					if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
 					{
 						parse_success = false;
-						return;
+						return false;
 					}
 
 					const std::string name = std::move(_token.literal_as_string);
@@ -130,7 +200,7 @@ void reshadefx::parser::parse_top(bool &parse_success)
 						// Skip the rest of the statement
 						consume_until(';');
 						parse_success = false;
-						return;
+						return true;
 					}
 				} while (!peek(';'));
 
@@ -153,6 +223,8 @@ void reshadefx::parser::parse_top(bool &parse_success)
 			parse_success = false;
 		}
 	}
+
+	return true;
 }
 
 bool reshadefx::parser::parse_statement(bool scoped)
@@ -194,7 +266,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 		else if (attribute == "call")
 			selection_control |= switch_call;
 		else
-			warning(_token.location, 0, "unknown attribute");
+			warning(_token.location, 0, "unknown attribute '" + attribute + "'");
 
 		if ((loop_control & (unroll | dont_unroll)) == (unroll | dont_unroll))
 			return error(_token.location, 3524, "can't use loop and unroll attributes together"), false;
@@ -1007,7 +1079,7 @@ bool reshadefx::parser::parse_struct()
 	return expect('}') && parse_success;
 }
 
-bool reshadefx::parser::parse_function(type type, std::string name)
+bool reshadefx::parser::parse_function(type type, std::string name, shader_type stype, int num_threads[3])
 {
 	const location function_location = std::move(_token.location);
 
@@ -1023,6 +1095,10 @@ bool reshadefx::parser::parse_function(type type, std::string name)
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
 
 	info.return_type = type;
+	info.shader_type = stype;
+	info.num_threads[0] = num_threads[0];
+	info.num_threads[1] = num_threads[1];
+	info.num_threads[2] = num_threads[2];
 	_current_function = &info;
 
 	bool parse_success = true;
@@ -1676,7 +1752,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 			state_location = std::move(_token.location);
 
-			int num_threads[3] = { 1, 1, 1 };
+			int num_threads[3] = { 0, 0, 0 };
 			if (accept('<'))
 			{
 				expression x, y, z;
@@ -1725,17 +1801,51 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						{
 						case 'V':
 							vs_info = function_info;
-							_codegen->define_entry_point(vs_info, shader_type::vs);
+							if (vs_info.shader_type != shader_type::unknown && vs_info.shader_type != shader_type::vertex)
+							{
+								parse_success = false;
+								error(state_location, 3020, "type mismatch, expected vertex shader function");
+								break;
+							}
+							vs_info.shader_type = shader_type::vertex;
+							_codegen->define_entry_point(vs_info);
 							info.vs_entry_point = vs_info.unique_name;
 							break;
 						case 'P':
 							ps_info = function_info;
-							_codegen->define_entry_point(ps_info, shader_type::ps);
+							if (ps_info.shader_type != shader_type::unknown && ps_info.shader_type != shader_type::pixel)
+							{
+								parse_success = false;
+								error(state_location, 3020, "type mismatch, expected pixel shader function");
+								break;
+							}
+							ps_info.shader_type = shader_type::pixel;
+							_codegen->define_entry_point(ps_info);
 							info.ps_entry_point = ps_info.unique_name;
 							break;
 						case 'C':
 							cs_info = function_info;
-							_codegen->define_entry_point(cs_info, shader_type::cs, num_threads);
+							if (cs_info.shader_type != shader_type::unknown && cs_info.shader_type != shader_type::compute)
+							{
+								parse_success = false;
+								error(state_location, 3020, "type mismatch, expected compute shader function");
+								break;
+							}
+							cs_info.shader_type = shader_type::compute;
+							// Only use number of threads from pass when specified, otherwise fall back to number specified on the function definition with an attribute
+							if (num_threads[0] != 0)
+							{
+								cs_info.num_threads[0] = num_threads[0];
+								cs_info.num_threads[1] = num_threads[1];
+								cs_info.num_threads[2] = num_threads[2];
+							}
+							else
+							{
+								cs_info.num_threads[0] = std::max(cs_info.num_threads[0], 1);
+								cs_info.num_threads[1] = std::max(cs_info.num_threads[1], 1);
+								cs_info.num_threads[2] = std::max(cs_info.num_threads[2], 1);
+							}
+							_codegen->define_entry_point(cs_info);
 							info.cs_entry_point = cs_info.unique_name;
 							break;
 						}

@@ -648,7 +648,7 @@ private:
 	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
-			return stype == shader_type::ps ? spv::BuiltInFragCoord : spv::BuiltInPosition;
+			return stype == shader_type::pixel ? spv::BuiltInFragCoord : spv::BuiltInPosition;
 		if (semantic == "SV_POINTSIZE")
 			return spv::BuiltInPointSize;
 		if (semantic == "SV_DEPTH")
@@ -1073,20 +1073,20 @@ private:
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func, shader_type stype, int num_threads[3]) override
+	void define_entry_point(function_info &func) override
 	{
 		// Modify entry point name so each thread configuration is made separate
-		if (stype == shader_type::cs)
+		if (func.shader_type == shader_type::compute)
 			func.unique_name = 'E' + func.unique_name +
-				'_' + std::to_string(num_threads[0]) +
-				'_' + std::to_string(num_threads[1]) +
-				'_' + std::to_string(num_threads[2]);
+				'_' + std::to_string(func.num_threads[0]) +
+				'_' + std::to_string(func.num_threads[1]) +
+				'_' + std::to_string(func.num_threads[2]);
 
 		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, stype });
+		_module.entry_points.push_back({ func.unique_name, func.shader_type });
 
 		spv::Id position_variable = 0;
 		spv::Id point_size_variable = 0;
@@ -1112,7 +1112,7 @@ private:
 			return variable;
 		};
 
-		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &point_size_variable, stype](const type &param_type, const std::string &semantic, spv::StorageClass storage, int a = 0) {
+		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &point_size_variable, stype = func.shader_type](const type &param_type, const std::string &semantic, spv::StorageClass storage, int a = 0) {
 			const spv::Id variable = define_variable({}, param_type, nullptr, storage);
 
 			if (const spv::BuiltIn builtin = semantic_to_builtin(semantic, stype);
@@ -1129,7 +1129,7 @@ private:
 			}
 			else
 			{
-				assert(stype != shader_type::cs); // Compute shaders cannot have custom inputs or outputs
+				assert(stype != shader_type::compute); // Compute shaders cannot have custom inputs or outputs
 
 				const uint32_t location = semantic_to_location(semantic, std::max(1u, param_type.array_length));
 				add_decoration(variable, spv::DecorationLocation, { location + a });
@@ -1331,7 +1331,7 @@ private:
 		}
 
 		// Add code to flip the output vertically
-		if (_flip_vert_y && position_variable != 0 && stype == shader_type::vs)
+		if (_flip_vert_y && position_variable != 0 && func.shader_type == shader_type::vertex)
 		{
 			expression position;
 			position.reset_to_lvalue({}, position_variable, { type::t_float, 4, 1 });
@@ -1344,7 +1344,7 @@ private:
 		}
 
 		// Add code that sets the point size to a default value (in case this vertex shader is used with point primitives)
-		if (point_size_variable == 0 && stype == shader_type::vs)
+		if (point_size_variable == 0 && func.shader_type == shader_type::vertex)
 		{
 			create_varying_variable({ type::t_float, 1, 1 }, "SV_POINTSIZE", spv::StorageClassOutput);
 
@@ -1359,25 +1359,25 @@ private:
 		leave_function();
 
 		spv::ExecutionModel model;
-		switch (stype)
+		switch (func.shader_type)
 		{
-		case shader_type::vs:
+		case shader_type::vertex:
 			model = spv::ExecutionModelVertex;
 			break;
-		case shader_type::ps:
+		case shader_type::pixel:
 			model = spv::ExecutionModelFragment;
 			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
 				.add(entry_point.definition)
 				.add(_vulkan_semantics ? spv::ExecutionModeOriginUpperLeft : spv::ExecutionModeOriginLowerLeft);
 			break;
-		case shader_type::cs:
+		case shader_type::compute:
 			model = spv::ExecutionModelGLCompute;
 			add_instruction_without_result(spv::OpExecutionMode, _execution_modes)
 				.add(entry_point.definition)
 				.add(spv::ExecutionModeLocalSize)
-				.add(num_threads[0])
-				.add(num_threads[1])
-				.add(num_threads[2]);
+				.add(func.num_threads[0])
+				.add(func.num_threads[1])
+				.add(func.num_threads[2]);
 			break;
 		default:
 			assert(false);

@@ -251,9 +251,10 @@ namespace reshadefx
 	/// </summary>
 	enum class shader_type
 	{
-		vs,
-		ps,
-		cs,
+		unknown,
+		vertex,
+		pixel,
+		compute
 	};
 
 	/// <summary>
@@ -278,6 +279,8 @@ namespace reshadefx
 		std::vector<struct_member_info> parameter_list;
 		std::unordered_set<uint32_t> referenced_samplers;
 		std::unordered_set<uint32_t> referenced_storages;
+		shader_type shader_type = shader_type::unknown;
+		int num_threads[3] = {};
 	};
 
 	/// <summary>
