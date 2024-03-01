@@ -320,76 +320,76 @@ private:
 			s += id_to_name(type.definition);
 			return;
 		case type::t_sampler1d_int:
-			s += "__sampler1D";
-			if (_shader_model >= 40)
-				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
-			return;
 		case type::t_sampler2d_int:
-			s += "__sampler2D";
-			if (_shader_model >= 40)
-				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
-			return;
 		case type::t_sampler3d_int:
-			s += "__sampler3D";
+			s += "__sampler";
+			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += 'D';
 			if (_shader_model >= 40)
-				s += "_int" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			{
+				s += "_int";
+				if (type.rows > 1)
+					s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			return;
 		case type::t_sampler1d_uint:
-			s += "__sampler1D";
-			if (_shader_model >= 40)
-				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
-			return;
 		case type::t_sampler2d_uint:
-			s += "__sampler2D";
-			if (_shader_model >= 40)
-				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
-			return;
 		case type::t_sampler3d_uint:
-			s += "__sampler3D";
+			s += "__sampler";
+			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += 'D';
 			if (_shader_model >= 40)
-				s += "_uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			{
+				s += "_uint";
+				if (type.rows > 1)
+					s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			return;
 		case type::t_sampler1d_float:
-			s += "__sampler1D";
-			if (_shader_model >= 40)
-				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
-			return;
 		case type::t_sampler2d_float:
-			s += "__sampler2D";
-			if (_shader_model >= 40)
-				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
-			return;
 		case type::t_sampler3d_float:
-			s += "__sampler3D";
+			s += "__sampler";
+			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += 'D';
 			if (_shader_model >= 40)
-				s += "_float" + (type.rows > 1 ? std::to_string(type.rows) : std::string());
+			{
+				s += "_float";
+				if (type.rows > 1)
+					s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			return;
 		case type::t_storage1d_int:
-			s += "RWTexture1D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
-			return;
 		case type::t_storage2d_int:
-			s += "RWTexture2D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
-			return;
 		case type::t_storage3d_int:
-			s += "RWTexture3D<int" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			s += "RWTexture";
+			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += "D<";
+			s += "int";
+			if (type.rows > 1)
+				s += '1' + static_cast<char>(type.rows) - 1;
+			s += '>';
 			return;
 		case type::t_storage1d_uint:
-			s += "RWTexture1D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
-			return;
 		case type::t_storage2d_uint:
-			s += "RWTexture2D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
-			return;
 		case type::t_storage3d_uint:
-			s += "RWTexture3D<uint" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			s += "RWTexture";
+			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += "D<";
+			s += "uint";
+			if (type.rows > 1)
+				s += '1' + static_cast<char>(type.rows) - 1;
+			s += '>';
 			return;
 		case type::t_storage1d_float:
-			s += "RWTexture1D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
-			return;
 		case type::t_storage2d_float:
-			s += "RWTexture2D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
-			return;
 		case type::t_storage3d_float:
-			s += "RWTexture3D<float" + (type.rows > 1 ? std::to_string(type.rows) : std::string()) + '>';
+			s += "RWTexture";
+			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += "D<";
+			s += "float";
+			if (type.rows > 1)
+				s += '1' + static_cast<char>(type.rows) - 1;
+			s += '>';
 			return;
 		default:
 			assert(false);
@@ -397,9 +397,14 @@ private:
 		}
 
 		if (type.rows > 1)
-			s += std::to_string(type.rows);
+		{
+			s += '1' + static_cast<char>(type.rows) - 1;
+		}
 		if (type.cols > 1)
-			s += 'x' + std::to_string(type.cols);
+		{
+			s += 'x';
+			s += '1' + static_cast<char>(type.cols) - 1;
+		}
 	}
 	void write_constant(std::string &s, const type &data_type, const constant &data) const
 	{
@@ -710,14 +715,18 @@ private:
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
 
-			code += "Texture" + std::to_string(static_cast<unsigned int>(info.type)) + "D<";
+			code += "Texture";
+			code += '1' + static_cast<char>(info.type) - 1;
+			code += "D<";
 			write_texture_format(code, info.format);
 			code += "> __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + "); \n";
 
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
 
-			code += "Texture" + std::to_string(static_cast<unsigned int>(info.type)) + "D<";
+			code += "Texture";
+			code += '1' + static_cast<char>(info.type) - 1;
+			code += "D<";
 			write_texture_format(code, info.format);
 			code += "> __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + "); \n";
 		}
@@ -776,22 +785,24 @@ private:
 			info.binding = _module.num_sampler_bindings++;
 			info.texture_binding = ~0u; // Unset texture binding
 
-			const unsigned int texture_dimension = info.type.texture_dimension();
+			const char texture_dimension = '1' + static_cast<char>(info.type.texture_dimension()) - 1;
 
-			code += "sampler" + std::to_string(texture_dimension) + "D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			code += "sampler";
+			code += texture_dimension;
+			code += "D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
 			write_location(code, loc);
 
 			code += "static const ";
 			write_type(code, info.type);
-			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float" + std::to_string(texture_dimension) + '(';
+			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float" + texture_dimension + '(';
 
 			if (tex_info.semantic.empty())
 			{
 				code += "1.0 / " + std::to_string(tex_info.width);
-				if (texture_dimension >= 2)
+				if (texture_dimension >= '2')
 					code += ", 1.0 / " + std::to_string(tex_info.height);
-				if (texture_dimension >= 3)
+				if (texture_dimension >= '3')
 					code += ", 1.0 / " + std::to_string(tex_info.depth);
 			}
 			else
@@ -1126,7 +1137,7 @@ private:
 		// Cast the output value to a four-component vector
 		if (is_color_semantic(func.return_semantic))
 		{
-			for (unsigned int i = 0; i < 4 - func.return_type.rows; i++)
+			for (unsigned int i = 0; i < (4 - func.return_type.rows); i++)
 				code += ", 0.0";
 			code += ')';
 		}
@@ -1185,7 +1196,7 @@ private:
 				break;
 			case expression::operation::op_swizzle:
 				expr_code += '.';
-				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 					if (op.from.is_matrix())
 						expr_code += s_matrix_swizzles[op.swizzle[i]];
 					else
@@ -1242,7 +1253,7 @@ private:
 				break;
 			case expression::operation::op_swizzle:
 				code += '.';
-				for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 					if (op.from.is_matrix())
 						code += s_matrix_swizzles[op.swizzle[i]];
 					else

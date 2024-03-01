@@ -156,9 +156,17 @@ private:
 			break;
 		case type::t_bool:
 			if (type.cols > 1)
-				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			{
+				s += "mat";
+				s += '1' + static_cast<char>(type.rows) - 1;
+				s += 'x';
+				s += '1' + static_cast<char>(type.cols) - 1;
+			}
 			else if (type.rows > 1)
-				s += "bvec" + std::to_string(type.rows);
+			{
+				s += "bvec";
+				s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			else
 				s += "bool";
 			break;
@@ -167,7 +175,10 @@ private:
 			{
 				assert(type.cols == 1);
 				if (type.rows > 1)
-					s += "i16vec" + std::to_string(type.rows);
+				{
+					s += "i16vec";
+					s += '1' + static_cast<char>(type.rows) - 1;
+				}
 				else
 					s += "int16_t";
 				break;
@@ -177,9 +188,17 @@ private:
 			[[fallthrough]];
 		case type::t_int:
 			if (type.cols > 1)
-				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			{
+				s += "mat";
+				s += '1' + static_cast<char>(type.rows) - 1;
+				s += 'x';
+				s += '1' + static_cast<char>(type.cols) - 1;
+			}
 			else if (type.rows > 1)
-				s += "ivec" + std::to_string(type.rows);
+			{
+				s += "ivec";
+				s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			else
 				s += "int";
 			break;
@@ -188,7 +207,10 @@ private:
 			{
 				assert(type.cols == 1);
 				if (type.rows > 1)
-					s += "u16vec" + std::to_string(type.rows);
+				{
+					s += "u16vec";
+					s += '1' + static_cast<char>(type.rows) - 1;
+				}
 				else
 					s += "uint16_t";
 				break;
@@ -198,9 +220,17 @@ private:
 			[[fallthrough]];
 		case type::t_uint:
 			if (type.cols > 1)
-				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			{
+				s += "mat";
+				s += '1' + static_cast<char>(type.rows) - 1;
+				s += 'x';
+				s += '1' + static_cast<char>(type.cols) - 1;
+			}
 			else if (type.rows > 1)
-				s += "uvec" + std::to_string(type.rows);
+			{
+				s += "uvec";
+				s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			else
 				s += "uint";
 			break;
@@ -209,7 +239,10 @@ private:
 			{
 				assert(type.cols == 1);
 				if (type.rows > 1)
-					s += "f16vec" + std::to_string(type.rows);
+				{
+					s += "f16vec";
+					s += '1' + static_cast<char>(type.rows) - 1;
+				}
 				else
 					s += "float16_t";
 				break;
@@ -219,9 +252,17 @@ private:
 			[[fallthrough]];
 		case type::t_float:
 			if (type.cols > 1)
-				s += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+			{
+				s += "mat";
+				s += '1' + static_cast<char>(type.rows) - 1;
+				s += 'x';
+				s += '1' + static_cast<char>(type.cols) - 1;
+			}
 			else if (type.rows > 1)
-				s += "vec" + std::to_string(type.rows);
+			{
+				s += "vec";
+				s += '1' + static_cast<char>(type.rows) - 1;
+			}
 			else
 				s += "float";
 			break;
@@ -1333,10 +1374,14 @@ private:
 				{
 					if (op.swizzle[1] < 0)
 					{
-						const int row = (op.swizzle[0] % 4);
-						const int col = (op.swizzle[0] - row) / 4;
+						const char row = (op.swizzle[0] % 4);
+						const char col = (op.swizzle[0] - row) / 4;
 
-						expr_code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+						expr_code += '[';
+						expr_code += '1' + row - 1;
+						expr_code += "][";
+						expr_code += '1' + col - 1;
+						expr_code += ']';
 					}
 					else
 					{
@@ -1348,7 +1393,7 @@ private:
 				else
 				{
 					expr_code += '.';
-					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 						expr_code += "xyzw"[op.swizzle[i]];
 				}
 				break;
@@ -1415,10 +1460,14 @@ private:
 				{
 					if (op.swizzle[1] < 0)
 					{
-						const int row = (op.swizzle[0] % 4);
-						const int col = (op.swizzle[0] - row) / 4;
+						const char row = (op.swizzle[0] % 4);
+						const char col = (op.swizzle[0] - row) / 4;
 
-						code += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+						code += '[';
+						code += '1' + row - 1;
+						code += "][";
+						code += '1' + col - 1;
+						code += ']';
 					}
 					else
 					{
@@ -1430,7 +1479,7 @@ private:
 				else
 				{
 					code += '.';
-					for (unsigned int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 						code += "xyzw"[op.swizzle[i]];
 				}
 				break;
