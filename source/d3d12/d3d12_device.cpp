@@ -2330,7 +2330,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 		}
 		else
 		{
-			if (_interface_version < 2)
+			if (!check_and_upgrade_interface(__uuidof(ID3D12Device2)))
 				return false;
 
 			hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(&internal_desc, IID_PPV_ARGS(&d3d_pipeline));
