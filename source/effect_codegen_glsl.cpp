@@ -62,6 +62,12 @@ private:
 	bool _uses_componentwise_and = false;
 	bool _uses_componentwise_cond = false;
 
+	static inline char to_digit(unsigned int value)
+	{
+		assert(value < 10);
+		return '0' + static_cast<char>(value);
+	}
+
 	void write_result(module &module) override
 	{
 		module = std::move(_module);
@@ -156,17 +162,9 @@ private:
 			break;
 		case type::t_bool:
 			if (type.cols > 1)
-			{
-				s += "mat";
-				s += '1' + static_cast<char>(type.rows) - 1;
-				s += 'x';
-				s += '1' + static_cast<char>(type.cols) - 1;
-			}
+				s += "mat", s += to_digit(type.rows), s += 'x', s += to_digit(type.cols);
 			else if (type.rows > 1)
-			{
-				s += "bvec";
-				s += '1' + static_cast<char>(type.rows) - 1;
-			}
+				s += "bvec", s += to_digit(type.rows);
 			else
 				s += "bool";
 			break;
@@ -175,10 +173,7 @@ private:
 			{
 				assert(type.cols == 1);
 				if (type.rows > 1)
-				{
-					s += "i16vec";
-					s += '1' + static_cast<char>(type.rows) - 1;
-				}
+					s += "i16vec", s += to_digit(type.rows);
 				else
 					s += "int16_t";
 				break;
@@ -188,17 +183,9 @@ private:
 			[[fallthrough]];
 		case type::t_int:
 			if (type.cols > 1)
-			{
-				s += "mat";
-				s += '1' + static_cast<char>(type.rows) - 1;
-				s += 'x';
-				s += '1' + static_cast<char>(type.cols) - 1;
-			}
+				s += "mat", s += to_digit(type.rows), s += 'x', s += to_digit(type.cols);
 			else if (type.rows > 1)
-			{
-				s += "ivec";
-				s += '1' + static_cast<char>(type.rows) - 1;
-			}
+				s += "ivec", s += to_digit(type.rows);
 			else
 				s += "int";
 			break;
@@ -207,10 +194,7 @@ private:
 			{
 				assert(type.cols == 1);
 				if (type.rows > 1)
-				{
-					s += "u16vec";
-					s += '1' + static_cast<char>(type.rows) - 1;
-				}
+					s += "u16vec", s += to_digit(type.rows);
 				else
 					s += "uint16_t";
 				break;
@@ -220,17 +204,9 @@ private:
 			[[fallthrough]];
 		case type::t_uint:
 			if (type.cols > 1)
-			{
-				s += "mat";
-				s += '1' + static_cast<char>(type.rows) - 1;
-				s += 'x';
-				s += '1' + static_cast<char>(type.cols) - 1;
-			}
+				s += "mat", s += to_digit(type.rows), s += 'x', s += to_digit(type.cols);
 			else if (type.rows > 1)
-			{
-				s += "uvec";
-				s += '1' + static_cast<char>(type.rows) - 1;
-			}
+				s += "uvec", s += to_digit(type.rows);
 			else
 				s += "uint";
 			break;
@@ -239,10 +215,7 @@ private:
 			{
 				assert(type.cols == 1);
 				if (type.rows > 1)
-				{
-					s += "f16vec";
-					s += '1' + static_cast<char>(type.rows) - 1;
-				}
+					s += "f16vec", s += to_digit(type.rows);
 				else
 					s += "float16_t";
 				break;
@@ -252,17 +225,9 @@ private:
 			[[fallthrough]];
 		case type::t_float:
 			if (type.cols > 1)
-			{
-				s += "mat";
-				s += '1' + static_cast<char>(type.rows) - 1;
-				s += 'x';
-				s += '1' + static_cast<char>(type.cols) - 1;
-			}
+				s += "mat", s += to_digit(type.rows), s += 'x', s += to_digit(type.cols);
 			else if (type.rows > 1)
-			{
-				s += "vec";
-				s += '1' + static_cast<char>(type.rows) - 1;
-			}
+				s += "vec", s += to_digit(type.rows);
 			else
 				s += "float";
 			break;

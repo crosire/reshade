@@ -53,6 +53,12 @@ private:
 	bool _uses_bitwise_cast = false;
 	bool _uses_bitwise_intrinsics = false;
 
+	static inline char to_digit(unsigned int value)
+	{
+		assert(value < 10);
+		return '0' + static_cast<char>(value);
+	}
+
 	void write_result(module &module) override
 	{
 		module = std::move(_module);
@@ -323,72 +329,72 @@ private:
 		case type::t_sampler2d_int:
 		case type::t_sampler3d_int:
 			s += "__sampler";
-			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += to_digit(type.texture_dimension());
 			s += 'D';
 			if (_shader_model >= 40)
 			{
 				s += "_int";
 				if (type.rows > 1)
-					s += '1' + static_cast<char>(type.rows) - 1;
+					s += to_digit(type.rows);
 			}
 			return;
 		case type::t_sampler1d_uint:
 		case type::t_sampler2d_uint:
 		case type::t_sampler3d_uint:
 			s += "__sampler";
-			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += to_digit(type.texture_dimension());
 			s += 'D';
 			if (_shader_model >= 40)
 			{
 				s += "_uint";
 				if (type.rows > 1)
-					s += '1' + static_cast<char>(type.rows) - 1;
+					s += to_digit(type.rows);
 			}
 			return;
 		case type::t_sampler1d_float:
 		case type::t_sampler2d_float:
 		case type::t_sampler3d_float:
 			s += "__sampler";
-			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += to_digit(type.texture_dimension());
 			s += 'D';
 			if (_shader_model >= 40)
 			{
 				s += "_float";
 				if (type.rows > 1)
-					s += '1' + static_cast<char>(type.rows) - 1;
+					s += to_digit(type.rows);
 			}
 			return;
 		case type::t_storage1d_int:
 		case type::t_storage2d_int:
 		case type::t_storage3d_int:
 			s += "RWTexture";
-			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += to_digit(type.texture_dimension());
 			s += "D<";
 			s += "int";
 			if (type.rows > 1)
-				s += '1' + static_cast<char>(type.rows) - 1;
+				s += to_digit(type.rows);
 			s += '>';
 			return;
 		case type::t_storage1d_uint:
 		case type::t_storage2d_uint:
 		case type::t_storage3d_uint:
 			s += "RWTexture";
-			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += to_digit(type.texture_dimension());
 			s += "D<";
 			s += "uint";
 			if (type.rows > 1)
-				s += '1' + static_cast<char>(type.rows) - 1;
+				s += to_digit(type.rows);
 			s += '>';
 			return;
 		case type::t_storage1d_float:
 		case type::t_storage2d_float:
 		case type::t_storage3d_float:
 			s += "RWTexture";
-			s += '1' + static_cast<char>(type.texture_dimension()) - 1;
+			s += to_digit(type.texture_dimension());
 			s += "D<";
 			s += "float";
 			if (type.rows > 1)
-				s += '1' + static_cast<char>(type.rows) - 1;
+				s += to_digit(type.rows);
 			s += '>';
 			return;
 		default:
@@ -397,14 +403,9 @@ private:
 		}
 
 		if (type.rows > 1)
-		{
-			s += '1' + static_cast<char>(type.rows) - 1;
-		}
+			s += to_digit(type.rows);
 		if (type.cols > 1)
-		{
-			s += 'x';
-			s += '1' + static_cast<char>(type.cols) - 1;
-		}
+			s += 'x', s += to_digit(type.cols);
 	}
 	void write_constant(std::string &s, const type &data_type, const constant &data) const
 	{
@@ -716,7 +717,7 @@ private:
 				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
 
 			code += "Texture";
-			code += '1' + static_cast<char>(info.type) - 1;
+			code += to_digit(static_cast<unsigned int>(info.type));
 			code += "D<";
 			write_texture_format(code, info.format);
 			code += "> __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + "); \n";
@@ -725,7 +726,7 @@ private:
 				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
 
 			code += "Texture";
-			code += '1' + static_cast<char>(info.type) - 1;
+			code += to_digit(static_cast<unsigned int>(info.type));
 			code += "D<";
 			write_texture_format(code, info.format);
 			code += "> __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + "); \n";
@@ -785,24 +786,24 @@ private:
 			info.binding = _module.num_sampler_bindings++;
 			info.texture_binding = ~0u; // Unset texture binding
 
-			const char texture_dimension = '1' + static_cast<char>(info.type.texture_dimension()) - 1;
+			const unsigned int texture_dimension = info.type.texture_dimension();
 
 			code += "sampler";
-			code += texture_dimension;
+			code += to_digit(texture_dimension);
 			code += "D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
 
 			write_location(code, loc);
 
 			code += "static const ";
 			write_type(code, info.type);
-			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float" + texture_dimension + '(';
+			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_s, float" + to_digit(texture_dimension) + '(';
 
 			if (tex_info.semantic.empty())
 			{
-				code += "1.0 / " + std::to_string(tex_info.width);
-				if (texture_dimension >= '2')
+					code +=   "1.0 / " + std::to_string(tex_info.width);
+				if (texture_dimension >= 2)
 					code += ", 1.0 / " + std::to_string(tex_info.height);
-				if (texture_dimension >= '3')
+				if (texture_dimension >= 3)
 					code += ", 1.0 / " + std::to_string(tex_info.depth);
 			}
 			else
