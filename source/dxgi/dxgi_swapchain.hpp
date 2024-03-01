@@ -90,9 +90,10 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	LONG _ref = 1;
 	IDXGISwapChain *_orig;
+	LONG _ref = 1;
 	unsigned short _interface_version;
+
 	IUnknown *const _direct3d_device;
 	IUnknown *const _direct3d_command_queue;
 	const unsigned int _direct3d_version;

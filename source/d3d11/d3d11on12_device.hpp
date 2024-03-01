@@ -40,6 +40,7 @@ struct DECLSPEC_UUID("6BE8CF18-2108-4506-AAA0-AD5A29812A31") D3D11On12Device fin
 
 	ID3D11On12Device *_orig;
 	unsigned short _interface_version;
+
 	D3D11Device *const _parent_device_11;
 	D3D12Device *const _parent_device_12;
 };

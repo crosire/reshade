@@ -160,8 +160,8 @@ namespace reshade::d3d9
 		D3DCAPS9 _caps = {};
 
 		D3DPRIMITIVETYPE _current_prim_type = static_cast<D3DPRIMITIVETYPE>(0);
-		IDirect3DVertexBuffer9 *_current_stream_output = nullptr;
 		UINT _current_stream_output_offset = 0;
+		IDirect3DVertexBuffer9 *_current_stream_output = nullptr;
 
 	private:
 		state_block _backup_state;
