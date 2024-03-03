@@ -25,6 +25,7 @@ namespace ReShade.Setup.Pages
 		public string Name { get; internal set; }
 		public string Description { get; internal set; }
 
+		public string EffectInstallPath { get; internal set; }
 		public string DownloadUrl { get; internal set; }
 		public string RepositoryUrl { get; internal set; }
 
@@ -69,6 +70,7 @@ namespace ReShade.Setup.Pages
 								{
 									Name = addonsIni.GetString(addon, "PackageName"),
 									Description = addonsIni.GetString(addon, "PackageDescription"),
+									EffectInstallPath = addonsIni.GetString(addon, "EffectInstallPath", string.Empty),
 									DownloadUrl = downloadUrl,
 									RepositoryUrl = addonsIni.GetString(addon, "RepositoryUrl")
 								};
