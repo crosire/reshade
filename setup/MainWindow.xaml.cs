@@ -1429,6 +1429,12 @@ In that event here are some steps you can try to resolve this:
 					}
 				}
 
+				// Delete add-ons
+				foreach (string addonFile in Directory.EnumerateFiles(Path.GetDirectoryName(currentInfo.targetPath), currentInfo.is64Bit ? "*.addon64" : "*.addon32", SearchOption.TopDirectoryOnly))
+				{
+					File.Delete(addonFile);
+				}
+
 				// Delete all other existing ReShade installations too
 				foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
 				{
