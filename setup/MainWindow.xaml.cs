@@ -1706,7 +1706,7 @@ In that event here are some steps you can try to resolve this:
 					string addonPath = Directory.EnumerateFiles(tempPath, currentInfo.is64Bit ? "*.addon64" : "*.addon32", SearchOption.AllDirectories).FirstOrDefault();
 					if (addonPath == null)
 					{
-						addonPath = Directory.EnumerateFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(currentInfo.is64Bit ? "x64" : "x86"));
+						addonPath = Directory.EnumerateFiles(tempPath, "*.addon").FirstOrDefault(x => x.Contains(currentInfo.is64Bit ? "x64" : "x86") || Path.GetFileNameWithoutExtension(x).EndsWith(currentInfo.is64Bit ? "64" : "32"));
 					}
 					if (addonPath == null)
 					{
