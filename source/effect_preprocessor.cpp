@@ -334,32 +334,32 @@ void reshadefx::preprocessor::parse()
 		{
 		case tokenid::hash_if:
 			parse_if();
-			if (skip || !expect(tokenid::end_of_line))
+			if (!skip && !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_ifdef:
 			parse_ifdef();
-			if (skip || !expect(tokenid::end_of_line))
+			if (!skip && !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_ifndef:
 			parse_ifndef();
-			if (skip || !expect(tokenid::end_of_line))
+			if (!skip && !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_else:
 			parse_else();
-			if (!expect(tokenid::end_of_line))
+			if (!skip && !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_elif:
 			parse_elif();
-			if (skip || !expect(tokenid::end_of_line))
+			if (!skip && !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_endif:
 			parse_endif();
-			if (!expect(tokenid::end_of_line))
+			if (!skip && !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		default:
