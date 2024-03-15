@@ -995,9 +995,13 @@ bool reshadefx::preprocessor::evaluate_expression()
 				BINARY_OPERATION(-);
 				break;
 			case op_modulo:
+				if (stack[stack_index - 1] == 0)
+					return error(_token.location, "right operand of '%' is zero"), 0;
 				BINARY_OPERATION(%);
 				break;
 			case op_divide:
+				if (stack[stack_index - 1] == 0)
+					return error(_token.location, "division by zero"), 0;
 				BINARY_OPERATION(/);
 				break;
 			case op_multiply:
