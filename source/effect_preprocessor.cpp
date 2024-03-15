@@ -334,17 +334,17 @@ void reshadefx::preprocessor::parse()
 		{
 		case tokenid::hash_if:
 			parse_if();
-			if (!expect(tokenid::end_of_line))
+			if (skip || !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_ifdef:
 			parse_ifdef();
-			if (!expect(tokenid::end_of_line))
+			if (skip || !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_ifndef:
 			parse_ifndef();
-			if (!expect(tokenid::end_of_line))
+			if (skip || !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_else:
@@ -354,7 +354,7 @@ void reshadefx::preprocessor::parse()
 			continue;
 		case tokenid::hash_elif:
 			parse_elif();
-			if (!expect(tokenid::end_of_line))
+			if (skip || !expect(tokenid::end_of_line))
 				consume_until(tokenid::end_of_line);
 			continue;
 		case tokenid::hash_endif:
@@ -488,11 +488,18 @@ void reshadefx::preprocessor::parse_if()
 	level.pp_token = _token;
 	level.input_index = _current_input_index;
 
-	// Evaluate expression after updating 'pp_token', so that it points at the beginning # token
-	level.value = evaluate_expression();
-
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
-	level.skipping = parent_skipping || !level.value;
+	if (parent_skipping)
+	{
+		level.value = false;
+		level.skipping = true;
+	}
+	else
+	{
+		// Evaluate expression after updating 'pp_token', so that it points at the beginning # token
+		level.value = evaluate_expression();
+		level.skipping = !level.value;
+	}
 
 	_if_stack.push_back(std::move(level));
 }
@@ -505,16 +512,23 @@ void reshadefx::preprocessor::parse_ifdef()
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = is_defined(_token.literal_as_string);
-
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
-	level.skipping = parent_skipping || !level.value;
+	if (parent_skipping)
+	{
+		level.value = false;
+		level.skipping = true;
+	}
+	else
+	{
+		level.value = is_defined(_token.literal_as_string);
+		level.skipping = !level.value;
 
-	_if_stack.push_back(std::move(level));
-	// Only add to used macro list if this #ifdef is active and the macro was not defined before
-	if (!parent_skipping)
+		// Only add to used macro list if this #ifdef is active and the macro was not defined before
 		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
 			_used_macros.emplace(_token.literal_as_string);
+	}
+
+	_if_stack.push_back(std::move(level));
 }
 void reshadefx::preprocessor::parse_ifndef()
 {
@@ -525,16 +539,23 @@ void reshadefx::preprocessor::parse_ifndef()
 	if (!expect(tokenid::identifier))
 		return;
 
-	level.value = !is_defined(_token.literal_as_string);
-
 	const bool parent_skipping = !_if_stack.empty() && _if_stack.back().skipping;
-	level.skipping = parent_skipping || !level.value;
+	if (parent_skipping)
+	{
+		level.value = false;
+		level.skipping = true;
+	}
+	else
+	{
+		level.value = !is_defined(_token.literal_as_string);
+		level.skipping = !level.value;
 
-	_if_stack.push_back(std::move(level));
-	// Only add to used macro list if this #ifndef is active and the macro was not defined before
-	if (!parent_skipping)
+		// Only add to used macro list if this #ifndef is active and the macro was not defined before
 		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
 			_used_macros.emplace(_token.literal_as_string);
+	}
+
+	_if_stack.push_back(std::move(level));
 }
 void reshadefx::preprocessor::parse_elif()
 {
@@ -550,10 +571,19 @@ void reshadefx::preprocessor::parse_elif()
 	level.input_index = _current_input_index;
 
 	const bool parent_skipping = _if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping;
-	const bool condition_result = evaluate_expression();
-	level.skipping = parent_skipping || level.value || !condition_result;
+	if (parent_skipping)
+	{
+		level.value = false;
+		level.skipping = true;
+	}
+	else
+	{
+		const bool condition_result = evaluate_expression();
+		level.skipping = level.value || !condition_result;
 
-	if (!level.value) level.value = condition_result;
+		if (!level.value)
+			level.value = condition_result;
+	}
 }
 void reshadefx::preprocessor::parse_else()
 {
@@ -568,16 +598,25 @@ void reshadefx::preprocessor::parse_else()
 	level.input_index = _current_input_index;
 
 	const bool parent_skipping = _if_stack.size() > 1 && _if_stack[_if_stack.size() - 2].skipping;
-	level.skipping = parent_skipping || level.value;
+	if (parent_skipping)
+	{
+		level.value = false;
+		level.skipping = true;
+	}
+	else
+	{
+		level.skipping = parent_skipping || level.value;
 
-	if (!level.value) level.value = true;
+		if (!level.value)
+			level.value = true;
+	}
 }
 void reshadefx::preprocessor::parse_endif()
 {
 	if (_if_stack.empty())
-		error(_token.location, "missing #if for #endif");
-	else
-		_if_stack.pop_back();
+		return error(_token.location, "missing #if for #endif");
+
+	_if_stack.pop_back();
 }
 
 void reshadefx::preprocessor::parse_error()
