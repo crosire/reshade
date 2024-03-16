@@ -65,3 +65,7 @@ This example makes use of a standalone utility (see [state_tracking.cpp and stat
 ## [14-ray_tracing](/examples/14-ray_tracing)
 
 Shows how to use the ReShade API to create acceleration structures and trace rays using DXR or Vulkan Ray Tracing. The example traces rays against a single triangle and blits the resulting image to the back buffer.
+
+## [15-effect_runtime_sync](/examples/15-effect_runtime_sync)
+
+Built-in add-on that adds preset synchronization between different effect runtime instances, e.g. to have changes in a desktop window reflect in VR.

@@ -81,7 +81,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="examples\09-depth\generic_depth.cpp">
+    <ClCompile Include="examples\09-depth\generic_depth_addon.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="examples\15-effect_runtime_sync\runtime_sync_addon.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\addon.cpp">

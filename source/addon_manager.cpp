@@ -11,7 +11,9 @@
 #include "ini_file.hpp"
 
 extern void register_addon_depth();
+extern void register_addon_effect_runtime_sync();
 extern void unregister_addon_depth();
+extern void unregister_addon_effect_runtime_sync();
 
 extern HMODULE g_module_handle;
 
@@ -161,6 +163,19 @@ void reshade::load_addons()
 			register_addon_depth();
 		}
 	}
+	{	addon_info &info = addon_loaded_info.emplace_back();
+		info.name = "Effect Runtime Sync";
+		info.description = "Adds preset synchronization between different effect runtime instances, e.g. to have changes in a desktop window reflect in VR.";
+		info.file = g_reshade_dll_path.filename().u8string();
+		info.author = "crosire";
+
+		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
+		{
+			info.handle = g_module_handle;
+
+			register_addon_effect_runtime_sync();
+		}
+	}
 #endif
 
 	// Get directory from where to load add-ons from
@@ -302,6 +317,7 @@ void reshade::unload_addons()
 
 #if 1
 	unregister_addon_depth();
+	unregister_addon_effect_runtime_sync();
 #endif
 
 #ifndef NDEBUG

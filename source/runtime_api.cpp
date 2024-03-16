@@ -1475,18 +1475,25 @@ void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path
 	std::filesystem::path preset_path = std::filesystem::u8path(path);
 
 	// Only change preset when this is a valid preset path
-	if (resolve_preset_path(preset_path, ec))
+	if (resolve_preset_path(preset_path, ec) && preset_path != _current_preset_path)
 	{
-		// Stop any preset transition that may still be happening
-		_is_in_preset_transition = false;
+		if (is_loading())
+		{
+			_current_preset_path = std::move(preset_path);
+		}
+		else
+		{
+			// Stop any preset transition that may still be happening
+			_is_in_preset_transition = false;
 
-		// First save current preset, before switching to a new one
-		save_current_preset();
+			// First save current preset, before switching to a new one
+			save_current_preset();
 
-		_current_preset_path = std::move(preset_path);
+			_current_preset_path = std::move(preset_path);
 
-		save_config();
-		load_current_preset();
+			save_config();
+			load_current_preset();
+		}
 	}
 
 #if RESHADE_ADDON
