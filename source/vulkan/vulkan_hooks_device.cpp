@@ -1075,6 +1075,14 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	// Create default views for swap chain images (do this after the 'init_swapchain' event, so that the images are known to add-ons)
 	for (uint32_t i = 0; i < num_images; ++i)
 		create_default_view(device_impl, swapchain_images[i]);
+
+	if (const auto fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT))
+	{
+		if (const auto fullscreen_win32_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveWin32InfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT))
+			swapchain_impl->_hmonitor = fullscreen_win32_info->hmonitor;
+
+		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info->fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->_hmonitor);
+	}
 #endif
 
 	reshade::init_effect_runtime(swapchain_impl);
@@ -2910,4 +2918,31 @@ void     VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device, VkAcceler
 #endif
 
 	trampoline(device, accelerationStructure, pAllocator);
+}
+
+VkResult VKAPI_CALL vkAcquireFullScreenExclusiveModeEXT(VkDevice device, VkSwapchainKHR swapchain)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(AcquireFullScreenExclusiveModeEXT, device_impl);
+
+#if RESHADE_ADDON
+	if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+		if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, true, swapchain_impl->get_hmonitor()))
+			return VK_SUCCESS;
+#endif
+
+	return trampoline(device, swapchain);
+}
+VkResult VKAPI_CALL vkReleaseFullScreenExclusiveModeEXT(VkDevice device, VkSwapchainKHR swapchain)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(ReleaseFullScreenExclusiveModeEXT, device_impl);
+
+#if RESHADE_ADDON
+	if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+		if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, false, swapchain_impl->get_hmonitor()))
+			return VK_SUCCESS;
+#endif
+
+	return trampoline(device, swapchain);
 }

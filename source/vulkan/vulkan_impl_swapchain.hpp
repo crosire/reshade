@@ -21,6 +21,7 @@ namespace reshade::vulkan
 		api::device *get_device() final;
 
 		void *get_hwnd() const final;
+		void *get_hmonitor() const;
 
 		api::resource get_back_buffer(uint32_t index) final;
 
@@ -37,6 +38,7 @@ namespace reshade::vulkan
 	protected:
 		VkSwapchainCreateInfoKHR _create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 		HWND _hwnd = nullptr;
+		HMONITOR _hmonitor = nullptr;
 		uint32_t _swap_index = 0;
 	};
 

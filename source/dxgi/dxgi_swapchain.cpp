@@ -260,6 +260,19 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 {
 	LOG(INFO) << "Redirecting " << "IDXGISwapChain::SetFullscreenState" << '(' << "this = " << this << ", Fullscreen = " << (Fullscreen ? "TRUE" : "FALSE") << ", pTarget = " << pTarget << ')' << " ...";
 
+#if RESHADE_ADDON
+	HMONITOR hmonitor = nullptr;
+	if (pTarget != nullptr)
+	{
+		DXGI_OUTPUT_DESC output_desc = {};
+		pTarget->GetDesc(&output_desc);
+		hmonitor = output_desc.Monitor;
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(_impl, Fullscreen != FALSE, hmonitor))
+		return S_OK;
+#endif
+
 	if (_force_windowed)
 		Fullscreen = FALSE;
 	if (_force_fullscreen)
@@ -659,6 +672,20 @@ void DXGISwapChain::on_init()
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl);
+
+	BOOL fullscreen = FALSE;
+	com_ptr<IDXGIOutput> output;
+	GetFullscreenState(&fullscreen, &output);
+
+	HMONITOR hmonitor = nullptr;
+	if (output != nullptr)
+	{
+		DXGI_OUTPUT_DESC output_desc = {};
+		output->GetDesc(&output_desc);
+		hmonitor = output_desc.Monitor;
+	}
+
+	reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(_impl, fullscreen != FALSE, hmonitor);
 #endif
 
 	reshade::init_effect_runtime(_impl);

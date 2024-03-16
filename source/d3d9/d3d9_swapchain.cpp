@@ -188,6 +188,10 @@ void Direct3DSwapChain9::on_init()
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+
+	D3DPRESENT_PARAMETERS pp = {};
+	_orig->GetPresentParameters(&pp);
+	reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(this, pp.Windowed == FALSE, nullptr);
 #endif
 
 	reshade::init_effect_runtime(this);

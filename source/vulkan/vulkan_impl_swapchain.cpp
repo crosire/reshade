@@ -27,6 +27,10 @@ void *reshade::vulkan::swapchain_impl::get_hwnd() const
 {
 	return _hwnd;
 }
+void *reshade::vulkan::swapchain_impl::get_hmonitor() const
+{
+	return _hmonitor;
+}
 
 reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t index)
 {
