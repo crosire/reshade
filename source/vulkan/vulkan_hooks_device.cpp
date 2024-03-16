@@ -738,13 +738,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			// This applies to 'vkGetDeviceQueue', 'vkGetDeviceQueue2' and 'vkAllocateCommandBuffers' (functions that return dispatchable objects)
 			*reinterpret_cast<void **>(queue) = *reinterpret_cast<void **>(device);
 
-			const auto queue_impl = new reshade::vulkan::command_queue_impl(
+			const auto queue_impl = new reshade::vulkan::object_data<VK_OBJECT_TYPE_QUEUE>(
 				device_impl,
 				queue_create_info.queueFamilyIndex,
 				queue_families[queue_create_info.queueFamilyIndex],
 				queue);
 
-			device_impl->register_object(VK_OBJECT_TYPE_QUEUE, (uint64_t)queue, queue_impl);
+			device_impl->register_object<VK_OBJECT_TYPE_QUEUE>(queue, queue_impl);
 
 #if RESHADE_ADDON
 			reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(queue_impl);
@@ -770,13 +770,15 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 
 	// Destroy all queues associated with this device
 	const std::vector<reshade::vulkan::command_queue_impl *> queues = device_impl->_queues;
-	for (reshade::vulkan::command_queue_impl *queue_impl : queues)
+	for (auto queue_it = queues.begin(); queue_it != queues.end(); ++queue_it)
 	{
+		const auto queue_impl = static_cast<reshade::vulkan::object_data<VK_OBJECT_TYPE_QUEUE> *>(*queue_it);
+
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::destroy_command_queue>(queue_impl);
 #endif
 
-		device_impl->unregister_object(VK_OBJECT_TYPE_QUEUE, (uint64_t)queue_impl->_orig);
+		device_impl->unregister_object<VK_OBJECT_TYPE_QUEUE, false>(queue_impl->_orig);
 
 		delete queue_impl; // This will remove the queue from the queue list of the device too (see 'command_queue_impl' destructor)
 	}
@@ -979,7 +981,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #endif
 
 	// Unregister object from old swap chain so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
-	reshade::vulkan::swapchain_impl *swapchain_impl = nullptr;
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *swapchain_impl = nullptr;
 	if (create_info.oldSwapchain != VK_NULL_HANDLE)
 		swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(create_info.oldSwapchain);
 
@@ -1007,7 +1009,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
 		}
 
-		device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain_impl->_orig);
+		device_impl->unregister_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, false>(swapchain_impl->_orig);
 	}
 
 	assert(!g_in_dxgi_runtime);
@@ -1033,7 +1035,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (nullptr == swapchain_impl)
 	{
-		swapchain_impl = new reshade::vulkan::swapchain_impl(device_impl, *pSwapchain, create_info, hwnd);
+		swapchain_impl = new reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(device_impl, *pSwapchain, create_info, hwnd);
 
 		reshade::create_effect_runtime(swapchain_impl, queue_impl);
 	}
@@ -1044,7 +1046,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		swapchain_impl->_hwnd = hwnd;
 	}
 
-	device_impl->register_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain_impl->_orig, swapchain_impl);
+	device_impl->register_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(swapchain_impl->_orig, swapchain_impl);
 
 	// Get back buffer images of new swap chain
 	uint32_t num_images = 0;
@@ -1053,21 +1055,21 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
 
 	// Add swap chain images to the image list
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> image_data;
-	image_data.allocation = VK_NULL_HANDLE;
-	image_data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-	image_data.create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_data.create_info.format = create_info.imageFormat;
-	image_data.create_info.extent = { create_info.imageExtent.width, create_info.imageExtent.height, 1 };
-	image_data.create_info.mipLevels = 1;
-	image_data.create_info.arrayLayers = create_info.imageArrayLayers;
-	image_data.create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	image_data.create_info.usage = create_info.imageUsage;
-	image_data.create_info.sharingMode = create_info.imageSharingMode;
-	image_data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
 	for (uint32_t i = 0; i < num_images; ++i)
-		device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i], std::move(image_data));
+	{
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &image_data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
+		image_data.allocation = VK_NULL_HANDLE;
+		image_data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+		image_data.create_info.imageType = VK_IMAGE_TYPE_2D;
+		image_data.create_info.format = create_info.imageFormat;
+		image_data.create_info.extent = { create_info.imageExtent.width, create_info.imageExtent.height, 1 };
+		image_data.create_info.mipLevels = 1;
+		image_data.create_info.arrayLayers = create_info.imageArrayLayers;
+		image_data.create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		image_data.create_info.usage = create_info.imageUsage;
+		image_data.create_info.sharingMode = create_info.imageSharingMode;
+		image_data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	}
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(swapchain_impl);
@@ -1079,9 +1081,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (const auto fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT))
 	{
 		if (const auto fullscreen_win32_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveWin32InfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT))
-			swapchain_impl->_hmonitor = fullscreen_win32_info->hmonitor;
+			swapchain_impl->hmonitor = fullscreen_win32_info->hmonitor;
 
-		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info->fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->_hmonitor);
+		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info->fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->hmonitor);
 	}
 #endif
 
@@ -1103,7 +1105,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	GET_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
 
 	// Remove swap chain from global list
-	reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
 	if (swapchain_impl != nullptr)
 	{
 		reshade::reset_effect_runtime(swapchain_impl);
@@ -1130,9 +1132,9 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 		reshade::destroy_effect_runtime(swapchain_impl);
 	}
 
-	delete swapchain_impl;
+	device_impl->unregister_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, false>(swapchain);
 
-	device_impl->unregister_object(VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain);
+	delete swapchain_impl;
 
 	trampoline(device, swapchain, pAllocator);
 }
@@ -1147,7 +1149,7 @@ VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapch
 	const VkResult result = trampoline(device, swapchain, timeout, semaphore, fence, pImageIndex);
 	if (result == VK_SUCCESS)
 	{
-		if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+		if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
 			swapchain_impl->_swap_index = *pImageIndex;
 	}
 #if RESHADE_VERBOSE_LOG
@@ -1169,7 +1171,7 @@ VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextI
 	const VkResult result = trampoline(device, pAcquireInfo, pImageIndex);
 	if (result == VK_SUCCESS)
 	{
-		if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pAcquireInfo->swapchain))
+		if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pAcquireInfo->swapchain))
 			swapchain_impl->_swap_index = *pImageIndex;
 	}
 #if RESHADE_VERBOSE_LOG
@@ -2551,7 +2553,7 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 			pool_data->next_offset = layout_data->num_descriptors;
 		}
 
-		device_impl->register_object(VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)pDescriptorSets[i], data);
+		device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>(pDescriptorSets[i], data);
 	}
 #endif
 
@@ -2570,7 +2572,7 @@ VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescriptorPool descr
 		if (pDescriptorSets[i] == VK_NULL_HANDLE)
 			continue;
 
-		device_impl->unregister_object(VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)pDescriptorSets[i]);
+		device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET, false>(pDescriptorSets[i]);
 	}
 #endif
 
@@ -2839,7 +2841,9 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 #if RESHADE_ADDON
 	for (uint32_t i = 0; i < pAllocateInfo->commandBufferCount; ++i)
 	{
-		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->register_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i], device_impl, pCommandBuffers[i]);
+		const auto cmd_impl = new reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER>(device_impl, pCommandBuffers[i]);
+
+		device_impl->register_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i], cmd_impl);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_command_list>(cmd_impl);
 	}
@@ -2860,11 +2864,13 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 		if (pCommandBuffers[i] == VK_NULL_HANDLE)
 			continue;
 
-		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i]);
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i]);
 
 		reshade::invoke_addon_event<reshade::addon_event::destroy_command_list>(cmd_impl);
 
-		device_impl->unregister_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pCommandBuffers[i]);
+		device_impl->unregister_object<VK_OBJECT_TYPE_COMMAND_BUFFER, false>(pCommandBuffers[i]);
+
+		delete cmd_impl;
 	}
 #endif
 
@@ -2926,8 +2932,8 @@ VkResult VKAPI_CALL vkAcquireFullScreenExclusiveModeEXT(VkDevice device, VkSwapc
 	GET_DISPATCH_PTR_FROM(AcquireFullScreenExclusiveModeEXT, device_impl);
 
 #if RESHADE_ADDON
-	if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
-		if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, true, swapchain_impl->get_hmonitor()))
+	if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+		if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, true, swapchain_impl->hmonitor))
 			return VK_SUCCESS;
 #endif
 
@@ -2939,8 +2945,8 @@ VkResult VKAPI_CALL vkReleaseFullScreenExclusiveModeEXT(VkDevice device, VkSwapc
 	GET_DISPATCH_PTR_FROM(ReleaseFullScreenExclusiveModeEXT, device_impl);
 
 #if RESHADE_ADDON
-	if (reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
-		if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, false, swapchain_impl->get_hmonitor()))
+	if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
+		if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, false, swapchain_impl->hmonitor))
 			return VK_SUCCESS;
 #endif
 

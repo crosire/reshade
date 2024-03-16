@@ -110,33 +110,34 @@ namespace reshade::vulkan
 
 		command_list_immediate_impl *get_first_immediate_command_list();
 
-		template <VkObjectType type, typename... Args>
-		object_data<type> *register_object(typename object_data<type>::Handle object, Args... args)
+		template <VkObjectType type>
+		object_data<type> *register_object(typename object_data<type>::Handle object, object_data<type> &&initial_data = object_data<type>())
 		{
 			assert(object != VK_NULL_HANDLE);
-			uint64_t private_data = reinterpret_cast<uint64_t>(new object_data<type>(std::forward<Args>(args)...));
+			uint64_t private_data = reinterpret_cast<uint64_t>(new object_data<type>(std::move(initial_data)));
 			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, private_data);
 			return reinterpret_cast<object_data<type> *>(private_data);
 		}
-		void register_object(VkObjectType type, uint64_t object, void *private_data)
+		template <VkObjectType type>
+		void register_object(typename object_data<type>::Handle object, object_data<type> *private_data)
 		{
-			_dispatch_table.SetPrivateData(_orig, type, object, _private_data_slot, reinterpret_cast<uint64_t>(private_data));
+			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, reinterpret_cast<uint64_t>(private_data));
 		}
 
-		template <VkObjectType type>
+		template <VkObjectType type, bool destroy = true>
 		void unregister_object(typename object_data<type>::Handle object)
 		{
 			if (object == VK_NULL_HANDLE)
 				return;
 
-			uint64_t private_data = 0;
-			_dispatch_table.GetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
-			delete reinterpret_cast<object_data<type> *>(private_data);
+			if constexpr (destroy)
+			{
+				uint64_t private_data = 0;
+				_dispatch_table.GetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, &private_data);
+				delete reinterpret_cast<object_data<type> *>(private_data);
+			}
+
 			_dispatch_table.SetPrivateData(_orig, type, (uint64_t)object, _private_data_slot, 0);
-		}
-		void unregister_object(VkObjectType type, uint64_t object)
-		{
-			_dispatch_table.SetPrivateData(_orig, type, object, _private_data_slot, 0);
 		}
 
 		template <VkObjectType type, bool optional = false>
