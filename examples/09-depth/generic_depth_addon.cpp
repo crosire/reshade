@@ -22,6 +22,9 @@ static bool s_disable_intz = false;
 static unsigned int s_preserve_depth_buffers = 0;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
 static unsigned int s_use_aspect_ratio_heuristics = 1;
+// Enable or disable the format check from 'check_depth_format' in the detection heuristic
+static unsigned int s_use_format_filtering = 0;
+static unsigned int s_custom_resolution_filtering[2] = {};
 
 enum class clear_op
 {
@@ -279,14 +282,38 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 	}
 };
 
+static bool check_depth_format(format format)
+{
+	switch (s_use_format_filtering)
+	{
+	default:
+		return false;
+	case 1:
+		return format == format::d16_unorm || format == format::r16_typeless;
+	case 2:
+		return format == format::d16_unorm_s8_uint;
+	case 3:
+		return format == format::d24_unorm_x8_uint;
+	case 4:
+		return format == format::d24_unorm_s8_uint || format == format::r24_g8_typeless;
+	case 5:
+		return format == format::d32_float || format == format::r32_float || format == format::r32_typeless;
+	case 6:
+		return format == format::d32_float_s8_uint || format == format::r32_g8_typeless;
+	case 7:
+		return format == format::intz;
+	}
+}
 // Checks whether the aspect ratio of the two sets of dimensions is similar or not
 static bool check_aspect_ratio(float width_to_check, float height_to_check, float width, float height)
 {
 	if (width_to_check == 0.0f || height_to_check == 0.0f)
 		return true;
 
-	if (s_use_aspect_ratio_heuristics == 3)
+	if (s_use_aspect_ratio_heuristics == 3 || (s_use_aspect_ratio_heuristics == 4 && s_custom_resolution_filtering[0] == 0 && s_custom_resolution_filtering[1] == 0))
 		return width_to_check == width && height_to_check == height;
+	if (s_use_aspect_ratio_heuristics == 4)
+		return width_to_check == s_custom_resolution_filtering[0] && width_to_check == s_custom_resolution_filtering[1];
 
 	float w_ratio = width / width_to_check;
 	float h_ratio = height / height_to_check;
@@ -405,7 +432,11 @@ static void on_init_device(device *device)
 	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
 
-	if (s_use_aspect_ratio_heuristics > 3)
+	reshade::get_config_value(nullptr, "DEPTH", "FilterFormat", s_use_format_filtering);
+	reshade::get_config_value(nullptr, "DEPTH", "FilterResolutionWidth", s_custom_resolution_filtering[0]);
+	reshade::get_config_value(nullptr, "DEPTH", "FilterResolutionHeight", s_custom_resolution_filtering[1]);
+
+	if (s_use_aspect_ratio_heuristics > 4)
 		s_use_aspect_ratio_heuristics = 1;
 }
 static void on_init_command_list(command_list *cmd_list)
@@ -847,6 +878,8 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 		if (desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0))
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
+		if (s_use_format_filtering && !check_depth_format(desc.texture.format))
+			continue;
 		if (s_use_aspect_ratio_heuristics && !check_aspect_ratio(static_cast<float>(desc.texture.width), static_cast<float>(desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height)))
 			continue; // Not a good fit
 
@@ -1063,11 +1096,38 @@ static void draw_settings_overlay(effect_runtime *runtime)
 		"None",
 		"Similar aspect ratio",
 		"Multiples of resolution (for DLSS or resolution scaling)",
-		"Match resolution exactly"
+		"Match resolution exactly",
+		"Match custom width and height exactly"
 	};
 	if (ImGui::Combo("Aspect ratio heuristics", reinterpret_cast<int *>(&s_use_aspect_ratio_heuristics), heuristic_items, static_cast<int>(std::size(heuristic_items))))
 	{
 		reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", s_use_aspect_ratio_heuristics);
+		force_reset = true;
+	}
+
+	if (s_use_aspect_ratio_heuristics == 4)
+	{
+		if (ImGui::InputInt2("Filter by width and height", reinterpret_cast<int *>(s_custom_resolution_filtering)))
+		{
+			reshade::set_config_value(nullptr, "DEPTH", "FilterResolutionWidth", s_custom_resolution_filtering[0]);
+			reshade::set_config_value(nullptr, "DEPTH", "FilterResolutionHeight", s_custom_resolution_filtering[1]);
+			force_reset = true;
+		}
+	}
+
+	const char *const depth_format_items[] = { // Needs to match switch in 'check_depth_format' above
+		"All",
+		"D16  ",
+		"D16S8",
+		"D24X8",
+		"D24S8",
+		"D32  ",
+		"D32S8",
+		"INTZ "
+	};
+	if (ImGui::Combo("Filter by depth buffer format", reinterpret_cast<int *>(&s_use_format_filtering), depth_format_items, static_cast<int>(std::size(depth_format_items))))
+	{
+		reshade::set_config_value(nullptr, "DEPTH", "FilterFormat", s_use_format_filtering);
 		force_reset = true;
 	}
 
@@ -1149,7 +1209,9 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			has_msaa_depth_stencil = disabled = true;
 
 		const bool selected = item.resource == data.selected_depth_stencil;
-		const bool candidate = !s_use_aspect_ratio_heuristics || check_aspect_ratio(static_cast<float>(item.desc.texture.width), static_cast<float>(item.desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height));
+		const bool candidate =
+			(!s_use_format_filtering || check_depth_format(item.desc.texture.format)) &&
+			(!s_use_aspect_ratio_heuristics || check_aspect_ratio(static_cast<float>(item.desc.texture.width), static_cast<float>(item.desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height)));
 
 		char label[512] = "";
 		sprintf_s(label, "%c 0x%016llx", (selected ? '>' : ' '), item.resource.handle);
