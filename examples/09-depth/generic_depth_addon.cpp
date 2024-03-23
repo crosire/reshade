@@ -192,7 +192,6 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 	depth_stencil_backup *track_depth_stencil_for_backup(device *device, resource resource, resource_desc desc)
 	{
 		assert(resource != 0);
-		assert(depth_stencil_resources.find(resource) != depth_stencil_resources.end());
 
 		const auto it = std::find_if(depth_stencil_backups.begin(), depth_stencil_backups.end(),
 			[resource](const depth_stencil_backup &existing) { return existing.depth_stencil_resource == resource; });
@@ -207,6 +206,10 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		const device_api api = device->get_api();
 		if (api <= device_api::d3d12)
 		{
+			std::shared_lock<std::shared_mutex> lock(s_mutex);
+			if (depth_stencil_resources.find(resource) == depth_stencil_resources.end())
+				return nullptr;
+
 			// Add reference to the resource so that it is not destroyed while it is being copied to the backup texture
 			reinterpret_cast<IUnknown *>(resource.handle)->AddRef();
 		}
@@ -250,11 +253,18 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		backup.depth_stencil_resource = resource;
 
 		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
+		{
 			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
+
+			return &backup;
+		}
 		else
+		{
+			depth_stencil_backups.pop_back();
 			reshade::log_message(reshade::log_level::error, "Failed to create backup depth-stencil texture!");
 
-		return &backup;
+			return nullptr;
+		}
 	}
 
 	void untrack_depth_stencil(device *device, resource resource)
@@ -937,8 +947,9 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				depth_stencil_backup = device_data.track_depth_stencil_for_backup(device, best_match, best_match_desc);
 
 				// Abort in case backup texture creation failed
-				if (depth_stencil_backup->backup_texture == 0)
+				if (depth_stencil_backup == nullptr)
 					break;
+				assert(depth_stencil_backup->backup_texture != 0);
 
 				depth_stencil_backup->frame_width = frame_width;
 				depth_stencil_backup->frame_height = frame_height;
