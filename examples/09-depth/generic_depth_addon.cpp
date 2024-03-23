@@ -400,7 +400,8 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 			counters.copied_during_frame = true;
 
 			// Unlock before calling into the device, since e.g. in D3D11 this can cause delayed destruction of resources (calls 'CDevice::FlushDeletionPool'), which calls 'on_destroy_resource' below, which tries to lock the same mutex
-			lock.unlock();
+			if (state.is_queue)
+				lock.unlock();
 
 			// A resource has to be in this state for a clear operation, so can assume it here
 			cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
