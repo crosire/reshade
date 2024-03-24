@@ -1051,10 +1051,22 @@ std::vector<reshade::api::input_element> reshade::d3d11::convert_input_layout_de
 void reshade::d3d11::convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC &internal_desc)
 {
 	internal_desc.AlphaToCoverageEnable = desc.alpha_to_coverage_enable;
-	internal_desc.IndependentBlendEnable = TRUE;
+	internal_desc.IndependentBlendEnable = FALSE;
 
 	for (UINT i = 0; i < 8; ++i)
 	{
+		if (desc.blend_enable[i] != desc.blend_enable[0] ||
+			desc.source_color_blend_factor[i] != desc.source_color_blend_factor[0] ||
+			desc.dest_color_blend_factor[i] != desc.dest_color_blend_factor[0] ||
+			desc.color_blend_op[i] != desc.color_blend_op[0] ||
+			desc.source_alpha_blend_factor[i] != desc.source_alpha_blend_factor[0] ||
+			desc.dest_alpha_blend_factor[i] != desc.dest_alpha_blend_factor[0] ||
+			desc.alpha_blend_op[i] != desc.alpha_blend_op[0] ||
+			desc.render_target_write_mask[i] != desc.render_target_write_mask[0])
+			internal_desc.IndependentBlendEnable = TRUE;
+
+		assert(!desc.logic_op_enable);
+
 		internal_desc.RenderTarget[i].BlendEnable = desc.blend_enable[i];
 		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.source_color_blend_factor[i]);
 		internal_desc.RenderTarget[i].DestBlend = convert_blend_factor(desc.dest_color_blend_factor[i]);
@@ -1068,10 +1080,22 @@ void reshade::d3d11::convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND
 void reshade::d3d11::convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC1 &internal_desc)
 {
 	internal_desc.AlphaToCoverageEnable = desc.alpha_to_coverage_enable;
-	internal_desc.IndependentBlendEnable = TRUE;
+	internal_desc.IndependentBlendEnable = FALSE;
 
 	for (UINT i = 0; i < 8; ++i)
 	{
+		if (desc.blend_enable[i] != desc.blend_enable[0] ||
+			desc.logic_op_enable[i] != desc.logic_op_enable[0] ||
+			desc.source_color_blend_factor[i] != desc.source_color_blend_factor[0] ||
+			desc.dest_color_blend_factor[i] != desc.dest_color_blend_factor[0] ||
+			desc.color_blend_op[i] != desc.color_blend_op[0] ||
+			desc.source_alpha_blend_factor[i] != desc.source_alpha_blend_factor[0] ||
+			desc.dest_alpha_blend_factor[i] != desc.dest_alpha_blend_factor[0] ||
+			desc.alpha_blend_op[i] != desc.alpha_blend_op[0] ||
+			desc.logic_op[i] != desc.logic_op[0] ||
+			desc.render_target_write_mask[i] != desc.render_target_write_mask[0])
+			internal_desc.IndependentBlendEnable = TRUE;
+
 		internal_desc.RenderTarget[i].BlendEnable = desc.blend_enable[i];
 		internal_desc.RenderTarget[i].LogicOpEnable = desc.logic_op_enable[i];
 		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.source_color_blend_factor[i]);
@@ -1156,6 +1180,8 @@ reshade::api::blend_desc reshade::d3d11::convert_blend_desc(const D3D11_BLEND_DE
 			}
 			if (target.LogicOpEnable)
 			{
+				assert(!target.BlendEnable && !internal_desc->IndependentBlendEnable);
+
 				desc.logic_op[i] = convert_logic_op(target.LogicOp);
 			}
 
