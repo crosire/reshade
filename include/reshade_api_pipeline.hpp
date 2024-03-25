@@ -74,13 +74,44 @@ namespace reshade { namespace api
 	/// </summary>
 	enum class descriptor_type : uint32_t
 	{
+		/// <summary>
+		/// Descriptors are an array of <see cref="sampler"/>.
+		/// </summary>
 		sampler = 0,
+		/// <summary>
+		/// Descriptors are an array of <see cref="sampler_with_resource_view"/>.
+		/// </summary>
 		sampler_with_resource_view = 1,
-		shader_resource_view = 2,
-		unordered_access_view = 3,
+		/// <summary>
+		/// Descriptors are an array of <see cref="resource_view"/>.
+		/// </summary>
+		buffer_shader_resource_view = 4,
+		/// <summary>
+		/// Descriptors are an array of <see cref="resource_view"/>.
+		/// </summary>
+		buffer_unordered_access_view = 5,
+		/// <summary>
+		/// Descriptors are an array of <see cref="resource_view"/>.
+		/// </summary>
+		texture_shader_resource_view = 2,
+		shader_resource_view = texture_shader_resource_view,
+		/// <summary>
+		/// Descriptors are an array of <see cref="resource_view"/>.
+		/// </summary>
+		texture_unordered_access_view = 3,
+		unordered_access_view = texture_unordered_access_view,
+		/// <summary>
+		/// Descriptors are an array of <see cref="buffer_range"/>.
+		/// </summary>
 		constant_buffer = 6,
+		/// <summary>
+		/// Descriptors are an array of <see cref="buffer_range"/>.
+		/// </summary>
 		shader_storage_buffer = 7,
-		acceleration_structure
+		/// <summary>
+		/// Descriptors are an array of <see cref="acceleration_structure"/>.
+		/// </summary>
+		acceleration_structure = 8
 	};
 
 	/// <summary>

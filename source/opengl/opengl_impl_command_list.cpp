@@ -877,7 +877,8 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 			gl.BindSampler(first + i, descriptor.sampler.handle & 0xFFFFFFFF);
 		}
 		break;
-	case api::descriptor_type::shader_resource_view:
+	case api::descriptor_type::buffer_shader_resource_view:
+	case api::descriptor_type::texture_shader_resource_view:
 		for (uint32_t i = 0; i < update.count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
@@ -895,7 +896,8 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 			}
 		}
 		break;
-	case api::descriptor_type::unordered_access_view:
+	case api::descriptor_type::buffer_unordered_access_view:
+	case api::descriptor_type::texture_unordered_access_view:
 		for (uint32_t i = 0; i < update.count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];

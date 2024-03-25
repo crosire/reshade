@@ -559,11 +559,13 @@ uint64_t reshade::d3d12::device_impl::get_resource_view_gpu_address(api::resourc
 			return handle.handle;
 		default:
 			assert(false);
-			break;
+			return 0;
 		}
 	}
-
-	return 0;
+	else
+	{
+		return handle.handle;
+	}
 }
 
 bool reshade::d3d12::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t, api::map_access access, void **out_data)
@@ -1267,6 +1269,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
 			const uint32_t range_count = push_descriptors ? 1 : params[i].descriptor_table.count;
 			const api::descriptor_range *const input_ranges = push_descriptors ? &params[i].push_descriptors : params[i].descriptor_table.ranges;
+			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges);
 
 			if (range_count == 0 || input_ranges[0].count == 0)
 			{
@@ -1278,41 +1281,66 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				continue;
 			}
 
-			internal_ranges[i].reserve(range_count);
+			const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(input_ranges[0].type);
+			set_ranges[i].first = heap_type;
 
-			D3D12_DESCRIPTOR_HEAP_TYPE prev_heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
-
-			for (uint32_t k = 0; k < range_count; ++k)
+			if (push_descriptors && range_count == 1 && input_ranges->binding == 0 && input_ranges->count == 1 &&
+				heap_type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV &&
+				input_ranges->type != api::descriptor_type::texture_shader_resource_view &&
+				input_ranges->type != api::descriptor_type::texture_unordered_access_view)
 			{
-				const api::descriptor_range &range = input_ranges[k];
-
-				assert(range.array_size <= 1);
-
-				D3D12_DESCRIPTOR_RANGE &internal_range = internal_ranges[i].emplace_back();
-				internal_range.RangeType = convert_descriptor_type(range.type);
-				internal_range.NumDescriptors = range.count;
-				internal_range.BaseShaderRegister = range.dx_register_index;
-				internal_range.RegisterSpace = range.dx_register_space;
-				internal_range.OffsetInDescriptorsFromTableStart = range.binding;
-
-				visibility_mask |= range.visibility;
-
-				// Cannot mix different descriptor heap types in a single descriptor table
-				const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(range.type);
-				if (prev_heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES && prev_heap_type != heap_type)
+				switch (input_ranges->type)
+				{
+				case api::descriptor_type::constant_buffer:
+					internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+					break;
+				case api::descriptor_type::buffer_shader_resource_view:
+				case api::descriptor_type::acceleration_structure:
+					internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+					break;
+				case api::descriptor_type::buffer_unordered_access_view:
+					internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+					break;
+				default:
 					return false;
+				}
 
-				prev_heap_type = heap_type;
+				internal_params[i].Descriptor.ShaderRegister = input_ranges->dx_register_index;
+				internal_params[i].Descriptor.RegisterSpace = input_ranges->dx_register_space;
 
-				if (range.count != UINT32_MAX) // Don't count unbounded ranges
-					set_ranges[i].second = std::max(set_ranges[i].second, range.binding + range.count);
+				visibility_mask = input_ranges->visibility;
 			}
+			else
+			{
+				internal_ranges[i].reserve(range_count);
 
-			set_ranges[i].first = prev_heap_type;
+				for (uint32_t k = 0; k < range_count; ++k)
+				{
+					const api::descriptor_range &range = input_ranges[k];
 
-			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			internal_params[i].DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
-			internal_params[i].DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
+					assert(range.array_size <= 1);
+
+					D3D12_DESCRIPTOR_RANGE &internal_range = internal_ranges[i].emplace_back();
+					internal_range.RangeType = convert_descriptor_type(range.type);
+					internal_range.NumDescriptors = range.count;
+					internal_range.BaseShaderRegister = range.dx_register_index;
+					internal_range.RegisterSpace = range.dx_register_space;
+					internal_range.OffsetInDescriptorsFromTableStart = range.binding;
+
+					visibility_mask |= range.visibility;
+
+					// Cannot mix different descriptor heap types in a single descriptor table
+					if (convert_descriptor_type_to_heap_type(range.type) != heap_type)
+						return false;
+
+					if (range.count != UINT32_MAX) // Don't count unbounded ranges
+						set_ranges[i].second = std::max(set_ranges[i].second, range.binding + range.count);
+				}
+
+				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+				internal_params[i].DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
+				internal_params[i].DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
+			}
 		}
 		else
 		{
@@ -1578,17 +1606,20 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 		{
 			for (uint32_t k = 0; k < update.count; ++k, dst_range_start.ptr += _descriptor_handle_size[heap_type])
 			{
-				const auto buffer_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
-				const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer_range.buffer.handle);
+				const auto &view_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
 
 				D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-				view_desc.BufferLocation = buffer_resource->GetGPUVirtualAddress() + buffer_range.offset;
-				view_desc.SizeInBytes = (buffer_range.size == UINT64_MAX) ? static_cast<UINT>(buffer_resource->GetDesc().Width) : static_cast<UINT>(buffer_range.size);
+				view_desc.BufferLocation = reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetGPUVirtualAddress() + view_range.offset;
+				view_desc.SizeInBytes = static_cast<UINT>(view_range.size == UINT64_MAX ? reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetDesc().Width - view_range.offset : view_range.size);
 
 				_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 			}
 		}
-		else if (update.type == api::descriptor_type::sampler || update.type == api::descriptor_type::shader_resource_view || update.type == api::descriptor_type::unordered_access_view)
+		else if (update.type == api::descriptor_type::sampler ||
+			update.type == api::descriptor_type::buffer_shader_resource_view ||
+			update.type == api::descriptor_type::buffer_unordered_access_view ||
+			update.type == api::descriptor_type::texture_shader_resource_view ||
+			update.type == api::descriptor_type::texture_unordered_access_view)
 		{
 #ifndef _WIN64
 			const UINT src_range_size = 1;

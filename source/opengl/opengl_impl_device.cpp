@@ -2121,8 +2121,10 @@ bool reshade::opengl::device_impl::allocate_descriptor_tables(uint32_t count, ap
 			switch (table_impl->type)
 			{
 			case api::descriptor_type::sampler:
-			case api::descriptor_type::shader_resource_view:
-			case api::descriptor_type::unordered_access_view:
+			case api::descriptor_type::buffer_shader_resource_view:
+			case api::descriptor_type::buffer_unordered_access_view:
+			case api::descriptor_type::texture_shader_resource_view:
+			case api::descriptor_type::texture_unordered_access_view:
 				table_impl->descriptors.resize(table_impl->count * 1);
 				break;
 			case api::descriptor_type::sampler_with_resource_view:
@@ -2184,8 +2186,10 @@ void reshade::opengl::device_impl::copy_descriptor_tables(uint32_t count, const 
 		switch (src_table_impl->type)
 		{
 		case api::descriptor_type::sampler:
-		case api::descriptor_type::shader_resource_view:
-		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::buffer_shader_resource_view:
+		case api::descriptor_type::buffer_unordered_access_view:
+		case api::descriptor_type::texture_shader_resource_view:
+		case api::descriptor_type::texture_unordered_access_view:
 			std::memcpy(&dst_table_impl->descriptors[dst_binding * 1], &src_table_impl->descriptors[src_binding * 1], copy.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:
@@ -2220,8 +2224,10 @@ void reshade::opengl::device_impl::update_descriptor_tables(uint32_t count, cons
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
-		case api::descriptor_type::shader_resource_view:
-		case api::descriptor_type::unordered_access_view:
+		case api::descriptor_type::buffer_shader_resource_view:
+		case api::descriptor_type::buffer_unordered_access_view:
+		case api::descriptor_type::texture_shader_resource_view:
+		case api::descriptor_type::texture_unordered_access_view:
 			std::memcpy(&table_impl->descriptors[update_binding * 1], update.descriptors, update.count * sizeof(uint64_t) * 1);
 			break;
 		case api::descriptor_type::sampler_with_resource_view:

@@ -2061,19 +2061,22 @@ auto reshade::vulkan::convert_query_type(VkQueryType type, uint32_t index) -> ap
 	}
 }
 
-auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value, bool is_image) -> VkDescriptorType
+auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value) -> VkDescriptorType
 {
 	switch (value)
 	{
 	case api::descriptor_type::sampler:
 		return VK_DESCRIPTOR_TYPE_SAMPLER;
 	case api::descriptor_type::sampler_with_resource_view:
-		assert(is_image);
 		return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	case api::descriptor_type::shader_resource_view:
-		return is_image ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-	case api::descriptor_type::unordered_access_view:
-		return is_image ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+	case api::descriptor_type::texture_shader_resource_view:
+		return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	case api::descriptor_type::texture_unordered_access_view:
+		return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	case api::descriptor_type::buffer_shader_resource_view:
+		return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+	case api::descriptor_type::buffer_unordered_access_view:
+		return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
 	case api::descriptor_type::constant_buffer:
 		return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	case api::descriptor_type::shader_storage_buffer:
@@ -2094,12 +2097,14 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 	case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 		return api::descriptor_type::sampler_with_resource_view;
 	case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 	case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: // This cannot be restored by 'convert_descriptor_type' in the other direction
-		return api::descriptor_type::shader_resource_view;
+		return api::descriptor_type::texture_shader_resource_view;
 	case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+		return api::descriptor_type::texture_unordered_access_view;
+	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+		return api::descriptor_type::buffer_shader_resource_view;
 	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-		return api::descriptor_type::unordered_access_view;
+		return api::descriptor_type::buffer_unordered_access_view;
 	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		return api::descriptor_type::constant_buffer;

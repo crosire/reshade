@@ -1628,18 +1628,20 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 {
 	switch (type)
 	{
+	case api::descriptor_type::sampler:
+		return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 	default:
 		assert(false);
 		[[fallthrough]];
-	case api::descriptor_type::shader_resource_view:
+	case api::descriptor_type::buffer_shader_resource_view:
+	case api::descriptor_type::texture_shader_resource_view:
 	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	case api::descriptor_type::unordered_access_view:
+	case api::descriptor_type::buffer_unordered_access_view:
+	case api::descriptor_type::texture_unordered_access_view:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 	case api::descriptor_type::constant_buffer:
 		return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	case api::descriptor_type::sampler:
-		return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 	}
 }
 auto reshade::d3d12::convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -> api::descriptor_type
@@ -1650,9 +1652,9 @@ auto reshade::d3d12::convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -
 		assert(false);
 		[[fallthrough]];
 	case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
-		return api::descriptor_type::shader_resource_view;
+		return api::descriptor_type::texture_shader_resource_view;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
-		return api::descriptor_type::unordered_access_view;
+		return api::descriptor_type::texture_unordered_access_view;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
 		return api::descriptor_type::constant_buffer;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
@@ -1663,16 +1665,18 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 {
 	switch (type)
 	{
+	case api::descriptor_type::sampler:
+		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 	default:
 		assert(false);
 		[[fallthrough]];
+	case api::descriptor_type::buffer_shader_resource_view:
+	case api::descriptor_type::buffer_unordered_access_view:
+	case api::descriptor_type::texture_shader_resource_view:
+	case api::descriptor_type::texture_unordered_access_view:
 	case api::descriptor_type::constant_buffer:
-	case api::descriptor_type::shader_resource_view:
-	case api::descriptor_type::unordered_access_view:
 	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	case api::descriptor_type::sampler:
-		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 	}
 }
 

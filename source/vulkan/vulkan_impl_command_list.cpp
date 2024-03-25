@@ -490,7 +490,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	write.dstBinding = update.binding;
 	write.dstArrayElement = update.array_offset;
 	write.descriptorCount = update.count;
-	write.descriptorType = convert_descriptor_type(update.type, true);
+	write.descriptorType = convert_descriptor_type(update.type);
 
 	temp_mem<VkDescriptorImageInfo> image_info(update.count);
 	switch (update.type)
@@ -513,24 +513,19 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 			image_info[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
 		break;
-	case api::descriptor_type::shader_resource_view:
-	case api::descriptor_type::unordered_access_view:
-		if (const auto descriptors = static_cast<const api::resource_view *>(update.descriptors);
-			_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)descriptors[0].handle)->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+	case api::descriptor_type::texture_shader_resource_view:
+	case api::descriptor_type::texture_unordered_access_view:
+		write.pImageInfo = image_info.p;
+		for (uint32_t k = 0; k < update.count; ++k)
 		{
-			write.pImageInfo = image_info.p;
-			for (uint32_t k = 0; k < update.count; ++k)
-			{
-				const auto &descriptor = descriptors[k];
-				image_info[k].imageView = (VkImageView)descriptor.handle;
-				image_info[k].imageLayout = (update.type == api::descriptor_type::unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			}
+			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[k];
+			image_info[k].imageView = (VkImageView)descriptor.handle;
+			image_info[k].imageLayout = (update.type == api::descriptor_type::texture_unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
-		else
-		{
-			write.descriptorType = convert_descriptor_type(update.type, false);
-			write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(descriptors);
-		}
+		break;
+	case api::descriptor_type::buffer_shader_resource_view:
+	case api::descriptor_type::buffer_unordered_access_view:
+		write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(update.descriptors);
 		break;
 	case api::descriptor_type::constant_buffer:
 	case api::descriptor_type::shader_storage_buffer:

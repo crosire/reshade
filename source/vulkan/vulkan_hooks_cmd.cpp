@@ -1748,7 +1748,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
 			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].sampler;
+				descriptors[j] = (uint64_t)write.pImageInfo[k].sampler;
 			break;
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 			for (uint32_t k = 0; k < write.descriptorCount; ++k, j += 2)
@@ -1758,7 +1758,12 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
-				descriptors[j + 0] = (uint64_t)write.pImageInfo[k].imageView;
+				descriptors[j] = (uint64_t)write.pImageInfo[k].imageView;
+			break;
+		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+			for (uint32_t k = 0; k < write.descriptorCount; ++k, ++j)
+				descriptors[j] = (uint64_t)write.pTexelBufferView[k];
 			break;
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:

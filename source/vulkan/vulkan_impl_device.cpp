@@ -1802,7 +1802,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
 			internal_binding.binding = range.binding;
-			internal_binding.descriptorType = convert_descriptor_type(range.type, true);
+			internal_binding.descriptorType = convert_descriptor_type(range.type);
 			internal_binding.descriptorCount = range.array_size;
 			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
 
@@ -1818,7 +1818,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 				VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
 				additional_binding.binding = range.binding + 1 + j;
-				additional_binding.descriptorType = convert_descriptor_type(range.type, true);
+				additional_binding.descriptorType = convert_descriptor_type(range.type);
 				additional_binding.descriptorCount = 1;
 				additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range.visibility);
 
@@ -2002,7 +2002,7 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 		write.dstBinding = update.binding;
 		write.dstArrayElement = update.array_offset;
 		write.descriptorCount = update.count;
-		write.descriptorType = convert_descriptor_type(update.type, true);
+		write.descriptorType = convert_descriptor_type(update.type);
 
 		switch (update.type)
 		{
@@ -2032,26 +2032,23 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 			}
 			break;
 		}
-		case api::descriptor_type::shader_resource_view:
-		case api::descriptor_type::unordered_access_view:
-			if (const auto descriptors = static_cast<const api::resource_view *>(update.descriptors);
-				get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)descriptors[0].handle)->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-			{
+		case api::descriptor_type::texture_shader_resource_view:
+		case api::descriptor_type::texture_unordered_access_view:
+		{
 				const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
 				write.pImageInfo = image_info;
 				for (uint32_t k = 0; k < update.count; ++k, ++j)
 				{
-					const auto &descriptor = descriptors[k];
+					const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[k];
 					image_info[k].sampler = VK_NULL_HANDLE;
 					image_info[k].imageView = (VkImageView)descriptor.handle;
-					image_info[k].imageLayout = (update.type == api::descriptor_type::unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+					image_info[k].imageLayout = (update.type == api::descriptor_type::texture_unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				}
-			}
-			else
-			{
-				write.descriptorType = convert_descriptor_type(update.type, false);
-				write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(descriptors);
-			}
+			break;
+		}
+		case api::descriptor_type::buffer_shader_resource_view:
+		case api::descriptor_type::buffer_unordered_access_view:
+			write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(update.descriptors);
 			break;
 		case api::descriptor_type::constant_buffer:
 		case api::descriptor_type::shader_storage_buffer:
