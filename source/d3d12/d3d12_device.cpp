@@ -2026,6 +2026,11 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 					}
 				}
 			}
+			else
+			{
+				// No point in invoking events when no reflection data can be extracted
+				return false;
+			}
 			break;
 		}
 		case D3D12_STATE_SUBOBJECT_TYPE_EXISTING_COLLECTION:
@@ -2096,6 +2101,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			assert(false);
 		}
 	}
+
+	if (shader_groups.empty())
+		return false;
 
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::raygen_shader, static_cast<uint32_t>(raygen_desc.size()), raygen_desc.data() });
 	subobjects.push_back({ reshade::api::pipeline_subobject_type::any_hit_shader, static_cast<uint32_t>(any_hit_desc.size()), any_hit_desc.data() });
