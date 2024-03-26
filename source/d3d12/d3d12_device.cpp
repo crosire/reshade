@@ -770,6 +770,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
 		pHeapProperties = &heap_props;
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr; // Disable optimized clear value in case the format was changed by an add-on
 	}
 #endif
 
@@ -825,6 +826,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -874,6 +876,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1232,6 +1235,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
 		pHeapProperties = &heap_props;
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1288,6 +1292,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1449,6 +1454,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
 		pHeapProperties = &heap_props;
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1502,6 +1508,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1632,6 +1639,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource3(const D3D12_HEAP
 		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
 		pHeapProperties = &heap_props;
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1685,6 +1693,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource2(ID3D12Heap *pHeap, 
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
@@ -1736,6 +1745,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
 	}
 #endif
 
