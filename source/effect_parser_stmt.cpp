@@ -1432,6 +1432,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 					static const std::unordered_map<std::string_view, uint32_t> s_enum_values = {
 						{ "NONE", 0 }, { "POINT", 0 },
 						{ "LINEAR", 1 },
+						{ "ANISOTROPIC", 0x55 },
 						{ "WRAP", uint32_t(texture_address_mode::wrap) }, { "REPEAT", uint32_t(texture_address_mode::wrap) },
 						{ "MIRROR", uint32_t(texture_address_mode::mirror) },
 						{ "CLAMP", uint32_t(texture_address_mode::clamp) },
@@ -1525,11 +1526,12 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						else if (property_name == "AddressW")
 							sampler_info.address_w = static_cast<texture_address_mode>(value);
 						else if (property_name == "MinFilter")
-							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x0F) | ((value << 4) & 0x30)); // Combine sampler filter components into a single filter enumeration value
+							// Combine sampler filter components into a single filter enumeration value
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x4F) | ((value & 0x03) << 4) | (value & 0x40));
 						else if (property_name == "MagFilter")
-							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x33) | ((value << 2) & 0x0C));
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x73) | ((value & 0x03) << 2) | (value & 0x40));
 						else if (property_name == "MipFilter")
-							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x3C) |  (value       & 0x03));
+							sampler_info.filter = static_cast<filter_mode>((uint32_t(sampler_info.filter) & 0x7C) | ((value & 0x03)     ) | (value & 0x40));
 						else if (property_name == "MinLOD" || property_name == "MaxMipLevel")
 							sampler_info.min_lod = static_cast<float>(value);
 						else if (property_name == "MaxLOD")

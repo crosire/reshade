@@ -56,7 +56,8 @@ namespace reshadefx
 		min_linear_mag_mip_point = 0x10,
 		min_linear_mag_point_mip_linear = 0x11,
 		min_mag_linear_mip_point = 0x14,
-		min_mag_mip_linear = 0x15
+		min_mag_mip_linear = 0x15,
+		anisotropic = 0x55
 	};
 
 	/// <summary>
