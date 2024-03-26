@@ -874,10 +874,15 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			break;
 		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
-				if (static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::primitive_topology &&
-					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::blend_constant &&
-					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::front_stencil_reference_value &&
-					static_cast<const api::dynamic_state *>(subobjects[i].data)[k] != api::dynamic_state::back_stencil_reference_value)
+				if (const auto state = static_cast<const api::dynamic_state *>(subobjects[i].data)[k];
+					state != api::dynamic_state::primitive_topology &&
+					state != api::dynamic_state::blend_constant &&
+					state != api::dynamic_state::front_stencil_reference_value &&
+					state != api::dynamic_state::back_stencil_reference_value &&
+					state != api::dynamic_state::depth_bias &&
+					state != api::dynamic_state::depth_bias_clamp &&
+					state != api::dynamic_state::depth_bias_slope_scaled &&
+					state != api::dynamic_state::ray_tracing_pipeline_stack_size)
 					goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::max_vertex_count:
