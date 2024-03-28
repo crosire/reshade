@@ -9,6 +9,7 @@
     <DockPanel x:Name="NavigationPanel" DockPanel.Dock="Bottom" Margin="0,5,0,0" Background="{StaticResource {x:Static SystemColors.ControlLightBrushKey}}">
       <Button x:Uid="CancelButton" x:Name="CancelButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Cancel" Click="OnCancelButtonClick" IsCancel="True" KeyboardNavigation.TabIndex="1" />
       <Button x:Uid="NextButton" x:Name="NextButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Next" Click="OnNextButtonClick" IsDefault="True" KeyboardNavigation.TabIndex="0" />
+      <Button x:Uid="FinishButton" x:Name="FinishButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,10,15" Content="_Finish" Click="OnFinishButtonClick" IsDefault="True" KeyboardNavigation.TabIndex="0" Visibility="Collapsed" />
       <Button x:Uid="BackButton" x:Name="BackButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Width="100" Margin="0,15,5,15" Content="_Back" Click="OnBackButtonClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <Frame x:Name="CurrentPage" DockPanel.Dock="Top" NavigationUIVisibility="Hidden" Navigated="OnCurrentPageNavigated" />

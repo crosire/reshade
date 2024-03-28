@@ -13,7 +13,7 @@
       <Label x:Uid="PageTitle" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select add-ons to install:" />
     </DockPanel>
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
-      Optionally check add-ons you want to install or update. Only check add-ons you know are needed, since incompatible add-ons may cause crashes or performance degradation.
+      Optionally check add-ons you want to install or update.<LineBreak />Only select add-ons you know are needed, since incompatible add-ons may cause crashes or performance degradation.
     </TextBlock>
     <ListBox x:Name="ItemsListBox" x:FieldModifier="private" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
       <ListBox.ItemTemplate>

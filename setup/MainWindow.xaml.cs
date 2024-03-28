@@ -1779,12 +1779,6 @@ In that event here are some steps you can try to resolve this:
 
 		void OnNextButtonClick(object sender, RoutedEventArgs e)
 		{
-			if (currentOperation == InstallOperation.Finished)
-			{
-				Close();
-				return;
-			}
-
 			if (CurrentPage.Content is SelectAppPage appPage)
 			{
 				appPage.Cancel();
@@ -1881,6 +1875,10 @@ In that event here are some steps you can try to resolve this:
 				ResetStatus();
 			}
 		}
+		void OnFinishButtonClick(object sender, RoutedEventArgs e)
+		{
+			Close();
+		}
 
 		void OnCancelButtonClick(object sender, RoutedEventArgs e)
 		{
@@ -1902,8 +1900,8 @@ In that event here are some steps you can try to resolve this:
 		{
 			bool isFinished = currentOperation == InstallOperation.Finished;
 
-			NextButton.Content = isFinished ? "_Finish" : "_Next";
-			CancelButton.Content = (e.Content is SelectEffectsPage) ? "_Skip" : (e.Content is SelectAppPage) ? "_Close" : "_Cancel";
+			NextButton.Visibility = isFinished ? Visibility.Collapsed : Visibility.Visible;
+			FinishButton.Visibility = isFinished ? Visibility.Visible : Visibility.Collapsed;
 
 			BackButton.IsEnabled = isFinished;
 			CancelButton.IsEnabled = !(e.Content is StatusPage);
