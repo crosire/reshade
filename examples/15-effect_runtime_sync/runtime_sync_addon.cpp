@@ -20,7 +20,13 @@ static void on_init(effect_runtime *runtime)
 
 	s_runtimes.push_back(runtime);
 
-	reshade::get_config_value(nullptr, "ADDON", "SyncEffectRuntimes", s_sync);
+	if (!reshade::get_config_value(nullptr, "ADDON", "SyncEffectRuntimes", s_sync))
+		// Enable synchronization by default if application is using VR
+#ifndef _WIN64
+		s_sync = GetModuleHandleW(L"vrclient.dll") != nullptr || GetModuleHandleW(L"openxr_loader.dll") != nullptr;
+#else
+		s_sync = GetModuleHandleW(L"vrclient_x64.dll") != nullptr || GetModuleHandleW(L"openxr_loader.dll") != nullptr;
+#endif
 }
 static void on_destroy(effect_runtime *runtime)
 {
