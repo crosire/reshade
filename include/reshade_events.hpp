@@ -789,7 +789,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
 		/// </summary>
-		get_query_heap_results = 37,
+		get_query_heap_results,
 
 		/// <summary>
 		/// Called after:
@@ -801,7 +801,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)</c></para>
 		/// </summary>
-		barrier = 38,
+		barrier,
 
 		/// <summary>
 		/// Called before:
