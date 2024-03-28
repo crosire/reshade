@@ -6,14 +6,14 @@
 
 #if defined(IMGUI_VERSION_NUM)
 
-#if IMGUI_VERSION_NUM != 19000 && IMGUI_VERSION_NUM != 19010
-#error Unexpected ImGui version, please update the "imgui.h" header to version 19000!
+#if IMGUI_VERSION_NUM != 19040
+#error Unexpected ImGui version, please update the "imgui.h" header to version 19040!
 #endif
 
 // Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
 static_assert(sizeof(ImTextureID) == 8, "missing \"#define ImTextureID ImU64\" before \"#include <imgui.h>\"");
 
-struct imgui_function_table_19000
+struct imgui_function_table_19040
 {
 	ImGuiIO&(*GetIO)();
 	ImGuiStyle&(*GetStyle)();
@@ -87,7 +87,7 @@ struct imgui_function_table_19000
 	ImVec2(*GetFontTexUvWhitePixel)();
 	ImU32(*GetColorU32)(ImGuiCol idx, float alpha_mul);
 	ImU32(*GetColorU322)(const ImVec4& col);
-	ImU32(*GetColorU323)(ImU32 col);
+	ImU32(*GetColorU323)(ImU32 col, float alpha_mul);
 	const ImVec4&(*GetStyleColorVec4)(ImGuiCol idx);
 	ImVec2(*GetCursorScreenPos)();
 	void(*SetCursorScreenPos)(const ImVec2& pos);
@@ -430,7 +430,7 @@ struct imgui_function_table_19000
 
 };
 
-using imgui_function_table = imgui_function_table_19000;
+using imgui_function_table = imgui_function_table_19040;
 
 inline const imgui_function_table *&imgui_function_table_instance()
 {
@@ -514,7 +514,7 @@ namespace ImGui
 	inline ImVec2 GetFontTexUvWhitePixel() { return imgui_function_table_instance()->GetFontTexUvWhitePixel(); }
 	inline ImU32 GetColorU32(ImGuiCol idx, float alpha_mul) { return imgui_function_table_instance()->GetColorU32(idx, alpha_mul); }
 	inline ImU32 GetColorU32(const ImVec4& col) { return imgui_function_table_instance()->GetColorU322(col); }
-	inline ImU32 GetColorU32(ImU32 col) { return imgui_function_table_instance()->GetColorU323(col); }
+	inline ImU32 GetColorU32(ImU32 col, float alpha_mul) { return imgui_function_table_instance()->GetColorU323(col, alpha_mul); }
 	inline const ImVec4& GetStyleColorVec4(ImGuiCol idx) { return imgui_function_table_instance()->GetStyleColorVec4(idx); }
 	inline ImVec2 GetCursorScreenPos() { return imgui_function_table_instance()->GetCursorScreenPos(); }
 	inline void SetCursorScreenPos(const ImVec2& pos) { imgui_function_table_instance()->SetCursorScreenPos(pos); }

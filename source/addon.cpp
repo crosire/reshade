@@ -279,13 +279,16 @@ void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime)
 
 #if RESHADE_ADDON && RESHADE_GUI
 
+#include "imgui_function_table_19040.hpp"
 #include "imgui_function_table_19000.hpp"
 #include "imgui_function_table_18971.hpp"
 #include "imgui_function_table_18600.hpp"
 
 extern "C" __declspec(dllexport) const void *ReShadeGetImGuiFunctionTable(uint32_t version)
 {
-	if (version == 19000 || version == 19010)
+	if (version == 19040)
+		return &g_imgui_function_table_19040;
+	if (version >= 19000 && version < 19040)
 		return &g_imgui_function_table_19000;
 	if (version == 18971)
 		return &g_imgui_function_table_18971;

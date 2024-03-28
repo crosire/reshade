@@ -7,9 +7,9 @@
 #if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON
 
 #include <new>
-#include "imgui_function_table_19000.hpp"
+#include "imgui_function_table_19040.hpp"
 
-const imgui_function_table_19000 init_imgui_function_table_19000() { return {
+const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 	ImGui::GetIO,
 	ImGui::GetStyle,
 	ImGui::GetVersion,
@@ -82,7 +82,7 @@ const imgui_function_table_19000 init_imgui_function_table_19000() { return {
 	ImGui::GetFontTexUvWhitePixel,
 	ImGui::GetColorU32,
 	ImGui::GetColorU32,
-	[](ImU32 col) -> ImU32 { return ImGui::GetColorU32(col, 1.0f); },
+	ImGui::GetColorU32,
 	ImGui::GetStyleColorVec4,
 	ImGui::GetCursorScreenPos,
 	ImGui::SetCursorScreenPos,
