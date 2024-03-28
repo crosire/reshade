@@ -976,14 +976,14 @@ void reshade::d3d12::convert_input_layout_desc(uint32_t count, const api::input_
 		internal_element.InstanceDataStepRate = element.instance_step_rate;
 	}
 }
-std::vector<reshade::api::input_element> reshade::d3d12::convert_input_layout_desc(UINT count, const D3D12_INPUT_ELEMENT_DESC *internal_elements)
+std::vector<reshade::api::input_element> reshade::d3d12::convert_input_layout_desc(const D3D12_INPUT_LAYOUT_DESC &internal_desc)
 {
 	std::vector<api::input_element> elements;
-	elements.reserve(count);
+	elements.reserve(internal_desc.NumElements);
 
-	for (UINT i = 0; i < count; ++i)
+	for (UINT i = 0; i < internal_desc.NumElements; ++i)
 	{
-		const D3D12_INPUT_ELEMENT_DESC &internal_element = internal_elements[i];
+		const D3D12_INPUT_ELEMENT_DESC &internal_element = internal_desc.pInputElementDescs[i];
 
 		api::input_element &element = elements.emplace_back();
 		element.semantic = internal_element.SemanticName;

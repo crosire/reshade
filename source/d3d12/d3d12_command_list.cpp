@@ -49,6 +49,7 @@ bool D3D12GraphicsCommandList::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12GraphicsCommandList7),
 		__uuidof(ID3D12GraphicsCommandList8),
 		__uuidof(ID3D12GraphicsCommandList9),
+		__uuidof(ID3D12GraphicsCommandList10),
 	};
 
 	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -1208,4 +1209,15 @@ void   STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBufferStripCutValue
 {
 	assert(_interface_version >= 9);
 	static_cast<ID3D12GraphicsCommandList9 *>(_orig)->IASetIndexBufferStripCutValue(IBStripCutValue);
+}
+
+void   STDMETHODCALLTYPE D3D12GraphicsCommandList::SetProgram(const D3D12_SET_PROGRAM_DESC *pDesc)
+{
+	assert(_interface_version >= 10);
+	static_cast<ID3D12GraphicsCommandList10 *>(_orig)->SetProgram(pDesc);
+}
+void   STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchGraph(const D3D12_DISPATCH_GRAPH_DESC *pDesc)
+{
+	assert(_interface_version >= 10);
+	static_cast<ID3D12GraphicsCommandList10 *>(_orig)->DispatchGraph(pDesc);
 }
