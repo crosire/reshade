@@ -10,10 +10,10 @@
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effects to install:" />
-      <Button DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
+      <Label x:Uid="PageTitle" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effects to install:" />
+      <Button x:Uid="CheckAllButton" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       Check all effects you want to install or update. Effects not checked here will not be installed or are left untouched when updating.
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
@@ -24,9 +24,9 @@
         <ColumnDefinition Width="100" />
       </Grid.ColumnDefinitions>
       <TextBox x:Name="PresetPathBox" Grid.Column="0" IsReadOnly="True" Text="" />
-      <Button Grid.Column="2" Content="_Browse..." Click="OnBrowsePresetClick" />
+      <Button x:Uid="BrowseButton" Grid.Column="2" Content="_Browse..." Click="OnBrowsePresetClick" />
     </Grid>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5">
+    <TextBlock x:Uid="PresetPathDescription" DockPanel.Dock="Bottom" Margin="10,5">
       Choose a preset file (.ini) to install only the effects it uses:
     </TextBlock>
     <ListBox x:Name="ItemsListBox" x:FieldModifier="private" Margin="10,5" HorizontalContentAlignment="Stretch" VirtualizingPanel.ScrollUnit="Pixel" ItemsSource="{Binding Items}" d:ItemsSource="{Binding Items}">
@@ -44,7 +44,7 @@
             </Grid.ColumnDefinitions>
             <local:EffectPackageCheckBox x:Name="SelectedCheckBox" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" IsChecked="{Binding Selected}" IsEnabled="{Binding Modifiable}" IsThreeState="True">
               <local:EffectPackageCheckBox.ToolTip>
-                <TextBlock Text="Check to install all effects in the package, fill out to select individual effects to install." />
+                <TextBlock x:Uid="SelectedCheckBoxTooltip" Text="Check to install all effects in the package, fill out to select individual effects to install." />
               </local:EffectPackageCheckBox.ToolTip>
             </local:EffectPackageCheckBox>
             <TextBlock Grid.Column="1" VerticalAlignment="Center">

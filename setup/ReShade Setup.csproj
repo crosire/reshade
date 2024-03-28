@@ -144,10 +144,18 @@
     <Archive Include="ReShade64_XR.json" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Pages\Resources\DirectX.png" />
-    <Resource Include="Pages\Resources\OpenGL.png" />
-    <Resource Include="Pages\Resources\OpenXR.png" />
-    <Resource Include="Pages\Resources\Vulkan.png" />
+    <Resource Include="Pages\Resources\DirectX.png">
+      <Localizable>false</Localizable>
+    </Resource>
+    <Resource Include="Pages\Resources\OpenGL.png">
+      <Localizable>false</Localizable>
+    </Resource>
+    <Resource Include="Pages\Resources\OpenXR.png">
+      <Localizable>false</Localizable>
+    </Resource>
+    <Resource Include="Pages\Resources\Vulkan.png">
+      <Localizable>false</Localizable>
+    </Resource>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.WindowsSDK.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Common.props" />

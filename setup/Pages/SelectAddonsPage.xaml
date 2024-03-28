@@ -10,9 +10,9 @@
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select add-ons to install:" />
+      <Label x:Uid="PageTitle" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select add-ons to install:" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       Optionally check add-ons you want to install or update. Only check add-ons you know are needed, since incompatible add-ons may cause crashes or performance degradation.
     </TextBlock>
     <ListBox x:Name="ItemsListBox" x:FieldModifier="private" Margin="10,5" HorizontalContentAlignment="Stretch" ItemsSource="{Binding Items}">
@@ -32,7 +32,7 @@
               <Hyperlink NavigateUri="{Binding RepositoryUrl, Mode=OneTime}" RequestNavigate="OnHyperlinkRequestNavigate">
                 <TextBlock Text="{Binding Name, Mode=OneTime}" />
                 <Hyperlink.ToolTip>
-                  <TextBlock Text="{Binding RepositoryUrl, Mode=OneTime}" />                  
+                  <TextBlock Text="{Binding RepositoryUrl, Mode=OneTime}" />
                 </Hyperlink.ToolTip>
               </Hyperlink>
             </TextBlock>

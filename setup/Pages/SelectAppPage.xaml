@@ -9,20 +9,20 @@
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select a game or application:" />
+      <Label x:Uid="PageTitle" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select a game or application:" />
       <ComboBox x:Name="SortBy" x:FieldModifier="private" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center" Margin="10" Width="100" SelectedIndex="1" SelectionChanged="OnSortByChanged">
-        <ComboBoxItem>Recently Used</ComboBoxItem>
-        <ComboBoxItem>A to Z</ComboBoxItem>
-        <ComboBoxItem>Z to A</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByRecentlyUsed">Recently Used</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByAZ">A to Z</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByZA">Z to A</ComboBoxItem>
       </ComboBox>
-      <Label DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Sort by:" />
+      <Label x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Sort by:" />
     </DockPanel>
-    <TextBlock DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
+    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
       Browse and select a game to manage its ReShade installation.
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
-      <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired game in the list?" />
-      <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowseClick" />
+      <TextBlock x:Uid="BrowseButtonDescription" HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired game in the list?" />
+      <Button x:Uid="BrowseButton" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowseClick" />
     </Grid>
     <TextBox x:Name="PathBox" DockPanel.Dock="Bottom" Margin="10,0,10,5" HorizontalAlignment="Stretch" GotFocus="OnPathGotFocus" TextChanged="OnPathTextChanged" Text="Search" />
     <ListBox x:Name="ItemsListBox" x:FieldModifier="private" Margin="10,5" HorizontalContentAlignment="Stretch" SelectionChanged="OnSelectionChanged">

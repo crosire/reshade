@@ -10,12 +10,12 @@
   <DockPanel>
     <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" HorizontalContentAlignment="Stretch" Foreground="#FF003399" FontSize="16">
       <StackPanel Orientation="Horizontal">
-        <TextBlock Text="Select the rendering API " />
-        <TextBlock x:Name="AppName" x:FieldModifier="private" Text="the game or application" />
-        <TextBlock Text=" uses:" />
+        <TextBlock x:Uid="PageTitle">
+          Select the rendering API <TextBlock x:Name="AppName" x:FieldModifier="private" Text="the game or application" /> uses:
+        </TextBlock> 
       </StackPanel>
     </Label>
-    <TextBlock DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
+    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       The preselected option is a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API the game uses, search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and look for a section with the title "API" on its page.
     </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
