@@ -40,7 +40,7 @@ void ReShadeGetBasePath(char *path, size_t *size)
 	else if (*size != 0)
 	{
 		*size = path_string.copy(path, *size - 1);
-		path[*size++] = '\0';
+		path[*size] = '\0';
 	}
 }
 
@@ -68,11 +68,48 @@ bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 	else if (*size != 0)
 	{
 		*size = value_string.copy(value, *size - 1);
-		value[*size++] = '\0';
+		value[*size] = '\0';
 	}
 
 	return true;
 }
+bool ReShadeGetConfigValue2(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
+{
+	if (size == nullptr)
+		return false;
+
+	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
+
+	const std::string section_string = section != nullptr ? section : std::string();
+	const std::string key_string = key != nullptr ? key : std::string();
+	std::vector<std::string> elements;
+	std::string value_string;
+
+	if (!config.get(section_string, key_string, elements))
+	{
+		*size = 0;
+		return false;
+	}
+
+	for (const std::string &element : elements)
+	{
+		value_string += element;
+		value_string += '\0';
+	}
+
+	if (value == nullptr)
+	{
+		*size = value_string.size() + 1;
+	}
+	else if (*size != 0)
+	{
+		*size = value_string.copy(value, *size - 1);
+		value[*size] = '\0';
+	}
+
+	return true;
+}
+
 void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
@@ -82,6 +119,31 @@ void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 	const std::string value_string = value != nullptr ? value : std::string();
 
 	config.set(section_string, key_string, value_string);
+}
+void ReShadeSetConfigValue2(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t value_buffer_count)
+{
+	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
+
+	const std::string section_string = section != nullptr ? section : std::string();
+	const std::string key_string = key != nullptr ? key : std::string();
+	const std::string_view value_string = value != nullptr ? std::string_view(value, value_buffer_count) : std::string_view();
+
+	std::vector<std::string> elements;
+	if (value_buffer_count != 0)
+	{
+		std::string *element = &elements.emplace_back();
+		for (size_t i = 0; i < value_buffer_count; i++)
+		{
+			if (const char c = value_string[i]; c != '\0')
+				*element += c;
+			else
+				element = &elements.emplace_back();
+		}
+		if (value_string.back() == '\0')
+			elements.pop_back();
+	}
+
+	config.set(section_string, key_string, elements);
 }
 
 #if RESHADE_ADDON && RESHADE_FX
