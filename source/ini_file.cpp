@@ -11,7 +11,7 @@
 #include <shared_mutex>
 
 static std::shared_mutex s_ini_cache_mutex;
-static std::unordered_map<std::wstring, std::shared_ptr<ini_file>> s_ini_cache;
+static std::unordered_map<std::wstring, std::unique_ptr<ini_file>> s_ini_cache;
 
 ini_file &reshade::global_config()
 {
@@ -228,17 +228,15 @@ bool ini_file::flush_cache()
 
 	return success;
 }
-bool ini_file::flush_cache(const std::filesystem::path &path)
+bool ini_file::flush_cache(std::filesystem::path path)
 {
+	std::error_code ec;
+	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
+		path = std::move(resolved);
+
 	const std::shared_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
-	auto it = s_ini_cache.find(path);
-	if (it == s_ini_cache.end())
-	{
-		std::error_code ec;
-		if (const std::filesystem::path canonical_path = std::filesystem::canonical(path, ec); !ec)
-			it = s_ini_cache.find(canonical_path);
-	}
+	const auto it = s_ini_cache.find(path);
 	return it != s_ini_cache.end() && it->second->save();
 }
 
@@ -248,40 +246,35 @@ void ini_file::clear_cache()
 
 	s_ini_cache.clear();
 }
-void ini_file::clear_cache(const std::filesystem::path &path)
+void ini_file::clear_cache(std::filesystem::path path)
 {
+	std::error_code ec;
+	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
+		path = std::move(resolved);
+
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
 	s_ini_cache.erase(path);
 }
 
-ini_file &ini_file::load_cache(const std::filesystem::path &path)
+ini_file &ini_file::load_cache(std::filesystem::path path)
 {
 	assert(!path.empty());
 
+	std::error_code ec;
+	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
+		path = std::move(resolved);
+
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
-	
-	auto it = s_ini_cache.find(path);
-	if (it == s_ini_cache.end())
-	{
-		std::error_code ec;
-		const std::filesystem::path canonical_path = std::filesystem::canonical(path, ec);
-		if (!ec)
-			it = s_ini_cache.find(canonical_path);
 
-		// Only construct when actually adding a new entry to the cache, since the 'ini_file' constructor performs a costly load of the file
-		if (it == s_ini_cache.end())
-		{
-			std::shared_ptr<ini_file> ptr = std::make_shared<ini_file>(path);
-			if (s_ini_cache.try_emplace(path, ptr); !ec)
-				s_ini_cache.try_emplace(canonical_path, ptr);
+	const auto insert = s_ini_cache.try_emplace(path);
+	const auto it = insert.first;
 
-			return *ptr;
-		}
-	}
-
+	// Only construct when actually adding a new entry to the cache, since the 'ini_file' constructor performs a costly load of the file
+	if (insert.second)
+		it->second = std::make_unique<ini_file>(path);
 	// Don't reload file when it was just loaded or there are still modifications pending
-	if (!it->second->_modified)
+	else if (!it->second->_modified)
 		it->second->load();
 
 	return *it->second;
