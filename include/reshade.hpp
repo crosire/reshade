@@ -224,10 +224,10 @@ namespace reshade
 	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t buffer_count)
 	{
 #if defined(RESHADE_API_LIBRARY)
-		ReShadeSetConfigValue2(nullptr, runtime, section, key, value, buffer_count);
+		ReShadeSetConfigArray(nullptr, runtime, section, key, value, buffer_count);
 #else
 		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *, size_t)>(
-			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigValue2"));
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigArray"));
 		func(internal::get_current_module_handle(), runtime, section, key, value, buffer_count);
 #endif
 	}

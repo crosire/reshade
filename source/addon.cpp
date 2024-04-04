@@ -46,39 +46,42 @@ void ReShadeGetBasePath(char *path, size_t *size)
 
 bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
 {
-	if (size == nullptr)
-		return false;
-
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();
+
 	std::vector<std::string> elements;
-	std::string value_string;
+	config.get(section_string, key_string, elements);
 
-	if (!config.get(section_string, key_string, elements))
+	if (size != nullptr || value != nullptr)
 	{
-		*size = 0;
-		return false;
+		std::string value_string;
+		for (const std::string &element : elements)
+		{
+			value_string += element;
+			value_string += '\0';
+		}
+
+		if (size != nullptr)
+		{
+			if (elements.empty())
+			{
+				*size = 0;
+			}
+			else if (value == nullptr)
+			{
+				*size = value_string.size() + 1;
+			}
+			else if (*size != 0)
+			{
+				*size = value_string.copy(value, *size - 1);
+				value[*size] = '\0';
+			}
+		}
 	}
 
-	for (const std::string &element : elements)
-	{
-		value_string += element;
-		value_string += '\0';
-	}
-
-	if (value == nullptr)
-	{
-		*size = value_string.size() + 1;
-	}
-	else if (*size != 0)
-	{
-		*size = value_string.copy(value, *size - 1);
-		value[*size] = '\0';
-	}
-
-	return true;
+	return !elements.empty();
 }
 
 void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
@@ -91,22 +94,26 @@ void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const
 
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();
+
+	if (value_buffer_count == 0)
+	{
+		config.remove_key(section_string, key_string);
+		return;
+	}
+
 	const std::string_view value_string = value != nullptr ? std::string_view(value, value_buffer_count) : std::string_view();
 
 	std::vector<std::string> elements;
-	if (value_buffer_count != 0)
+	std::string *element = &elements.emplace_back();
+	for (size_t i = 0; i < value_buffer_count; i++)
 	{
-		std::string *element = &elements.emplace_back();
-		for (size_t i = 0; i < value_buffer_count; i++)
-		{
-			if (const char c = value_string[i]; c != '\0')
-				*element += c;
-			else
-				element = &elements.emplace_back();
-		}
-		if (value_string.back() == '\0')
-			elements.pop_back();
+		if (const char c = value_string[i]; c != '\0')
+			*element += c;
+		else
+			element = &elements.emplace_back();
 	}
+	if (value_string.back() == '\0')
+		elements.pop_back();
 
 	config.set(section_string, key_string, elements);
 }
