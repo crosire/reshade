@@ -53,35 +53,6 @@ bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();
-	std::string value_string;
-
-	if (!config.get(section_string, key_string, value_string))
-	{
-		*size = 0;
-		return false;
-	}
-
-	if (value == nullptr)
-	{
-		*size = value_string.size() + 1;
-	}
-	else if (*size != 0)
-	{
-		*size = value_string.copy(value, *size - 1);
-		value[*size] = '\0';
-	}
-
-	return true;
-}
-bool ReShadeGetConfigValue2(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
-{
-	if (size == nullptr)
-		return false;
-
-	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
-
-	const std::string section_string = section != nullptr ? section : std::string();
-	const std::string key_string = key != nullptr ? key : std::string();
 	std::vector<std::string> elements;
 	std::string value_string;
 
@@ -110,17 +81,11 @@ bool ReShadeGetConfigValue2(HMODULE, reshade::api::effect_runtime *runtime, cons
 	return true;
 }
 
-void ReShadeSetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
-	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
-
-	const std::string section_string = section != nullptr ? section : std::string();
-	const std::string key_string = key != nullptr ? key : std::string();
-	const std::string value_string = value != nullptr ? value : std::string();
-
-	config.set(section_string, key_string, value_string);
+	return ReShadeSetConfigArray(module, runtime, section, key, value, value != nullptr ? strlen(value) : 0);
 }
-void ReShadeSetConfigValue2(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t value_buffer_count)
+void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t value_buffer_count)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
