@@ -11,7 +11,7 @@
 #include <Windows.h>
 
 // Current version of the ReShade API
-#define RESHADE_API_VERSION 11
+#define RESHADE_API_VERSION 12
 
 // Optionally import ReShade API functions when 'RESHADE_API_LIBRARY' is defined instead of using header-only mode
 #if defined(RESHADE_API_LIBRARY) || defined(RESHADE_API_LIBRARY_EXPORT)
@@ -28,7 +28,9 @@ RESHADE_API_LIBRARY_DECL void ReShadeLogMessage(HMODULE module, int level, const
 RESHADE_API_LIBRARY_DECL void ReShadeGetBasePath(char *path, size_t *path_size);
 
 RESHADE_API_LIBRARY_DECL bool ReShadeGetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *value_size);
+
 RESHADE_API_LIBRARY_DECL void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value);
+RESHADE_API_LIBRARY_DECL void ReShadeSetConfigArray(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t buffer_count);
 
 RESHADE_API_LIBRARY_DECL bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
 RESHADE_API_LIBRARY_DECL void ReShadeUnregisterAddon(HMODULE module);
@@ -219,6 +221,16 @@ namespace reshade
 		set_config_value<int>(runtime, section, key, value ? 1 : 0);
 	}
 #endif
+	inline void set_config_value(api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t buffer_count)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		ReShadeSetConfigArray(nullptr, runtime, section, key, value, buffer_count);
+#else
+		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *, size_t)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigArray"));
+		func(internal::get_current_module_handle(), runtime, section, key, value, buffer_count);
+#endif
+	}
 
 	/// <summary>
 	/// Registers this module as an add-on with ReShade.

@@ -178,7 +178,7 @@ void reshade::runtime::get_uniform_variable_name([[maybe_unused]] api::effect_un
 		else if (*size != 0)
 		{
 			*size = variable->name.copy(value, *size - 1);
-			value[*size++] = '\0';
+			value[*size] = '\0';
 		}
 	}
 	else
@@ -202,7 +202,7 @@ void reshade::runtime::get_uniform_variable_effect_name([[maybe_unused]] api::ef
 		else if (*size != 0)
 		{
 			*size = effect_name.copy(value, *size - 1);
-			value[*size++] = '\0';
+			value[*size] = '\0';
 		}
 	}
 	else
@@ -321,7 +321,7 @@ bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unuse
 				else if (*size != 0)
 				{
 					*size = annotation.copy(value, *size - 1);
-					value[*size++] = '\0';
+					value[*size] = '\0';
 				}
 			}
 
@@ -545,7 +545,7 @@ void reshade::runtime::get_texture_variable_name([[maybe_unused]] api::effect_te
 		else if (*size != 0)
 		{
 			*size = variable->name.copy(value, *size - 1);
-			value[*size++] = '\0';
+			value[*size] = '\0';
 		}
 	}
 	else
@@ -569,7 +569,7 @@ void reshade::runtime::get_texture_variable_effect_name([[maybe_unused]] api::ef
 		else if (*size != 0)
 		{
 			*size = effect_name.copy(value, *size - 1);
-			value[*size++] = '\0';
+			value[*size] = '\0';
 		}
 	}
 	else
@@ -688,7 +688,7 @@ bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unuse
 				else if (*size != 0)
 				{
 					*size = annotation.copy(value, *size - 1);
-					value[*size++] = '\0';
+					value[*size] = '\0';
 				}
 			}
 
@@ -862,7 +862,7 @@ void reshade::runtime::get_technique_name([[maybe_unused]] api::effect_technique
 		else if (*size != 0)
 		{
 			*size = tech->name.copy(value, *size - 1);
-			value[*size++] = '\0';
+			value[*size] = '\0';
 		}
 	}
 	else
@@ -886,7 +886,7 @@ void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_te
 		else if (*size != 0)
 		{
 			*size = effect_name.copy(value, *size - 1);
-			value[*size++] = '\0';
+			value[*size] = '\0';
 		}
 	}
 	else
@@ -1005,7 +1005,7 @@ bool reshade::runtime::get_annotation_string_from_technique([[maybe_unused]] api
 				else if (*size != 0)
 				{
 					*size = annotation.copy(value, *size - 1);
-					value[*size++] = '\0';
+					value[*size] = '\0';
 				}
 			}
 
@@ -1286,7 +1286,7 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 			else if (*size != 0)
 			{
 				*size = definitions_string.copy(value, *size - 1);
-				value[*size++] = '\0';
+				value[*size] = '\0';
 			}
 		}
 
@@ -1308,7 +1308,7 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 				else if (*size != 0)
 				{
 					*size = definition_it->second.copy(value, *size - 1);
-					value[*size++] = '\0';
+					value[*size] = '\0';
 				}
 			}
 
@@ -1457,7 +1457,7 @@ void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size
 	else if (*size != 0)
 	{
 		*size = path_string.copy(path, *size - 1);
-		path[*size++] = '\0';
+		path[*size] = '\0';
 	}
 #else
 	*size = 0;
