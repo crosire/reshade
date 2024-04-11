@@ -1648,7 +1648,8 @@ void reshade::runtime::draw_gui_home()
 		if (imgui::toggle_button(auto_save_button_label.c_str(), _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (12.5f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
 		{
 			_preset_is_modified = false;
-
+			if (!was_auto_save_preset)
+				save_current_preset();
 			save_config();
 		}
 
