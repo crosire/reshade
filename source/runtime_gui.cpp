@@ -1679,7 +1679,8 @@ void reshade::runtime::draw_gui_home()
 		ImGui::BeginDisabled(_performance_mode || _is_in_preset_transition);
 
 		const auto save_and_clean = _auto_save_preset || _imgui_context->IO.KeyShift;
-		const auto save_button_tooltip = save_and_clean ? _("Clean up and save the current preset (removes all values for disabled techniques)") : _("Save the current preset");
+		std::string save_button_tooltip = save_and_clean ? "" : (std::string(_("Save the current preset")) + "\nShift: ");
+		save_button_tooltip += _("Clean up and save the current preset (removes all values for disabled techniques)");
 		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
 		{
 			if (save_and_clean)
@@ -1689,7 +1690,7 @@ void reshade::runtime::draw_gui_home()
 
 			_preset_is_modified = false;
 		}
-		ImGui::SetItemTooltip(save_button_tooltip);
+		ImGui::SetItemTooltip(save_button_tooltip.c_str());
 
 		ImGui::EndDisabled();
 
