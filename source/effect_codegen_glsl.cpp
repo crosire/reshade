@@ -542,7 +542,7 @@ private:
 
 		// Remove duplicated underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
 		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos;)
-			name.replace(pos, 2, "_");
+			name.replace(pos, 2, "_x");
 
 		return name;
 	}
