@@ -36,7 +36,7 @@ namespace reshade
 				uint16_t revision;
 			} number;
 			uint64_t value;
-		} version;
+		} version = {};
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI

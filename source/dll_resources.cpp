@@ -97,6 +97,9 @@ std::vector<std::string> reshade::resources::get_languages()
 			return FALSE;
 		}, reinterpret_cast<LONG_PTR>(&first_string_table_block));
 
+	if (first_string_table_block == nullptr)
+		return {};
+
 	std::vector<std::string> languages;
 	EnumResourceLanguages(g_module_handle, RT_STRING, first_string_table_block,
 		[](HMODULE, LPCTSTR, LPCTSTR, LANGID wLanguage, LONG_PTR lParam) -> BOOL {

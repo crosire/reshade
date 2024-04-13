@@ -88,32 +88,33 @@ void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime
 {
 	return ReShadeSetConfigArray(module, runtime, section, key, value, value != nullptr ? strlen(value) : 0);
 }
-void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t value_buffer_count)
+void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
 {
 	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();
 
-	if (value_buffer_count == 0)
+	if (size == 0)
 	{
 		config.remove_key(section_string, key_string);
 		return;
 	}
 
-	const std::string_view value_string = value != nullptr ? std::string_view(value, value_buffer_count) : std::string_view();
-
 	std::vector<std::string> elements;
-	std::string *element = &elements.emplace_back();
-	for (size_t i = 0; i < value_buffer_count; i++)
+	for (size_t i = 0, k = 0; i < size; i++)
 	{
-		if (const char c = value_string[i]; c != '\0')
-			*element += c;
-		else
-			element = &elements.emplace_back();
+		if (k >= elements.size())
+			elements.resize(k + 1);
+
+		if (value[i] == '\0')
+		{
+			k++;
+			continue;
+		}
+
+		elements[k] += value[i];
 	}
-	if (value_string.back() == '\0')
-		elements.pop_back();
 
 	config.set(section_string, key_string, elements);
 }

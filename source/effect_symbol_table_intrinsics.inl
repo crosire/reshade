@@ -433,7 +433,7 @@ IMPLEMENT_INTRINSIC_SPIRV(f16tof32, 0, {
 	type arg_scalar_type = args[0].type;
 	arg_scalar_type.rows = 1;
 
-	spv::Id res[4];
+	spv::Id res[4] = {};
 	for (unsigned int i = 0; i < args[0].type.rows; ++i)
 	{
 		assert(i < 4);
@@ -493,7 +493,7 @@ IMPLEMENT_INTRINSIC_SPIRV(f32tof16, 0, {
 
 	const spv::Id constant_zero = emit_constant(arg_scalar_type, 0u);
 
-	spv::Id res[4];
+	spv::Id res[4] = {};
 	for (unsigned int i = 0; i < args[0].type.rows; ++i)
 	{
 		assert(i < 4);

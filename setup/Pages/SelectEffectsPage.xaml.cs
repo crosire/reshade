@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -132,7 +131,7 @@ namespace ReShade.Setup.Pages
 
 				// Update selection after all items were added
 				Dispatcher.Invoke(() => { PresetPath = PresetPath; });
-			});	
+			});
 		}
 
 		public IEnumerable<EffectPackage> SelectedItems => Items.Where(x => x.Selected != false);

@@ -1095,7 +1095,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
 
 	info.return_type = type;
-	info.shader_type = stype;
+	info.type = stype;
 	info.num_threads[0] = num_threads[0];
 	info.num_threads[1] = num_threads[1];
 	info.num_threads[2] = num_threads[2];
@@ -1803,37 +1803,37 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 						{
 						case 'V':
 							vs_info = function_info;
-							if (vs_info.shader_type != shader_type::unknown && vs_info.shader_type != shader_type::vertex)
+							if (vs_info.type != shader_type::unknown && vs_info.type != shader_type::vertex)
 							{
 								parse_success = false;
 								error(state_location, 3020, "type mismatch, expected vertex shader function");
 								break;
 							}
-							vs_info.shader_type = shader_type::vertex;
+							vs_info.type = shader_type::vertex;
 							_codegen->define_entry_point(vs_info);
 							info.vs_entry_point = vs_info.unique_name;
 							break;
 						case 'P':
 							ps_info = function_info;
-							if (ps_info.shader_type != shader_type::unknown && ps_info.shader_type != shader_type::pixel)
+							if (ps_info.type != shader_type::unknown && ps_info.type != shader_type::pixel)
 							{
 								parse_success = false;
 								error(state_location, 3020, "type mismatch, expected pixel shader function");
 								break;
 							}
-							ps_info.shader_type = shader_type::pixel;
+							ps_info.type = shader_type::pixel;
 							_codegen->define_entry_point(ps_info);
 							info.ps_entry_point = ps_info.unique_name;
 							break;
 						case 'C':
 							cs_info = function_info;
-							if (cs_info.shader_type != shader_type::unknown && cs_info.shader_type != shader_type::compute)
+							if (cs_info.type != shader_type::unknown && cs_info.type != shader_type::compute)
 							{
 								parse_success = false;
 								error(state_location, 3020, "type mismatch, expected compute shader function");
 								break;
 							}
-							cs_info.shader_type = shader_type::compute;
+							cs_info.type = shader_type::compute;
 							// Only use number of threads from pass when specified, otherwise fall back to number specified on the function definition with an attribute
 							if (num_threads[0] != 0)
 							{

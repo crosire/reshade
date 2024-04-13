@@ -1076,7 +1076,7 @@ private:
 	void define_entry_point(function_info &func) override
 	{
 		// Modify entry point name so each thread configuration is made separate
-		if (func.shader_type == shader_type::compute)
+		if (func.type == shader_type::compute)
 			func.unique_name = 'E' + func.unique_name +
 				'_' + std::to_string(func.num_threads[0]) +
 				'_' + std::to_string(func.num_threads[1]) +
@@ -1086,7 +1086,7 @@ private:
 				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, func.shader_type });
+		_module.entry_points.push_back({ func.unique_name, func.type });
 
 		spv::Id position_variable = 0;
 		spv::Id point_size_variable = 0;
@@ -1112,7 +1112,7 @@ private:
 			return variable;
 		};
 
-		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &point_size_variable, stype = func.shader_type](const type &param_type, const std::string &semantic, spv::StorageClass storage, int a = 0) {
+		const auto create_varying_variable = [this, &inputs_and_outputs, &position_variable, &point_size_variable, stype = func.type](const type &param_type, const std::string &semantic, spv::StorageClass storage, int a = 0) {
 			const spv::Id variable = define_variable({}, param_type, nullptr, storage);
 
 			if (const spv::BuiltIn builtin = semantic_to_builtin(semantic, stype);
@@ -1331,7 +1331,7 @@ private:
 		}
 
 		// Add code to flip the output vertically
-		if (_flip_vert_y && position_variable != 0 && func.shader_type == shader_type::vertex)
+		if (_flip_vert_y && position_variable != 0 && func.type == shader_type::vertex)
 		{
 			expression position;
 			position.reset_to_lvalue({}, position_variable, { type::t_float, 4, 1 });
@@ -1344,7 +1344,7 @@ private:
 		}
 
 		// Add code that sets the point size to a default value (in case this vertex shader is used with point primitives)
-		if (point_size_variable == 0 && func.shader_type == shader_type::vertex)
+		if (point_size_variable == 0 && func.type == shader_type::vertex)
 		{
 			create_varying_variable({ type::t_float, 1, 1 }, "SV_POINTSIZE", spv::StorageClassOutput);
 
@@ -1359,7 +1359,7 @@ private:
 		leave_function();
 
 		spv::ExecutionModel model;
-		switch (func.shader_type)
+		switch (func.type)
 		{
 		case shader_type::vertex:
 			model = spv::ExecutionModelVertex;

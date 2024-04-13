@@ -1844,6 +1844,8 @@ bool reshade::d3d12::device_impl::wait(api::fence fence, uint64_t value, uint64_
 	DWORD res = WAIT_FAILED;
 
 	const HANDLE temp_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (temp_event == nullptr)
+		return false;
 	if (SUCCEEDED(reinterpret_cast<ID3D12Fence *>(fence.handle)->SetEventOnCompletion(value, temp_event)))
 		res = WaitForSingleObject(temp_event, (timeout == UINT64_MAX) ? INFINITE : (timeout / 1000000) & 0xFFFFFFFF);
 
@@ -2085,7 +2087,7 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 	assert(heap_desc.Type <= 0x3);
 	_internal_base_cpu_handle.ptr |= heap_desc.Type;
 	assert(heap_desc.Flags <= 0x1);
-	_internal_base_cpu_handle.ptr |= heap_desc.Flags << 2;
+	_internal_base_cpu_handle.ptr |= static_cast<SIZE_T>(heap_desc.Flags) << 2;
 
 #ifdef _WIN64
 	static_assert((D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 * 32) < (1 << heap_index_start));

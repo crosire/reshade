@@ -264,7 +264,7 @@ namespace reshadefx
 	struct entry_point
 	{
 		std::string name;
-		shader_type type;
+		shader_type type = shader_type::unknown;
 	};
 
 	/// <summary>
@@ -272,7 +272,7 @@ namespace reshadefx
 	/// </summary>
 	struct function_info
 	{
-		uint32_t definition;
+		uint32_t definition = 0;
 		std::string name;
 		std::string unique_name;
 		reshadefx::type return_type;
@@ -280,7 +280,7 @@ namespace reshadefx
 		std::vector<struct_member_info> parameter_list;
 		std::unordered_set<uint32_t> referenced_samplers;
 		std::unordered_set<uint32_t> referenced_storages;
-		shader_type shader_type = shader_type::unknown;
+		shader_type type = shader_type::unknown;
 		int num_threads[3] = {};
 	};
 
