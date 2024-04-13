@@ -46,6 +46,7 @@ BEGIN
 62638 "Do you really want to reset all techniques and values?"
 10706 "Reset all techniques and values to those of the current preset"
 4381 "Clean up and save the current preset (removes all values for disabled techniques)"
+4889 "Save the current preset"
 20029 "Add a new preset"
 62989 "Inherit current preset"
 6867 "Template"

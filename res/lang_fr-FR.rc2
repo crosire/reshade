@@ -46,6 +46,7 @@ BEGIN
 62638 "Êtes vous certain de vouloir réinitialiser tous les effets et valeurs ?"
 10706 "Recharger tous les effets et valeurs de la configuration actuelle"
 4381 "Nettoyer et enregistrer la configuration actuelle (efface toutes les valeurs des effets désactivés)"
+4889 "Enregistrer la configuration actuelle"
 20029 "Créer une nouvelle configuration"
 62989 "Hériter de la configuration actuelle"
 6867 "Template"

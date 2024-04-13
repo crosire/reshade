@@ -46,6 +46,7 @@ BEGIN
 62638 "Möchtest du wirklich alle Techniques und Werte zurücksetzen?"
 10706 "Setze alle Techniques und Werte auf die des aktuellen Presets zurück"
 4381 "Räume das aktuelle Preset auf und speichere es (alle Werte für deaktivierte Techniques werden entfernt)"
+4889 "Speichere das aktuelle Preset"
 20029 "Füge ein neues Preset hinzu"
 62989 "Erbe vom aktuellen Preset"
 6867 "Vorlage"
