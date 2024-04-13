@@ -202,11 +202,13 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	if (ImGui::Button("Apply preset of this effect runtime to all other instances", ImVec2(-1, 0)))
 		apply_preset_to_all(runtime);
 
-	if (ImGui::Checkbox("Synchronize effect runtimes", &s_sync))
+	if (bool sync = s_sync;
+		ImGui::Checkbox("Synchronize effect runtimes", &sync))
 	{
-		reshade::set_config_value(nullptr, "ADDON", "SyncEffectRuntimes", s_sync);
-		if (s_sync)
+		reshade::set_config_value(nullptr, "ADDON", "SyncEffectRuntimes", sync);
+		if (sync)
 			apply_preset_to_all(runtime);
+		s_sync = sync; // Change global value only after applying preset, since it calls the uniform value/technique state events, which would deadlock attempting to lock 's_mutex' again
 	}
 
 	if (!s_sync)
