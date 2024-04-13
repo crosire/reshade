@@ -695,6 +695,11 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		}
 	}
 
+	// Lock input so it cannot be modified by other threads while we are reading it here
+	std::shared_lock<std::shared_mutex> input_lock;
+	if (_input != nullptr)
+		input_lock = _input->lock();
+
 #if RESHADE_FX
 	update_effects();
 
@@ -722,12 +727,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
 	_last_frame_duration = current_time - _last_present_time; _last_present_time = current_time;
-
-#ifdef NDEBUG
-	// Lock input so it cannot be modified by other threads while we are reading it here
-	const std::shared_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
-		_input->lock() : std::shared_lock<std::shared_mutex>();
-#endif
 
 #if RESHADE_GUI
 	// Draw overlay
@@ -3848,12 +3847,14 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	if (is_loading() || !_effects_enabled || _techniques.empty())
 		return;
 
-#ifdef NDEBUG
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	// TODO: This does not catch input happening between now and 'on_present'
-	const std::shared_lock<std::shared_mutex> input_lock = (_input != nullptr) ?
-		_input->lock() : std::shared_lock<std::shared_mutex>();
+	std::shared_lock<std::shared_mutex> input_lock;
+	if (_input != nullptr
+#if RESHADE_ADDON
+		&& !_is_in_present_call
 #endif
+		)
+		input_lock = _input->lock();
 
 	// Update special uniform variables
 	for (effect &effect : _effects)
