@@ -72,6 +72,7 @@ namespace reshade::vulkan
 	protected:
 		device_impl *const _device_impl;
 		bool _has_commands = false;
+		bool _is_in_render_pass = false;
 	};
 
 	template <>
@@ -82,6 +83,8 @@ namespace reshade::vulkan
 		object_data(device_impl *device, VkCommandBuffer cmd_list) : command_list_impl(device, cmd_list) {}
 
 #if RESHADE_ADDON
+		using command_list_impl::_is_in_render_pass;
+
 		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 		VkRenderPass current_render_pass = VK_NULL_HANDLE;
 		VkFramebuffer current_framebuffer = VK_NULL_HANDLE;

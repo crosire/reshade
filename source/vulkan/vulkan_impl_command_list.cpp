@@ -100,6 +100,7 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	_has_commands = true;
+	_is_in_render_pass = true;
 
 	if (_device_impl->_dynamic_rendering_ext)
 	{
@@ -333,6 +334,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 void reshade::vulkan::command_list_impl::end_render_pass()
 {
 	assert(_has_commands);
+	_is_in_render_pass = false;
 
 	if (_device_impl->_dynamic_rendering_ext)
 	{
@@ -994,7 +996,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	}
 	else
 	{
-		if (!_device_impl->_dynamic_rendering_ext)
+		if (!_device_impl->_dynamic_rendering_ext || _is_in_render_pass)
 		{
 			assert(false);
 			return;

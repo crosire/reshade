@@ -233,6 +233,8 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 			cmd_impl->current_subpass = inheritance_info.subpass;
 			cmd_impl->current_render_pass = inheritance_info.renderPass;
 
+			cmd_impl->_is_in_render_pass = true;
+
 			if (inheritance_info.framebuffer != VK_NULL_HANDLE)
 			{
 				cmd_impl->current_framebuffer = inheritance_info.framebuffer;
@@ -272,6 +274,8 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 		cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 		cmd_impl->current_render_pass = VK_NULL_HANDLE;
 		cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+
+		cmd_impl->_is_in_render_pass = false;
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(cmd_impl);
@@ -1176,6 +1180,8 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
 
 	invoke_begin_render_pass_event(device_impl, cmd_impl, pRenderPassBegin);
+
+	cmd_impl->_is_in_render_pass = true;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdBeginRenderPass, device_impl);
@@ -1217,6 +1223,8 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	cmd_impl->_is_in_render_pass = false;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdEndRenderPass, device_impl);
@@ -1288,6 +1296,8 @@ void VKAPI_CALL vkCmdBeginRenderPass2(VkCommandBuffer commandBuffer, const VkRen
 	cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
 
 	invoke_begin_render_pass_event(device_impl, cmd_impl, pRenderPassBegin);
+
+	cmd_impl->_is_in_render_pass = true;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdBeginRenderPass2, device_impl);
@@ -1329,6 +1339,8 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	cmd_impl->_is_in_render_pass = false;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdEndRenderPass2, device_impl);
@@ -1662,6 +1674,8 @@ void VKAPI_CALL vkCmdBeginRendering(VkCommandBuffer commandBuffer, const VkRende
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
 	invoke_begin_render_pass_event(cmd_impl, pRenderingInfo);
+
+	cmd_impl->_is_in_render_pass = true;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdBeginRendering, device_impl);
@@ -1678,6 +1692,8 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	cmd_impl->_is_in_render_pass = false;
 #endif
 
 	GET_DISPATCH_PTR_FROM(CmdEndRendering, device_impl);
