@@ -413,10 +413,24 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 			if (state.is_queue)
 				lock.unlock();
 
-			// A resource has to be in this state for a clear operation, so can assume it here
-			cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
-			cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
-			cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
+			const resource_desc desc = device->get_resource_desc(depth_stencil);
+			if (desc.texture.samples > 1)
+			{
+				assert(device->check_capability(device_caps::resolve_depth_stencil) && (desc.usage & resource_usage::resolve_source) != 0);
+
+				cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::resolve_source);
+				cmd_list->resolve_texture_region(depth_stencil, 0, nullptr, depth_stencil_backup->backup_texture, 0, 0, 0, 0, format_to_default_typed(desc.texture.format));
+				cmd_list->barrier(depth_stencil, resource_usage::resolve_source, resource_usage::depth_stencil_write);
+			}
+			else
+			{
+				assert((desc.usage & resource_usage::copy_source) != 0);
+
+				// A resource has to be in this state for a clear operation, so can assume it here
+				cmd_list->barrier(depth_stencil, resource_usage::depth_stencil_write, resource_usage::copy_source);
+				cmd_list->copy_resource(depth_stencil, depth_stencil_backup->backup_texture);
+				cmd_list->barrier(depth_stencil, resource_usage::copy_source, resource_usage::depth_stencil_write);
+			}
 		}
 	}
 }
@@ -812,7 +826,6 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 	for (auto it = device_data.depth_stencil_resources.begin(); it != device_data.depth_stencil_resources.end();)
 	{
 		depth_stencil_resource &info = it->second;
-		info.last_counters = depth_stencil_frame_stats {}; // Clear previous frame statistics
 
 		if (queue_state.counters_per_used_depth_stencil.find(it->first) == queue_state.counters_per_used_depth_stencil.end() && device_data.frame_index > (info.last_used_in_frame + 30))
 		{
@@ -883,10 +896,10 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			continue; // Skip unused
 
 		if (info.last_used_in_frame < device_data.frame_index || device_data.frame_index <= (info.first_used_in_frame + 1))
-			continue;
+			continue; // Skip resources not used this frame or those that only just appeared for the first time
 
 		const resource_desc desc = device->get_resource_desc(resource);
-		if (desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0))
+		if (desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil))
 			continue; // Ignore MSAA textures, since they would need to be resolved first
 
 		if (s_use_format_filtering && !check_depth_format(desc.texture.format))
@@ -1217,7 +1230,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 	for (const depth_stencil_item &item : sorted_item_list)
 	{
 		bool disabled = item.unusable;
-		if (item.desc.texture.samples > 1 && (!device->check_capability(device_caps::resolve_depth_stencil) || s_preserve_depth_buffers != 0)) // Disable widget for MSAA textures
+		if (item.desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil)) // Disable widget for MSAA textures
 			has_msaa_depth_stencil = disabled = true;
 
 		const bool selected = item.resource == data.selected_depth_stencil;
