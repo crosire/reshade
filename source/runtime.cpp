@@ -751,7 +751,12 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	{
 #if RESHADE_FX
 		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
-			_effects_enabled = !_effects_enabled;
+		{
+#if RESHADE_ADDON
+			if (!invoke_addon_event<addon_event::reshade_set_effects_state>(this, !_effects_enabled))
+#endif
+				_effects_enabled = !_effects_enabled;
+		}
 #endif
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
