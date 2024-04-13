@@ -3852,6 +3852,16 @@ void reshade::runtime::draw_variable_editor()
 
 						ImGui::EndPopup();
 					}
+
+					if (definition_scope == &effect_definitions)
+					{
+						ImGui::SameLine();
+						if (ImGui::SmallButton(ICON_FK_UNDO))
+						{
+							force_reload_effect = true;
+							definition_scope->erase(definition_it);
+						}
+					}
 				}
 			}
 		}
