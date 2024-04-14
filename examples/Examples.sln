@@ -31,7 +31,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "13-effects_during_frame", "
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "14-ray_tracing", "14-ray_tracing\ray_tracing.vcxproj", "{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "15-effect_runtime_sync", "15-effect_runtime_sync\effect_runtime_sync.vcxproj", "{736D3653-2AF0-49E7-9A29-6EBF276E0335}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "15-effect_runtime_sync", "15-effect_runtime_sync\runtime_sync.vcxproj", "{736D3653-2AF0-49E7-9A29-6EBF276E0335}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -142,13 +142,9 @@ Global
 		{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}.Release|Win32.ActiveCfg = Release|x64
 		{7F9EC077-7562-47A8-AB2B-D5A37AB9BED2}.Release|x64.ActiveCfg = Release|x64
 		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Debug|Win32.ActiveCfg = Debug|Win32
-		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Debug|Win32.Build.0 = Debug|Win32
 		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Debug|x64.ActiveCfg = Debug|x64
-		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Debug|x64.Build.0 = Debug|x64
 		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Release|Win32.ActiveCfg = Release|Win32
-		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Release|Win32.Build.0 = Release|Win32
 		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Release|x64.ActiveCfg = Release|x64
-		{736D3653-2AF0-49E7-9A29-6EBF276E0335}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
