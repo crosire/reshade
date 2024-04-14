@@ -769,6 +769,69 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading())
 		{
+			if (_effects_enabled)
+			{
+				for (effect &effect : _effects)
+				{
+					if (!effect.rendering)
+						continue;
+
+					for (uniform &variable : effect.uniforms)
+					{
+						if (_input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
+						{
+							assert(variable.supports_toggle_key());
+
+							// Change to next value if the associated shortcut key was pressed
+							switch (variable.type.base)
+							{
+								case reshadefx::type::t_bool:
+								{
+									bool data = false;
+									get_uniform_value(variable, &data);
+									set_uniform_value(variable, !data);
+									break;
+								}
+								case reshadefx::type::t_int:
+								case reshadefx::type::t_uint:
+								{
+									int data[4] = {};
+									get_uniform_value(variable, data, 4);
+									const std::string_view ui_items = variable.annotation_as_string("ui_items");
+									int num_items = 0;
+									for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1)
+										num_items++;
+									data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
+									set_uniform_value(variable, data, 4);
+									break;
+								}
+							}
+
+							if (_auto_save_preset)
+								save_current_preset();
+							else
+								_preset_is_modified = true;
+						}
+					}
+				}
+
+				for (technique &tech : _techniques)
+				{
+					if (_input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
+					{
+						if (!tech.enabled)
+							enable_technique(tech);
+						else
+							disable_technique(tech);
+
+						if (_auto_save_preset)
+							save_current_preset();
+						else
+							_preset_is_modified = true;
+					}
+				}
+			}
+
 			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
 				reload_effects();
 
@@ -3869,38 +3932,6 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 		for (uniform &variable : effect.uniforms)
 		{
-			if (!_ignore_shortcuts && _input != nullptr && _input->is_key_pressed(variable.toggle_key_data, _force_shortcut_modifiers))
-			{
-				assert(variable.supports_toggle_key());
-
-				// Change to next value if the associated shortcut key was pressed
-				switch (variable.type.base)
-				{
-					case reshadefx::type::t_bool:
-					{
-						bool data = false;
-						get_uniform_value(variable, &data);
-						set_uniform_value(variable, !data);
-						break;
-					}
-					case reshadefx::type::t_int:
-					case reshadefx::type::t_uint:
-					{
-						int data[4] = {};
-						get_uniform_value(variable, data, 4);
-						const std::string_view ui_items = variable.annotation_as_string("ui_items");
-						int num_items = 0;
-						for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1)
-							num_items++;
-						data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
-						set_uniform_value(variable, data, 4);
-						break;
-					}
-				}
-
-				save_current_preset();
-			}
-
 			switch (variable.special)
 			{
 				case special_uniform::frame_time:
@@ -4078,20 +4109,6 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 					set_uniform_value(variable, _should_save_screenshot);
 					break;
 				}
-			}
-		}
-	}
-
-	if (!_ignore_shortcuts && _input != nullptr)
-	{
-		for (technique &tech : _techniques)
-		{
-			if (_input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
-			{
-				if (!tech.enabled)
-					enable_technique(tech);
-				else
-					disable_technique(tech);
 			}
 		}
 	}
