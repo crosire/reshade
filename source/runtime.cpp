@@ -4082,6 +4082,20 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		}
 	}
 
+	if (!_ignore_shortcuts && _input != nullptr)
+	{
+		for (technique &tech : _techniques)
+		{
+			if (_input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
+			{
+				if (!tech.enabled)
+					enable_technique(tech);
+				else
+					disable_technique(tech);
+			}
+		}
+	}
+
 	if (rtv == 0)
 		return;
 	if (rtv_srgb == 0)
@@ -4120,14 +4134,6 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	for (size_t technique_index : _technique_sorting)
 	{
 		technique &tech = _techniques[technique_index];
-
-		if (!_ignore_shortcuts && _input != nullptr && _input->is_key_pressed(tech.toggle_key_data, _force_shortcut_modifiers))
-		{
-			if (!tech.enabled)
-				enable_technique(tech);
-			else
-				disable_technique(tech);
-		}
 
 		if (tech.passes_data.empty() || !tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot))
 			continue; // Ignore techniques that are not fully loaded or currently disabled
