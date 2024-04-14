@@ -1993,6 +1993,25 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 #endif
 }
 
+void reshade::d3d12::device_impl::register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, api::resource_view_desc desc)
+{
+	// Get default view description when none was provided
+	if (desc.format == api::format::unknown)
+		desc = convert_resource_view_desc(resource->GetDesc());
+
+	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+	_views.insert_or_assign(handle.ptr, std::make_pair(resource, std::move(desc)));
+}
+void reshade::d3d12::device_impl::register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_CPU_DESCRIPTOR_HANDLE source_handle)
+{
+	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
+
+	if (const auto it = _views.find(source_handle.ptr); it != _views.end())
+		_views.insert_or_assign(handle.ptr, it->second);
+	else
+		assert(false);
+}
+
 reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_first_immediate_command_list()
 {
 	assert(!_queues.empty());

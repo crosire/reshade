@@ -739,6 +739,43 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		break;
 	}
 }
+reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_RESOURCE_DESC &resource_desc)
+{
+	api::resource_view_desc desc = {};
+	switch (resource_desc.Dimension)
+	{
+	case D3D12_RESOURCE_DIMENSION_BUFFER:
+		desc.type = api::resource_view_type::buffer;
+		desc.buffer.offset = 0;
+		desc.buffer.size = UINT64_MAX;
+		break;
+	case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
+		desc.type = api::resource_view_type::texture_1d;
+		desc.texture.first_level = 0;
+		desc.texture.level_count = UINT32_MAX;
+		desc.texture.first_layer = 0;
+		desc.texture.layer_count = UINT32_MAX;
+		break;
+	case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
+		desc.type = api::resource_view_type::texture_2d;
+		desc.texture.first_level = 0;
+		desc.texture.level_count = UINT32_MAX;
+		desc.texture.first_layer = 0;
+		desc.texture.layer_count = UINT32_MAX;
+		break;
+	case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
+		desc.type = api::resource_view_type::texture_3d;
+		desc.texture.first_level = 0;
+		desc.texture.level_count = UINT32_MAX;
+		desc.texture.first_layer = 0;
+		desc.texture.layer_count = UINT32_MAX;
+		break;
+	}
+
+	desc.format = convert_format(resource_desc.Format);
+
+	return desc;
+}
 reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_DEPTH_STENCIL_VIEW_DESC &internal_desc)
 {
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
