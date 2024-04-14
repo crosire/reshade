@@ -1996,7 +1996,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 void reshade::d3d12::device_impl::register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, api::resource_view_desc desc)
 {
 	// Get default view description when none was provided
-	if (desc.format == api::format::unknown)
+	if (resource != nullptr && desc.type == api::resource_view_type::unknown)
 		desc = convert_resource_view_desc(resource->GetDesc());
 
 	const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
