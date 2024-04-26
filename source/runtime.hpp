@@ -15,6 +15,7 @@
 #include <shared_mutex>
 
 class ini_file;
+namespace reshadefx { struct sampler_info; }
 
 namespace reshade
 {
@@ -181,7 +182,7 @@ namespace reshade
 
 		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool force_load = false, bool preprocess_required = false);
 		bool create_effect(size_t effect_index);
-		bool create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler);
+		bool create_effect_sampler_state(const reshadefx::sampler_info &info, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
 
 		void load_textures();

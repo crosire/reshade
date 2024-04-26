@@ -2507,23 +2507,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				assert(info.binding < 16);
 				sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
 
-				api::sampler_desc desc;
-				desc.filter = static_cast<api::filter_mode>(info.filter);
-				desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
-				desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
-				desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
-				desc.mip_lod_bias = info.lod_bias;
-				desc.max_anisotropy = (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point) ? 16.0f : 1.0f;
-				desc.compare_op = api::compare_op::always;
-				desc.border_color[0] = 0.0f;
-				desc.border_color[1] = 0.0f;
-				desc.border_color[2] = 0.0f;
-				desc.border_color[3] = 0.0f;
-				desc.min_lod = info.min_lod;
-				desc.max_lod = info.max_lod;
-
 				api::sampler &sampler_handle = sampler_descriptors[info.binding].sampler;
-				if (!create_effect_sampler_state(desc, sampler_handle))
+				if (!create_effect_sampler_state(info, sampler_handle))
 				{
 					LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
 					return false;
@@ -2819,22 +2804,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						write.type = api::descriptor_type::sampler_with_resource_view;
 						write.descriptors = &sampler_descriptors[info.binding];
 
-						api::sampler_desc desc;
-						desc.filter = static_cast<api::filter_mode>(info.filter);
-						desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
-						desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
-						desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
-						desc.mip_lod_bias = info.lod_bias;
-						desc.max_anisotropy = (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point) ? 16.0f : 1.0f;
-						desc.compare_op = api::compare_op::always;
-						desc.border_color[0] = 0.0f;
-						desc.border_color[1] = 0.0f;
-						desc.border_color[2] = 0.0f;
-						desc.border_color[3] = 0.0f;
-						desc.min_lod = info.min_lod;
-						desc.max_lod = info.max_lod;
-
-						if (!create_effect_sampler_state(desc, sampler_descriptors[info.binding].sampler))
+						if (!create_effect_sampler_state(info, sampler_descriptors[info.binding].sampler))
 						{
 							LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
 							return false;
@@ -2914,8 +2884,23 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	return true;
 }
-bool reshade::runtime::create_effect_sampler_state(const api::sampler_desc &desc, api::sampler &sampler)
+bool reshade::runtime::create_effect_sampler_state(const reshadefx::sampler_info &info, api::sampler &sampler)
 {
+	api::sampler_desc desc;
+	desc.filter = static_cast<api::filter_mode>(info.filter);
+	desc.address_u = static_cast<api::texture_address_mode>(info.address_u);
+	desc.address_v = static_cast<api::texture_address_mode>(info.address_v);
+	desc.address_w = static_cast<api::texture_address_mode>(info.address_w);
+	desc.mip_lod_bias = info.lod_bias;
+	desc.max_anisotropy = (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point) ? 16.0f : 1.0f;
+	desc.compare_op = api::compare_op::always;
+	desc.border_color[0] = 0.0f;
+	desc.border_color[1] = 0.0f;
+	desc.border_color[2] = 0.0f;
+	desc.border_color[3] = 0.0f;
+	desc.min_lod = info.min_lod;
+	desc.max_lod = info.max_lod;
+
 	// Generate hash for sampler description
 	size_t desc_hash = 2166136261;
 	for (int i = 0; i < sizeof(desc); ++i)
