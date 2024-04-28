@@ -121,8 +121,10 @@ namespace reshade { namespace api
 	{
 		push_constants = 1,
 		descriptor_table = 0,
+		descriptor_table_with_static_samplers = 4,
 		push_descriptors = 2,
-		push_descriptors_with_ranges = 3
+		push_descriptors_with_ranges = 3,
+		push_descriptors_with_static_samplers = 5
 	};
 
 	/// <summary>
@@ -190,6 +192,13 @@ namespace reshade { namespace api
 		/// </summary>
 		descriptor_type type = descriptor_type::sampler;
 	};
+	struct descriptor_range_with_static_samplers : public descriptor_range
+	{
+		/// <summary>
+		/// Optional array of sampler descriptions to statically embed into the descriptor table when the descriptor type is <see cref="descriptor_type::sampler"/> or <see cref="descriptor_type::sampler_with_resource_view"/>.
+		/// </summary>
+		const sampler_desc *static_samplers = nullptr;
+	};
 
 	/// <summary>
 	/// Describes a single parameter in a pipeline layout.
@@ -199,7 +208,9 @@ namespace reshade { namespace api
 		constexpr pipeline_layout_param() : push_descriptors() {}
 		constexpr pipeline_layout_param(const constant_range &push_constants) : type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
 		constexpr pipeline_layout_param(const descriptor_range &push_descriptors) : type(pipeline_layout_param_type::push_descriptors), push_descriptors(push_descriptors) {}
+		constexpr pipeline_layout_param(const descriptor_range_with_static_samplers &push_descriptors) : type(pipeline_layout_param_type::push_descriptors_with_static_samplers), descriptor_table_with_static_samplers({ 1, &push_descriptors }) {}
 		constexpr pipeline_layout_param(uint32_t count, const descriptor_range *ranges) : type(pipeline_layout_param_type::descriptor_table), descriptor_table({ count, ranges }) {}
+		constexpr pipeline_layout_param(uint32_t count, const descriptor_range_with_static_samplers *ranges) : type(pipeline_layout_param_type::descriptor_table_with_static_samplers), descriptor_table_with_static_samplers({ count, ranges }) {}
 
 		/// <summary>
 		/// Type of the parameter.
@@ -226,6 +237,15 @@ namespace reshade { namespace api
 				uint32_t count;
 				const descriptor_range *ranges;
 			} descriptor_table;
+
+			/// <summary>
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_static_samplers"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_static_samplers"/>.
+			/// </summary>
+			struct
+			{
+				uint32_t count;
+				const descriptor_range_with_static_samplers *ranges;
+			} descriptor_table_with_static_samplers;
 		};
 	};
 

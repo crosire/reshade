@@ -2602,10 +2602,13 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		blob = data_mem.data();
 	}
 
+	bool modified = false;
 	// Parse DXBC root signature, convert it and call descriptor table and pipeline layout events
 	uint32_t param_count = 0;
 	std::vector<reshade::api::pipeline_layout_param> params;
 	std::vector<std::vector<reshade::api::descriptor_range>> ranges;
+	std::vector<reshade::api::descriptor_range_with_static_samplers> ranges_with_static_samplers;
+	std::vector<reshade::api::sampler_desc> static_samplers;
 
 	if (const auto part = static_cast<uint32_t *>(const_cast<void *>(
 			find_dxbc_part(
@@ -2759,41 +2762,43 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 			{
 				const uint32_t param_index = param_count++;
 				params.emplace_back(); // Static samplers do not count towards the root signature size limit
-				ranges.emplace_back();
 
-				ranges[param_index].resize(sampler_count);
+				ranges_with_static_samplers.resize(sampler_count);
+				static_samplers.resize(sampler_count);
 
 				auto sampler_data = reinterpret_cast<D3D12_STATIC_SAMPLER_DESC *>(part + (sampler_offset / sizeof(uint32_t)));
 
 				for (uint32_t sampler_index = 0; sampler_index < sampler_count; ++sampler_index)
 				{
-					auto desc = reshade::d3d12::convert_sampler_desc(sampler_data[sampler_index]);
+					reshade::api::sampler_desc &desc = static_samplers[sampler_index] = reshade::d3d12::convert_sampler_desc(sampler_data[sampler_index]);
 
 					if (reshade::invoke_addon_event<reshade::addon_event::create_sampler>(this, desc))
 					{
 						reshade::d3d12::convert_sampler_desc(desc, sampler_data[sampler_index]);
+						modified = true; // Force pipeline layout creation with the modified description
 					}
 
-					reshade::api::descriptor_range &range = ranges[param_index][sampler_index];
+					reshade::api::descriptor_range_with_static_samplers &range = ranges_with_static_samplers[sampler_index];
 					range.binding = sampler_index;
 					range.dx_register_index = sampler_data[sampler_index].ShaderRegister;
 					range.dx_register_space = sampler_data[sampler_index].RegisterSpace;
 					range.count = 1;
 					range.visibility = reshade::d3d12::convert_shader_visibility(sampler_data[sampler_index].ShaderVisibility);
 					range.type = reshade::api::descriptor_type::sampler;
+					range.static_samplers = &desc;
 				}
 
-				params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-				params[param_index].descriptor_table.count = sampler_count;
-				params[param_index].descriptor_table.ranges = ranges[param_index].data();
+				params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_static_samplers;
+				params[param_index].descriptor_table_with_static_samplers.count = sampler_count;
+				params[param_index].descriptor_table_with_static_samplers.ranges = ranges_with_static_samplers.data();
 			}
 		}
 	}
 
 	reshade::api::pipeline_layout_param *param_data = params.data();
 
-	if (param_count != 0 &&
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, param_count, param_data))
+	if (param_count != 0 && (
+		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, param_count, param_data) || modified))
 	{
 		reshade::api::pipeline_layout layout;
 		hr = device_impl::create_pipeline_layout(param_count, param_data, &layout) ? S_OK : E_FAIL;

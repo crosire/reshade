@@ -2258,22 +2258,40 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 		const auto set_layout_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(pCreateInfo->pSetLayouts[i]);
 
-		if (!set_layout_impl->push_descriptors)
+		if (set_layout_impl->push_descriptors)
 		{
-			params[i].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-			params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
-			params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
-		}
-		else if (set_layout_impl->ranges.size() == 1)
-		{
-			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors;
-			params[i].push_descriptors = set_layout_impl->ranges[0];
+			if (!set_layout_impl->ranges_with_static_samplers.empty())
+			{
+				params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_static_samplers;
+				params[i].descriptor_table_with_static_samplers.count = static_cast<uint32_t>(set_layout_impl->ranges_with_static_samplers.size());
+				params[i].descriptor_table_with_static_samplers.ranges = set_layout_impl->ranges_with_static_samplers.data();
+			}
+			else if (set_layout_impl->ranges.size() == 1)
+			{
+				params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+				params[i].push_descriptors = set_layout_impl->ranges[0];
+			}
+			else
+			{
+				params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_ranges;
+				params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+				params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
+			}
 		}
 		else
 		{
-			params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_ranges;
-			params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
-			params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
+			if (!set_layout_impl->ranges_with_static_samplers.empty())
+			{
+				params[i].type = reshade::api::pipeline_layout_param_type::descriptor_table_with_static_samplers;
+				params[i].descriptor_table_with_static_samplers.count = static_cast<uint32_t>(set_layout_impl->ranges_with_static_samplers.size());
+				params[i].descriptor_table_with_static_samplers.ranges = set_layout_impl->ranges_with_static_samplers.data();
+			}
+			else
+			{
+				params[i].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+				params[i].descriptor_table.count = static_cast<uint32_t>(set_layout_impl->ranges.size());
+				params[i].descriptor_table.ranges = set_layout_impl->ranges.data();
+			}
 		}
 	}
 
@@ -2331,6 +2349,12 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
 
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
+
+	// Clean up any samplers that may have been created when an add-on modified the creation of the pipeline layout
+	for (const VkSampler sampler : data.embedded_samplers)
+		device_impl->destroy_sampler({ (uint64_t)sampler });
+
 	device_impl->unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
 #endif
 
@@ -2365,6 +2389,10 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 	}
 
 #if RESHADE_ADDON
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_SAMPLER> &data = *device_impl->register_object<VK_OBJECT_TYPE_SAMPLER>(*pSampler);
+	data.create_info = create_info;
+	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
+
 	reshade::invoke_addon_event<reshade::addon_event::init_sampler>(device_impl, desc, reshade::api::sampler { (uint64_t)*pSampler });
 #endif
 
@@ -2379,7 +2407,9 @@ void     VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, const V
 	GET_DISPATCH_PTR_FROM(DestroySampler, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(device_impl, reshade::api::sampler{ (uint64_t)sampler });
+	reshade::invoke_addon_event<reshade::addon_event::destroy_sampler>(device_impl, reshade::api::sampler { (uint64_t)sampler });
+
+	device_impl->unregister_object<VK_OBJECT_TYPE_SAMPLER>(sampler);
 #endif
 
 	trampoline(device, sampler, pAllocator);
@@ -2403,7 +2433,6 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 
 #if RESHADE_ADDON >= 2
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*pSetLayout);
-	data.ranges.resize(pCreateInfo->bindingCount);
 	data.num_descriptors = 0;
 	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
 
@@ -2411,6 +2440,10 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	{
 		assert(pCreateInfo->pBindings != nullptr);
 
+		bool has_static_samplers = false;
+
+		data.ranges_with_static_samplers.resize(pCreateInfo->bindingCount);
+		data.static_samplers.resize(pCreateInfo->bindingCount);
 		data.binding_to_offset.reserve(pCreateInfo->bindingCount);
 
 		for (uint32_t i = 0; i < pCreateInfo->bindingCount; ++i)
@@ -2421,19 +2454,37 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 				data.binding_to_offset.resize(binding.binding + 1);
 			data.binding_to_offset[binding.binding] = binding.descriptorCount;
 
-			data.ranges[i].binding = binding.binding;
-			data.ranges[i].dx_register_index = 0;
-			data.ranges[i].dx_register_space = 0;
-			data.ranges[i].count = binding.descriptorCount;
-			data.ranges[i].array_size = binding.descriptorCount;
-			data.ranges[i].type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
-			data.ranges[i].visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
+			if ((binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) && binding.pImmutableSamplers != nullptr)
+			{
+				has_static_samplers = true;
+
+				for (uint32_t k = 0; k < binding.descriptorCount; ++k)
+					data.static_samplers[i].push_back(reshade::vulkan::convert_sampler_desc(
+						device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SAMPLER>(binding.pImmutableSamplers[k])->create_info));
+			}
+
+			reshade::api::descriptor_range_with_static_samplers &range = data.ranges_with_static_samplers[i];
+			range.binding = binding.binding;
+			range.dx_register_index = 0;
+			range.dx_register_space = 0;
+			range.count = binding.descriptorCount;
+			range.array_size = binding.descriptorCount;
+			range.type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
+			range.visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
+			range.static_samplers = data.static_samplers[i].data();
 
 			data.num_descriptors += binding.descriptorCount;
 		}
 
 		for (size_t i = 1; i < data.binding_to_offset.size(); ++i)
 			data.binding_to_offset[i] += data.binding_to_offset[i - 1];
+
+		if (!has_static_samplers)
+		{
+			data.ranges.assign(data.ranges_with_static_samplers.begin(), data.ranges_with_static_samplers.end());
+			data.ranges_with_static_samplers.clear();
+			data.static_samplers.clear();
+		}
 	}
 #endif
 

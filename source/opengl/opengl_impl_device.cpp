@@ -2087,6 +2087,8 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 		case api::pipeline_layout_param_type::push_constants:
 			merged_range.binding = params[i].push_constants.binding;
 			break;
+		default:
+			return false;
 		}
 	}
 

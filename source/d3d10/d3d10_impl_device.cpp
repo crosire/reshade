@@ -924,6 +924,8 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 			if (merged_range.dx_register_space != 0)
 				return false;
 			break;
+		default:
+			return false;
 		}
 	}
 

@@ -69,6 +69,14 @@ namespace reshade::vulkan
 	};
 
 	template <>
+	struct object_data<VK_OBJECT_TYPE_SAMPLER>
+	{
+		using Handle = VkSampler;
+
+		VkSamplerCreateInfo create_info;
+	};
+
+	template <>
 	struct object_data<VK_OBJECT_TYPE_SHADER_MODULE>
 	{
 		using Handle = VkShaderModule;
@@ -106,6 +114,7 @@ namespace reshade::vulkan
 		using Handle = VkPipelineLayout;
 
 		std::vector<VkDescriptorSetLayout> set_layouts;
+		std::vector<VkSampler> embedded_samplers;
 	};
 
 	template <>
@@ -115,6 +124,8 @@ namespace reshade::vulkan
 
 		uint32_t num_descriptors;
 		std::vector<api::descriptor_range> ranges;
+		std::vector<api::descriptor_range_with_static_samplers> ranges_with_static_samplers;
+		std::vector<std::vector<api::sampler_desc>> static_samplers;
 		std::vector<uint32_t> binding_to_offset;
 		bool push_descriptors;
 	};
