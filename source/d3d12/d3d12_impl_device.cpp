@@ -1325,6 +1325,9 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				{
 					assert(range->array_size <= 1);
 
+					if (range->count == 0)
+						continue;
+
 					if (with_static_samplers && range->type == api::descriptor_type::sampler && range->static_samplers != nullptr)
 					{
 						for (uint32_t j = 0; j < range->count; ++j)
