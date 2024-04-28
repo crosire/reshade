@@ -260,6 +260,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 {
 	LOG(INFO) << "Redirecting " << "IDXGISwapChain::SetFullscreenState" << '(' << "this = " << this << ", Fullscreen = " << (Fullscreen ? "TRUE" : "FALSE") << ", pTarget = " << pTarget << ')' << " ...";
 
+	_current_fullscreen_state = -1;
+
 #if RESHADE_ADDON
 	HMONITOR hmonitor = nullptr;
 	if (pTarget != nullptr)
@@ -270,13 +272,22 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(_impl, Fullscreen != FALSE, hmonitor))
+	{
+		_current_fullscreen_state = Fullscreen;
 		return S_OK;
+	}
 #endif
 
 	if (_force_windowed)
+	{
+		_current_fullscreen_state = Fullscreen;
 		Fullscreen = FALSE;
+	}
 	if (_force_fullscreen)
+	{
+		_current_fullscreen_state = Fullscreen;
 		Fullscreen = TRUE;
+	}
 
 	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 	g_in_dxgi_runtime = true;
@@ -286,6 +297,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, IDXGIOutput **ppTarget)
 {
+	if (_current_fullscreen_state >= 0)
+	{
+		if (pFullscreen != nullptr)
+			*pFullscreen = _current_fullscreen_state;
+		if (ppTarget != nullptr)
+			_orig->GetContainingOutput(ppTarget);
+		return S_OK;
+	}
+
 	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->GetFullscreenState(pFullscreen, ppTarget);
