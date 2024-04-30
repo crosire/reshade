@@ -213,7 +213,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((desc.back_buffer.flags & reshade::api::resource_flags::shared) == 0)
+		if ((desc.back_buffer.flags & reshade::api::resource_flags::shared) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHARED;
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
