@@ -1685,6 +1685,8 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 	GLenum internal_format = GL_NONE;
 	gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&internal_format));
 
+	assert(internal_format != GL_SRGB8 && internal_format != GL_SRGB8_ALPHA8);
+
 	for (GLuint level = 1; level < levels; ++level)
 	{
 		const GLuint width = std::max(1u, base_width >> level);

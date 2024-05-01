@@ -2649,7 +2649,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 							pass_data.modified_resources.push_back(render_target_texture->resource);
 
 							if (pass_info.generate_mipmaps && render_target_texture->levels > 1)
-								pass_data.generate_mipmap_views.push_back(render_target_texture->srv[pass_info.srgb_write_enable]);
+								pass_data.generate_mipmap_views.push_back(render_target_texture->srv[0]);
 						}
 
 						const api::resource_desc res_desc = _device->get_resource_desc(render_target_texture->resource);

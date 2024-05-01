@@ -913,9 +913,8 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	_has_commands = true;
 
 	assert(uav.handle != 0);
-
-	const auto resource = reinterpret_cast<ID3D12Resource *>(_device_impl->get_resource_from_view(uav).handle);
-	assert(resource != nullptr);
+	const api::resource resource = _device_impl->get_resource_from_view(uav);
+	assert(resource.handle != 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
@@ -931,8 +930,8 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
 	convert_resource_view_desc(_device_impl->get_resource_view_desc(uav), internal_desc);
-	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &internal_desc, table_base);
-	_orig->ClearUnorderedAccessViewUint(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, resource, values, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
+	_device_impl->_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, table_base);
+	_orig->ClearUnorderedAccessViewUint(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, reinterpret_cast<ID3D12Resource *>(resource.handle), values, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
@@ -942,9 +941,8 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 	_has_commands = true;
 
 	assert(uav.handle != 0);
-
-	const auto resource = reinterpret_cast<ID3D12Resource *>(_device_impl->get_resource_from_view(uav).handle);
-	assert(resource != nullptr);
+	const api::resource resource = _device_impl->get_resource_from_view(uav);
+	assert(resource.handle != 0);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE table_base;
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
@@ -960,8 +958,8 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC internal_desc = {};
 	convert_resource_view_desc(_device_impl->get_resource_view_desc(uav), internal_desc);
-	_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &internal_desc, table_base);
-	_orig->ClearUnorderedAccessViewFloat(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, resource, values, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
+	_device_impl->_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &internal_desc, table_base);
+	_orig->ClearUnorderedAccessViewFloat(table_base_gpu, D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(uav.handle) }, reinterpret_cast<ID3D12Resource *>(resource.handle), values, rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 
 	if (_current_descriptor_heaps[0] != view_heap && _current_descriptor_heaps[1] != view_heap && _current_descriptor_heaps[0] != nullptr)
 		_orig->SetDescriptorHeaps(_current_descriptor_heaps[1] != nullptr ? 2 : 1, _current_descriptor_heaps);
@@ -975,17 +973,19 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	_has_commands = true;
 
 	assert(srv.handle != 0);
+	const api::resource resource = _device_impl->get_resource_from_view(srv);
+	assert(resource.handle != 0);
 
-	const auto resource = reinterpret_cast<ID3D12Resource *>(_device_impl->get_resource_from_view(srv).handle);
-	assert(resource != nullptr);
+	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
-	const D3D12_RESOURCE_DESC desc = resource->GetDesc();
+	const api::resource_view_desc view_desc = _device_impl->get_resource_view_desc(srv);
+	const uint32_t level_count = std::min(view_desc.texture.level_count, static_cast<uint32_t>(desc.MipLevels));
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-	if (!_device_impl->_gpu_view_heap.allocate_transient(desc.MipLevels * 2, base_handle, base_handle_gpu))
+	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count * 2, base_handle, base_handle_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << (desc.MipLevels * 2) << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::shader_resource_view) << " and " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
+		LOG(ERROR) << "Failed to allocate " << (level_count * 2) << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::shader_resource_view) << " and " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
 		return;
 	}
 	D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle;
@@ -1004,10 +1004,11 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	_device_impl->_orig->CreateSampler(&sampler_desc, sampler_handle);
 
-	for (uint32_t level = 0; level < desc.MipLevels; ++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
+	for (uint32_t level = view_desc.texture.first_level; level < view_desc.texture.first_level + level_count;
+			++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
-		srv_desc.Format = convert_format(api::format_to_default_typed(convert_format(desc.Format)));
+		srv_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		srv_desc.Texture2D.MipLevels = 1;
@@ -1015,17 +1016,18 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		srv_desc.Texture2D.PlaneSlice = 0;
 		srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-		_device_impl->_orig->CreateShaderResourceView(resource, &srv_desc, base_handle);
+		_device_impl->_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &srv_desc, base_handle);
 	}
-	for (uint32_t level = 1; level < desc.MipLevels; ++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
+	for (uint32_t level = view_desc.texture.first_level + 1; level < view_desc.texture.first_level + level_count;
+			++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc;
-		uav_desc.Format = convert_format(api::format_to_default_typed(convert_format(desc.Format)));
+		uav_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
 		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 		uav_desc.Texture2D.MipSlice = level;
 		uav_desc.Texture2D.PlaneSlice = 0;
 
-		_device_impl->_orig->CreateUnorderedAccessView(resource, nullptr, &uav_desc, base_handle);
+		_device_impl->_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &uav_desc, base_handle);
 	}
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
@@ -1045,11 +1047,11 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	D3D12_RESOURCE_BARRIER barriers[2];
 	barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-	barriers[0].Transition.pResource = resource;
+	barriers[0].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
 	barriers[1] = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
-	barriers[1].UAV.pResource = resource;
+	barriers[1].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
 
-	for (uint32_t level = 1; level < desc.MipLevels; ++level)
+	for (uint32_t level = view_desc.texture.first_level + 1; level < view_desc.texture.first_level + level_count; ++level)
 	{
 		barriers[0].Transition.Subresource = level;
 
@@ -1066,7 +1068,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		// Bind next higher mipmap level as input
 		_orig->SetComputeRootDescriptorTable(1, _device_impl->offset_descriptor_handle(base_handle_gpu, level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 		// There is no UAV for level 0, so substract one
-		_orig->SetComputeRootDescriptorTable(2, _device_impl->offset_descriptor_handle(base_handle_gpu, desc.MipLevels + level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		_orig->SetComputeRootDescriptorTable(2, _device_impl->offset_descriptor_handle(base_handle_gpu, level_count + level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
 
