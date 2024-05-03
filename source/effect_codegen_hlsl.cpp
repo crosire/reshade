@@ -931,8 +931,12 @@ private:
 	}
 	id   define_variable(const location &loc, const type &type, std::string name, bool global, id initializer_value) override
 	{
-		// Constant variables can just point to the initializer SSA variable, since they cannot be modified anyway, thus saving an unnecessary assignment
-		if (initializer_value != 0 && type.has(type::q_const))
+		// Constant variables with a constant initializer can just point to the initializer SSA variable, since they cannot be modified anyway, thus saving an unnecessary assignment
+		if (initializer_value != 0 && type.has(type::q_const) &&
+			std::find_if(_constant_lookup.begin(), _constant_lookup.end(),
+				[initializer_value](const auto &x) {
+					return initializer_value == std::get<2>(x);
+				}) != _constant_lookup.end())
 			return initializer_value;
 
 		const id res = make_id();
@@ -1275,7 +1279,7 @@ private:
 			assert(data_type.has(type::q_const));
 
 			if (const auto it = std::find_if(_constant_lookup.begin(), _constant_lookup.end(),
-					[&data_type, &data](std::tuple<type, constant, id> &x) {
+					[&data_type, &data](const std::tuple<type, constant, id> &x) {
 						if (!(std::get<0>(x) == data_type && std::memcmp(&std::get<1>(x).as_uint[0], &data.as_uint[0], sizeof(uint32_t) * 16) == 0 && std::get<1>(x).array_data.size() == data.array_data.size()))
 							return false;
 						for (size_t i = 0; i < data.array_data.size(); ++i)
