@@ -125,6 +125,8 @@ BEGIN
 64461 "HDR overlay brightness"
 16514 "Overlay color space"
 33940 "Frame rounding"
+13887 "FPS key"
+49126 "Frame time key"
 55802 "Show clock"
 37831 "Show FPS"
 2747 "Show frame time"

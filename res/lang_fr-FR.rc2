@@ -125,6 +125,8 @@ BEGIN
 64461 "Luminosité HDR de l'interface"
 16514 "Espace de couleurs de l'interface"
 33940 "Arrondir les fenêtres"
+13887 "Raccourci 'FPS'"
+49126 "Raccourci 'frame time'"
 55802 "Afficher l'horloge"
 37831 "Afficher les FPS"
 2747 "Afficher le frame time"

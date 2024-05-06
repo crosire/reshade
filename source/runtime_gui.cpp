@@ -327,6 +327,8 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	};
 
 	config_get("INPUT", "KeyOverlay", _overlay_key_data);
+	config_get("INPUT", "KeyFPS", _fps_key_data);
+	config_get("INPUT", "KeyFrameTime", _frametime_key_data);
 	config_get("INPUT", "InputProcessing", _input_processing_mode);
 
 #if RESHADE_LOCALIZATION
@@ -430,6 +432,8 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 void reshade::runtime::save_config_gui(ini_file &config) const
 {
 	config.set("INPUT", "KeyOverlay", _overlay_key_data);
+	config.set("INPUT", "KeyFPS", _fps_key_data);
+	config.set("INPUT", "KeyFrametime", _frametime_key_data);
 	config.set("INPUT", "InputProcessing", _input_processing_mode);
 
 #if RESHADE_LOCALIZATION
@@ -804,6 +808,14 @@ void reshade::runtime::draw_gui()
 			show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
 		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
 			show_overlay = !_show_overlay;
+
+		if (!_ignore_shortcuts)
+		{
+			if (_input->is_key_pressed(_fps_key_data, _force_shortcut_modifiers))
+				_show_fps = _show_fps ? 0 : 1;
+			if (_input->is_key_pressed(_frametime_key_data, _force_shortcut_modifiers))
+				_show_frametime = _show_frametime ? 0 : 1;
+		}
 	}
 
 	if (_input_gamepad != nullptr)
@@ -2476,6 +2488,12 @@ void reshade::runtime::draw_gui_settings()
 
 		if (!_is_vr)
 		{
+			if (_input != nullptr)
+			{
+				modified |= imgui::key_input_box(_("FPS key"), _fps_key_data, *_input);
+				modified |= imgui::key_input_box(_("Frame time key"), _frametime_key_data, *_input);
+			}
+
 			ImGui::BeginGroup();
 			modified |= imgui::checkbox_tristate(_("Show clock"), &_show_clock);
 			ImGui::SameLine(0, 10);
