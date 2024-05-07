@@ -440,7 +440,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 						this,
 						to_handle(resource),
 						view_usage,
-						reshade::api::resource_view_desc(desc.texture.format, level, 1, 0, 1),
+						reshade::api::resource_view_desc(reshade::api::resource_view_type::texture_2d, desc.texture.format, level, 1, 0, 1),
 						to_handle(surface.get()));
 
 					if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
@@ -458,7 +458,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 				this,
 				to_handle(resource),
 				reshade::api::resource_usage::shader_resource,
-				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
+				reshade::api::resource_view_desc(reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
 
 			if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
@@ -537,7 +537,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 				this,
 				to_handle(resource),
 				reshade::api::resource_usage::shader_resource,
-				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
+				reshade::api::resource_view_desc(reshade::api::resource_view_type::texture_3d, desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
 
 			if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
@@ -628,7 +628,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 							this,
 							to_handle(resource),
 							view_usage,
-							reshade::api::resource_view_desc(desc.texture.format, level, 1, face, 1),
+							reshade::api::resource_view_desc(reshade::api::resource_view_type::texture_2d, desc.texture.format, level, 1, face, 1),
 							to_handle(surface.get()));
 
 						if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
@@ -647,7 +647,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 				this,
 				to_handle(resource),
 				reshade::api::resource_usage::shader_resource,
-				reshade::api::resource_view_desc(desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
+				reshade::api::resource_view_desc(reshade::api::resource_view_type::texture_cube, desc.texture.format, 0, UINT32_MAX, 0, UINT32_MAX),
 				reshade::api::resource_view { reinterpret_cast<uintptr_t>(resource) });
 
 			if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
@@ -823,7 +823,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 			this,
 			to_handle(resource.get()),
 			reshade::api::resource_usage::render_target,
-			reshade::api::resource_view_desc(desc.texture.format),
+			reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
@@ -890,7 +890,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 			this,
 			to_handle(resource.get()),
 			reshade::api::resource_usage::depth_stencil,
-			reshade::api::resource_view_desc(desc.texture.format),
+			reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
@@ -2183,7 +2183,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 			this,
 			to_handle(resource.get()),
 			reshade::api::resource_usage::render_target,
-			reshade::api::resource_view_desc(desc.texture.format),
+			reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
@@ -2320,7 +2320,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 			this,
 			to_handle(resource.get()),
 			reshade::api::resource_usage::depth_stencil,
-			reshade::api::resource_view_desc(desc.texture.format),
+			reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
 			to_handle(surface));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
@@ -2502,7 +2502,7 @@ void Direct3DDevice9::init_auto_depth_stencil()
 		this,
 		to_handle(resource.get()),
 		reshade::api::resource_usage::depth_stencil,
-		reshade::api::resource_view_desc(desc.texture.format),
+		reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
 		to_handle(surface));
 
 	if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
