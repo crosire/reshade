@@ -395,8 +395,8 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 
 	for (ImGuiSettingsHandler &handler : _imgui_context->SettingsHandlers)
 	{
-		std::vector<std::string> lines;
-		if (config.get("OVERLAY", handler.TypeName, lines))
+		if (std::vector<std::string> lines;
+			config.get("OVERLAY", handler.TypeName, lines))
 		{
 			void *entry_data = nullptr;
 
@@ -1561,6 +1561,7 @@ void reshade::runtime::draw_gui_home()
 		_tutorial_index = 4;
 
 	const float auto_save_button_spacing = 2.0f;
+	const float button_width = 12.5f * _font_size;
 
 	if (_tutorial_index > 0)
 	{
@@ -1575,7 +1576,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
 		}
 
-		const float button_size = ImGui::GetFrameHeight();
+		const float button_height = ImGui::GetFrameHeight();
 		const float button_spacing = _imgui_context->Style.ItemInnerSpacing.x;
 
 		bool reload_preset = false;
@@ -1588,14 +1589,14 @@ void reshade::runtime::draw_gui_home()
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
 		}
 
-		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
+		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_height, button_height), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
 				reload_preset = true;
 		ImGui::SetItemTooltip(_("Previous preset"));
 
 		ImGui::SameLine(0, button_spacing);
 
-		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_size, button_size), ImGuiButtonFlags_NoNavFocus))
+		if (ImGui::ArrowButtonEx(">", ImGuiDir_Right, ImVec2(button_height, button_height), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), false))
 				reload_preset = true;
 		ImGui::SetItemTooltip(_("Next preset"));
@@ -1605,18 +1606,16 @@ void reshade::runtime::draw_gui_home()
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
 
 		const auto browse_button_pos = ImGui::GetCursorScreenPos();
-		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (button_size + button_spacing + _imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + 12.5f * _font_size);
+		const auto browse_button_width = ImGui::GetContentRegionAvail().x - (button_height + button_spacing + _imgui_context->Style.ItemSpacing.x + auto_save_button_spacing + button_width);
 
-		const std::string browse_button_label = _current_preset_path.stem().u8string() + "###browse_button";
-
-		if (ImGui::ButtonEx(browse_button_label.c_str(), ImVec2(browse_button_width, 0), ImGuiButtonFlags_NoNavFocus))
+		if (ImGui::ButtonEx((_current_preset_path.stem().u8string() + "###browse_button").c_str(), ImVec2(browse_button_width, 0), ImGuiButtonFlags_NoNavFocus))
 		{
 			_file_selection_path = _current_preset_path;
 			ImGui::OpenPopup("##browse");
 		}
 
 		if (_preset_is_modified)
-			ImGui::RenderBullet(ImGui::GetWindowDrawList(), browse_button_pos + ImVec2(browse_button_width - _font_size * 0.5f - _imgui_context->Style.FramePadding.x, ImGui::GetFrameHeight() * 0.5f), ImGui::GetColorU32(ImGuiCol_Text));
+			ImGui::RenderBullet(ImGui::GetWindowDrawList(), browse_button_pos + ImVec2(browse_button_width - _font_size * 0.5f - _imgui_context->Style.FramePadding.x, button_height * 0.5f), ImGui::GetColorU32(ImGuiCol_Text));
 
 		ImGui::PopStyleVar();
 
@@ -1646,7 +1645,7 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::SameLine(0, button_spacing);
 
-		if (ImGui::Button(ICON_FK_FOLDER, ImVec2(button_size, button_size)))
+		if (ImGui::Button(ICON_FK_FOLDER, ImVec2(button_height, button_height)))
 			utils::open_explorer(_current_preset_path);
 		ImGui::SetItemTooltip(_("Open folder in explorer"));
 
@@ -1654,10 +1653,10 @@ void reshade::runtime::draw_gui_home()
 
 		const bool was_auto_save_preset = _auto_save_preset;
 
-		std::string auto_save_button_label = was_auto_save_preset ? _("Auto Save on") : _("Auto Save");
-		auto_save_button_label += "###auto_save";
-
-		if (imgui::toggle_button(auto_save_button_label.c_str(), _auto_save_preset, (was_auto_save_preset ? 0.0f : auto_save_button_spacing) + (12.5f * _font_size) - (button_spacing + button_size) * (was_auto_save_preset ? 2 : 3)))
+		if (imgui::toggle_button(
+				(std::string(was_auto_save_preset ? _("Auto Save on") : _("Auto Save")) + "###auto_save").c_str(),
+				_auto_save_preset,
+				(was_auto_save_preset ? 0.0f : auto_save_button_spacing) + button_width - (button_spacing + button_height) * (was_auto_save_preset ? 2 : 3)))
 		{
 			_preset_is_modified = false;
 
@@ -1678,7 +1677,7 @@ void reshade::runtime::draw_gui_home()
 
 			ImGui::BeginDisabled(!_preset_is_modified);
 
-			if (imgui::confirm_button(ICON_FK_UNDO, button_size, _("Do you really want to reset all techniques and values?")))
+			if (imgui::confirm_button(ICON_FK_UNDO, button_height, _("Do you really want to reset all techniques and values?")))
 				reload_preset = true;
 
 			ImGui::SetItemTooltip(_("Reset all techniques and values to those of the current preset"));
@@ -1692,7 +1691,8 @@ void reshade::runtime::draw_gui_home()
 		ImGui::BeginDisabled(_performance_mode || _is_in_preset_transition);
 
 		const auto save_and_clean_preset = _auto_save_preset || (_imgui_context->IO.KeyCtrl || _imgui_context->IO.KeyShift);
-		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus))
+
+		if (ImGui::ButtonEx(ICON_FK_FLOPPY, ImVec2(button_height, button_height), ImGuiButtonFlags_NoNavFocus))
 		{
 			if (save_and_clean_preset)
 				ini_file::load_cache(_current_preset_path).clear();
@@ -1708,7 +1708,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::EndDisabled();
 
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_size, 0), ImGuiButtonFlags_NoNavFocus | ImGuiButtonFlags_PressedOnClick))
+		if (ImGui::ButtonEx(ICON_FK_PLUS, ImVec2(button_height, button_height), ImGuiButtonFlags_NoNavFocus | ImGuiButtonFlags_PressedOnClick))
 		{
 			_inherit_current_preset = false;
 			_template_preset_path.clear();
@@ -1848,7 +1848,7 @@ void reshade::runtime::draw_gui_home()
 
 	if (_tutorial_index > 1)
 	{
-		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + 12.5f * _font_size))))
+		if (imgui::search_input_box(_effect_filter, sizeof(_effect_filter), -((_variable_editor_tabs ? 1 : 2) * (_imgui_context->Style.ItemSpacing.x + 2.0f + button_width))))
 		{
 			_effects_expanded_state = 3;
 
@@ -1866,15 +1866,15 @@ void reshade::runtime::draw_gui_home()
 
 		ImGui::BeginDisabled(_is_in_preset_transition);
 
-		if (ImGui::Button(_("Active to top"), ImVec2(auto_save_button_spacing + 12.5f * _font_size, 0)))
+		if (ImGui::Button(_("Active to top"), ImVec2(auto_save_button_spacing + button_width, 0)))
 		{
 			std::vector<size_t> technique_indices = _technique_sorting;
 
 			for (auto it = technique_indices.begin(), target_it = it; it != technique_indices.end(); ++it)
 			{
-				const technique &technique = _techniques[*it];
+				const technique &tech = _techniques[*it];
 
-				if (technique.enabled || technique.toggle_key_data[0] != 0)
+				if (tech.enabled || tech.toggle_key_data[0] != 0)
 				{
 					target_it = std::rotate(target_it, it, std::next(it));
 				}
@@ -1894,7 +1894,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::SameLine();
 
-			if (ImGui::Button((_effects_expanded_state & 2) ? _("Collapse all") : _("Expand all"), ImVec2(auto_save_button_spacing + 12.5f * _font_size, 0)))
+			if (ImGui::Button((_effects_expanded_state & 2) ? _("Collapse all") : _("Expand all"), ImVec2(auto_save_button_spacing + button_width, 0)))
 				_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 		}
 
@@ -1943,10 +1943,8 @@ void reshade::runtime::draw_gui_home()
 				{
 					char temp[64];
 					const int temp_size = ImFormatString(temp, sizeof(temp), _("Force load all effects (%zu remaining)"), skipped_effects);
-					std::string force_reload_button_label(temp, temp_size);
-					force_reload_button_label += "###force_reload_button";
 
-					if (ImGui::ButtonEx(force_reload_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+					if (ImGui::ButtonEx((std::string(temp, temp_size) + "###force_reload_button").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
 						reload_effects(true);
 
@@ -2013,10 +2011,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		ImGui::Spacing();
 
-		std::string reload_button_label = ICON_FK_REFRESH " ";
-		reload_button_label += _("Reload");
-
-		if (ImGui::Button(reload_button_label.c_str(), ImVec2(-11.5f * _font_size, 0)))
+		if (ImGui::Button((ICON_FK_REFRESH " " + std::string(_("Reload"))).c_str(), ImVec2(-(auto_save_button_spacing + button_width), 0)))
 		{
 			load_config(); // Reload configuration too
 
@@ -2040,10 +2035,9 @@ void reshade::runtime::draw_gui_home()
 	{
 		const float max_frame_width = ImGui::GetContentRegionAvail().x;
 		const float max_frame_height = ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeight() - _imgui_context->Style.ItemSpacing.y;
-		const float required_frame_height = ImGui::CalcTextSize(
-			tutorial_text.data(), tutorial_text.data() + tutorial_text.size(),
-			false,
-			max_frame_width - _imgui_context->Style.FramePadding.x * 2).y + _imgui_context->Style.FramePadding.y * 2;
+		const float required_frame_height =
+			ImGui::CalcTextSize(tutorial_text.data(), tutorial_text.data() + tutorial_text.size(), false, max_frame_width - _imgui_context->Style.FramePadding.x * 2).y +
+			_imgui_context->Style.FramePadding.y * 2;
 
 		if (ImGui::BeginChild("##tutorial", ImVec2(max_frame_width, std::min(max_frame_height, required_frame_height)), ImGuiChildFlags_FrameStyle))
 		{
@@ -2055,10 +2049,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (_tutorial_index == 0)
 		{
-			std::string tutorial_button_label = _("Continue");
-			tutorial_button_label += "###tutorial_button";
-
-			if (ImGui::Button(tutorial_button_label.c_str(), ImVec2(max_frame_width * 0.66666666f, 0)))
+			if (ImGui::Button((std::string(_("Continue")) + "###tutorial_button").c_str(), ImVec2(max_frame_width * 0.66666666f, 0)))
 			{
 				_tutorial_index++;
 
@@ -2076,10 +2067,7 @@ void reshade::runtime::draw_gui_home()
 		}
 		else
 		{
-			std::string tutorial_button_label = _tutorial_index == 3 ? _("Finish") : _("Continue");
-			tutorial_button_label += "###tutorial_button";
-
-			if (ImGui::Button(tutorial_button_label.c_str(), ImVec2(max_frame_width, 0)))
+			if (ImGui::Button((std::string(_tutorial_index == 3 ? _("Finish") : _("Continue")) + "###tutorial_button").c_str(), ImVec2(max_frame_width, 0)))
 			{
 				_tutorial_index++;
 
@@ -2092,10 +2080,7 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
-	std::string open_button_label = ICON_FK_FOLDER " ";
-	open_button_label += _("Open base folder in explorer");
-
-	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
+	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open base folder in explorer"))).c_str(), ImVec2(-1, 0)))
 		utils::open_explorer(_config_path);
 
 	ImGui::Spacing();
@@ -2491,11 +2476,7 @@ void reshade::runtime::draw_gui_settings()
 
 		if (!_is_vr)
 		{
-			if (_input != nullptr)
-			{
-				modified |= imgui::key_input_box(_("FPS key"), _fps_key_data, *_input);
-				modified |= imgui::key_input_box(_("Frame time key"), _frametime_key_data, *_input);
-			}
+			ImGui::Spacing();
 
 			ImGui::BeginGroup();
 			modified |= imgui::checkbox_tristate(_("Show clock"), &_show_clock);
@@ -2503,10 +2484,15 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::checkbox_tristate(_("Show FPS"), &_show_fps);
 			ImGui::SameLine(0, 10);
 			modified |= imgui::checkbox_tristate(_("Show frame time"), &_show_frametime);
-			ImGui::SameLine(0, 10);
 			modified |= imgui::checkbox_tristate(_("Show preset name"), &_show_preset_name);
 			ImGui::EndGroup();
 			ImGui::SetItemTooltip(_("Check to always show, fill out to only show while overlay is open."));
+
+			if (_input != nullptr)
+			{
+				modified |= imgui::key_input_box(_("FPS key"), _fps_key_data, *_input);
+				modified |= imgui::key_input_box(_("Frame time key"), _frametime_key_data, *_input);
+			}
 
 			if (_show_clock)
 				modified |= ImGui::Combo(_("Clock format"), reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");
@@ -3026,10 +3012,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	std::string open_button_label = ICON_FK_FOLDER " ";
-	open_button_label += _("Open folder in explorer");
-
-	if (ImGui::Button(open_button_label.c_str(), ImVec2(-1, 0)))
+	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(-1, 0)))
 		utils::open_explorer(log_path);
 }
 void reshade::runtime::draw_gui_about()
@@ -3438,11 +3421,11 @@ void reshade::runtime::draw_variable_editor()
 			_focused_effect = std::numeric_limits<size_t>::max();
 		}
 
-		std::string reset_all_button_label = ICON_FK_UNDO " ";
-		reset_all_button_label += _("Reset all to default");
-
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
-		if (imgui::confirm_button(reset_all_button_label.c_str(), _variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth(), _("Do you really want to reset all values in '%s' to their defaults?"), effect_name.c_str()))
+		if (imgui::confirm_button(
+				(ICON_FK_UNDO " " + std::string(_("Reset all to default"))).c_str(),
+				_variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth(),
+				_("Do you really want to reset all values in '%s' to their defaults?"), effect_name.c_str()))
 		{
 			// Reset all uniform variables
 			for (uniform &variable_it : effect.uniforms)
@@ -3533,10 +3516,11 @@ void reshade::runtime::draw_variable_editor()
 						{
 							char temp[64];
 							const int temp_size = ImFormatString(temp, sizeof(temp), _("Reset all in '%s' to default"), current_category.c_str());
-							std::string reset_category_button_label = ICON_FK_UNDO " ";
-							reset_category_button_label.append(temp, temp_size);
 
-							if (imgui::confirm_button(reset_category_button_label.c_str(), ImGui::GetContentRegionAvail().x, _("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
+							if (imgui::confirm_button(
+									(ICON_FK_UNDO " " + std::string(temp, temp_size)).c_str(),
+									ImGui::GetContentRegionAvail().x,
+									_("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
 							{
 								for (uniform &variable_it : effect.uniforms)
 									if (variable_it.special == special_uniform::none && !variable_it.annotation_as_uint("noreset") &&
@@ -3754,10 +3738,7 @@ void reshade::runtime::draw_variable_editor()
 					imgui::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
-				std::string reset_button_label = ICON_FK_UNDO " ";
-				reset_button_label += _("Reset to default");
-
-				if (ImGui::Button(reset_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
+				if (ImGui::Button((ICON_FK_UNDO " " + std::string(_("Reset to default"))).c_str(), ImVec2(18.0f * _font_size, 0)))
 				{
 					modified = true;
 					reset_uniform_value(variable);
@@ -3859,10 +3840,7 @@ void reshade::runtime::draw_variable_editor()
 
 					if (ImGui::BeginPopupContextItem())
 					{
-						std::string reset_button_label = ICON_FK_UNDO " ";
-						reset_button_label += _("Reset to default");
-
-						if (ImGui::Button(reset_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
+						if (ImGui::Button((ICON_FK_UNDO " " + std::string(_("Reset to default"))).c_str(), ImVec2(18.0f * _font_size, 0)))
 						{
 							if (definition_scope != nullptr)
 							{
@@ -3991,18 +3969,12 @@ void reshade::runtime::draw_technique_editor()
 
 			if (ImGui::BeginPopup("##context"))
 			{
-				std::string open_button_label = ICON_FK_FOLDER " ";
-				open_button_label += _("Open folder in explorer");
-
-				if (ImGui::Button(open_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
+				if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
-				std::string edit_button_label = ICON_FK_PENCIL " ";
-				edit_button_label += _("Edit source code");
-
-				if (imgui::popup_button(edit_button_label.c_str(), 18.0f * _font_size))
+				if (imgui::popup_button((ICON_FK_PENCIL " " + std::string(_("Edit source code"))).c_str(), 18.0f * _font_size))
 				{
 					std::unordered_map<std::string_view, std::string> file_errors_lookup;
 					parse_errors(effect.errors,
@@ -4227,18 +4199,12 @@ void reshade::runtime::draw_technique_editor()
 				if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
 					ImGui::Separator();
 
-				std::string open_button_label = ICON_FK_FOLDER " ";
-				open_button_label += _("Open folder in explorer");
-
-				if (ImGui::Button(open_button_label.c_str(), ImVec2(18.0f * _font_size, 0)))
+				if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
-				std::string edit_button_label = ICON_FK_PENCIL " ";
-				edit_button_label += _("Edit source code");
-
-				if (imgui::popup_button(edit_button_label.c_str(), 18.0f * _font_size))
+				if (imgui::popup_button((ICON_FK_PENCIL " " + std::string(_("Edit source code"))).c_str(), 18.0f * _font_size))
 				{
 					std::filesystem::path source_file;
 					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
@@ -4463,11 +4429,8 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 }
 void reshade::runtime::draw_code_editor(editor_instance &instance)
 {
-	std::string save_button_label = ICON_FK_FLOPPY " ";
-	save_button_label += _("Save");
-
 	if (!instance.generated && (
-			ImGui::Button(save_button_label.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)) || (
+			ImGui::Button((ICON_FK_FLOPPY " " + std::string(_("Save"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)) || (
 			_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file
@@ -4586,7 +4549,7 @@ bool reshade::runtime::init_imgui_resources()
 		assert(_device->get_api() == api::device_api::opengl);
 
 		// These need to be static so that the shader source memory doesn't fall out of scope before pipeline creation below
-		static constexpr char vertex_shader_code[] =
+		static const char vertex_shader_code[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform Buf { mat4 proj; };\n"
 			"layout(location = 0) in vec2 pos;\n"
@@ -4600,7 +4563,7 @@ bool reshade::runtime::init_imgui_resources()
 			"	frag_tex = tex;\n"
 			"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
 			"}\n";
-		static constexpr char fragment_shader_code[] =
+		static const char fragment_shader_code[] =
 			"#version 430\n"
 			"layout(binding = 0) uniform sampler2D s0;\n"
 			"in vec4 frag_col;\n"
