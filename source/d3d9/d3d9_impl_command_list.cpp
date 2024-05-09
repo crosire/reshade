@@ -867,16 +867,18 @@ void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv
 {
 	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
 
-	_backup_state.capture();
-
-	_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
+	com_ptr<IDirect3DSurface9> prev_surface;
+	_orig->GetDepthStencilSurface(&prev_surface);
+	if (prev_surface != reinterpret_cast<IDirect3DSurface9 *>(dsv.handle))
+		_orig->SetDepthStencilSurface(reinterpret_cast<IDirect3DSurface9 *>(dsv.handle));
 
 	_orig->Clear(
 		0, nullptr,
 		(depth != nullptr ? D3DCLEAR_ZBUFFER : 0) | (stencil != nullptr ? D3DCLEAR_STENCIL : 0),
 		0, depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0);
 
-	_backup_state.apply_and_release();
+	if (prev_surface != reinterpret_cast<IDirect3DSurface9 *>(dsv.handle))
+		_orig->SetDepthStencilSurface(prev_surface.get());
 }
 void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)
 {

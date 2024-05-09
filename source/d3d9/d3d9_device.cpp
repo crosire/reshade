@@ -1250,7 +1250,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::EndScene()
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
 {
 #if RESHADE_ADDON
-	if (Flags & (D3DCLEAR_TARGET) &&
+	if ((Flags & (D3DCLEAR_TARGET)) != 0 &&
 		reshade::has_addon_event<reshade::addon_event::clear_render_target_view>())
 	{
 		com_ptr<IDirect3DSurface9> surface;
@@ -1269,7 +1269,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 				Flags &= ~(D3DCLEAR_TARGET); // This will prevent all render targets from getting cleared, not just the current one ...
 		}
 	}
-	if (Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL) &&
+	if ((Flags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)) != 0 &&
 		reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>())
 	{
 		com_ptr<IDirect3DSurface9> surface;
@@ -1278,8 +1278,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Clear(DWORD Count, const D3DRECT *pRe
 			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 					this,
 					to_handle(surface.get()),
-					(Flags & D3DCLEAR_ZBUFFER) ? &Z : nullptr,
-					(Flags & D3DCLEAR_STENCIL) ? reinterpret_cast<const uint8_t *>(&Stencil) : nullptr,
+					(Flags & D3DCLEAR_ZBUFFER) != 0 ? &Z : nullptr,
+					(Flags & D3DCLEAR_STENCIL) != 0 ? reinterpret_cast<const uint8_t *>(&Stencil) : nullptr,
 					Count,
 					reinterpret_cast<const reshade::api::rect *>(pRects)))
 				Flags &= ~(D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL);
