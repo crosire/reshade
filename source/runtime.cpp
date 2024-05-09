@@ -807,10 +807,12 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 								}
 							}
 
+#if RESHADE_GUI
 							if (_auto_save_preset)
 								save_current_preset();
 							else
 								_preset_is_modified = true;
+#endif
 						}
 					}
 				}
@@ -824,10 +826,12 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 						else
 							disable_technique(tech);
 
+#if RESHADE_GUI
 						if (_auto_save_preset)
 							save_current_preset();
 						else
 							_preset_is_modified = true;
+#endif
 					}
 				}
 			}
