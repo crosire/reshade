@@ -1095,7 +1095,7 @@ auto reshade::d3d9::convert_cull_mode(D3DCULL value, bool front_counter_clockwis
 {
 	if (value == D3DCULL_NONE)
 		return api::cull_mode::none;
-	return (value == D3DCULL_CCW && front_counter_clockwise) ? api::cull_mode::front : api::cull_mode::back;
+	return (value == D3DCULL_CCW) == front_counter_clockwise ? api::cull_mode::front : api::cull_mode::back;
 }
 auto reshade::d3d9::convert_cull_mode(api::cull_mode value, bool front_counter_clockwise) -> D3DCULL
 {
