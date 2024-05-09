@@ -165,6 +165,9 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	void init_auto_depth_stencil();
 	void reset_auto_depth_stencil();
 #endif
+#if RESHADE_ADDON >= 2
+	void resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size);
+#endif
 
 	bool check_and_upgrade_interface(REFIID riid);
 
@@ -178,5 +181,9 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 #if RESHADE_ADDON
 	Direct3DDepthStencilSurface9 *_auto_depth_stencil = nullptr;
 	com_ptr<Direct3DDepthStencilSurface9> _current_depth_stencil;
+#endif
+#if RESHADE_ADDON >= 2
+	UINT _primitive_up_vertex_buffer_size = 0;
+	UINT _primitive_up_index_buffer_size = 0;
 #endif
 };

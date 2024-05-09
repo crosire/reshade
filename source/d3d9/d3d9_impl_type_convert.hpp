@@ -51,6 +51,9 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DQuery9> event_queries[8];
 	};
 
+	constexpr api::resource global_index_buffer = { 0xFFFFFFFFFFFFFFF1 };
+	constexpr api::resource global_vertex_buffer = { 0xFFFFFFFFFFFFFFF2 };
+
 	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
 
 	auto convert_format(api::format format, BOOL lockable = FALSE) -> D3DFORMAT;

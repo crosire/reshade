@@ -235,8 +235,8 @@ namespace reshade { namespace api
 	struct [[nodiscard]] resource_desc
 	{
 		constexpr resource_desc() : texture() {}
-		constexpr resource_desc(uint64_t size, memory_heap heap, resource_usage usage) :
-			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage) {}
+		constexpr resource_desc(uint64_t size, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
+			type(resource_type::buffer), buffer({ size }), heap(heap), usage(usage), flags(flags) {}
 		constexpr resource_desc(uint32_t width, uint32_t height, uint16_t layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
 			type(resource_type::texture_2d), texture({ width, height, layers, levels, format, samples }), heap(heap), usage(usage), flags(flags) {}
 		constexpr resource_desc(resource_type type, uint32_t width, uint32_t height, uint16_t depth_or_layers, uint16_t levels, format format, uint16_t samples, memory_heap heap, resource_usage usage, resource_flags flags = resource_flags::none) :
