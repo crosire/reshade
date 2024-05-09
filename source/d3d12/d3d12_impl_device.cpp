@@ -1259,15 +1259,31 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 {
 	*out_handle = { 0 };
 
-	std::vector<D3D12_ROOT_PARAMETER> internal_params(param_count);
-	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
+	std::vector<D3D12_ROOT_PARAMETER> internal_params;
 	std::vector<D3D12_STATIC_SAMPLER_DESC> internal_static_samplers;
+	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
 	const auto set_ranges = new std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>[param_count];
+
+	const auto add_internal_param = [&internal_params](uint32_t index) -> D3D12_ROOT_PARAMETER & {
+		const uint32_t prev_size = static_cast<uint32_t>(internal_params.size());
+		if (index >= prev_size)
+			internal_params.resize(index + 1);
+
+		// Pad with dummy parameters (to prevent root signature creation from failing)
+		for (uint32_t i = prev_size; i < index; ++i)
+		{
+			D3D12_ROOT_PARAMETER &param = internal_params[i];
+			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			param.Constants.ShaderRegister = i;
+			param.Constants.RegisterSpace = 255;
+			param.Constants.Num32BitValues = 1;
+		}
+
+		return internal_params[index];
+	};
 
 	for (uint32_t i = 0; i < param_count; ++i)
 	{
-		api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
-
 		set_ranges[i] = { D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES, 0 };
 
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
@@ -1279,14 +1295,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
 
 			if (range_count == 0 || range->count == 0)
-			{
-				// Dummy parameter (to prevent root signature creation from failing)
-				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-				internal_params[i].Constants.ShaderRegister = i;
-				internal_params[i].Constants.RegisterSpace = 255;
-				internal_params[i].Constants.Num32BitValues = 1;
 				continue;
-			}
 
 			const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(range->type);
 			set_ranges[i].first = heap_type;
@@ -1296,30 +1305,33 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				range->type != api::descriptor_type::texture_shader_resource_view &&
 				range->type != api::descriptor_type::texture_unordered_access_view)
 			{
+				D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
+
 				switch (range->type)
 				{
 				case api::descriptor_type::constant_buffer:
-					internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+					internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 					break;
 				case api::descriptor_type::buffer_shader_resource_view:
 				case api::descriptor_type::acceleration_structure:
-					internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+					internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 					break;
 				case api::descriptor_type::buffer_unordered_access_view:
-					internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+					internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
 					break;
 				default:
 					return false;
 				}
 
-				internal_params[i].Descriptor.ShaderRegister = range->dx_register_index;
-				internal_params[i].Descriptor.RegisterSpace = range->dx_register_space;
-
-				visibility_mask = range->visibility;
+				internal_param.Descriptor.ShaderRegister = range->dx_register_index;
+				internal_param.Descriptor.RegisterSpace = range->dx_register_space;
+				internal_param.ShaderVisibility = convert_shader_visibility(range->visibility);
 			}
 			else
 			{
 				internal_ranges[i].reserve(range_count);
+
+				api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
 
 				for (uint32_t k = 0; k < range_count; ++k, range = (with_static_samplers ? range + 1 : reinterpret_cast<const api::descriptor_range_with_static_samplers *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
 				{
@@ -1337,28 +1349,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 							internal_static_sampler.ShaderRegister = range->dx_register_index + j;
 							internal_static_sampler.RegisterSpace = range->dx_register_space;
-
-							switch (range->visibility)
-							{
-							default:
-								internal_static_sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-								break;
-							case api::shader_stage::vertex:
-								internal_static_sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-								break;
-							case api::shader_stage::hull:
-								internal_static_sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
-								break;
-							case api::shader_stage::domain:
-								internal_static_sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
-								break;
-							case api::shader_stage::geometry:
-								internal_static_sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
-								break;
-							case api::shader_stage::pixel:
-								internal_static_sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-								break;
-							}
+							internal_static_sampler.ShaderVisibility = convert_shader_visibility(range->visibility);
 						}
 						continue;
 					}
@@ -1380,41 +1371,24 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 						set_ranges[i].second = std::max(set_ranges[i].second, range->binding + range->count);
 				}
 
-				internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-				internal_params[i].DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
-				internal_params[i].DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
+				if (internal_ranges[i].empty())
+					continue; // Parameter only contains static samplers
+
+				D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
+				internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+				internal_param.DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
+				internal_param.DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
+				internal_param.ShaderVisibility = convert_shader_visibility(visibility_mask);
 			}
 		}
 		else
 		{
-			internal_params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-			internal_params[i].Constants.ShaderRegister = params[i].push_constants.dx_register_index;
-			internal_params[i].Constants.RegisterSpace = params[i].push_constants.dx_register_space;
-			internal_params[i].Constants.Num32BitValues = params[i].push_constants.count;
-
-			visibility_mask = params[i].push_constants.visibility;
-		}
-
-		switch (visibility_mask)
-		{
-		default:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			break;
-		case api::shader_stage::vertex:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-			break;
-		case api::shader_stage::hull:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_HULL;
-			break;
-		case api::shader_stage::domain:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_DOMAIN;
-			break;
-		case api::shader_stage::geometry:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_GEOMETRY;
-			break;
-		case api::shader_stage::pixel:
-			internal_params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-			break;
+			D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
+			internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			internal_param.Constants.ShaderRegister = params[i].push_constants.dx_register_index;
+			internal_param.Constants.RegisterSpace = params[i].push_constants.dx_register_space;
+			internal_param.Constants.Num32BitValues = params[i].push_constants.count;
+			internal_param.ShaderVisibility = convert_shader_visibility(params[i].push_constants.visibility);
 		}
 	}
 
@@ -1424,7 +1398,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
 	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	internal_desc.NumParameters = param_count;
+	internal_desc.NumParameters = static_cast<uint32_t>(internal_params.size());
 	internal_desc.pParameters = internal_params.data();
 	internal_desc.NumStaticSamplers = static_cast<uint32_t>(internal_static_samplers.size());
 	internal_desc.pStaticSamplers = internal_static_samplers.data();

@@ -136,7 +136,8 @@ namespace reshade::d3d12
 	auto convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -> api::descriptor_type;
 	auto convert_descriptor_type_to_heap_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE;
 
-	auto convert_shader_visibility(D3D12_SHADER_VISIBILITY visibility) -> api::shader_stage;
+	auto convert_shader_visibility(api::shader_stage value) -> D3D12_SHADER_VISIBILITY;
+	auto convert_shader_visibility(D3D12_SHADER_VISIBILITY value) -> api::shader_stage;
 
 	auto convert_render_pass_load_op(api::render_pass_load_op value) -> D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE;
 	auto convert_render_pass_load_op(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE value) -> api::render_pass_load_op;

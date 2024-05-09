@@ -1717,9 +1717,31 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 	}
 }
 
-auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY visibility) -> api::shader_stage
+auto reshade::d3d12::convert_shader_visibility(api::shader_stage value) -> D3D12_SHADER_VISIBILITY
 {
-	switch (visibility)
+	switch (value)
+	{
+	default:
+		return D3D12_SHADER_VISIBILITY_ALL;
+	case api::shader_stage::vertex:
+		return D3D12_SHADER_VISIBILITY_VERTEX;
+	case api::shader_stage::hull:
+		return D3D12_SHADER_VISIBILITY_HULL;
+	case api::shader_stage::domain:
+		return D3D12_SHADER_VISIBILITY_DOMAIN;
+	case api::shader_stage::geometry:
+		return D3D12_SHADER_VISIBILITY_GEOMETRY;
+	case api::shader_stage::pixel:
+		return D3D12_SHADER_VISIBILITY_PIXEL;
+	case api::shader_stage::amplification:
+		return D3D12_SHADER_VISIBILITY_AMPLIFICATION;
+	case api::shader_stage::mesh:
+		return D3D12_SHADER_VISIBILITY_MESH;
+	}
+}
+auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY value) -> api::shader_stage
+{
+	switch (value)
 	{
 	default:
 		assert(false);
