@@ -17,7 +17,7 @@ namespace reshade::d3d9
 
 	struct sampler_impl
 	{
-		DWORD state[12];
+		DWORD state[11];
 	};
 
 	struct pipeline_impl
@@ -67,6 +67,9 @@ namespace reshade::d3d9
 
 	auto convert_access_flags(api::map_access access) -> DWORD;
 	api::map_access convert_access_flags(DWORD lock_flags);
+
+	void convert_sampler_desc(const api::sampler_desc &desc, DWORD state[11]);
+	api::sampler_desc convert_sampler_desc(const DWORD state[11]);
 
 	void convert_resource_desc(const api::resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps);
 	void convert_resource_desc(const api::resource_desc &desc, D3DSURFACE_DESC &internal_desc, UINT *levels, BOOL *lockable, const D3DCAPS9 &caps);

@@ -359,6 +359,47 @@ void reshade::d3d9::convert_d3d_usage_to_resource_usage(DWORD d3d_usage, api::re
 		usage |= api::resource_usage::depth_stencil;
 }
 
+void reshade::d3d9::convert_sampler_desc(const api::sampler_desc &desc, DWORD state[11])
+{
+	state[D3DSAMP_ADDRESSU] = static_cast<DWORD>(desc.address_u);
+	state[D3DSAMP_ADDRESSV] = static_cast<DWORD>(desc.address_v);
+	state[D3DSAMP_ADDRESSW] = static_cast<DWORD>(desc.address_w);
+	state[D3DSAMP_BORDERCOLOR] = D3DCOLOR_COLORVALUE(desc.border_color[0], desc.border_color[1], desc.border_color[2], desc.border_color[3]);
+	state[D3DSAMP_MAGFILTER] = ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2) + 1;
+	state[D3DSAMP_MINFILTER] = ((static_cast<DWORD>(desc.filter) & 0x30) >> 4) + 1;
+	state[D3DSAMP_MIPFILTER] = ((static_cast<DWORD>(desc.filter) & 0x03)) + 1;
+	state[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
+	state[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
+	state[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
+
+	if (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point)
+	{
+		state[D3DSAMP_MAGFILTER] = D3DTEXF_ANISOTROPIC;
+		state[D3DSAMP_MINFILTER] = D3DTEXF_ANISOTROPIC;
+	}
+}
+reshade::api::sampler_desc reshade::d3d9::convert_sampler_desc(const DWORD state[11])
+{
+	reshade::api::sampler_desc desc = {};
+	desc.filter = static_cast<api::filter_mode>(
+		(state[D3DSAMP_MIPFILTER] >= D3DTEXF_LINEAR ? 0x01 : 0) |
+		(state[D3DSAMP_MAGFILTER] >= D3DTEXF_LINEAR ? 0x04 : 0) |
+		(state[D3DSAMP_MINFILTER] >= D3DTEXF_LINEAR ? 0x10 : 0) |
+		(state[D3DSAMP_MAGFILTER] == D3DTEXF_ANISOTROPIC || state[D3DSAMP_MINFILTER] == D3DTEXF_ANISOTROPIC ? 0x54 : 0));
+	desc.address_u = static_cast<api::texture_address_mode>(state[D3DSAMP_ADDRESSU]);
+	desc.address_v = static_cast<api::texture_address_mode>(state[D3DSAMP_ADDRESSV]);
+	desc.address_w = static_cast<api::texture_address_mode>(state[D3DSAMP_ADDRESSW]);
+	desc.mip_lod_bias = *reinterpret_cast<const FLOAT *>(&state[D3DSAMP_MIPMAPLODBIAS]);
+	desc.max_anisotropy = static_cast<float>(state[D3DSAMP_MAXANISOTROPY]);
+	desc.border_color[0] = ((state[D3DSAMP_BORDERCOLOR] >> 16) & 0xFF) / 255.0f;
+	desc.border_color[1] = ((state[D3DSAMP_BORDERCOLOR] >> 8) & 0xFF) / 255.0f;
+	desc.border_color[2] = ((state[D3DSAMP_BORDERCOLOR]) & 0xFF) / 255.0f;
+	desc.border_color[3] = ((state[D3DSAMP_BORDERCOLOR] >> 24) & 0xFF) / 255.0f;
+	desc.min_lod = static_cast<float>(state[D3DSAMP_MAXMIPLEVEL]);
+
+	return desc;
+}
+
 void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOLUME_DESC &internal_desc, UINT *levels, const D3DCAPS9 &caps)
 {
 	assert(desc.type == api::resource_type::texture_3d);

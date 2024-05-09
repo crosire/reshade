@@ -236,22 +236,7 @@ bool reshade::d3d9::device_impl::create_sampler(const api::sampler_desc &desc, a
 	}
 
 	const auto impl = new sampler_impl();
-	impl->state[D3DSAMP_ADDRESSU] = static_cast<DWORD>(desc.address_u);
-	impl->state[D3DSAMP_ADDRESSV] = static_cast<DWORD>(desc.address_v);
-	impl->state[D3DSAMP_ADDRESSW] = static_cast<DWORD>(desc.address_w);
-	impl->state[D3DSAMP_BORDERCOLOR] = D3DCOLOR_COLORVALUE(desc.border_color[0], desc.border_color[1], desc.border_color[2], desc.border_color[3]);
-	impl->state[D3DSAMP_MAGFILTER] = ((static_cast<DWORD>(desc.filter) & 0x0C) >> 2) + 1;
-	impl->state[D3DSAMP_MINFILTER] = ((static_cast<DWORD>(desc.filter) & 0x30) >> 4) + 1;
-	impl->state[D3DSAMP_MIPFILTER] = ((static_cast<DWORD>(desc.filter) & 0x03)     ) + 1;
-	impl->state[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&desc.mip_lod_bias);
-	impl->state[D3DSAMP_MAXMIPLEVEL] = desc.min_lod > 0 ? static_cast<DWORD>(desc.min_lod) : 0;
-	impl->state[D3DSAMP_MAXANISOTROPY] = static_cast<DWORD>(desc.max_anisotropy);
-
-	if (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point)
-	{
-		impl->state[D3DSAMP_MINFILTER] = D3DTEXF_ANISOTROPIC;
-		impl->state[D3DSAMP_MAGFILTER] = D3DTEXF_ANISOTROPIC;
-	}
+	convert_sampler_desc(desc, impl->state);
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
