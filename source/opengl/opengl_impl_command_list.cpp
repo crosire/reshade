@@ -29,6 +29,10 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 
 	if ((stages & api::pipeline_stage::output_merger) != 0)
 	{
+		// Set clip space to something consistent
+		if (gl.ClipControl != nullptr)
+			gl.ClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+
 		glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, sample_alpha_to_coverage);
 
 		for (GLuint i = 0; i < 8; ++i)
@@ -513,10 +517,6 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 		gl.UseProgram(pipeline.handle & 0xFFFFFFFF);
 		return;
 	}
-
-	// Set clip space to something consistent
-	if (gl.ClipControl != nullptr)
-		gl.ClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
 
 	// Always disable alpha test in case the application set that (fixes broken GUI rendering in Quake)
 	if (_device_impl->_compatibility_context)
