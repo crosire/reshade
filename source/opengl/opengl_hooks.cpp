@@ -37,24 +37,36 @@ thread_local reshade::opengl::device_context_impl *g_current_context = nullptr;
 class init_resource
 {
 public:
-	init_resource(GLenum target, GLsizeiptr buffer_size, GLenum usage) : target(target)
+	init_resource(GLenum target, GLuint object, GLsizeiptr buffer_size, GLenum usage) :
+		target(target), object(object)
 	{
 		desc = reshade::opengl::convert_resource_desc(target, buffer_size, usage);
 	}
-	init_resource(GLenum target, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth, bool named = false) : target(named ? GL_TEXTURE : target)
+	init_resource(GLenum target, GLuint object, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth) :
+		target(object != 0 ? GL_TEXTURE : target), object(object)
 	{
-		desc = reshade::opengl::convert_resource_desc(target, levels, samples, internal_format, width, height, depth);
+		GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
+		if (target != GL_RENDERBUFFER)
+		{
+			if (object == 0)
+				gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+			else
+				gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+		}
+
+		desc = reshade::opengl::convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
 	}
-	explicit init_resource(const reshade::api::resource_desc &desc) : target(GL_NONE), desc(desc)
+	explicit init_resource(const reshade::api::resource_desc &desc) :
+		target(GL_NONE), object(0), desc(desc)
 	{
 	}
 
-	void invoke_create_event(GLsizei *levels, GLsizei *samples, GLenum &internal_format, GLsizei *width, GLsizei *height, GLsizei *depth)
+	void invoke_create_event(GLsizei *levels, GLsizei *samples, GLenum *internal_format, GLsizei *width, GLsizei *height, GLsizei *depth)
 	{
 		auto pixels = static_cast<const void *>(nullptr);
 		invoke_create_event(levels, samples, internal_format, width, height, depth, GL_NONE, GL_NONE, pixels);
 	}
-	void invoke_create_event(GLsizei *levels, GLsizei *samples, GLenum &internal_format, GLsizei *width, GLsizei *height, GLsizei *depth, GLenum format, GLenum type, const void *&pixels)
+	void invoke_create_event(GLsizei *levels, GLsizei *samples, GLenum *internal_format, GLsizei *width, GLsizei *height, GLsizei *depth, GLenum format, GLenum type, const void *&pixels)
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
@@ -71,7 +83,7 @@ public:
 			else
 				assert(desc.texture.samples <= 1);
 
-			internal_format = reshade::opengl::convert_format(desc.texture.format);
+			*internal_format = reshade::opengl::convert_format(desc.texture.format);
 
 			if (width != nullptr)
 				*width = desc.texture.width;
@@ -91,7 +103,7 @@ public:
 			update_texture = (initial_data.data != nullptr);
 		}
 	}
-	void invoke_create_event(GLsizeiptr &size, GLenum &usage, const void *&data)
+	void invoke_create_event(GLsizeiptr *buffer_size, GLenum *usage, const void *&data)
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
@@ -99,13 +111,13 @@ public:
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, desc, data != nullptr ? &initial_data : nullptr, reshade::api::resource_usage::general))
 		{
-			reshade::opengl::convert_resource_desc(desc, size, usage);
+			reshade::opengl::convert_resource_desc(desc, *buffer_size, *usage);
 
 			data = initial_data.data;
 		}
 	}
 
-	void invoke_initialize_event(GLuint object)
+	void invoke_initialize_event()
 	{
 		if (!reshade::has_addon_event<reshade::addon_event::init_resource>() && !reshade::has_addon_event<reshade::addon_event::init_resource_view>() && !update_texture)
 			return;
@@ -289,6 +301,7 @@ public:
 
 private:
 	GLenum target;
+	GLuint object;
 	reshade::api::resource_desc desc;
 	std::vector<uint8_t> temp_data;
 	reshade::api::subresource_data initial_data = {};
@@ -657,10 +670,10 @@ extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1);
-		resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum &>(internalformat), &width, nullptr, nullptr, format, type, pixels);
+		init_resource resource(target, 0, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1);
+		resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum *>(&internalformat), &width, nullptr, nullptr, format, type, pixels);
 		trampoline(target, level, internalformat, width, border, format, type, pixels);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -678,13 +691,13 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
+		init_resource resource(target, 0, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
 
 		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		{
 			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
-				resource.invoke_initialize_event(0); // Initialize resource with the first cubemap face
+				resource.invoke_initialize_event(); // Initialize resource with the first cubemap face
 #endif
 #if RESHADE_ADDON >= 2
 			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels);
@@ -693,9 +706,9 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 		}
 		else
 		{
-			resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum &>(internalformat), &width, &height, nullptr, format, type, pixels);
+			resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum *>(&internalformat), &width, &height, nullptr, format, type, pixels);
 			trampoline(target, level, internalformat, width, height, border, format, type, pixels);
-			resource.invoke_initialize_event(0);
+			resource.invoke_initialize_event();
 		}
 	}
 	else
@@ -1313,10 +1326,10 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
-		resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum &>(internalformat), &width, &height, &depth, format, type, pixels);
+		init_resource resource(target, 0, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
+		resource.invoke_create_event(nullptr, nullptr, reinterpret_cast<GLenum *>(&internalformat), &width, &height, &depth, format, type, pixels);
 		trampoline(target, level, internalformat, width, height, depth, border, format, type, pixels);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -1373,10 +1386,10 @@ void APIENTRY glCompressedTexImage1D(GLenum target, GLint level, GLenum internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, 1, 1);
-		resource.invoke_create_event(nullptr, nullptr, internalformat, &width, nullptr, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
+		init_resource resource(target, 0, 0, 1, internalformat, width, 1, 1);
+		resource.invoke_create_event(nullptr, nullptr, &internalformat, &width, nullptr, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
 		trampoline(target, level, internalformat, width, border, imageSize, data);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -1392,13 +1405,13 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, 1);
+		init_resource resource(target, 0, 0, 1, internalformat, width, height, 1);
 
 		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		{
 			trampoline(target, level, internalformat, width, height, border, imageSize, data);
 			if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X)
-				resource.invoke_initialize_event(0); // Initialize resource with the first cubemap face
+				resource.invoke_initialize_event(); // Initialize resource with the first cubemap face
 #endif
 #if RESHADE_ADDON >= 2
 			update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data);
@@ -1407,9 +1420,9 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 		}
 		else
 		{
-			resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
+			resource.invoke_create_event(nullptr, nullptr, &internalformat, &width, &height, nullptr, internalformat, GL_UNSIGNED_BYTE, data);
 			trampoline(target, level, internalformat, width, height, border, imageSize, data);
-			resource.invoke_initialize_event(0);
+			resource.invoke_initialize_event();
 		}
 	}
 	else
@@ -1426,10 +1439,10 @@ void APIENTRY glCompressedTexImage3D(GLenum target, GLint level, GLenum internal
 
 	if (g_current_context && level == 0 && !proxy_object)
 	{
-		init_resource resource(target, 0, 1, static_cast<GLenum>(internalformat), width, height, depth);
-		resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, &depth, internalformat, GL_UNSIGNED_BYTE, data);
+		init_resource resource(target, 0, 0, 1, internalformat, width, height, depth);
+		resource.invoke_create_event(nullptr, nullptr, &internalformat, &width, &height, &depth, internalformat, GL_UNSIGNED_BYTE, data);
 		trampoline(target, level, internalformat, width, height, depth, border, imageSize, data);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -1576,10 +1589,10 @@ void APIENTRY glBufferData(GLenum target, GLsizeiptr size, const void *data, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, size, usage);
-		resource.invoke_create_event(size, usage, data);
+		init_resource resource(target, 0, size, usage);
+		resource.invoke_create_event(&size, &usage, data);
 		trampoline(target, size, data, usage);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -2391,10 +2404,10 @@ void APIENTRY glRenderbufferStorage(GLenum target, GLenum internalformat, GLsize
 
 	if (g_current_context)
 	{
-		init_resource resource(target, 1, 1, internalformat, width, height, 1);
-		resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, nullptr);
+		init_resource resource(target, 0, 1, 1, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, nullptr, &internalformat, &width, &height, nullptr);
 		trampoline(target, internalformat, width, height);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -2409,10 +2422,10 @@ void APIENTRY glRenderbufferStorageMultisample(GLenum target, GLsizei samples, G
 
 	if (g_current_context)
 	{
-		init_resource resource(target, 1, samples, internalformat, width, height, 1);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, nullptr);
+		init_resource resource(target, 0, 1, samples, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, nullptr);
 		trampoline(target, samples, internalformat, width, height);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -2922,10 +2935,10 @@ void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum int
 
 	if (g_current_context && !proxy_object)
 	{
-		init_resource resource(target, 1, samples, internalformat, width, height, 1);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, nullptr);
+		init_resource resource(target, 0, 1, samples, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, nullptr);
 		trampoline(target, samples, internalformat, width, height, fixedsamplelocations);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -2943,10 +2956,10 @@ void APIENTRY glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum int
 
 	if (g_current_context && !proxy_object)
 	{
-		init_resource resource(target, 1, samples, internalformat, width, height, depth);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, &depth);
+		init_resource resource(target, 0, 1, samples, internalformat, width, height, depth);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, &depth);
 		trampoline(target, samples, internalformat, width, height, depth, fixedsamplelocations);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3243,10 +3256,10 @@ void APIENTRY glTexStorage1D(GLenum target, GLsizei levels, GLenum internalforma
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, levels, 1, internalformat, width, 1, 1);
-		resource.invoke_create_event(&levels, nullptr, internalformat, &width, nullptr, nullptr);
+		init_resource resource(target, 0, levels, 1, internalformat, width, 1, 1);
+		resource.invoke_create_event(&levels, nullptr, &internalformat, &width, nullptr, nullptr);
 		trampoline(target, levels, internalformat, width);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3259,10 +3272,10 @@ void APIENTRY glTexStorage2D(GLenum target, GLsizei levels, GLenum internalforma
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, levels, 1, internalformat, width, height, 1);
-		resource.invoke_create_event(&levels, nullptr, internalformat, &width, &height, nullptr);
+		init_resource resource(target, 0, levels, 1, internalformat, width, height, 1);
+		resource.invoke_create_event(&levels, nullptr, &internalformat, &width, &height, nullptr);
 		trampoline(target, levels, internalformat, width, height);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3275,10 +3288,10 @@ void APIENTRY glTexStorage3D(GLenum target, GLsizei levels, GLenum internalforma
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, levels, 1, internalformat, width, height, depth);
-		resource.invoke_create_event(&levels, nullptr, internalformat, &width, &height, &depth);
+		init_resource resource(target, 0, levels, 1, internalformat, width, height, depth);
+		resource.invoke_create_event(&levels, nullptr, &internalformat, &width, &height, &depth);
 		trampoline(target, levels, internalformat, width, height, depth);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3423,10 +3436,10 @@ void APIENTRY glTexStorage2DMultisample(GLenum target, GLsizei samples, GLenum i
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, 1, samples, internalformat, width, height, 1);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, nullptr);
+		init_resource resource(target, 0, 1, samples, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, nullptr);
 		trampoline(target, samples, internalformat, width, height, fixedsamplelocations);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3439,10 +3452,10 @@ void APIENTRY glTexStorage3DMultisample(GLenum target, GLsizei samples, GLenum i
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, 1, samples, internalformat, width, height, depth);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, &depth);
+		init_resource resource(target, 0, 1, samples, internalformat, width, height, depth);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, &depth);
 		trampoline(target, samples, internalformat, width, height, depth, fixedsamplelocations);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3592,11 +3605,11 @@ void APIENTRY glBufferStorage(GLenum target, GLsizeiptr size, const void *data, 
 		GLenum usage = GL_NONE;
 		reshade::opengl::convert_memory_flags_to_usage(flags, usage);
 
-		init_resource resource(target, size, usage);
-		resource.invoke_create_event(size, usage, data);
+		init_resource resource(target, 0, size, usage);
+		resource.invoke_create_event(&size, &usage, data);
 		reshade::opengl::convert_memory_usage_to_flags(usage, flags);
 		trampoline(target, size, data, flags);
-		resource.invoke_initialize_event(0);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3880,10 +3893,10 @@ void APIENTRY glNamedBufferData(GLuint buffer, GLsizeiptr size, const void *data
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_BUFFER, size, usage);
-		resource.invoke_create_event(size, usage, data);
+		init_resource resource(GL_BUFFER, buffer, size, usage);
+		resource.invoke_create_event(&size, &usage, data);
 		trampoline(buffer, size, data, usage);
-		resource.invoke_initialize_event(buffer);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3900,11 +3913,11 @@ void APIENTRY glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *d
 		GLenum usage = GL_NONE;
 		reshade::opengl::convert_memory_flags_to_usage(flags, usage);
 
-		init_resource resource(GL_BUFFER, size, usage);
-		resource.invoke_create_event(size, usage, data);
+		init_resource resource(GL_BUFFER, buffer, size, usage);
+		resource.invoke_create_event(&size, &usage, data);
 		reshade::opengl::convert_memory_usage_to_flags(usage, flags);
 		trampoline(buffer, size, data, flags);
-		resource.invoke_initialize_event(buffer);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3918,10 +3931,10 @@ void APIENTRY glTextureStorage1D(GLuint texture, GLsizei levels, GLenum internal
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_TEXTURE_1D, levels, 1, internalformat, width, 1, 1, true);
-		resource.invoke_create_event(&levels, nullptr, internalformat, &width, nullptr, nullptr);
+		init_resource resource(GL_TEXTURE_1D, texture, levels, 1, internalformat, width, 1, 1);
+		resource.invoke_create_event(&levels, nullptr, &internalformat, &width, nullptr, nullptr);
 		trampoline(texture, levels, internalformat, width);
-		resource.invoke_initialize_event(texture);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3934,10 +3947,10 @@ void APIENTRY glTextureStorage2D(GLuint texture, GLsizei levels, GLenum internal
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_TEXTURE_2D, levels, 1, internalformat, width, height, 1, true);
-		resource.invoke_create_event(&levels, nullptr, internalformat, &width, &height, nullptr);
+		init_resource resource(GL_TEXTURE_2D, texture, levels, 1, internalformat, width, height, 1);
+		resource.invoke_create_event(&levels, nullptr, &internalformat, &width, &height, nullptr);
 		trampoline(texture, levels, internalformat, width, height);
-		resource.invoke_initialize_event(texture);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3950,10 +3963,10 @@ void APIENTRY glTextureStorage2DMultisample(GLuint texture, GLsizei samples, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_TEXTURE_2D, 1, samples, internalformat, width, height, 1, true);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, nullptr);
+		init_resource resource(GL_TEXTURE_2D, texture, 1, samples, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, nullptr);
 		trampoline(texture, samples, internalformat, width, height, fixedsamplelocations);
-		resource.invoke_initialize_event(texture);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3966,10 +3979,10 @@ void APIENTRY glTextureStorage3D(GLuint texture, GLsizei levels, GLenum internal
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_TEXTURE_3D, levels, 1, internalformat, width, height, depth, true);
-		resource.invoke_create_event(&levels, nullptr, internalformat, &width, &height, &depth);
+		init_resource resource(GL_TEXTURE_3D, texture, levels, 1, internalformat, width, height, depth);
+		resource.invoke_create_event(&levels, nullptr, &internalformat, &width, &height, &depth);
 		trampoline(texture, levels, internalformat, width, height, depth);
-		resource.invoke_initialize_event(texture);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -3982,10 +3995,10 @@ void APIENTRY glTextureStorage3DMultisample(GLuint texture, GLsizei samples, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_TEXTURE_3D, 1, samples, internalformat, width, height, depth, true);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, &depth);
+		init_resource resource(GL_TEXTURE_3D, texture, 1, samples, internalformat, width, height, depth);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, &depth);
 		trampoline(texture, samples, internalformat, width, height, depth, fixedsamplelocations);
-		resource.invoke_initialize_event(texture);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -4177,10 +4190,10 @@ void APIENTRY glNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalfor
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_RENDERBUFFER, 1, 1, internalformat, width, height, 1, true);
-		resource.invoke_create_event(nullptr, nullptr, internalformat, &width, &height, nullptr);
+		init_resource resource(GL_RENDERBUFFER, renderbuffer, 1, 1, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, nullptr, &internalformat, &width, &height, nullptr);
 		trampoline(renderbuffer, internalformat, width, height);
-		resource.invoke_initialize_event(renderbuffer);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
@@ -4193,10 +4206,10 @@ void APIENTRY glNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_RENDERBUFFER, 1, samples, internalformat, width, height, 1, true);
-		resource.invoke_create_event(nullptr, &samples, internalformat, &width, &height, nullptr);
+		init_resource resource(GL_RENDERBUFFER, renderbuffer, 1, samples, internalformat, width, height, 1);
+		resource.invoke_create_event(nullptr, &samples, &internalformat, &width, &height, nullptr);
 		trampoline(renderbuffer, samples, internalformat, width, height);
-		resource.invoke_initialize_event(renderbuffer);
+		resource.invoke_initialize_event();
 	}
 	else
 #endif
