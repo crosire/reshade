@@ -608,11 +608,8 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 #endif
 
 #if RESHADE_ADDON
-static void update_current_primitive_topology(GLenum mode, GLenum type)
+static void update_current_primitive_topology(GLenum mode)
 {
-	assert(g_current_context != nullptr);
-	g_current_context->_current_index_type = type;
-
 	if (mode != g_current_context->_current_prim_mode)
 	{
 		g_current_context->_current_prim_mode = mode;
@@ -633,6 +630,12 @@ static void update_current_primitive_topology(GLenum mode, GLenum type)
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
 #endif
 	}
+}
+static void update_current_primitive_topology(GLenum mode, GLenum index_type)
+{
+	update_current_primitive_topology(mode);
+
+	g_current_context->_current_index_type = index_type;
 }
 #endif
 
@@ -1270,6 +1273,8 @@ extern "C" void APIENTRY glDrawArrays(GLenum mode, GLint first, GLsizei count)
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		update_current_primitive_topology(mode);
+
 		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, count, 1, first, 0))
 			return;
 	}
@@ -1522,6 +1527,8 @@ void APIENTRY glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		update_current_primitive_topology(mode);
+
 		for (GLsizei i = 0; i < drawcount; ++i)
 			if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, count[i], 1, first[i], 0))
 				return;
@@ -2864,6 +2871,8 @@ void APIENTRY glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLs
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		update_current_primitive_topology(mode);
+
 		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, primcount, count, first, 0))
 			return;
 	}
@@ -3018,6 +3027,8 @@ void APIENTRY glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 
 		if (0 != indirect_buffer_binding)
 		{
+			update_current_primitive_topology(mode);
+
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
 				return;
 		}
@@ -3304,6 +3315,8 @@ void APIENTRY glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsize
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
+		update_current_primitive_topology(mode);
+
 		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_current_context, primcount, count, first, baseinstance))
 			return;
 	}
@@ -3512,6 +3525,8 @@ void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsiz
 
 		if (0 != indirect_buffer_binding)
 		{
+			update_current_primitive_topology(mode);
+
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
 					g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
 				return;

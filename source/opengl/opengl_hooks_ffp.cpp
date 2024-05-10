@@ -5,6 +5,7 @@
 
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_device_context.hpp"
+#include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
@@ -36,7 +37,19 @@ extern "C" void APIENTRY glBegin(GLenum mode)
 	static const auto trampoline = reshade::hooks::call(glBegin);
 	trampoline(mode);
 
-	assert(g_current_context == nullptr || g_current_context->_current_vertex_count == 0);
+	if (g_current_context != nullptr)
+	{
+		g_current_context->_current_prim_mode = mode;
+
+		assert(g_current_context->_current_vertex_count == 0);
+
+#if RESHADE_ADDON >= 2
+		const reshade::api::dynamic_state state = reshade::api::dynamic_state::primitive_topology;
+		uint32_t value = static_cast<uint32_t>(reshade::opengl::convert_primitive_topology(mode));
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(g_current_context, 1, &state, &value);
+#endif
+	}
 }
 
 extern "C" void APIENTRY glBitmap(GLsizei width, GLsizei height, GLfloat xorig, GLfloat yorig, GLfloat xmove, GLfloat ymove, const GLubyte *bitmap)

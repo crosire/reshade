@@ -2121,6 +2121,7 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 		return api::primitive_topology::point_list;
 	case GL_LINES:
 		return api::primitive_topology::line_list;
+	case GL_LINE_LOOP:
 	case GL_LINE_STRIP:
 		return api::primitive_topology::line_strip;
 	case GL_TRIANGLES:

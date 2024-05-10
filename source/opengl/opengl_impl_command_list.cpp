@@ -540,7 +540,7 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 			glEnableOrDisable(GL_FRAMEBUFFER_SRGB, values[i]);
 			break;
 		case api::dynamic_state::primitive_topology:
-			_current_prim_mode = values[i];
+			_current_prim_mode = static_cast<GLenum>(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		case api::dynamic_state::alpha_to_coverage_enable:
 			glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, values[i]);
