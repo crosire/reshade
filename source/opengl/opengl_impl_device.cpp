@@ -1901,41 +1901,48 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 
 	pipeline_impl *const impl = new pipeline_impl();
 
-	impl->program = gl.CreateProgram();
-
-	for (const GLuint shader : shaders)
+	if (!shaders.empty())
 	{
-		gl.AttachShader(impl->program, shader);
-	}
+		impl->program = gl.CreateProgram();
 
-	gl.LinkProgram(impl->program);
-
-	for (const GLuint shader : shaders)
-	{
-		gl.DetachShader(impl->program, shader);
-		gl.DeleteShader(shader);
-	}
-
-	shaders.clear();
-
-	GLint status = GL_FALSE;
-	gl.GetProgramiv(impl->program, GL_LINK_STATUS, &status);
-
-	if (GL_FALSE == status)
-	{
-		GLint log_size = 0;
-		gl.GetProgramiv(impl->program, GL_INFO_LOG_LENGTH, &log_size);
-
-		if (0 < log_size)
+		for (const GLuint shader : shaders)
 		{
-			std::vector<char> log(log_size);
-			gl.GetProgramInfoLog(impl->program, log_size, nullptr, log.data());
-
-			LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+			gl.AttachShader(impl->program, shader);
 		}
 
-		gl.DeleteProgram(impl->program);
-		goto exit_failure;
+		gl.LinkProgram(impl->program);
+
+		for (const GLuint shader : shaders)
+		{
+			gl.DetachShader(impl->program, shader);
+			gl.DeleteShader(shader);
+		}
+
+		shaders.clear();
+
+		GLint status = GL_FALSE;
+		gl.GetProgramiv(impl->program, GL_LINK_STATUS, &status);
+
+		if (GL_FALSE == status)
+		{
+			GLint log_size = 0;
+			gl.GetProgramiv(impl->program, GL_INFO_LOG_LENGTH, &log_size);
+
+			if (0 < log_size)
+			{
+				std::vector<char> log(log_size);
+				gl.GetProgramInfoLog(impl->program, log_size, nullptr, log.data());
+
+				LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+			}
+
+			gl.DeleteProgram(impl->program);
+			goto exit_failure;
+		}
+	}
+	else
+	{
+		impl->program = 0;
 	}
 
 	// There always has to be a VAO for graphics pipelines, even if it is empty
