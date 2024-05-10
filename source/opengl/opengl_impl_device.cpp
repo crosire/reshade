@@ -515,10 +515,10 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		gl.GenTextures(1, &object);
 		gl.BindTexture(target, object);
 
+		const GLuint levels = (desc.texture.levels != 0) ?
+			desc.texture.levels :
+			static_cast<uint32_t>(std::log2(std::max(desc.texture.width, desc.texture.height))) + 1;
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
-		GLuint levels = desc.texture.levels;
-		if (0 == levels)
-			levels = static_cast<uint32_t>(std::log2(std::max(desc.texture.width, desc.texture.height))) + 1;
 
 #if 0
 		if (shared_handle_type != GL_NONE)
@@ -603,8 +603,11 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		if (initial_data != nullptr && status == GL_NO_ERROR)
 		{
-			for (uint32_t subresource = 0; subresource < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)) * levels; ++subresource)
+			for (uint32_t subresource = 0; subresource < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)) * (desc.texture.levels == 0 ? 1u : static_cast<uint32_t>(desc.texture.levels)); ++subresource)
 				update_texture_region(initial_data[subresource], make_resource_handle(target, object), subresource, nullptr);
+
+			if (desc.texture.levels == 0 && (desc.flags & api::resource_flags::generate_mipmaps) != 0)
+				gl.GenerateMipmap(target);
 		}
 
 		gl.BindTexture(target, prev_binding);
