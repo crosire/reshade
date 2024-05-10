@@ -132,14 +132,16 @@ public:
 		gl.GetIntegerv(GL_MAX_UNIFORM_BUFFER_BINDINGS, &max_uniform_buffer_bindings);
 		GLint max_image_units = 0;
 		gl.GetIntegerv(GL_MAX_IMAGE_UNITS, &max_image_units);
+		GLint max_uniform_locations = 0;
+		gl.GetIntegerv(GL_MAX_UNIFORM_LOCATIONS, &max_uniform_locations);
 
 		const reshade::api::pipeline_layout_param global_pipeline_layout_params[6] = {
 			reshade::api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_combined_texture_image_units), reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::sampler_with_resource_view },
 			reshade::api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_shader_storage_buffer_bindings), reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::shader_storage_buffer },
 			reshade::api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_uniform_buffer_bindings), reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::constant_buffer },
 			reshade::api::descriptor_range { 0, 0, 0, static_cast<uint32_t>(max_image_units), reshade::api::shader_stage::all, 1, reshade::api::descriptor_type::unordered_access_view },
-			/* Float uniforms */ reshade::api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), reshade::api::shader_stage::all },
-			/* Integer uniforms */ reshade::api::constant_range { 0, 0, 0, std::numeric_limits<uint32_t>::max(), reshade::api::shader_stage::all },
+			/* Float uniforms */ reshade::api::constant_range { UINT32_MAX, 0, 0, static_cast<uint32_t>(max_uniform_locations) * 4, reshade::api::shader_stage::all },
+			/* Integer uniforms */ reshade::api::constant_range { UINT32_MAX, 0, 0, static_cast<uint32_t>(max_uniform_locations) * 4, reshade::api::shader_stage::all },
 		};
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, reshade::opengl::global_pipeline_layout);
 
@@ -1641,6 +1643,17 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2iv);
 		HOOK_PROC(glUniform3iv);
 		HOOK_PROC(glUniform4iv);
+		HOOK_PROC(glUniformMatrix2fv);
+		HOOK_PROC(glUniformMatrix3fv);
+		HOOK_PROC(glUniformMatrix4fv);
+#endif
+#ifdef GL_VERSION_2_1
+		HOOK_PROC(glUniformMatrix2x3fv);
+		HOOK_PROC(glUniformMatrix3x2fv);
+		HOOK_PROC(glUniformMatrix2x4fv);
+		HOOK_PROC(glUniformMatrix4x2fv);
+		HOOK_PROC(glUniformMatrix3x4fv);
+		HOOK_PROC(glUniformMatrix4x3fv);
 #endif
 #ifdef GL_VERSION_3_0
 		HOOK_PROC(glMapBufferRange);

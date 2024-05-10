@@ -392,29 +392,47 @@ extern "C" void APIENTRY glUniform3ui(GLint location, GLuint v0, GLuint v1, GLui
 #undef glUniform4ui
 extern "C" void APIENTRY glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
 #undef glUniform1fv
-extern "C" void APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat *v);
+extern "C" void APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat *value);
 #undef glUniform2fv
-extern "C" void APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat *v);
+extern "C" void APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat *value);
 #undef glUniform3fv
-extern "C" void APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat *v);
+extern "C" void APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat *value);
 #undef glUniform4fv
-extern "C" void APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat *v);
+extern "C" void APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat *value);
 #undef glUniform1iv
-extern "C" void APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint *v);
+extern "C" void APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint *value);
 #undef glUniform2iv
-extern "C" void APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint *v);
+extern "C" void APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint *value);
 #undef glUniform3iv
-extern "C" void APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint *v);
+extern "C" void APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint *value);
 #undef glUniform4iv
-extern "C" void APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint *v);
+extern "C" void APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint *value);
 #undef glUniform1uiv
-extern "C" void APIENTRY glUniform1uiv(GLint location, GLsizei count, const GLuint *v);
+extern "C" void APIENTRY glUniform1uiv(GLint location, GLsizei count, const GLuint *value);
 #undef glUniform2uiv
-extern "C" void APIENTRY glUniform2uiv(GLint location, GLsizei count, const GLuint *v);
+extern "C" void APIENTRY glUniform2uiv(GLint location, GLsizei count, const GLuint *value);
 #undef glUniform3uiv
-extern "C" void APIENTRY glUniform3uiv(GLint location, GLsizei count, const GLuint *v);
+extern "C" void APIENTRY glUniform3uiv(GLint location, GLsizei count, const GLuint *value);
 #undef glUniform4uiv
-extern "C" void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *v);
+extern "C" void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *value);
+#undef glUniformMatrix2fv
+extern "C" void APIENTRY glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix3fv
+extern "C" void APIENTRY glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix4fv
+extern "C" void APIENTRY glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix2x3fv
+extern "C" void APIENTRY glUniformMatrix2x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix3x2fv
+extern "C" void APIENTRY glUniformMatrix3x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix2x4fv
+extern "C" void APIENTRY glUniformMatrix2x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix4x2fv
+extern "C" void APIENTRY glUniformMatrix4x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix3x4fv
+extern "C" void APIENTRY glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+#undef glUniformMatrix4x3fv
+extern "C" void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 #undef glUnmapBuffer
 extern "C" void APIENTRY glUnmapBuffer(GLenum target);
 #undef glUnmapNamedBuffer

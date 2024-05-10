@@ -815,10 +815,76 @@ void reshade::opengl::device_context_impl::bind_scissor_rects(uint32_t first, ui
 
 void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
+	const GLuint push_constants_binding =
+		layout == global_pipeline_layout ? UINT32_MAX :
+		layout.handle != 0 ? reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
+
+	if (push_constants_binding == UINT32_MAX)
+	{
+		first /= 4;
+
+		switch (layout_param)
+		{
+		case 4:
+			if ((count % (4 * 4)) == 0)
+			{
+				gl.UniformMatrix4fv(first, count / (4 * 4), GL_FALSE, static_cast<const GLfloat *>(values));
+				break;
+			}
+			if ((count % (3 * 3)) == 0)
+			{
+				gl.UniformMatrix3fv(first, count / (3 * 3), GL_FALSE, static_cast<const GLfloat *>(values));
+				break;
+			}
+			if ((count % 4) == 0)
+			{
+				gl.Uniform4fv(first, count / 4, static_cast<const GLfloat *>(values));
+				break;
+			}
+			if ((count % 3) == 0)
+			{
+				gl.Uniform3fv(first, count / 3, static_cast<const GLfloat *>(values));
+				break;
+			}
+			if ((count % 2) == 0)
+			{
+				gl.Uniform2fv(first, count / 2, static_cast<const GLfloat *>(values));
+				break;
+			}
+			{
+				gl.Uniform1fv(first, count / 1, static_cast<const GLfloat *>(values));
+				break;
+			}
+		case 5:
+			if ((count % 4) == 0)
+			{
+				gl.Uniform4iv(first, count / 4, static_cast<const GLint *>(values));
+				break;
+			}
+			if ((count % 3) == 0)
+			{
+				gl.Uniform3iv(first, count / 3, static_cast<const GLint *>(values));
+				break;
+			}
+			if ((count % 2) == 0)
+			{
+				gl.Uniform2iv(first, count / 2, static_cast<const GLint *>(values));
+				break;
+			}
+			{
+				gl.Uniform1iv(first, count / 1, static_cast<const GLint *>(values));
+				break;
+			}
+		default:
+			assert(false);
+			break;
+		}
+		return;
+	}
+
 	assert(first == 0);
 
 	const GLuint push_constants_size = (first + count) * sizeof(uint32_t);
-	const GLuint push_constants_binding = (layout.handle != 0 && layout != global_pipeline_layout) ? reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
 	gl.BindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);

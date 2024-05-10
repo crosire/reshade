@@ -2505,13 +2505,13 @@ void Direct3DDevice9::on_init()
 		/* s# */ reshade::api::descriptor_range { 0, 0, 0, 4, reshade::api::shader_stage::vertex, 1, reshade::api::descriptor_type::sampler_with_resource_view }, // Vertex shaders only support 4 sampler slots (D3DVERTEXTEXTURESAMPLER0 - D3DVERTEXTEXTURESAMPLER3)
 		/* s# */ reshade::api::descriptor_range { 0, 0, 0, _caps.MaxSimultaneousTextures, reshade::api::shader_stage::pixel, 1, reshade::api::descriptor_type::sampler_with_resource_view },
 		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-vs-registers-vs-3-0
-		/* vs_3_0 c# */ reshade::api::constant_range { 0, 0, 0, _caps.MaxVertexShaderConst * 4, reshade::api::shader_stage::vertex },
-		/* vs_3_0 i# */ reshade::api::constant_range { 0, 0, 0, 16 * 4, reshade::api::shader_stage::vertex },
-		/* vs_3_0 b# */ reshade::api::constant_range { 0, 0, 0, 16 * 1, reshade::api::shader_stage::vertex },
+		/* vs_3_0 c# */ reshade::api::constant_range { UINT32_MAX, 0, 0, _caps.MaxVertexShaderConst * 4, reshade::api::shader_stage::vertex },
+		/* vs_3_0 i# */ reshade::api::constant_range { UINT32_MAX, 0, 0, 16 * 4, reshade::api::shader_stage::vertex },
+		/* vs_3_0 b# */ reshade::api::constant_range { UINT32_MAX, 0, 0, 16 * 1, reshade::api::shader_stage::vertex },
 		// See https://docs.microsoft.com/windows/win32/direct3dhlsl/dx9-graphics-reference-asm-ps-registers-ps-3-0
-		/* ps_3_0 c# */ reshade::api::constant_range { 0, 0, 0, 224 * 4, reshade::api::shader_stage::pixel },
-		/* ps_3_0 i# */ reshade::api::constant_range { 0, 0, 0,  16 * 4, reshade::api::shader_stage::pixel },
-		/* ps_3_0 b# */ reshade::api::constant_range { 0, 0, 0,  16 * 1, reshade::api::shader_stage::pixel },
+		/* ps_3_0 c# */ reshade::api::constant_range { UINT32_MAX, 0, 0, 224 * 4, reshade::api::shader_stage::pixel },
+		/* ps_3_0 i# */ reshade::api::constant_range { UINT32_MAX, 0, 0,  16 * 4, reshade::api::shader_stage::pixel },
+		/* ps_3_0 b# */ reshade::api::constant_range { UINT32_MAX, 0, 0,  16 * 1, reshade::api::shader_stage::pixel },
 	};
 	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, reshade::d3d9::global_pipeline_layout);
 

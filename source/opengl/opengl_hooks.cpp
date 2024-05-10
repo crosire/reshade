@@ -1960,7 +1960,7 @@ void APIENTRY glUniform1f(GLint location, GLfloat v0)
 		const GLfloat v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			// See global pipeline layout specified in 'device_impl::device_impl'
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 1, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1974,7 +1974,7 @@ void APIENTRY glUniform2f(GLint location, GLfloat v0, GLfloat v1)
 	{
 		const GLfloat v[2] = { v0, v1 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 2, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, 2, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -1988,7 +1988,7 @@ void APIENTRY glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2)
 	{
 		const GLfloat v[3] = { v0, v1, v2 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 3, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, 3, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -2002,7 +2002,7 @@ void APIENTRY glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GL
 	{
 		const GLfloat v[4] = { v0, v1, v2, v3 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 4, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, 4, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -2016,7 +2016,7 @@ void APIENTRY glUniform1i(GLint location, GLint v0)
 	{
 		const GLint v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 1, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -2030,7 +2030,7 @@ void APIENTRY glUniform2i(GLint location, GLint v0, GLint v1)
 	{
 		const GLint v[2] = { v0, v1 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 2, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -2044,7 +2044,7 @@ void APIENTRY glUniform3i(GLint location, GLint v0, GLint v1, GLint v2)
 	{
 		const GLint v[3] = { v0, v1, v2 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 3, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
@@ -2058,112 +2058,232 @@ void APIENTRY glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3
 	{
 		const GLint v[4] = { v0, v1, v2, v3 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 4, reinterpret_cast<const uint32_t *>(v));
 	}
 #endif
 }
 
-void APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat *v)
+void APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform1fv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 1, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat *v)
+void APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform2fv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 2, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat *v)
+void APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform3fv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 3, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat *v)
+void APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform4fv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 4, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint *v)
+void APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform1iv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 1, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint *v)
+void APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform2iv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 2, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint *v)
+void APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform3iv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 3, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
-void APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint *v)
+void APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform4iv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4 * count, reinterpret_cast<const uint32_t *>(v));
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 4, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix2fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 2 * 2, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix3fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 3 * 3, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix4fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 4 * 4, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+#endif
+
+#ifdef GL_VERSION_2_1
+void APIENTRY glUniformMatrix2x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix2x3fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 2 * 3, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix3x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix3x2fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 3 * 2, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix2x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix2x4fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 2 * 4, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix4x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix4x2fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 4 * 2, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix3x4fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 3 * 4, reinterpret_cast<const uint32_t *>(value));
+	}
+#endif
+}
+void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+{
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix3x4fv);
+	trampoline(location, count, transpose, value);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 4, location * 4, count * 4 * 3, reinterpret_cast<const uint32_t *>(value));
 	}
 #endif
 }
@@ -2616,7 +2736,7 @@ void APIENTRY glUniform1ui(GLint location, GLuint v0)
 		const GLuint v[1] = { v0 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			// See global pipeline layout specified in 'device_impl::device_impl'
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 1, v);
 	}
 #endif
 }
@@ -2630,7 +2750,7 @@ void APIENTRY glUniform2ui(GLint location, GLuint v0, GLuint v1)
 	{
 		const GLuint v[2] = { v0, v1 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 2, v);
 	}
 #endif
 }
@@ -2644,7 +2764,7 @@ void APIENTRY glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2)
 	{
 		const GLuint v[3] = { v0, v1, v2 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 3, v);
 	}
 #endif
 }
@@ -2658,60 +2778,60 @@ void APIENTRY glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLui
 	{
 		const GLuint v[4] = { v0, v1, v2, v3 };
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, 4, v);
 	}
 #endif
 }
 
-void APIENTRY glUniform1uiv(GLint location, GLsizei count, const GLuint *v)
+void APIENTRY glUniform1uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform1uiv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 1 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 1, value);
 	}
 #endif
 }
-void APIENTRY glUniform2uiv(GLint location, GLsizei count, const GLuint *v)
+void APIENTRY glUniform2uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform2uiv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 2 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 2, value);
 	}
 #endif
 }
-void APIENTRY glUniform3uiv(GLint location, GLsizei count, const GLuint *v)
+void APIENTRY glUniform3uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform3uiv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 3 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 3, value);
 	}
 #endif
 }
-void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *v)
+void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	static const auto trampoline = reshade::hooks::call(glUniform4uiv);
-	trampoline(location, count, v);
+	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
-			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location, 4 * count, v);
+			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 5, location * 4, count * 4, value);
 	}
 #endif
 }
