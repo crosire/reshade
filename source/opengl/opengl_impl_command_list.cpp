@@ -990,6 +990,26 @@ void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api
 				gl.Uniform1iv(first, count / 1, static_cast<const GLint *>(values));
 				break;
 			}
+		case 6:
+			if ((count % 4) == 0)
+			{
+				gl.Uniform4uiv(first, count / 4, static_cast<const GLuint *>(values));
+				break;
+			}
+			if ((count % 3) == 0)
+			{
+				gl.Uniform3uiv(first, count / 3, static_cast<const GLuint *>(values));
+				break;
+			}
+			if ((count % 2) == 0)
+			{
+				gl.Uniform2uiv(first, count / 2, static_cast<const GLuint *>(values));
+				break;
+			}
+			{
+				gl.Uniform1uiv(first, count / 1, static_cast<const GLuint *>(values));
+				break;
+			}
 		default:
 			assert(false);
 			break;
