@@ -1819,7 +1819,9 @@ void reshade::opengl::device_context_impl::clear_depth_stencil_view(api::resourc
 	GLuint prev_draw_binding = 0;
 	gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
-	bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 0, nullptr, dsv);
+	const bool binding_has_this_dsv = _device_impl->_supports_dsa && (dsv == _device_impl->get_framebuffer_attachment(prev_draw_binding, GL_DEPTH, 0));
+	if (!binding_has_this_dsv)
+		bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 0, nullptr, dsv);
 
 	if (depth != nullptr && stencil != nullptr)
 	{
@@ -1836,7 +1838,8 @@ void reshade::opengl::device_context_impl::clear_depth_stencil_view(api::resourc
 		gl.ClearBufferiv(GL_STENCIL, 0, &clear_value);
 	}
 
-	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
+	if (!binding_has_this_dsv)
+		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
 void reshade::opengl::device_context_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
@@ -1845,11 +1848,14 @@ void reshade::opengl::device_context_impl::clear_render_target_view(api::resourc
 	GLuint prev_draw_binding = 0;
 	gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
-	bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 1, &rtv, { 0 });
+	const bool binding_has_this_rtv = _device_impl->_supports_dsa && (rtv == _device_impl->get_framebuffer_attachment(prev_draw_binding, GL_COLOR, 0));
+	if (!binding_has_this_rtv)
+		bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 1, &rtv, { 0 });
 
 	gl.ClearBufferfv(GL_COLOR, 0, color);
 
-	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
+	if (!binding_has_this_rtv)
+		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_binding);
 }
 void reshade::opengl::device_context_impl::clear_unordered_access_view_uint(api::resource_view, const uint32_t[4], uint32_t, const api::rect *)
 {
