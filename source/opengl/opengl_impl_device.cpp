@@ -816,6 +816,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			if (0 == samples)
 				samples = 1;
 
+			assert(width != 0);
+
 			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
 		}
 		case GL_RENDERBUFFER:
@@ -847,6 +849,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 			if (0 == samples)
 				samples = 1;
+
+			assert(width != 0);
 
 			return convert_resource_desc(target, 1, samples, internal_format, width, height);
 		}

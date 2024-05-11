@@ -852,7 +852,7 @@ auto reshade::opengl::convert_upload_format(api::format format, GLenum &type) ->
 		return GL_BGRA;
 	case api::format::b5g5r5x1_unorm:
 		type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-		return GL_BGR;
+		return GL_BGRA;
 	case api::format::b4g4r4a4_unorm:
 		type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
 		return GL_BGRA;
