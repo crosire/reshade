@@ -279,6 +279,19 @@ public:
 		return &_initial_data;
 	}
 
+	static bool is_buffer_uninitialized(GLenum target)
+	{
+		GLint exists = 0;
+		gl.GetBufferParameteriv(target, GL_BUFFER_SIZE, &exists);
+		return 0 == exists;
+	}
+	static bool is_texture_uninitialized(GLenum target)
+	{
+		GLint exists = 0;
+		gl.GetTexLevelParameteriv(target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : target, 0, GL_TEXTURE_WIDTH, &exists);
+		return 0 == exists;
+	}
+
 private:
 	GLenum _target;
 	GLuint _object;
@@ -668,9 +681,7 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 	{
 		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		{
-			GLint exists = 0;
-			gl.GetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &exists);
-			if (0 == exists)
+			if (init_resource::is_texture_uninitialized(GL_TEXTURE_CUBE_MAP_POSITIVE_X))
 			{
 				// Initialize resource, so that 'glGetTex(ture)LevelParameter' returns valid information
 				for (GLint face = 0; face < 6; ++face)
@@ -1215,18 +1226,17 @@ extern "C" void APIENTRY glCopyTexSubImage2D(GLenum target, GLint level, GLint x
 
 extern "C" void APIENTRY glBindTexture(GLenum target, GLuint texture)
 {
-#if RESHADE_ADDON >= 2
-	// Only interested in existing textures that are were bound to the render pipeline
-	const bool exists = gl.IsTexture(texture);
-#endif
-
 	static const auto trampoline = reshade::hooks::call(glBindTexture);
 	trampoline(target, texture);
 
 #if RESHADE_ADDON >= 2
-	if (g_current_context && exists &&
+	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
+		// Only interested in existing textures that are being bound to the render pipeline
+		if (init_resource::is_texture_uninitialized(target))
+			return;
+
 		GLint texunit = GL_TEXTURE0;
 		gl.GetIntegerv(GL_ACTIVE_TEXTURE, &texunit);
 		texunit -= GL_TEXTURE0;
@@ -1390,9 +1400,7 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 	{
 		if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		{
-			GLint exists = 0;
-			gl.GetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &exists);
-			if (0 == exists)
+			if (init_resource::is_texture_uninitialized(GL_TEXTURE_CUBE_MAP_POSITIVE_X))
 			{
 				// Initialize resource, so that 'glGetTex(ture)LevelParameter' returns valid information
 				for (GLint face = 0; face < 6; ++face)
@@ -1652,19 +1660,18 @@ void APIENTRY glUnmapBuffer(GLenum target)
 
 void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 {
-#if RESHADE_ADDON >= 2
-	// Only interested in existing buffers that are were bound to the render pipeline
-	const bool exists = gl.IsBuffer(buffer);
-#endif
-
 	static const auto trampoline = reshade::hooks::call(glBindBuffer);
 	trampoline(target, buffer);
 
 #if RESHADE_ADDON >= 2
-	if (g_current_context && exists && (
+	if (g_current_context && (
 		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>()))
 	{
+		// Only interested in existing buffers that are being bound to the render pipeline
+		if (init_resource::is_buffer_uninitialized(target))
+			return;
+
 		const reshade::api::resource resource = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
 		const uint64_t offset_64 = 0;
 		const uint32_t stride_32 = 0;
