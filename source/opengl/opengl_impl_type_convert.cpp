@@ -1035,8 +1035,14 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 	case GL_RGB_INTEGER:
 		switch (type)
 		{
+		case GL_BYTE:
+			return api::format::r8g8b8x8_unorm;
 		case GL_UNSIGNED_SHORT: // Used by Amnesia: A Machine for Pigs (to upload to a GL_RGB8 texture)
 			return api::format::unknown;
+		case GL_INT:
+			return api::format::r32g32b32_sint;
+		case GL_UNSIGNED_INT:
+			return api::format::r32g32b32_uint;
 		case GL_UNSIGNED_INT_10F_11F_11F_REV:
 			return api::format::r11g11b10_float;
 		case GL_FLOAT:
@@ -1049,6 +1055,8 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 	case GL_BGR_INTEGER:
 		switch (type)
 		{
+		case GL_BYTE:
+			return api::format::b8g8r8x8_unorm;
 		case GL_UNSIGNED_SHORT: // Used by Amnesia: A Machine for Pigs (to upload to a GL_RGB8 texture)
 			return api::format::unknown;
 		case GL_UNSIGNED_SHORT_5_6_5_REV:
@@ -1091,26 +1099,6 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			assert(false);
 			return api::format::unknown;
 		}
-	case GL_BGRA:
-		switch (type)
-		{
-		case GL_UNSIGNED_BYTE:
-			return api::format::b8g8r8a8_unorm;
-		case GL_UNSIGNED_SHORT: // Used by Amnesia: Rebirth
-			return api::format::unknown;
-		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
-			return api::format::b4g4r4a4_unorm;
-		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
-			return api::format::b5g5r5a1_unorm;
-		case GL_UNSIGNED_INT_8_8_8_8:
-		case GL_UNSIGNED_INT_8_8_8_8_REV:
-			return api::format::b8g8r8a8_unorm;
-		case GL_UNSIGNED_INT_2_10_10_10_REV:
-			return api::format::b10g10r10a2_unorm;
-		default:
-			assert(false);
-			return api::format::unknown;
-		}
 	case GL_RGBA_INTEGER:
 		switch (type)
 		{
@@ -1128,6 +1116,26 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			return api::format::r32g32b32a32_uint;
 		case GL_UNSIGNED_INT_2_10_10_10_REV:
 			return api::format::r10g10b10a2_uint;
+		default:
+			assert(false);
+			return api::format::unknown;
+		}
+	case GL_BGRA:
+		switch (type)
+		{
+		case GL_UNSIGNED_BYTE:
+			return api::format::b8g8r8a8_unorm;
+		case GL_UNSIGNED_SHORT: // Used by Amnesia: Rebirth
+			return api::format::unknown;
+		case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+			return api::format::b4g4r4a4_unorm;
+		case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+			return api::format::b5g5r5a1_unorm;
+		case GL_UNSIGNED_INT_8_8_8_8:
+		case GL_UNSIGNED_INT_8_8_8_8_REV:
+			return api::format::b8g8r8a8_unorm;
+		case GL_UNSIGNED_INT_2_10_10_10_REV:
+			return api::format::b10g10r10a2_unorm;
 		default:
 			assert(false);
 			return api::format::unknown;
@@ -1186,12 +1194,26 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 
 	switch (format)
 	{
+	case api::format::r8g8b8x8_unorm:
+		normalized = GL_TRUE;
+		size = 3;
+		return GL_UNSIGNED_BYTE;
+	case api::format::b8g8r8x8_unorm:
+		normalized = GL_TRUE;
+		size = GL_BGR;
+		return GL_UNSIGNED_BYTE;
 	case api::format::r8g8b8a8_unorm:
 		normalized = GL_TRUE;
 		[[fallthrough]];
 	case api::format::r8g8b8a8_uint:
 		size = 4;
 		return GL_UNSIGNED_BYTE;
+	case api::format::r8g8b8a8_snorm:
+		normalized = GL_TRUE;
+		[[fallthrough]];
+	case api::format::r8g8b8a8_sint:
+		size = 4;
+		return GL_BYTE;
 	case api::format::b8g8r8a8_unorm:
 		normalized = GL_TRUE;
 		size = GL_BGRA;
@@ -1291,7 +1313,28 @@ auto reshade::opengl::convert_attrib_format(api::format format, GLint &size, GLb
 		return GL_FLOAT;
 	}
 
+	assert(false);
 	return GL_NONE;
+}
+auto reshade::opengl::convert_attrib_format(GLint size, GLenum type, GLboolean normalized) -> api::format
+{
+	switch (size)
+	{
+	case 1:
+		return convert_upload_format(normalized || type == GL_FLOAT || type == GL_HALF_FLOAT ? GL_RED : GL_RED_INTEGER, type);
+	case 2:
+		return convert_upload_format(normalized || type == GL_FLOAT || type == GL_HALF_FLOAT ? GL_RG : GL_RG_INTEGER, type);
+	case 3:
+		return convert_upload_format(normalized || type == GL_FLOAT || type == GL_HALF_FLOAT ? GL_RGB : GL_RGB_INTEGER, type);
+	case 4:
+		return convert_upload_format(normalized || type == GL_FLOAT || type == GL_HALF_FLOAT ? GL_RGBA : GL_RGBA_INTEGER, type);
+	case GL_BGRA:
+		assert(normalized);
+		return convert_upload_format(GL_BGRA, type);
+	default:
+		assert(false);
+		return api::format::unknown;
+	}
 }
 
 auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> GLenum
