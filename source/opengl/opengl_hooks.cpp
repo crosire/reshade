@@ -1776,7 +1776,7 @@ void APIENTRY glLinkProgram(GLuint program)
 				GLint size = 0;
 				gl.GetShaderiv(shader, GL_SHADER_SOURCE_LENGTH, &size);
 
-				auto &source = sources.emplace_back();
+				std::pair<reshade::api::shader_desc, std::vector<char>> &source = sources.emplace_back();
 				source.second.resize(size);
 
 				gl.GetShaderSource(shader, size, nullptr, source.second.data());
@@ -1975,6 +1975,10 @@ void APIENTRY glUniform1f(GLint location, GLfloat v0)
 	trampoline(location, v0);
 
 #if RESHADE_ADDON >= 2
+	// If location is equal to -1, the data passed in will be silently ignored
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLfloat v[1] = { v0 };
@@ -1990,6 +1994,9 @@ void APIENTRY glUniform2f(GLint location, GLfloat v0, GLfloat v1)
 	trampoline(location, v0, v1);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLfloat v[2] = { v0, v1 };
@@ -2004,6 +2011,9 @@ void APIENTRY glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2)
 	trampoline(location, v0, v1, v2);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLfloat v[3] = { v0, v1, v2 };
@@ -2018,6 +2028,9 @@ void APIENTRY glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GL
 	trampoline(location, v0, v1, v2, v3);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLfloat v[4] = { v0, v1, v2, v3 };
@@ -2032,6 +2045,9 @@ void APIENTRY glUniform1i(GLint location, GLint v0)
 	trampoline(location, v0);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLint v[1] = { v0 };
@@ -2046,6 +2062,9 @@ void APIENTRY glUniform2i(GLint location, GLint v0, GLint v1)
 	trampoline(location, v0, v1);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLint v[2] = { v0, v1 };
@@ -2060,6 +2079,9 @@ void APIENTRY glUniform3i(GLint location, GLint v0, GLint v1, GLint v2)
 	trampoline(location, v0, v1, v2);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLint v[3] = { v0, v1, v2 };
@@ -2074,6 +2096,9 @@ void APIENTRY glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3
 	trampoline(location, v0, v1, v2, v3);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLint v[4] = { v0, v1, v2, v3 };
@@ -2089,6 +2114,9 @@ void APIENTRY glUniform1fv(GLint location, GLsizei count, const GLfloat *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2102,6 +2130,9 @@ void APIENTRY glUniform2fv(GLint location, GLsizei count, const GLfloat *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2115,6 +2146,9 @@ void APIENTRY glUniform3fv(GLint location, GLsizei count, const GLfloat *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2128,6 +2162,9 @@ void APIENTRY glUniform4fv(GLint location, GLsizei count, const GLfloat *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2141,6 +2178,9 @@ void APIENTRY glUniform1iv(GLint location, GLsizei count, const GLint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2154,6 +2194,9 @@ void APIENTRY glUniform2iv(GLint location, GLsizei count, const GLint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2167,6 +2210,9 @@ void APIENTRY glUniform3iv(GLint location, GLsizei count, const GLint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2180,6 +2226,9 @@ void APIENTRY glUniform4iv(GLint location, GLsizei count, const GLint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2193,6 +2242,9 @@ void APIENTRY glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transp
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2206,6 +2258,9 @@ void APIENTRY glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transp
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2219,6 +2274,9 @@ void APIENTRY glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transp
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2235,6 +2293,9 @@ void APIENTRY glUniformMatrix2x3fv(GLint location, GLsizei count, GLboolean tran
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2248,6 +2309,9 @@ void APIENTRY glUniformMatrix3x2fv(GLint location, GLsizei count, GLboolean tran
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2261,6 +2325,9 @@ void APIENTRY glUniformMatrix2x4fv(GLint location, GLsizei count, GLboolean tran
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2274,6 +2341,9 @@ void APIENTRY glUniformMatrix4x2fv(GLint location, GLsizei count, GLboolean tran
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2287,6 +2357,9 @@ void APIENTRY glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean tran
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2300,6 +2373,9 @@ void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean tran
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2751,6 +2827,9 @@ void APIENTRY glUniform1ui(GLint location, GLuint v0)
 	trampoline(location, v0);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLuint v[1] = { v0 };
@@ -2766,6 +2845,9 @@ void APIENTRY glUniform2ui(GLint location, GLuint v0, GLuint v1)
 	trampoline(location, v0, v1);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLuint v[2] = { v0, v1 };
@@ -2780,6 +2862,9 @@ void APIENTRY glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2)
 	trampoline(location, v0, v1, v2);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLuint v[3] = { v0, v1, v2 };
@@ -2794,6 +2879,9 @@ void APIENTRY glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLui
 	trampoline(location, v0, v1, v2, v3);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		const GLuint v[4] = { v0, v1, v2, v3 };
@@ -2809,6 +2897,9 @@ void APIENTRY glUniform1uiv(GLint location, GLsizei count, const GLuint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2822,6 +2913,9 @@ void APIENTRY glUniform2uiv(GLint location, GLsizei count, const GLuint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2835,6 +2929,9 @@ void APIENTRY glUniform3uiv(GLint location, GLsizei count, const GLuint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
@@ -2848,6 +2945,9 @@ void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *value)
 	trampoline(location, count, value);
 
 #if RESHADE_ADDON >= 2
+	if (location < 0)
+		return;
+
 	if (g_current_context)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
