@@ -97,6 +97,7 @@ namespace reshade::opengl
 		GLenum _current_index_type = GL_UNSIGNED_INT;
 		GLuint _current_vertex_count = 0; // Used to calculate vertex count inside 'glBegin'/'glEnd' pairs
 		GLuint _current_window_height = 0; // Current height of the window coordinate system
+		bool _current_vao_dirty = false;
 
 		// Each render context may be active with a different device context, corresponding to different dimensions (pixel format has to match, so texture format etc. are identical to '_default_fbo_desc' of the device)
 		unsigned int _default_fbo_width = 0;

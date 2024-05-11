@@ -877,6 +877,7 @@ namespace reshade
 		/// <item><description>ID3D12GraphicsCommandList::SetPipelineState</description></item>
 		/// <item><description>ID3D12GraphicsCommandList4::SetPipelineState1</description></item>
 		/// <item><description>glUseProgram</description></item>
+		/// <item><description>glBindVertexArray</description></item>
 		/// <item><description>vkCmdBindPipeline</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::pipeline_stage stages, api::pipeline pipeline)</c></para>

@@ -1647,6 +1647,7 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniformMatrix2fv);
 		HOOK_PROC(glUniformMatrix3fv);
 		HOOK_PROC(glUniformMatrix4fv);
+		HOOK_PROC(glVertexAttribPointer);
 #endif
 #ifdef GL_VERSION_2_1
 		HOOK_PROC(glUniformMatrix2x3fv);
@@ -1684,6 +1685,8 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glUniform2uiv);
 		HOOK_PROC(glUniform3uiv);
 		HOOK_PROC(glUniform4uiv);
+		HOOK_PROC(glDeleteVertexArrays);
+		HOOK_PROC(glVertexAttribIPointer);
 #endif
 #ifdef GL_VERSION_3_1
 		HOOK_PROC(glTexBuffer);
@@ -1711,6 +1714,7 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		HOOK_PROC(glViewportArrayv);
 		HOOK_PROC(glViewportIndexedf);
 		HOOK_PROC(glViewportIndexedfv);
+		HOOK_PROC(glVertexAttribLPointer);
 #endif
 #ifdef GL_VERSION_4_2
 		HOOK_PROC(glTexStorage1D);

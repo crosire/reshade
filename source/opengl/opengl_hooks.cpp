@@ -279,12 +279,6 @@ public:
 		return &_initial_data;
 	}
 
-	static bool is_buffer_uninitialized(GLenum target)
-	{
-		GLint exists = 0;
-		gl.GetBufferParameteriv(target, GL_BUFFER_SIZE, &exists);
-		return 0 == exists;
-	}
 	static bool is_texture_uninitialized(GLenum target)
 	{
 		GLint exists = 0;
@@ -606,11 +600,115 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 		return reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(g_current_context, src, reinterpret_cast<uintptr_t>(pixels), row_length, slice_height, dst, subresource, &dst_box);
 	}
 }
-#endif
 
+static void update_current_input_layout()
+{
+	if (!g_current_context->_current_vao_dirty)
+		return;
+
+	g_current_context->_current_vao_dirty = false;
+
+	if (reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
+	{
+		GLint count = 0;
+		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &count);
+
+		std::vector<reshade::api::input_element> elements;
+		elements.reserve(count);
+
+		for (GLsizei i = 0; i < count; ++i)
+		{
+			GLint enabled = GL_FALSE;
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &enabled);
+			if (GL_FALSE == enabled)
+				continue;
+
+			reshade::api::input_element &element = elements.emplace_back();
+			element.location = i;
+
+			GLint attrib_size = 0;
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_SIZE, &attrib_size);
+			GLint attrib_type = 0;
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_TYPE, &attrib_type);
+			GLint attrib_normalized = 0;
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, &attrib_normalized);
+			element.format = reshade::opengl::convert_attrib_format(attrib_size, static_cast<GLenum>(attrib_type), static_cast<GLboolean>(attrib_normalized));
+
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, reinterpret_cast<GLint *>(&element.stride));
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_RELATIVE_OFFSET, reinterpret_cast<GLint *>(&element.offset));
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_BINDING, reinterpret_cast<GLint *>(&element.buffer_binding));
+			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, reinterpret_cast<GLint *>(&element.instance_step_rate));
+		}
+
+		GLint vao = 0;
+		gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+
+		reshade::api::pipeline_subobject subobject;
+		subobject.type = reshade::api::pipeline_subobject_type::input_layout;
+		subobject.count = static_cast<uint32_t>(elements.size());
+		subobject.data = elements.data();
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context->get_device(), reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | vao });
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::input_assembler, reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | vao });
+	}
+
+	if (reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
+		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
+	{
+		GLint count = 0;
+		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &count);
+
+		temp_mem<reshade::api::resource> buffer_handles(count);
+		temp_mem<uint64_t> offsets_64(count);
+		temp_mem<uint32_t> strides_32(count);
+		for (GLsizei i = 0; i < count; ++i)
+		{
+			offsets_64[i] = 0;
+			strides_32[i] = 0;
+
+			GLint vbo = 0;
+			gl.GetIntegeri_v(GL_VERTEX_BINDING_BUFFER, i, &vbo);
+			if (0 != vbo)
+			{
+				buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, vbo);
+
+				gl.GetIntegeri_v(GL_VERTEX_BINDING_STRIDE, i, reinterpret_cast<GLint *>(&strides_32[i]));
+				assert(strides_32[0] != 0);
+				gl.GetInteger64i_v(GL_VERTEX_BINDING_OFFSET, i, reinterpret_cast<GLint64 *>(&offsets_64[i]));
+			}
+			else
+			{
+				buffer_handles[i] = { 0 };
+			}
+		}
+
+		GLint ibo = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &ibo);
+
+		g_current_context->_current_ibo = ibo;
+		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, ibo),
+			0,
+			reshade::opengl::get_index_type_size(g_current_context->_current_index_type));
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
+			g_current_context,
+			0,
+			count,
+			buffer_handles.p,
+			offsets_64.p,
+			strides_32.p);
+	}
+}
+#endif
 #if RESHADE_ADDON
 static void update_current_primitive_topology(GLenum mode)
 {
+#if RESHADE_ADDON >= 2
+	update_current_input_layout();
+#endif
+
 	if (mode != g_current_context->_current_prim_mode)
 	{
 		g_current_context->_current_prim_mode = mode;
@@ -634,9 +732,10 @@ static void update_current_primitive_topology(GLenum mode)
 }
 static void update_current_primitive_topology(GLenum mode, GLenum index_type)
 {
-	update_current_primitive_topology(mode);
-
+	// Update index type first, so that 'update_current_input_layout' can reference it
 	g_current_context->_current_index_type = index_type;
+
+	update_current_primitive_topology(mode);
 }
 #endif
 
@@ -1664,30 +1763,8 @@ void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 	trampoline(target, buffer);
 
 #if RESHADE_ADDON >= 2
-	if (g_current_context && (
-		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
-		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>()))
-	{
-		// Only interested in existing buffers that are being bound to the render pipeline
-		if (init_resource::is_buffer_uninitialized(target))
-			return;
-
-		const reshade::api::resource resource = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
-		const uint64_t offset_64 = 0;
-		const uint32_t stride_32 = 0;
-
-		switch (target)
-		{
-		case GL_ELEMENT_ARRAY_BUFFER:
-			g_current_context->_current_ibo = buffer;
-			// The index format is provided to 'glDrawElements' and is unknown at this point, so call with index size set to zero
-			reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(g_current_context, resource, offset_64, 0);
-			return;
-		case GL_ARRAY_BUFFER:
-			reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(g_current_context, 0, 1, &resource, &offset_64, &stride_32);
-			return;
-		}
-	}
+	if (g_current_context && (target == GL_ELEMENT_ARRAY_BUFFER || target == GL_ARRAY_BUFFER))
+		g_current_context->_current_vao_dirty = true;
 #endif
 }
 #endif
@@ -2284,6 +2361,17 @@ void APIENTRY glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transp
 	}
 #endif
 }
+
+void APIENTRY glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
+{
+	static const auto trampoline = reshade::hooks::call(glVertexAttribPointer);
+	trampoline(index, size, type, normalized, stride, pointer);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context != nullptr)
+		g_current_context->_current_vao_dirty = true;
+#endif
+}
 #endif
 
 #ifdef GL_VERSION_2_1
@@ -2423,6 +2511,23 @@ void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 
 	static const auto trampoline = reshade::hooks::call(glDeleteRenderbuffers);
 	trampoline(n, renderbuffers);
+}
+
+void APIENTRY glDeleteVertexArrays(GLsizei n, const GLuint *arrays)
+{
+#if RESHADE_ADDON
+	if (g_current_context != nullptr)
+	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		for (GLsizei i = 0; i < n; ++i)
+			if (gl.IsVertexArray(arrays[i]))
+				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device, reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | arrays[i] });
+	}
+#endif
+
+	static const auto trampoline = reshade::hooks::call(glDeleteVertexArrays);
+	trampoline(n, arrays);
 }
 
 void APIENTRY glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
@@ -2770,53 +2875,14 @@ void APIENTRY glBindFramebuffer(GLenum target, GLuint framebuffer)
 
 void APIENTRY glBindVertexArray(GLuint array)
 {
-#if RESHADE_ADDON >= 2
-	// Only interested in existing vertex arrays that are were bound to the render pipeline
-	const bool exists = gl.IsVertexArray(array);
-#endif
-
 	static const auto trampoline = reshade::hooks::call(glBindVertexArray);
 	trampoline(array);
 
 #if RESHADE_ADDON >= 2
-	if (g_current_context && exists && (
-		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
-		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>()))
+	if (g_current_context)
 	{
-		GLint count = 0, vbo = 0, ibo = 0;
-		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &count);
-
-		temp_mem<reshade::api::resource> buffer_handles(count);
-		temp_mem<uint64_t> offsets_64(count);
-		temp_mem<uint32_t> strides_32(count);
-		for (GLsizei i = 0; i < count; ++i)
-		{
-			offsets_64[i] = 0;
-			strides_32[i] = 0;
-
-			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, &vbo);
-
-			if (vbo != 0)
-			{
-				buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, vbo);
-
-				gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, reinterpret_cast<GLint *>(&strides_32[i]));
-				gl.GetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, reinterpret_cast<GLvoid **>(&offsets_64[i]));
-			}
-			else
-			{
-				buffer_handles[i] = { 0 };
-			}
-		}
-
-		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &ibo);
-
-		g_current_context->_current_ibo = ibo;
-		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
-			g_current_context, ibo != 0 ? reshade::opengl::make_resource_handle(GL_BUFFER, ibo) : reshade::api::resource { 0 }, 0, 0);
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
-			g_current_context, 0, count, buffer_handles.p, offsets_64.p, strides_32.p);
+		g_current_context->_current_vao_dirty = true;
+		update_current_input_layout();
 	}
 #endif
 }
@@ -2953,6 +3019,17 @@ void APIENTRY glUniform4uiv(GLint location, GLsizei count, const GLuint *value)
 		reshade::invoke_addon_event<reshade::addon_event::push_constants>(
 			g_current_context, reshade::api::shader_stage::all, reshade::opengl::global_pipeline_layout, 6, location * 4, count * 4, value);
 	}
+#endif
+}
+
+void APIENTRY glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer)
+{
+	static const auto trampoline = reshade::hooks::call(glVertexAttribIPointer);
+	trampoline(index, size, type, stride, pointer);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context != nullptr)
+		g_current_context->_current_vao_dirty = true;
 #endif
 }
 #endif
@@ -3344,6 +3421,17 @@ void APIENTRY glViewportIndexedfv(GLuint index, const GLfloat *v)
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(g_current_context, index, 1, &viewport_data);
 	}
+#endif
+}
+
+void APIENTRY glVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer)
+{
+	static const auto trampoline = reshade::hooks::call(glVertexAttribLPointer);
+	trampoline(index, size, type, stride, pointer);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context != nullptr)
+		g_current_context->_current_vao_dirty = true;
 #endif
 }
 #endif

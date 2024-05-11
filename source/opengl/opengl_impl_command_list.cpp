@@ -517,6 +517,12 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 		gl.UseProgram(pipeline.handle & 0xFFFFFFFF);
 		return;
 	}
+	if ((pipeline.handle >> 40) == GL_VERTEX_ARRAY)
+	{
+		assert((stages & ~api::pipeline_stage::input_assembler) == 0);
+		gl.BindVertexArray(pipeline.handle & 0xFFFFFFFF);
+		return;
+	}
 
 	// Always disable alpha test in case the application set that (fixes broken GUI rendering in Quake)
 	if (_device_impl->_compatibility_context)

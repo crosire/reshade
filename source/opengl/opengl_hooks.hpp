@@ -135,6 +135,8 @@ extern "C" void APIENTRY glDeleteProgramsARB(GLsizei n, const GLuint *programs);
 extern "C" void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers);
 #undef glDeleteTextures
 extern "C" void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures);
+#undef glDeleteVertexArrays
+extern "C" void APIENTRY glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
 #undef glDepthFunc
 extern "C" void APIENTRY glDepthFunc(GLenum func);
 #undef glDepthMask
@@ -439,6 +441,12 @@ extern "C" void APIENTRY glUnmapBuffer(GLenum target);
 extern "C" void APIENTRY glUnmapNamedBuffer(GLuint buffer);
 #undef glUseProgram
 extern "C" void APIENTRY glUseProgram(GLuint program);
+#undef glVertexAttribPointer
+extern "C" void APIENTRY glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
+#undef glVertexAttribIPointer
+extern "C" void APIENTRY glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);
+#undef glVertexAttribLPointer
+extern "C" void APIENTRY glVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);
 #undef glViewport
 extern "C" void APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 #undef glViewportArrayv
