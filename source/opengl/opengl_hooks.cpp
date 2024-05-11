@@ -37,14 +37,14 @@ thread_local reshade::opengl::device_context_impl *g_current_context = nullptr;
 class init_resource
 {
 public:
-	init_resource(GLenum target, GLuint object, GLsizeiptr buffer_size, GLenum usage) :
+	init_resource(GLenum target, GLuint object, GLsizeiptr buffer_size, GLbitfield storage_flags) :
 		_target(GL_BUFFER), _object(object)
 	{
 		// Get object from current binding in case it was not specified
 		if (object == 0)
 			gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&_object));
 
-		_desc = reshade::opengl::convert_resource_desc(target, buffer_size, usage);
+		_desc = reshade::opengl::convert_resource_desc(target, buffer_size, storage_flags);
 	}
 	init_resource(GLenum target, GLuint object, GLsizei levels, GLsizei samples, GLenum internal_format, GLsizei width, GLsizei height, GLsizei depth) :
 		_target(target), _object(object)
@@ -77,6 +77,18 @@ public:
 	{
 	}
 
+	void invoke_create_event(GLsizeiptr *buffer_size, GLbitfield *storage_flags, const void *&data)
+	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		_initial_data.data = const_cast<void *>(data); // Row and depth pitch are unused for buffer data
+
+		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, _desc, data != nullptr ? &_initial_data : nullptr, reshade::api::resource_usage::general))
+		{
+			reshade::opengl::convert_resource_desc(_desc, *buffer_size, *storage_flags);
+			data = _initial_data.data;
+		}
+	}
 	void invoke_create_event(GLsizei *levels, GLsizei *samples, GLenum *internal_format, GLsizei *width, GLsizei *height, GLsizei *depth)
 	{
 		auto pixels = static_cast<const void *>(nullptr);
@@ -117,18 +129,6 @@ public:
 			// Skip initial upload, data is uploaded after creation in 'invoke_initialize_event' below
 			pixels = nullptr;
 			_update_texture = (_initial_data.data != nullptr);
-		}
-	}
-	void invoke_create_event(GLsizeiptr *buffer_size, GLenum *usage, const void *&data)
-	{
-		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
-
-		_initial_data.data = const_cast<void *>(data); // Row and depth pitch are unused for buffer data
-
-		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, _desc, data != nullptr ? &_initial_data : nullptr, reshade::api::resource_usage::general))
-		{
-			reshade::opengl::convert_resource_desc(_desc, *buffer_size, *usage);
-			data = _initial_data.data;
 		}
 	}
 
@@ -1580,8 +1580,10 @@ void APIENTRY glBufferData(GLenum target, GLsizeiptr size, const void *data, GLe
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(target, 0, size, usage);
-		resource.invoke_create_event(&size, &usage, data);
+		GLbitfield storage_flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT;
+
+		init_resource resource(target, 0, size, storage_flags);
+		resource.invoke_create_event(&size, &storage_flags, data);
 		trampoline(target, size, data, usage);
 		resource.invoke_initialize_event();
 	}
@@ -3593,12 +3595,8 @@ void APIENTRY glBufferStorage(GLenum target, GLsizeiptr size, const void *data, 
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		GLenum usage = GL_NONE;
-		reshade::opengl::convert_memory_flags_to_usage(flags, usage);
-
-		init_resource resource(target, 0, size, usage);
-		resource.invoke_create_event(&size, &usage, data);
-		reshade::opengl::convert_memory_usage_to_flags(usage, flags);
+		init_resource resource(target, 0, size, flags);
+		resource.invoke_create_event(&size, &flags, data);
 		trampoline(target, size, data, flags);
 		resource.invoke_initialize_event();
 	}
@@ -3884,8 +3882,10 @@ void APIENTRY glNamedBufferData(GLuint buffer, GLsizeiptr size, const void *data
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		init_resource resource(GL_BUFFER, buffer, size, usage);
-		resource.invoke_create_event(&size, &usage, data);
+		GLbitfield storage_flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_DYNAMIC_STORAGE_BIT;
+
+		init_resource resource(GL_BUFFER, buffer, size, storage_flags);
+		resource.invoke_create_event(&size, &storage_flags, data);
 		trampoline(buffer, size, data, usage);
 		resource.invoke_initialize_event();
 	}
@@ -3901,12 +3901,8 @@ void APIENTRY glNamedBufferStorage(GLuint buffer, GLsizeiptr size, const void *d
 #if RESHADE_ADDON
 	if (g_current_context)
 	{
-		GLenum usage = GL_NONE;
-		reshade::opengl::convert_memory_flags_to_usage(flags, usage);
-
-		init_resource resource(GL_BUFFER, buffer, size, usage);
-		resource.invoke_create_event(&size, &usage, data);
-		reshade::opengl::convert_memory_usage_to_flags(usage, flags);
+		init_resource resource(GL_BUFFER, buffer, size, flags);
+		resource.invoke_create_event(&size, &flags, data);
 		trampoline(buffer, size, data, flags);
 		resource.invoke_initialize_event();
 	}

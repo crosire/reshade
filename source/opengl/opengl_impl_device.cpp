@@ -459,8 +459,8 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		gl.BindBuffer(target, object);
 
 		GLsizeiptr buffer_size = 0;
-		GLenum usage = GL_NONE;
-		convert_resource_desc(desc, buffer_size, usage);
+		GLbitfield storage_flags = GL_NONE;
+		convert_resource_desc(desc, buffer_size, storage_flags);
 
 #if 0
 		if (shared_handle_type != GL_NONE)
@@ -476,14 +476,11 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		else
 #endif
 		{
-			GLbitfield usage_flags = GL_NONE;
-			convert_memory_usage_to_flags(usage, usage_flags);
-
 			// Upload of initial data is using 'glBufferSubData', which requires the dynamic storage flag
 			if (initial_data != nullptr)
-				usage_flags |= GL_DYNAMIC_STORAGE_BIT;
+				storage_flags |= GL_DYNAMIC_STORAGE_BIT;
 
-			gl.BufferStorage(target, buffer_size, nullptr, usage_flags);
+			gl.BufferStorage(target, buffer_size, nullptr, storage_flags);
 		}
 
 		status = gl.GetError();
@@ -693,7 +690,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #else
 			GLint64 size = 0;
 #endif
-			GLint usage = GL_NONE;
+			GLbitfield storage_flags = GL_NONE;
 
 			if (_supports_dsa)
 			{
@@ -702,7 +699,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #else
 				gl.GetNamedBufferParameteri64v(object, GL_BUFFER_SIZE, &size);
 #endif
-				gl.GetNamedBufferParameteriv(object, GL_BUFFER_USAGE, &usage);
+				gl.GetNamedBufferParameteriv(object, GL_BUFFER_STORAGE_FLAGS, reinterpret_cast<GLint *>(&storage_flags));
 			}
 			else
 			{
@@ -716,13 +713,13 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #else
 				gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
 #endif
-				gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_USAGE, &usage);
+				gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_STORAGE_FLAGS, reinterpret_cast<GLint *>(&storage_flags));
 
 				if (object != prev_binding)
 					gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
-			return convert_resource_desc(target, size, usage);
+			return convert_resource_desc(target, size, storage_flags);
 		}
 		case GL_TEXTURE_BUFFER:
 		case GL_TEXTURE_1D:
