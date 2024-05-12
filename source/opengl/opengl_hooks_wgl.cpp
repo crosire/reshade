@@ -177,6 +177,15 @@ public:
 				context_info.second->invalidate_framebuffer_cache();
 	}
 
+	void destroy_pipeline(reshade::api::pipeline handle) final
+	{
+		device_impl::destroy_pipeline(handle);
+
+		for (const std::pair<HGLRC, reshade::opengl::device_context_impl *> context_info : s_opengl_contexts)
+			if (context_info.second->get_device() == this)
+				context_info.second->invalidate_vertex_array_cache();
+	}
+
 	reshade::api::resource_desc get_resource_desc(reshade::api::resource resource) const final
 	{
 		reshade::api::resource_desc desc = device_impl::get_resource_desc(resource);

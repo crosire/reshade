@@ -16,7 +16,7 @@ namespace reshade::opengl
 		void apply(api::pipeline_stage stages) const;
 
 		GLuint program;
-		GLuint vao;
+
 		std::vector<api::input_element> input_elements;
 
 		// Blend state

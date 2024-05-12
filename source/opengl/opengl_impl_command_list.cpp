@@ -70,26 +70,6 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 	{
-		gl.BindVertexArray(vao);
-
-		// Rebuild vertex array object every time
-		// This fixes weird artifacts in melonDS and the first Call of Duty
-		for (const api::input_element &element : input_elements)
-		{
-			gl.EnableVertexAttribArray(element.location);
-
-			GLint attrib_size = 0;
-			GLboolean normalized = GL_FALSE;
-			const GLenum attrib_format = convert_attrib_format(element.format, attrib_size, normalized);
-#if 1
-			gl.VertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
-			gl.VertexAttribBinding(element.location, element.buffer_binding);
-#else
-			gl.VertexAttribPointer(element.location, attrib_size, attrib_format, normalized, element.stride, reinterpret_cast<const void *>(static_cast<uintptr_t>(element.offset)));
-#endif
-			gl.VertexBindingDivisor(element.buffer_binding, element.instance_step_rate);
-		}
-
 		gl.PolygonMode(GL_FRONT_AND_BACK, polygon_mode);
 
 		if (prim_mode == GL_PATCHES)
@@ -504,13 +484,17 @@ void reshade::opengl::device_context_impl::invalidate_framebuffer_cache()
 {
 	_fbo_lookup_valid = false;
 }
+void reshade::opengl::device_context_impl::invalidate_vertex_array_cache()
+{
+	_vao_lookup_valid = false;
+}
 
 void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	if (pipeline.handle == 0)
 		return;
 
-	// Special case for application pipeline handles
+	// Special case for application handles
 	if ((pipeline.handle >> 40) == GL_PROGRAM)
 	{
 		assert((stages & ~api::pipeline_stage::all_shader_stages) == 0);
@@ -531,7 +515,41 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 	reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(stages);
 
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
+	{
 		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
+
+		if (!_vao_lookup_valid)
+		{
+			for (const auto &vao_data : _vao_lookup)
+				gl.DeleteVertexArrays(1, &vao_data.second);
+			_vao_lookup.clear();
+			_vao_lookup_valid = true;
+		}
+		else if (const auto it = _vao_lookup.find(pipeline.handle);
+			it != _vao_lookup.end())
+		{
+			gl.BindVertexArray(it->second);
+			return;
+		}
+
+		GLuint vao = 0;
+		gl.GenVertexArrays(1, &vao);
+		_vao_lookup.emplace(pipeline.handle, vao);
+
+		gl.BindVertexArray(vao);
+
+		for (const api::input_element &element : reinterpret_cast<pipeline_impl *>(pipeline.handle)->input_elements)
+		{
+			gl.EnableVertexAttribArray(element.location);
+
+			GLint attrib_size = 0;
+			GLboolean normalized = GL_FALSE;
+			const GLenum attrib_format = convert_attrib_format(element.format, attrib_size, normalized);
+			gl.VertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
+			gl.VertexAttribBinding(element.location, element.buffer_binding);
+			gl.VertexBindingDivisor(element.buffer_binding, element.instance_step_rate);
+		}
+	}
 }
 void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {

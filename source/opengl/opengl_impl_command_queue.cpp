@@ -24,6 +24,10 @@ reshade::opengl::device_context_impl::~device_context_impl()
 	for (const auto &fbo_data : _fbo_lookup)
 		gl.DeleteFramebuffers(1, &fbo_data.second);
 
+	// Destroy vertex array objects
+	for (const auto &vao_data : _vao_lookup)
+		gl.DeleteVertexArrays(1, &vao_data.second);
+
 	// Destroy push constants buffer
 	gl.DeleteBuffers(1, &_push_constants);
 }

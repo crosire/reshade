@@ -1832,9 +1832,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 
 bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
-	bool is_graphics_pipeline = true;
 	std::vector<GLuint> shaders;
-
 	api::pipeline_subobject input_layout_desc = {};
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
@@ -1890,7 +1888,6 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 				break;
 			if (!create_shader_module(GL_COMPUTE_SHADER, *static_cast<const api::shader_desc *>(subobjects[i].data), shaders.emplace_back()))
 				goto exit_failure;
-			is_graphics_pipeline = false;
 			break;
 		case api::pipeline_subobject_type::input_layout:
 			input_layout_desc = subobjects[i];
@@ -1982,19 +1979,9 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		impl->program = 0;
 	}
 
-	// There always has to be a VAO for graphics pipelines, even if it is empty
-	if (is_graphics_pipeline || input_layout_desc.count != 0)
-	{
-		gl.GenVertexArrays(1, &impl->vao);
-
-		impl->input_elements.assign(
-			static_cast<const api::input_element *>(input_layout_desc.data),
-			static_cast<const api::input_element *>(input_layout_desc.data) + input_layout_desc.count);
-	}
-	else
-	{
-		impl->vao = 0;
-	}
+	impl->input_elements.assign(
+		static_cast<const api::input_element *>(input_layout_desc.data),
+		static_cast<const api::input_element *>(input_layout_desc.data) + input_layout_desc.count);
 
 	impl->sample_alpha_to_coverage = blend_desc.alpha_to_coverage_enable;
 	impl->logic_op_enable = blend_desc.logic_op_enable[0]; // Logic operation applies to all attachments
@@ -2070,7 +2057,6 @@ void reshade::opengl::device_impl::destroy_pipeline(api::pipeline handle)
 	const auto impl = reinterpret_cast<pipeline_impl *>(handle.handle);
 
 	gl.DeleteProgram(impl->program);
-	gl.DeleteVertexArrays(1, &impl->vao);
 
 	delete impl;
 }
@@ -2299,6 +2285,7 @@ bool reshade::opengl::device_impl::create_query_heap(api::query_type type, uint3
 	const auto impl = new query_heap_impl();
 	impl->queries.resize(size);
 
+	// TODO: Query objects cannot be shared across multiple render contexts
 	gl.GenQueries(static_cast<GLsizei>(size), impl->queries.data());
 
 	const GLenum target = convert_query_type(type);

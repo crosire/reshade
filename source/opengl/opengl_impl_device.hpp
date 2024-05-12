@@ -36,7 +36,7 @@ namespace reshade::opengl
 
 		api::resource_desc get_resource_desc(api::resource resource) const override;
 
-		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) override;
+		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
 		void destroy_resource_view(api::resource_view handle) override;
 
 		api::format get_resource_format(GLenum target, GLenum object) const;
@@ -57,7 +57,7 @@ namespace reshade::opengl
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobjecte_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle) final;
-		void destroy_pipeline(api::pipeline handle) final;
+		void destroy_pipeline(api::pipeline handle) override;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
