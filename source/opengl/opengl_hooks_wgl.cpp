@@ -249,14 +249,15 @@ public:
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{
-			reshade::api::resource_desc default_fbo_depth_desc = device->_default_fbo_desc;
+			constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+
+			reshade::api::resource_desc default_fbo_depth_desc = device->get_resource_desc(default_ds);
 			default_fbo_depth_desc.texture.width = width;
 			default_fbo_depth_desc.texture.height = height;
-			default_fbo_depth_desc.texture.format = device->_default_depth_format;
 
-			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(device, default_fbo_depth_desc, nullptr, reshade::api::resource_usage::depth_stencil, device->get_resource_from_view(default_dsv));
-			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(device, device->get_resource_from_view(default_dsv), reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(default_fbo_depth_desc.texture.format), default_dsv);
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(device, default_fbo_depth_desc, nullptr, reshade::api::resource_usage::depth_stencil, default_ds);
+			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(device, default_ds, reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(default_fbo_depth_desc.texture.format), default_dsv);
 		}
 #endif
 
@@ -279,9 +280,11 @@ public:
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{
+			constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, default_dsv);
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device, device->get_resource_from_view(default_dsv));
+			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device, default_ds);
 		}
 
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);

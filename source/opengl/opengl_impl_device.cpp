@@ -890,6 +890,8 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			{
 				api::resource_desc default_fbo_depth_desc = _default_fbo_desc;
 				default_fbo_depth_desc.texture.format = _default_depth_format;
+				default_fbo_depth_desc.usage = (default_fbo_depth_desc.usage & ~reshade::api::resource_usage::render_target) | reshade::api::resource_usage::depth_stencil;
+
 				return default_fbo_depth_desc;
 			}
 			else
