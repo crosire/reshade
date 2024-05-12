@@ -18,6 +18,8 @@ namespace reshade::opengl
 		GLuint program;
 
 		std::vector<api::input_element> input_elements;
+		GLenum prim_mode;
+		GLuint patch_vertices;
 
 		// Blend state
 
@@ -33,6 +35,7 @@ namespace reshade::opengl
 		GLenum logic_op;
 		GLfloat blend_constant[4];
 		GLboolean color_write_mask[8][4];
+		GLbitfield sample_mask;
 
 		// Rasterizer state
 
@@ -64,10 +67,6 @@ namespace reshade::opengl
 		GLenum back_stencil_op_fail;
 		GLenum back_stencil_op_depth_fail;
 		GLenum back_stencil_op_pass;
-
-		GLbitfield sample_mask;
-		GLenum prim_mode;
-		GLuint patch_vertices;
 	};
 
 	struct descriptor_table_impl

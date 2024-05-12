@@ -66,12 +66,12 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 		{
 			gl.ColorMaski(i, color_write_mask[i][0], color_write_mask[i][1], color_write_mask[i][2], color_write_mask[i][3]);
 		}
+
+		gl.SampleMaski(0, sample_mask);
 	}
 
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 	{
-		gl.PolygonMode(GL_FRONT_AND_BACK, polygon_mode);
-
 		if (prim_mode == GL_PATCHES)
 		{
 			gl.PatchParameteri(GL_PATCH_VERTICES, patch_vertices);
@@ -80,6 +80,8 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 
 	if ((stages & api::pipeline_stage::rasterizer) != 0)
 	{
+		gl.PolygonMode(GL_FRONT_AND_BACK, polygon_mode);
+
 		if (cull_mode != GL_NONE)
 		{
 			gl.Enable(GL_CULL_FACE);
@@ -125,8 +127,6 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 		{
 			gl.Disable(GL_STENCIL_TEST);
 		}
-
-		gl.SampleMaski(0, sample_mask);
 	}
 }
 
