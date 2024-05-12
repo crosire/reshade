@@ -106,13 +106,10 @@ namespace reshade::opengl
 	private:
 		device_impl *const _device_impl;
 
-		// Programs and framebuffer objects cannot be shared between render contexts, so have to create them for each one
-		GLuint _mipmap_program = 0;
-		GLuint _mipmap_sampler = 0;
-
 		GLuint _push_constants = 0;
 		GLuint _push_constants_size = 0;
 
+		// Framebuffer objects cannot be shared between render contexts, so have to create them for each one
 		bool _fbo_lookup_valid = true;
 		std::unordered_map<size_t, GLuint> _fbo_lookup;
 	};

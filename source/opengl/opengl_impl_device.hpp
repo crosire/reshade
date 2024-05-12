@@ -102,6 +102,9 @@ namespace reshade::opengl
 		std::vector<GLuint> _reserved_buffer_names;
 		std::vector<GLuint> _reserved_texture_names;
 
+		GLuint _mipmap_program = 0;
+		GLuint _mipmap_sampler = 0;
+
 		struct map_info
 		{
 			api::subresource_data data;

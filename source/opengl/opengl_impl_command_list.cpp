@@ -1879,7 +1879,7 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 	const GLenum target = srv.handle >> 40;
 	const GLuint object = srv.handle & 0xFFFFFFFF;
 
-	gl.BindSampler(0, _mipmap_sampler);
+	gl.BindSampler(0, _device_impl->_mipmap_sampler);
 	gl.ActiveTexture(GL_TEXTURE0); // src
 	gl.BindTexture(target, object);
 
@@ -1887,7 +1887,7 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 	gl.GenerateMipmap(target);
 #else
 	// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
-	gl.UseProgram(_mipmap_program);
+	gl.UseProgram(_device_impl->_mipmap_program);
 
 	GLuint levels = 0;
 	gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&levels));
