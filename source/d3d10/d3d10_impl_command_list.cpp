@@ -176,30 +176,41 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		case api::dynamic_state::blend_constant:
-		{
-			com_ptr<ID3D10BlendState> state;
-			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
-			UINT sample_mask = D3D10_DEFAULT_SAMPLE_MASK;
-			_orig->OMGetBlendState(&state, nullptr, &sample_mask);
-			_orig->OMSetBlendState(state.get(), blend_constant, sample_mask);
+			if (const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+				i + 1 < count &&
+				states[i + 1] == api::dynamic_state::sample_mask)
+			{
+				com_ptr<ID3D10BlendState> state;
+				_orig->OMGetBlendState(&state, nullptr, nullptr);
+				_orig->OMSetBlendState(state.get(), blend_constant, values[i + 1]);
+				i += 1;
+			}
+			else
+			{
+				com_ptr<ID3D10BlendState> state;
+				UINT sample_mask = D3D10_DEFAULT_SAMPLE_MASK;
+				_orig->OMGetBlendState(&state, nullptr, &sample_mask);
+				_orig->OMSetBlendState(state.get(), blend_constant, sample_mask);
+			}
 			break;
-		}
 		case api::dynamic_state::sample_mask:
-		{
-			com_ptr<ID3D10BlendState> state;
-			float blend_constant[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			const UINT sample_mask = values[i];
-			_orig->OMGetBlendState(&state, blend_constant, nullptr);
-			_orig->OMSetBlendState(state.get(), blend_constant, sample_mask);
+			{
+				com_ptr<ID3D10BlendState> state;
+				float blend_constant[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+				_orig->OMGetBlendState(&state, blend_constant, nullptr);
+				_orig->OMSetBlendState(state.get(), blend_constant, values[i]);
+			}
 			break;
-		}
 		case api::dynamic_state::front_stencil_reference_value:
-		{
-			com_ptr<ID3D10DepthStencilState> state;
-			_orig->OMGetDepthStencilState(&state, nullptr);
-			_orig->OMSetDepthStencilState(state.get(), values[i]);
+			{
+				com_ptr<ID3D10DepthStencilState> state;
+				_orig->OMGetDepthStencilState(&state, nullptr);
+				_orig->OMSetDepthStencilState(state.get(), values[i]);
+			}
 			break;
-		}
+		case api::dynamic_state::back_stencil_reference_value:
+			// Ignore
+			break;
 		default:
 			assert(false);
 			break;

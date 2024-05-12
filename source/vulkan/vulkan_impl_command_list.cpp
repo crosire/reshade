@@ -369,11 +369,11 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		switch (states[i])
 		{
 		case api::dynamic_state::blend_constant:
-		{
-			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
-			vk.CmdSetBlendConstants(_orig, blend_constant);
+			{
+				const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+				vk.CmdSetBlendConstants(_orig, blend_constant);
+			}
 			break;
-		}
 		case api::dynamic_state::front_stencil_read_mask:
 			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
 			break;

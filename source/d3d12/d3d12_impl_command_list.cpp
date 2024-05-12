@@ -247,22 +247,48 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		case api::dynamic_state::blend_constant:
-		{
-			const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
-			_orig->OMSetBlendFactor(blend_constant);
+			{
+				const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+				_orig->OMSetBlendFactor(blend_constant);
+			}
 			break;
-		}
 		case api::dynamic_state::front_stencil_reference_value:
-			_orig->OMSetStencilRef(values[i]);
-			break;
+			if (i + 1 < count &&
+				states[i + 1] == api::dynamic_state::back_stencil_reference_value)
+			{
+				com_ptr<ID3D12GraphicsCommandList8> cmd_list8;
+				if (SUCCEEDED(_orig->QueryInterface(&cmd_list8)))
+				{
+					cmd_list8->OMSetFrontAndBackStencilRef(values[i], values[i + 1]);
+					i += 1;
+					break;
+				}
+			}
+			else
+			{
+				_orig->OMSetStencilRef(values[i]);
+				break;
+			}
+			[[fallthrough]];
 		case api::dynamic_state::back_stencil_reference_value:
-			// OMSetFrontAndBackStencilRef
 			assert(false);
 			break;
 		case api::dynamic_state::depth_bias:
+			if (i + 2 < count &&
+				states[i + 1] == api::dynamic_state::depth_bias_clamp &&
+				states[i + 2] == api::dynamic_state::depth_bias_slope_scaled)
+			{
+				com_ptr<ID3D12GraphicsCommandList9> cmd_list9;
+				if (SUCCEEDED(_orig->QueryInterface(&cmd_list9)))
+				{
+					cmd_list9->RSSetDepthBias(*reinterpret_cast<const float *>(&values[i]), *reinterpret_cast<const float *>(&values[i + 1]), *reinterpret_cast<const float *>(&values[i + 2]));
+					i += 2;
+					break;
+				}
+			}
+			[[fallthrough]];
 		case api::dynamic_state::depth_bias_clamp:
 		case api::dynamic_state::depth_bias_slope_scaled:
-			// RSSetDepthBias
 			assert(false);
 			break;
 		case api::dynamic_state::ray_tracing_pipeline_stack_size:
