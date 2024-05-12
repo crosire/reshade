@@ -18,8 +18,7 @@ namespace reshade::opengl
 		GLuint program;
 
 		std::vector<api::input_element> input_elements;
-		GLenum prim_mode;
-		GLuint patch_vertices;
+		api::primitive_topology topology;
 
 		// Blend state
 

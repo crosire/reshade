@@ -1016,7 +1016,11 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	{
 		// Number of levels and layers are clamped to those of the original texture (except for non-array textures where the number of layers has to be one)
 		GLuint num_layers = 1u;
-		if (desc.type == api::resource_view_type::texture_1d_array || desc.type == api::resource_view_type::texture_2d_array || desc.type == api::resource_view_type::texture_2d_multisample_array || desc.type == api::resource_view_type::texture_cube || desc.type == api::resource_view_type::texture_cube_array)
+		if (desc.type == api::resource_view_type::texture_1d_array ||
+			desc.type == api::resource_view_type::texture_2d_array ||
+			desc.type == api::resource_view_type::texture_2d_multisample_array ||
+			desc.type == api::resource_view_type::texture_cube ||
+			desc.type == api::resource_view_type::texture_cube_array)
 			num_layers = desc.texture.layer_count;
 
 		gl.TextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, num_layers);
@@ -1984,6 +1988,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	impl->input_elements.assign(
 		static_cast<const api::input_element *>(input_layout_desc.data),
 		static_cast<const api::input_element *>(input_layout_desc.data) + input_layout_desc.count);
+	impl->topology = topology;
 
 	impl->sample_alpha_to_coverage = blend_desc.alpha_to_coverage_enable;
 	impl->logic_op_enable = blend_desc.logic_op_enable[0]; // Logic operation applies to all attachments
@@ -2034,9 +2039,6 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	impl->back_stencil_op_fail = convert_stencil_op(depth_stencil_desc.back_stencil_fail_op);
 	impl->back_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.back_stencil_depth_fail_op);
 	impl->back_stencil_op_pass = convert_stencil_op(depth_stencil_desc.back_stencil_pass_op);
-
-	impl->prim_mode = convert_primitive_topology(topology);
-	impl->patch_vertices = impl->prim_mode == GL_PATCHES ? static_cast<uint32_t>(topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) : 0;
 
 	*out_handle = { reinterpret_cast<uintptr_t>(impl) };
 	return true;

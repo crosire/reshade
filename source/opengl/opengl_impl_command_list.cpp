@@ -70,14 +70,6 @@ void reshade::opengl::pipeline_impl::apply(api::pipeline_stage stages) const
 		gl.SampleMaski(0, sample_mask);
 	}
 
-	if ((stages & api::pipeline_stage::input_assembler) != 0)
-	{
-		if (prim_mode == GL_PATCHES)
-		{
-			gl.PatchParameteri(GL_PATCH_VERTICES, patch_vertices);
-		}
-	}
-
 	if ((stages & api::pipeline_stage::rasterizer) != 0)
 	{
 		gl.PolygonMode(GL_FRONT_AND_BACK, polygon_mode);
@@ -516,7 +508,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 	{
-		_current_prim_mode = reinterpret_cast<pipeline_impl *>(pipeline.handle)->prim_mode;
+		bind_pipeline_state(api::dynamic_state::primitive_topology, static_cast<uint32_t>(reinterpret_cast<pipeline_impl *>(pipeline.handle)->topology));
 
 		if (!_vao_lookup_valid)
 		{
@@ -565,6 +557,8 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 			break;
 		case api::dynamic_state::primitive_topology:
 			_current_prim_mode = static_cast<GLenum>(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
+			if (_current_prim_mode == GL_PATCHES)
+				gl.PatchParameteri(GL_PATCH_VERTICES, values[i] - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp));
 			break;
 		case api::dynamic_state::alpha_to_coverage_enable:
 			glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, values[i]);
