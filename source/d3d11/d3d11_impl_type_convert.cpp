@@ -459,7 +459,7 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 {
 	// Missing fields: D3D11_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = convert_format(desc.format);
-	assert(desc.type != api::resource_view_type::buffer && desc.texture.level_count == 1);
+	assert(desc.type != api::resource_view_type::buffer);
 	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::texture_1d:
@@ -495,9 +495,15 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &desc, D3D11_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = convert_format(desc.format);
-	assert(desc.type != api::resource_view_type::buffer && desc.texture.level_count == 1);
 	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
 	{
+	case api::resource_view_type::buffer:
+		internal_desc.ViewDimension = D3D11_RTV_DIMENSION_BUFFER;
+		assert(desc.buffer.offset <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer.offset);
+		assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
+		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
+		break;
 	case api::resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE1D;
 		internal_desc.Texture1D.MipSlice = desc.texture.first_level;
@@ -539,7 +545,6 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 	if (desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_array)
 	{
 		internal_desc.Format = convert_format(desc.format);
-		assert(desc.type != api::resource_view_type::buffer && desc.texture.level_count == 1);
 		switch (desc.type)
 		{
 		case api::resource_view_type::texture_2d:
@@ -769,6 +774,11 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(cons
 	desc.texture.level_count = 1;
 	switch (internal_desc.ViewDimension)
 	{
+	case D3D11_RTV_DIMENSION_BUFFER:
+		desc.type = api::resource_view_type::buffer;
+		desc.buffer.offset = internal_desc.Buffer.FirstElement;
+		desc.buffer.size = internal_desc.Buffer.NumElements;
+		break;
 	case D3D11_RTV_DIMENSION_TEXTURE1D:
 		desc.type = api::resource_view_type::texture_1d;
 		desc.texture.first_level = internal_desc.Texture1D.MipSlice;
