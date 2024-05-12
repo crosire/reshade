@@ -497,6 +497,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 	{
 		assert((stages & ~api::pipeline_stage::input_assembler) == 0);
 		gl.BindVertexArray(pipeline.handle & 0xFFFFFFFF);
+		_current_vao_dirty = false;
 		return;
 	}
 
@@ -510,6 +511,8 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 	{
 		bind_pipeline_state(api::dynamic_state::primitive_topology, static_cast<uint32_t>(reinterpret_cast<pipeline_impl *>(pipeline.handle)->topology));
 
+		_current_vao_dirty = false;
+
 		if (!_vao_lookup_valid)
 		{
 			for (const auto &vao_data : _vao_lookup)
@@ -517,7 +520,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 			_vao_lookup.clear();
 			_vao_lookup_valid = true;
 		}
-		else if (const auto it = _vao_lookup.find(pipeline.handle);
+		else if (const auto it = _vao_lookup.find(static_cast<size_t>(pipeline.handle));
 			it != _vao_lookup.end())
 		{
 			gl.BindVertexArray(it->second);
@@ -526,7 +529,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 
 		GLuint vao = 0;
 		gl.GenVertexArrays(1, &vao);
-		_vao_lookup.emplace(pipeline.handle, vao);
+		_vao_lookup.emplace(static_cast<size_t>(pipeline.handle), vao);
 
 		gl.BindVertexArray(vao);
 
@@ -1205,6 +1208,8 @@ void reshade::opengl::device_context_impl::bind_index_buffer(api::resource buffe
 		assert(buffer.handle == 0);
 		break;
 	}
+
+	_current_ibo_dirty = false;
 }
 void reshade::opengl::device_context_impl::bind_vertex_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint32_t *strides)
 {
@@ -1214,6 +1219,8 @@ void reshade::opengl::device_context_impl::bind_vertex_buffers(uint32_t first, u
 
 		gl.BindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
 	}
+
+	_current_vbo_dirty = false;
 }
 void reshade::opengl::device_context_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
 {

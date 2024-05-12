@@ -289,6 +289,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, const api::resource_desc &amp;desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource resource)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// May be called multiple times with the same resource handle (whenever the resource is updated or its reference count is incremented).
+		/// </remarks>
 		init_resource,
 
 		/// <summary>
@@ -403,6 +406,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &amp;desc, api::resource_view view)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// May be called multiple times with the same resource view handle (whenever the resource view is updated).
+		/// </remarks>
 		init_resource_view,
 
 		/// <summary>

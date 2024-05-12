@@ -32,7 +32,6 @@ struct DrawElementsIndirectCommand
 thread_local reshade::opengl::device_context_impl *g_current_context = nullptr;
 
 #if RESHADE_ADDON
-
 // Helper class invoking the 'create/init_resource' add-on events for OpenGL resources
 class init_resource
 {
@@ -414,40 +413,39 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 	if (!g_current_context || !(target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER))
 		return;
 
-	// Only interested in existing framebuffers that were bound to the render pipeline
+	// Only interested in existing framebuffers that are being bound to the render pipeline
 	if (gl.CheckFramebufferStatus(target) != GL_FRAMEBUFFER_COMPLETE)
 		return;
 
 	const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
-	// Get object from current binding in case it was not specified
+	// Get object from current binding in case it was not specified (though it may still be zero)
 	if (framebuffer == 0)
 		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&framebuffer));
 
 	const reshade::api::resource_view default_attachment = device->get_framebuffer_attachment(framebuffer, GL_COLOR, 0);
 	g_current_context->update_current_window_height(default_attachment);
 
-	if (reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
+	if (!reshade::has_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>())
+		return;
+
+	uint32_t count = 0;
+	reshade::api::resource_view rtvs[8], dsv;
+	if (default_attachment.handle != 0)
 	{
-		uint32_t count = 0;
-		reshade::api::resource_view rtvs[8], dsv;
-		if (default_attachment.handle != 0)
+		rtvs[0] = default_attachment;
+		for (count = 1; count < 8; ++count)
 		{
-			rtvs[0] = default_attachment;
-			for (count = 1; count < 8; ++count)
-			{
-				rtvs[count] = device->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-				if (rtvs[count].handle == 0)
-					break;
-			}
+			rtvs[count] = device->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
+			if (rtvs[count].handle == 0)
+				break;
 		}
-
-		dsv = device->get_framebuffer_attachment(framebuffer, GL_DEPTH_STENCIL, 0);
-
-		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
 	}
-}
 
+	dsv = device->get_framebuffer_attachment(framebuffer, GL_DEPTH_STENCIL, 0);
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(g_current_context, count, rtvs, dsv);
+}
 #endif
 
 #if RESHADE_ADDON >= 2
@@ -510,7 +508,6 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	{
 		GLint src_fbo = 0;
 		gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &src_fbo);
-		assert(src_fbo != 0);
 
 		src = device->get_resource_from_view(device->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
 	}
@@ -520,7 +517,6 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	{
 		GLint dst_fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
-		assert(dst_fbo != 0);
 
 		dst = device->get_resource_from_view(device->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
 	}
@@ -603,13 +599,11 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 
 static void update_current_input_layout()
 {
-	if (!g_current_context->_current_vao_dirty)
-		return;
-
-	g_current_context->_current_vao_dirty = false;
-
-	if (reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
+	if (g_current_context->_current_vao_dirty &&
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
 	{
+		g_current_context->_current_vao_dirty = false;
+
 		GLint count = 0;
 		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &count);
 
@@ -640,21 +634,39 @@ static void update_current_input_layout()
 			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, reinterpret_cast<GLint *>(&element.instance_step_rate));
 		}
 
-		GLint vao = 0;
-		gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+		GLint vertex_array_binding = 0;
+		gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, &vertex_array_binding);
 
 		reshade::api::pipeline_subobject subobject;
 		subobject.type = reshade::api::pipeline_subobject_type::input_layout;
 		subobject.count = static_cast<uint32_t>(elements.size());
 		subobject.data = elements.data();
-		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(g_current_context->get_device(), reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | vao });
 
-		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_current_context, reshade::api::pipeline_stage::input_assembler, reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | vao });
+		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
+			g_current_context->get_device(),
+			reshade::opengl::global_pipeline_layout,
+			1,
+			&subobject,
+			reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | vertex_array_binding });
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
+			g_current_context,
+			reshade::api::pipeline_stage::input_assembler,
+			reshade::api::pipeline { (static_cast<uint64_t>(GL_VERTEX_ARRAY) << 40) | vertex_array_binding });
 	}
+}
+#endif
+#if RESHADE_ADDON
+static void update_current_primitive_topology(GLenum mode)
+{
+#if RESHADE_ADDON >= 2
+	update_current_input_layout();
 
-	if (reshade::has_addon_event<reshade::addon_event::bind_index_buffer>() ||
+	if (g_current_context->_current_vbo_dirty &&
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 	{
+		g_current_context->_current_vbo_dirty = false;
+
 		GLint count = 0;
 		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIB_BINDINGS, &count);
 
@@ -666,11 +678,11 @@ static void update_current_input_layout()
 			offsets_64[i] = 0;
 			strides_32[i] = 0;
 
-			GLint vbo = 0;
-			gl.GetIntegeri_v(GL_VERTEX_BINDING_BUFFER, i, &vbo);
-			if (0 != vbo)
+			GLint vertex_buffer_binding = 0;
+			gl.GetIntegeri_v(GL_VERTEX_BINDING_BUFFER, i, &vertex_buffer_binding);
+			if (0 != vertex_buffer_binding)
 			{
-				buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, vbo);
+				buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, vertex_buffer_binding);
 
 				gl.GetIntegeri_v(GL_VERTEX_BINDING_STRIDE, i, reinterpret_cast<GLint *>(&strides_32[i]));
 				assert(strides_32[0] != 0);
@@ -682,16 +694,6 @@ static void update_current_input_layout()
 			}
 		}
 
-		GLint ibo = 0;
-		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &ibo);
-
-		g_current_context->_current_ibo = ibo;
-		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
-			g_current_context,
-			reshade::opengl::make_resource_handle(GL_BUFFER, ibo),
-			0,
-			reshade::opengl::get_index_type_size(g_current_context->_current_index_type));
-
 		reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
 			g_current_context,
 			0,
@@ -700,13 +702,6 @@ static void update_current_input_layout()
 			offsets_64.p,
 			strides_32.p);
 	}
-}
-#endif
-#if RESHADE_ADDON
-static void update_current_primitive_topology(GLenum mode)
-{
-#if RESHADE_ADDON >= 2
-	update_current_input_layout();
 #endif
 
 	if (mode != g_current_context->_current_prim_mode)
@@ -732,17 +727,28 @@ static void update_current_primitive_topology(GLenum mode)
 }
 static void update_current_primitive_topology(GLenum mode, GLenum index_type)
 {
-	// Update index type first, so that 'update_current_input_layout' can reference it
+	update_current_primitive_topology(mode);
+
 	g_current_context->_current_index_type = index_type;
 
-	update_current_primitive_topology(mode);
+#if RESHADE_ADDON >= 2
+	if (g_current_context->_current_ibo_dirty &&
+		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>())
+	{
+		g_current_context->_current_ibo_dirty = false;
+
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(
+			g_current_context,
+			reshade::opengl::make_resource_handle(GL_BUFFER, index_buffer_binding),
+			0,
+			reshade::opengl::get_index_type_size(index_type));
+	}
+#endif
 }
 #endif
-
-static __forceinline GLuint get_index_buffer_offset(const GLvoid *indices)
-{
-	return g_current_context->_current_ibo != 0 ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(g_current_context->_current_index_type)) : 0;
-}
 
 #ifdef GL_VERSION_1_0
 extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
@@ -1395,7 +1401,11 @@ extern "C" void APIENTRY glDrawElements(GLenum mode, GLsizei count, GLenum type,
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, get_index_buffer_offset(indices), 0, 0))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, offset, 0, 0))
 			return;
 	}
 #endif
@@ -1457,7 +1467,11 @@ void APIENTRY glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, get_index_buffer_offset(indices), 0, 0))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, offset, 0, 0))
 			return;
 	}
 #endif
@@ -1656,9 +1670,16 @@ void APIENTRY glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type
 	{
 		update_current_primitive_topology(mode, type);
 
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
 		for (GLsizei i = 0; i < drawcount; ++i)
-			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, get_index_buffer_offset(indices[i]), 0, 0))
+		{
+			const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices[i]) / reshade::opengl::get_index_type_size(type)) : 0;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, offset, 0, 0))
 				return;
+		}
 	}
 #endif
 
@@ -1763,8 +1784,18 @@ void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
 	trampoline(target, buffer);
 
 #if RESHADE_ADDON >= 2
-	if (g_current_context && (target == GL_ELEMENT_ARRAY_BUFFER || target == GL_ARRAY_BUFFER))
-		g_current_context->_current_vao_dirty = true;
+	if (g_current_context)
+	{
+		switch (target)
+		{
+		case GL_ARRAY_BUFFER:
+			g_current_context->_current_vbo_dirty = true;
+			break;
+		case GL_ELEMENT_ARRAY_BUFFER:
+			g_current_context->_current_ibo_dirty = true;
+			break;
+		}
+	}
 #endif
 }
 #endif
@@ -2474,33 +2505,6 @@ void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean tran
 #endif
 
 #ifdef GL_VERSION_3_0
-auto APIENTRY glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLenum access) -> void *
-{
-	static const auto trampoline = reshade::hooks::call(glMapBufferRange);
-	void *result = trampoline(target, offset, length, access);
-
-#if RESHADE_ADDON >= 2
-	if (g_current_context &&
-		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
-	{
-		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
-
-		GLint object = 0;
-		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
-
-		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
-			device,
-			reshade::opengl::make_resource_handle(GL_BUFFER, object),
-			offset,
-			length,
-			reshade::opengl::convert_access_flags(access),
-			&result);
-	}
-#endif
-
-	return result;
-}
-
 void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 {
 #if RESHADE_ADDON
@@ -2611,6 +2615,33 @@ void APIENTRY glRenderbufferStorageMultisample(GLenum target, GLsizei samples, G
 	else
 #endif
 		trampoline(target, samples, internalformat, width, height);
+}
+
+auto APIENTRY glMapBufferRange(GLenum target, GLintptr offset, GLsizeiptr length, GLenum access) -> void *
+{
+	static const auto trampoline = reshade::hooks::call(glMapBufferRange);
+	void *result = trampoline(target, offset, length, access);
+
+#if RESHADE_ADDON >= 2
+	if (g_current_context &&
+		reshade::has_addon_event<reshade::addon_event::map_buffer_region>())
+	{
+		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
+
+		GLint object = 0;
+		gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), &object);
+
+		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
+			device,
+			reshade::opengl::make_resource_handle(GL_BUFFER, object),
+			offset,
+			length,
+			reshade::opengl::convert_access_flags(access),
+			&result);
+	}
+#endif
+
+	return result;
 }
 
 void APIENTRY glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *value)
@@ -2882,6 +2913,9 @@ void APIENTRY glBindVertexArray(GLuint array)
 	if (g_current_context)
 	{
 		g_current_context->_current_vao_dirty = true;
+		g_current_context->_current_vbo_dirty = true;
+		g_current_context->_current_ibo_dirty = true;
+
 		update_current_input_layout();
 	}
 #endif
@@ -3078,7 +3112,11 @@ void APIENTRY glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, c
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, get_index_buffer_offset(indices), 0, 0))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, offset, 0, 0))
 			return;
 	}
 #endif
@@ -3150,7 +3188,11 @@ void APIENTRY glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, 
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, get_index_buffer_offset(indices), basevertex, 0))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, offset, basevertex, 0))
 			return;
 	}
 #endif
@@ -3165,7 +3207,11 @@ void APIENTRY glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint en
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, get_index_buffer_offset(indices), basevertex, 0))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count, 1, offset, basevertex, 0))
 			return;
 	}
 #endif
@@ -3180,7 +3226,11 @@ void APIENTRY glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLen
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, get_index_buffer_offset(indices), basevertex, 0))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, offset, basevertex, 0))
 			return;
 	}
 #endif
@@ -3195,9 +3245,16 @@ void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, G
 	{
 		update_current_primitive_topology(mode, type);
 
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+
 		for (GLsizei i = 0; i < drawcount; ++i)
-			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, get_index_buffer_offset(indices[i]), basevertex[i], 0))
+		{
+			const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices[i]) / reshade::opengl::get_index_type_size(type)) : 0;
+
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, count[i], 1, offset, basevertex[i], 0))
 				return;
+		}
 	}
 #endif
 
@@ -3214,12 +3271,17 @@ void APIENTRY glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 	{
 		GLint indirect_buffer_binding = 0;
 		gl.GetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &indirect_buffer_binding);
-
 		if (0 != indirect_buffer_binding)
 		{
 			update_current_primitive_topology(mode);
 
-			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
+					g_current_context,
+					reshade::api::indirect_command::draw,
+					reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding),
+					reinterpret_cast<uintptr_t>(indirect),
+					1,
+					0))
 				return;
 		}
 		else
@@ -3242,20 +3304,31 @@ void APIENTRY glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *ind
 	{
 		GLint indirect_buffer_binding = 0;
 		gl.GetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &indirect_buffer_binding);
-
 		if (0 != indirect_buffer_binding)
 		{
 			update_current_primitive_topology(mode, type);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-					g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), 1, 0))
+					g_current_context,
+					reshade::api::indirect_command::draw_indexed,
+					reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding),
+					reinterpret_cast<uintptr_t>(indirect),
+					1,
+					0))
 				return;
 		}
 		else
 		{
 			// Redirect to non-indirect draw call so proper event is invoked
 			const auto cmd = static_cast<const DrawElementsIndirectCommand *>(indirect);
-			glDrawElementsInstancedBaseVertexBaseInstance(mode, cmd->count, type, reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(static_cast<size_t>(cmd->firstindex) * reshade::opengl::get_index_type_size(type))), cmd->primcount, cmd->basevertex, cmd->baseinstance);
+			glDrawElementsInstancedBaseVertexBaseInstance(
+				mode,
+				cmd->count,
+				type,
+				reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(static_cast<size_t>(cmd->firstindex) * reshade::opengl::get_index_type_size(type))),
+				cmd->primcount,
+				cmd->basevertex,
+				cmd->baseinstance);
 			return;
 		}
 	}
@@ -3533,7 +3606,11 @@ void APIENTRY glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GL
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, get_index_buffer_offset(indices), 0, baseinstance))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, offset, 0, baseinstance))
 			return;
 	}
 #endif
@@ -3548,7 +3625,11 @@ void APIENTRY glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei
 	{
 		update_current_primitive_topology(mode, type);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, get_index_buffer_offset(indices), basevertex, baseinstance))
+		GLint index_buffer_binding = 0;
+		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
+		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_current_context, primcount, count, offset, basevertex, baseinstance))
 			return;
 	}
 #endif
@@ -3670,6 +3751,8 @@ void APIENTRY glBindVertexBuffer(GLuint bindingindex, GLuint buffer, GLintptr of
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 	{
+		g_current_context->_current_vbo_dirty = false;
+
 		const reshade::api::resource buffer_handle = reshade::opengl::make_resource_handle(GL_BUFFER, buffer);
 		uint64_t offset_64 = offset;
 		uint32_t stride_32 = stride;
@@ -3699,10 +3782,15 @@ void APIENTRY glDispatchComputeIndirect(GLintptr indirect)
 	{
 		GLint indirect_buffer_binding = 0;
 		gl.GetIntegerv(GL_DISPATCH_INDIRECT_BUFFER_BINDING, &indirect_buffer_binding);
-
 		if (0 != indirect_buffer_binding)
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(g_current_context, reshade::api::indirect_command::dispatch, reshade::opengl::make_resource_handle(GL_DISPATCH_INDIRECT_BUFFER, indirect_buffer_binding), indirect, 1, 0))
+			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
+					g_current_context,
+					reshade::api::indirect_command::dispatch,
+					reshade::opengl::make_resource_handle(GL_DISPATCH_INDIRECT_BUFFER, indirect_buffer_binding),
+					indirect,
+					1,
+					0))
 				return;
 		}
 		else
@@ -3723,13 +3811,17 @@ void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsiz
 	{
 		GLint indirect_buffer_binding = 0;
 		gl.GetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &indirect_buffer_binding);
-
 		if (0 != indirect_buffer_binding)
 		{
 			update_current_primitive_topology(mode);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-					g_current_context, reshade::api::indirect_command::draw, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+					g_current_context,
+					reshade::api::indirect_command::draw,
+					reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding),
+					reinterpret_cast<uintptr_t>(indirect),
+					drawcount,
+					stride))
 				return;
 		}
 		else
@@ -3755,13 +3847,17 @@ void APIENTRY glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *
 	{
 		GLint indirect_buffer_binding = 0;
 		gl.GetIntegerv(GL_DRAW_INDIRECT_BUFFER_BINDING, &indirect_buffer_binding);
-
 		if (0 != indirect_buffer_binding)
 		{
 			update_current_primitive_topology(mode, type);
 
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
-					g_current_context, reshade::api::indirect_command::draw_indexed, reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding), reinterpret_cast<uintptr_t>(indirect), drawcount, stride))
+					g_current_context,
+					reshade::api::indirect_command::draw_indexed,
+					reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding),
+					reinterpret_cast<uintptr_t>(indirect),
+					drawcount,
+					stride))
 				return;
 		}
 		else
@@ -3770,7 +3866,14 @@ void APIENTRY glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *
 			for (GLsizei i = 0; i < drawcount; ++i)
 			{
 				const auto cmd = reinterpret_cast<const DrawElementsIndirectCommand *>(static_cast<const uint8_t *>(indirect) + i * (stride != 0 ? stride : sizeof(DrawElementsIndirectCommand)));
-				glDrawElementsInstancedBaseVertexBaseInstance(mode, cmd->count, type, reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(static_cast<size_t>(cmd->firstindex) * reshade::opengl::get_index_type_size(type))), cmd->primcount, cmd->basevertex, cmd->baseinstance);
+				glDrawElementsInstancedBaseVertexBaseInstance(
+					mode,
+					cmd->count,
+					type,
+					reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(static_cast<size_t>(cmd->firstindex) * reshade::opengl::get_index_type_size(type))),
+					cmd->primcount,
+					cmd->basevertex,
+					cmd->baseinstance);
 			}
 			return;
 		}
@@ -4007,6 +4110,8 @@ void APIENTRY glBindVertexBuffers(GLuint first, GLsizei count, const GLuint *buf
 	if (g_current_context &&
 		reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>())
 	{
+		g_current_context->_current_vbo_dirty = false;
+
 		temp_mem<reshade::api::resource> buffer_handles(count);
 		temp_mem<uint64_t> offsets_64(count);
 		if (buffers != nullptr)
