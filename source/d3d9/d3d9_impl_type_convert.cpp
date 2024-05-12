@@ -13,9 +13,9 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORM
 	{
 	default:
 		assert(false);
-		[[fallthrough]];
-	case api::format::unknown:
 		break;
+	case api::format::unknown:
+		return static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
 	case api::format::r1_unorm:
 		return D3DFMT_A1; // Not a perfect fit for R1, but what can you do ...
 	case api::format::l8_unorm:
@@ -179,7 +179,10 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 	switch (static_cast<DWORD>(d3d_format))
 	{
 	default:
+		assert(false);
+		[[fallthrough]];
 	case D3DFMT_UNKNOWN:
+	case MAKEFOURCC('N', 'U', 'L', 'L'):
 		return api::format::unknown;
 	case D3DFMT_A1:
 		return api::format::r1_unorm;
@@ -447,8 +450,6 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0);
 		format != D3DFMT_UNKNOWN)
 		internal_desc.Format = format;
-	else if (desc.type == api::resource_type::surface && desc.texture.format == api::format::unknown)
-		internal_desc.Format = static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
 
 	if (desc.texture.samples > 1)
 	{
