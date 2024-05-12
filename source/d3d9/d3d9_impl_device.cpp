@@ -425,6 +425,21 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 					}
 					break;
 				}
+				default:
+				{
+					D3DSURFACE_DESC internal_desc = {};
+					convert_resource_desc(desc, internal_desc, nullptr, nullptr, _caps);
+
+					if (com_ptr<IDirect3DSurface9> object;
+						SUCCEEDED((desc.usage & api::resource_usage::shader_resource) != 0 ?
+							create_surface_replacement(internal_desc, &object, shared_handle) :
+							_orig->CreateOffscreenPlainSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
+					{
+						*out_handle = { reinterpret_cast<uintptr_t>(object.release()) };
+						return true;
+					}
+					break;
+				}
 			}
 			break;
 		}
