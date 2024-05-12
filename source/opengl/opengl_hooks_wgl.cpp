@@ -106,7 +106,7 @@ static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_set<HGLRC> s_legacy_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::device_context_impl *> s_opengl_contexts;
-static std::vector<std::pair<HDC, reshade::opengl::swapchain_impl *>> s_opengl_swapchains;
+static std::vector<class wgl_swapchain *> s_opengl_swapchains;
 
 extern thread_local reshade::opengl::device_context_impl *g_current_context;
 
@@ -912,12 +912,11 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 					// Delete any swap chains referencing this device
 					for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
 					{
-						const auto swapchain = static_cast<wgl_swapchain *>(swapchain_it->second);
+						const auto swapchain = *swapchain_it;
 
 						if (device == swapchain->get_device())
 						{
 							delete swapchain;
-
 							swapchain_it = s_opengl_swapchains.erase(swapchain_it);
 						}
 						else
@@ -1103,12 +1102,15 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	wgl_swapchain *swapchain = nullptr;
 
 	if (const auto swapchain_it = std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
-			[hdc, hwnd, device](const std::pair<HDC, reshade::opengl::swapchain_impl *> &swapchain_info) { return (swapchain_info.first == hdc || (hwnd != nullptr && WindowFromDC(swapchain_info.first) == hwnd)) && swapchain_info.second->get_device() == device; });
+			[hdc, hwnd, device](wgl_swapchain *const swapchain) {
+				const HDC swapchain_hdc = reinterpret_cast<HDC>(swapchain->_orig);
+				return (swapchain_hdc == hdc || (hwnd != nullptr && WindowFromDC(swapchain_hdc) == hwnd)) && swapchain->get_device() == device;
+			});
 		swapchain_it != s_opengl_swapchains.end())
 	{
 		assert(hwnd != nullptr);
 
-		swapchain = static_cast<wgl_swapchain *>(swapchain_it->second);
+		swapchain = *swapchain_it;
 	}
 	else
 	{
@@ -1128,7 +1130,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			assert(wglGetPixelFormat(hdc) == device->get_pixel_format());
 
 			swapchain = new wgl_swapchain(device, hdc);
-			s_opengl_swapchains.emplace_back(hdc, swapchain);
+			s_opengl_swapchains.push_back(swapchain);
 		}
 	}
 
@@ -1297,13 +1299,14 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
 
 		if (const auto swapchain_it = std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
-				[hdc, hwnd = WindowFromDC(hdc)](const std::pair<HDC, reshade::opengl::swapchain_impl *> &swapchain_info) {
+				[hdc, hwnd = WindowFromDC(hdc)](wgl_swapchain *const swapchain) {
+					const HDC swapchain_hdc = reinterpret_cast<HDC>(swapchain->_orig);
 					// Fall back to checking for the same window, in case the device context handle has changed (without 'CS_OWNDC')
-					return (swapchain_info.first == hdc || (hwnd != nullptr && WindowFromDC(swapchain_info.first) == hwnd)) && swapchain_info.second->get_device() == g_current_context->get_device();
+					return (swapchain_hdc == hdc || (hwnd != nullptr && WindowFromDC(swapchain_hdc) == hwnd)) && swapchain->get_device() == g_current_context->get_device();
 				});
 			swapchain_it != s_opengl_swapchains.end())
 		{
-			const auto swapchain = static_cast<wgl_swapchain *>(swapchain_it->second);
+			const auto swapchain = *swapchain_it;
 			swapchain->on_present(g_current_context);
 		}
 	}
