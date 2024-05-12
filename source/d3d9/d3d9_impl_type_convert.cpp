@@ -545,7 +545,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) != 0)
+		if ((desc.flags & api::resource_flags::dynamic) != 0 && desc.heap != api::memory_heap::unknown)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -580,7 +580,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) != 0)
+		if ((desc.flags & api::resource_flags::dynamic) != 0 && desc.heap != api::memory_heap::unknown)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -859,7 +859,15 @@ void reshade::d3d9::convert_input_layout_desc(uint32_t count, const api::input_e
 			break;
 		}
 
-		if (std::strcmp(element.semantic, "POSITION") == 0)
+		if (element.semantic == nullptr)
+		{
+			internal_element.Usage = D3DDECLUSAGE_TEXCOORD;
+			assert(element.location <= 256);
+			internal_element.UsageIndex = static_cast<BYTE>(element.location);
+			continue;
+		}
+
+		else if (std::strcmp(element.semantic, "POSITION") == 0)
 			internal_element.Usage = D3DDECLUSAGE_POSITION;
 		else if (std::strcmp(element.semantic, "BLENDWEIGHT") == 0)
 			internal_element.Usage = D3DDECLUSAGE_BLENDWEIGHT;

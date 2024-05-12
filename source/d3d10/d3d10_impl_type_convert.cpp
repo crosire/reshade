@@ -696,6 +696,12 @@ void reshade::d3d10::convert_input_layout_desc(uint32_t count, const api::input_
 		internal_element.AlignedByteOffset = element.offset;
 		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D10_INPUT_PER_INSTANCE_DATA : D3D10_INPUT_PER_VERTEX_DATA;
 		internal_element.InstanceDataStepRate = element.instance_step_rate;
+
+		if (element.semantic == nullptr)
+		{
+			internal_element.SemanticName = "TEXCOORD";
+			internal_element.SemanticIndex = element.location;
+		}
 	}
 }
 std::vector<reshade::api::input_element> reshade::d3d10::convert_input_layout_desc(UINT count, const D3D10_INPUT_ELEMENT_DESC *internal_elements)
