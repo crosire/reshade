@@ -275,9 +275,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		HR_CHECK(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&dxgi_factory)));
 
-		{	HRESULT hr = E_FAIL; IDXGIAdapter *adapter = nullptr;
-			for (UINT i = 0; dxgi_factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++)
-				if (SUCCEEDED(hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device))))
+		{	HRESULT hr = E_FAIL; com_ptr<IDXGIAdapter> adapter;
+			for (UINT i = 0; dxgi_factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++, adapter.reset())
+				if (SUCCEEDED(hr = D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device))))
 					break;
 			HR_CHECK(hr);
 		}
