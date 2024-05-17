@@ -143,6 +143,7 @@ BEGIN
 52758 "Time:"
 58510 "Frame %llu:"
 63580 "Post-Processing:"
+55224 "Resolution:"
 59726 "Techniques"
 65370 "Render Targets & Textures"
 52454 "Save %s"

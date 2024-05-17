@@ -2559,6 +2559,7 @@ void reshade::runtime::draw_gui_statistics()
 #if RESHADE_FX
 		ImGui::TextUnformatted(_("Post-Processing:"));
 #endif
+		ImGui::Text(_("Resolution:"));
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
@@ -2598,6 +2599,7 @@ void reshade::runtime::draw_gui_statistics()
 #if RESHADE_FX
 		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
 #endif
+		ImGui::Text("%dx%d", _effect_width, _effect_height);
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
