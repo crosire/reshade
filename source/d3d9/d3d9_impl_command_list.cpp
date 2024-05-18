@@ -157,13 +157,20 @@ void reshade::d3d9::device_impl::bind_pipeline_states(uint32_t count, const api:
 			break;
 		case api::dynamic_state::front_counter_clockwise:
 		case api::dynamic_state::depth_bias_clamp:
-		case api::dynamic_state::alpha_to_coverage_enable:
 		case api::dynamic_state::logic_op_enable:
 		case api::dynamic_state::logic_op:
 		case api::dynamic_state::back_stencil_read_mask:
 		case api::dynamic_state::back_stencil_write_mask:
 		case api::dynamic_state::back_stencil_reference_value:
 			assert(false);
+			break;
+		case api::dynamic_state::alpha_to_coverage_enable:
+			// See "Advanced DX9 Capabilities for ATI Radeon Cards" document
+			_orig->SetRenderState(D3DRS_POINTSIZE, values[i] ? MAKEFOURCC('A', '2', 'M', '1') : MAKEFOURCC('A', '2', 'M', '0'));
+
+			_orig->SetRenderState(D3DRS_ADAPTIVETESS_Y, values[i] ? MAKEFOURCC('A', 'T', 'O', 'C') : 0);
+			if (values[i])
+				_orig->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
 			break;
 		case api::dynamic_state::color_blend_op:
 		case api::dynamic_state::alpha_blend_op:
@@ -554,7 +561,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				const float dummy_point[3] = { 0.0, 0.0f, 0.0f };
 				_orig->DrawPrimitiveUP(D3DPT_POINTLIST, 1, dummy_point, sizeof(dummy_point));
 
-				// Trigger multisampled depth buffer resolve operation
+				// Trigger multisampled depth buffer resolve operation (see "Advanced DX9 Capabilities for ATI Radeon Cards" document)
 				_orig->SetRenderState(D3DRS_POINTSIZE, 0x7FA05000 /* RESZ code */);
 
 				_backup_state.apply_and_release();

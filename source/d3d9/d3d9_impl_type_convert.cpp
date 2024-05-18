@@ -7,7 +7,7 @@
 #include <limits>
 #include <cassert>
 
-auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORMAT
+auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shader_usage) -> D3DFORMAT
 {
 	switch (format)
 	{
@@ -15,7 +15,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORM
 		assert(false);
 		break;
 	case api::format::unknown:
-		return static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
+		return shader_usage ? D3DFMT_UNKNOWN : static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
 	case api::format::r1_unorm:
 		return D3DFMT_A1; // Not a perfect fit for R1, but what can you do ...
 	case api::format::l8_unorm:
@@ -126,14 +126,14 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable) -> D3DFORM
 	case api::format::s8_uint:
 		return lockable ? D3DFMT_S8_LOCKABLE : D3DFMT_UNKNOWN;
 	case api::format::d16_unorm:
-		return lockable ? D3DFMT_D16_LOCKABLE : D3DFMT_D16;
+		return shader_usage ? static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6')) : lockable ? D3DFMT_D16_LOCKABLE : D3DFMT_D16;
 	case api::format::d16_unorm_s8_uint:
 		break; // Unsupported
 	case api::format::d24_unorm_x8_uint:
-		return D3DFMT_D24X8;
+		return shader_usage ? static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4')) : D3DFMT_D24X8;
 	case api::format::r24_g8_typeless:
 	case api::format::d24_unorm_s8_uint:
-		return D3DFMT_D24S8;
+		return shader_usage ? static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4')) : D3DFMT_D24S8;
 	case api::format::r24_unorm_x8_uint:
 	case api::format::x24_unorm_g8_uint:
 		break; // Unsupported
@@ -183,6 +183,7 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 		[[fallthrough]];
 	case D3DFMT_UNKNOWN:
 	case MAKEFOURCC('N', 'U', 'L', 'L'):
+	case MAKEFOURCC('N', 'V', 'C', 'S'): // Internal resource created by NVAPI
 		return api::format::unknown;
 	case D3DFMT_A1:
 		return api::format::r1_unorm;
@@ -239,8 +240,10 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 			*lockable = TRUE;
 		[[fallthrough]];
 	case D3DFMT_D16:
+	case MAKEFOURCC('D', 'F', '1', '6'):
 		return api::format::d16_unorm;
 	case D3DFMT_D24S8:
+	case MAKEFOURCC('D', 'F', '2', '4'):
 		return api::format::d24_unorm_s8_uint;
 	case D3DFMT_D24X8:
 		return api::format::d24_unorm_x8_uint;
@@ -447,7 +450,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	internal_desc.Width = desc.texture.width;
 	internal_desc.Height = desc.texture.height;
 
-	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0);
+	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0, (desc.usage & api::resource_usage::shader_resource) != 0);
 		format != D3DFMT_UNKNOWN)
 		internal_desc.Format = format;
 
@@ -650,7 +653,11 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 	{
 		switch (static_cast<DWORD>(internal_desc.Format))
 		{
-		default: // Includes INTZ, RAWZ, DF16 and DF24
+		default:
+		case MAKEFOURCC('R', 'A', 'W', 'Z'):
+		case MAKEFOURCC('D', 'F', '1', '6'):
+		case MAKEFOURCC('D', 'F', '2', '4'):
+		case MAKEFOURCC('I', 'N', 'T', 'Z'):
 			desc.usage |= api::resource_usage::shader_resource;
 			break;
 		case D3DFMT_D16_LOCKABLE:
@@ -740,10 +747,11 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 }
 reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle)
 {
+	assert(internal_desc.Type == D3DRTYPE_INDEXBUFFER && (internal_desc.Format == D3DFMT_INDEX16 || internal_desc.Format == D3DFMT_INDEX32));
+
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.Size;
-	assert(internal_desc.Format == D3DFMT_INDEX16 || internal_desc.Format == D3DFMT_INDEX32);
 	desc.buffer.stride = (internal_desc.Format == D3DFMT_INDEX32) ? 4 : 2;
 	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Usage & D3DUSAGE_WRITEONLY) == 0)
 		desc.heap = api::memory_heap::gpu_to_cpu;
@@ -764,6 +772,8 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 }
 reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle)
 {
+	assert(internal_desc.Type == D3DRTYPE_VERTEXBUFFER && internal_desc.Format == D3DFMT_VERTEXDATA);
+
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.Size;

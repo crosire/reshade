@@ -381,7 +381,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 	D3DSURFACE_DESC internal_desc = { Format, D3DRTYPE_TEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, Width, Height };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, Levels, FALSE, _caps, pSharedHandle != nullptr);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
+	if (desc.texture.format != reshade::api::format::unknown && // Skip special textures and unknown texture formats
+		reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, &Levels, nullptr, _caps);
 
 	const HRESULT hr = _orig->CreateTexture(internal_desc.Width, internal_desc.Height, Levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppTexture, pSharedHandle);
@@ -485,7 +486,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 	D3DVOLUME_DESC internal_desc { Format, D3DRTYPE_VOLUMETEXTURE, Usage, Pool, Width, Height, Depth };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, Levels, pSharedHandle != nullptr);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
+	if (desc.texture.format != reshade::api::format::unknown &&
+		reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, &Levels, _caps);
 
 	const HRESULT hr = _orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, Levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppVolumeTexture, pSharedHandle);
@@ -564,7 +566,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	D3DSURFACE_DESC internal_desc { Format, D3DRTYPE_CUBETEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, EdgeLength, EdgeLength };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, Levels, FALSE, _caps, pSharedHandle != nullptr);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
+	if (desc.texture.format != reshade::api::format::unknown &&
+		reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, &Levels, nullptr, _caps);
 
 	const HRESULT hr = _orig->CreateCubeTexture(internal_desc.Width, Levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppCubeTexture, pSharedHandle);
@@ -675,7 +678,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 
 #if RESHADE_ADDON
-	D3DVERTEXBUFFER_DESC internal_desc = { D3DFMT_UNKNOWN, D3DRTYPE_VERTEXBUFFER, Usage, Pool, Length, FVF };
+	D3DVERTEXBUFFER_DESC internal_desc = { D3DFMT_VERTEXDATA, D3DRTYPE_VERTEXBUFFER, Usage, Pool, Length, FVF };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, pSharedHandle != nullptr);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
@@ -1368,29 +1371,32 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 	if (SUCCEEDED(hr) &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
+		reshade::api::dynamic_state state = reshade::d3d9::convert_dynamic_state(State);
+		uint32_t value = Value;
+
 		switch (State)
 		{
 		case D3DRS_BLENDOP:
 		case D3DRS_BLENDOPALPHA:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_op(static_cast<D3DBLENDOP>(Value)));
+			value = static_cast<uint32_t>(reshade::d3d9::convert_blend_op(static_cast<D3DBLENDOP>(Value)));
 			break;
 		case D3DRS_SRCBLEND:
 		case D3DRS_DESTBLEND:
 		case D3DRS_SRCBLENDALPHA:
 		case D3DRS_DESTBLENDALPHA:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_blend_factor(static_cast<D3DBLEND>(Value)));
+			value = static_cast<uint32_t>(reshade::d3d9::convert_blend_factor(static_cast<D3DBLEND>(Value)));
 			break;
 		case D3DRS_FILLMODE:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_fill_mode(static_cast<D3DFILLMODE>(Value)));
+			value = static_cast<uint32_t>(reshade::d3d9::convert_fill_mode(static_cast<D3DFILLMODE>(Value)));
 			break;
 		case D3DRS_CULLMODE:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_cull_mode(static_cast<D3DCULL>(Value), false));
+			value = static_cast<uint32_t>(reshade::d3d9::convert_cull_mode(static_cast<D3DCULL>(Value), false));
 			break;
 		case D3DRS_ZFUNC:
 		case D3DRS_ALPHAFUNC:
 		case D3DRS_STENCILFUNC:
 		case D3DRS_CCW_STENCILFUNC:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_compare_op(static_cast<D3DCMPFUNC>(Value)));
+			value = static_cast<uint32_t>(reshade::d3d9::convert_compare_op(static_cast<D3DCMPFUNC>(Value)));
 			break;
 		case D3DRS_STENCILFAIL:
 		case D3DRS_STENCILZFAIL:
@@ -1398,12 +1404,37 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 		case D3DRS_CCW_STENCILFAIL:
 		case D3DRS_CCW_STENCILZFAIL:
 		case D3DRS_CCW_STENCILPASS:
-			Value = static_cast<uint32_t>(reshade::d3d9::convert_stencil_op(static_cast<D3DSTENCILOP>(Value)));
+			value = static_cast<uint32_t>(reshade::d3d9::convert_stencil_op(static_cast<D3DSTENCILOP>(Value)));
+			break;
+		case D3DRS_POINTSIZE:
+			if (Value == 0x7FA05000 /* RESZ code */)
+			{
+				com_ptr<IDirect3DSurface9> surface;
+				_orig->GetDepthStencilSurface(&surface);
+				com_ptr<IDirect3DBaseTexture9> texture;
+				_orig->GetTexture(0, &texture);
+
+				uint32_t src_subresource;
+				const reshade::api::resource src_resource = get_resource_from_view(to_handle(surface.get()), &src_subresource);
+				const reshade::api::resource dst_resource = to_handle(texture.get());
+
+				reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, 0, 0, 0, 0, reshade::api::format::unknown);
+				return hr;
+			}
+			if (Value == MAKEFOURCC('A', '2', 'M', '0') || Value == MAKEFOURCC('A', '2', 'M', '1'))
+			{
+				state = reshade::api::dynamic_state::alpha_to_coverage_enable;
+				value = (Value == MAKEFOURCC('A', '2', 'M', '1')) ? 1 : 0;
+			}
+			break;
+		case D3DRS_ADAPTIVETESS_Y:
+			if (Value == MAKEFOURCC('A', 'T', 'O', 'C') || Value == 0)
+			{
+				state = reshade::api::dynamic_state::alpha_to_coverage_enable;
+				value = (Value == MAKEFOURCC('A', 'T', 'O', 'C')) ? 1 : 0;
+			}
 			break;
 		}
-
-		const reshade::api::dynamic_state state = reshade::d3d9::convert_dynamic_state(State);
-		const uint32_t value = Value;
 
 		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, 1, &state, &value);
 	}

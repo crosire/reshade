@@ -533,7 +533,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	D3DFORMAT  view_format = convert_format(desc.format);
+	D3DFORMAT  view_format = convert_format(desc.format, FALSE, usage_type == api::resource_usage::shader_resource);
 
 	// Set the first bit in the handle to indicate whether this view is using a sRGB format
 	const bool is_srgb_format =
