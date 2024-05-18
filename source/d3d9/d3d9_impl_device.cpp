@@ -872,30 +872,13 @@ bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint6
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	switch (IDirect3DResource9_GetType(object))
-	{
-		case D3DRTYPE_VERTEXBUFFER:
-		{
-			return SUCCEEDED(IDirect3DVertexBuffer9_Lock(
-				static_cast<IDirect3DVertexBuffer9 *>(object),
-				static_cast<UINT>(offset),
-				size != UINT64_MAX ? static_cast<UINT>(size) : 0,
-				out_data,
-				convert_access_flags(access)));
-		}
-		case D3DRTYPE_INDEXBUFFER:
-		{
-			return SUCCEEDED(IDirect3DIndexBuffer9_Lock(
-				static_cast<IDirect3DIndexBuffer9 *>(object),
-				static_cast<UINT>(offset),
-				size != UINT64_MAX ? static_cast<UINT>(size) : 0,
-				out_data,
-				convert_access_flags(access)));
-		}
-	}
-
-	assert(false); // Not implemented
-	return false;
+	// 'IDirect3DVertexBuffer9_Lock' and 'IDirect3DIndexBuffer9_Lock' are located at the same virtual function table index and have the same interface
+	return SUCCEEDED(IDirect3DVertexBuffer9_Lock(
+		static_cast<IDirect3DVertexBuffer9 *>(object),
+		static_cast<UINT>(offset),
+		size != UINT64_MAX ? static_cast<UINT>(size) : 0,
+		out_data,
+		convert_access_flags(access)));
 }
 void reshade::d3d9::device_impl::unmap_buffer_region(api::resource resource)
 {
@@ -903,21 +886,8 @@ void reshade::d3d9::device_impl::unmap_buffer_region(api::resource resource)
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	switch (IDirect3DResource9_GetType(object))
-	{
-		case D3DRTYPE_VERTEXBUFFER:
-		{
-			IDirect3DVertexBuffer9_Unlock(static_cast<IDirect3DVertexBuffer9 *>(object));
-			return;
-		}
-		case D3DRTYPE_INDEXBUFFER:
-		{
-			IDirect3DIndexBuffer9_Unlock(static_cast<IDirect3DIndexBuffer9 *>(object));
-			return;
-		}
-	}
-
-	assert(false); // Not implemented
+	// 'IDirect3DVertexBuffer9_Unlock' and 'IDirect3DIndexBuffer9_Unlock' are located at the same virtual function table index and have the same interface
+	IDirect3DVertexBuffer9_Unlock(static_cast<IDirect3DVertexBuffer9 *>(object));
 }
 bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data)
 {
