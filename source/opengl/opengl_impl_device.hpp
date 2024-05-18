@@ -7,6 +7,7 @@
 
 #include <GL/gl3w.h>
 #include "reshade_api_object_impl.hpp"
+#include <atomic>
 #include <unordered_map>
 
 namespace reshade::opengl
@@ -37,7 +38,7 @@ namespace reshade::opengl
 		api::resource_desc get_resource_desc(api::resource resource) const override;
 
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle) final;
-		void destroy_resource_view(api::resource_view handle) override;
+		void destroy_resource_view(api::resource_view handle) final;
 
 		api::format get_resource_format(GLenum target, GLenum object) const;
 
@@ -57,7 +58,7 @@ namespace reshade::opengl
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobjecte_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle) final;
-		void destroy_pipeline(api::pipeline handle) override;
+		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;
 		void destroy_pipeline_layout(api::pipeline_layout handle) final;
@@ -113,5 +114,8 @@ namespace reshade::opengl
 		};
 
 		std::unordered_map<size_t, map_info> _map_lookup;
+
+		std::atomic<uint64_t> _fbo_lookup_version = 0;
+		std::atomic<uint64_t> _vao_lookup_version = 0;
 	};
 }

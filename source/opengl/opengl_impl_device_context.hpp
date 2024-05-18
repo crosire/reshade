@@ -40,8 +40,6 @@ namespace reshade::opengl
 
 		void update_default_framebuffer(unsigned int width, unsigned int height);
 		void update_current_window_height(api::resource_view default_attachment);
-		void invalidate_framebuffer_cache();
-		void invalidate_vertex_array_cache();
 
 		void bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline) final;
 		void bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values) final;
@@ -113,9 +111,9 @@ namespace reshade::opengl
 		GLuint _push_constants_size = 0;
 
 		// Framebuffer and vertex array objects cannot be shared between render contexts, so have to create them for each one
-		bool _fbo_lookup_valid = true;
+		uint64_t _last_fbo_lookup_version = 0;
 		std::unordered_map<size_t, GLuint> _fbo_lookup;
-		bool _vao_lookup_valid = true;
+		uint64_t _last_vao_lookup_version = 0;
 		std::unordered_map<size_t, GLuint> _vao_lookup;
 	};
 }

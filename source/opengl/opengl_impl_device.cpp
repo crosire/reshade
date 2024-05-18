@@ -1047,6 +1047,10 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view hand
 	// Check if this is a standalone object (see 'make_resource_view_handle')
 	if (((handle.handle >> 32) & 0x1) != 0)
 		destroy_resource({ handle.handle });
+
+	// Force all framebuffers to be destroyed, to ensure they are recreated even if a resource view handle is reused
+	// This is necessary since framebuffers include dimension information, so 'glBlitFramebuffer' etc. will clip the image if an outdated one is used
+	_fbo_lookup_version++;
 }
 
 reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum target, GLenum object) const
@@ -2056,11 +2060,17 @@ void reshade::opengl::device_impl::destroy_pipeline(api::pipeline handle)
 		return;
 
 	// It is not allowed to destroy application pipeline handles
-	assert((handle.handle >> 40) != GL_PROGRAM);
+	assert(
+		(handle.handle >> 40) != GL_PROGRAM &&
+		(handle.handle >> 40) != GL_VERTEX_ARRAY);
 
 	const auto impl = reinterpret_cast<pipeline_impl *>(handle.handle);
 
 	gl.DeleteProgram(impl->program);
+
+	if (!impl->input_elements.empty())
+		// Force all vertex array objects to be destroyed, to ensure they are recreated with the right vertex attributes when the object name is reused
+		_vao_lookup_version++;
 
 	delete impl;
 }

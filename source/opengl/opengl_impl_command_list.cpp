@@ -250,12 +250,13 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource(GLenum
 	hash_combine(hash, dst_desc.texture.height);
 	hash_combine(hash, static_cast<uint32_t>(dst_desc.texture.format));
 
-	if (!_fbo_lookup_valid)
+	if (const uint64_t current_lookup_version = _device_impl->_fbo_lookup_version;
+		current_lookup_version != _last_fbo_lookup_version)
 	{
 		for (const auto &fbo_data : _fbo_lookup)
 			gl.DeleteFramebuffers(1, &fbo_data.second);
 		_fbo_lookup.clear();
-		_fbo_lookup_valid = true;
+		_last_fbo_lookup_version = current_lookup_version;
 	}
 	else if (const auto it = _fbo_lookup.find(hash);
 		it != _fbo_lookup.end())
@@ -311,12 +312,13 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 		hash_combine(hash, rtvs[i].handle);
 	hash_combine(hash, dsv.handle);
 
-	if (!_fbo_lookup_valid)
+	if (const uint64_t current_lookup_version = _device_impl->_fbo_lookup_version;
+		current_lookup_version != _last_fbo_lookup_version)
 	{
 		for (const auto &fbo_data : _fbo_lookup)
 			gl.DeleteFramebuffers(1, &fbo_data.second);
 		_fbo_lookup.clear();
-		_fbo_lookup_valid = true;
+		_last_fbo_lookup_version = current_lookup_version;
 	}
 	else if (const auto it = _fbo_lookup.find(hash);
 		it != _fbo_lookup.end())
@@ -472,14 +474,6 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 
 	_current_window_height = height;
 }
-void reshade::opengl::device_context_impl::invalidate_framebuffer_cache()
-{
-	_fbo_lookup_valid = false;
-}
-void reshade::opengl::device_context_impl::invalidate_vertex_array_cache()
-{
-	_vao_lookup_valid = false;
-}
 
 void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
@@ -513,12 +507,13 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 
 		_current_vao_dirty = false;
 
-		if (!_vao_lookup_valid)
+		if (const uint64_t current_lookup_version = _device_impl->_vao_lookup_version;
+			current_lookup_version != _last_vao_lookup_version)
 		{
 			for (const auto &vao_data : _vao_lookup)
 				gl.DeleteVertexArrays(1, &vao_data.second);
 			_vao_lookup.clear();
-			_vao_lookup_valid = true;
+			_last_vao_lookup_version = current_lookup_version;
 		}
 		else if (const auto it = _vao_lookup.find(static_cast<size_t>(pipeline.handle));
 			it != _vao_lookup.end())
@@ -1218,6 +1213,9 @@ void reshade::opengl::device_context_impl::bind_vertex_buffers(uint32_t first, u
 {
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		if (buffers[i].handle == 0)
+			continue;
+
 		assert(offsets[i] <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()));
 
 		gl.BindVertexBuffer(first + i, buffers[i].handle & 0xFFFFFFFF, static_cast<GLintptr>(offsets[i]), strides[i]);
