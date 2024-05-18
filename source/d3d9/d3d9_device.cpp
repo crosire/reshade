@@ -1592,7 +1592,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 	{
 		const uint32_t vertex_buffer_size = vertex_count * VertexStreamZeroStride;
 
-		resize_primitive_up_buffers(vertex_buffer_size, 0);
+		resize_primitive_up_buffers(vertex_buffer_size, 0, D3DFMT_UNKNOWN);
 
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
 			this,
@@ -1650,10 +1650,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>())
 	{
 		const uint32_t vertex_buffer_size = NumVertices * VertexStreamZeroStride;
-		const uint32_t index_size = (IndexDataFormat == D3DFMT_INDEX16) ? 2 : 4;
+		const uint32_t index_size = (IndexDataFormat == D3DFMT_INDEX32) ? 4 : 2;
 		const uint32_t index_buffer_size = index_count * index_size;
 
-		resize_primitive_up_buffers(vertex_buffer_size, index_buffer_size);
+		resize_primitive_up_buffers(vertex_buffer_size, index_buffer_size, IndexDataFormat);
 
 		reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
 			this,
@@ -2523,7 +2523,7 @@ void Direct3DDevice9::on_init()
 void Direct3DDevice9::on_reset()
 {
 #if RESHADE_ADDON >= 2
-	resize_primitive_up_buffers(0, 0);
+	resize_primitive_up_buffers(0, 0, D3DFMT_UNKNOWN);
 #endif
 
 	reset_auto_depth_stencil();
@@ -2631,45 +2631,46 @@ void Direct3DDevice9::reset_auto_depth_stencil()
 }
 #endif
 #if RESHADE_ADDON >= 2
-void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size)
+void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size, D3DFORMAT index_format)
 {
 	const bool reset = (vertex_buffer_size == 0);
 
 	// Initialize fake buffers for 'IDirect3DDevice9::DrawPrimitiveUP' and 'IDirect3DDevice9::DrawIndexedPrimitiveUP'
-	if (reset || vertex_buffer_size > _primitive_up_vertex_buffer_size)
+	if (reset || vertex_buffer_size > _primitive_up_vertex_buffer.Size)
 	{
-		if (_primitive_up_vertex_buffer_size != 0)
+		if (_primitive_up_vertex_buffer.Size != 0)
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::d3d9::global_vertex_buffer);
+
+		_primitive_up_vertex_buffer.Size = vertex_buffer_size;
 
 		if (vertex_buffer_size != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 				this,
-				reshade::api::resource_desc(vertex_buffer_size, reshade::api::memory_heap::cpu_to_gpu, reshade::api::resource_usage::vertex_buffer, reshade::api::resource_flags::dynamic),
+				reshade::d3d9::convert_resource_desc(_primitive_up_vertex_buffer),
 				nullptr,
 				reshade::api::resource_usage::vertex_buffer,
 				reshade::d3d9::global_vertex_buffer);
 		}
-
-		_primitive_up_vertex_buffer_size = vertex_buffer_size;
 	}
 
-	if (reset || index_buffer_size > _primitive_up_index_buffer_size)
+	if (reset || index_buffer_size > _primitive_up_index_buffer.Size || index_format != _primitive_up_index_buffer.Format)
 	{
-		if (_primitive_up_index_buffer_size != 0)
+		if (_primitive_up_index_buffer.Size != 0)
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, reshade::d3d9::global_index_buffer);
+
+		_primitive_up_index_buffer.Format = index_format;
+		_primitive_up_index_buffer.Size = index_buffer_size;
 
 		if (index_buffer_size != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 				this,
-				reshade::api::resource_desc(index_buffer_size, reshade::api::memory_heap::cpu_to_gpu, reshade::api::resource_usage::index_buffer, reshade::api::resource_flags::dynamic),
+				reshade::d3d9::convert_resource_desc(_primitive_up_index_buffer),
 				nullptr,
 				reshade::api::resource_usage::index_buffer,
 				reshade::d3d9::global_index_buffer);
 		}
-
-		_primitive_up_index_buffer_size = index_buffer_size;
 	}
 }
 #endif

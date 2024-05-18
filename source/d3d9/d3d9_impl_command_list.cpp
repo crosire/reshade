@@ -362,7 +362,7 @@ void reshade::d3d9::device_impl::bind_index_buffer(api::resource buffer, [[maybe
 
 		D3DINDEXBUFFER_DESC desc;
 		reinterpret_cast<IDirect3DIndexBuffer9 *>(buffer.handle)->GetDesc(&desc);
-		assert(desc.Format == (index_size == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32));
+		assert(desc.Format == (index_size >= 4 ? D3DFMT_INDEX32 : D3DFMT_INDEX16));
 	}
 #endif
 

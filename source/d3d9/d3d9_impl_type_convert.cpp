@@ -525,6 +525,9 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 {
 	assert(desc.type == api::resource_type::buffer);
 
+	assert(desc.buffer.stride == 0 || desc.buffer.stride == 2 || desc.buffer.stride == 4);
+	internal_desc.Format = desc.buffer.stride >= 4 ? D3DFMT_INDEX32 : D3DFMT_INDEX16;
+
 	assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
 	internal_desc.Size = static_cast<UINT>(desc.buffer.size);
 
@@ -740,7 +743,8 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DINDEXB
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.Size;
-	desc.buffer.stride = 0;
+	assert(internal_desc.Format == D3DFMT_INDEX16 || internal_desc.Format == D3DFMT_INDEX32);
+	desc.buffer.stride = (internal_desc.Format == D3DFMT_INDEX32) ? 4 : 2;
 	if (internal_desc.Pool == D3DPOOL_DEFAULT && (internal_desc.Usage & D3DUSAGE_WRITEONLY) == 0)
 		desc.heap = api::memory_heap::gpu_to_cpu;
 	else

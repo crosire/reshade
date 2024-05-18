@@ -269,7 +269,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 				{
 					D3DINDEXBUFFER_DESC internal_desc = {};
 					convert_resource_desc(desc, internal_desc);
-					internal_desc.Format = D3DFMT_INDEX16; // TODO: The index format of the index buffer is hardcoded here, which is rather unfortunate ...
 
 					if (com_ptr<IDirect3DIndexBuffer9> object;
 						SUCCEEDED(_orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, &object, shared_handle)))
