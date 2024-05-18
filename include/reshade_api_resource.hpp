@@ -181,12 +181,29 @@ namespace reshade { namespace api
 	enum class resource_flags : uint32_t
 	{
 		none = 0,
+		/// <summary>
+		/// Dynamic resources can be frequently updated during a frame, with previous contents automatically being shadowed so to no affect already executing operations on the GPU.
+		/// Required for <see cref="map_access::write_discard"/>. The flag is not supported in D3D12 or Vulkan.
+		/// </summary>
 		dynamic = (1 << 3),
+		/// <summary>
+		/// Required to create <see cref="resource_view_type::texture_cube"/> or <see cref="resource_view_type::texture_cube_array"/> views of the resource.
+		/// </summary>
 		cube_compatible = (1 << 2),
+		/// <summary>
+		/// Required to use the resource with <see cref="command_list::generate_mipmaps"/>.
+		/// </summary>
 		generate_mipmaps = (1 << 0),
+		/// <summary>
+		/// Shared resources can be imported/exported from/to different graphics APIs and/or processes.
+		/// Required to use the "shared_handle" parameter of <see cref="device::create_resource"/>.
+		/// </summary>
 		shared = (1 << 1),
 		shared_nt_handle = (1 << 11),
-		sparse_binding = (1 << 18)
+		/// <summary>
+		/// Resource is backed using sparse memory binding.
+		/// </summary>
+		sparse_binding = (1 << 18),
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
 
