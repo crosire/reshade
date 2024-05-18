@@ -422,7 +422,7 @@ void reshade::d3d9::device_impl::draw_indexed(uint32_t index_count, uint32_t ins
 	{
 		com_ptr<IDirect3DVertexBuffer9> stream;
 		UINT offset = 0, stride = 0;
-		if (SUCCEEDED(_orig->GetStreamSource(0, &stream, &offset, &stride)))
+		if (SUCCEEDED(_orig->GetStreamSource(0, &stream, &offset, &stride)) && stream != nullptr)
 		{
 			D3DVERTEXBUFFER_DESC desc;
 			if (SUCCEEDED(stream->GetDesc(&desc)))
