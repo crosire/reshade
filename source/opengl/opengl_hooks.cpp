@@ -602,6 +602,9 @@ static void update_current_input_layout()
 	if (g_current_context->_current_vao_dirty &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
 	{
+		// Changing the vertex array binding also changes the vertex and index buffer bindings, so force an update of those next
+		g_current_context->_current_vbo_dirty = true;
+		g_current_context->_current_ibo_dirty = true;
 		g_current_context->_current_vao_dirty = false;
 
 		GLint count = 0;
@@ -685,7 +688,7 @@ static void update_current_primitive_topology(GLenum mode)
 				buffer_handles[i] = reshade::opengl::make_resource_handle(GL_BUFFER, vertex_buffer_binding);
 
 				gl.GetIntegeri_v(GL_VERTEX_BINDING_STRIDE, i, reinterpret_cast<GLint *>(&strides_32[i]));
-				assert(strides_32[0] != 0);
+				assert(strides_32[i] != 0);
 				gl.GetInteger64i_v(GL_VERTEX_BINDING_OFFSET, i, reinterpret_cast<GLint64 *>(&offsets_64[i]));
 			}
 			else
@@ -2913,8 +2916,6 @@ void APIENTRY glBindVertexArray(GLuint array)
 	if (g_current_context)
 	{
 		g_current_context->_current_vao_dirty = true;
-		g_current_context->_current_vbo_dirty = true;
-		g_current_context->_current_ibo_dirty = true;
 
 		update_current_input_layout();
 	}
