@@ -539,8 +539,11 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 
 			GLint attrib_size = 0;
 			GLboolean normalized = GL_FALSE;
-			const GLenum attrib_format = convert_attrib_format(element.format, attrib_size, normalized);
-			gl.VertexAttribFormat(element.location, attrib_size, attrib_format, normalized, element.offset);
+			const GLenum attrib_type = convert_attrib_format(element.format, attrib_size, normalized);
+			if (normalized || attrib_type == GL_FLOAT || attrib_type == GL_HALF_FLOAT)
+				gl.VertexAttribFormat(element.location, attrib_size, attrib_type, normalized, element.offset);
+			else
+				gl.VertexAttribIFormat(element.location, attrib_size, attrib_type, element.offset);
 			gl.VertexAttribBinding(element.location, element.buffer_binding);
 			gl.VertexBindingDivisor(element.buffer_binding, element.instance_step_rate);
 		}
