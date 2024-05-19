@@ -415,9 +415,6 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 {
 	*out_handle = { 0 };
 
-	if (resource.handle == 0)
-		return false;
-
 	// Cannot create a resource view with a typeless format
 	assert(desc.format != api::format_to_typeless(desc.format) || api::format_to_typeless(desc.format) == api::format_to_default_typed(desc.format));
 
@@ -492,6 +489,9 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 		case api::resource_usage::acceleration_structure:
 		{
 			assert(desc.type == api::resource_view_type::unknown || desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure);
+
+			if (resource.handle == 0)
+				break;
 
 			const D3D12_GPU_VIRTUAL_ADDRESS address = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetGPUVirtualAddress() +
 				(desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure ? desc.buffer.offset : 0);
