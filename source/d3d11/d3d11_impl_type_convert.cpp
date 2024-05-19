@@ -298,7 +298,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 
 	if (desc.buffer.stride != 0 && (desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer | api::resource_usage::constant_buffer | api::resource_usage::stream_output)) == 0)
 		internal_desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-	else if ((desc.usage & (api::resource_usage::shader_resource | api::resource_usage::unordered_access)) != 0)
+	else if ((desc.usage & (api::resource_usage::shader_resource | api::resource_usage::unordered_access)) != 0 && (desc.usage & api::resource_usage::constant_buffer) == 0)
 		internal_desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 }
 void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11_TEXTURE1D_DESC &internal_desc)
@@ -581,6 +581,12 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer.offset);
 		assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
 		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
+
+		if (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS)
+		{
+			internal_desc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+			internal_desc.BufferEx.Flags |= D3D11_BUFFEREX_SRV_FLAG_RAW;
+		}
 		break;
 	case api::resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE1D;
@@ -676,6 +682,11 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.Buffer.FirstElement = static_cast<UINT>(desc.buffer.offset);
 		assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
 		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
+
+		if (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS)
+			internal_desc.Buffer.Flags |= D3D11_BUFFER_UAV_FLAG_RAW;
+		else
+			internal_desc.Buffer.Flags &= ~D3D11_BUFFER_UAV_FLAG_RAW;
 		break;
 	case api::resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE1D;
@@ -913,10 +924,10 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(cons
 			desc.texture.layer_count = internal_desc.TextureCubeArray.NumCubes * 6;
 		break;
 	case D3D11_SRV_DIMENSION_BUFFEREX:
-		// Do not set type to 'resource_view_type::buffer', since that would translate to D3D11_SRV_DIMENSION_BUFFER on the conversion back
+		desc.type = api::resource_view_type::buffer;
 		desc.buffer.offset = internal_desc.BufferEx.FirstElement;
 		desc.buffer.size = internal_desc.BufferEx.NumElements;
-		// Missing fields: D3D11_BUFFEREX_SRV::Flags
+		assert(((internal_desc.BufferEx.Flags & D3D11_BUFFEREX_SRV_FLAG_RAW) != 0) == (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS));
 		break;
 	}
 	return desc;
@@ -963,6 +974,7 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(cons
 		desc.buffer.offset = internal_desc.Buffer.FirstElement;
 		desc.buffer.size = internal_desc.Buffer.NumElements;
 		// Missing fields: D3D11_BUFFER_UAV::Flags
+		assert(((internal_desc.Buffer.Flags & D3D11_BUFFER_UAV_FLAG_RAW) != 0) == (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS));
 		break;
 	case D3D11_UAV_DIMENSION_TEXTURE1D:
 		desc.type = api::resource_view_type::texture_1d;
