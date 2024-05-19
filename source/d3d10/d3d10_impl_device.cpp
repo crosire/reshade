@@ -524,7 +524,7 @@ bool reshade::d3d10::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 	com_ptr<ID3D10BlendState> blend_state;
 	com_ptr<ID3D10RasterizerState> rasterizer_state;
 	com_ptr<ID3D10DepthStencilState> depth_stencil_state;
-	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	api::primitive_topology topology = api::primitive_topology::undefined;
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t stencil_reference_value = 0;
 	float blend_constant[4] = {};

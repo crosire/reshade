@@ -25,7 +25,8 @@ void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipelin
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 	{
 		ctx->IASetInputLayout(input_layout.get());
-		ctx->IASetPrimitiveTopology(topology);
+		if (topology != D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED)
+			ctx->IASetPrimitiveTopology(topology);
 	}
 
 	if ((stages & api::pipeline_stage::rasterizer) != 0)

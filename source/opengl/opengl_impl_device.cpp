@@ -1847,7 +1847,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
 	api::depth_stencil_desc depth_stencil_desc = {};
-	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	api::primitive_topology topology = api::primitive_topology::undefined;
 	uint32_t sample_mask = UINT32_MAX;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)

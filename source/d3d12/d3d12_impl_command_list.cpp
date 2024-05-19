@@ -215,7 +215,6 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages
 	if (stages == api::pipeline_stage::all_ray_tracing)
 	{
 		const auto pipeline_object = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
-
 		if (_supports_ray_tracing)
 			static_cast<ID3D12GraphicsCommandList4 *>(_orig)->SetPipelineState1(pipeline_object);
 		else
@@ -232,7 +231,9 @@ void reshade::d3d12::command_list_impl::bind_pipeline(api::pipeline_stage stages
 			pipeline_object != nullptr &&
 			SUCCEEDED(pipeline_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
-			_orig->IASetPrimitiveTopology(extra_data.topology);
+			if (extra_data.topology != D3D_PRIMITIVE_TOPOLOGY_UNDEFINED)
+				_orig->IASetPrimitiveTopology(extra_data.topology);
+
 			_orig->OMSetBlendFactor(extra_data.blend_constant);
 		}
 	}

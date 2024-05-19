@@ -1128,7 +1128,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
 	api::depth_stencil_desc depth_stencil_desc = {};
-	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	api::primitive_topology topology = api::primitive_topology::undefined;
 	api::format depth_stencil_format = api::format::unknown;
 	api::pipeline_subobject render_target_formats = {};
 	api::pipeline_subobject dynamic_states_subobject = {};

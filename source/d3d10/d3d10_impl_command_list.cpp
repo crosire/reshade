@@ -20,7 +20,8 @@ void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx, api::pipeline_stage
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 	{
 		ctx->IASetInputLayout(input_layout.get());
-		ctx->IASetPrimitiveTopology(topology);
+		if (topology != D3D10_PRIMITIVE_TOPOLOGY_UNDEFINED)
+			ctx->IASetPrimitiveTopology(topology);
 	}
 
 	if ((stages & api::pipeline_stage::rasterizer) != 0)

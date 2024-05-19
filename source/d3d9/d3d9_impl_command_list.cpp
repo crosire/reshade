@@ -121,12 +121,14 @@ void reshade::d3d9::device_impl::bind_pipeline(api::pipeline_stage stages, api::
 {
 	if (pipeline.handle & 1)
 	{
+		const auto pipeline_object = reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1);
+
 		// This is a pipeline handle created with 'device_impl::create_pipeline', which does not support partial binding of its state
 		assert(stages == api::pipeline_stage::all_graphics);
-		reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->state_block->Apply();
+		pipeline_object->state_block->Apply();
 
-		if ((stages & api::pipeline_stage::input_assembler) != 0)
-			_current_prim_type = reinterpret_cast<pipeline_impl *>(pipeline.handle ^ 1)->prim_type;
+		if ((stages & api::pipeline_stage::input_assembler) != 0 && pipeline_object->prim_type != 0)
+			_current_prim_type = pipeline_object->prim_type;
 		return;
 	}
 

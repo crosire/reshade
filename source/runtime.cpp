@@ -2675,6 +2675,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 
 				subobjects.push_back({ api::pipeline_subobject_type::max_vertex_count, 1, &pass_info.num_vertices });
+
 				api::primitive_topology topology = static_cast<api::primitive_topology>(pass_info.topology);
 				subobjects.push_back({ api::pipeline_subobject_type::primitive_topology, 1, &topology });
 

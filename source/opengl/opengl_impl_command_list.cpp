@@ -499,11 +499,13 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 	if (_device_impl->_compatibility_context)
 		gl.Disable(0x0BC0 /* GL_ALPHA_TEST */);
 
-	reinterpret_cast<pipeline_impl *>(pipeline.handle)->apply(stages);
+	const auto pipeline_object = reinterpret_cast<pipeline_impl *>(pipeline.handle);
+	pipeline_object->apply(stages);
 
 	if ((stages & api::pipeline_stage::input_assembler) != 0)
 	{
-		bind_pipeline_state(api::dynamic_state::primitive_topology, static_cast<uint32_t>(reinterpret_cast<pipeline_impl *>(pipeline.handle)->topology));
+		if (pipeline_object->topology != api::primitive_topology::undefined)
+			bind_pipeline_state(api::dynamic_state::primitive_topology, static_cast<uint32_t>(pipeline_object->topology));
 
 		_current_vao_dirty = false;
 
@@ -528,7 +530,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 
 		gl.BindVertexArray(vao);
 
-		for (const api::input_element &element : reinterpret_cast<pipeline_impl *>(pipeline.handle)->input_elements)
+		for (const api::input_element &element : pipeline_object->input_elements)
 		{
 			gl.EnableVertexAttribArray(element.location);
 

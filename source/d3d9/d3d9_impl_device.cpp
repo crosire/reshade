@@ -1333,7 +1333,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 	api::blend_desc blend_state;
 	api::rasterizer_desc rasterizer_state;
 	api::depth_stencil_desc depth_stencil_state;
-	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	api::primitive_topology topology = api::primitive_topology::undefined;
 	uint32_t sample_mask = UINT32_MAX;
 	uint32_t max_vertices = 3;
 

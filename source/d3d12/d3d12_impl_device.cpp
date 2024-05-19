@@ -779,7 +779,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	api::blend_desc blend_desc = {};
 	api::rasterizer_desc rasterizer_desc = {};
 	api::depth_stencil_desc depth_stencil_desc = {};
-	api::primitive_topology topology = api::primitive_topology::triangle_list;
+	api::primitive_topology topology = api::primitive_topology::undefined;
 	api::format depth_stencil_format = api::format::unknown;
 	api::pipeline_subobject render_target_formats = {};
 	uint32_t sample_mask = UINT32_MAX;
@@ -1189,12 +1189,15 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			if (com_ptr<ID3D12PipelineState> pipeline;
 				SUCCEEDED(device2->CreatePipelineState(&stream_desc, IID_PPV_ARGS(&pipeline))))
 			{
-				pipeline_extra_data extra_data;
-				extra_data.topology = convert_primitive_topology(topology);
+				if (topology != api::primitive_topology::undefined)
+				{
+					pipeline_extra_data extra_data;
+					extra_data.topology = convert_primitive_topology(topology);
 
-				std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
+					std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
 
-				pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+					pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+				}
 
 				*out_handle = to_handle(pipeline.release());
 				return true;
