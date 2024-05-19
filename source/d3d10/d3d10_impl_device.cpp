@@ -316,6 +316,8 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 	switch (usage_type)
 	{
 		case api::resource_usage::depth_stencil:
+		case api::resource_usage::depth_stencil_read:
+		case api::resource_usage::depth_stencil_write:
 		{
 			D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);

@@ -424,6 +424,8 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 	switch (usage_type)
 	{
 		case api::resource_usage::depth_stencil:
+		case api::resource_usage::depth_stencil_read:
+		case api::resource_usage::depth_stencil_write:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
 			if (!_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_DSV].allocate(descriptor_handle))
@@ -431,6 +433,9 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 			D3D12_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
+
+			if (usage_type == api::resource_usage::depth_stencil_read)
+				internal_desc.Flags |= D3D12_DSV_FLAG_READ_ONLY_DEPTH;
 
 			_orig->CreateDepthStencilView(reinterpret_cast<ID3D12Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, descriptor_handle);
 

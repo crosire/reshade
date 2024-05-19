@@ -383,9 +383,14 @@ bool reshade::d3d11::device_impl::create_resource_view(api::resource resource, a
 	switch (usage_type)
 	{
 		case api::resource_usage::depth_stencil:
+		case api::resource_usage::depth_stencil_read:
+		case api::resource_usage::depth_stencil_write:
 		{
 			D3D11_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
+
+			if (usage_type == api::resource_usage::depth_stencil_read)
+				internal_desc.Flags |= D3D11_DSV_READ_ONLY_DEPTH;
 
 			if (com_ptr<ID3D11DepthStencilView> object;
 				SUCCEEDED(_orig->CreateDepthStencilView(reinterpret_cast<ID3D11Resource *>(resource.handle), desc.type != api::resource_view_type::unknown ? &internal_desc : nullptr, &object)))
