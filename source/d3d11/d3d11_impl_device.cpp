@@ -669,7 +669,7 @@ bool reshade::d3d11::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 	uint32_t stencil_reference_value = 0;
 	float blend_constant[4] = {};
 
-	if (subobject_count == 1)
+	if (subobject_count == 1 || (subobject_count == 2 && subobjects[1].type == api::pipeline_subobject_type::dynamic_pipeline_states))
 	{
 		if (subobjects->count != 0)
 		{

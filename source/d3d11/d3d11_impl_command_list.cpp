@@ -234,6 +234,13 @@ void reshade::d3d11::device_context_impl::bind_pipeline(api::pipeline_stage stag
 	case api::pipeline_stage::output_merger:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D11BlendState *>(pipeline.handle), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 		break;
+	case api::pipeline_stage::all:
+		if (pipeline.handle == 0)
+		{
+			_orig->ClearState();
+			break;
+		}
+		[[fallthrough]];
 	default:
 		assert(false);
 		break;
