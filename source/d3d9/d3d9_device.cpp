@@ -1834,7 +1834,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetVertexDeclaration(IDirect3DVertexD
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetFVF(DWORD FVF)
 {
 	const HRESULT hr = _orig->SetFVF(FVF);
-#if RESHADE_ADDON >= 2
+#if 0
 	if (SUCCEEDED(hr))
 	{
 		// TODO: This should invoke the 'bind_pipeline' event with a special input assembler pipeline handle
