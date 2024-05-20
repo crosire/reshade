@@ -11,6 +11,8 @@ extern "C" int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 {
 #ifndef NDEBUG
 	static const auto trampoline = reshade::hooks::call(D3DPERF_BeginEvent);
+	if (trampoline == nullptr)
+		return 0;
 	return trampoline(col, wszName);
 #else
 	UNREFERENCED_PARAMETER(col);
@@ -23,6 +25,8 @@ extern "C" int WINAPI D3DPERF_EndEvent()
 {
 #ifndef NDEBUG
 	static const auto trampoline = reshade::hooks::call(D3DPERF_EndEvent);
+	if (trampoline == nullptr)
+		return 0;
 	return trampoline();
 #else
 	return 0;
@@ -33,6 +37,8 @@ extern "C" void WINAPI D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
 {
 #ifndef NDEBUG
 	static const auto trampoline = reshade::hooks::call(D3DPERF_SetMarker);
+	if (trampoline == nullptr)
+		return;
 	trampoline(col, wszName);
 #else
 	UNREFERENCED_PARAMETER(col);
