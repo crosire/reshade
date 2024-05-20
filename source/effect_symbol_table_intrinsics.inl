@@ -1301,6 +1301,38 @@ IMPLEMENT_INTRINSIC_SPIRV(ddx, 0, {
 	add_instruction(spv::OpDPdx, convert_type(res_type))
 		.add(args[0].base);
 	})
+// ret ddx_coarse(x)
+DEFINE_INTRINSIC(ddx_coarse, 0, float, float)
+DEFINE_INTRINSIC(ddx_coarse, 0, float2, float2)
+DEFINE_INTRINSIC(ddx_coarse, 0, float3, float3)
+DEFINE_INTRINSIC(ddx_coarse, 0, float4, float4)
+IMPLEMENT_INTRINSIC_GLSL(ddx_coarse, 0, {
+	code += "dFdxCoarse(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(ddx_coarse, 0, {
+	code += (_shader_model >= 50 ? "ddx_coarse(" : "ddx(") + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(ddx_coarse, 0, {
+	return
+	add_instruction(spv::OpDPdxCoarse, convert_type(res_type))
+		.add(args[0].base);
+	})
+// ret ddx_fine(x)
+DEFINE_INTRINSIC(ddx_fine, 0, float, float)
+DEFINE_INTRINSIC(ddx_fine, 0, float2, float2)
+DEFINE_INTRINSIC(ddx_fine, 0, float3, float3)
+DEFINE_INTRINSIC(ddx_fine, 0, float4, float4)
+IMPLEMENT_INTRINSIC_GLSL(ddx_fine, 0, {
+	code += "dFdxFine(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(ddx_fine, 0, {
+	code += (_shader_model >= 50 ? "ddx_fine(" : "ddx(") + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(ddx_fine, 0, {
+	return
+	add_instruction(spv::OpDPdxFine, convert_type(res_type))
+		.add(args[0].base);
+	})
 
 // ret ddy(x)
 DEFINE_INTRINSIC(ddy, 0, float, float)
@@ -1316,6 +1348,38 @@ IMPLEMENT_INTRINSIC_HLSL(ddy, 0, {
 IMPLEMENT_INTRINSIC_SPIRV(ddy, 0, {
 	return
 	add_instruction(spv::OpDPdy, convert_type(res_type))
+		.add(args[0].base);
+	})
+// ret ddy_coarse(x)
+DEFINE_INTRINSIC(ddy_coarse, 0, float, float)
+DEFINE_INTRINSIC(ddy_coarse, 0, float2, float2)
+DEFINE_INTRINSIC(ddy_coarse, 0, float3, float3)
+DEFINE_INTRINSIC(ddy_coarse, 0, float4, float4)
+IMPLEMENT_INTRINSIC_GLSL(ddy_coarse, 0, {
+	code += "dFdyCoarse(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(ddy_coarse, 0, {
+	code += (_shader_model >= 50 ? "ddy_coarse(" : "ddy(") + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(ddy_coarse, 0, {
+	return
+	add_instruction(spv::OpDPdyCoarse, convert_type(res_type))
+		.add(args[0].base);
+	})
+// ret ddy_fine(x)
+DEFINE_INTRINSIC(ddy_fine, 0, float, float)
+DEFINE_INTRINSIC(ddy_fine, 0, float2, float2)
+DEFINE_INTRINSIC(ddy_fine, 0, float3, float3)
+DEFINE_INTRINSIC(ddy_fine, 0, float4, float4)
+IMPLEMENT_INTRINSIC_GLSL(ddy_fine, 0, {
+	code += "dFdyFine(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_HLSL(ddy_fine, 0, {
+	code += (_shader_model >= 50 ? "ddy_fine(" : "ddy(") + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(ddy_fine, 0, {
+	return
+	add_instruction(spv::OpDPdyFine, convert_type(res_type))
 		.add(args[0].base);
 	})
 
