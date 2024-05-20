@@ -1802,9 +1802,22 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 
 static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
 {
+	if (desc.code_size > 5 && strncmp(static_cast<const char *>(desc.code), "!!ARB", 5) == 0)
+	{
+		// Not implemented
+		return false;
+	}
+
 	shader_object = gl.CreateShader(type);
 
-	if (!(desc.code_size > 4 && *static_cast<const uint32_t *>(desc.code) == 0x07230203)) // Check for SPIR-V magic number
+	if (desc.code_size > 4 && *static_cast<const uint32_t *>(desc.code) == 0x07230203) // Check for SPIR-V magic number
+	{
+		assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
+
+		gl.ShaderBinary(1, &shader_object, GL_SHADER_BINARY_FORMAT_SPIR_V, desc.code, static_cast<GLsizei>(desc.code_size));
+		gl.SpecializeShader(shader_object, desc.entry_point != nullptr ? desc.entry_point : "main", desc.spec_constants, desc.spec_constant_ids, desc.spec_constant_values);
+	}
+	else
 	{
 		assert(desc.entry_point == nullptr || std::strcmp(desc.entry_point, "main") == 0);
 		assert(desc.spec_constants == 0);
@@ -1813,13 +1826,6 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 		const auto source_len = static_cast<GLint>(desc.code_size);
 		gl.ShaderSource(shader_object, 1, &source, &source_len);
 		gl.CompileShader(shader_object);
-	}
-	else
-	{
-		assert(desc.code_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
-
-		gl.ShaderBinary(1, &shader_object, GL_SHADER_BINARY_FORMAT_SPIR_V, desc.code, static_cast<GLsizei>(desc.code_size));
-		gl.SpecializeShader(shader_object, desc.entry_point != nullptr ? desc.entry_point : "main", desc.spec_constants, desc.spec_constant_ids, desc.spec_constant_values);
 	}
 
 	GLint status = GL_FALSE;

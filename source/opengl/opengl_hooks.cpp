@@ -4735,8 +4735,14 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 		assert(glGetProgramivARB != nullptr);
 		glGetProgramivARB(target, 0x8677 /* GL_PROGRAM_BINDING_ARB */, reinterpret_cast<GLint *>(&program));
 
-		if (program != 0)
+		// Only invoke 'init_pipeline' event for programs that were successfully loaded
+		GLint status = -1;
+		gl.GetIntegerv(0x864B /* GL_PROGRAM_ERROR_POSITION_ARB */, &status);
+
+		if (program != 0 && status < 0)
+		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(device, reshade::opengl::global_pipeline_layout, 1, &subobject, reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program });
+		}
 	}
 	else
 #endif
