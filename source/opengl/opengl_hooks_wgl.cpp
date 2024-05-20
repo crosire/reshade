@@ -172,6 +172,7 @@ public:
 
 		if (g_current_context != nullptr && (resource.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
 		{
+			// While each swap chain will use the same pixel format, the dimensions may differ, so pull them from the current context
 			desc.texture.width = g_current_context->_default_fbo_width;
 			desc.texture.height = g_current_context->_default_fbo_height;
 		}
@@ -202,6 +203,10 @@ public:
 class wgl_swapchain : public reshade::opengl::swapchain_impl
 {
 public:
+	static constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
+	static constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+	static constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
+
 	wgl_swapchain(wgl_device *device, HDC hdc) :
 		swapchain_impl(device, hdc)
 	{
@@ -213,14 +218,21 @@ public:
 		reshade::destroy_effect_runtime(this);
 	}
 
-	void on_init(unsigned int width, unsigned int height)
+	void on_init(reshade::opengl::device_context_impl *context, unsigned int width, unsigned int height)
 	{
 		assert(width != 0 && height != 0);
+
+		// Ensure 'get_resource_desc' returns the right dimensions
+		context->update_default_framebuffer(width, height);
 
 		if (_last_width == width && _last_height == height)
 			return;
 		else
 			on_reset();
+
+		_last_width = width;
+		_last_height = height;
+		_init_effect_runtime = true;
 
 #if RESHADE_ADDON
 		const auto device = static_cast<wgl_device *>(get_device());
@@ -229,21 +241,26 @@ public:
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{
-			constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-
-			reshade::api::resource_desc default_fbo_depth_desc = device->get_resource_desc(default_ds);
-			default_fbo_depth_desc.texture.width = width;
-			default_fbo_depth_desc.texture.height = height;
-
-			reshade::invoke_addon_event<reshade::addon_event::init_resource>(device, default_fbo_depth_desc, nullptr, reshade::api::resource_usage::depth_stencil, default_ds);
-			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(device, default_ds, reshade::api::resource_usage::depth_stencil, reshade::api::resource_view_desc(default_fbo_depth_desc.texture.format), default_dsv);
+			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+				device,
+				device->get_resource_desc(default_ds),
+				nullptr,
+				reshade::api::resource_usage::depth_stencil,
+				default_ds);
+			reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+				device,
+				default_ds,
+				reshade::api::resource_usage::depth_stencil,
+				reshade::api::resource_view_desc(device->_default_depth_format),
+				default_dsv);
 		}
-#endif
 
-		_last_width = width;
-		_last_height = height;
-		_init_effect_runtime = true;
+		// Communicate default state to add-ons
+		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
+			context,
+			1, &default_rtv,
+			device->_default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
+#endif
 	}
 	void on_reset()
 	{
@@ -260,9 +277,6 @@ public:
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{
-			constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, default_dsv);
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device, default_ds);
 		}
@@ -289,20 +303,7 @@ public:
 		{
 			LOG(INFO) << "Resizing device context " << _orig << " to " << width << "x" << height << " ...";
 
-			on_init(width, height);
-
-			context->update_default_framebuffer(width, height);
-
-#if RESHADE_ADDON
-			constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-			constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-
-			// Communicate default state to add-ons
-			reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
-				context,
-				1, &default_rtv,
-				static_cast<reshade::opengl::device_impl *>(get_device())->get_resource_format(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT) != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
-#endif
+			on_init(context, width, height);
 		}
 
 		if (_init_effect_runtime)
@@ -1100,8 +1101,6 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			});
 		swapchain_it != s_opengl_swapchains.end())
 	{
-		assert(hwnd != nullptr);
-
 		swapchain = *swapchain_it;
 	}
 	else
@@ -1149,20 +1148,9 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
 	if (swapchain != nullptr && width != 0 && height != 0)
-		swapchain->on_init(width, height);
-
-	g_current_context->update_default_framebuffer(width, height);
-
-#if RESHADE_ADDON
-	constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
-	constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
-
-	// Communicate default state to add-ons
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
-		g_current_context,
-		1, &default_rtv,
-		device->get_resource_format(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_ATTACHMENT) != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
-#endif
+		swapchain->on_init(g_current_context, width, height);
+	else
+		g_current_context->update_default_framebuffer(width, height);
 
 	return TRUE;
 }

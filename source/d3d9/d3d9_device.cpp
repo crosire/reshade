@@ -1783,17 +1783,22 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, U
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements, IDirect3DVertexDeclaration9 **ppDecl)
 {
 #if RESHADE_ADDON
-	std::vector<D3DVERTEXELEMENT9> internal_elements;
-	auto elements = reshade::d3d9::convert_input_layout_desc(pVertexElements);
+	std::vector<D3DVERTEXELEMENT9> internal_desc; std::vector<reshade::api::input_element> desc;
+	if (pVertexElements != nullptr)
+		for (const D3DVERTEXELEMENT9 *internal_element = pVertexElements; internal_element->Stream != 0xFF; ++internal_element)
+			desc.push_back(reshade::d3d9::convert_input_element(*internal_element));
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() }
+		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(desc.size()), desc.data() }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d9::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
-		reshade::d3d9::convert_input_layout_desc(static_cast<uint32_t>(elements.size()), elements.data(), internal_elements);
-		pVertexElements = internal_elements.data();
+		internal_desc.reserve(desc.size());
+		for (size_t i = 0; i < desc.size(); ++i)
+			reshade::d3d9::convert_input_element(desc[i], internal_desc.emplace_back());
+
+		pVertexElements = internal_desc.data();
 	}
 #endif
 

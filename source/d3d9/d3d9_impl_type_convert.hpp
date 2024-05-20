@@ -80,8 +80,8 @@ namespace reshade::d3d9
 	api::resource_desc convert_resource_desc(const D3DINDEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 	api::resource_desc convert_resource_desc(const D3DVERTEXBUFFER_DESC &internal_desc, bool shared_handle = false);
 
-	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3DVERTEXELEMENT9> &internal_elements);
-	std::vector<api::input_element> convert_input_layout_desc(const D3DVERTEXELEMENT9 *internal_elements);
+	void convert_input_element(const api::input_element &desc, D3DVERTEXELEMENT9 &internal_desc);
+	api::input_element convert_input_element(const D3DVERTEXELEMENT9 &internal_desc);
 
 	auto convert_blend_op(D3DBLENDOP value) -> api::blend_op;
 	auto convert_blend_op(api::blend_op value) -> D3DBLENDOP;

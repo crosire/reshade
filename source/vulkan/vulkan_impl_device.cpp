@@ -731,7 +731,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 
 			create_info.format = resource_data->create_info.format;
 			create_info.subresourceRange.baseMipLevel = 0;
-			create_info.subresourceRange.levelCount = (usage_type & api::resource_usage::render_target) != api::resource_usage::undefined ? 1 : VK_REMAINING_MIP_LEVELS;
+			create_info.subresourceRange.levelCount = (usage_type & api::resource_usage::render_target) != 0 ? 1 : VK_REMAINING_MIP_LEVELS;
 			create_info.subresourceRange.baseArrayLayer = 0;
 			create_info.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 		}
@@ -741,7 +741,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		// Shader resource views can never access stencil data (except for the explicit formats that do that), so remove that aspect flag for views created with a format that supports stencil
 		if (desc.format == api::format::x24_unorm_g8_uint || desc.format == api::format::x32_float_g8_uint)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_DEPTH_BIT;
-		else if ((usage_type & api::resource_usage::shader_resource) != api::resource_usage::undefined)
+		else if ((usage_type & api::resource_usage::shader_resource) != 0)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
 		VkImageView image_view = VK_NULL_HANDLE;

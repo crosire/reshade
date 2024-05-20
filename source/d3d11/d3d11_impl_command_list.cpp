@@ -492,7 +492,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 
 	std::memcpy(_push_constants_data.data() + first, values, (count - first) * sizeof(uint32_t));
 
-	const auto push_constants = _push_constants.get();
+	ID3D11Buffer *const push_constants = _push_constants.get();
 
 	// Discard the buffer so driver can return a new memory region to avoid stalls
 	if (D3D11_MAPPED_SUBRESOURCE mapped;
@@ -502,7 +502,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 		_orig->Unmap(push_constants, 0);
 	}
 
-	UINT push_constants_slot = 0;
+	uint32_t push_constants_slot = 0;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];

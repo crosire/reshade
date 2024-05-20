@@ -1133,23 +1133,28 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 	if (ppInputLayout == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
 
-	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_elements;
-	auto elements = reshade::d3d10::convert_input_layout_desc(NumElements, pInputElementDescs);
+	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_desc; std::vector<reshade::api::input_element> desc;
+	desc.reserve(NumElements);
+	for (UINT i = 0; i < NumElements; ++i)
+		desc.push_back(reshade::d3d10::convert_input_element(pInputElementDescs[i]));
 
 	reshade::api::shader_desc signature_desc = {};
 	signature_desc.code = pShaderBytecodeWithInputSignature;
 	signature_desc.code_size = BytecodeLength;
 
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(elements.size()), elements.data() },
+		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(desc.size()), desc.data() },
 		{ reshade::api::pipeline_subobject_type::vertex_shader, 1, &signature_desc }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, reshade::d3d10::global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
-		reshade::d3d10::convert_input_layout_desc(static_cast<uint32_t>(elements.size()), elements.data(), internal_elements);
-		pInputElementDescs = internal_elements.data();
-		NumElements = static_cast<UINT>(internal_elements.size());
+		internal_desc.reserve(desc.size());
+		for (size_t i = 0; i < desc.size(); ++i)
+			reshade::d3d10::convert_input_element(desc[i], internal_desc.emplace_back());
+
+		pInputElementDescs = internal_desc.data();
+		NumElements = static_cast<UINT>(internal_desc.size());
 		pShaderBytecodeWithInputSignature = signature_desc.code;
 		BytecodeLength = signature_desc.code_size;
 	}

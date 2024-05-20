@@ -88,8 +88,8 @@ namespace reshade::d3d10
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D10_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
 
-	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D10_INPUT_ELEMENT_DESC> &internal_elements);
-	std::vector<api::input_element> convert_input_layout_desc(UINT count, const D3D10_INPUT_ELEMENT_DESC *internal_elements);
+	void convert_input_element(const api::input_element &desc, D3D10_INPUT_ELEMENT_DESC &internal_desc);
+	api::input_element convert_input_element(const D3D10_INPUT_ELEMENT_DESC &internal_desc);
 
 	void convert_blend_desc(const api::blend_desc &desc, D3D10_BLEND_DESC &internal_desc);
 	void convert_blend_desc(const api::blend_desc &desc, D3D10_BLEND_DESC1 &internal_desc);

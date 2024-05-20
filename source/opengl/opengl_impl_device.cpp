@@ -27,13 +27,17 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	switch (pfd.cDepthBits)
 	{
 	default:
-	case  0: _default_depth_format = api::format::unknown; // No depth in this pixel format
+	case  0:
+		_default_depth_format = api::format::unknown; // No depth in this pixel format
 		break;
-	case 16: _default_depth_format = pfd.cStencilBits ? api::format::d16_unorm_s8_uint : api::format::d16_unorm;
+	case 16:
+		_default_depth_format = pfd.cStencilBits ? api::format::d16_unorm_s8_uint : api::format::d16_unorm;
 		break;
-	case 24: _default_depth_format = pfd.cStencilBits ? api::format::d24_unorm_s8_uint : api::format::d24_unorm_x8_uint;
+	case 24:
+		_default_depth_format = pfd.cStencilBits ? api::format::d24_unorm_s8_uint : api::format::d24_unorm_x8_uint;
 		break;
-	case 32: _default_depth_format = pfd.cStencilBits ? api::format::d32_float_s8_uint : api::format::d32_float;
+	case 32:
+		_default_depth_format = pfd.cStencilBits ? api::format::d32_float_s8_uint : api::format::d32_float;
 		break;
 	}
 

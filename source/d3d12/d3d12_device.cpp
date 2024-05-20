@@ -2180,7 +2180,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
 			break;
 		case D3D12_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT:
-			input_layout = reshade::d3d12::convert_input_layout_desc(*static_cast<const D3D12_INPUT_LAYOUT_DESC *>(subobject.pDesc));
+			input_layout.reserve(static_cast<const D3D12_INPUT_LAYOUT_DESC *>(subobject.pDesc)->NumElements);
+			for (UINT elem_index = 0; elem_index < static_cast<const D3D12_INPUT_LAYOUT_DESC *>(subobject.pDesc)->NumElements; ++elem_index)
+				input_layout.push_back(reshade::d3d12::convert_input_element(static_cast<const D3D12_INPUT_LAYOUT_DESC *>(subobject.pDesc)->pInputElementDescs[elem_index]));
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data()});
 			break;
 		case D3D12_STATE_SUBOBJECT_TYPE_IB_STRIP_CUT_VALUE:
@@ -2399,7 +2401,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_INPUT_LAYOUT:
-			input_layout = reshade::d3d12::convert_input_layout_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data);
+			input_layout.reserve(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.NumElements);
+			for (UINT elem_index = 0; elem_index < reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.NumElements; ++elem_index)
+				input_layout.push_back(reshade::d3d12::convert_input_element(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT *>(p)->data.pInputElementDescs[elem_index]));
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_INPUT_LAYOUT);
 			continue;

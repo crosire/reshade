@@ -951,11 +951,7 @@ void reshade::opengl::device_context_impl::bind_scissor_rects(uint32_t first, ui
 
 void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
-	const GLuint push_constants_binding =
-		layout == global_pipeline_layout ? UINT32_MAX :
-		layout.handle != 0 ? reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding : 0;
-
-	if (push_constants_binding == UINT32_MAX)
+	if (layout.handle == 0 || layout == global_pipeline_layout || reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding == UINT32_MAX)
 	{
 		first /= 4;
 
@@ -1043,7 +1039,7 @@ void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api
 	const GLuint push_constants_size = (first + count) * sizeof(uint32_t);
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
-	gl.BindBufferBase(GL_UNIFORM_BUFFER, push_constants_binding, _push_constants);
+	gl.BindBufferBase(GL_UNIFORM_BUFFER, reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding, _push_constants);
 
 	// Recreate the buffer data store in case it is no longer large enough
 	if (push_constants_size > _push_constants_size)

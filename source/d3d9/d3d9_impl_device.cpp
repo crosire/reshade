@@ -1594,12 +1594,23 @@ bool reshade::d3d9::device_impl::create_input_layout(uint32_t count, const api::
 {
 	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
 
-	std::vector<D3DVERTEXELEMENT9> internal_elements;
-	convert_input_layout_desc(count, desc, internal_elements);
+	// Avoid vertex declaration creation if the input layout is empty
+	if (count == 0)
+	{
+		*out_handle = { 0 };
+		return true;
+	}
+
+	assert(count <= MAXD3DDECLLENGTH);
+
+	std::vector<D3DVERTEXELEMENT9> internal_desc(count);
+	for (uint32_t i = 0; i < count; ++i)
+		convert_input_element(desc[i], internal_desc[i]);
+
+	internal_desc.push_back(D3DDECL_END());
 
 	if (com_ptr<IDirect3DVertexDeclaration9> object;
-		internal_elements.size() == 1 || // Avoid vertex declaration creation if the input layout is empty (it always contains at least a single 'D3DDECL_END' element)
-		SUCCEEDED(_orig->CreateVertexDeclaration(internal_elements.data(), &object)))
+		SUCCEEDED(_orig->CreateVertexDeclaration(internal_desc.data(), &object)))
 	{
 		*out_handle = to_handle(object.release());
 		return true;
@@ -1714,6 +1725,7 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 				return false;
 			break;
 		case api::pipeline_layout_param_type::push_constants:
+			merged_range.binding = params[i].push_constants.binding;
 			merged_range.dx_register_index = params[i].push_constants.dx_register_index;
 			merged_range.dx_register_space = params[i].push_constants.dx_register_space;
 			if (merged_range.dx_register_space != 0)

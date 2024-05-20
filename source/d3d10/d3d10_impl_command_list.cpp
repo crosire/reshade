@@ -351,7 +351,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 
 	std::memcpy(_push_constants_data.data() + first, values, (count - first) * sizeof(uint32_t));
 
-	const auto push_constants = _push_constants.get();
+	ID3D10Buffer *const push_constants = _push_constants.get();
 
 	// Discard the buffer to so driver can return a new memory region to avoid stalls
 	if (uint32_t *mapped_data;
@@ -361,7 +361,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 		ID3D10Buffer_Unmap(push_constants);
 	}
 
-	UINT push_constants_slot = 0;
+	uint32_t push_constants_slot = 0;
 	if (layout.handle != 0 && layout != global_pipeline_layout)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];

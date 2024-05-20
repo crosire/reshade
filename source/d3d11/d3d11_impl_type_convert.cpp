@@ -1035,49 +1035,32 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(cons
 	}
 }
 
-void reshade::d3d11::convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D11_INPUT_ELEMENT_DESC> &internal_elements)
+void reshade::d3d11::convert_input_element(const api::input_element &desc, D3D11_INPUT_ELEMENT_DESC &internal_desc)
 {
-	internal_elements.reserve(count);
+	internal_desc.SemanticName = desc.semantic;
+	internal_desc.SemanticIndex = desc.semantic_index;
+	internal_desc.Format = convert_format(desc.format);
+	internal_desc.InputSlot = desc.buffer_binding;
+	internal_desc.AlignedByteOffset = desc.offset;
+	internal_desc.InputSlotClass = desc.instance_step_rate > 0 ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
+	internal_desc.InstanceDataStepRate = desc.instance_step_rate;
 
-	for (uint32_t i = 0; i < count; ++i)
+	if (desc.semantic == nullptr)
 	{
-		const api::input_element &element = elements[i];
-
-		D3D11_INPUT_ELEMENT_DESC &internal_element = internal_elements.emplace_back();
-		internal_element.SemanticName = element.semantic;
-		internal_element.SemanticIndex = element.semantic_index;
-		internal_element.Format = convert_format(element.format);
-		internal_element.InputSlot = element.buffer_binding;
-		internal_element.AlignedByteOffset = element.offset;
-		internal_element.InputSlotClass = element.instance_step_rate > 0 ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
-		internal_element.InstanceDataStepRate = element.instance_step_rate;
-
-		if (element.semantic == nullptr)
-		{
-			internal_element.SemanticName = "TEXCOORD";
-			internal_element.SemanticIndex = element.location;
-		}
+		internal_desc.SemanticName = "TEXCOORD";
+		internal_desc.SemanticIndex = desc.location;
 	}
 }
-std::vector<reshade::api::input_element> reshade::d3d11::convert_input_layout_desc(UINT count, const D3D11_INPUT_ELEMENT_DESC *internal_elements)
+reshade::api::input_element reshade::d3d11::convert_input_element(const D3D11_INPUT_ELEMENT_DESC &internal_desc)
 {
-	std::vector<api::input_element> elements;
-	elements.reserve(count);
-
-	for (UINT i = 0; i < count; ++i)
-	{
-		const D3D11_INPUT_ELEMENT_DESC &internal_element = internal_elements[i];
-
-		api::input_element &element = elements.emplace_back();
-		element.semantic = internal_element.SemanticName;
-		element.semantic_index = internal_element.SemanticIndex;
-		element.format = convert_format(internal_element.Format);
-		element.buffer_binding = internal_element.InputSlot;
-		element.offset = internal_element.AlignedByteOffset;
-		element.instance_step_rate = internal_element.InstanceDataStepRate;
-	}
-
-	return elements;
+	api::input_element desc = {};
+	desc.semantic = internal_desc.SemanticName;
+	desc.semantic_index = internal_desc.SemanticIndex;
+	desc.format = convert_format(internal_desc.Format);
+	desc.buffer_binding = internal_desc.InputSlot;
+	desc.offset = internal_desc.AlignedByteOffset;
+	desc.instance_step_rate = internal_desc.InstanceDataStepRate;
+	return desc;
 }
 
 void reshade::d3d11::convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC &internal_desc)

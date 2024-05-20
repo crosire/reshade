@@ -104,8 +104,8 @@ namespace reshade::d3d11
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
 
-	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D11_INPUT_ELEMENT_DESC> &internal_elements);
-	std::vector<api::input_element> convert_input_layout_desc(UINT count, const D3D11_INPUT_ELEMENT_DESC *internal_elements);
+	void convert_input_element(const api::input_element &desc, D3D11_INPUT_ELEMENT_DESC &internal_desc);
+	api::input_element convert_input_element(const D3D11_INPUT_ELEMENT_DESC &internal_desc);
 
 	void convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC &internal_desc);
 	void convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND_DESC1 &internal_desc);

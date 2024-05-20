@@ -1224,10 +1224,11 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		reshade::d3d12::convert_rasterizer_desc(rasterizer_desc, internal_desc.RasterizerState);
 		reshade::d3d12::convert_depth_stencil_desc(depth_stencil_desc, internal_desc.DepthStencilState);
 
-		std::vector<D3D12_INPUT_ELEMENT_DESC> internal_elements;
-		reshade::d3d12::convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), internal_elements);
-		internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_elements.size());
-		internal_desc.InputLayout.pInputElementDescs = internal_elements.data();
+		std::vector<D3D12_INPUT_ELEMENT_DESC> internal_input_layout_desc(input_layout_desc.count);
+		for (uint32_t i = 0; i < input_layout_desc.count; ++i)
+			reshade::d3d12::convert_input_element(static_cast<const api::input_element *>(input_layout_desc.data)[i], internal_input_layout_desc[i]);
+		internal_desc.InputLayout.NumElements = static_cast<UINT>(internal_input_layout_desc.size());
+		internal_desc.InputLayout.pInputElementDescs = internal_input_layout_desc.data();
 
 		internal_desc.PrimitiveTopologyType = reshade::d3d12::convert_primitive_topology_type(topology);
 

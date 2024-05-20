@@ -88,8 +88,8 @@ namespace reshade::d3d12
 	void convert_shader_desc(const api::shader_desc &desc, D3D12_SHADER_BYTECODE &internal_desc);
 	api::shader_desc convert_shader_desc(const D3D12_SHADER_BYTECODE &internal_desc);
 
-	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<D3D12_INPUT_ELEMENT_DESC> &internal_elements);
-	std::vector<api::input_element> convert_input_layout_desc(const D3D12_INPUT_LAYOUT_DESC &internal_desc);
+	void convert_input_element(const api::input_element &desc, D3D12_INPUT_ELEMENT_DESC &internal_desc);
+	api::input_element convert_input_element(const D3D12_INPUT_ELEMENT_DESC &internal_desc);
 
 	void convert_stream_output_desc(const api::stream_output_desc &desc, D3D12_STREAM_OUTPUT_DESC &internal_desc);
 	api::stream_output_desc convert_stream_output_desc(const D3D12_STREAM_OUTPUT_DESC &internal_desc);

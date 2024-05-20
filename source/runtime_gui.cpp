@@ -2557,9 +2557,9 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::TextUnformatted(_("Time:"));
 		ImGui::Text(_("Frame %llu:"), _frame_count + 1);
 #if RESHADE_FX
+		ImGui::TextUnformatted(_("Resolution:"));
 		ImGui::TextUnformatted(_("Post-Processing:"));
 #endif
-		ImGui::Text(_("Resolution:"));
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
@@ -2597,9 +2597,9 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Text("%d-%d-%d %d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		ImGui::Text("%.2f fps", _imgui_context->IO.Framerate);
 #if RESHADE_FX
+		ImGui::Text("%ux%u", _effect_width, _effect_height);
 		ImGui::Text("%*.3f ms CPU", cpu_digits + 4, post_processing_time_cpu * 1e-6f);
 #endif
-		ImGui::Text("%dx%d", _effect_width, _effect_height);
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
@@ -2614,6 +2614,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
 #if RESHADE_FX
+		ImGui::Text("format %u", _effect_color_format);
 		if (_gather_gpu_statistics && post_processing_time_gpu != 0)
 			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 #endif
