@@ -142,7 +142,7 @@ void reshade::runtime::build_font_atlas()
 	if (language.empty())
 		language = resources::get_current_language();
 
-	if (language.find("bg") == 0)
+	if (language.find("bg") == 0 || language.find("ru") == 0)
 	{
 		glyph_ranges = atlas->GetGlyphRangesCyrillic();
 

@@ -126,9 +126,11 @@ IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.md"
 #include "lang_bg-BG.rc2"
 #include "lang_de-DE.rc2"
 #include "lang_en-US.rc2"
+#include "lang_es-ES.rc2"
 #include "lang_fr-FR.rc2"
 #include "lang_ja-JP.rc2"
 #include "lang_ko-KR.rc2"
+#include "lang_ru-RU.rc2"
 #include "lang_zh-CN.rc2"
 #endif
 
