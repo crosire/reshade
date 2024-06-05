@@ -3666,7 +3666,7 @@ void reshade::runtime::draw_variable_editor()
 							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
-								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &value.as_int[variable.type.cols * row], variable.type.cols) || modified;
+								modified |= ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &value.as_int[variable.type.cols * row], variable.type.cols) || modified;
 						else
 							modified = ImGui::InputScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows);
 
@@ -3703,7 +3703,7 @@ void reshade::runtime::draw_variable_editor()
 							modified = ImGui::ColorEdit4(label.data(), value.as_float, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
-								modified = ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), ImGuiDataType_Float, &value.as_float[variable.type.cols * row], variable.type.cols) || modified;
+								modified |= ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), ImGuiDataType_Float, &value.as_float[variable.type.cols * row], variable.type.cols) || modified;
 						else
 							modified = ImGui::InputScalarN(label.data(), ImGuiDataType_Float, value.as_float, variable.type.rows);
 
