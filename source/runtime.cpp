@@ -1312,8 +1312,9 @@ void reshade::runtime::load_current_preset()
 		else
 			disable_technique(tech);
 
-		preset.get({}, "Key" + unique_name, tech.toggle_key_data);
-		preset.get({}, "Key" + tech.name, tech.toggle_key_data);
+		if (!preset.get({}, "Key" + unique_name, tech.toggle_key_data) &&
+			!preset.get({}, "Key" + tech.name, tech.toggle_key_data))
+			std::memset(tech.toggle_key_data, 0, sizeof(tech.toggle_key_data));
 	}
 
 	// Reverse queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
