@@ -66,7 +66,19 @@ namespace reshade::imgui
 	/// <param name="label">Label text describing this widget.</param>
 	/// <param name="ui_items">List of labels for the items, separated with '\0' characters.</param>
 	/// <param name="v">Index of the active item in the <paramref name="ui_items"/> list.</param>
-	bool radio_list(const char *label, const std::string_view ui_items, int &v);
+	bool radio_list(const char *label, const std::string_view ui_items, int *v);
+
+	/// <summary>
+	/// Adds a widget which shows a vertical list of check boxes plus a label to the right.
+	/// </summary>
+	/// <param name="label">Label text describing this widget.</param>
+	/// <param name="ui_items">List of labels for the items, separated with '\0' characters.</param>
+	/// <param name="v">Item values.</param>
+	bool checkbox_list(const char *label, const std::string_view ui_items, unsigned int *v, int components);
+	/// <summary>
+	/// Adds a checkbox with three states (checkmark, filled out, empty) instead of just two.
+	/// </summary>
+	bool checkbox_tristate(const char *label, unsigned int *v);
 
 	/// <summary>
 	/// Convenience function which adds a button that when pressed opens a popup window.
@@ -91,15 +103,15 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds an ImGui list widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.
 	/// </summary>
-	bool list_with_buttons(const char *label, const std::string_view ui_items, int &v);
+	bool list_with_buttons(const char *label, const std::string_view ui_items, int *v);
 	/// <summary>
 	/// Adds a combo widget for a boolean value, with the items "On" and "Off".
 	/// </summary>
-	bool combo_with_buttons(const char *label, bool &v);
+	bool combo_with_buttons(const char *label, bool *v);
 	/// <summary>
 	/// Adds an ImGui combo widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.
 	/// </summary>
-	bool combo_with_buttons(const char *label, const std::string_view ui_items, int &v);
+	bool combo_with_buttons(const char *label, const std::string_view ui_items, int *v);
 	/// <summary>
 	/// Adds an ImGui slider widget but with additional "&lt;" and "&gt;" buttons to decrease/increase the value.
 	/// </summary>
@@ -109,11 +121,6 @@ namespace reshade::imgui
 	/// Adds an ImGui slider widget but with an additional color preview and picker for alpha values.
 	/// </summary>
 	bool slider_for_alpha_value(const char *label, float *v);
-
-	/// <summary>
-	/// Adds a checkbox with three states (checkmark, filled out, empty) instead of just two.
-	/// </summary>
-	bool checkbox_tristate(const char *label, unsigned int *v);
 
 	/// <summary>
 	/// Adds an image widget which has a checkerboard background for transparent images.

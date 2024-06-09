@@ -431,7 +431,7 @@ bool reshade::imgui::directory_input_box(const char *name, std::filesystem::path
 	return res;
 }
 
-bool reshade::imgui::radio_list(const char *label, const std::string_view ui_items, int &v)
+bool reshade::imgui::radio_list(const char *label, const std::string_view ui_items, int *v)
 {
 	bool res = false;
 
@@ -441,12 +441,48 @@ bool reshade::imgui::radio_list(const char *label, const std::string_view ui_ite
 	ImGui::BeginGroup();
 
 	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1, ++i)
-		res |= ImGui::RadioButton(ui_items.data() + offset, &v, static_cast<int>(i));
+		res |= ImGui::RadioButton(ui_items.data() + offset, v, static_cast<int>(i));
 
 	ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
 	ImGui::TextUnformatted(label);
 
 	ImGui::EndGroup();
+
+	return res;
+}
+
+bool reshade::imgui::checkbox_list(const char *label, const std::string_view ui_items, unsigned int *v, int components)
+{
+	if (ui_items.empty())
+		return ImGui::Checkbox(label, reinterpret_cast<bool *>(v));
+
+	bool res = false;
+
+	const float item_width = ImGui::CalcItemWidth();
+
+	ImGui::BeginGroup();
+
+	int i = 0;
+	for (size_t offset = 0, next; (next = ui_items.find('\0', offset)) != std::string_view::npos && i < components; offset = next + 1, ++i)
+		res |= ImGui::Checkbox(ui_items.data() + offset, reinterpret_cast<bool *>(&v[i]));
+
+	ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
+	ImGui::TextUnformatted(label);
+
+	ImGui::EndGroup();
+
+	return res;
+}
+bool reshade::imgui::checkbox_tristate(const char *label, unsigned int *v)
+{
+	const bool mixed = *v > 1;
+	bool value = *v != 0;
+
+	ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, mixed);
+	const bool res = ImGui::Checkbox(label, &value);
+	if (res)
+		*v = value ? 1 : mixed ? 0 : 2;
+	ImGui::PopItemFlag();
 
 	return res;
 }
@@ -511,7 +547,7 @@ bool reshade::imgui::confirm_button(const char *label, float width, const char *
 	return res;
 }
 
-bool reshade::imgui::list_with_buttons(const char *label, const std::string_view ui_items, int &v)
+bool reshade::imgui::list_with_buttons(const char *label, const std::string_view ui_items, int *v)
 {
 	bool res = false;
 
@@ -531,16 +567,16 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 
 	const float combo_box_width = ImGui::CalcItemWidth() - (2 * (button_spacing + button_size));
 	ImGui::SetNextItemWidth(combo_box_width);
-	if (ImGui::BeginCombo("##v", v >= 0 && static_cast<size_t>(v) < items.size() ? items[v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
+	if (ImGui::BeginCombo("##v", *v >= 0 && static_cast<size_t>(*v) < items.size() ? items[*v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
 		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
 			ImGui::PushID(i);
 
-			bool selected = (v == i);
+			bool selected = (*v == i);
 			if (ImGui::Selectable(items[i].data(), &selected))
 			{
-				v = i;
+				*v = i;
 				res = true;
 			}
 
@@ -559,14 +595,14 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
 	{
 		res = true;
-		v = (v == 0) ? static_cast<int>(items.size() - 1) : v - 1;
+		*v = (*v == 0) ? static_cast<int>(items.size() - 1) : *v - 1;
 	}
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button(">", ImVec2(button_size, 0)))
 	{
 		res = true;
-		v = (v == static_cast<int>(items.size() - 1)) ? 0 : v + 1;
+		*v = (static_cast<size_t>(*v) == items.size() - 1) ? 0 : *v + 1;
 	}
 
 	ImGui::EndDisabled();
@@ -591,7 +627,7 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 
 		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
-			const bool selected = (v == i);
+			const bool selected = (*v == i);
 			ImGui::Selectable(items[i].data(), selected);
 			if (selected)
 				ImGui::SetScrollHereY();
@@ -603,17 +639,17 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 	return res;
 }
 
-bool reshade::imgui::combo_with_buttons(const char *label, bool &v)
+bool reshade::imgui::combo_with_buttons(const char *label, bool *v)
 {
 	std::string items = _("Off\nOn\n");
 	std::replace(items.begin(), items.end(), '\n', '\0');
 
-	int current_item = v ? 1 : 0;
-	const bool res = combo_with_buttons(label, items, current_item);
-	v = current_item != 0;
+	int current_item = *v ? 1 : 0;
+	const bool res = combo_with_buttons(label, items, &current_item);
+	*v = current_item != 0;
 	return res;
 }
-bool reshade::imgui::combo_with_buttons(const char *label, const std::string_view ui_items, int &v)
+bool reshade::imgui::combo_with_buttons(const char *label, const std::string_view ui_items, int *v)
 {
 	bool res = false;
 
@@ -628,16 +664,16 @@ bool reshade::imgui::combo_with_buttons(const char *label, const std::string_vie
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (2 * (button_spacing + button_size)));
 
-	if (ImGui::BeginCombo("##v", v >= 0 && static_cast<size_t>(v) < items.size() ? items[v].data() : nullptr, ImGuiComboFlags_None))
+	if (ImGui::BeginCombo("##v", *v >= 0 && static_cast<size_t>(*v) < items.size() ? items[*v].data() : nullptr, ImGuiComboFlags_None))
 	{
 		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
 			ImGui::PushID(i);
 
-			bool selected = (v == i);
+			bool selected = (*v == i);
 			if (ImGui::Selectable(items[i].data(), &selected))
 			{
-				v = i;
+				*v = i;
 				res = true;
 			}
 
@@ -656,14 +692,14 @@ bool reshade::imgui::combo_with_buttons(const char *label, const std::string_vie
 	if (ImGui::Button("<", ImVec2(button_size, 0)))
 	{
 		res = true;
-		v = (v == 0) ? static_cast<int>(items.size() - 1) : v - 1;
+		*v = (*v == 0) ? static_cast<int>(items.size() - 1) : *v - 1;
 	}
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button(">", ImVec2(button_size, 0)))
 	{
 		res = true;
-		v = (v == static_cast<int>(items.size() - 1)) ? 0 : v + 1;
+		*v = (static_cast<size_t>(*v) == items.size() - 1) ? 0 : *v + 1;
 	}
 
 	ImGui::EndDisabled();
@@ -832,20 +868,6 @@ bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 	ImGui::TextUnformatted(label);
 
 	ImGui::EndGroup();
-
-	return res;
-}
-
-bool reshade::imgui::checkbox_tristate(const char *label, unsigned int *v)
-{
-	const bool mixed = *v > 1;
-	bool value = *v != 0;
-
-	ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, mixed);
-	const bool res = ImGui::Checkbox(label, &value);
-	if (res)
-		*v = value ? 1 : mixed ? 0 : 2;
-	ImGui::PopItemFlag();
 
 	return res;
 }

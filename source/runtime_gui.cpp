@@ -3632,9 +3632,9 @@ void reshade::runtime::draw_variable_editor()
 					case reshadefx::type::t_bool:
 					{
 						if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool &>(value.as_uint));
+							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool *>(&value.as_uint[0]));
 						else
-							modified = ImGui::Checkbox(label.data(), reinterpret_cast<bool *>(value.as_uint));
+							modified = imgui::checkbox_list(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_uint, variable.type.components());
 
 						if (modified)
 							set_uniform_value(variable, value.as_uint, variable.type.components());
@@ -3649,8 +3649,7 @@ void reshade::runtime::draw_variable_editor()
 
 						// Append units
 						std::string format = "%d";
-						const std::string_view units = get_localized_annotation(variable, "ui_units", _current_language);
-						format.append(units);
+						format += get_localized_annotation(variable, "ui_units", _current_language);
 
 						if (ui_type == "slider")
 							modified = imgui::slider_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
@@ -3659,11 +3658,11 @@ void reshade::runtime::draw_variable_editor()
 								ImGui::DragScalarN(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, 1.0f, &ui_min_val, &ui_max_val, format.c_str()) :
 								imgui::drag_with_buttons(label.data(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, value.as_int, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, format.c_str());
 						else if (ui_type == "list")
-							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
+							modified = imgui::list_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _current_language), &value.as_int[0]);
 						else if (ui_type == "combo")
-							modified = imgui::combo_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
+							modified = imgui::combo_with_buttons(label.data(), get_localized_annotation(variable, "ui_items", _current_language), &value.as_int[0]);
 						else if (ui_type == "radio")
-							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_int[0]);
+							modified = imgui::radio_list(label.data(), get_localized_annotation(variable, "ui_items", _current_language), &value.as_int[0]);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
 								modified |= ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), variable.type.is_signed() ? ImGuiDataType_S32 : ImGuiDataType_U32, &value.as_int[variable.type.cols * row], variable.type.cols) || modified;
@@ -3686,8 +3685,7 @@ void reshade::runtime::draw_variable_editor()
 							++precision_format[2]; // This changes the text to "%.1f", "%.2f", "%.3f", ...
 
 						// Append units
-						const std::string_view units = get_localized_annotation(variable, "ui_units", _current_language);
-						precision_format.append(units);
+						precision_format += get_localized_annotation(variable, "ui_units", _current_language);
 
 						if (ui_type == "slider")
 							modified = imgui::slider_with_buttons(label.data(), ImGuiDataType_Float, value.as_float, variable.type.rows, &ui_stp_val, &ui_min_val, &ui_max_val, precision_format.c_str());
