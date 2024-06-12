@@ -23,19 +23,31 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
 {
 	const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(cmd_impl->current_render_pass);
-	const auto framebuffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(cmd_impl->current_framebuffer);
 
 	const reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &subpass = render_pass_data->subpasses[cmd_impl->current_subpass];
+
+	const VkImageView *attachments = nullptr;
+
+	if (const auto attachment_begin_info = find_in_structure_chain<VkRenderPassAttachmentBeginInfo>(begin_info, VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO))
+	{
+		attachments = attachment_begin_info->pAttachments;
+		assert(subpass.num_color_attachments <= attachment_begin_info->attachmentCount);
+	}
+	else
+	{
+		const auto framebuffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_FRAMEBUFFER>(cmd_impl->current_framebuffer);
+		attachments = framebuffer_data->attachments.data();
+	}
 
 	for (uint32_t i = 0; i < subpass.num_color_attachments; ++i)
 	{
 		const uint32_t a = subpass.color_attachments[i];
-		cmd_impl->current_color_attachments[i] = (a != VK_ATTACHMENT_UNUSED) ? framebuffer_data->attachments[a] : VK_NULL_HANDLE;
+		cmd_impl->current_color_attachments[i] = (a != VK_ATTACHMENT_UNUSED) ? attachments[a] : VK_NULL_HANDLE;
 	}
 
 	{
 		const uint32_t a = subpass.depth_stencil_attachment;
-		cmd_impl->current_depth_stencil_attachment = (a != VK_ATTACHMENT_UNUSED) ? framebuffer_data->attachments[a] : VK_NULL_HANDLE;
+		cmd_impl->current_depth_stencil_attachment = (a != VK_ATTACHMENT_UNUSED) ? attachments[a] : VK_NULL_HANDLE;
 	}
 
 	if (!reshade::has_addon_event<reshade::addon_event::begin_render_pass>())
@@ -54,7 +66,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 		{
 			const VkAttachmentDescription &desc = render_pass_data->attachments[a];
 
-			rt.view = { (uint64_t)framebuffer_data->attachments[a] };
+			rt.view = { (uint64_t)attachments[a] };
 			rt.load_op = reshade::vulkan::convert_render_pass_load_op(desc.loadOp);
 			rt.store_op = reshade::vulkan::convert_render_pass_store_op(desc.storeOp);
 			std::memset(rt.clear_color, 0, sizeof(rt.clear_color));
@@ -93,7 +105,7 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 		{
 			const VkAttachmentDescription &desc = render_pass_data->attachments[a];
 
-			ds.view = { (uint64_t)framebuffer_data->attachments[a] };
+			ds.view = { (uint64_t)attachments[a] };
 			ds.depth_load_op = reshade::vulkan::convert_render_pass_load_op(desc.loadOp);
 			ds.depth_store_op = reshade::vulkan::convert_render_pass_store_op(desc.storeOp);
 			ds.stencil_load_op = reshade::vulkan::convert_render_pass_load_op(desc.stencilLoadOp);
