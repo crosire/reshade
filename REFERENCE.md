@@ -56,11 +56,18 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID)
 
 After building an add-on DLL, change its file extension from `.dll` to `.addon` and put it into the add-on search directory configured in ReShade (which defaults to the same directory as ReShade). It will be picked up and loaded automatically on the next launch of the application.
 
-For more complex examples, see the [examples directory in the repository](https://github.com/crosire/reshade/tree/main/examples).
+For more complex examples, see the [examples directory in the repository](https://github.com/crosire/reshade/tree/main/examples). Contents of this document:
+
+* [Events](#events)
+* [Overlays](#overlays)
+* [Abstraction](#abstraction)
+  * [Device & Commands](#device--commands-reshade_api_devicehpp)
+  * [Resources & Resource Views](#resources--resource-views-reshade_api_resourcehpp)
+  * [Pipelines, Layouts & Descriptor Tables](#pipelines-layouts--descriptor-tables-reshade_api_pipelinehpp)
 
 ## Events
 
-The graphics API abstraction is modeled after the Direct3D 12 and Vulkan APIs, so much of the terminology used should be familiar to developers that have used those before.
+The [graphics API abstraction](#abstraction) is modeled after the Direct3D 12 and Vulkan APIs, so much of the terminology used should be familiar to developers that have used those before.
 
 Detailed inline documentation for all classes and methods can be found inside the headers (see `reshade_api_device.hpp` for the abstraction object classes and `reshade_events.hpp` for a list of available events).
 
@@ -95,7 +102,7 @@ static void on_init_device(reshade::api::device *device)
 }
 ```
 
-To execute rendering commands, an application has to record them into a `reshade::api::command_list` and then submit to a `reshade::api::command_queue`. In some graphics APIs there is only a single implicit command list and queue, but modern ones like Direct3D 12 and Vulkan allow the creation of multiple for more efficient multi-threaded rendering. ReShade will call the `reshade::addon_event::init_command_list` and `reshade::addon_event::init_command_queue` events after any such object was created by the application (including the implicit ones for older graphics APIs). Similarily, `reshade::addon_event::destroy_command_list` and `reshade::addon_event::destroy_command_queue` are called upon their destruction.
+To execute [rendering commands](#device--commands-reshade_api_devicehpp) (like draw/dispatch commands), an application has to record them into a `reshade::api::command_list` and then submit to a `reshade::api::command_queue`. In some graphics APIs there is only a single implicit command list and queue, but modern ones like Direct3D 12 and Vulkan allow the creation of multiple for more efficient multi-threaded rendering. ReShade will call the `reshade::addon_event::init_command_list` and `reshade::addon_event::init_command_queue` events after any such object was created by the application (including the implicit ones for older graphics APIs). Similarily, `reshade::addon_event::destroy_command_list` and `reshade::addon_event::destroy_command_queue` are called upon their destruction.
 
 ReShade will also pass the current command list object to every command event, like `reshade::addon_event::draw`, `reshade::addon_event::dispatch` and so on, which can be used to add additional commands to that command list or replace those of the application.
 ```cpp
@@ -138,7 +145,7 @@ static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *hwnd)
 
 ReShade associates an independent post-processing effect runtime with most swap chains. This is the runtime one usually controls via the ReShade overlay, but it can also be controlled programatically via the ReShade API using methods of the `reshade::api::effect_runtime` object.
 
-In contrast to the described basic API abstraction objects, any buffers, textures, pipelines, etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_resource`, `reshade::addon_event::init_pipeline`, ...) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_resource()`, `reshade::api::device::create_pipeline()`, ...).
+In contrast to the described basic API abstraction objects, any [buffers](#resources--resource-views-reshade_api_resourcehpp), [textures](#resources--resource-views-reshade_api_resourcehpp), [pipelines](#pipelines-layouts--descriptor-tables-reshade_api_pipelinehpp), etc. are referenced via handles. These are either created by the application and passed to events (like `reshade::addon_event::init_resource`, `reshade::addon_event::init_pipeline`, ...) or can be created through the `reshade::api::device` object of the ReShade API (via `reshade::api::device::create_resource()`, `reshade::api::device::create_pipeline()`, ...).
 
 Buffers and textures are referenced via `reshade::api::resource` handles. Depth-stencil, render target, shader resource or unordered access views to such resources are referenced via `reshade::api::resource_view` handles. Sampler state objects are referenced via `reshade::api::sampler` handles, (partial) pipeline state objects via `reshade::api::pipeline` handles and so on.
 
@@ -205,3 +212,113 @@ You can however call `ImGui::Begin` and `ImGui::End` with a different title to o
 
 Overlay names are shared across ReShade and all add-ons, which means you can register with a name already used by ReShade or another add-on to append widgets to their overlay.
 For example, `reshade::register_overlay("###settings", ...)` allows you to add widgets to the settings page in ReShade and `reshade::register_overlay("OSD", ...)` allows you to add additional information to the always visible on-screen display (clock, FPS, frametime) ReShade provides.
+
+## Abstraction
+
+### Device & Commands ([reshade_api_device.hpp](https://github.com/crosire/reshade/blob/main/include/reshade_api_device.hpp))
+
+The concept of `reshade::api::device` is functionally equivalent to `ID3D12Device` in D3D12 or `VkDevice` in Vulkan. The concept of `reshade::api::command_list` is functionally equivalent to `ID3D12CommandList` in D3D12 or `VkCommandBuffer` in Vulkan. The concept of `reshade::api::command_queue` is functionally equivalent to `ID3D12CommandQueue` in D3D12 or `VkQueue` in Vulkan.
+
+### Resources & Resource Views ([reshade_api_resource.hpp](https://github.com/crosire/reshade/blob/main/include/reshade_api_resource.hpp))
+
+To allocate memory and create buffers or textures, call `reshade::api::device::create_resource()`. Care has to be taken to specify all the possible ways the resource is going to be used via `reshade::api::resource_desc::usage`.
+
+Resources allocated in GPU memory (`reshade::api::resource_desc::heap` set to `reshade::api::memory_heap::gpu_only`) cannot be mapped and accessed on the CPU, so to fill them with contents either have to specify it during resource creation via the initial data parameter or upload it via `reshade::api::device::update_buffer_region()` or `reshade::api::device::update_texture_region()`.\
+Resources allocated in CPU-visible memory (`reshade::api::resource_desc::heap` set to `reshade::api::memory_heap::cpu_to_gpu` or `reshade::api::memory_heap::gpu_to_cpu`) on the other hand can be mapped and directly accessed on the CPU, via `reshade::api::device::map_buffer_region()` or `reshade::api::device::map_texture_region()`.
+
+The concept of `reshade::api::resource` is functionally equivalent to `ID3D12Resource` in D3D12 or `VkBuffer`/`VkImage` in Vulkan. The concept of `reshade::api::resource_view` is functionally equivalent to SRV/UAV/... in D3D12 or `VkBufferView`/`VkImageView` in Vulkan.
+
+### Pipelines, Layouts & Descriptor Tables ([reshade_api_pipeline.hpp](https://github.com/crosire/reshade/blob/main/include/reshade_api_pipeline.hpp))
+
+Shaders and other render state is combined into monolithic pipeline state objects (`reshade::api::pipeline`), which can then be bound at draw time (using `reshade::api::command_list::bind_pipeline()`) to make any following draw calls make use of those shaders and render state.
+
+```cpp
+reshade::api::pipeline_subobject subobjects[];
+
+...
+
+reshade::api::shader_desc vertex_shader;
+vertex_shader.code = ...;
+vertex_shader.code_size = ...;
+subobjects[0].type = reshade::api::pipeline_subobject_type::vertex_shader;
+subobjects[0].count = 1;
+subobjects[0].data = &vertex_shader;
+
+reshade::api::shader_desc pixel_shader;
+pixel_shader.code = ...;
+pixel_shader.code_size = ...;
+subobjects[1].type = reshade::api::pipeline_subobject_type::pixel_shader;
+subobjects[1].count = 1;
+subobjects[1].data = &pixel_shader;
+
+reshade::api::rasterizer_desc rasterizer_state;
+rasterizer_state.cull_mode = reshade::api::cull_mode::none;
+subobjects[2].type = reshade::api::pipeline_subobject_type::rasterizer_state;
+subobjects[2].count = 1;
+subobjects[2].data = &rasterizer_state;
+```
+
+To create a pipeline, call `reshade::api::device::create_pipeline()` with a list of sub-objects that should be combined. This can contain graphics shaders and render state to create a graphics pipeline, or just a compute shader sub-object to create a compute pipeline, or ray tracing shaders to create a ray tracing pipeline.
+
+The concept of `reshade::api::pipeline` is functionally equivalent to `ID3D12PipelineState` in D3D12 or `VkPipeline` in Vulkan.
+
+Binding resources and other objects to the shaders in a pipeline is done via descriptors. A descriptor is just a small handle that points to a shader resource view (`reshade::api::resource_view`), a sampler object (`reshade::api::sampler`) or a constant buffer resource (`reshade::api::buffer_range`). These are written into fixed-size linear tables (`reshade::api::descriptor_table`) in memory (`reshade::api::descriptor_heap`), which can be quickly swapped at draw time (using `reshade::api::command_list::bind_descriptor_tables()`). An additional layout object (`reshade::api::pipeline_layout`) is needed to map the entries from these linear tables to shader registers in shaders.
+
+Since this mapping can get pretty complex, below is an example pipeline layout description which describes just a single a descriptor table and how the corresponding table would be layed out in memory:
+```cpp
+reshade::api::pipeline_layout_param params[];
+
+...
+
+params[0].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+params[0].descriptor_table.count = 4;
+
+params[0].descriptor_table.ranges[0].binding = 0;
+params[0].descriptor_table.ranges[0].dx_register_index = 0; // Base shader register => t0 - t2
+params[0].descriptor_table.ranges[0].count = 2;
+params[0].descriptor_table.ranges[0].type = reshade::api::descriptor_type::texture_shader_resource_view; // => tX shader register
+
+params[0].descriptor_table.ranges[1].binding = 2;
+params[0].descriptor_table.ranges[1].dx_register_index = 6; // Base shader register => s6 - s10
+params[0].descriptor_table.ranges[1].count = 5;
+params[0].descriptor_table.ranges[1].array_size = 3; // First binding is an array descriptor of size 3, and the remaining 2 descriptors (due to total descriptor count of 5) are put into subsequent bindings (see also documentation on 'reshade::api::descriptor_range::array_size')
+params[0].descriptor_table.ranges[1].type = reshade::api::descriptor_type::sampler; // => sX shader register
+
+params[0].descriptor_table.ranges[2].binding = 5;
+params[0].descriptor_table.ranges[2].dx_register_index = 1; // Base shader register => b1 - b2
+params[0].descriptor_table.ranges[2].count = 2;
+params[0].descriptor_table.ranges[2].type = reshade::api::descriptor_type::constant_buffer; // => bX shader register
+
+params[0].descriptor_table.ranges[3].binding = 7;
+params[0].descriptor_table.ranges[3].count = 2;
+params[0].descriptor_table.ranges[3].array_size = 2;
+```
+```
+               Descriptor Table
+              ++-----------++-----------++-----------++-----------++-----------++-----------++-----------++-----------++
+              || X         || X         || X | X | X || X         || X         || X         || X         || X   | X   ||
+              ++-----------++-----------++-----------++-----------++-----------++-----------++-----------++-----------++
+
+Binding        | 0          | 1          | 2          | 3          | 4          | 5          | 6          | 7          |
+Array Offset   | 0          | 0          | 0 | 1 | 2  | 0          | 0          | 0          |            | 0   | 1    |
+
+Offset         | 0          | 1          | 2 | 3 | 4  | 5          | 6          | 7          | 8          | 9   | 10   |
+
+               ^------------------------^^-------------------------------------^^------------------------^
+                Shader Resource Views     Samplers                               Constant Buffers
+                register(t0 - t2)         register(s6 - s10)                     register(b1 - b2)
+
+```
+
+To create a pipeline layout like the above, call `reshade::api::device::create_pipeline_layout()` with a list of pipeline layout parameter descriptions. Each parameter can refer to:
+- push constants (when type is `reshade::api::pipeline_layout_param_type::push_constants`, which can then be referenced in `reshade::api::command_list::push_constants()` via its parameter index in the pipeline layout), more on those next
+- push descriptors (when type is `reshade::api::pipeline_layout_param_type::push_descriptors`, which can then be referenced in `reshade::api::command_list::push_descriptors()` via its parameter index in the pipeline layout), more on those next
+- a single descriptor table (when type is `reshade::api::pipeline_layout_param_type::descriptor_table`, which can then be referenced in `reshade::api::command_list::bind_descriptor_table()` via its parameter index in the pipeline layout)
+
+Managing descriptor tables and the memory they are allocated from manually can be cumbersome, so for simple use cases, command lists have a small descriptor heap built-in, which can be filled with descriptors in-place at draw time. The descriptors written this way, using `reshade::api::command_list::push_descriptors()` without having to allocate a descriptor table first, are called push descriptors (since they are pushed into the command list). They are limited to a single linear list of descriptors of the same type per pipeline layout parameter however.
+
+Similarily, managing constant buffers can be cumbersome, so use cases with just a few constants, command lists also have a small memory pool built-in, which can be filled with constant data in-place at draw time and bound to a constant buffer register in shaders. These constants, written using `reshade::api::command_list::push_constants()`, are called push constants.
+
+Since descriptor tables are effectively just sections in descriptor heap memory, `reshade::api::descriptor_table` can be thought of a view into a `reshade::api::descriptor_heap`, similar to how `reshade::api::resource_view` are views into a `reshade::api::resource`. Different views can refer to the same underlying memory, so there can be multiple `reshade::api::descriptor_table` pointing to the same descriptors. To uniquely identify a descriptor, `reshade::api::device::get_descriptor_heap_offset()` can be used to query its offset in the descriptor heap memory.
+
+The concept of `reshade::api::pipeline_layout` is functionally equivalent to `ID3D12RootSignature` in D3D12 or `VkPipelineLayout` in Vulkan. The concept of `reshade::api::descriptor_table` is functionally equivalent to descriptor tables in D3D12 or `VkDescriptorSet` in Vulkan.

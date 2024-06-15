@@ -10,8 +10,9 @@
 namespace reshade { namespace api
 {
 	/// <summary>
-	/// The underlying render API a device is using, as returned by <see cref="device::get_api"/>.
+	/// Underlying graphics API a device is using.
 	/// </summary>
+	/// <seealso cref="device::get_api"/>
 	enum class device_api
 	{
 		/// <summary>Direct3D 9</summary>
@@ -35,8 +36,9 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available features a device may support.
+	/// Optional capabilities a device may support, depending on the underlying graphics API and hardware.
 	/// </summary>
+	/// <seealso cref="device::check_capability"/>
 	enum class device_caps
 	{
 		/// <summary>
@@ -187,12 +189,13 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available properties a device may report.
+	/// Properties that may be queried from a device.
 	/// </summary>
+	/// <seealso cref="device::get_property"/>
 	enum class device_properties
 	{
 		/// <summary>
-		/// Version of the underlying render API the device is using.
+		/// Version of the underlying graphics API the device is using.
 		/// Data is a 32-bit unsigned integer value.
 		/// </summary>
 		api_version = 1,
@@ -202,18 +205,18 @@ namespace reshade { namespace api
 		/// </summary>
 		driver_version,
 		/// <summary>
-		/// PCI vendor ID of the primary adapter/physical device associated with the logical render device.
+		/// PCI vendor ID of the hardware associated with the logical render device.
 		/// Data is a 32-bit unsigned integer value.
 		/// </summary>
 		vendor_id,
 		/// <summary>
-		/// PCI device ID of the primary adapter/physical device associated with the logical render device.
+		/// PCI device ID of the hardware associated with the logical render device.
 		/// Data is a 32-bit unsigned integer value.
 		/// </summary>
 		device_id,
 		/// <summary>
-		/// Description text of the primary adapter/physical device associated with the logical render device.
-		/// Data is an array of 256 byte-characters representing a null-terminated string.
+		/// Description text of the hardware associated with the logical render device.
+		/// Data is an array of 256 byte-sized characters representing a null-terminated string.
 		/// </summary>
 		description,
 		/// <summary>
@@ -451,7 +454,7 @@ namespace reshade { namespace api
 		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
 
 		/// <summary>
-		/// Allocates a descriptor table from an internal heap.
+		/// Allocates a descriptor table from an internal descriptor heap.
 		/// </summary>
 		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
 		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
@@ -459,7 +462,7 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the descriptor table was successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
 		inline  bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_handle) { return allocate_descriptor_tables(1, layout, param, out_handle); }
 		/// <summary>
-		/// Allocates one or more descriptor tables from an internal heap.
+		/// Allocates one or more descriptor tables from an internal descriptor heap.
 		/// </summary>
 		/// <param name="count">Number of descriptor tables to allocate.</param>
 		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
@@ -468,11 +471,11 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the descriptor tables were successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
 		virtual bool allocate_descriptor_tables(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_table *out_handles) = 0;
 		/// <summary>
-		/// Frees a descriptor table that was previously allocated via <see cref="create_descriptor_table"/>.
+		/// Frees a descriptor table that was previously allocated via <see cref="allocate_descriptor_table"/>.
 		/// </summary>
 		inline  void free_descriptor_table(descriptor_table handle) { free_descriptor_tables(1, &handle); }
 		/// <summary>
-		/// Frees one or more descriptor tables that were previously allocated via <see cref="create_descriptor_tables"/>.
+		/// Frees one or more descriptor tables that were previously allocated via <see cref="allocate_descriptor_tables"/>.
 		/// </summary>
 		virtual void free_descriptor_tables(uint32_t count, const descriptor_table *handles) = 0;
 
@@ -633,8 +636,9 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available indirect command types.
+	/// Type of an indirect draw/dispatch command.
 	/// </summary>
+	/// <seealso cref="command_list::draw_or_dispatch_indirect"/>
 	enum class indirect_command
 	{
 		unknown,
@@ -1102,8 +1106,9 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// A list of flags that represent the available command queue types, as returned by <see cref="command_queue::get_type"/>.
+	/// Command queue type flags, which can be combined to describe the capabilities of a command queue.
 	/// </summary>
+	/// <seealso cref="command_queue::get_type"/>
 	enum class command_queue_type
 	{
 		graphics = 0x1,
@@ -1200,13 +1205,13 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Defines how the back buffers should be swapped when a present occurs.
-		/// <para>Depending on the render API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT', 'WGL_SWAP_METHOD_ARB' or 'VkPresentModeKHR' value.</para>
+		/// <para>Depending on the graphics API this can be a 'D3DSWAPEFFECT', 'DXGI_SWAP_EFFECT', 'WGL_SWAP_METHOD_ARB' or 'VkPresentModeKHR' value.</para>
 		/// </summary>
 		uint32_t present_mode = 0;
 
 		/// <summary>
 		/// Swap chain creation flags.
-		/// <para>Depending on the render API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
+		/// <para>Depending on the graphics API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
 		/// </summary>
 		uint32_t present_flags = 0;
 	};
