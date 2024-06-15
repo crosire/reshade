@@ -2140,6 +2140,7 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 			break;
 		case api::pipeline_layout_param_type::push_constants:
 			merged_range.binding = params[i].push_constants.binding;
+			merged_range.type = api::descriptor_type::constant_buffer;
 			break;
 		default:
 			return false;
@@ -2154,8 +2155,6 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 }
 void reshade::opengl::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	assert(handle != global_pipeline_layout);
-
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 

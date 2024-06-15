@@ -21,11 +21,13 @@ namespace reshade::d3d12
 		D3D12_PRIMITIVE_TOPOLOGY topology;
 		FLOAT blend_constant[4];
 	};
+	static_assert(std::is_pod_v<pipeline_extra_data>);
 
 	struct pipeline_layout_extra_data
 	{
 		const std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> *ranges;
 	};
+	static_assert(std::is_pod_v<pipeline_layout_extra_data>);
 
 	struct query_heap_extra_data
 	{
@@ -33,6 +35,7 @@ namespace reshade::d3d12
 		ID3D12Resource *readback_resource;
 		std::pair<ID3D12Fence *, UINT64> *fences;
 	};
+	static_assert(std::is_pod_v<query_heap_extra_data>);
 
 	extern const GUID extra_data_guid;
 

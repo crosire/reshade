@@ -92,8 +92,6 @@ namespace reshade::opengl
 		GLsync sync_objects[8];
 	};
 
-	constexpr api::pipeline_layout global_pipeline_layout = { 0xFFFFFFFFFFFFFFFF };
-
 	constexpr auto make_resource_handle(GLenum target, GLuint object) -> api::resource
 	{
 		if (!object)

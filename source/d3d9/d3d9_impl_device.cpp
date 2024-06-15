@@ -448,8 +448,6 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 }
 void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
 {
-	assert(handle != global_vertex_buffer && handle != global_index_buffer);
-
 	if (handle.handle != 0)
 		reinterpret_cast<IUnknown *>(handle.handle)->Release();
 }
@@ -457,11 +455,6 @@ void reshade::d3d9::device_impl::destroy_resource(api::resource handle)
 reshade::api::resource_desc reshade::d3d9::device_impl::get_resource_desc(api::resource resource) const
 {
 	assert(resource.handle != 0);
-
-	if (resource == global_vertex_buffer)
-		return api::resource_desc(0, api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer, api::resource_flags::dynamic);
-	if (resource == global_index_buffer)
-		return api::resource_desc(0, api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer, api::resource_flags::dynamic);
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
@@ -528,7 +521,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 {
 	*out_handle = { 0 };
 
-	if (resource.handle == 0 || resource == global_vertex_buffer || resource == global_index_buffer)
+	if (resource.handle == 0)
 		return false;
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
@@ -864,7 +857,7 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 
 bool reshade::d3d9::device_impl::map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data)
 {
-	if (out_data == nullptr || resource == global_vertex_buffer || resource == global_index_buffer)
+	if (out_data == nullptr)
 		return false;
 
 	assert(resource.handle != 0);
@@ -1000,7 +993,7 @@ void reshade::d3d9::device_impl::unmap_texture_region(api::resource resource, ui
 
 void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
-	assert(resource.handle != 0 && resource != global_vertex_buffer && resource != global_index_buffer);
+	assert(resource.handle != 0);
 	assert(data != nullptr);
 	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
@@ -1728,6 +1721,7 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 			merged_range.binding = params[i].push_constants.binding;
 			merged_range.dx_register_index = params[i].push_constants.dx_register_index;
 			merged_range.dx_register_space = params[i].push_constants.dx_register_space;
+			merged_range.type = api::descriptor_type::constant_buffer;
 			if (merged_range.dx_register_space != 0)
 				return false;
 			break;
@@ -1744,8 +1738,6 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 }
 void reshade::d3d9::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	assert(handle != global_pipeline_layout);
-
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 
@@ -1754,7 +1746,6 @@ bool reshade::d3d9::device_impl::allocate_descriptor_tables(uint32_t count, api:
 	const auto layout_impl = reinterpret_cast<const pipeline_layout_impl *>(layout.handle);
 
 	if (layout.handle != 0 &&
-		layout != global_pipeline_layout &&
 		layout_param < layout_impl->ranges.size() &&
 		layout_impl->ranges[layout_param].count != UINT32_MAX)
 	{

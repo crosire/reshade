@@ -108,4 +108,7 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final :
 	unsigned short _interface_version = 0;
 	D3D11On12Device *_d3d11on12_device = nullptr;
 	D3D11DeviceContext *_immediate_context = nullptr;
+#if RESHADE_ADDON
+	reshade::api::pipeline_layout _global_pipeline_layout = {};
+#endif
 };

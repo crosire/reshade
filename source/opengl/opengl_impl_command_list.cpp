@@ -951,7 +951,7 @@ void reshade::opengl::device_context_impl::bind_scissor_rects(uint32_t first, ui
 
 void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
-	if (layout.handle == 0 || layout == global_pipeline_layout || reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding == UINT32_MAX)
+	if (layout.handle == 0 || reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding == UINT32_MAX)
 	{
 		first /= 4;
 
@@ -1064,7 +1064,7 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 	assert(update.table.handle == 0 && update.array_offset == 0);
 
 	const uint32_t first = update.binding;
-	assert(layout.handle == 0 || layout == global_pipeline_layout || update.binding >= reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding);
+	assert(layout.handle == 0 || update.binding >= reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding);
 
 	switch (update.type)
 	{

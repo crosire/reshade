@@ -931,6 +931,7 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 			merged_range.binding = params[i].push_constants.binding;
 			merged_range.dx_register_index = params[i].push_constants.dx_register_index;
 			merged_range.dx_register_space = params[i].push_constants.dx_register_space;
+			merged_range.type = api::descriptor_type::constant_buffer;
 			if (merged_range.dx_register_space != 0)
 				return false;
 			break;
@@ -947,8 +948,6 @@ bool reshade::d3d10::device_impl::create_pipeline_layout(uint32_t param_count, c
 }
 void reshade::d3d10::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
 {
-	assert(handle != global_pipeline_layout);
-
 	delete reinterpret_cast<pipeline_layout_impl *>(handle.handle);
 }
 

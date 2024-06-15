@@ -132,4 +132,7 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 	using device_impl::_orig;
 
 	LONG _ref = 1;
+#if RESHADE_ADDON
+	reshade::api::pipeline_layout _global_pipeline_layout = {};
+#endif
 };

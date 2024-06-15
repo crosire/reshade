@@ -362,7 +362,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	}
 
 	uint32_t push_constants_slot = 0;
-	if (layout.handle != 0 && layout != global_pipeline_layout)
+	if (layout.handle != 0)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 
@@ -382,7 +382,7 @@ void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api
 	assert(update.table.handle == 0 && update.array_offset == 0);
 
 	uint32_t first = update.binding;
-	if (layout.handle != 0 && layout != global_pipeline_layout)
+	if (layout.handle != 0)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 

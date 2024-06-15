@@ -166,7 +166,7 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	void reset_auto_depth_stencil();
 #endif
 #if RESHADE_ADDON >= 2
-	void resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size, D3DFORMAT index_format);
+	void resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size, UINT index_size);
 #endif
 
 	bool check_and_upgrade_interface(REFIID riid);
@@ -181,9 +181,11 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 #if RESHADE_ADDON
 	Direct3DDepthStencilSurface9 *_auto_depth_stencil = nullptr;
 	com_ptr<Direct3DDepthStencilSurface9> _current_depth_stencil;
+
+	reshade::api::pipeline_layout _global_pipeline_layout = {};
 #endif
 #if RESHADE_ADDON >= 2
-	D3DVERTEXBUFFER_DESC _primitive_up_vertex_buffer = { D3DFMT_VERTEXDATA, D3DRTYPE_VERTEXBUFFER, D3DUSAGE_DYNAMIC, D3DPOOL_SYSTEMMEM, 0 };
-	D3DINDEXBUFFER_DESC _primitive_up_index_buffer = { D3DFMT_UNKNOWN, D3DRTYPE_INDEXBUFFER, D3DUSAGE_DYNAMIC, D3DPOOL_SYSTEMMEM, 0 };
+	reshade::api::resource _primitive_up_vertex_buffer = {};
+	reshade::api::resource _primitive_up_index_buffer = {};
 #endif
 };

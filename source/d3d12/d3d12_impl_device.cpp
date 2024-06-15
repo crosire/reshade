@@ -1478,9 +1478,8 @@ bool reshade::d3d12::device_impl::allocate_descriptor_tables(uint32_t count, api
 	uint32_t total_count = 0;
 	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 
-	const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(layout.handle), false);
-
-	if (signature != nullptr)
+	if (const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(layout.handle), false);
+		signature != nullptr)
 	{
 		pipeline_layout_extra_data extra_data;
 		UINT extra_data_size = sizeof(extra_data);
@@ -1501,8 +1500,8 @@ bool reshade::d3d12::device_impl::allocate_descriptor_tables(uint32_t count, api
 			D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 
 			if (heap_type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER ?
-				!_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu) :
-				!_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu))
+					!_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu) :
+					!_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu))
 			{
 				free_descriptor_tables(count - i - 1, out_tables);
 				goto exit_failure;
