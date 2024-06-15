@@ -260,11 +260,13 @@ subobjects[2].data = &rasterizer_state;
 
 To create a pipeline, call `reshade::api::device::create_pipeline()` with a list of sub-objects that should be combined. This can contain graphics shaders and render state to create a graphics pipeline, or just a compute shader sub-object to create a compute pipeline, or ray tracing shaders to create a ray tracing pipeline.
 
+In D3D9, D3D10, D3D11 and OpenGL, pipeline state objects can be partially bound, meaning `reshade::api::command_list::bind_pipeline()` can be called with a subset of `reshade::api::pipeline_stage` flags and only the sub-objects in the pipeline state object corresponding to those flags will be bound. In D3D12 and Vulkan pipeline state objects have to be monolithic and can only be bound as a whole, meaning the pipeline stage flags have to be `reshade::api::pipeline_stage::all_graphics` (for a graphics pipeline), `reshade::api::pipeline_stage::all_compute` (for a compute pipeline) or `reshade::api::pipeline_stage::all_raytracing` (for a ray tracing pipeline) and only a single pipeline per these stage flags can be bound on a command list at a time.
+
 The concept of `reshade::api::pipeline` is functionally equivalent to `ID3D12PipelineState` in D3D12 or `VkPipeline` in Vulkan.
 
 Binding resources and other objects to the shaders in a pipeline is done via descriptors. A descriptor is just a small handle that points to a shader resource view (`reshade::api::resource_view`), a sampler object (`reshade::api::sampler`) or a constant buffer resource (`reshade::api::buffer_range`). These are written into fixed-size linear tables (`reshade::api::descriptor_table`) in memory (`reshade::api::descriptor_heap`), which can be quickly swapped at draw time (using `reshade::api::command_list::bind_descriptor_tables()`). An additional layout object (`reshade::api::pipeline_layout`) is needed to map the entries from these linear tables to shader registers in shaders.
 
-Since this mapping can get pretty complex, below is an example pipeline layout description which describes just a single a descriptor table and how the corresponding table would be layed out in memory:
+Since this mapping can get pretty complex, below is an example pipeline layout description which describes just a single descriptor table and how the corresponding table would be layed out in memory:
 ```cpp
 reshade::api::pipeline_layout_param params[];
 
@@ -290,8 +292,10 @@ params[0].descriptor_table.ranges[2].count = 2;
 params[0].descriptor_table.ranges[2].type = reshade::api::descriptor_type::constant_buffer; // => bX shader register
 
 params[0].descriptor_table.ranges[3].binding = 7;
+params[0].descriptor_table.ranges[3].dx_register_index = 3;
 params[0].descriptor_table.ranges[3].count = 2;
 params[0].descriptor_table.ranges[3].array_size = 2;
+params[0].descriptor_table.ranges[3].type = reshade::api::descriptor_type::texture_shader_resource_view;
 ```
 ```
                Descriptor Table
@@ -304,9 +308,9 @@ Array Offset   | 0          | 0          | 0 | 1 | 2  | 0          | 0          
 
 Offset         | 0          | 1          | 2 | 3 | 4  | 5          | 6          | 7          | 8          | 9   | 10   |
 
-               ^------------------------^^-------------------------------------^^------------------------^
-                Shader Resource Views     Samplers                               Constant Buffers
-                register(t0 - t2)         register(s6 - s10)                     register(b1 - b2)
+               ^------------------------^^-------------------------------------^^------------------------^^------------^
+                Shader Resource Views     Samplers                               Constant Buffers          Shader Resource Views
+                register(t0 - t2)         register(s6 - s10)                     register(b1 - b2)         register(t3 - t4)
 
 ```
 
@@ -315,10 +319,15 @@ To create a pipeline layout like the above, call `reshade::api::device::create_p
 - push descriptors (when type is `reshade::api::pipeline_layout_param_type::push_descriptors`, which can then be referenced in `reshade::api::command_list::push_descriptors()` via its parameter index in the pipeline layout), more on those next
 - a single descriptor table (when type is `reshade::api::pipeline_layout_param_type::descriptor_table`, which can then be referenced in `reshade::api::command_list::bind_descriptor_table()` via its parameter index in the pipeline layout)
 
-Managing descriptor tables and the memory they are allocated from manually can be cumbersome, so for simple use cases, command lists have a small descriptor heap built-in, which can be filled with descriptors in-place at draw time. The descriptors written this way, using `reshade::api::command_list::push_descriptors()` without having to allocate a descriptor table first, are called push descriptors (since they are pushed into the command list). They are limited to a single linear list of descriptors of the same type per pipeline layout parameter however.
+Only a single pipeline layout per stage can be bound on a command list at a time. It is updated as part of `reshade::api::command_list::bind_descriptor_tables()`, `reshade::api::command_list::push_descriptors()` or `reshade::api::command_list::push_constants()`.
 
-Similarily, managing constant buffers can be cumbersome, so use cases with just a few constants, command lists also have a small memory pool built-in, which can be filled with constant data in-place at draw time and bound to a constant buffer register in shaders. These constants, written using `reshade::api::command_list::push_constants()`, are called push constants.
+Managing constant buffers can be cumbersome, so for use cases with just a few constants, command lists have a small memory pool built-in, which can be filled with constant data in-place at draw time and bound to a constant buffer register in shaders. These constants, written using `reshade::api::command_list::push_constants()`, are called push constants (equivalent concept in D3D12 is called root constants).
+
+Similarily, managing descriptor tables and the memory they are allocated from manually can be cumbersome, so for simple use cases, command lists also have a small descriptor heap built-in, which can be filled with descriptors in-place at draw time. The descriptors written this way, using `reshade::api::command_list::push_descriptors()` without allocating a descriptor table first, are called push descriptors (since they are pushed into the command list). They are limited to a single linear list of descriptors of the same type per pipeline layout parameter however.
 
 Since descriptor tables are effectively just sections in descriptor heap memory, `reshade::api::descriptor_table` can be thought of a view into a `reshade::api::descriptor_heap`, similar to how `reshade::api::resource_view` are views into a `reshade::api::resource`. Different views can refer to the same underlying memory, so there can be multiple `reshade::api::descriptor_table` pointing to the same descriptors. To uniquely identify a descriptor, `reshade::api::device::get_descriptor_heap_offset()` can be used to query its offset in the descriptor heap memory.
 
+To allocate a new descriptor table, call `reshade::api::device::allocate_descriptor_tables()`, which will do as the name implies from a descriptor heap that ReShade manages internally. The size and layout of that descriptor table is described by the passed in pipeline layout parameter. `reshade::api::device::update_descriptors()` or `reshade::api::device::update_descriptor_tables()` (for multiple updates at once) can then be used to fill the table with descriptors before using it.
+
 The concept of `reshade::api::pipeline_layout` is functionally equivalent to `ID3D12RootSignature` in D3D12 or `VkPipelineLayout` in Vulkan. The concept of `reshade::api::descriptor_table` is functionally equivalent to descriptor tables in D3D12 or `VkDescriptorSet` in Vulkan.
+
