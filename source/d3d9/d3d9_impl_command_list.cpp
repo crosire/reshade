@@ -249,8 +249,37 @@ void reshade::d3d9::device_impl::bind_scissor_rects(uint32_t first, uint32_t cou
 	_orig->SetScissorRect(reinterpret_cast<const RECT *>(rects));
 }
 
-void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::pipeline_layout, uint32_t, uint32_t first, uint32_t count, const void *values)
+void reshade::d3d9::device_impl::push_constants(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, uint32_t first, uint32_t count, const void *values)
 {
+	if (layout.handle == 0 || reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding == UINT32_MAX)
+	{
+		switch (layout_param)
+		{
+		case 2:
+			assert(stages == api::shader_stage::vertex);
+			break;
+		case 3:
+			assert(stages == api::shader_stage::vertex);
+			_orig->SetVertexShaderConstantI(first / 4, static_cast<const int *>(values), count / 4);
+			return;
+		case 4:
+			assert(stages == api::shader_stage::vertex);
+			_orig->SetVertexShaderConstantB(first, static_cast<const BOOL *>(values), count);
+			return;
+		case 5:
+			assert(stages == api::shader_stage::pixel);
+			break;
+		case 6:
+			assert(stages == api::shader_stage::pixel);
+			_orig->SetPixelShaderConstantI(first / 4, static_cast<const int *>(values), count / 4);
+			return;
+		case 7:
+			assert(stages == api::shader_stage::pixel);
+			_orig->SetPixelShaderConstantB(first, static_cast<const BOOL *>(values), count);
+			return;
+		}
+	}
+
 	assert((first % 4) == 0 && (count % 4) == 0);
 
 	first /= 4;
