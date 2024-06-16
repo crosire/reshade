@@ -135,6 +135,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 	reshade::api::device_api api = reshade::api::device_api::d3d11;
 	if (strstr(lpCmdLine, "-d3d9"))
 		api = reshade::api::device_api::d3d9;
+	if (strstr(lpCmdLine, "-d3d10"))
+		api = reshade::api::device_api::d3d10;
 	if (strstr(lpCmdLine, "-d3d11"))
 		api = reshade::api::device_api::d3d11;
 	if (strstr(lpCmdLine, "-d3d12"))
@@ -184,6 +186,66 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 			HR_CHECK(device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF7F7F7F, 0, 0));
 			HR_CHECK(device->Present(nullptr, nullptr, nullptr, nullptr));
+		}
+	}
+	#pragma endregion
+		break;
+	#pragma region D3D10 Implementation
+	case reshade::api::device_api::d3d10:
+	{
+		const scoped_module_handle dxgi_module(L"dxgi.dll");
+		const scoped_module_handle d3d11_module(L"d3d10_1.dll");
+
+		// Initialize Direct3D 10
+		com_ptr<ID3D10Device> device;
+		com_ptr<IDXGISwapChain> swapchain;
+
+		{   DXGI_SWAP_CHAIN_DESC desc = {};
+			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			desc.SampleDesc = { multisample ? 4u : 1u, 0u };
+			desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+			desc.BufferCount = 1;
+			desc.OutputWindow = window_handle;
+			desc.Windowed = true;
+			desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+#ifndef NDEBUG
+			const UINT flags = D3D11_CREATE_DEVICE_DEBUG;
+#else
+			const UINT flags = 0;
+#endif
+			HR_CHECK(D3D10CreateDeviceAndSwapChain(nullptr, D3D10_DRIVER_TYPE_HARDWARE, nullptr, flags, D3D10_SDK_VERSION, &desc, &swapchain, &device));
+		}
+
+		com_ptr<ID3D10Texture2D> backbuffer;
+		HR_CHECK(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)));
+		com_ptr<ID3D10RenderTargetView> target;
+		HR_CHECK(device->CreateRenderTargetView(backbuffer.get(), nullptr, &target));
+
+		while (true)
+		{
+			while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) && msg.message != WM_QUIT)
+				DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+				break;
+
+			if (s_resize_w != 0)
+			{
+				target.reset();
+				backbuffer.reset();
+
+				HR_CHECK(swapchain->ResizeBuffers(1, s_resize_w, s_resize_h, DXGI_FORMAT_UNKNOWN, 0));
+
+				HR_CHECK(swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer)));
+				HR_CHECK(device->CreateRenderTargetView(backbuffer.get(), nullptr, &target));
+
+				s_resize_w = s_resize_h = 0;
+			}
+
+			const float color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+			device->ClearRenderTargetView(target.get(), color);
+
+			HR_CHECK(swapchain->Present(1, 0));
 		}
 	}
 	#pragma endregion
