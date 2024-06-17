@@ -1526,17 +1526,7 @@ private:
 
 		code += '\t';
 
-		if (_shader_model >= 40 && (
-			(intrinsic >= tex1Dsize0 && intrinsic <= tex3Dsize2) ||
-			(intrinsic >= atomicAdd0 && intrinsic <= atomicCompareExchange1) ||
-			(!(res_type.is_floating_point() || _shader_model >= 67) && (intrinsic >= tex1D0 && intrinsic <= tex3Dlod1))))
-		{
-			// Implementation of the 'tex2Dsize' intrinsic passes the result variable into 'GetDimensions' as output argument
-			// Same with the atomic intrinsics, which use the last parameter to return the previous value of the target
-			write_type(code, res_type);
-			code += ' ' + id_to_name(res) + "; ";
-		}
-		else if (!res_type.is_void())
+		if (!res_type.is_void())
 		{
 			write_type(code, res_type);
 			code += ' ' + id_to_name(res) + " = ";
