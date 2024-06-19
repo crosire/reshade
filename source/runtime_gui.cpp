@@ -1915,7 +1915,7 @@ void reshade::runtime::draw_gui_home()
 		{
 			ImGui::PushTextWrapPos();
 			ImGui::TextColored(COLOR_RED, _("There were errors loading some effects."));
-			ImGui::TextColored(COLOR_RED, _("Hover the cursor over each red entry below to see the error messages or check the log for more details."));
+			ImGui::TextColored(COLOR_RED, _("Hover the cursor over any red entries below to see the error messages and/or check the log for more details."));
 			ImGui::PopTextWrapPos();
 			ImGui::Spacing();
 		}
