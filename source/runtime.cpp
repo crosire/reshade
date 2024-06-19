@@ -2597,32 +2597,38 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			else
 			{
 				api::shader_desc vs_desc = {};
-				const std::string &vs = effect.assembly.at(pass_info.vs_entry_point);
-				vs_desc.code = vs.data();
-				vs_desc.code_size = vs.size();
-				if (_renderer_id & 0x20000)
+				if (!pass_info.vs_entry_point.empty())
 				{
-					vs_desc.entry_point = pass_info.vs_entry_point.c_str();
-					vs_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
-					vs_desc.spec_constant_ids = spec_constants.data();
-					vs_desc.spec_constant_values = spec_data.data();
-				}
+					const std::string &vs = effect.assembly.at(pass_info.vs_entry_point);
+					vs_desc.code = vs.data();
+					vs_desc.code_size = vs.size();
+					if (_renderer_id & 0x20000)
+					{
+						vs_desc.entry_point = pass_info.vs_entry_point.c_str();
+						vs_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+						vs_desc.spec_constant_ids = spec_constants.data();
+						vs_desc.spec_constant_values = spec_data.data();
+					}
 
-				subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+					subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+				}
 
 				api::shader_desc ps_desc = {};
-				const std::string &ps = effect.assembly.at(pass_info.ps_entry_point);
-				ps_desc.code = ps.data();
-				ps_desc.code_size = ps.size();
-				if (_renderer_id & 0x20000)
+				if (!pass_info.ps_entry_point.empty())
 				{
-					ps_desc.entry_point = pass_info.ps_entry_point.c_str();
-					ps_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
-					ps_desc.spec_constant_ids = spec_constants.data();
-					ps_desc.spec_constant_values = spec_data.data();
-				}
+					const std::string &ps = effect.assembly.at(pass_info.ps_entry_point);
+					ps_desc.code = ps.data();
+					ps_desc.code_size = ps.size();
+					if (_renderer_id & 0x20000)
+					{
+						ps_desc.entry_point = pass_info.ps_entry_point.c_str();
+						ps_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
+						ps_desc.spec_constant_ids = spec_constants.data();
+						ps_desc.spec_constant_values = spec_data.data();
+					}
 
-				subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+					subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+				}
 
 				assert(pass_info.srgb_write_enable < 2);
 

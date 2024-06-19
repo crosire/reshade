@@ -1724,7 +1724,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	bool parse_success = true;
 	bool targets_support_srgb = true;
-	function_info vs_info, ps_info, cs_info;
+	function_info vs_info = {}, ps_info = {}, cs_info = {};
 
 	if (!expect('{'))
 		return false;
@@ -2059,14 +2059,10 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			for (codegen::id id : cs_info.referenced_storages)
 				info.storages.push_back(_codegen->get_storage(id));
 		}
-		else if (info.vs_entry_point.empty() || info.ps_entry_point.empty())
+		else if (info.vs_entry_point.empty())
 		{
 			parse_success = false;
-
-			if (info.vs_entry_point.empty())
-				error(pass_location, 3012, "pass is missing 'VertexShader' property");
-			if (info.ps_entry_point.empty())
-				error(pass_location, 3012,  "pass is missing 'PixelShader' property");
+			error(pass_location, 3012, "pass is missing 'VertexShader' property");
 		}
 		else
 		{
