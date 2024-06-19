@@ -1892,7 +1892,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex1D, 0, {
 	if (_shader_model >= 40) { // SM4 and higher use a more object-oriented programming model for textures
 		if (res_type.is_floating_point() || _shader_model >= 67)
 			code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
-		else // Integer sampling is not supported until SM6.7, so emulate with a texture fetch
+		else
+			// Integer sampling is not supported until SM6.7, so emulate with a texture fetch
 			code += "0; { "
 				"float _dimensions; " +
 				id_to_name(args[0].base) + ".t.GetDimensions(_dimensions); " +
@@ -1983,7 +1984,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2D, 0, {
 	if (_shader_model >= 40) { // SM4 and higher use a more object-oriented programming model for textures
 		if (res_type.is_floating_point() || _shader_model >= 67)
 			code += id_to_name(args[0].base) + ".t.Sample(" + id_to_name(args[0].base) + ".s, " + id_to_name(args[1].base) + ')';
-		else // Integer sampling is not supported until SM6.7, so emulate with a texture fetch
+		else
+			// Integer sampling is not supported until SM6.7, so emulate with a texture fetch
 			code += "0; { "
 				"float2 _dimensions; " +
 				id_to_name(args[0].base) + ".t.GetDimensions(_dimensions.x, _dimensions.y); " +
@@ -3715,8 +3717,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex1Dsize, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex1Dsize, 1, {
 	if (_shader_model >= 40)
-		code += "0; { uint levels; " + // Don't need the number of levels out value, so route that to a dummy variable
-			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ", levels); }";
+		code += "0; { uint _levels; " + // Don't need the number of levels out value, so route that to a dummy variable
+			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ", _levels); }";
 	else
 		code += "int(1.0 / " + id_to_name(args[0].base) + ".pixelsize) / exp2(" + id_to_name(args[1].base) + ')';
 	})
@@ -3788,8 +3790,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dsize, 1, {
 	if (_shader_model >= 40)
-		code += "0; { uint levels; " + // Don't need the number of levels out value, so route that to a dummy variable
-			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, levels); }";
+		code += "0; { uint _levels; " + // Don't need the number of levels out value, so route that to a dummy variable
+			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, _levels); }";
 	else
 		code += "int2(1.0 / " + id_to_name(args[0].base) + ".pixelsize) / exp2(" + id_to_name(args[1].base) + ')';
 	})
@@ -3861,8 +3863,8 @@ IMPLEMENT_INTRINSIC_HLSL(tex3Dsize, 0, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex3Dsize, 1, {
 	if (_shader_model >= 40)
-		code += "0; { uint levels; " + // Don't need the number of levels out value, so route that to a dummy variable
-			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, " + id_to_name(res) + ".z, levels); }";
+		code += "0; { uint _levels; " + // Don't need the number of levels out value, so route that to a dummy variable
+			id_to_name(args[0].base) + ".t.GetDimensions(" + id_to_name(args[1].base) + ", " + id_to_name(res) + ".x, " + id_to_name(res) + ".y, " + id_to_name(res) + ".z, _levels); }";
 	else
 		code += "int3(1.0 / " + id_to_name(args[0].base) + ".pixelsize) / exp2(" + id_to_name(args[1].base) + ')';
 	})
