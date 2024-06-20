@@ -1626,7 +1626,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 		resize_primitive_up_buffers(vertex_buffer_size, 0, 0);
 
 		if (void *mapped_vertex_data = nullptr;
-			_primitive_up_vertex_buffer.handle != 0 &&
+			_primitive_up_vertex_buffer != 0 &&
 			device_impl::map_buffer_region(_primitive_up_vertex_buffer, 0, vertex_buffer_size, reshade::api::map_access::write_discard, &mapped_vertex_data))
 		{
 			reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
@@ -1694,7 +1694,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 		resize_primitive_up_buffers(vertex_buffer_size, index_buffer_size, index_size);
 
 		if (void *mapped_vertex_data = nullptr;
-			_primitive_up_vertex_buffer.handle != 0 &&
+			_primitive_up_vertex_buffer != 0 &&
 			device_impl::map_buffer_region(_primitive_up_vertex_buffer, 0, vertex_buffer_size, reshade::api::map_access::write_discard, &mapped_vertex_data))
 		{
 			reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
@@ -1709,7 +1709,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 			device_impl::unmap_buffer_region(_primitive_up_vertex_buffer);
 		}
 		if (void *mapped_index_data = nullptr;
-			_primitive_up_index_buffer.handle != 0 &&
+			_primitive_up_index_buffer != 0 &&
 			device_impl::map_buffer_region(_primitive_up_index_buffer, 0, index_buffer_size, reshade::api::map_access::write_discard, &mapped_index_data))
 		{
 			reshade::invoke_addon_event<reshade::addon_event::map_buffer_region>(
@@ -2695,13 +2695,13 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 	const bool reset = (vertex_buffer_size == 0);
 
 	reshade::api::resource_desc vertex_buffer_desc(0, reshade::api::memory_heap::cpu_to_gpu, reshade::api::resource_usage::vertex_buffer, reshade::api::resource_flags::dynamic);
-	if (_primitive_up_vertex_buffer.handle != 0)
+	if (_primitive_up_vertex_buffer != 0)
 		vertex_buffer_desc = device_impl::get_resource_desc(_primitive_up_vertex_buffer);
 
 	// Initialize fake buffers for 'IDirect3DDevice9::DrawPrimitiveUP' and 'IDirect3DDevice9::DrawIndexedPrimitiveUP'
 	if (reset || vertex_buffer_size > vertex_buffer_desc.buffer.size)
 	{
-		if (_primitive_up_vertex_buffer.handle != 0)
+		if (_primitive_up_vertex_buffer != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, _primitive_up_vertex_buffer);
 			device_impl::destroy_resource(_primitive_up_vertex_buffer);
@@ -2722,12 +2722,12 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 	}
 
 	reshade::api::resource_desc index_buffer_desc(0, reshade::api::memory_heap::cpu_to_gpu, reshade::api::resource_usage::index_buffer, reshade::api::resource_flags::dynamic);
-	if (_primitive_up_index_buffer.handle != 0)
+	if (_primitive_up_index_buffer != 0)
 		index_buffer_desc = device_impl::get_resource_desc(_primitive_up_index_buffer);
 
 	if (reset || index_buffer_size > index_buffer_desc.buffer.size || index_size != index_buffer_desc.buffer.stride)
 	{
-		if (_primitive_up_index_buffer.handle != 0)
+		if (_primitive_up_index_buffer != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, _primitive_up_index_buffer);
 			device_impl::destroy_resource(_primitive_up_index_buffer);

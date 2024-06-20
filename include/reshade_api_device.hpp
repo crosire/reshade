@@ -322,13 +322,13 @@ namespace reshade { namespace api
 		/// Creates a new sampler state object.
 		/// </summary>
 		/// <param name="desc">Description of the sampler to create.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created sampler.</param>
-		/// <returns><see langword="true"/> if the sampler was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_sampler(const sampler_desc &desc, sampler *out_handle) = 0;
+		/// <param name="out_sampler">Pointer to a variable that is set to the handle of the created sampler.</param>
+		/// <returns><see langword="true"/> if the sampler was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_sampler"/> is set to zero).</returns>
+		virtual bool create_sampler(const sampler_desc &desc, sampler *out_sampler) = 0;
 		/// <summary>
 		/// Instantly destroys a sampler that was previously created via <see cref="create_sampler"/>.
 		/// </summary>
-		virtual void destroy_sampler(sampler handle) = 0;
+		virtual void destroy_sampler(sampler sampler) = 0;
 
 		/// <summary>
 		/// Allocates and creates a new resource.
@@ -336,15 +336,15 @@ namespace reshade { namespace api
 		/// <param name="desc">Description of the resource to create.</param>
 		/// <param name="initial_data">Optional data to upload to the resource after creation. This should point to an array of <see cref="mapped_subresource"/>, one for each subresource (mipmap levels and array layers). Can be <see langword="nullptr"/> to indicate no initial data to upload.</param>
 		/// <param name="initial_state">Initial state of the resource after creation. This can later be changed via <see cref="command_list::barrier"/>. It should also be part of the <see cref="resource_desc::usage"/> flags of the description.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created resource.</param>
+		/// <param name="out_resource">Pointer to a variable that is set to the handle of the created resource.</param>
 		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <see cref="resource_desc::flags"/> contains <see cref="resource_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created resource. When that variable is a valid handle, the resource is imported from that shared handle.</param>
-		/// <returns><see langword="true"/> if the resource was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out_handle, void **shared_handle = nullptr) = 0;
+		/// <returns><see langword="true"/> if the resource was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_resource"/> is set to zero).</returns>
+		virtual bool create_resource(const resource_desc &desc, const subresource_data *initial_data, resource_usage initial_state, resource *out_resource, void **shared_handle = nullptr) = 0;
 		/// <summary>
 		/// Instantly destroys a resource that was previously created via <see cref="create_resource"/> and frees its memory.
 		/// Make sure the resource is no longer in use on the GPU (via any command list that may reference it and is still being executed) before doing this (e.g. with <see cref="command_queue::wait_idle"/>) and never try to destroy resources created by the application!
 		/// </summary>
-		virtual void destroy_resource(resource handle) = 0;
+		virtual void destroy_resource(resource resource) = 0;
 
 		/// <summary>
 		/// Gets the description of the specified resource.
@@ -357,13 +357,13 @@ namespace reshade { namespace api
 		/// <param name="resource">Resource to create the view to.</param>
 		/// <param name="usage_type">Usage type of the resource view to create. Set to <see cref="resource_usage::shader_resource"/> to create a shader resource view, <see cref="resource_usage::depth_stencil"/> for a depth-stencil view, <see cref="resource_usage::render_target"/> for a render target etc.</param>
 		/// <param name="desc">Description of the resource view to create.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created resource view.</param>
-		/// <returns><see langword="true"/> if the resource view was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out_handle) = 0;
+		/// <param name="out_view">Pointer to a variable that is set to the handle of the created resource view.</param>
+		/// <returns><see langword="true"/> if the resource view was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_view"/> is set to zero).</returns>
+		virtual bool create_resource_view(resource resource, resource_usage usage_type, const resource_view_desc &desc, resource_view *out_view) = 0;
 		/// <summary>
 		/// Instantly destroys a resource view that was previously created via <see cref="create_resource_view"/>.
 		/// </summary>
-		virtual void destroy_resource_view(resource_view handle) = 0;
+		virtual void destroy_resource_view(resource_view view) = 0;
 
 		/// <summary>
 		/// Gets the handle to the underlying resource the specified resource <paramref name="view"/> was created for.
@@ -432,52 +432,52 @@ namespace reshade { namespace api
 		/// <param name="layout">Pipeline layout to use.</param>
 		/// <param name="subobject_count">Number of sub-objects.</param>
 		/// <param name="subobjects">Pointer to the first element of an array of sub-objects that describe this pipeline.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
-		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline(pipeline_layout layout, uint32_t subobject_count, const pipeline_subobject *subobjects, pipeline *out_handle) = 0;
+		/// <param name="out_pipeline">Pointer to a variable that is set to the handle of the created pipeline state object.</param>
+		/// <returns><see langword="true"/> if the pipeline state object was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_pipeline"/> is set to zero).</returns>
+		virtual bool create_pipeline(pipeline_layout layout, uint32_t subobject_count, const pipeline_subobject *subobjects, pipeline *out_pipeline) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline state object that was previously created via <see cref="create_pipeline"/>.
 		/// </summary>
-		virtual void destroy_pipeline(pipeline handle) = 0;
+		virtual void destroy_pipeline(pipeline pipeline) = 0;
 
 		/// <summary>
 		/// Creates a new pipeline layout.
 		/// </summary>
 		/// <param name="param_count">Number of layout parameters.</param>
 		/// <param name="params">Pointer to the first element of an array of layout parameters that describe this pipeline layout.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
-		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_pipeline_layout(uint32_t param_count, const pipeline_layout_param *params, pipeline_layout *out_handle) = 0;
+		/// <param name="out_layout">Pointer to a variable that is set to the handle of the created pipeline layout.</param>
+		/// <returns><see langword="true"/> if the pipeline layout was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_layout"/> is set to zero).</returns>
+		virtual bool create_pipeline_layout(uint32_t param_count, const pipeline_layout_param *params, pipeline_layout *out_layout) = 0;
 		/// <summary>
 		/// Instantly destroys a pipeline layout that was previously created via <see cref="create_pipeline_layout"/>.
 		/// </summary>
-		virtual void destroy_pipeline_layout(pipeline_layout handle) = 0;
+		virtual void destroy_pipeline_layout(pipeline_layout layout) = 0;
 
 		/// <summary>
 		/// Allocates a descriptor table from an internal descriptor heap.
 		/// </summary>
 		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
 		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
-		/// <param name="out_handle">Pointer to a a variable that is set to the handles of the created descriptor table.</param>
-		/// <returns><see langword="true"/> if the descriptor table was successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zeroe).</returns>
-		inline  bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_handle) { return allocate_descriptor_tables(1, layout, param, out_handle); }
+		/// <param name="out_table">Pointer to a a variable that is set to the handles of the created descriptor table.</param>
+		/// <returns><see langword="true"/> if the descriptor table was successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_table"/> is set to zeroe).</returns>
+		inline  bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_table) { return allocate_descriptor_tables(1, layout, param, out_table); }
 		/// <summary>
 		/// Allocates one or more descriptor tables from an internal descriptor heap.
 		/// </summary>
 		/// <param name="count">Number of descriptor tables to allocate.</param>
-		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor table.</param>
-		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
-		/// <param name="out_handles">Pointer to the first element of an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor tables.</param>
-		/// <returns><see langword="true"/> if the descriptor tables were successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_handles"/> is filled with zeroes).</returns>
-		virtual bool allocate_descriptor_tables(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_table *out_handles) = 0;
+		/// <param name="layout">Pipeline layout that contains a parameter that describes the descriptor tables.</param>
+		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor tables.</param>
+		/// <param name="out_tables">Pointer to the first element of an array of handles with at least <paramref name="count"/> elements that is filled with the handles of the created descriptor tables.</param>
+		/// <returns><see langword="true"/> if the descriptor tables were successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_tables"/> is filled with zeroes).</returns>
+		virtual bool allocate_descriptor_tables(uint32_t count, pipeline_layout layout, uint32_t param, descriptor_table *out_tables) = 0;
 		/// <summary>
 		/// Frees a descriptor table that was previously allocated via <see cref="allocate_descriptor_table"/>.
 		/// </summary>
-		inline  void free_descriptor_table(descriptor_table handle) { free_descriptor_tables(1, &handle); }
+		inline  void free_descriptor_table(descriptor_table table) { free_descriptor_tables(1, &table); }
 		/// <summary>
 		/// Frees one or more descriptor tables that were previously allocated via <see cref="allocate_descriptor_tables"/>.
 		/// </summary>
-		virtual void free_descriptor_tables(uint32_t count, const descriptor_table *handles) = 0;
+		virtual void free_descriptor_tables(uint32_t count, const descriptor_table *tables) = 0;
 
 		/// <summary>
 		/// Gets the offset (in descriptors) of the specified binding in the underlying descriptor heap of a descriptor table.
@@ -517,13 +517,13 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="type">Type of queries that will be used with this query heap.</param>
 		/// <param name="size">Number of queries to allocate in the query heap.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created query heap.</param>
-		/// <returns><see langword="true"/> if the query heap was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_query_heap(query_type type, uint32_t size, query_heap *out_handle) = 0;
+		/// <param name="out_heap">Pointer to a variable that is set to the handle of the created query heap.</param>
+		/// <returns><see langword="true"/> if the query heap was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_heap"/> is set to zero).</returns>
+		virtual bool create_query_heap(query_type type, uint32_t size, query_heap *out_heap) = 0;
 		/// <summary>
 		/// Instantly destroys a query heap that was previously created via <see cref="create_query_heap"/>.
 		/// </summary>
-		virtual void destroy_query_heap(query_heap handle) = 0;
+		virtual void destroy_query_heap(query_heap heap) = 0;
 
 		/// <summary>
 		/// Gets the results of queries in a query heap.
@@ -539,29 +539,29 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Associates a name with a resource, for easier debugging in external tools.
 		/// </summary>
-		/// <param name="handle">Resource to associate a name with.</param>
+		/// <param name="resource">Resource to associate a name with.</param>
 		/// <param name="name">Null-terminated name string.</param>
-		virtual void set_resource_name(resource handle, const char *name) = 0;
+		virtual void set_resource_name(resource resource, const char *name) = 0;
 		/// <summary>
 		/// Associates a name with a resource view, for easier debugging in external tools.
 		/// </summary>
-		/// <param name="handle">Resource view to associate a name with.</param>
+		/// <param name="view">Resource view to associate a name with.</param>
 		/// <param name="name">Null-terminated name string.</param>
-		virtual void set_resource_view_name(resource_view handle, const char *name) = 0;
+		virtual void set_resource_view_name(resource_view view, const char *name) = 0;
 
 		/// <summary>
 		/// Creates a new fence synchronization object.
 		/// </summary>
 		/// <param name="initial_value">The initial value for the fence.</param>
 		/// <param name="flags">Fence creation options.</param>
-		/// <param name="out_handle">Pointer to a variable that is set to the handle of the created fence.</param>
+		/// <param name="out_fence">Pointer to a variable that is set to the handle of the created fence.</param>
 		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <paramref name="flags"/> contains <see cref="fence_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created fence. When that variable is a valid handle, the fence is imported from that shared handle.</param>
-		/// <returns><see langword="true"/> if the fence was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_handle"/> is set to zero).</returns>
-		virtual bool create_fence(uint64_t initial_value, fence_flags flags, fence *out_handle, void **shared_handle = nullptr) = 0;
+		/// <returns><see langword="true"/> if the fence was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_fence"/> is set to zero).</returns>
+		virtual bool create_fence(uint64_t initial_value, fence_flags flags, fence *out_fence, void **shared_handle = nullptr) = 0;
 		/// <summary>
 		/// Instantly destroys a fence that was previously created via <see cref="create_fence"/>.
 		/// </summary>
-		virtual void destroy_fence(fence handle) = 0;
+		virtual void destroy_fence(fence fence) = 0;
 
 		/// <summary>
 		/// Gets the current value of the specified fence.
@@ -595,9 +595,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the GPU address for a resource view.
 		/// </summary>
-		/// <param name="handle">Resource view to query.</param>
+		/// <param name="view">Resource view to query.</param>
 		/// <returns>GPU address of the resource view, or zero in case of failure or when no fixed GPU address exists.</returns>
-		virtual uint64_t get_resource_view_gpu_address(resource_view handle) const = 0;
+		virtual uint64_t get_resource_view_gpu_address(resource_view view) const = 0;
 
 		/// <summary>
 		/// Gets the required acceleration structure size needed to build the specified data.

@@ -49,7 +49,7 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		if (resources[i].handle == 0)
+		if (resources[i] == 0)
 		{
 			VkMemoryBarrier &barrier = mem_barriers[num_mem_barriers++];
 			barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
@@ -130,7 +130,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		rendering_info.pColorAttachments = color_attachments.p;
 
 		VkRenderingAttachmentInfo depth_attachment, stencil_attachment;
-		if (ds != nullptr && ds->view.handle != 0)
+		if (ds != nullptr && ds->view != 0)
 		{
 			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
 
@@ -222,7 +222,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 			subpass.colorAttachmentCount = count;
 			subpass.pColorAttachments = attach_refs.p;
-			subpass.pDepthStencilAttachment = (ds != nullptr && ds->view.handle != 0) ? &attach_refs[count] : nullptr;
+			subpass.pDepthStencilAttachment = (ds != nullptr && ds->view != 0) ? &attach_refs[count] : nullptr;
 
 			VkRenderPassCreateInfo render_pass_create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
 			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
@@ -352,7 +352,7 @@ void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(u
 
 void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
-	if (pipeline.handle == 0)
+	if (pipeline == 0)
 		return;
 
 	// Cannot bind state to individual pipeline stages
@@ -486,7 +486,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	if (update.count == 0)
 		return;
 
-	assert(update.table.handle == 0);
+	assert(update.table == 0);
 
 	VkWriteDescriptorSet write { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 	write.dstBinding = update.binding;
@@ -655,7 +655,7 @@ void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uin
 
 	VkStridedDeviceAddressRegionKHR raygen_region;
 	raygen_region.deviceAddress = raygen_offset;
-	if (raygen.handle != 0)
+	if (raygen != 0)
 	{
 		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 		address_info.buffer = (VkBuffer)raygen.handle;
@@ -666,7 +666,7 @@ void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uin
 
 	VkStridedDeviceAddressRegionKHR miss_region;
 	miss_region.deviceAddress = miss_offset;
-	if (miss.handle != 0)
+	if (miss != 0)
 	{
 		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 		address_info.buffer = (VkBuffer)miss.handle;
@@ -677,7 +677,7 @@ void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uin
 
 	VkStridedDeviceAddressRegionKHR hit_group_region;
 	hit_group_region.deviceAddress = hit_group_offset;
-	if (hit_group.handle != 0)
+	if (hit_group != 0)
 	{
 		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 		address_info.buffer = (VkBuffer)hit_group.handle;
@@ -688,7 +688,7 @@ void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uin
 
 	VkStridedDeviceAddressRegionKHR callable_region;
 	callable_region.deviceAddress = callable_offset;
-	if (callable.handle != 0)
+	if (callable != 0)
 	{
 		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 		address_info.buffer = (VkBuffer)callable.handle;
@@ -719,7 +719,7 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect
 		vk.CmdDrawMeshTasksIndirectEXT(_orig, (VkBuffer)buffer.handle, offset, draw_count, stride);
 		break;
 	case api::indirect_command::dispatch_rays:
-		if (buffer.handle != 0)
+		if (buffer != 0)
 		{
 			VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 			address_info.buffer = (VkBuffer)buffer.handle;
@@ -1232,7 +1232,7 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::
 {
 	_has_commands = true;
 
-	assert(heap.handle != 0);
+	assert(heap != 0);
 	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
 
 	vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, index, 1);
@@ -1255,7 +1255,7 @@ void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::qu
 {
 	_has_commands = true;
 
-	assert(heap.handle != 0);
+	assert(heap != 0);
 	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
 
 	switch (type)
@@ -1280,7 +1280,7 @@ void reshade::vulkan::command_list_impl::copy_query_heap_results(api::query_heap
 {
 	_has_commands = true;
 
-	assert(heap.handle != 0);
+	assert(heap != 0);
 	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
 
 	vk.CmdCopyQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, (VkBuffer)dst.handle, dst_offset, stride, VK_QUERY_RESULT_64_BIT);
@@ -1313,19 +1313,19 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 		switch (geometry.geometryType)
 		{
 		case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-			if (build_input.triangles.vertex_buffer.handle != 0)
+			if (build_input.triangles.vertex_buffer != 0)
 			{
 				VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 				address_info.buffer = (VkBuffer)build_input.triangles.vertex_buffer.handle;
 				geometry.geometry.triangles.vertexData.deviceAddress += vk.GetBufferDeviceAddress(_device_impl->_orig, &address_info);
 			}
-			if (build_input.triangles.index_buffer.handle != 0)
+			if (build_input.triangles.index_buffer != 0)
 			{
 				VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 				address_info.buffer = (VkBuffer)build_input.triangles.index_buffer.handle;
 				geometry.geometry.triangles.indexData.deviceAddress += vk.GetBufferDeviceAddress(_device_impl->_orig, &address_info);
 			}
-			if (build_input.triangles.transform_buffer.handle != 0)
+			if (build_input.triangles.transform_buffer != 0)
 			{
 				VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 				address_info.buffer = (VkBuffer)build_input.triangles.transform_buffer.handle;
@@ -1333,7 +1333,7 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 			}
 			break;
 		case VK_GEOMETRY_TYPE_AABBS_KHR:
-			if (build_input.aabbs.buffer.handle != 0)
+			if (build_input.aabbs.buffer != 0)
 			{
 				VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 				address_info.buffer = (VkBuffer)build_input.aabbs.buffer.handle;
@@ -1341,7 +1341,7 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 			}
 			break;
 		case VK_GEOMETRY_TYPE_INSTANCES_KHR:
-			if (build_input.instances.buffer.handle != 0)
+			if (build_input.instances.buffer != 0)
 			{
 				VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 				address_info.buffer = (VkBuffer)build_input.instances.buffer.handle;
@@ -1360,7 +1360,7 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 	info.geometryCount = static_cast<uint32_t>(geometries.size());
 	info.pGeometries = geometries.data();
 	info.scratchData.deviceAddress = scratch_offset;
-	if (scratch.handle != 0)
+	if (scratch != 0)
 	{
 		VkBufferDeviceAddressInfo address_info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 		address_info.buffer = (VkBuffer)scratch.handle;

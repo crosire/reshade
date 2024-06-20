@@ -308,7 +308,7 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 	return true;
 }
 
-bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out_handle)
+bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc, api::sampler *out_sampler)
 {
 	VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	create_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
@@ -328,23 +328,23 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 	if (VkSampler object = VK_NULL_HANDLE;
 		vk.CreateSampler(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 	{
-		*out_handle = { (uint64_t)object };
+		*out_sampler = { (uint64_t)object };
 		return true;
 	}
 	else
 	{
-		*out_handle = { 0 };
+		*out_sampler = { 0 };
 		return false;
 	}
 }
-void reshade::vulkan::device_impl::destroy_sampler(api::sampler handle)
+void reshade::vulkan::device_impl::destroy_sampler(api::sampler sampler)
 {
-	vk.DestroySampler(_orig, (VkSampler)handle.handle, nullptr);
+	vk.DestroySampler(_orig, (VkSampler)sampler.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_handle, HANDLE *shared_handle)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_resource, HANDLE *shared_handle)
 {
-	*out_handle = { 0 };
+	*out_resource = { 0 };
 
 	assert((desc.usage & initial_state) == initial_state || initial_state == api::resource_usage::general || initial_state == api::resource_usage::cpu_access);
 
@@ -478,19 +478,19 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				register_object<VK_OBJECT_TYPE_BUFFER>(object, std::move(data));
 
-				*out_handle = { (uint64_t)object };
+				*out_resource = { (uint64_t)object };
 
 				if (initial_data != nullptr)
 				{
 					if (get_first_immediate_command_list())
 					{
-						update_buffer_region(initial_data->data, *out_handle, 0, desc.buffer.size);
+						update_buffer_region(initial_data->data, *out_resource, 0, desc.buffer.size);
 					}
 					else
 					{
 						// Cannot upload initial data without a command list
-						destroy_resource(*out_handle);
-						*out_handle = { 0 };
+						destroy_resource(*out_resource);
+						*out_resource = { 0 };
 						break;
 					}
 				}
@@ -591,7 +591,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				register_object<VK_OBJECT_TYPE_IMAGE>(object, std::move(data));
 
-				*out_handle = { (uint64_t)object };
+				*out_resource = { (uint64_t)object };
 
 				// Only makes sense to upload initial data if it is not thrown away on the first layout transition
 				assert(initial_data == nullptr || initial_state != api::resource_usage::undefined);
@@ -604,18 +604,18 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 						if (initial_data != nullptr)
 						{
 							const api::resource_usage states_upload[2] = { api::resource_usage::undefined, api::resource_usage::copy_dest };
-							immediate_command_list->barrier(1, out_handle, &states_upload[0], &states_upload[1]);
+							immediate_command_list->barrier(1, out_resource, &states_upload[0], &states_upload[1]);
 
 							for (uint32_t subresource = 0; subresource < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)) * desc.texture.levels; ++subresource)
-								update_texture_region(initial_data[subresource], *out_handle, subresource, nullptr);
+								update_texture_region(initial_data[subresource], *out_resource, subresource, nullptr);
 
 							const api::resource_usage states_finalize[2] = { api::resource_usage::copy_dest, initial_state };
-							immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
+							immediate_command_list->barrier(1, out_resource, &states_finalize[0], &states_finalize[1]);
 						}
 						else
 						{
 							const api::resource_usage states_finalize[2] = { api::resource_usage::undefined, initial_state };
-							immediate_command_list->barrier(1, out_handle, &states_finalize[0], &states_finalize[1]);
+							immediate_command_list->barrier(1, out_resource, &states_finalize[0], &states_finalize[1]);
 						}
 
 						// Always flush right away, in case resource is destroyed again before an explicit flush of the immediate command list
@@ -625,8 +625,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 					else if (initial_data != nullptr)
 					{
 						// Cannot upload initial data without a command list
-						destroy_resource(*out_handle);
-						*out_handle = { 0 };
+						destroy_resource(*out_resource);
+						*out_resource = { 0 };
 						break;
 					}
 				}
@@ -638,16 +638,16 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 	return false;
 }
-void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
+void reshade::vulkan::device_impl::destroy_resource(api::resource resource)
 {
-	if (handle.handle == 0)
+	if (resource == 0)
 		return;
 
 	static_assert(
 		offsetof(object_data<VK_OBJECT_TYPE_IMAGE>, allocation ) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER>, allocation ) &&
 		offsetof(object_data<VK_OBJECT_TYPE_IMAGE>, create_info) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER>, create_info));
 
-	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) // Structure type is at the same offset in both image and buffer object data structures
 	{
 		const VmaAllocation allocation = data->allocation;
@@ -655,17 +655,17 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 		const VkImageView default_view = data->default_view;
 
 		// Warning, the 'data' pointer must not be accessed after this call, since it frees that memory!
-		unregister_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
+		unregister_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
 		if (allocation == VMA_NULL)
 		{
 			vk.DestroyImageView(_orig, default_view, nullptr);
-			vk.DestroyImage(_orig, (VkImage)handle.handle, nullptr);
+			vk.DestroyImage(_orig, (VkImage)resource.handle, nullptr);
 			vk.FreeMemory(_orig, memory, nullptr);
 		}
 		else
 		{
-			vmaDestroyImage(_alloc, (VkImage)handle.handle, allocation);
+			vmaDestroyImage(_alloc, (VkImage)resource.handle, allocation);
 		}
 	}
 	else
@@ -674,16 +674,16 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource handle)
 		const VkDeviceMemory memory = data->memory;
 
 		// Warning, the 'data' pointer must not be accessed after this call, since it frees that memory!
-		unregister_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)handle.handle);
+		unregister_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
 
 		if (allocation == VMA_NULL)
 		{
-			vk.DestroyBuffer(_orig, (VkBuffer)handle.handle, nullptr);
+			vk.DestroyBuffer(_orig, (VkBuffer)resource.handle, nullptr);
 			vk.FreeMemory(_orig, memory, nullptr);
 		}
 		else
 		{
-			vmaDestroyBuffer(_alloc, (VkBuffer)handle.handle, allocation);
+			vmaDestroyBuffer(_alloc, (VkBuffer)resource.handle, allocation);
 		}
 	}
 }
@@ -697,11 +697,11 @@ reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api:
 		return convert_resource_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_BUFFER> *>(data)->create_info);
 }
 
-bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_handle)
+bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_view)
 {
-	*out_handle = { 0 };
+	*out_view = { 0 };
 
-	if (resource.handle == 0)
+	if (resource == 0)
 		return false;
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
@@ -757,7 +757,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 
 			register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(image_view, std::move(data));
 
-			*out_handle = { (uint64_t)image_view };
+			*out_view = { (uint64_t)image_view };
 			return true;
 		}
 	}
@@ -785,7 +785,7 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 
 			register_object<VK_OBJECT_TYPE_BUFFER_VIEW>(buffer_view, std::move(data));
 
-			*out_handle = { (uint64_t)buffer_view };
+			*out_view = { (uint64_t)buffer_view };
 			return true;
 		}
 	}
@@ -816,39 +816,39 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 
 			register_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>(buffer_view, std::move(data));
 
-			*out_handle = { (uint64_t)buffer_view };
+			*out_view = { (uint64_t)buffer_view };
 			return true;
 		}
 	}
 
 	return false;
 }
-void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view handle)
+void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view view)
 {
-	if (handle.handle == 0)
+	if (view == 0)
 		return;
 
 	static_assert(
 		offsetof(object_data<VK_OBJECT_TYPE_IMAGE_VIEW>, create_info) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER_VIEW>, create_info));
 
-	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO) // Structure type is at the same offset in both image view and buffer view object data structures
 	{
-		unregister_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+		unregister_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 
-		vk.DestroyImageView(_orig, (VkImageView)handle.handle, nullptr);
+		vk.DestroyImageView(_orig, (VkImageView)view.handle, nullptr);
 	}
 	else if(data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
 	{
-		unregister_object<VK_OBJECT_TYPE_BUFFER_VIEW>((VkBufferView)handle.handle);
+		unregister_object<VK_OBJECT_TYPE_BUFFER_VIEW>((VkBufferView)view.handle);
 
-		vk.DestroyBufferView(_orig, (VkBufferView)handle.handle, nullptr);
+		vk.DestroyBufferView(_orig, (VkBufferView)view.handle, nullptr);
 	}
 	else
 	{
-		unregister_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>((VkAccelerationStructureKHR)handle.handle);
+		unregister_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>((VkAccelerationStructureKHR)view.handle);
 
-		vk.DestroyAccelerationStructureKHR(_orig, (VkAccelerationStructureKHR)handle.handle, nullptr);
+		vk.DestroyAccelerationStructureKHR(_orig, (VkAccelerationStructureKHR)view.handle, nullptr);
 	}
 }
 
@@ -873,9 +873,9 @@ reshade::api::resource_view_desc reshade::vulkan::device_impl::get_resource_view
 		return convert_resource_view_desc(reinterpret_cast<const object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR> *>(data)->create_info);
 }
 
-uint64_t reshade::vulkan::device_impl::get_resource_view_gpu_address(api::resource_view handle) const
+uint64_t reshade::vulkan::device_impl::get_resource_view_gpu_address(api::resource_view view) const
 {
-	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 	{
 		return 0;
@@ -890,7 +890,7 @@ uint64_t reshade::vulkan::device_impl::get_resource_view_gpu_address(api::resour
 	else
 	{
 		VkAccelerationStructureDeviceAddressInfoKHR info{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR };
-		info.accelerationStructure = (VkAccelerationStructureKHR)handle.handle;
+		info.accelerationStructure = (VkAccelerationStructureKHR)view.handle;
 
 		return vk.GetAccelerationStructureDeviceAddressKHR(_orig, &info);
 	}
@@ -901,7 +901,7 @@ bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uin
 	if (out_data == nullptr)
 		return false;
 
-	assert(resource.handle != 0);
+	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
 	if (resource_data->allocation != VMA_NULL)
@@ -923,7 +923,7 @@ bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uin
 }
 void reshade::vulkan::device_impl::unmap_buffer_region(api::resource resource)
 {
-	assert(resource.handle != 0);
+	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
 	if (resource_data->allocation != VMA_NULL)
@@ -948,7 +948,7 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 	if (box != nullptr)
 		return false;
 
-	assert(resource.handle != 0);
+	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
@@ -988,7 +988,7 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 	if (subresource != 0)
 		return;
 
-	assert(resource.handle != 0);
+	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (resource_data->allocation != VMA_NULL)
@@ -1003,7 +1003,7 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 
 void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
-	assert(resource.handle != 0);
+	assert(resource != 0);
 	assert(data != nullptr);
 
 	if (const auto immediate_command_list = get_first_immediate_command_list())
@@ -1017,7 +1017,7 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 }
 void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
-	assert(resource.handle != 0);
+	assert(resource != 0);
 	assert(data.data != nullptr);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
@@ -1110,7 +1110,7 @@ bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits st
 	return vk.CreateShaderModule(_orig, &create_info, nullptr, &stage_info.module) == VK_SUCCESS;
 }
 
-bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
+bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline)
 {
 	VkRenderPass render_pass = VK_NULL_HANDLE;
 	std::vector<VkShaderModule> shaders;
@@ -1468,7 +1468,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			for (const VkShaderModule shader : shaders)
 				vk.DestroyShaderModule(_orig, shader, nullptr);
 
-			*out_handle = { (uint64_t)object };
+			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
 	}
@@ -1492,7 +1492,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		{
 			vk.DestroyShaderModule(_orig, create_info.stage.module, nullptr);
 
-			*out_handle = { (uint64_t)object };
+			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
 	}
@@ -1742,7 +1742,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			for (const VkShaderModule shader : shaders)
 				vk.DestroyShaderModule(_orig, shader, nullptr);
 
-			*out_handle = { (uint64_t)object };
+			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
 	}
@@ -1754,15 +1754,15 @@ exit_failure:
 	for (const VkShaderModule shader : shaders)
 		vk.DestroyShaderModule(_orig, shader, nullptr);
 
-	*out_handle = { 0 };
+	*out_pipeline = { 0 };
 	return false;
 }
-void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline handle)
+void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline pipeline)
 {
-	vk.DestroyPipeline(_orig, (VkPipeline)handle.handle, nullptr);
+	vk.DestroyPipeline(_orig, (VkPipeline)pipeline.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle)
+bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout)
 {
 	std::vector<VkPushConstantRange> push_constant_ranges;
 	std::vector<VkDescriptorSetLayout> set_layouts;
@@ -1895,7 +1895,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 			register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(object, std::move(data));
 
-			*out_handle = { (uint64_t)object };
+			*out_layout = { (uint64_t)object };
 			return true;
 		}
 	}
@@ -1913,15 +1913,15 @@ exit_failure:
 		vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
 	}
 
-	*out_handle = { 0 };
+	*out_layout = { 0 };
 	return false;
 }
-void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout handle)
+void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout layout)
 {
-	if (handle.handle == 0)
+	if (layout == 0)
 		return;
 
-	const auto layout_data = get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)handle.handle);
+	const auto layout_data = get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
 
 	for (const VkSampler sampler : layout_data->embedded_samplers)
 	{
@@ -1935,9 +1935,9 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 		vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
 	}
 
-	unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)handle.handle);
+	unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);
 
-	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)handle.handle, nullptr);
+	vk.DestroyPipelineLayout(_orig, (VkPipelineLayout)layout.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables)
@@ -1974,15 +1974,15 @@ bool reshade::vulkan::device_impl::allocate_descriptor_tables(uint32_t count, ap
 		return false;
 	}
 }
-void reshade::vulkan::device_impl::free_descriptor_tables(uint32_t count, const api::descriptor_table *table)
+void reshade::vulkan::device_impl::free_descriptor_tables(uint32_t count, const api::descriptor_table *tables)
 {
 	for (uint32_t i = 0; i < count; ++i)
-		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)table[i].handle);
+		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)tables[i].handle);
 
 	// Access to descriptor pools must be externally synchronized, so lock for the duration of freeing in the global descriptor pool
 	const std::unique_lock<std::shared_mutex> lock(_mutex);
 
-	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(table));
+	vk.FreeDescriptorSets(_orig, _descriptor_pool, count, reinterpret_cast<const VkDescriptorSet *>(tables));
 }
 
 void reshade::vulkan::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
@@ -2115,7 +2115,7 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 	vk.UpdateDescriptorSets(_orig, static_cast<uint32_t>(writes_internal.size()), writes_internal.data(), 0, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out_handle)
+bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out_heap)
 {
 	VkQueryPoolCreateInfo create_info { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
 	create_info.queryType = convert_query_type(type);
@@ -2160,69 +2160,69 @@ bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint3
 		vk.ResetQueryPool(_orig, pool, 0, count);
 #endif
 
-		*out_handle = { (uint64_t)pool };
+		*out_heap = { (uint64_t)pool };
 		return true;
 	}
 	else
 	{
-		*out_handle = { 0 };
+		*out_heap = { 0 };
 		return false;
 	}
 }
-void reshade::vulkan::device_impl::destroy_query_heap(api::query_heap handle)
+void reshade::vulkan::device_impl::destroy_query_heap(api::query_heap heap)
 {
-	if (handle.handle == 0)
+	if (heap == 0)
 		return;
 
-	unregister_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)handle.handle);
+	unregister_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle);
 
-	vk.DestroyQueryPool(_orig, (VkQueryPool)handle.handle, nullptr);
+	vk.DestroyQueryPool(_orig, (VkQueryPool)heap.handle, nullptr);
 }
 
 bool reshade::vulkan::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
-	assert(heap.handle != 0);
+	assert(heap != 0);
 	assert(stride >= sizeof(uint64_t));
 
 	return vk.GetQueryPoolResults(_orig, (VkQueryPool)heap.handle, first, count, static_cast<size_t>(count) * stride, results, stride, VK_QUERY_RESULT_64_BIT) == VK_SUCCESS;
 }
 
-void reshade::vulkan::device_impl::set_resource_name(api::resource handle, const char *name)
+void reshade::vulkan::device_impl::set_resource_name(api::resource resource, const char *name)
 {
 #ifdef VK_EXT_debug_utils
 	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
 		return;
 
-	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)handle.handle);
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
 	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
-	name_info.objectHandle = handle.handle;
+	name_info.objectHandle = resource.handle;
 	name_info.pObjectName = name;
 
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
 #endif
 }
-void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view handle, const char *name)
+void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view view, const char *name)
 {
 #ifdef VK_EXT_debug_utils
 	if (vk.SetDebugUtilsObjectNameEXT == nullptr)
 		return;
 
-	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)handle.handle);
+	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
 	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE_VIEW : VK_OBJECT_TYPE_BUFFER_VIEW;
-	name_info.objectHandle = handle.handle;
+	name_info.objectHandle = view.handle;
 	name_info.pObjectName = name;
 
 	vk.SetDebugUtilsObjectNameEXT(_orig, &name_info);
 #endif
 }
 
-bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_handle, HANDLE *shared_handle)
+bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, HANDLE *shared_handle)
 {
-	*out_handle = { 0 };
+	*out_fence = { 0 };
 
 	if (!_timeline_semaphore_ext)
 		return false;
@@ -2296,7 +2296,7 @@ bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fen
 			}
 		}
 
-		*out_handle = { (uint64_t)semaphore };
+		*out_fence = { (uint64_t)semaphore };
 		return true;
 	}
 	else
@@ -2304,9 +2304,9 @@ bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fen
 		return false;
 	}
 }
-void reshade::vulkan::device_impl::destroy_fence(api::fence handle)
+void reshade::vulkan::device_impl::destroy_fence(api::fence fence)
 {
-	vk.DestroySemaphore(_orig, (VkSemaphore)handle.handle, nullptr);
+	vk.DestroySemaphore(_orig, (VkSemaphore)fence.handle, nullptr);
 }
 
 uint64_t reshade::vulkan::device_impl::get_completed_fence_value(api::fence fence) const
@@ -2367,12 +2367,12 @@ void reshade::vulkan::device_impl::get_acceleration_structure_size(api::accelera
 		*out_update_scratch_size = size_info.updateScratchSize;
 }
 
-bool reshade::vulkan::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *groups)
+bool reshade::vulkan::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *out_handles)
 {
 	uint32_t handle_size = 0;
 	get_property(api::device_properties::shader_group_handle_size, &handle_size);
 
-	return vk.GetRayTracingShaderGroupHandlesKHR(_orig, (VkPipeline)pipeline.handle, first, count, count * handle_size, groups) == VK_SUCCESS;
+	return vk.GetRayTracingShaderGroupHandlesKHR(_orig, (VkPipeline)pipeline.handle, first, count, static_cast<size_t>(count) * static_cast<size_t>(handle_size), out_handles) == VK_SUCCESS;
 }
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()

@@ -433,13 +433,13 @@ static void update_framebuffer_object(GLenum target, GLuint framebuffer = 0)
 
 	uint32_t count = 0;
 	reshade::api::resource_view rtvs[8], dsv;
-	if (default_attachment.handle != 0)
+	if (default_attachment != 0)
 	{
 		rtvs[0] = default_attachment;
 		for (count = 1; count < 8; ++count)
 		{
 			rtvs[count] = device->get_framebuffer_attachment(framebuffer, GL_COLOR, count);
-			if (rtvs[count].handle == 0)
+			if (rtvs[count] == 0)
 				break;
 		}
 	}
@@ -2664,7 +2664,7 @@ void APIENTRY glClearBufferiv(GLenum buffer, GLint drawbuffer, const GLint *valu
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
 		const reshade::api::resource_view view = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
-		if (view.handle != 0)
+		if (view != 0)
 		{
 			if (buffer != GL_COLOR ?
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
@@ -2692,7 +2692,7 @@ void APIENTRY glClearBufferuiv(GLenum buffer, GLint drawbuffer, const GLuint *va
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
 		const reshade::api::resource_view view = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
-		if (view.handle != 0)
+		if (view != 0)
 		{
 			if (buffer != GL_COLOR ?
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
@@ -2720,7 +2720,7 @@ void APIENTRY glClearBufferfv(GLenum buffer, GLint drawbuffer, const GLfloat *va
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
 		const reshade::api::resource_view view = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
-		if (view.handle != 0)
+		if (view != 0)
 		{
 			if (buffer != GL_COLOR ?
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
@@ -2747,7 +2747,7 @@ void APIENTRY glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GL
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);
 
 		const reshade::api::resource_view dsv = device->get_framebuffer_attachment(fbo, buffer, drawbuffer);
-		if (dsv.handle != 0 &&
+		if (dsv != 0 &&
 			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 			return;
 	}
@@ -4518,7 +4518,7 @@ void APIENTRY glClearNamedFramebufferiv(GLuint framebuffer, GLenum buffer, GLint
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 		const reshade::api::resource_view view = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
-		if (view.handle != 0)
+		if (view != 0)
 		{
 			if (buffer != GL_COLOR ?
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
@@ -4543,7 +4543,7 @@ void APIENTRY glClearNamedFramebufferuiv(GLuint framebuffer, GLenum buffer, GLin
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 		const reshade::api::resource_view view = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
-		if (view.handle != 0)
+		if (view != 0)
 		{
 			if (buffer != GL_COLOR ?
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, nullptr, reinterpret_cast<const uint8_t *>(value), 0, nullptr) :
@@ -4568,7 +4568,7 @@ void APIENTRY glClearNamedFramebufferfv(GLuint framebuffer, GLenum buffer, GLint
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 		const reshade::api::resource_view view = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
-		if (view.handle != 0)
+		if (view != 0)
 		{
 			if (buffer != GL_COLOR ?
 					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, view, value, nullptr, 0, nullptr) :
@@ -4592,7 +4592,7 @@ void APIENTRY glClearNamedFramebufferfi(GLuint framebuffer, GLenum buffer, GLint
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_current_context->get_device());
 
 		const reshade::api::resource_view dsv = device->get_framebuffer_attachment(framebuffer, buffer, drawbuffer);
-		if (dsv.handle != 0 &&
+		if (dsv != 0 &&
 			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_current_context, dsv, &depth, reinterpret_cast<const uint8_t *>(&stencil), 0, nullptr))
 			return;
 	}

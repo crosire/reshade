@@ -97,7 +97,7 @@ void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::r
 	}
 
 	api::resource_view depth_stencil_handle = {};
-	if (ds != nullptr && ds->view.handle != 0)
+	if (ds != nullptr && ds->view != 0)
 	{
 		depth_stencil_handle = ds->view;
 
@@ -163,7 +163,7 @@ void reshade::d3d10::device_impl::bind_pipeline(api::pipeline_stage stages, api:
 		_orig->OMSetBlendState(reinterpret_cast<ID3D10BlendState *>(pipeline.handle), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 		break;
 	case api::pipeline_stage::all:
-		if (pipeline.handle == 0)
+		if (pipeline == 0)
 		{
 			_orig->ClearState();
 			break;
@@ -362,7 +362,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	}
 
 	uint32_t push_constants_slot = 0;
-	if (layout.handle != 0)
+	if (layout != 0)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 
@@ -379,10 +379,10 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 }
 void reshade::d3d10::device_impl::push_descriptors(api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &update)
 {
-	assert(update.table.handle == 0 && update.array_offset == 0);
+	assert(update.table == 0 && update.array_offset == 0);
 
 	uint32_t first = update.binding;
-	if (layout.handle != 0)
+	if (layout != 0)
 	{
 		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
 
@@ -426,7 +426,7 @@ void reshade::d3d10::device_impl::bind_descriptor_tables(api::shader_stage stage
 void reshade::d3d10::device_impl::bind_index_buffer(api::resource buffer, uint64_t offset, uint32_t index_size)
 {
 	assert(offset <= std::numeric_limits<UINT>::max());
-	assert(buffer.handle == 0 || index_size == 2 || index_size == 4);
+	assert(buffer == 0 || index_size == 2 || index_size == 4);
 
 	_orig->IASetIndexBuffer(reinterpret_cast<ID3D10Buffer *>(buffer.handle), index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, static_cast<UINT>(offset));
 }
@@ -496,13 +496,13 @@ void reshade::d3d10::device_impl::draw_or_dispatch_indirect(api::indirect_comman
 
 void reshade::d3d10::device_impl::copy_resource(api::resource src, api::resource dst)
 {
-	assert(src.handle != 0 && dst.handle != 0);
+	assert(src != 0 && dst != 0);
 
 	_orig->CopyResource(reinterpret_cast<ID3D10Resource *>(dst.handle), reinterpret_cast<ID3D10Resource *>(src.handle));
 }
 void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(src.handle != 0 && dst.handle != 0);
+	assert(src != 0 && dst != 0);
 
 	if (UINT64_MAX == size)
 	{
@@ -525,7 +525,7 @@ void reshade::d3d10::device_impl::copy_buffer_to_texture(api::resource, uint64_t
 }
 void reshade::d3d10::device_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode)
 {
-	assert(src.handle != 0 && dst.handle != 0);
+	assert(src != 0 && dst != 0);
 	// Blit between different region dimensions is not supported
 	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
@@ -539,7 +539,7 @@ void reshade::d3d10::device_impl::copy_texture_to_buffer(api::resource, uint32_t
 }
 void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
 {
-	assert(src.handle != 0 && dst.handle != 0);
+	assert(src != 0 && dst != 0);
 	assert(src_box == nullptr && dst_x == 0 && dst_y == 0 && dst_z == 0);
 
 	_orig->ResolveSubresource(
@@ -549,7 +549,7 @@ void reshade::d3d10::device_impl::resolve_texture_region(api::resource src, uint
 
 void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)
 {
-	assert(dsv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
+	assert(dsv != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearDepthStencilView(
 		reinterpret_cast<ID3D10DepthStencilView *>(dsv.handle),
@@ -557,7 +557,7 @@ void reshade::d3d10::device_impl::clear_depth_stencil_view(api::resource_view ds
 }
 void reshade::d3d10::device_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *)
 {
-	assert(rtv.handle != 0 && rect_count == 0); // Clearing rectangles is not supported
+	assert(rtv != 0 && rect_count == 0); // Clearing rectangles is not supported
 
 	_orig->ClearRenderTargetView(reinterpret_cast<ID3D10RenderTargetView *>(rtv.handle), color);
 }
@@ -572,20 +572,20 @@ void reshade::d3d10::device_impl::clear_unordered_access_view_float(api::resourc
 
 void reshade::d3d10::device_impl::generate_mipmaps(api::resource_view srv)
 {
-	assert(srv.handle != 0);
+	assert(srv != 0);
 
 	_orig->GenerateMips(reinterpret_cast<ID3D10ShaderResourceView *>(srv.handle));
 }
 
 void reshade::d3d10::device_impl::begin_query(api::query_heap heap, api::query_type, uint32_t index)
 {
-	assert(heap.handle != 0);
+	assert(heap != 0);
 
 	reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index]->Begin();
 }
 void reshade::d3d10::device_impl::end_query(api::query_heap heap, api::query_type, uint32_t index)
 {
-	assert(heap.handle != 0);
+	assert(heap != 0);
 
 	reinterpret_cast<query_heap_impl *>(heap.handle)->queries[index]->End();
 }
