@@ -58,7 +58,7 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9On12(UINT SDKVersion, D3D9ON12_ARGS
 			SUCCEEDED(override_list[i].pD3D12Device->QueryInterface(&device_proxy_12)))
 			override_list[i].pD3D12Device = device_proxy_12->_orig;
 
-		for (UINT k = 0; k < MAX_D3D9ON12_QUEUES; ++k)
+		for (UINT k = 0; k < override_list[i].NumQueues; ++k)
 		{
 			if (com_ptr<D3D12CommandQueue> command_queue_proxy;
 				override_list[i].ppD3D12Queues[k] != nullptr &&
@@ -107,7 +107,7 @@ extern "C"     HRESULT WINAPI Direct3DCreate9On12Ex(UINT SDKVersion, D3D9ON12_AR
 			SUCCEEDED(override_list[i].pD3D12Device->QueryInterface(&device_proxy_12)))
 			override_list[i].pD3D12Device = device_proxy_12->_orig;
 
-		for (UINT k = 0; k < MAX_D3D9ON12_QUEUES; ++k)
+		for (UINT k = 0; k < override_list[i].NumQueues; ++k)
 		{
 			if (com_ptr<D3D12CommandQueue> command_queue_proxy;
 				override_list[i].ppD3D12Queues[k] != nullptr &&
