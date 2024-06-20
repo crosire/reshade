@@ -737,10 +737,16 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 		num_rows = box->height();
 		num_slices = box->depth();
 	}
+	else
+	{
+		width = std::max(1u, width >> (subresource % desc.MipLevels));
+		num_rows = std::max(1u, num_rows >> (subresource % desc.MipLevels));
+	}
 
 	auto row_pitch = api::format_row_pitch(convert_format(desc.Format), width);
 	row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
 	const auto slice_pitch = api::format_slice_pitch(convert_format(desc.Format), row_pitch, num_rows);
+	num_rows = slice_pitch / row_pitch;
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
