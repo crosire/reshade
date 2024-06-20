@@ -446,17 +446,17 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		update.type == api::descriptor_type::texture_shader_resource_view ||
 		update.type == api::descriptor_type::texture_unordered_access_view)
 	{
+		temp_mem<UINT> src_range_sizes(update.count);
+		std::fill(src_range_sizes.p, src_range_sizes.p + update.count, 1);
+
 #ifndef _WIN64
 		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
 		for (uint32_t k = 0; k < update.count; ++k)
 			src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };
 		const UINT src_range_size = 1;
 
-		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles.p, &src_range_size, convert_descriptor_type_to_heap_type(update.type));
+		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, src_handles.p, src_range_sizes.p, convert_descriptor_type_to_heap_type(update.type));
 #else
-		temp_mem<UINT> src_range_sizes(update.count);
-		std::fill(src_range_sizes.p, src_range_sizes.p + update.count, 1);
-
 		_device_impl->_orig->CopyDescriptors(1, &base_handle, &update.count, update.count, static_cast<const D3D12_CPU_DESCRIPTOR_HANDLE *>(update.descriptors), src_range_sizes.p, convert_descriptor_type_to_heap_type(update.type));
 #endif
 	}
