@@ -8,6 +8,7 @@
 #include <cmath> // signbit, isinf, isnan
 #include <cstdio> // snprintf
 #include <cassert>
+#include <cstring> // std::memcmp
 #include <algorithm> // std::find_if, std::max
 #include <unordered_set>
 

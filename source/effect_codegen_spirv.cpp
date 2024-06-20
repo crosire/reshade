@@ -6,7 +6,7 @@
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cassert>
-#include <cstring> // memcmp
+#include <cstring> // std::memcmp
 #include <algorithm> // std::find_if, std::max
 #include <unordered_set>
 

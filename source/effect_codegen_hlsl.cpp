@@ -9,7 +9,7 @@
 #include <cctype> // std::tolower
 #include <cstdio> // std::snprintf
 #include <cassert>
-#include <cstring> // stricmp
+#include <cstring> // stricmp, std::memcmp
 #include <algorithm> // std::find_if, std::max
 
 using namespace reshadefx;
