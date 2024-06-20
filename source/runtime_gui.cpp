@@ -1658,11 +1658,11 @@ void reshade::runtime::draw_gui_home()
 				_auto_save_preset,
 				(was_auto_save_preset ? 0.0f : auto_save_button_spacing) + button_width - (button_spacing + button_height) * (was_auto_save_preset ? 2 : 3)))
 		{
-			_preset_is_modified = false;
-
 			if (!was_auto_save_preset)
 				save_current_preset();
 			save_config();
+
+			_preset_is_modified = false;
 		}
 
 		ImGui::SetItemTooltip(_("Save current preset automatically on every modification"));
@@ -3881,6 +3881,8 @@ void reshade::runtime::draw_variable_editor()
 		if (force_reload_effect)
 		{
 			save_current_preset();
+
+			_preset_is_modified = false;
 
 			const bool reload_successful_before = _last_reload_successful;
 
