@@ -2630,8 +2630,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 					subobjects.push_back({ api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
 				}
 
-				assert(pass_info.srgb_write_enable < 2);
-
 				api::format render_target_formats[8] = {};
 
 				if (pass_info.render_target_names[0].empty())
@@ -2842,13 +2840,11 @@ bool reshade::runtime::create_effect(size_t effect_index)
 							write.table,
 							write.binding,
 							sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 },
-							!!info.srgb
+							info.srgb
 						});
 					}
 					else
 					{
-						assert(info.srgb < 2);
-
 						srv = sampler_texture->srv[info.srgb];
 					}
 

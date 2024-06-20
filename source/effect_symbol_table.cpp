@@ -9,7 +9,7 @@
 #include <algorithm> // std::upper_bound, std::sort
 #include <functional> // std::greater
 
-enum class intrinsic_id : uint32_t
+enum class intrinsic_id
 {
 #define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) name##i,
 	#include "effect_symbol_table_intrinsics.inl"
@@ -19,8 +19,8 @@ struct intrinsic
 {
 	intrinsic(const char *name, intrinsic_id id, const reshadefx::type &ret_type, std::initializer_list<reshadefx::type> arg_types) : id(id)
 	{
-		function.name = name;
 		function.return_type = ret_type;
+		function.name = name;
 		function.parameter_list.reserve(arg_types.size());
 		for (const reshadefx::type &arg_type : arg_types)
 			function.parameter_list.push_back({ arg_type });

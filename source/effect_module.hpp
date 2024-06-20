@@ -13,7 +13,7 @@ namespace reshadefx
 	/// <summary>
 	/// A list of supported texture types.
 	/// </summary>
-	enum class texture_type
+	enum class texture_type : uint8_t
 	{
 		texture_1d = 1,
 		texture_2d = 2,
@@ -23,7 +23,7 @@ namespace reshadefx
 	/// <summary>
 	/// A list of supported texture formats.
 	/// </summary>
-	enum class texture_format
+	enum class texture_format : uint8_t
 	{
 		unknown,
 
@@ -47,7 +47,7 @@ namespace reshadefx
 	/// <summary>
 	/// A filtering type used for texture lookups.
 	/// </summary>
-	enum class filter_mode
+	enum class filter_mode : uint8_t
 	{
 		min_mag_mip_point = 0,
 		min_mag_point_mip_linear = 0x1,
@@ -63,7 +63,7 @@ namespace reshadefx
 	/// <summary>
 	/// Specifies behavior of sampling with texture coordinates outside an image.
 	/// </summary>
-	enum class texture_address_mode
+	enum class texture_address_mode : uint8_t
 	{
 		wrap = 1,
 		mirror = 2,
@@ -147,10 +147,10 @@ namespace reshadefx
 	/// </summary>
 	struct struct_info
 	{
+		uint32_t definition = 0;
 		std::string name;
 		std::string unique_name;
 		std::vector<struct struct_member_info> member_list;
-		uint32_t definition = 0;
 	};
 
 	/// <summary>
@@ -159,10 +159,10 @@ namespace reshadefx
 	struct struct_member_info
 	{
 		reshadefx::type type = {};
+		uint32_t definition = 0;
 		std::string name;
 		std::string semantic;
 		reshadefx::location location;
-		uint32_t definition = 0;
 	};
 
 	/// <summary>
@@ -186,11 +186,11 @@ namespace reshadefx
 		std::string semantic;
 		std::string unique_name;
 		std::vector<annotation> annotations;
-		texture_type type = texture_type::texture_2d;
 		uint32_t width = 1;
 		uint32_t height = 1;
 		uint16_t depth = 1;
 		uint16_t levels = 1;
+		texture_type type = texture_type::texture_2d;
 		texture_format format = texture_format::rgba8;
 		bool render_target = false;
 		bool storage_access = false;
@@ -204,8 +204,8 @@ namespace reshadefx
 		uint32_t id = 0;
 		uint32_t binding = 0;
 		uint32_t texture_binding = 0;
-		std::string name;
 		reshadefx::type type = {};
+		std::string name;
 		std::string unique_name;
 		std::string texture_name;
 		std::vector<annotation> annotations;
@@ -216,7 +216,7 @@ namespace reshadefx
 		float min_lod = -3.402823466e+38f;
 		float max_lod = +3.402823466e+38f; // FLT_MAX
 		float lod_bias = 0.0f;
-		uint8_t srgb = false;
+		bool srgb = false;
 	};
 
 	/// <summary>
@@ -226,11 +226,11 @@ namespace reshadefx
 	{
 		uint32_t id = 0;
 		uint32_t binding = 0;
-		std::string name;
+		uint16_t level = 0;
 		reshadefx::type type = {};
+		std::string name;
 		std::string unique_name;
 		std::string texture_name;
-		uint16_t level = 0;
 	};
 
 	/// <summary>
@@ -238,8 +238,8 @@ namespace reshadefx
 	/// </summary>
 	struct uniform_info
 	{
-		std::string name;
 		reshadefx::type type = {};
+		std::string name;
 		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::vector<annotation> annotations;
@@ -273,15 +273,15 @@ namespace reshadefx
 	struct function_info
 	{
 		uint32_t definition = 0;
+		reshadefx::type return_type;
 		std::string name;
 		std::string unique_name;
-		reshadefx::type return_type;
 		std::string return_semantic;
 		std::vector<struct_member_info> parameter_list;
-		std::unordered_set<uint32_t> referenced_samplers;
-		std::unordered_set<uint32_t> referenced_storages;
 		shader_type type = shader_type::unknown;
 		int num_threads[3] = {};
+		std::unordered_set<uint32_t> referenced_samplers;
+		std::unordered_set<uint32_t> referenced_storages;
 	};
 
 	/// <summary>
@@ -294,27 +294,27 @@ namespace reshadefx
 		std::string vs_entry_point;
 		std::string ps_entry_point;
 		std::string cs_entry_point;
-		uint8_t generate_mipmaps = true;
-		uint8_t clear_render_targets = false;
-		uint8_t srgb_write_enable = false;
-		uint8_t blend_enable[8] = { false, false, false, false, false, false, false, false };
-		uint8_t stencil_enable = false;
-		uint8_t color_write_mask[8] = { 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF };
-		uint8_t stencil_read_mask = 0xFF;
-		uint8_t stencil_write_mask = 0xFF;
+		bool generate_mipmaps = true;
+		bool clear_render_targets = false;
+		bool blend_enable[8] = { false, false, false, false, false, false, false, false };
 		pass_blend_op blend_op[8] = { pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add };
 		pass_blend_op blend_op_alpha[8] = { pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add, pass_blend_op::add };
 		pass_blend_factor src_blend[8] = { pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one };
 		pass_blend_factor dest_blend[8] = { pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero };
 		pass_blend_factor src_blend_alpha[8] = { pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one, pass_blend_factor::one };
 		pass_blend_factor dest_blend_alpha[8] = { pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero, pass_blend_factor::zero };
+		bool srgb_write_enable = false;
+		uint8_t color_write_mask[8] = { 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF, 0xF };
+		bool stencil_enable = false;
+		uint8_t stencil_read_mask = 0xFF;
+		uint8_t stencil_write_mask = 0xFF;
 		pass_stencil_func stencil_comparison_func = pass_stencil_func::always;
-		uint32_t stencil_reference_value = 0;
 		pass_stencil_op stencil_op_pass = pass_stencil_op::keep;
 		pass_stencil_op stencil_op_fail = pass_stencil_op::keep;
 		pass_stencil_op stencil_op_depth_fail = pass_stencil_op::keep;
-		uint32_t num_vertices = 3;
 		primitive_topology topology = primitive_topology::triangle_list;
+		uint32_t stencil_reference_value = 0;
+		uint32_t num_vertices = 3;
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;
 		uint32_t viewport_dispatch_z = 1;

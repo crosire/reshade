@@ -772,8 +772,7 @@ private:
 				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
 			}
 
-			assert(info.srgb == 0 || info.srgb == 1);
-			info.texture_binding = tex_info.binding + info.srgb; // Offset binding by one to choose the SRGB variant
+			info.texture_binding = tex_info.binding + (info.srgb ? 1 : 0); // Offset binding by one to choose the SRGB variant
 
 			write_location(code, loc);
 
