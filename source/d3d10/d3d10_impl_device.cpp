@@ -14,21 +14,25 @@ reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
 {
 }
 
-bool reshade::d3d10::device_impl::get_property(api::device_properties property, void *data) const
+static com_ptr<IDXGIAdapter> get_adapter_for_device(ID3D10Device1 *device, DXGI_ADAPTER_DESC &adapter_desc)
 {
-	LARGE_INTEGER umd_version = {};
-	DXGI_ADAPTER_DESC adapter_desc = {};
-
-	if (com_ptr<IDXGIDevice> dxgi_device;
-		SUCCEEDED(_orig->QueryInterface(&dxgi_device)))
+	com_ptr<IDXGIDevice> dxgi_device;
+	if (SUCCEEDED(device->QueryInterface(&dxgi_device)))
 	{
-		if (com_ptr<IDXGIAdapter> dxgi_adapter;
-			SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		com_ptr<IDXGIAdapter> dxgi_adapter;
+		if (SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
 		{
-			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
 			dxgi_adapter->GetDesc(&adapter_desc);
+			return dxgi_adapter;
 		}
 	}
+
+	return nullptr;
+}
+
+bool reshade::d3d10::device_impl::get_property(api::device_properties property, void *data) const
+{
+	DXGI_ADAPTER_DESC adapter_desc;
 
 	switch (property)
 	{
@@ -36,18 +40,36 @@ bool reshade::d3d10::device_impl::get_property(api::device_properties property, 
 		*static_cast<uint32_t *>(data) = _orig->GetFeatureLevel();
 		return true;
 	case api::device_properties::driver_version:
-		*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
-		return umd_version.LowPart != 0;
+		if (const auto dxgi_adapter = get_adapter_for_device(_orig, adapter_desc))
+		{
+			LARGE_INTEGER umd_version = {};
+			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
+			*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+			return true;
+		}
+		return false;
 	case api::device_properties::vendor_id:
-		*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
-		return adapter_desc.VendorId != 0;
+		if (get_adapter_for_device(_orig, adapter_desc))
+		{
+			*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
+			return true;
+		}
+		return false;
 	case api::device_properties::device_id:
-		*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
-		return adapter_desc.DeviceId != 0;
+		if (get_adapter_for_device(_orig, adapter_desc))
+		{
+			*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
+			return true;
+		}
+		return false;
 	case api::device_properties::description:
-		static_assert(std::size(adapter_desc.Description) <= 256);
-		utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
-		return true;
+		if (get_adapter_for_device(_orig, adapter_desc))
+		{
+			static_assert(std::size(adapter_desc.Description) <= 256);
+			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
+			return true;
+		}
+		return false;
 	default:
 		return false;
 	}
@@ -516,6 +538,160 @@ void reshade::d3d10::device_impl::update_texture_region(const api::subresource_d
 	_orig->UpdateSubresource(reinterpret_cast<ID3D10Resource *>(resource.handle), subresource, reinterpret_cast<const D3D10_BOX *>(box), data.data, data.row_pitch, data.slice_pitch);
 }
 
+bool reshade::d3d10::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, const api::shader_desc &signature, api::pipeline *out_handle)
+{
+	static_assert(alignof(ID3D10InputLayout) >= 2);
+
+	// Empty input layout is valid, but generates a warning, so just return success and a zero handle
+	if (count == 0)
+	{
+		*out_handle = { 0 };
+		return true;
+	}
+
+	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_desc(count);
+	for (uint32_t i = 0; i < count; ++i)
+		convert_input_element(desc[i], internal_desc[i]);
+
+	if (com_ptr<ID3D10InputLayout> object;
+		SUCCEEDED(_orig->CreateInputLayout(internal_desc.data(), static_cast<UINT>(internal_desc.size()), signature.code, signature.code_size, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(ID3D10VertexShader) >= 2);
+
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
+
+	if (com_ptr<ID3D10VertexShader> object;
+		SUCCEEDED(_orig->CreateVertexShader(desc.code, desc.code_size, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_geometry_shader(const api::shader_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(ID3D10GeometryShader) >= 2);
+
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
+
+	if (com_ptr<ID3D10GeometryShader> object;
+		SUCCEEDED(_orig->CreateGeometryShader(desc.code, desc.code_size, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(ID3D10PixelShader) >= 2);
+
+	assert(desc.entry_point == nullptr);
+	assert(desc.spec_constants == 0);
+
+	if (com_ptr<ID3D10PixelShader> object;
+		SUCCEEDED(_orig->CreatePixelShader(desc.code, desc.code_size, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_blend_state(const api::blend_desc &desc, api::pipeline *out_handle)
+{
+	if (desc.logic_op_enable[0])
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	static_assert(alignof(ID3D10BlendState1) >= 2);
+
+	D3D10_BLEND_DESC1 internal_desc = {};
+	convert_blend_desc(desc, internal_desc);
+
+	if (com_ptr<ID3D10BlendState1> object;
+		SUCCEEDED(_orig->CreateBlendState1(&internal_desc, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_rasterizer_state(const api::rasterizer_desc &desc, api::pipeline *out_handle)
+{
+	if (desc.conservative_rasterization)
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+
+	static_assert(alignof(ID3D10RasterizerState) >= 2);
+
+	D3D10_RASTERIZER_DESC internal_desc = {};
+	convert_rasterizer_desc(desc, internal_desc);
+
+	if (com_ptr<ID3D10RasterizerState> object;
+		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::depth_stencil_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(ID3D10DepthStencilState) >= 2);
+
+	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
+	convert_depth_stencil_desc(desc, internal_desc);
+
+	if (com_ptr<ID3D10DepthStencilState> object;
+		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+
 bool reshade::d3d10::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
 	api::shader_desc vertex_shader_desc = {};
@@ -706,159 +882,6 @@ bool reshade::d3d10::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 exit_failure:
 	*out_handle = { 0 };
 	return false;
-}
-bool reshade::d3d10::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, const api::shader_desc &signature, api::pipeline *out_handle)
-{
-	static_assert(alignof(ID3D10InputLayout) >= 2);
-
-	// Empty input layout is valid, but generates a warning, so just return success and a zero handle
-	if (count == 0)
-	{
-		*out_handle = { 0 };
-		return true;
-	}
-
-	std::vector<D3D10_INPUT_ELEMENT_DESC> internal_desc(count);
-	for (uint32_t i = 0; i < count; ++i)
-		convert_input_element(desc[i], internal_desc[i]);
-
-	if (com_ptr<ID3D10InputLayout> object;
-		SUCCEEDED(_orig->CreateInputLayout(internal_desc.data(), static_cast<UINT>(internal_desc.size()), signature.code, signature.code_size, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(ID3D10VertexShader) >= 2);
-
-	assert(desc.entry_point == nullptr);
-	assert(desc.spec_constants == 0);
-
-	if (com_ptr<ID3D10VertexShader> object;
-		SUCCEEDED(_orig->CreateVertexShader(desc.code, desc.code_size, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_geometry_shader(const api::shader_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(ID3D10GeometryShader) >= 2);
-
-	assert(desc.entry_point == nullptr);
-	assert(desc.spec_constants == 0);
-
-	if (com_ptr<ID3D10GeometryShader> object;
-		SUCCEEDED(_orig->CreateGeometryShader(desc.code, desc.code_size, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(ID3D10PixelShader) >= 2);
-
-	assert(desc.entry_point == nullptr);
-	assert(desc.spec_constants == 0);
-
-	if (com_ptr<ID3D10PixelShader> object;
-		SUCCEEDED(_orig->CreatePixelShader(desc.code, desc.code_size, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_blend_state(const api::blend_desc &desc, api::pipeline *out_handle)
-{
-	if (desc.logic_op_enable[0])
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-
-	static_assert(alignof(ID3D10BlendState1) >= 2);
-
-	D3D10_BLEND_DESC1 internal_desc = {};
-	convert_blend_desc(desc, internal_desc);
-
-	if (com_ptr<ID3D10BlendState1> object;
-		SUCCEEDED(_orig->CreateBlendState1(&internal_desc, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_rasterizer_state(const api::rasterizer_desc &desc, api::pipeline *out_handle)
-{
-	if (desc.conservative_rasterization)
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-
-	static_assert(alignof(ID3D10RasterizerState) >= 2);
-
-	D3D10_RASTERIZER_DESC internal_desc = {};
-	convert_rasterizer_desc(desc, internal_desc);
-
-	if (com_ptr<ID3D10RasterizerState> object;
-		SUCCEEDED(_orig->CreateRasterizerState(&internal_desc, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d10::device_impl::create_depth_stencil_state(const api::depth_stencil_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(ID3D10DepthStencilState) >= 2);
-
-	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
-	convert_depth_stencil_desc(desc, internal_desc);
-
-	if (com_ptr<ID3D10DepthStencilState> object;
-		SUCCEEDED(_orig->CreateDepthStencilState(&internal_desc, &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
 }
 void reshade::d3d10::device_impl::destroy_pipeline(api::pipeline handle)
 {

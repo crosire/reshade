@@ -84,18 +84,21 @@ namespace reshade::api
 template <typename T, size_t STACK_ELEMENTS = 16>
 struct temp_mem
 {
-	explicit temp_mem(size_t elements = STACK_ELEMENTS)
+	explicit temp_mem(size_t elements = STACK_ELEMENTS) : p(stack)
 	{
 		if (elements > STACK_ELEMENTS)
 			p = new T[elements];
-		else
-			p = stack;
 	}
+	temp_mem(const temp_mem &) = delete;
+	temp_mem(temp_mem &&) = delete;
 	~temp_mem()
 	{
 		if (p != stack)
 			delete[] p;
 	}
+
+	temp_mem &operator=(const temp_mem &) = delete;
+	temp_mem &operator=(temp_mem &&other_mem) = delete;
 
 	T &operator[](size_t element)
 	{

@@ -138,8 +138,7 @@ void reshade::d3d9::device_impl::on_reset()
 
 bool reshade::d3d9::device_impl::get_property(api::device_properties property, void *data) const
 {
-	D3DADAPTER_IDENTIFIER9 adapter_desc = {};
-	_d3d->GetAdapterIdentifier(_cp.AdapterOrdinal, 0, &adapter_desc);
+	D3DADAPTER_IDENTIFIER9 adapter_desc;
 
 	switch (property)
 	{
@@ -147,19 +146,35 @@ bool reshade::d3d9::device_impl::get_property(api::device_properties property, v
 		*static_cast<uint32_t *>(data) = 0x9000;
 		return true;
 	case api::device_properties::driver_version:
-		// Only the last 5 digits represents the version specific to a driver
-		// See https://docs.microsoft.com/windows-hardware/drivers/display/version-numbers-for-display-drivers
-		*static_cast<uint32_t *>(data) = LOWORD(adapter_desc.DriverVersion.LowPart) + (HIWORD(adapter_desc.DriverVersion.LowPart) % 10) * 10000;
-		return adapter_desc.DriverVersion.LowPart != 0;
+		if (SUCCEEDED(_d3d->GetAdapterIdentifier(_cp.AdapterOrdinal, 0, &adapter_desc)))
+		{
+			// Only the last 5 digits represents the version specific to a driver
+			// See https://docs.microsoft.com/windows-hardware/drivers/display/version-numbers-for-display-drivers
+			*static_cast<uint32_t *>(data) = LOWORD(adapter_desc.DriverVersion.LowPart) + (HIWORD(adapter_desc.DriverVersion.LowPart) % 10) * 10000;
+			return true;
+		}
+		return false;
 	case api::device_properties::vendor_id:
-		*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
-		return adapter_desc.VendorId != 0;
+		if (SUCCEEDED(_d3d->GetAdapterIdentifier(_cp.AdapterOrdinal, 0, &adapter_desc)))
+		{
+			*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
+			return true;
+		}
+		return false;
 	case api::device_properties::device_id:
-		*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
-		return adapter_desc.DeviceId != 0;
+		if (SUCCEEDED(_d3d->GetAdapterIdentifier(_cp.AdapterOrdinal, 0, &adapter_desc)))
+		{
+			*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
+			return true;
+		}
+		return false;
 	case api::device_properties::description:
-		std::copy_n(adapter_desc.Description, 256, static_cast<char *>(data));
-		return true;
+		if (SUCCEEDED(_d3d->GetAdapterIdentifier(_cp.AdapterOrdinal, 0, &adapter_desc)))
+		{
+			std::copy_n(adapter_desc.Description, 256, static_cast<char *>(data));
+			return true;
+		}
+		return false;
 	default:
 		return false;
 	}
@@ -1318,6 +1333,74 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 	assert(false); // Not implemented
 }
 
+bool reshade::d3d9::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
+
+	// Avoid vertex declaration creation if the input layout is empty
+	if (count == 0)
+	{
+		*out_handle = { 0 };
+		return true;
+	}
+
+	assert(count <= MAXD3DDECLLENGTH);
+
+	std::vector<D3DVERTEXELEMENT9> internal_desc(count);
+	for (uint32_t i = 0; i < count; ++i)
+		convert_input_element(desc[i], internal_desc[i]);
+
+	internal_desc.push_back(D3DDECL_END());
+
+	if (com_ptr<IDirect3DVertexDeclaration9> object;
+		SUCCEEDED(_orig->CreateVertexDeclaration(internal_desc.data(), &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(IDirect3DVertexShader9) >= 2);
+
+	assert(desc.spec_constants == 0);
+
+	if (com_ptr<IDirect3DVertexShader9> object;
+		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.code), &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+bool reshade::d3d9::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
+{
+	static_assert(alignof(IDirect3DPixelShader9) >= 2);
+
+	assert(desc.spec_constants == 0);
+
+	if (com_ptr<IDirect3DPixelShader9> object;
+		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.code), &object)))
+	{
+		*out_handle = to_handle(object.release());
+		return true;
+	}
+	else
+	{
+		*out_handle = { 0 };
+		return false;
+	}
+}
+
 bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle)
 {
 	com_ptr<IDirect3DVertexShader9> vertex_shader;
@@ -1582,73 +1665,6 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 exit_failure:
 	*out_handle = { 0 };
 	return false;
-}
-bool reshade::d3d9::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(IDirect3DVertexDeclaration9) >= 2);
-
-	// Avoid vertex declaration creation if the input layout is empty
-	if (count == 0)
-	{
-		*out_handle = { 0 };
-		return true;
-	}
-
-	assert(count <= MAXD3DDECLLENGTH);
-
-	std::vector<D3DVERTEXELEMENT9> internal_desc(count);
-	for (uint32_t i = 0; i < count; ++i)
-		convert_input_element(desc[i], internal_desc[i]);
-
-	internal_desc.push_back(D3DDECL_END());
-
-	if (com_ptr<IDirect3DVertexDeclaration9> object;
-		SUCCEEDED(_orig->CreateVertexDeclaration(internal_desc.data(), &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d9::device_impl::create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(IDirect3DVertexShader9) >= 2);
-
-	assert(desc.spec_constants == 0);
-
-	if (com_ptr<IDirect3DVertexShader9> object;
-		SUCCEEDED(_orig->CreateVertexShader(static_cast<const DWORD *>(desc.code), &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
-}
-bool reshade::d3d9::device_impl::create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle)
-{
-	static_assert(alignof(IDirect3DPixelShader9) >= 2);
-
-	assert(desc.spec_constants == 0);
-
-	if (com_ptr<IDirect3DPixelShader9> object;
-		SUCCEEDED(_orig->CreatePixelShader(static_cast<const DWORD *>(desc.code), &object)))
-	{
-		*out_handle = to_handle(object.release());
-		return true;
-	}
-	else
-	{
-		*out_handle = { 0 };
-		return false;
-	}
 }
 void reshade::d3d9::device_impl::destroy_pipeline(api::pipeline handle)
 {

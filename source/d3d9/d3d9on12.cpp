@@ -29,8 +29,7 @@ void init_device_proxy_for_d3d9on12(Direct3DDevice9 *device_proxy)
 		com_ptr<ID3D12Device> d3d12_device;
 		if (SUCCEEDED(d3d9on12_device->GetD3D12Device(IID_PPV_ARGS(&d3d12_device))))
 		{
-			D3D12Device *const device_proxy_12 = get_private_pointer_d3dx<D3D12Device>(d3d12_device.get());
-			if (device_proxy_12 != nullptr)
+			if (const auto device_proxy_12 = get_private_pointer_d3dx<D3D12Device>(d3d12_device.get()))
 			{
 				device_proxy->_d3d9on12_device = new Direct3DDevice9On12(device_proxy, device_proxy_12, d3d9on12_device);
 			}

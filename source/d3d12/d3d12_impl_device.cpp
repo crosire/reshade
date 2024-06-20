@@ -86,11 +86,10 @@ reshade::d3d12::device_impl::~device_impl()
 #endif
 }
 
-bool reshade::d3d12::device_impl::get_property(api::device_properties property, void *data) const
+static com_ptr<IDXGIAdapter> get_adapter_for_device(ID3D12Device *device, DXGI_ADAPTER_DESC &adapter_desc)
 {
-	const LUID luid = _orig->GetAdapterLuid();
-	LARGE_INTEGER umd_version = {};
-	DXGI_ADAPTER_DESC adapter_desc = {};
+	const LUID luid = device->GetAdapterLuid();
+
 	com_ptr<IDXGIAdapter> dxgi_adapter;
 
 	const auto CreateDXGIFactory1 = reinterpret_cast<HRESULT(WINAPI *)(REFIID riid, void **ppFactory)>(
@@ -103,21 +102,28 @@ bool reshade::d3d12::device_impl::get_property(api::device_properties property, 
 	if (com_ptr<IDXGIFactory4> factory4;
 		CreateDXGIFactory2 != nullptr && SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
 	{
-		factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter));
+		if (SUCCEEDED(factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
+		{
+			dxgi_adapter->GetDesc(&adapter_desc);
+		}
 	}
-	else if (com_ptr<IDXGIFactory1> factory1;
+	else
+	if (com_ptr<IDXGIFactory1> factory1;
 		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
 	{
 		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
+		{
 			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)) && std::memcmp(&adapter_desc.AdapterLuid, &luid, sizeof(luid)) == 0)
 				break;
+		}
 	}
 
-	if (dxgi_adapter != nullptr)
-	{
-		dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
-		dxgi_adapter->GetDesc(&adapter_desc);
-	}
+	return dxgi_adapter;
+}
+
+bool reshade::d3d12::device_impl::get_property(api::device_properties property, void *data) const
+{
+	DXGI_ADAPTER_DESC adapter_desc;
 
 	switch (property)
 	{
@@ -125,18 +131,36 @@ bool reshade::d3d12::device_impl::get_property(api::device_properties property, 
 		*static_cast<uint32_t *>(data) = D3D_FEATURE_LEVEL_12_0;
 		return true;
 	case api::device_properties::driver_version:
-		*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
-		return umd_version.LowPart != 0;
+		if (const auto dxgi_adapter = get_adapter_for_device(_orig, adapter_desc))
+		{
+			LARGE_INTEGER umd_version = {};
+			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
+			*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
+			return true;
+		}
+		return false;
 	case api::device_properties::vendor_id:
-		*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
-		return adapter_desc.VendorId != 0;
+		if (get_adapter_for_device(_orig, adapter_desc))
+		{
+			*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
+			return true;
+		}
+		return false;
 	case api::device_properties::device_id:
-		*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
-		return adapter_desc.DeviceId != 0;
+		if (get_adapter_for_device(_orig, adapter_desc))
+		{
+			*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
+			return true;
+		}
+		return false;
 	case api::device_properties::description:
-		static_assert(std::size(adapter_desc.Description) <= 256);
-		utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
-		return true;
+		if (get_adapter_for_device(_orig, adapter_desc))
+		{
+			static_assert(std::size(adapter_desc.Description) <= 256);
+			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
+			return true;
+		}
+		return false;
 	case api::device_properties::shader_group_handle_size:
 		*static_cast<uint32_t *>(data) = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 		return true;
@@ -1478,8 +1502,7 @@ bool reshade::d3d12::device_impl::allocate_descriptor_tables(uint32_t count, api
 	uint32_t total_count = 0;
 	D3D12_DESCRIPTOR_HEAP_TYPE heap_type = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 
-	if (const com_ptr<ID3D12RootSignature> signature(reinterpret_cast<ID3D12RootSignature *>(layout.handle), false);
-		signature != nullptr)
+	if (const com_ptr<ID3D12RootSignature> signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle))
 	{
 		pipeline_layout_extra_data extra_data;
 		UINT extra_data_size = sizeof(extra_data);

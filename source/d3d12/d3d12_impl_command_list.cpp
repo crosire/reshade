@@ -174,7 +174,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 		{
 			depth_stencil_handle = { static_cast<SIZE_T>(ds->view.handle) };
 
-			if (const UINT clear_flags = (ds->depth_load_op == api::render_pass_load_op::clear ? D3D12_CLEAR_FLAG_DEPTH : 0) | (ds->stencil_load_op == api::render_pass_load_op::clear ? D3D12_CLEAR_FLAG_STENCIL : 0))
+			if (const UINT clear_flags = (ds->depth_load_op == api::render_pass_load_op::clear ? D3D12_CLEAR_FLAG_DEPTH : 0u) | (ds->stencil_load_op == api::render_pass_load_op::clear ? D3D12_CLEAR_FLAG_STENCIL : 0u))
 				_orig->ClearDepthStencilView(depth_stencil_handle, static_cast<D3D12_CLEAR_FLAGS>(clear_flags), ds->clear_depth, ds->clear_stencil, 0, nullptr);
 		}
 
@@ -924,7 +924,7 @@ void reshade::d3d12::command_list_impl::clear_depth_stencil_view(api::resource_v
 
 	_orig->ClearDepthStencilView(
 		D3D12_CPU_DESCRIPTOR_HANDLE { static_cast<SIZE_T>(dsv.handle) },
-		static_cast<D3D12_CLEAR_FLAGS>((depth != nullptr ? D3D12_CLEAR_FLAG_DEPTH : 0) | (stencil != nullptr ? D3D12_CLEAR_FLAG_STENCIL : 0)), depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0,
+		(depth != nullptr ? D3D12_CLEAR_FLAG_DEPTH : D3D12_CLEAR_FLAGS(0u)) | (stencil != nullptr ? D3D12_CLEAR_FLAG_STENCIL : D3D12_CLEAR_FLAGS(0u)), depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0,
 		rect_count, reinterpret_cast<const D3D12_RECT *>(rects));
 }
 void reshade::d3d12::command_list_impl::clear_render_target_view(api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)

@@ -48,10 +48,11 @@ namespace reshade::d3d9
 		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
-		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle) final;
 		bool create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_handle);
 		bool create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_handle);
 		bool create_pixel_shader(const api::shader_desc &desc, api::pipeline *out_handle);
+
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_handle) final;
 		void destroy_pipeline(api::pipeline handle) final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_handle) final;

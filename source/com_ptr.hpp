@@ -106,6 +106,8 @@ public:
 		return *this;
 	}
 
+	explicit operator bool() const { return _object != nullptr; }
+
 	bool operator==(const T *rhs) const { return _object == rhs; }
 	bool operator==(const com_ptr<T> &rhs) const { return _object == rhs._object; }
 	friend bool operator==(const T *lhs, const com_ptr<T> &rhs) { return rhs.operator==(lhs); }

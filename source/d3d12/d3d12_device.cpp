@@ -917,8 +917,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pOb
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID riid, void **ppvObj)
 {
 	const HRESULT hr = _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
-	if (SUCCEEDED(hr) &&
-		ppvObj != nullptr)
+	if (SUCCEEDED(hr) && ppvObj != nullptr)
 	{
 		if (riid == __uuidof(ID3D12Resource) ||
 			riid == __uuidof(ID3D12Resource1) ||
@@ -1064,8 +1063,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 	assert(_interface_version >= 1);
 
 	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
-	if (SUCCEEDED(hr) &&
-		ppPipelineLibrary != nullptr)
+	if (SUCCEEDED(hr) && ppPipelineLibrary != nullptr)
 	{
 #if RESHADE_ADDON >= 2
 		if (riid == __uuidof(ID3D12PipelineLibrary) ||

@@ -912,7 +912,7 @@ void reshade::d3d9::device_impl::clear_depth_stencil_view(api::resource_view dsv
 
 	_orig->Clear(
 		0, nullptr,
-		(depth != nullptr ? D3DCLEAR_ZBUFFER : 0) | (stencil != nullptr ? D3DCLEAR_STENCIL : 0),
+		(depth != nullptr ? D3DCLEAR_ZBUFFER : 0u) | (stencil != nullptr ? D3DCLEAR_STENCIL : 0u),
 		0, depth != nullptr ? *depth : 0.0f, stencil != nullptr ? *stencil : 0);
 
 	if (prev_surface != reinterpret_cast<IDirect3DSurface9 *>(dsv.handle))

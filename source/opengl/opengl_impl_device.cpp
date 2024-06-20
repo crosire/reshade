@@ -151,37 +151,34 @@ reshade::opengl::device_impl::~device_impl()
 
 bool reshade::opengl::device_impl::get_property(api::device_properties property, void *data) const
 {
-	GLint major = 0, minor = 0;
-	gl.GetIntegerv(GL_MAJOR_VERSION, &major);
-	gl.GetIntegerv(GL_MINOR_VERSION, &minor);
-
-	unsigned int vendor_id = 0, device_id = 0;
-	// Query vendor and device ID from Windows assuming we are running on the primary display device
-	// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
-	DISPLAY_DEVICEA dd = { sizeof(dd) };
-	for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
-	{
-		if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
-		{
-			std::sscanf(dd.DeviceID, "PCI\\VEN_%x&DEV_%x", &vendor_id, &device_id);
-			break;
-		}
-	}
-
 	switch (property)
 	{
 	case api::device_properties::api_version:
+	{
+		GLint major = 0, minor = 0;
+		gl.GetIntegerv(GL_MAJOR_VERSION, &major);
+		gl.GetIntegerv(GL_MINOR_VERSION, &minor);
 		*static_cast<uint32_t *>(data) = (major << 12) | (minor << 8);
 		return true;
+	}
 	case api::device_properties::driver_version:
 		*static_cast<uint32_t *>(data) = 0;
 		return false;
 	case api::device_properties::vendor_id:
-		*static_cast<uint32_t *>(data) = vendor_id;
-		return vendor_id != 0;
 	case api::device_properties::device_id:
-		*static_cast<uint32_t *>(data) = device_id;
-		return device_id != 0;
+	{
+		// Query vendor and device ID from Windows assuming we are running on the primary display device
+		// This is done because the information reported by OpenGL is not always reflecting the actual rendering device (e.g. on NVIDIA Optimus laptops)
+		DISPLAY_DEVICEA dd = { sizeof(dd) };
+		for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
+		{
+			if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
+			{
+				return std::sscanf(dd.DeviceID, property == api::device_properties::vendor_id ? "PCI\\VEN_%x&DEV_%*x" : "PCI\\VEN_%*x&DEV_%x", static_cast<uint32_t *>(data)) != 0;
+			}
+		}
+		return false;
+	}
 	case api::device_properties::description:
 	{
 		const GLubyte *const name = gl.GetString(GL_RENDERER);
