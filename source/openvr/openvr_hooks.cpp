@@ -81,10 +81,12 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	if (com_ptr<ID3D10Device> device10;
 		device->QueryInterface(&device10) == S_OK)
 	{
-		// Also check that the device has a proxy 'D3D10Device' interface, otherwise it is likely still a D3D11 device exposing the 'ID3D10Device interface, after 'ID3D11Device::CreateDeviceContextState' was called
+		// Also check that the device has a proxy 'D3D10Device' interface, otherwise it is likely still a D3D11 device exposing the 'ID3D10Device' interface, after 'ID3D11Device::CreateDeviceContextState' was called
 		if (const auto device10_proxy = get_private_pointer_d3dx<D3D10Device>(device10.get()))
+		{
 			// Whoops, this is actually a D3D10 texture, redirect ...
 			return on_vr_submit_d3d10(compositor, eye, reinterpret_cast<ID3D10Texture2D *>(texture), color_space, bounds, flags, submit, device10_proxy);
+		}
 	}
 
 	const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(device.get());

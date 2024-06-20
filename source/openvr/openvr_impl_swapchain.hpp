@@ -42,7 +42,6 @@ namespace reshade::openvr
 
 		bool on_init();
 		void on_reset();
-		bool is_initialized() const { return _side_by_side_texture != 0; }
 
 		bool on_vr_submit(api::command_queue *queue, vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
 

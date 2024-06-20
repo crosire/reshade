@@ -112,7 +112,6 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		if (const auto binding_opengl = find_in_structure_chain<XrGraphicsBindingOpenGLWin32KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR))
 		{
 			extern thread_local reshade::opengl::device_context_impl *g_current_context;
-
 			if (g_current_context != nullptr)
 			{
 				assert(reinterpret_cast<HGLRC>(g_current_context->get_native()) == binding_opengl->hGLRC);
@@ -300,50 +299,48 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 
 	if (data.swapchain_impl != nullptr)
 	{
-		reshade::api::resource left_texture = {};
-		reshade::api::rect left_rect;
-		uint32_t left_layer = 0;
-		reshade::api::resource right_texture = {};
-		reshade::api::rect right_rect;
-		uint32_t right_layer = 0;
-
-		for (uint32_t i = 0; i < frameEndInfo->layerCount; ++i)
+		for (uint32_t layer_index = 0; layer_index < frameEndInfo->layerCount; ++layer_index)
 		{
-			if (frameEndInfo->layers[i]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION)
+			if (frameEndInfo->layers[layer_index]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION)
 			{
-				const XrCompositionLayerProjection *const layer = reinterpret_cast<const XrCompositionLayerProjection *>(frameEndInfo->layers[i]);
+				const XrCompositionLayerProjection *const layer = reinterpret_cast<const XrCompositionLayerProjection *>(frameEndInfo->layers[layer_index]);
 
-				if (layer->viewCount != 2)
-					continue; // Only support stereo views
+				uint32_t view_count = 0;
+				temp_mem<reshade::api::resource, 2> view_textures(layer->viewCount);
+				temp_mem<reshade::api::subresource_box, 2> view_boxes(layer->viewCount);
+				temp_mem<uint32_t, 2> view_layers(layer->viewCount);
 
-				XrSwapchainSubImage const &left_sub_image = layer->views[0].subImage;
-				XrSwapchainSubImage const &right_sub_image = layer->views[1].subImage;
+				assert(layer->viewCount != 0);
 
-				const openxr_swapchain_data &left_data = s_openxr_swapchains.at(left_sub_image.swapchain);
-				const openxr_swapchain_data &right_data = s_openxr_swapchains.at(right_sub_image.swapchain);
+				for (; view_count < layer->viewCount; ++view_count)
+				{
+					XrSwapchainSubImage const &sub_image = layer->views[view_count].subImage;
 
-				if (left_data.create_flags & XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT || right_data.create_flags & XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT)
-					continue; // Cannot apply effects to a static image, since it would just stack on top of the previous result every frame
+					const openxr_swapchain_data &swapchain_data = s_openxr_swapchains.at(sub_image.swapchain);
 
-				left_texture = left_data.surface_images[left_data.last_released_index];
-				left_rect.left = left_sub_image.imageRect.offset.x;
-				left_rect.top = left_sub_image.imageRect.offset.y;
-				left_rect.right = left_sub_image.imageRect.offset.x + left_sub_image.imageRect.extent.width;
-				left_rect.bottom = left_sub_image.imageRect.offset.y + left_sub_image.imageRect.extent.height;
-				left_layer = left_sub_image.imageArrayIndex;
+					if ((swapchain_data.create_flags & XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT) != 0)
+						break; // Cannot apply effects to a static image, since it would just stack on top of the previous result every frame
 
-				right_texture = right_data.surface_images[right_data.last_released_index];
-				right_rect.left = right_sub_image.imageRect.offset.x;
-				right_rect.top = right_sub_image.imageRect.offset.y;
-				right_rect.right = right_sub_image.imageRect.offset.x + right_sub_image.imageRect.extent.width;
-				right_rect.bottom = right_sub_image.imageRect.offset.y + right_sub_image.imageRect.extent.height;
-				right_layer = right_sub_image.imageArrayIndex;
-				break;
+					view_textures[view_count] = swapchain_data.surface_images[swapchain_data.last_released_index];
+
+					reshade::api::subresource_box &view_box = view_boxes[view_count];
+					view_box.left = sub_image.imageRect.offset.x;
+					view_box.top = sub_image.imageRect.offset.y;
+					view_box.front = 0;
+					view_box.right = sub_image.imageRect.offset.x + sub_image.imageRect.extent.width;
+					view_box.bottom = sub_image.imageRect.offset.y + sub_image.imageRect.extent.height;
+					view_box.back = 1;
+
+					view_layers[view_count] = sub_image.imageArrayIndex;
+				}
+
+				if (view_count == layer->viewCount)
+				{
+					data.swapchain_impl->on_present(view_count, view_textures.p, view_boxes.p, view_layers.p);
+					break;
+				}
 			}
 		}
-
-		if (left_texture != 0 && right_texture != 0)
-			data.swapchain_impl->on_present(left_texture, left_rect, left_layer, right_texture, right_rect, right_layer);
 	}
 
 	GET_DISPATCH_PTR_FROM(EndFrame, data.dispatch_table);

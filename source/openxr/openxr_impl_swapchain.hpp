@@ -11,12 +11,6 @@
 
 namespace reshade::openxr
 {
-	enum class eye
-	{
-		left = 0,
-		right
-	};
-
 	class swapchain_impl : public api::api_object_impl<XrSession, api::swapchain>
 	{
 	public:
@@ -36,13 +30,13 @@ namespace reshade::openxr
 
 		api::color_space get_color_space() const final { return api::color_space::unknown; }
 
-		api::rect get_eye_rect(eye eye) const;
-		api::subresource_box get_eye_subresource_box(eye eye) const;
+		api::rect get_view_rect(uint32_t index, uint32_t view_count) const;
+		api::subresource_box get_view_subresource_box(uint32_t index, uint32_t view_count) const;
 
 		bool on_init();
 		void on_reset();
 
-		void on_present(api::resource left_texture, const api::rect &left_rect, uint32_t left_layer, api::resource right_texture, const api::rect &right_rect, uint32_t right_layer);
+		void on_present(uint32_t view_count, const api::resource *view_textures, const api::subresource_box *view_boxes, const uint32_t *view_layers);
 
 	private:
 		api::device *const _device;

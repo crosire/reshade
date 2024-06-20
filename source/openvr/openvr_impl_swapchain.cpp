@@ -128,7 +128,7 @@ bool reshade::openvr::swapchain_impl::on_init()
 }
 void reshade::openvr::swapchain_impl::on_reset()
 {
-	if (!is_initialized())
+	if (_side_by_side_texture == 0)
 		return;
 
 	reset_effect_runtime(this);
@@ -148,7 +148,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr
 	const api::resource_desc source_desc = _device->get_resource_desc(eye_texture);
 
 	if (source_desc.texture.samples > 1 && !_device->check_capability(api::device_caps::resolve_region))
-		return false; // Can only copy whole subresources when the resource is multisampled
+		return false; // When the resource is multisampled, can only copy whole subresources 
 
 	reshade::api::subresource_box source_box;
 	if (bounds != nullptr)

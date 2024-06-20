@@ -35,22 +35,22 @@ reshade::api::resource reshade::openxr::swapchain_impl::get_back_buffer(uint32_t
 	return _side_by_side_texture;
 }
 
-reshade::api::rect reshade::openxr::swapchain_impl::get_eye_rect(eye eye) const
+reshade::api::rect reshade::openxr::swapchain_impl::get_view_rect(uint32_t index, uint32_t view_count) const
 {
 	const api::resource_desc desc = _device->get_resource_desc(_side_by_side_texture);
 
 	return api::rect {
-		static_cast<int32_t>(static_cast<int>(eye) * (desc.texture.width / 2)), 0,
-		static_cast<int32_t>((static_cast<int>(eye) + 1) * (desc.texture.width / 2)), static_cast<int32_t>(desc.texture.height)
+		static_cast<int32_t>(index * (desc.texture.width / view_count)), 0,
+		static_cast<int32_t>((index + 1) * (desc.texture.width / view_count)), static_cast<int32_t>(desc.texture.height)
 	};
 }
-reshade::api::subresource_box reshade::openxr::swapchain_impl::get_eye_subresource_box(eye eye) const
+reshade::api::subresource_box reshade::openxr::swapchain_impl::get_view_subresource_box(uint32_t index, uint32_t view_count) const
 {
 	const api::resource_desc desc = _device->get_resource_desc(_side_by_side_texture);
 
 	return api::subresource_box {
-		static_cast<int32_t>(static_cast<int>(eye) * (desc.texture.width / 2)), 0, 0,
-		static_cast<int32_t>((static_cast<int>(eye) + 1) * (desc.texture.width / 2)), static_cast<int32_t>(desc.texture.height), 1
+		static_cast<int32_t>(index * (desc.texture.width / view_count)), 0, 0,
+		static_cast<int32_t>((index + 1) * (desc.texture.width / view_count)), static_cast<int32_t>(desc.texture.height), 1
 	};
 }
 
@@ -82,41 +82,27 @@ void reshade::openxr::swapchain_impl::on_reset()
 	_side_by_side_texture = {};
 }
 
-void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain_image, const api::rect &left_rect, uint32_t left_layer, api::resource right_xr_swapchain_image, const api::rect &right_rect, uint32_t right_layer)
+void reshade::openxr::swapchain_impl::on_present(uint32_t view_count, const api::resource *view_textures, const api::subresource_box *view_boxes, const uint32_t *view_layers)
 {
-	const api::resource_desc source_desc = _device->get_resource_desc(left_xr_swapchain_image);
+	const api::resource_desc source_desc = _device->get_resource_desc(view_textures[0]);
 
-	if (source_desc.texture.samples > 1 && !_device->check_capability(api::device_caps::resolve_region))
-		return; // Can only copy whole subresources when the resource is multisampled
+	if (source_desc.texture.samples > 1)
+		return;
 
-	reshade::api::subresource_box left_source_box;
-	left_source_box.left = left_rect.left;
-	left_source_box.top = left_rect.top;
-	left_source_box.front = 0;
-	left_source_box.right = left_rect.right;
-	left_source_box.bottom = left_rect.bottom;
-	left_source_box.back = 1;
-	reshade::api::subresource_box right_source_box;
-	right_source_box.left = right_rect.left;
-	right_source_box.top = right_rect.top;
-	right_source_box.front = 0;
-	right_source_box.right = right_rect.right;
-	right_source_box.bottom = right_rect.bottom;
-	right_source_box.back = 1;
-
-	const uint32_t target_width = left_source_box.width() + right_source_box.width();
-	const uint32_t region_height = std::max(left_source_box.height(), right_source_box.height());
+	uint32_t target_width = 0;
+	uint32_t region_height = 0;
+	for (uint32_t i = 0; i < view_count; ++i)
+	{
+		target_width += view_boxes[i].width();
+		region_height = std::max(region_height, view_boxes[i].height());
+	}
 
 	if (target_width == 0 || region_height == 0)
 		return;
 
 	const api::resource_desc target_desc = _side_by_side_texture != 0 ? _device->get_resource_desc(_side_by_side_texture) : api::resource_desc();
 
-	// Due to rounding errors with the bounds we have to use a tolerance of 1 pixel per eye (2 pixels in total)
-	const auto width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(target_desc.texture.width));
-	const auto height_difference = std::abs(static_cast<int32_t>(region_height) - static_cast<int32_t>(target_desc.texture.height));
-
-	if (width_difference > 2 || height_difference > 2 || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(target_desc.texture.format))
+	if (target_width != target_desc.texture.width || region_height != target_desc.texture.height || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(target_desc.texture.format))
 	{
 		LOG(INFO) << "Resizing runtime " << this << " in VR to " << target_width << "x" << region_height << " ...";
 
@@ -143,34 +129,19 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	// Copy source textures into side-by-side texture
-	const api::subresource_box left_dest_box = get_eye_subresource_box(eye::left);
-	const api::subresource_box right_dest_box = get_eye_subresource_box(eye::right);
-
 	const auto before_state = _device->get_api() == api::device_api::d3d12 ? api::resource_usage::shader_resource_pixel : api::resource_usage::copy_source;
-	const api::resource resources[3] = { _side_by_side_texture, left_xr_swapchain_image, right_xr_swapchain_image };
 
-	if (source_desc.texture.samples <= 1)
+	cmd_list->barrier(_side_by_side_texture, api::resource_usage::general, api::resource_usage::copy_dest);
+
+	for (uint32_t i = 0; i < view_count; ++i)
 	{
-		const api::resource_usage state_old[3] = { api::resource_usage::general, before_state, before_state };
-		const api::resource_usage state_new[3] = { api::resource_usage::copy_dest, api::resource_usage::copy_source, api::resource_usage::copy_source };
-		cmd_list->barrier(3, resources, state_old, state_new);
+		cmd_list->barrier(view_textures[i], before_state, api::resource_usage::copy_source);
 
-		cmd_list->copy_texture_region(left_xr_swapchain_image, left_layer, &left_source_box, _side_by_side_texture, 0, &left_dest_box, api::filter_mode::min_mag_mip_point);
-		cmd_list->copy_texture_region(right_xr_swapchain_image, right_layer, &right_source_box, _side_by_side_texture, 0, &right_dest_box, api::filter_mode::min_mag_mip_point);
-
-		cmd_list->barrier(_side_by_side_texture, api::resource_usage::copy_dest, api::resource_usage::present);
+		const api::subresource_box dest_box = get_view_subresource_box(i, view_count);
+		cmd_list->copy_texture_region(view_textures[i], view_layers[i], &view_boxes[i], _side_by_side_texture, 0, &dest_box, api::filter_mode::min_mag_mip_point);
 	}
-	else
-	{
-		const api::resource_usage state_old[3] = { api::resource_usage::general, before_state, before_state };
-		const api::resource_usage state_new[3] = { api::resource_usage::resolve_dest, api::resource_usage::resolve_source, api::resource_usage::resolve_source };
-		cmd_list->barrier(3, resources, state_old, state_new);
 
-		cmd_list->resolve_texture_region(left_xr_swapchain_image, left_layer, &left_source_box, _side_by_side_texture, 0, left_dest_box.left, left_dest_box.top, left_dest_box.front, source_desc.texture.format);
-		cmd_list->resolve_texture_region(right_xr_swapchain_image, right_layer, &right_source_box, _side_by_side_texture, 0, right_dest_box.left, right_dest_box.top, right_dest_box.front, source_desc.texture.format);
-
-		cmd_list->barrier(_side_by_side_texture, api::resource_usage::resolve_dest, api::resource_usage::present);
-	}
+	cmd_list->barrier(_side_by_side_texture, api::resource_usage::copy_dest, api::resource_usage::present);
 
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::present>(_graphics_queue, this, nullptr, nullptr, 0, nullptr);
@@ -178,27 +149,19 @@ void reshade::openxr::swapchain_impl::on_present(api::resource left_xr_swapchain
 
 	present_effect_runtime(this, _graphics_queue);
 
-	if (source_desc.texture.samples <= 1)
+	cmd_list->barrier(_side_by_side_texture, api::resource_usage::present, api::resource_usage::copy_source);
+
+	for (uint32_t i = 0; i < view_count; ++i)
 	{
-		const api::resource_usage state_old[3] = { api::resource_usage::present, api::resource_usage::copy_source, api::resource_usage::copy_source };
-		const api::resource_usage state_new[3] = { api::resource_usage::copy_source, api::resource_usage::copy_dest, api::resource_usage::copy_dest };
-		cmd_list->barrier(3, resources, state_old, state_new);
+		cmd_list->barrier(view_textures[i], api::resource_usage::copy_source, api::resource_usage::copy_dest);
 
-		cmd_list->copy_texture_region(_side_by_side_texture, 0, &left_dest_box, left_xr_swapchain_image, left_layer, &left_source_box, api::filter_mode::min_mag_mip_point);
-		cmd_list->copy_texture_region(_side_by_side_texture, 0, &right_dest_box, right_xr_swapchain_image, right_layer, &right_source_box, api::filter_mode::min_mag_mip_point);
+		const api::subresource_box dest_box = get_view_subresource_box(i, view_count);
+		cmd_list->copy_texture_region(_side_by_side_texture, 0, &dest_box, view_textures[i], view_layers[i], &view_boxes[i], api::filter_mode::min_mag_mip_point);
 
-		const api::resource_usage state_final[3] = { api::resource_usage::general, before_state, before_state };
-		cmd_list->barrier(3, resources, state_new, state_final);
+		cmd_list->barrier(view_textures[i], api::resource_usage::copy_dest, before_state);
 	}
-	else
-	{
-		const api::resource_usage state_old[3] = { api::resource_usage::present, api::resource_usage::resolve_source, api::resource_usage::resolve_source };
 
-		// TODO
-
-		const api::resource_usage state_final[3] = { api::resource_usage::general, before_state, before_state };
-		cmd_list->barrier(3, resources, state_old, state_final);
-	}
+	cmd_list->barrier(_side_by_side_texture, api::resource_usage::copy_source, api::resource_usage::general);
 
 	_graphics_queue->flush_immediate_command_list();
 }
