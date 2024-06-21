@@ -11,7 +11,7 @@
 
 #define vk _device_impl->_dispatch_table
 
-static inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info)
+static void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info)
 {
 	subresource_info.aspectMask = reshade::vulkan::aspect_flags_from_format(create_info.format);
 	subresource_info.mipLevel = subresource % create_info.mipLevels;

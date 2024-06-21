@@ -143,7 +143,7 @@ private:
 		uint32_t array_stride;
 		std::pair<spv::StorageClass, spv::ImageFormat> storage;
 
-		friend static bool operator==(const type_lookup &lhs, const type_lookup &rhs)
+		friend bool operator==(const type_lookup &lhs, const type_lookup &rhs)
 		{
 			return lhs.type == rhs.type && lhs.is_ptr == rhs.is_ptr && lhs.array_stride == rhs.array_stride && lhs.storage == rhs.storage;
 		}
@@ -157,7 +157,7 @@ private:
 		std::vector<type> param_types;
 		bool is_entry_point = false;
 
-		friend static bool operator==(const function_blocks &lhs, const function_blocks &rhs)
+		friend bool operator==(const function_blocks &lhs, const function_blocks &rhs)
 		{
 			if (lhs.param_types.size() != rhs.param_types.size())
 				return false;
@@ -200,7 +200,7 @@ private:
 	std::vector<spv::Id> _global_ubo_types;
 	function_blocks *_current_function = nullptr;
 
-	inline void add_location(const location &loc, spirv_basic_block &block)
+	void add_location(const location &loc, spirv_basic_block &block)
 	{
 		if (loc.source.empty() || !_debug_info)
 			return;
@@ -222,33 +222,33 @@ private:
 			.add(loc.line)
 			.add(loc.column);
 	}
-	inline spirv_instruction &add_instruction(spv::Op op, spv::Id type = 0)
+	spirv_instruction &add_instruction(spv::Op op, spv::Id type = 0)
 	{
 		assert(is_in_function() && is_in_block());
 
 		return add_instruction(op, type, *_current_block_data);
 	}
-	inline spirv_instruction &add_instruction(spv::Op op, spv::Id type, spirv_basic_block &block)
+	spirv_instruction &add_instruction(spv::Op op, spv::Id type, spirv_basic_block &block)
 	{
 		spirv_instruction &instruction = add_instruction_without_result(op, block);
 		instruction.type = type;
 		instruction.result = make_id();
 		return instruction;
 	}
-	inline spirv_instruction &add_instruction(spv::Op op, spv::Id type, spirv_basic_block &block, spv::Id &result)
+	spirv_instruction &add_instruction(spv::Op op, spv::Id type, spirv_basic_block &block, spv::Id &result)
 	{
 		spirv_instruction &instruction = add_instruction_without_result(op, block);
 		instruction.type = type;
 		instruction.result = result = make_id();
 		return instruction;
 	}
-	inline spirv_instruction &add_instruction_without_result(spv::Op op)
+	spirv_instruction &add_instruction_without_result(spv::Op op)
 	{
 		assert(is_in_function() && is_in_block());
 
 		return add_instruction_without_result(op, *_current_block_data);
 	}
-	inline spirv_instruction &add_instruction_without_result(spv::Op op, spirv_basic_block &block)
+	spirv_instruction &add_instruction_without_result(spv::Op op, spirv_basic_block &block)
 	{
 		return block.instructions.emplace_back(op);
 	}
@@ -718,7 +718,7 @@ private:
 		}
 	}
 
-	inline void add_name(id id, const char *name)
+	void add_name(id id, const char *name)
 	{
 		if (!_debug_info)
 			return;
@@ -729,14 +729,14 @@ private:
 			.add(id)
 			.add_string(name);
 	}
-	inline void add_builtin(id id, spv::BuiltIn builtin)
+	void add_builtin(id id, spv::BuiltIn builtin)
 	{
 		add_instruction_without_result(spv::OpDecorate, _annotations)
 			.add(id)
 			.add(spv::DecorationBuiltIn)
 			.add(builtin);
 	}
-	inline void add_decoration(id id, spv::Decoration decoration, std::initializer_list<uint32_t> values = {})
+	void add_decoration(id id, spv::Decoration decoration, std::initializer_list<uint32_t> values = {})
 	{
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpDecorate
 		add_instruction_without_result(spv::OpDecorate, _annotations)
@@ -744,7 +744,7 @@ private:
 			.add(decoration)
 			.add(values.begin(), values.end());
 	}
-	inline void add_member_name(id id, uint32_t member_index, const char *name)
+	void add_member_name(id id, uint32_t member_index, const char *name)
 	{
 		if (!_debug_info)
 			return;
@@ -756,7 +756,7 @@ private:
 			.add(member_index)
 			.add_string(name);
 	}
-	inline void add_member_builtin(id id, uint32_t member_index, spv::BuiltIn builtin)
+	void add_member_builtin(id id, uint32_t member_index, spv::BuiltIn builtin)
 	{
 		add_instruction_without_result(spv::OpMemberDecorate, _annotations)
 			.add(id)
@@ -764,7 +764,7 @@ private:
 			.add(spv::DecorationBuiltIn)
 			.add(builtin);
 	}
-	inline void add_member_decoration(id id, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {})
+	void add_member_decoration(id id, uint32_t member_index, spv::Decoration decoration, std::initializer_list<uint32_t> values = {})
 	{
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpMemberDecorate
 		add_instruction_without_result(spv::OpMemberDecorate, _annotations)
@@ -773,7 +773,7 @@ private:
 			.add(decoration)
 			.add(values.begin(), values.end());
 	}
-	inline void add_capability(spv::Capability capability)
+	void add_capability(spv::Capability capability)
 	{
 		_capabilities.insert(capability);
 	}

@@ -56,7 +56,7 @@ struct depth_stencil_frame_stats
 
 struct resource_hash
 {
-	inline size_t operator()(resource value) const
+	size_t operator()(resource value) const
 	{
 		// Simply use the handle (which is usually a pointer) as hash value (with some bits shaved off due to pointer alignment)
 		return static_cast<size_t>(value.handle >> 4);
@@ -1085,7 +1085,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	}
 }
 
-static inline const char *format_to_string(format format)
+static const char *const format_to_string(format format)
 {
 	switch (format)
 	{

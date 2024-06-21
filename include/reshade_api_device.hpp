@@ -268,7 +268,8 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets a reference to user-defined data from the object that was previously allocated via <see cref="create_private_data"/>.
 		/// </summary>
-		template <typename T> inline T &get_private_data() const
+		template <typename T>
+		T &get_private_data() const
 		{
 			uint64_t res;
 			get_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)), &res);
@@ -277,7 +278,8 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Allocates user-defined data and stores it in the object.
 		/// </summary>
-		template <typename T, typename... Args> inline T &create_private_data(Args &&... args)
+		template <typename T, typename... Args>
+		T &create_private_data(Args &&... args)
 		{
 			uint64_t res = reinterpret_cast<uintptr_t>(new T(static_cast<Args &&>(args)...));
 			set_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)),  res);
@@ -286,7 +288,8 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Frees user-defined data that was previously allocated via <see cref="create_private_data"/>.
 		/// </summary>
-		template <typename T> inline void destroy_private_data()
+		template <typename T>
+		void destroy_private_data()
 		{
 			uint64_t res;
 			get_private_data(reinterpret_cast<const uint8_t *>(&__uuidof(T)), &res);
@@ -460,7 +463,7 @@ namespace reshade { namespace api
 		/// <param name="param">Index of the pipeline layout parameter that describes the descriptor table.</param>
 		/// <param name="out_table">Pointer to a a variable that is set to the handles of the created descriptor table.</param>
 		/// <returns><see langword="true"/> if the descriptor table was successfully allocated, <see langword="false"/> otherwise (in this case <paramref name="out_table"/> is set to zeroe).</returns>
-		inline  bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_table) { return allocate_descriptor_tables(1, layout, param, out_table); }
+		bool allocate_descriptor_table(pipeline_layout layout, uint32_t param, descriptor_table *out_table) { return allocate_descriptor_tables(1, layout, param, out_table); }
 		/// <summary>
 		/// Allocates one or more descriptor tables from an internal descriptor heap.
 		/// </summary>
@@ -473,7 +476,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Frees a descriptor table that was previously allocated via <see cref="allocate_descriptor_table"/>.
 		/// </summary>
-		inline  void free_descriptor_table(descriptor_table table) { free_descriptor_tables(1, &table); }
+		void free_descriptor_table(descriptor_table table) { free_descriptor_tables(1, &table); }
 		/// <summary>
 		/// Frees one or more descriptor tables that were previously allocated via <see cref="allocate_descriptor_tables"/>.
 		/// </summary>
@@ -493,7 +496,7 @@ namespace reshade { namespace api
 		/// Copies the contents of a descriptor table to another descriptor table.
 		/// </summary>
 		/// <param name="copy">Descriptor table copy to process.</param>
-		inline  void copy_descriptors(const descriptor_table_copy &copy) { copy_descriptor_tables(1, &copy); }
+		void copy_descriptors(const descriptor_table_copy &copy) { copy_descriptor_tables(1, &copy); }
 		/// <summary>
 		/// Copies the contents between multiple descriptor tables.
 		/// </summary>
@@ -504,7 +507,7 @@ namespace reshade { namespace api
 		/// Updates the contents of a descriptor table with the specified descriptors.
 		/// </summary>
 		/// <param name="update">Descriptor table update to process.</param>
-		inline  void update_descriptors(const descriptor_table_update &update) { update_descriptor_tables(1, &update); }
+		void update_descriptors(const descriptor_table_update &update) { update_descriptor_tables(1, &update); }
 		/// <summary>
 		/// Updates the contents of multiple descriptor tables with the specified descriptors.
 		/// </summary>
@@ -666,7 +669,7 @@ namespace reshade { namespace api
 		/// <param name="resource">Resource to transition.</param>
 		/// <param name="old_state">Usage flags describing how the <paramref name="resource"/> was used before this barrier.</param>
 		/// <param name="new_state">Usage flags describing how the <paramref name="resource"/> will be used after this barrier.</param>
-		inline  void barrier(resource resource, resource_usage old_state, resource_usage new_state) { barrier(1, &resource, &old_state, &new_state); }
+		void barrier(resource resource, resource_usage old_state, resource_usage new_state) { barrier(1, &resource, &old_state, &new_state); }
 		/// <summary>
 		/// Adds a barrier for the specified <paramref name="resources"/> to the command stream.
 		/// </summary>
@@ -711,7 +714,7 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="state">Pipeline state to update.</param>
 		/// <param name="value">Value to update the pipeline state to.</param>
-		inline  void bind_pipeline_state(dynamic_state state, uint32_t value) { bind_pipeline_states(1, &state, &value); }
+		void bind_pipeline_state(dynamic_state state, uint32_t value) { bind_pipeline_states(1, &state, &value); }
 		/// <summary>
 		/// Updates the specfified pipeline <paramref name="states"/> to the specified <paramref name="values"/>.
 		/// This is only valid for states that have been listed in the dynamic states provided at creation of the currently bound pipeline state object (<see cref="pipeline_subobject_type::dynamic_pipeline_states"/>).
@@ -765,7 +768,7 @@ namespace reshade { namespace api
 		/// <param name="layout">Pipeline layout that describes the descriptors.</param>
 		/// <param name="param">Index of the pipeline <paramref name="layout"/> parameter that describes the descriptor table (root parameter index in D3D12, descriptor set index in Vulkan).</param>
 		/// <param name="table">Descriptor table to bind.</param>
-		inline  void bind_descriptor_table(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_table table) { bind_descriptor_tables(stages, layout, param, 1, &table); }
+		void bind_descriptor_table(shader_stage stages, pipeline_layout layout, uint32_t param, descriptor_table table) { bind_descriptor_tables(stages, layout, param, 1, &table); }
 		/// <summary>
 		/// Binds an array of descriptor tables.
 		/// </summary>
@@ -790,7 +793,7 @@ namespace reshade { namespace api
 		/// <param name="buffer">Vertex buffer resource. This resources must have been created with the <see cref="resource_usage::vertex_buffer"/> usage.</param>
 		/// <param name="offset">Offset (in bytes) from the start of the vertex buffer to the first vertex element to use.</param>
 		/// <param name="stride">Size (in bytes) of the vertex element that will be used from the vertex buffer (is added to an element offset to advance to the next).</param>
-		inline  void bind_vertex_buffer(uint32_t index, resource buffer, uint64_t offset, uint32_t stride) { bind_vertex_buffers(index, 1, &buffer, &offset, &stride); }
+		void bind_vertex_buffer(uint32_t index, resource buffer, uint64_t offset, uint32_t stride) { bind_vertex_buffers(index, 1, &buffer, &offset, &stride); }
 		/// <summary>
 		/// Binds an array of vertex buffers to the input-assembler stage.
 		/// </summary>
@@ -1241,7 +1244,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the current back buffer resource.
 		/// </summary>
-		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
+		resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
 		/// <summary>
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>

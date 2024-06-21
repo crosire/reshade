@@ -68,7 +68,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Gets the current back buffer resource.
 		/// </summary>
-		inline  resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
+		resource get_current_back_buffer() { return get_back_buffer(get_current_back_buffer_index()); }
 		/// <summary>
 		/// Gets the index of the back buffer resource that can currently be rendered into.
 		/// </summary>
@@ -163,7 +163,7 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file to enumerate uniform variables from, or <see langword="nullptr"/> to enumerate those of all loaded effects.</param>
 		/// <param name="lambda">Function to call for every uniform variable.</param>
 		template <typename F>
-		inline  void enumerate_uniform_variables(const char *effect_name, F lambda)
+		void enumerate_uniform_variables(const char *effect_name, F lambda)
 		{
 			enumerate_uniform_variables(effect_name, [](effect_runtime *runtime, effect_uniform_variable variable, void *user_data) { static_cast<F *>(user_data)->operator()(runtime, variable); }, &lambda);
 		}
@@ -197,7 +197,7 @@ namespace reshade { namespace api
 		/// <param name="name_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_uniform_variable_name(effect_uniform_variable variable, char *name, size_t *name_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_uniform_variable_name(effect_uniform_variable variable, char(&name)[SIZE]) const
+		void get_uniform_variable_name(effect_uniform_variable variable, char(&name)[SIZE]) const
 		{
 			size_t name_size = SIZE;
 			get_uniform_variable_name(variable, name, &name_size);
@@ -253,7 +253,7 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the annotation exists on the uniform variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
-		inline  bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char(&value)[SIZE]) const
+		bool get_annotation_string_from_uniform_variable(effect_uniform_variable variable, const char *name, char(&value)[SIZE]) const
 		{
 			size_t value_size = SIZE;
 			return get_annotation_string_from_uniform_variable(variable, name, value, &value_size);
@@ -312,7 +312,7 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value_bool(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0))
+		void set_uniform_value_bool(effect_uniform_variable variable, bool x, bool y = bool(0), bool z = bool(0), bool w = bool(0))
 		{
 			const bool values[4] = { x, y, z, w };
 			set_uniform_value_bool(variable, values, 4);
@@ -337,7 +337,7 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value_float(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0))
+		void set_uniform_value_float(effect_uniform_variable variable, float x, float y = float(0), float z = float(0), float w = float(0))
 		{
 			const float values[4] = { x, y, z, w };
 			set_uniform_value_float(variable, values, 4);
@@ -362,7 +362,7 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value_int(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0))
+		void set_uniform_value_int(effect_uniform_variable variable, int32_t x, int32_t y = int32_t(0), int32_t z = int32_t(0), int32_t w = int32_t(0))
 		{
 			const int32_t values[4] = { x, y, z, w };
 			set_uniform_value_int(variable, values, 4);
@@ -387,7 +387,7 @@ namespace reshade { namespace api
 		/// <param name="y">Optional value of the second component in the vector that is used to update this uniform variable.</param>
 		/// <param name="z">Optional value of the third component in the vector that is used to update this uniform variable.</param>
 		/// <param name="w">Optional value of the fourth component in the vector that is used to update this uniform variable.</param>
-		inline  void set_uniform_value_uint(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0))
+		void set_uniform_value_uint(effect_uniform_variable variable, uint32_t x, uint32_t y = uint32_t(0), uint32_t z = uint32_t(0), uint32_t w = uint32_t(0))
 		{
 			const uint32_t values[4] = { x, y, z, w };
 			set_uniform_value_uint(variable, values, 4);
@@ -406,7 +406,7 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file to enumerate texture variables from, or <see langword="nullptr"/> to enumerate those of all loaded effects.</param>
 		/// <param name="lambda">Function to call for every texture variable.</param>
 		template <typename F>
-		inline  void enumerate_texture_variables(const char *effect_name, F lambda)
+		void enumerate_texture_variables(const char *effect_name, F lambda)
 		{
 			enumerate_texture_variables(effect_name, [](effect_runtime *runtime, effect_texture_variable variable, void *user_data) { static_cast<F *>(user_data)->operator()(runtime, variable); }, &lambda);
 		}
@@ -427,7 +427,7 @@ namespace reshade { namespace api
 		/// <param name="name_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_texture_variable_name(effect_texture_variable variable, char *name, size_t *name_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_texture_variable_name(effect_texture_variable variable, char(&name)[SIZE]) const
+		void get_texture_variable_name(effect_texture_variable variable, char(&name)[SIZE]) const
 		{
 			size_t name_size = SIZE;
 			get_texture_variable_name(variable, name, &name_size);
@@ -483,7 +483,7 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the annotation exists on the texture variable, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
-		inline  bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char(&value)[SIZE]) const
+		bool get_annotation_string_from_texture_variable(effect_texture_variable variable, const char *name, char(&value)[SIZE]) const
 		{
 			size_t value_size = SIZE;
 			return get_annotation_string_from_texture_variable(variable, name, value, &value_size);
@@ -530,7 +530,7 @@ namespace reshade { namespace api
 		/// <param name="effect_name">File name of the effect file to enumerate techniques from, or <see langword="nullptr"/> to enumerate those of all loaded effects.</param>
 		/// <param name="lambda">Function to call for every technique.</param>
 		template <typename F>
-		inline  void enumerate_techniques(const char *effect_name, F lambda)
+		void enumerate_techniques(const char *effect_name, F lambda)
 		{
 			enumerate_techniques(effect_name, [](effect_runtime *runtime, effect_technique technique, void *user_data) { static_cast<F *>(user_data)->operator()(runtime, technique); }, &lambda);
 		}
@@ -551,7 +551,7 @@ namespace reshade { namespace api
 		/// <param name="name_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_technique_name(effect_technique technique, char *name, size_t *name_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_technique_name(effect_technique technique, char(&name)[SIZE]) const
+		void get_technique_name(effect_technique technique, char(&name)[SIZE]) const
 		{
 			size_t name_size = SIZE;
 			get_technique_name(technique, name, &name_size);
@@ -607,7 +607,7 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the annotation exists on the technique, <see langword="false"/> otherwise.</returns>
 		virtual bool get_annotation_string_from_technique(effect_technique technique, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
-		inline  bool get_annotation_string_from_technique(effect_technique technique, const char *name, char(&value)[SIZE]) const
+		bool get_annotation_string_from_technique(effect_technique technique, const char *name, char(&value)[SIZE]) const
 		{
 			size_t value_size = SIZE;
 			return get_annotation_string_from_technique(technique, name, value, &value_size);
@@ -635,7 +635,7 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the preprocessor definition is defined, <see langword="false"/> otherwise.</returns>
 		virtual bool get_preprocessor_definition(const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
-		inline  bool get_preprocessor_definition(const char *name, char(&value)[SIZE]) const
+		bool get_preprocessor_definition(const char *name, char(&value)[SIZE]) const
 		{
 			size_t value_size = SIZE;
 			return get_preprocessor_definition(name, value, &value_size);
@@ -678,7 +678,7 @@ namespace reshade { namespace api
 		/// <param name="path_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_current_preset_path(char *path, size_t *path_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_current_preset_path(char(&path)[SIZE]) const
+		void get_current_preset_path(char(&path)[SIZE]) const
 		{
 			size_t path_size = SIZE;
 			get_current_preset_path(path, &path_size);
@@ -719,7 +719,7 @@ namespace reshade { namespace api
 		/// <param name="effect_name_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_uniform_variable_effect_name(effect_uniform_variable variable, char *effect_name, size_t *effect_name_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_uniform_variable_effect_name(effect_uniform_variable variable, char(&effect_name)[SIZE]) const
+		void get_uniform_variable_effect_name(effect_uniform_variable variable, char(&effect_name)[SIZE]) const
 		{
 			size_t effect_name_size = SIZE;
 			get_uniform_variable_effect_name(variable, effect_name, &effect_name_size);
@@ -733,7 +733,7 @@ namespace reshade { namespace api
 		/// <param name="effect_name_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_texture_variable_effect_name(effect_texture_variable variable, char *effect_name, size_t *effect_name_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_texture_variable_effect_name(effect_texture_variable variable, char(&effect_name)[SIZE]) const
+		void get_texture_variable_effect_name(effect_texture_variable variable, char(&effect_name)[SIZE]) const
 		{
 			size_t effect_name_size = SIZE;
 			get_texture_variable_effect_name(variable, effect_name, &effect_name_size);
@@ -747,7 +747,7 @@ namespace reshade { namespace api
 		/// <param name="effect_name_size">Pointer to an integer that contains the size of the string buffer and is set to the actual length of the string, including the null-terminator.</param>
 		virtual void get_technique_effect_name(effect_technique technique, char *effect_name, size_t *effect_name_size) const = 0;
 		template <size_t SIZE>
-		inline  void get_technique_effect_name(effect_technique technique, char(&effect_name)[SIZE]) const
+		void get_technique_effect_name(effect_technique technique, char(&effect_name)[SIZE]) const
 		{
 			size_t effect_name_size = SIZE;
 			get_technique_effect_name(technique, effect_name, &effect_name_size);
@@ -768,7 +768,7 @@ namespace reshade { namespace api
 		/// <returns><see langword="true"/> if the preprocessor definition is defined, <see langword="false"/> otherwise.</returns>
 		virtual bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char *value, size_t *value_size) const = 0;
 		template <size_t SIZE>
-		inline  bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char(&value)[SIZE]) const
+		bool get_preprocessor_definition_for_effect(const char *effect_name, const char *name, char(&value)[SIZE]) const
 		{
 			size_t value_size = SIZE;
 			return get_preprocessor_definition_for_effect(effect_name, name, value, &value_size);

@@ -11,7 +11,7 @@ class moving_average
 public:
 	moving_average() : _index(0), _average(0), _tick_sum(0), _tick_list() {}
 
-	inline operator T() const { return _average; }
+	operator T() const { return _average; }
 
 	void clear()
 	{

@@ -1139,7 +1139,7 @@ bool reshade::d3d10::device_impl::get_query_heap_results(api::query_heap heap, u
 }
 
 // WKPDID_D3DDebugObjectName
-static constexpr GUID s_debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} };
+inline constexpr GUID s_debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} };
 
 void reshade::d3d10::device_impl::set_resource_name(api::resource resource, const char *name)
 {

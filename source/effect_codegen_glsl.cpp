@@ -14,6 +14,12 @@
 
 using namespace reshadefx;
 
+inline char to_digit(unsigned int value)
+{
+	assert(value < 10);
+	return '0' + static_cast<char>(value);
+}
+
 class codegen_glsl final : public codegen
 {
 public:
@@ -62,12 +68,6 @@ private:
 	bool _uses_componentwise_or = false;
 	bool _uses_componentwise_and = false;
 	bool _uses_componentwise_cond = false;
-
-	static inline char to_digit(unsigned int value)
-	{
-		assert(value < 10);
-		return '0' + static_cast<char>(value);
-	}
 
 	void write_result(module &module) override
 	{
@@ -1348,9 +1348,9 @@ private:
 						const char col = (op.swizzle[0] - row) / 4;
 
 						expr_code += '[';
-						expr_code += '1' + row - 1;
+						expr_code += to_digit(row);
 						expr_code += "][";
-						expr_code += '1' + col - 1;
+						expr_code += to_digit(col);
 						expr_code += ']';
 					}
 					else

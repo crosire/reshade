@@ -48,7 +48,7 @@ bool ini_file::load()
 	std::string line, section;
 	while (std::getline(file, line))
 	{
-		trim(line);
+		line = trim(line);
 
 		if (line.empty() || line[0] == ';' || line[0] == '/' || line[0] == '#')
 			continue;

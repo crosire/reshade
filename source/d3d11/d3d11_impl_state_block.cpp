@@ -6,7 +6,7 @@
 #include "d3d11_impl_state_block.hpp"
 
 template <typename T>
-static inline void safe_release(T *&object)
+inline void safe_release(T *&object)
 {
 	if (object != nullptr)
 	{

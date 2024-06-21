@@ -170,7 +170,7 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 	return files;
 }
 
-static inline int format_color_bit_depth(reshade::api::format value)
+static int format_color_bit_depth(reshade::api::format value)
 {
 	switch (value)
 	{
@@ -4563,7 +4563,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 		return;
 	}
 
-	static const reshadefx::constant zero = {};
+	const reshadefx::constant zero = {};
 
 	// Need to use typed setters, to ensure values are properly forced to floating point in D3D9
 	for (size_t i = 0, array_length = (variable.type.is_array() ? variable.type.array_length : 1u); i < array_length; ++i)
@@ -4586,7 +4586,7 @@ void reshade::runtime::reset_uniform_value(uniform &variable)
 	}
 }
 
-static inline bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
+static bool force_floating_point_value(const reshadefx::type &type, uint32_t renderer_id)
 {
 	if (renderer_id == 0x9000)
 		return true; // All uniform variables are floating-point in D3D9

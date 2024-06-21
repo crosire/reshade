@@ -14,6 +14,12 @@
 
 using namespace reshadefx;
 
+inline char to_digit(unsigned int value)
+{
+	assert(value < 10);
+	return '0' + static_cast<char>(value);
+}
+
 class codegen_hlsl final : public codegen
 {
 public:
@@ -52,12 +58,6 @@ private:
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
 	bool _uses_bitwise_intrinsics = false;
-
-	static inline char to_digit(unsigned int value)
-	{
-		assert(value < 10);
-		return '0' + static_cast<char>(value);
-	}
 
 	void write_result(module &module) override
 	{

@@ -14,16 +14,11 @@ extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_reshade_base_path;
 extern std::filesystem::path g_target_executable_path;
 
-inline void trim(std::string &str, const char chars[] = " \t")
+inline std::string trim(std::string str, const char chars[] = " \t")
 {
 	str.erase(0, str.find_first_not_of(chars));
 	str.erase(str.find_last_not_of(chars) + 1);
-}
-inline std::string trim(const std::string &str, const char chars[] = " \t")
-{
-	std::string res(str);
-	trim(res, chars);
-	return res;
+	return str;
 }
 
 class ini_file

@@ -24,7 +24,7 @@ const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &
 	return &rect;
 }
 
-static inline bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)
+static bool convert_format_internal(reshade::api::format format, D3DFORMAT &internal_format)
 {
 	if (format == reshade::api::format::r8_typeless || format == reshade::api::format::r8_unorm ||
 		format == reshade::api::format::r8g8_typeless || format == reshade::api::format::r8g8_unorm)

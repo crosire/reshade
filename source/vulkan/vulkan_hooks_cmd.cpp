@@ -217,7 +217,7 @@ static void invoke_begin_render_pass_event(reshade::vulkan::object_data<VK_OBJEC
 #endif
 
 #if RESHADE_ADDON >= 2
-static inline uint32_t calc_subresource_index(reshade::vulkan::device_impl *device, VkImage image, const VkImageSubresourceLayers &layers)
+static uint32_t calc_subresource_index(reshade::vulkan::device_impl *device, VkImage image, const VkImageSubresourceLayers &layers)
 {
 	const uint32_t levels = device->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(image)->create_info.mipLevels;
 	return layers.mipLevel + layers.baseArrayLayer * levels;

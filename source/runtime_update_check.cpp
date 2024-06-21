@@ -12,7 +12,7 @@ struct scoped_handle
 	scoped_handle(HINTERNET handle) : handle(handle) {}
 	~scoped_handle() { InternetCloseHandle(handle); }
 
-	inline operator HINTERNET() const { return handle; }
+	operator HINTERNET() const { return handle; }
 
 private:
 	HINTERNET handle;

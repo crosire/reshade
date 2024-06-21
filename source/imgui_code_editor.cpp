@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <utf8/unchecked.h>
 
-static inline int get_parenthesis_type(utf8::utfchar32_t c)
+static int get_parenthesis_type(utf8::utfchar32_t c)
 {
 	switch (c)
 	{
@@ -88,7 +88,7 @@ const char *reshade::imgui::code_editor::get_palette_color_name(unsigned int col
 }
 
 // 'ImGui::CalcTextSize' cancels out character spacing at the end, but we do not want that, hence the custom function
-static inline ImVec2 calc_text_size(const char *text, const char *text_end = nullptr)
+static ImVec2 calc_text_size(const char *text, const char *text_end = nullptr)
 {
 	return ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, text, text_end, nullptr);
 }

@@ -246,7 +246,7 @@ namespace reshadefx
 		};
 		std::string literal_as_string;
 
-		inline operator tokenid() const { return id; }
+		operator tokenid() const { return id; }
 
 		static std::string id_to_name(tokenid id);
 	};

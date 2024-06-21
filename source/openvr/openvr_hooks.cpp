@@ -24,7 +24,7 @@
 // There can only be a single global effect runtime in OpenVR (since its API is based on singletons)
 static reshade::openvr::swapchain_impl *s_vr_swapchain = nullptr;
 
-static inline vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds)
+static const vr::VRTextureBounds_t calc_side_by_side_bounds(vr::EVREye eye, const vr::VRTextureBounds_t *orig_bounds)
 {
 	auto bounds = (eye != vr::Eye_Right) ?
 		vr::VRTextureBounds_t { 0.0f, 0.0f, 0.5f, 1.0f } : // Left half of the texture

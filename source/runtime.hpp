@@ -55,7 +55,7 @@ namespace reshade
 		/// <summary>
 		/// Gets the path to the configuration file used by this effect runtime.
 		/// </summary>
-		inline const std::filesystem::path &get_config_path() const { return _config_path; }
+		const std::filesystem::path &get_config_path() const { return _config_path; }
 
 #if RESHADE_FX
 		/// <summary>

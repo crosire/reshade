@@ -454,15 +454,15 @@ static const std::unordered_map<std::string_view, tokenid> s_pp_directive_lookup
 	{ "include", tokenid::hash_include },
 };
 
-static inline bool is_octal_digit(char c)
+static bool is_octal_digit(char c)
 {
 	return static_cast<unsigned>(c - '0') < 8;
 }
-static inline bool is_decimal_digit(char c)
+static bool is_decimal_digit(char c)
 {
 	return static_cast<unsigned>(c - '0') < 10;
 }
-static inline bool is_hexadecimal_digit(char c)
+static bool is_hexadecimal_digit(char c)
 {
 	return is_decimal_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }

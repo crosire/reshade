@@ -110,11 +110,11 @@ namespace reshadefx
 		unsigned int components() const { return rows * cols; }
 		unsigned int texture_dimension() const { return base >= t_texture1d && base <= t_storage3d_float ? ((base - t_texture1d) % 3) + 1 : 0; }
 
-		friend inline bool operator==(const type &lhs, const type &rhs)
+		friend bool operator==(const type &lhs, const type &rhs)
 		{
 			return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition;
 		}
-		friend inline bool operator!=(const type &lhs, const type &rhs)
+		friend bool operator!=(const type &lhs, const type &rhs)
 		{
 			return !operator==(lhs, rhs);
 		}
