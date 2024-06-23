@@ -7,9 +7,9 @@
 #include "effect_codegen.hpp"
 #include <cmath> // std::signbit, std::isinf, std::isnan
 #include <cctype> // std::tolower
-#include <cstdio> // std::snprintf
 #include <cassert>
 #include <cstring> // stricmp, std::memcmp
+#include <charconv> // std::from_chars, std::to_chars
 #include <algorithm> // std::find_if, std::max
 
 using namespace reshadefx;
@@ -468,9 +468,12 @@ private:
 					s += std::signbit(data.as_float[i]) ? "1.#INF" : "-1.#INF";
 					break;
 				}
-				char temp[64]; // Will be null-terminated by snprintf
-				std::snprintf(temp, sizeof(temp), "%1.8e", data.as_float[i]);
-				s += temp;
+				char temp[64];
+				const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), data.as_float[i], std::chars_format::scientific, 8);
+				if (res.ec == std::errc())
+					s.append(temp, res.ptr);
+				else
+					assert(false);
 				break;
 			default:
 				assert(false);
@@ -595,7 +598,9 @@ private:
 			digit_index++;
 
 			const std::string semantic_base = semantic.substr(0, digit_index);
-			const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
+
+			uint32_t semantic_digit = 0;
+			std::from_chars(semantic.c_str() + digit_index, semantic.c_str() + semantic.size(), semantic_digit);
 
 			if (semantic_base == "TEXCOORD")
 			{

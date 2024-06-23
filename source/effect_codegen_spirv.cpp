@@ -7,6 +7,7 @@
 #include "effect_codegen.hpp"
 #include <cassert>
 #include <cstring> // std::memcmp
+#include <charconv> // std::from_chars
 #include <algorithm> // std::find_if, std::max
 #include <unordered_set>
 
@@ -138,7 +139,7 @@ public:
 private:
 	struct type_lookup
 	{
-		type type;
+		reshadefx::type type;
 		bool is_ptr;
 		uint32_t array_stride;
 		std::pair<spv::StorageClass, spv::ImageFormat> storage;
@@ -153,8 +154,8 @@ private:
 		spirv_basic_block declaration;
 		spirv_basic_block variables;
 		spirv_basic_block definition;
-		type return_type;
-		std::vector<type> param_types;
+		reshadefx::type return_type;
+		std::vector<reshadefx::type> param_types;
 		bool is_entry_point = false;
 
 		friend bool operator==(const function_blocks &lhs, const function_blocks &rhs)
@@ -609,11 +610,6 @@ private:
 
 	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_attributes = 1)
 	{
-		if (semantic.compare(0, 5, "COLOR") == 0)
-			return static_cast<uint32_t>(std::strtoul(semantic.c_str() + 5, nullptr, 10));
-		if (semantic.compare(0, 9, "SV_TARGET") == 0)
-			return static_cast<uint32_t>(std::strtoul(semantic.c_str() + 9, nullptr, 10));
-
 		if (const auto it = _semantic_to_location.find(semantic);
 			it != _semantic_to_location.end())
 			return it->second;
@@ -624,8 +620,13 @@ private:
 			digit_index--;
 		digit_index++;
 
-		const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
 		const std::string semantic_base = semantic.substr(0, digit_index);
+
+		uint32_t semantic_digit = 0;
+		std::from_chars(semantic.c_str() + digit_index, semantic.c_str() + semantic.size(), semantic_digit);
+
+		if (semantic_base == "COLOR" || semantic_base == "SV_TARGET")
+			return semantic_digit;
 
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 

@@ -23,6 +23,7 @@
 #include <cctype>
 #include <cstring>
 #include <fstream>
+#include <charconv> // std::to_chars
 #include <algorithm>
 #include <numeric>
 #include <fpng.h>
@@ -1868,7 +1869,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							code_preamble += std::to_string(constant.initializer_value.as_uint[i]);
 							break;
 						case reshadefx::type::t_float:
-							code_preamble += std::to_string(constant.initializer_value.as_float[i]);
+							char temp[64];
+							const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), constant.initializer_value.as_float[i], std::chars_format::scientific, 8);
+							if (res.ec == std::errc())
+								code_preamble.append(temp, res.ptr);
+							else
+								assert(false);
 							break;
 						}
 

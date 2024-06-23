@@ -6,9 +6,9 @@
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cmath> // signbit, isinf, isnan
-#include <cstdio> // snprintf
 #include <cassert>
 #include <cstring> // std::memcmp
+#include <charconv> // std::from_chars, std::to_chars
 #include <algorithm> // std::find_if, std::max
 #include <unordered_set>
 
@@ -364,9 +364,12 @@ private:
 					s += std::signbit(data.as_float[i]) ? "1.0/0.0/*inf*/" : "-1.0/0.0/*-inf*/";
 					break;
 				}
-				char temp[64]; // Will be null-terminated by snprintf
-				std::snprintf(temp, sizeof(temp), "%1.8e", data.as_float[i]);
-				s += temp;
+				char temp[64];
+				const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), data.as_float[i], std::chars_format::scientific, 8);
+				if (res.ec == std::errc())
+					s.append(temp, res.ptr);
+				else
+					assert(false);
 				break;
 			default:
 				assert(false);
@@ -471,11 +474,6 @@ private:
 
 	uint32_t semantic_to_location(const std::string &semantic, uint32_t max_attributes = 1)
 	{
-		if (semantic.compare(0, 5, "COLOR") == 0)
-			return static_cast<uint32_t>(std::strtoul(semantic.c_str() + 5, nullptr, 10));
-		if (semantic.compare(0, 9, "SV_TARGET") == 0)
-			return static_cast<uint32_t>(std::strtoul(semantic.c_str() + 9, nullptr, 10));
-
 		if (const auto location_it = _semantic_to_location.find(semantic);
 			location_it != _semantic_to_location.end())
 			return location_it->second;
@@ -487,7 +485,12 @@ private:
 		digit_index++;
 
 		const std::string semantic_base = semantic.substr(0, digit_index);
-		const uint32_t semantic_digit = static_cast<uint32_t>(std::strtoul(semantic.c_str() + digit_index, nullptr, 10));
+
+		uint32_t semantic_digit = 0;
+		std::from_chars(semantic.c_str() + digit_index, semantic.c_str() + semantic.size(), semantic_digit);
+
+		if (semantic_base == "COLOR" || semantic_base == "SV_TARGET")
+			return semantic_digit;
 
 		uint32_t location = static_cast<uint32_t>(_semantic_to_location.size());
 
@@ -885,9 +888,7 @@ private:
 				code += "layout(location = " + std::to_string(location + a) + ") ";
 				write_type<false, false, true>(code, type);
 				code += ' ';
-				code += escape_name(type.is_array() ?
-					name + '_' + std::to_string(a) :
-					name);
+				code += escape_name(type.is_array() ? name + '_' + std::to_string(a) : name);
 				code += ";\n";
 			}
 		};
@@ -905,8 +906,8 @@ private:
 			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
 		}
 
-		const size_t num_params = func.parameter_list.size();
-		for (size_t i = 0; i < num_params; ++i)
+		const auto num_params = static_cast<unsigned int>(func.parameter_list.size());
+		for (unsigned int i = 0; i < num_params; ++i)
 		{
 			type param_type = func.parameter_list[i].type;
 			param_type.qualifiers &= ~type::q_inout;
@@ -957,7 +958,7 @@ private:
 		std::string &code = _blocks.at(_current_block);
 
 		// Handle input parameters
-		for (size_t i = 0; i < num_params; ++i)
+		for (unsigned int i = 0; i < num_params; ++i)
 		{
 			const type &param_type = func.parameter_list[i].type;
 
@@ -1143,7 +1144,7 @@ private:
 		// Call the function this entry point refers to
 		code += id_to_name(func.definition) + '(';
 
-		for (size_t i = 0; i < num_params; ++i)
+		for (unsigned int i = 0; i < num_params; ++i)
 		{
 			code += "_param" + std::to_string(i);
 
@@ -1154,7 +1155,7 @@ private:
 		code += ");\n";
 
 		// Handle output parameters
-		for (size_t i = 0; i < num_params; ++i)
+		for (unsigned int i = 0; i < num_params; ++i)
 		{
 			const type &param_type = func.parameter_list[i].type;
 			if (!param_type.has(type::q_out))
