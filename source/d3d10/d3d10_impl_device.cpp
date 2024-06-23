@@ -83,7 +83,7 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::compute_shader:
 		return false;
 	case api::device_caps::geometry_shader:
-		return _orig->GetFeatureLevel() >= D3D_FEATURE_LEVEL_10_0;
+		return _orig->GetFeatureLevel() >= D3D10_FEATURE_LEVEL_10_0;
 	case api::device_caps::hull_and_domain_shader:
 	case api::device_caps::logic_op:
 		return false;
