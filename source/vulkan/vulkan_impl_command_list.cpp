@@ -137,7 +137,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 			const VkImageAspectFlags aspect_flags = aspect_flags_from_format(view_data->create_info.format);
 
-			if (aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT)
+			if ((aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0)
 			{
 				depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 				depth_attachment.imageView = (VkImageView)ds->view.handle;
@@ -149,7 +149,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 				rendering_info.pDepthAttachment = &depth_attachment;
 			}
 
-			if (aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT)
+			if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
 			{
 				stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 				stencil_attachment.imageView = (VkImageView)ds->view.handle;
@@ -953,7 +953,8 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	const VkImageAspectFlags aspect_flags = aspect_flags_from_format(convert_format(format));
+	// Use aspect flags based on destination image rather than the 'format' argument, since the latter may be a color view format, even when the underlying data is in a depth or stencil format
+	const VkImageAspectFlags aspect_flags = aspect_flags_from_format(dst_data->create_info.format);
 
 	if ((aspect_flags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) == 0)
 	{
@@ -1038,7 +1039,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 		depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-		if (aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT)
+		if ((aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0 && format != api::format::x24_unorm_g8_uint && format != api::format::x32_float_g8_uint)
 		{
 			VkPhysicalDeviceDepthStencilResolveProperties resolve_properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
 			VkPhysicalDeviceProperties2 properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_properties };
@@ -1054,7 +1055,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		VkRenderingAttachmentInfo stencil_attachment = depth_attachment;
 		stencil_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 
-		if (aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT)
+		if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0 && format != api::format::r24_unorm_x8_uint && format != api::format::r32_float_x8_uint)
 		{
 			rendering_info.pStencilAttachment = &stencil_attachment;
 		}
