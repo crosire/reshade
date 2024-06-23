@@ -15,6 +15,9 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <cmath> // std::log2f
+#include <cstring> // std::strcmp
+#include <algorithm> // std::any_of, std::find_if
 
 #define gl gl3wProcs.gl
 
@@ -1310,7 +1313,7 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
-		const int index = i >= WGL_SWAP_UNDERLAY1 ? static_cast<int>(-std::log(i >> 16) / std::log(2) - 1) : static_cast<int>(std::log(i) / std::log(2));
+		const int index = (i >= WGL_SWAP_UNDERLAY1) ? static_cast<int>(-std::log2f(static_cast<float>(i >> 16)) - 1) : static_cast<int>(std::log2f(static_cast<float>(i)));
 
 #if RESHADE_VERBOSE_LOG
 		LOG(INFO) << "Redirecting " << "wglSwapLayerBuffers" << '(' << "hdc = " << hdc << ", i = " << i << ')' << " ...";

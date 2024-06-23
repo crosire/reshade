@@ -7,6 +7,10 @@
 #include "opengl_impl_type_convert.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
+#include <cmath> // std::log2f
+#include <cstdio> // std::sscanf
+#include <cstring> // std::memcpy, std::strcmp, std::strncpy
+#include <algorithm> // std::copy_n, std::fill_n, std::max
 
 #define gl gl3wProcs.gl
 
@@ -548,7 +552,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		const GLuint levels = (desc.texture.levels != 0) ?
 			desc.texture.levels :
-			static_cast<uint32_t>(std::log2(std::max(desc.texture.width, desc.texture.height))) + 1;
+			static_cast<uint32_t>(std::log2f(static_cast<float>(std::max(desc.texture.width, desc.texture.height)))) + 1;
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
 
 #if 0

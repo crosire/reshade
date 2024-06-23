@@ -6,7 +6,8 @@
 #include "d3d10_impl_device.hpp"
 #include "d3d10_impl_type_convert.hpp"
 #include "d3d10_resource_call_vtable.inl"
-#include <algorithm>
+#include <cstring> // std::memcpy, std::strlen
+#include <algorithm> // std::copy_n
 #include <utf8/unchecked.h>
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :

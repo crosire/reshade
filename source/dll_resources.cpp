@@ -5,8 +5,9 @@
 
 #include "dll_resources.hpp"
 #include <cassert>
-#include <Windows.h>
+#include <algorithm> // std::find
 #include <utf8/unchecked.h>
+#include <Windows.h>
 
 extern HMODULE g_module_handle;
 

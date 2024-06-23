@@ -7,7 +7,8 @@
 #include "d3d12_impl_command_list.hpp"
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include <algorithm>
+#include <cstring> // std::strlen, std::strncpy
+#include <algorithm> // std::copy_n, std::fill, std::max, std::min
 
 // IID_ID3D12GraphicsCommandListExt
 static constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };

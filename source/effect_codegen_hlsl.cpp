@@ -5,12 +5,12 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <cmath> // std::signbit, std::isinf, std::isnan
+#include <cmath> // std::isinf, std::isnan, std::signbit
 #include <cctype> // std::tolower
 #include <cassert>
 #include <cstring> // stricmp, std::memcmp
 #include <charconv> // std::from_chars, std::to_chars
-#include <algorithm> // std::find_if, std::max
+#include <algorithm> // std::equal, std::find_if, std::max
 
 using namespace reshadefx;
 

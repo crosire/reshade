@@ -9,6 +9,7 @@
 #include "addon_manager.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
+#include <algorithm> // std::find, std::find_if, std::remove, std::remove_if
 
 extern void register_addon_depth();
 extern void register_addon_effect_runtime_sync();

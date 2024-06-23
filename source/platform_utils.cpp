@@ -4,11 +4,11 @@
  */
 
 #include "platform_utils.hpp"
+#include <utf8/unchecked.h>
 #include <Windows.h>
 #include <Shellapi.h>
 #include <dwmapi.h>
 #include <mmsystem.h>
-#include <utf8/unchecked.h>
 
 bool reshade::utils::open_explorer(const std::filesystem::path &path)
 {

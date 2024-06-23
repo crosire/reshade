@@ -4,10 +4,10 @@
  */
 
 #include "effect_expression.hpp"
-#include <cmath> // fmod
+#include <cmath> // std::fmod
 #include <cassert>
-#include <cstring> // memcpy, memset
-#include <algorithm> // std::min, std::max
+#include <cstring> // std::memcpy, std::memset
+#include <algorithm> // std::max, std::min
 
 reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 {

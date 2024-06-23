@@ -6,8 +6,9 @@
 #include "input.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <algorithm>
 #include <unordered_map>
+#include <cstring> // std::memset
+#include <algorithm> // std::any_of, std::copy_n, std::max_element
 #include <Windows.h>
 
 extern bool is_uwp_app();

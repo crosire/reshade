@@ -20,12 +20,14 @@
 #include "reshade_api_object_impl.hpp"
 #include <set>
 #include <thread>
-#include <cctype>
-#include <cstring>
 #include <fstream>
+#include <cmath> // std::abs, std::fmod
+#include <cctype> // std::toupper
+#include <cwctype> // std::towlower
+#include <cstdlib> // std::malloc, std::rand, std::strtod, std::strtol
+#include <cstring> // std::memcpy, std::memset, std::strlen
 #include <charconv> // std::to_chars
-#include <algorithm>
-#include <numeric>
+#include <algorithm> // std::all_of, std::copy_n, std::equal, std::fill_n, std::find, std::find_if, std::for_each, std::max, std::min, std::replace, std::remove, std::remove_if, std::reverse, std::search, std::sort, std::stable_sort, std::swap, std::transform
 #include <fpng.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -1467,7 +1469,7 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 		// Only add those files that are matching the filter text
 		if (filter_text.empty() ||
 			std::search(preset_name.cbegin(), preset_name.cend(), filter_text.native().begin(), filter_text.native().end(),
-				[](auto c1, auto c2) { return towlower(c1) == towlower(c2); }) != preset_name.cend())
+				[](auto c1, auto c2) { return std::towlower(c1) == std::towlower(c2); }) != preset_name.cend())
 			preset_paths.push_back(std::move(preset_path));
 	}
 
@@ -3532,10 +3534,10 @@ void reshade::runtime::load_effects(bool force_load_all)
 
 	// Now that we have a list of files, load them in parallel
 	// Split workload into batches instead of launching a thread for every file to avoid launch overhead and stutters due to too many threads being in flight
-	size_t num_splits = std::min<size_t>(effect_files.size(), std::max<size_t>(std::thread::hardware_concurrency(), 2u) - 1);
+	size_t num_splits = std::min(effect_files.size(), static_cast<size_t>(std::max(std::thread::hardware_concurrency(), 2u) - 1));
 #ifndef _WIN64
 	// Limit number of threads in 32-bit due to the limited about of address space being available there and compilation being memory hungry
-	num_splits = std::min<size_t>(num_splits, 4);
+	num_splits = std::min(num_splits, static_cast<size_t>(4));
 #endif
 
 	// Keep track of the spawned threads, so the runtime cannot be destroyed while they are still running
@@ -3959,7 +3961,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 					const float max = variable.annotation_as_float("max", 0, 1.0f);
 					const float step_min = variable.annotation_as_float("step", 0);
 					const float step_max = variable.annotation_as_float("step", 1);
-					float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
+					float increment = step_max == 0 ? step_min : (step_min + std::fmod(static_cast<float>(std::rand()), step_max - step_min + 1));
 					const float smoothing = variable.annotation_as_float("smoothing");
 
 					float value[2] = { 0, 0 };

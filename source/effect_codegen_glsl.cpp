@@ -5,7 +5,7 @@
 
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
-#include <cmath> // signbit, isinf, isnan
+#include <cmath> // std::isinf, std::isnan, std::signbit
 #include <cassert>
 #include <cstring> // std::memcmp
 #include <charconv> // std::from_chars, std::to_chars

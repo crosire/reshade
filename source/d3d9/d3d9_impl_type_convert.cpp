@@ -4,8 +4,8 @@
  */
 
 #include "d3d9_impl_type_convert.hpp"
-#include <limits>
 #include <cassert>
+#include <cstring> // std::strcmp
 
 auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shader_usage) -> D3DFORMAT
 {

@@ -7,6 +7,8 @@
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
+#include <cstring> // std::strncmp, std::strncpy
+#include <algorithm> // std::find_if
 
 lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
@@ -244,11 +246,11 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 		return VK_INCOMPLETE;
 
 	VkPhysicalDeviceToolPropertiesEXT &tool_props = pToolProperties[(*pToolCount)++];
-	strcpy_s(tool_props.name, "ReShade");
-	strcpy_s(tool_props.version, VERSION_STRING_PRODUCT);
+	std::strncpy(tool_props.name, "ReShade", VK_MAX_EXTENSION_NAME_SIZE);
+	std::strncpy(tool_props.version, VERSION_STRING_PRODUCT, VK_MAX_EXTENSION_NAME_SIZE);
 	tool_props.purposes = VK_TOOL_PURPOSE_ADDITIONAL_FEATURES_BIT_EXT | VK_TOOL_PURPOSE_MODIFYING_FEATURES_BIT_EXT;
-	strcpy_s(tool_props.description, "crosire's ReShade post-processing injector");
-	strcpy_s(tool_props.layer, "VK_LAYER_reshade");
+	std::strncpy(tool_props.description, "crosire's ReShade post-processing injector", VK_MAX_DESCRIPTION_SIZE);
+	std::strncpy(tool_props.layer, "VK_LAYER_reshade", VK_MAX_EXTENSION_NAME_SIZE);
 
 	return VK_SUCCESS;
 }

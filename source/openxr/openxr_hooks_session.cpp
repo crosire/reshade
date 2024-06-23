@@ -19,6 +19,7 @@
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
 #include <deque>
+#include <algorithm> // std::find, std::find_if
 
 #define XR_USE_GRAPHICS_API_D3D11
 #define XR_USE_GRAPHICS_API_D3D12

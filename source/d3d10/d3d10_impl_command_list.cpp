@@ -7,6 +7,8 @@
 #include "d3d10_impl_type_convert.hpp"
 #include "d3d10_resource_call_vtable.inl"
 #include "dll_log.hpp"
+#include <cstring> // std::memcpy
+#include <algorithm> // std::find
 
 void reshade::d3d10::pipeline_impl::apply(ID3D10Device *ctx, api::pipeline_stage stages) const
 {

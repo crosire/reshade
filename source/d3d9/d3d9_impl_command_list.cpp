@@ -5,8 +5,8 @@
 
 #include "d3d9_impl_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
-#include <string>
-#include <algorithm>
+#include <cstring> // std::strlen
+#include <algorithm> // std::max
 #include <utf8/unchecked.h>
 
 static void convert_cube_uv_to_vec(D3DCUBEMAP_FACES face, float u, float v, float &x, float &y, float &z)

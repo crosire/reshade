@@ -10,6 +10,7 @@
 #include "runtime.hpp"
 #include "dll_log.hpp"
 #include "ini_file.hpp"
+#include <cstring> // std::strlen
 
 void ReShadeLogMessage([[maybe_unused]] HMODULE module, int level, const char *message)
 {
@@ -86,7 +87,7 @@ bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 
 void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
-	return ReShadeSetConfigArray(module, runtime, section, key, value, value != nullptr ? strlen(value) : 0);
+	return ReShadeSetConfigArray(module, runtime, section, key, value, value != nullptr ? std::strlen(value) : 0);
 }
 void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
 {

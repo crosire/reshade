@@ -7,6 +7,7 @@
 #include "vulkan_impl_device.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
+#include <cstring> // std::strcmp
 
 extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;

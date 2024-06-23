@@ -4,8 +4,8 @@
  */
 
 #include "hook_manager.hpp"
-#include <Windows.h>
 #include <cassert>
+#include <Windows.h>
 
 // The following hooks can only be called when installed as d3d12.dll, since they are skipped otherwise (see hook_manager.cpp)
 // Therefore can assume that the export module handle points toward the system d3d12.dll

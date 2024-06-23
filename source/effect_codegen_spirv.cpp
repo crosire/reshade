@@ -8,7 +8,7 @@
 #include <cassert>
 #include <cstring> // std::memcmp
 #include <charconv> // std::from_chars
-#include <algorithm> // std::find_if, std::max
+#include <algorithm> // std::find_if, std::max, std::sort
 #include <unordered_set>
 
 // Use the C++ variant of the SPIR-V headers

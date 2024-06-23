@@ -8,10 +8,11 @@
 
 #include "effect_lexer.hpp"
 #include "imgui_code_editor.hpp"
-#include <cctype>
-#include <imgui.h>
-#include <algorithm>
+#include <cmath> // std::abs, std::floor, std::fmod
+#include <cctype> // std::isblank, std::tolower
+#include <algorithm> // std::max, std::min
 #include <utf8/unchecked.h>
+#include <imgui.h>
 
 static int get_parenthesis_type(utf8::utfchar32_t c)
 {
@@ -220,8 +221,8 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
 
 			text_pos res;
-			res.line = std::max<size_t>(0, static_cast<size_t>(floor(pos.y / char_advance.y)));
-			res.line = std::min<size_t>(res.line, _lines.size() - 1);
+			res.line = std::max(static_cast<size_t>(0), static_cast<size_t>(std::floor(pos.y / char_advance.y)));
+			res.line = std::min(res.line, _lines.size() - 1);
 
 			float column_width = 0.0f;
 			float cumulated_string_width[2] = { 0.0f, 0.0f }; // [0] is the latest, [1] is the previous. I use that trick to check where cursor is exactly (important for tabs).
@@ -355,8 +356,8 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	float longest_line = 0.0f;
 	const float space_size = calc_text_size(" ").x;
 
-	size_t line_no = static_cast<size_t>(floor(ImGui::GetScrollY() / char_advance.y));
-	size_t line_max = std::max<size_t>(0, std::min(_lines.size() - 1, line_no + static_cast<size_t>(floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y))));
+	size_t line_no = static_cast<size_t>(std::floor(ImGui::GetScrollY() / char_advance.y));
+	size_t line_max = std::max(static_cast<size_t>(0), std::min(_lines.size() - 1, line_no + static_cast<size_t>(std::floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y))));
 
 	const auto calc_text_distance_to_line_begin = [this, space_size](const text_pos &from) {
 		float distance = 0.0f;
@@ -494,7 +495,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			}
 
 			// Draw the cursor animation
-			if (is_focused && io.ConfigInputTextCursorBlink && fmodf(_cursor_anim, 1.0f) <= 0.5f)
+			if (is_focused && io.ConfigInputTextCursorBlink && std::fmod(_cursor_anim, 1.0f) <= 0.5f)
 			{
 				const float cx = calc_text_distance_to_line_begin(_cursor_pos);
 
@@ -802,7 +803,7 @@ void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 			text_pos &beg = _select_beg;
 			text_pos &end = _select_end;
 
-			_colorize_line_beg = std::min(_colorize_line_beg, beg.line - std::min<size_t>(beg.line, 10));
+			_colorize_line_beg = std::min(_colorize_line_beg, beg.line - std::min(beg.line, static_cast<size_t>(10)));
 			_colorize_line_end = std::max(_colorize_line_end, end.line + 10 + 1);
 
 			beg.column = 0;
@@ -900,7 +901,7 @@ void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 	u.added_beg = _cursor_pos;
 
 	// Colorize additional 10 lines above and below to better catch multi-line constructs
-	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min(_cursor_pos.line, static_cast<size_t>(10)));
 
 	// New line feed requires insertion of a new line
 	if (c == '\n')
@@ -1127,7 +1128,7 @@ void reshade::imgui::code_editor::delete_next()
 
 	record_undo(std::move(u));
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min(_cursor_pos.line, static_cast<size_t>(10)));
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
 void reshade::imgui::code_editor::delete_previous()
@@ -1182,7 +1183,7 @@ void reshade::imgui::code_editor::delete_previous()
 
 	_scroll_to_cursor = true;
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min(_cursor_pos.line, static_cast<size_t>(10)));
 	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 10 + 1);
 }
 void reshade::imgui::code_editor::delete_selection()
@@ -1228,7 +1229,7 @@ void reshade::imgui::code_editor::delete_selection()
 		assert(!_lines.empty());
 	}
 
-	_colorize_line_beg = std::min(_colorize_line_beg, _select_beg.line - std::min<size_t>(_cursor_pos.line, 10));
+	_colorize_line_beg = std::min(_colorize_line_beg, _select_beg.line - std::min(_cursor_pos.line, static_cast<size_t>(10)));
 	_colorize_line_end = std::max(_colorize_line_end, _select_end.line + 10 + 1);
 
 	// Reset selection
@@ -1338,10 +1339,10 @@ void reshade::imgui::code_editor::move_up(size_t amount, bool selection)
 	assert(!_lines.empty());
 
 	const text_pos prev_pos = _cursor_pos;
-	_cursor_pos.line = std::max<intptr_t>(0, _cursor_pos.line - amount);
+	_cursor_pos.line = std::max(static_cast<size_t>(0), _cursor_pos.line - amount);
 
 	// The line before could be shorter, so adjust column
-	_cursor_pos.column = std::min<intptr_t>(_cursor_pos.column, _lines[_cursor_pos.line].size());
+	_cursor_pos.column = std::min(_cursor_pos.column, _lines[_cursor_pos.line].size());
 
 	if (prev_pos == _cursor_pos)
 		return;
@@ -1370,10 +1371,10 @@ void reshade::imgui::code_editor::move_down(size_t amount, bool selection)
 	assert(!_lines.empty());
 
 	const text_pos prev_pos = _cursor_pos;
-	_cursor_pos.line = std::min<intptr_t>(_cursor_pos.line + amount, _lines.size() - 1);
+	_cursor_pos.line = std::min(_cursor_pos.line + amount, _lines.size() - 1);
 
 	// The line after could be shorter, so adjust column
-	_cursor_pos.column = std::min<intptr_t>(_cursor_pos.column, _lines[_cursor_pos.line].size());
+	_cursor_pos.column = std::min(_cursor_pos.column, _lines[_cursor_pos.line].size());
 
 	if (prev_pos == _cursor_pos)
 		return;

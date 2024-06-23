@@ -9,6 +9,7 @@
 #include "com_ptr.hpp"
 #include "reshade_api_pipeline.hpp"
 #include <vector>
+#include <limits>
 
 namespace reshade::d3d9
 {

@@ -13,6 +13,8 @@
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
+#include <cmath> // std::abs, std::ceil, std::floor
+#include <algorithm> // std::max, std::min
 
 reshade::openvr::swapchain_impl::swapchain_impl(D3D10Device *device, vr::IVRCompositor *compositor) :
 	swapchain_impl(device, device, compositor)

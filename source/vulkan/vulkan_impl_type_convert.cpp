@@ -6,7 +6,7 @@
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_type_convert.hpp"
-#include <algorithm>
+#include <algorithm> // std::copy_n, std::fill_n, std::find_if
 
 auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *components) -> VkFormat
 {

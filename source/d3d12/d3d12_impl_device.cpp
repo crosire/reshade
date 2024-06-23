@@ -10,7 +10,9 @@
 #include "d3d12_resource_call_vtable.inl"
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
-#include <algorithm>
+#include <cwchar> // std::wcslen
+#include <cstring> // std::memcmp, std::memcpy, std::strlen
+#include <algorithm> // std::copy_n, std::find, std::find_if, std::max, std::min
 #include <dxgi1_4.h>
 
 extern bool is_windows7();
@@ -1064,7 +1066,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					if (group.raygen.shader_index != UINT32_MAX && raygen_desc[group.raygen.shader_index].entry_point != nullptr)
 					{
 						const char *entry_point = raygen_desc[group.raygen.shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
+						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
 					break;
 				}
@@ -1073,7 +1075,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					if (group.miss.shader_index != UINT32_MAX && miss_desc[group.miss.shader_index].entry_point != nullptr)
 					{
 						const char *entry_point = miss_desc[group.miss.shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
+						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
 					break;
 				}
@@ -1082,7 +1084,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					if (group.callable.shader_index != UINT32_MAX && callable_desc[group.callable.shader_index].entry_point != nullptr)
 					{
 						const char *entry_point = callable_desc[group.callable.shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(group_exports[i]));
+						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
 					break;
 				}
@@ -1099,7 +1101,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					{
 						std::wstring &entry_point_wide = any_hit_imports[i];
 						const char *const entry_point = any_hit_desc[group.hit_group.any_hit_shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
 						desc.AnyHitShaderImport = entry_point_wide.c_str();
 					}
 					else
@@ -1111,7 +1113,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					{
 						std::wstring &entry_point_wide = closest_hit_imports[i];
 						const char *const entry_point = closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
 						desc.ClosestHitShaderImport = entry_point_wide.c_str();
 					}
 					else
@@ -1123,7 +1125,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					{
 						std::wstring &entry_point_wide = intersection_imports[i];
 						const char *const entry_point = intersection_desc[group.hit_group.intersection_shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + strlen(entry_point), std::back_inserter(entry_point_wide));
+						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
 						desc.IntersectionShaderImport = entry_point_wide.c_str();
 					}
 					else
@@ -1977,9 +1979,9 @@ bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipelin
 
 		WCHAR *group_exports = extra_data.data();
 		for (uint32_t i = 0; i < first && group_exports < (extra_data.data() + extra_data_size / sizeof(WCHAR)); ++i)
-			group_exports += wcslen(group_exports) + 1;
+			group_exports += std::wcslen(group_exports) + 1;
 
-		for (uint32_t i = 0; i < count; ++i, group_exports += wcslen(group_exports) + 1)
+		for (uint32_t i = 0; i < count; ++i, group_exports += std::wcslen(group_exports) + 1)
 		{
 			if (group_exports >= (extra_data.data() + extra_data_size / sizeof(WCHAR)))
 				return false;

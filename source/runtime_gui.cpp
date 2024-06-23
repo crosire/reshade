@@ -20,7 +20,11 @@
 #include "fonts/forkawesome.inl"
 #include "fonts/glyph_ranges.hpp"
 #include <fstream>
-#include <algorithm>
+#include <cmath> // std::abs, std::ceil, std::floor
+#include <cctype> // std::tolower
+#include <cstdlib> // std::lldiv, std::strtol
+#include <cstring> // std::memcmp, std::memcpy
+#include <algorithm> // std::any_of, std::count_if, std::find, std::find_if, std::max, std::min, std::replace, std::rotate, std::search, std::swap, std::transform
 
 static bool filter_text(const std::string_view text, const std::string_view filter)
 {
@@ -68,7 +72,7 @@ static std::string_view get_localized_annotation(T &object, const std::string_vi
 		std::replace(language.begin(), language.end(), '-', '_');
 		std::transform(language.begin(), language.end(), language.begin(),
 			[](std::string::value_type c) {
-				return static_cast<std::string::value_type>(tolower(c));
+				return static_cast<std::string::value_type>(std::tolower(c));
 			});
 
 		for (int attempt = 0; attempt < 2; ++attempt)
@@ -2707,7 +2711,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		const float total_width = ImGui::GetContentRegionAvail().x;
 		int texture_index = 0;
-		const unsigned int num_columns = std::max(1u, static_cast<unsigned int>(std::ceilf(total_width / (55.0f * _font_size))));
+		const unsigned int num_columns = std::max(1u, static_cast<unsigned int>(std::ceil(total_width / (55.0f * _font_size))));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
 		// Variables used to calculate memory size of textures

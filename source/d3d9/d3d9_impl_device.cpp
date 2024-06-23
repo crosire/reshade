@@ -7,7 +7,8 @@
 #include "d3d9_impl_type_convert.hpp"
 #include "d3d9_resource_call_vtable.inl"
 #include "dll_log.hpp"
-#include <algorithm>
+#include <cstring> // std::memcpy
+#include <algorithm> // std::copy_n, std::min
 
 const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
 {

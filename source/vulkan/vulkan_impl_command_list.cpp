@@ -7,7 +7,8 @@
 #include "vulkan_impl_command_list.hpp"
 #include "vulkan_impl_type_convert.hpp"
 #include "dll_log.hpp"
-#include <algorithm>
+#include <cstring> // std::memcmp, std::memcpy
+#include <algorithm> // std::copy_n, std::max, std::min, std::swap
 
 #define vk _device_impl->_dispatch_table
 
@@ -258,7 +259,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 				attach_desc.initialLayout = attach_ref.layout;
 				attach_desc.finalLayout = attach_ref.layout;
 
-				framebuffer_create_info.width  = std::min(framebuffer_create_info.width,  view_data->image_extent.width);
+				framebuffer_create_info.width = std::min(framebuffer_create_info.width,  view_data->image_extent.width);
 				framebuffer_create_info.height = std::min(framebuffer_create_info.height, view_data->image_extent.height);
 				framebuffer_create_info.layers = std::min(framebuffer_create_info.layers, view_data->create_info.subresourceRange.layerCount);
 			}
@@ -784,9 +785,9 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 		region.imageOffset.y = dst_box->top;
 		region.imageOffset.z = dst_box->front;
 
-		region.imageExtent.width  = dst_box->right - dst_box->left;
+		region.imageExtent.width = dst_box->right - dst_box->left;
 		region.imageExtent.height = dst_box->bottom - dst_box->top;
-		region.imageExtent.depth  = dst_box->back - dst_box->front;
+		region.imageExtent.depth = dst_box->back - dst_box->front;
 
 		if (dst_data->create_info.imageType != VK_IMAGE_TYPE_3D)
 		{
@@ -798,9 +799,9 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 	{
 		region.imageOffset = { 0, 0, 0 };
 
-		region.imageExtent.width  = std::max(1u, dst_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
+		region.imageExtent.width = std::max(1u, dst_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
 		region.imageExtent.height = std::max(1u, dst_data->create_info.extent.height >> region.imageSubresource.mipLevel);
-		region.imageExtent.depth  = std::max(1u, dst_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
+		region.imageExtent.depth = std::max(1u, dst_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
 	}
 
 	vk.CmdCopyBufferToImage(_orig, (VkBuffer)src.handle, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -831,9 +832,9 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 
 		if (src_box != nullptr)
 		{
-			region.extent.width  = src_box->width();
+			region.extent.width = src_box->width();
 			region.extent.height = src_box->height();
-			region.extent.depth  = src_box->depth();
+			region.extent.depth = src_box->depth();
 
 			if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
 			{
@@ -844,9 +845,9 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		}
 		else
 		{
-			region.extent.width  = std::max(1u, src_data->create_info.extent.width  >> region.srcSubresource.mipLevel);
+			region.extent.width = std::max(1u, src_data->create_info.extent.width  >> region.srcSubresource.mipLevel);
 			region.extent.height = std::max(1u, src_data->create_info.extent.height >> region.srcSubresource.mipLevel);
-			region.extent.depth  = std::max(1u, src_data->create_info.extent.depth  >> region.srcSubresource.mipLevel);
+			region.extent.depth = std::max(1u, src_data->create_info.extent.depth  >> region.srcSubresource.mipLevel);
 		}
 
 		vk.CmdCopyImage(_orig,
@@ -924,9 +925,9 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 		region.imageOffset.y = src_box->top;
 		region.imageOffset.z = src_box->front;
 
-		region.imageExtent.width  = src_box->width();
+		region.imageExtent.width = src_box->width();
 		region.imageExtent.height = src_box->height();
-		region.imageExtent.depth  = src_box->depth();
+		region.imageExtent.depth = src_box->depth();
 
 		if (src_data->create_info.imageType != VK_IMAGE_TYPE_3D)
 		{
@@ -938,9 +939,9 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 	{
 		region.imageOffset = { 0, 0, 0 };
 
-		region.imageExtent.width  = std::max(1u, src_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
+		region.imageExtent.width = std::max(1u, src_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
 		region.imageExtent.height = std::max(1u, src_data->create_info.extent.height >> region.imageSubresource.mipLevel);
-		region.imageExtent.depth  = std::max(1u, src_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
+		region.imageExtent.depth = std::max(1u, src_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
 	}
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkBuffer)dst.handle, 1, &region);

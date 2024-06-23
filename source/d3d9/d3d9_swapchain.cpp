@@ -8,6 +8,7 @@
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
+#include <algorithm> // std::find
 
 bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, HWND hwnd)
 {

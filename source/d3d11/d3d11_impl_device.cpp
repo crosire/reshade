@@ -5,7 +5,8 @@
 
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
-#include <algorithm>
+#include <cstring> // std::memcpy, std::strlen
+#include <algorithm> // std::copy_n
 #include <utf8/unchecked.h>
 
 extern bool is_windows7();

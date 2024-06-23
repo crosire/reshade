@@ -5,10 +5,10 @@
 
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
-#include <cstring>
-#include <algorithm>
 #include <vector>
 #include <shared_mutex>
+#include <cstring> // std::strcmp
+#include <algorithm> // std::find_if, std::remove, std::remove_if
 #include <Windows.h>
 
 enum class hook_method

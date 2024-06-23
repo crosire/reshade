@@ -6,6 +6,7 @@
 #include "vulkan_impl_device.hpp"
 #include "vulkan_impl_command_queue.hpp"
 #include "dll_log.hpp"
+#include <algorithm> // std::find
 
 #define vk _device_impl->_dispatch_table
 

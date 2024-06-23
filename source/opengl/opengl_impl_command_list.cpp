@@ -6,7 +6,8 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include <algorithm>
+#include <cstring> // std::memcpy
+#include <algorithm> // std::copy_n, std::max
 
 #define gl gl3wProcs.gl
 

@@ -7,8 +7,8 @@
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cctype> // std::toupper
-#include <limits>
 #include <cassert>
+#include <algorithm> // std::max, std::replace, std::transform
 #include <functional>
 #include <string_view>
 

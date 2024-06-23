@@ -7,7 +7,7 @@
 #include <reshade.hpp>
 #include <vector>
 #include <shared_mutex>
-#include <algorithm>
+#include <algorithm> // std::remove
 
 using namespace reshade::api;
 

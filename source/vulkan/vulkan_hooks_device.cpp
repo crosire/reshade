@@ -13,6 +13,8 @@
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
 #include "lockfree_linear_map.hpp"
+#include <cstring> // std::strcmp, std::strncmp
+#include <algorithm> // std::fill_n, std::find_if, std::min, std::sort, std::unique
 
 // Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel and Optimus
 extern thread_local bool g_in_dxgi_runtime;

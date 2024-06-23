@@ -4,8 +4,8 @@
  */
 
 #include "d3d12_impl_type_convert.hpp"
-#include <limits>
 #include <cassert>
+#include <algorithm> // std::copy_n, std::fill_n
 
 // {B2257A30-4014-46EA-BD88-DEC21DB6A02B}
 const GUID reshade::d3d12::extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };

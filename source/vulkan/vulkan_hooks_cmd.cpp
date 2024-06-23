@@ -10,7 +10,8 @@
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
 #include "lockfree_linear_map.hpp"
-#include <algorithm>
+#include <cstring> // std::memcpy, std::memset
+#include <algorithm> // std::copy_n, std::max, std::min, std::swap
 
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 

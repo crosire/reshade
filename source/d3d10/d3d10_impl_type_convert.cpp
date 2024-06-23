@@ -4,8 +4,8 @@
  */
 
 #include "d3d10_impl_type_convert.hpp"
-#include <limits>
 #include <cassert>
+#include <algorithm> // std::copy_n
 
 auto reshade::d3d10::convert_format(api::format format) -> DXGI_FORMAT
 {

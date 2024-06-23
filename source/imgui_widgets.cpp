@@ -8,6 +8,8 @@
 #include "localization.hpp"
 #include "fonts/forkawesome.h"
 #include <cassert>
+#include <cwctype> // std::towlower
+#include <algorithm> // std::find, std::max, std::min, std::replace std::transform
 
 extern std::filesystem::path g_reshade_base_path;
 
@@ -161,7 +163,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 
 		// Convert entry extension to lowercase before parsing
 		std::wstring entry_ext = entry.path().extension().wstring();
-		std::transform(entry_ext.begin(), entry_ext.end(), entry_ext.begin(), towlower);
+		std::transform(entry_ext.begin(), entry_ext.end(), entry_ext.begin(), std::towlower);
 		
 		if (std::find(exts.cbegin(), exts.cend(), entry_ext) != exts.cend() &&
 			std::find(hidden_paths.cbegin(), hidden_paths.cend(), entry.path()) == hidden_paths.cend())
@@ -175,7 +177,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		const bool selected = (file_path == path);
 		// Convert entry extension to lowercase before parsing
 		std::wstring file_path_ext = file_path.extension().wstring();
-		std::transform(file_path_ext.begin(), file_path_ext.end(), file_path_ext.begin(), towlower);
+		std::transform(file_path_ext.begin(), file_path_ext.end(), file_path_ext.begin(), std::towlower);
 
 		std::string label = ICON_FK_FILE " ";
 		if (file_path_ext == L".fx" || file_path_ext == L".fxh")
@@ -229,7 +231,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	
 	// Convert entry extension to lowercase before parsing
 	std::wstring path_ext = path.extension().wstring();
-	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), towlower);
+	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), std::towlower);
 
 	const bool result = (select || ImGui::IsKeyPressed(ImGuiKey_Enter) || has_double_clicked_file) && (exts.empty() || std::find(exts.cbegin(), exts.cend(), path_ext) != exts.cend());
 	if (result || cancel)
@@ -357,7 +359,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 		dialog_path = std::filesystem::u8path(buf);
 		// Convert path extension to lowercase before parsing
 		std::wstring dialog_path_ext = dialog_path.extension().wstring();
-		std::transform(dialog_path_ext.begin(), dialog_path_ext.end(), dialog_path_ext.begin(), towlower);
+		std::transform(dialog_path_ext.begin(), dialog_path_ext.end(), dialog_path_ext.begin(), std::towlower);
 		// Succeed only if extension matches
 		if (std::find(exts.cbegin(), exts.cend(), dialog_path_ext) != exts.cend() || dialog_path.empty())
 			path = dialog_path, res = true;

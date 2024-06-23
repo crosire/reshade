@@ -18,6 +18,9 @@
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 #include "lockfree_linear_map.hpp"
+#include <cstdio> // std::sscanf
+#include <cstring> // std::memcpy
+#include <algorithm> // std::find_if, std::swap
 #include <functional>
 #include <ivrclientcore.h>
 

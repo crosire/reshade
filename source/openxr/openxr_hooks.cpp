@@ -5,6 +5,7 @@
 
 #include "openxr_hooks.hpp"
 #include "lockfree_linear_map.hpp"
+#include <cstring> // std::strcmp
 
 extern lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
 
