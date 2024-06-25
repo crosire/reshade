@@ -9,6 +9,11 @@
 
 using namespace reshade::api;
 
+// When a resource is being created, ReShade will first call any registered 'create_resource' callbacks, then actually create the resource and finally call any registered 'init_resource' callbacks.
+// So to modify the initial data passed to resource creation, have to allocate and fill it in a 'create_resource' callback, which is then passed along to the actual resource creation and then have to free it again in a 'init_resource' callback.
+// The problem is that multiple threads can create resources simultaneously and as such the order in which these three things happen across multiple threads is not guaranteed (e.g. 'init_resource' may be called on one thread while another thread has only just called 'create_resource').
+// To ensure there is no race condition between the data being freed on one thread and another thread potentially still creating a different resource also referencing initial data, this variable is made thread-local.
+// This way each thread gets its own copy and the order it is being used on each thread is always correct, from it being set in the 'create_resource' callback, to it being used during resource creation, to it finally being freed in the 'init_resource' callback.
 static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
 // See implementation in 'utils\load_texture_image.cpp'
@@ -43,7 +48,7 @@ static bool on_create_texture(device *device, resource_desc &desc, subresource_d
 }
 static void on_after_create_texture(device *, const resource_desc &, const subresource_data *, resource_usage, resource)
 {
-	// Free the memory allocated via the 'load_texture_image' call above
+	// Free the memory allocated via the 'load_texture_image' call above during the preceding 'create_resource' event that called in the 'on_create_texture' callback
 	s_data_to_delete.clear();
 }
 
@@ -110,6 +115,7 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 }
 
 // Keep track of current resource between 'map_resource' and 'unmap_resource' event invocations
+// It's also thread-local, for similar reasons as 's_data_to_delete' above, just that the two events that could interact with multiple threads here are 'map_texture_region' and 'unmap_texture_region'.
 static thread_local struct {
 	resource res = { 0 };
 	resource_desc desc;
