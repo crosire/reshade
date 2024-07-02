@@ -1881,17 +1881,15 @@ In that event here are some steps you can try to resolve this:
 			Close();
 		}
 
+		void OnSkipButtonClick(object sender, RoutedEventArgs e)
+		{
+			InstallStep_Finish();
+		}
 		void OnCancelButtonClick(object sender, RoutedEventArgs e)
 		{
 			if (CurrentPage.Content is SelectAppPage appPage)
 			{
 				appPage.Cancel();
-			}
-
-			if (CurrentPage.Content is SelectAddonsPage || CurrentPage.Content is SelectEffectsPage)
-			{
-				InstallStep_Finish();
-				return;
 			}
 
 			Close();
@@ -1900,9 +1898,13 @@ In that event here are some steps you can try to resolve this:
 		void OnCurrentPageNavigated(object sender, NavigationEventArgs e)
 		{
 			bool isFinished = currentOperation == InstallOperation.Finished;
+			bool isSkippable = e.Content is SelectAddonsPage || e.Content is SelectEffectsPage;
 
 			NextButton.Visibility = isFinished ? Visibility.Collapsed : Visibility.Visible;
 			FinishButton.Visibility = isFinished ? Visibility.Visible : Visibility.Collapsed;
+
+			SkipButton.Visibility = isSkippable ? Visibility.Visible : Visibility.Collapsed;
+			CancelButton.Visibility = isSkippable ? Visibility.Collapsed : Visibility.Visible;
 
 			BackButton.IsEnabled = isFinished;
 			CancelButton.IsEnabled = !(e.Content is StatusPage);
