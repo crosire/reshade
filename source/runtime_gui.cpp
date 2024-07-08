@@ -1283,7 +1283,19 @@ void reshade::runtime::draw_gui()
 			const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 			struct tm tm; localtime_s(&tm, &t);
 
-			const int temp_size = ImFormatString(temp, sizeof(temp), _clock_format != 0 ? "%02u:%02u:%02u" : "%02u:%02u", tm.tm_hour, tm.tm_min, tm.tm_sec);
+			char temp_clock[32];
+			switch(_clock_format){
+				case 0:
+					sprintf_s(temp_clock, "%02u:%02u", tm.tm_hour, tm.tm_min)
+					break;
+				case 1:
+					sprintf_s(temp_clock, "%02u:%02u:%02u", tm.tm_hour, tm.tm_min, tm.tm_sec)
+					break;
+				case 2:
+					sprintf_s(temp_clock, "%.4d-%.2d-%.2d %02u:%02u:%02u", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+					break;
+			}
+			const int temp_size = ImFormatString(temp, sizeof(temp), "%s", temp_clock);
 			if (_fps_pos % 2) // Align text to the right of the window
 				ImGui::SetCursorPosX(content_width - ImGui::CalcTextSize(temp, temp + temp_size).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp, temp + temp_size);
@@ -2499,7 +2511,7 @@ void reshade::runtime::draw_gui_settings()
 			}
 
 			if (_show_clock)
-				modified |= ImGui::Combo(_("Clock format"), reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0");
+				modified |= ImGui::Combo(_("Clock format"), reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0yyyy-MM-dd HH:mm:ss\0");
 
 			modified |= ImGui::SliderFloat(_("OSD text size"), &_fps_scale, 0.2f, 2.5f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
 			modified |= ImGui::ColorEdit4(_("OSD text color"), _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
