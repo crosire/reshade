@@ -8,7 +8,7 @@
       Width="Auto" Height="Auto"
       FocusManager.FocusedElement="{Binding ElementName=UpdateButton}">
   <DockPanel>
-    <Label x:Uid="PageTitle" DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select the operation to perform:" />
+    <TextBlock x:Uid="PageTitle" DockPanel.Dock="Top" Style="{StaticResource TitleStyle}" Text="Select the operation to perform:" />
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       An existing ReShade installation was found for the target game. Choose how to proceed with this installation.
     </TextBlock>

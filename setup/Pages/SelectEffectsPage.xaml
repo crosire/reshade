@@ -10,7 +10,7 @@
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label x:Uid="PageTitle" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select effects to install:" />
+      <TextBlock x:Uid="PageTitle" Style="{StaticResource TitleStyle}" Text="Select effects to install:" />
       <Button x:Uid="CheckAllButton" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">

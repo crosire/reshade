@@ -8,13 +8,13 @@
       Width="Auto" Height="Auto"
       FocusManager.FocusedElement="{Binding ElementName=ApiD3D9}">
   <DockPanel>
-    <Label DockPanel.Dock="Top" Margin="10" Padding="0" VerticalAlignment="Top" HorizontalContentAlignment="Stretch" Foreground="#FF003399" FontSize="16">
+    <TextBlock DockPanel.Dock="Top">
       <StackPanel Orientation="Horizontal">
-        <TextBlock x:Uid="PageTitle">
+        <TextBlock x:Uid="PageTitle" Style="{StaticResource TitleStyle}">
           Select the rendering API <TextBlock x:Name="AppName" x:FieldModifier="private" Text="the game or application" /> uses:
         </TextBlock> 
       </StackPanel>
-    </Label>
+    </TextBlock>
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       The preselected option is a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API the game uses, search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and look for a section with the title "API" on its page.
     </TextBlock>

@@ -9,13 +9,13 @@
       FocusManager.FocusedElement="{Binding ElementName=ItemsListBox}">
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
-      <Label x:Uid="PageTitle" Margin="10" Padding="0" VerticalAlignment="Top" Foreground="#FF003399" FontSize="16" Content="Select a game or application:" />
+      <TextBlock x:Uid="PageTitle" Style="{StaticResource TitleStyle}" Text="Select a game or application:" />
       <ComboBox x:Name="SortBy" x:FieldModifier="private" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center" Margin="10" Width="100" SelectedIndex="1" SelectionChanged="OnSortByChanged">
         <ComboBoxItem x:Uid="SortByRecentlyUsed">Recently Used</ComboBoxItem>
         <ComboBoxItem x:Uid="SortByAZ">A to Z</ComboBoxItem>
         <ComboBoxItem x:Uid="SortByZA">Z to A</ComboBoxItem>
       </ComboBox>
-      <Label x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Sort by:" />
+      <TextBlock x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Text="Sort by:" />
     </DockPanel>
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
       Browse and select a game to manage its ReShade installation.
