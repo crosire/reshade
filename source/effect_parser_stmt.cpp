@@ -2052,20 +2052,21 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			if (!info.vs_entry_point.empty())
 				warning(pass_location, 3089, "pass is specifying both 'VertexShader' and 'ComputeShader' which cannot be used together");
 			if (!info.ps_entry_point.empty())
-				warning(pass_location, 3089,  "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
+				warning(pass_location, 3089, "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
 
 			for (codegen::id id : cs_info.referenced_samplers)
 				info.samplers.push_back(_codegen->get_sampler(id));
 			for (codegen::id id : cs_info.referenced_storages)
 				info.storages.push_back(_codegen->get_storage(id));
 		}
-		else if (info.vs_entry_point.empty())
-		{
-			parse_success = false;
-			error(pass_location, 3012, "pass is missing 'VertexShader' property");
-		}
 		else
 		{
+			if (info.vs_entry_point.empty())
+			{
+				parse_success = false;
+				error(pass_location, 3012, "pass is missing 'VertexShader' property");
+			}
+
 			// Verify that shader signatures between VS and PS match (both semantics and interpolation qualifiers)
 			std::unordered_map<std::string_view, type> vs_semantic_mapping;
 			if (vs_info.return_semantic.empty())
@@ -2142,12 +2143,14 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				parse_success = false;
 				error(pass_location, 3667, "storage writes are only valid in compute shaders");
 			}
-		}
 
-		// Verify render target format supports sRGB writes if enabled
-		if (info.srgb_write_enable && !targets_support_srgb)
-			parse_success = false,
-			error(pass_location, 4582, "one or more render target(s) do not support sRGB writes (only textures with RGBA8 format do)");
+			// Verify render target format supports sRGB writes if enabled
+			if (info.srgb_write_enable && !targets_support_srgb)
+			{
+				parse_success = false;
+				error(pass_location, 4582, "one or more render target(s) do not support sRGB writes (only textures with RGBA8 format do)");
+			}
+		}
 	}
 
 	return expect('}') && parse_success;
