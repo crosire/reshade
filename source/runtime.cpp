@@ -1596,6 +1596,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
 	}
+	else
+	{
+		// Clear any errors from previous loading attempts
+		effect.errors.clear();
+	}
 
 	if (_effect_load_skipping && !force_load)
 	{
