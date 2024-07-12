@@ -401,7 +401,7 @@ private:
 			elem_type_id = convert_type(elem_info, false, storage, format);
 
 			// Make sure we don't get any dynamic arrays here
-			assert(info.array_length > 0);
+			assert(info.is_bounded_array());
 
 			const spv::Id array_length_id = emit_constant(info.array_length);
 
@@ -1823,7 +1823,7 @@ private:
 		spv::Id result;
 		if (data_type.is_array())
 		{
-			assert(data_type.array_length > 0); // Unsized arrays cannot be constants
+			assert(data_type.is_bounded_array()); // Unbounded arrays cannot be constants
 
 			type elem_type = data_type;
 			elem_type.array_length = 0;

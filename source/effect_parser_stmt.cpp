@@ -1179,8 +1179,11 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 		}
 
 		if (param.type.is_unbounded_array())
-			parse_success = false,
+		{
+			parse_success = false;
 			error(param.location, 3072, '\'' + param.name + "': array dimensions of function parameters must be explicit");
+			param.type.array_length = 0;
+		}
 
 		// Handle parameter type semantic
 		if (accept(':'))
@@ -1232,11 +1235,11 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 				break;
 			}
 
+			default_value_exp.add_cast_operation(param.type);
+
 			if (!default_value_exp.is_constant)
 				parse_success = false,
 				error(default_value_exp.location, 3011, '\'' + param.name + "': value must be a literal expression");
-
-			default_value_exp.add_cast_operation(param.type);
 
 			param.default_value = std::move(default_value_exp.constant);
 			param.has_default_value = true;
