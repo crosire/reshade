@@ -194,7 +194,7 @@ namespace reshade
 		bool preprocessed = false;
 		std::string errors;
 
-		reshadefx::module module;
+		reshadefx::effect_module module;
 		size_t source_hash = 0;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;

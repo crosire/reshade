@@ -587,7 +587,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 		break;
 	}
 
-	// Only need to set the rest of the fields if the application did not pass in a valid description already
+	// Only need to set the rest of the members if the application did not pass in a valid description already
 	if (desc.type == resource_view_type::unknown)
 	{
 		desc.type = texture_desc.texture.depth_or_layers > 1 ? resource_view_type::texture_2d_array : resource_view_type::texture_2d;

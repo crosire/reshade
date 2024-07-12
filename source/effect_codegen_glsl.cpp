@@ -69,7 +69,7 @@ private:
 	bool _uses_componentwise_and = false;
 	bool _uses_componentwise_cond = false;
 
-	void write_result(module &module) override
+	void write_result(effect_module &module) override
 	{
 		module = std::move(_module);
 
@@ -846,10 +846,12 @@ private:
 				'_' + std::to_string(func.num_threads[2]);
 
 		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
+				[&func](const std::pair<std::string, shader_type> &entry_point) {
+					return entry_point.first == func.unique_name;
+				}) != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, func.type });
+		_module.entry_points.emplace_back(func.unique_name, func.type);
 
 		_blocks.at(0) += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
 		if (func.type == shader_type::compute)

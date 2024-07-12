@@ -182,7 +182,7 @@ public:
 		if (pixels == nullptr)
 			return nullptr; // Likely a 'GL_PIXEL_UNPACK_BUFFER' currently bound ...
 		if (_target != GL_NONE && ((_desc.type != reshade::api::resource_type::texture_3d && _desc.texture.depth_or_layers != 1) || _desc.texture.levels > 1))
-			return nullptr; // Currently only a single subresource data element is passed to 'create_resource' and 'init_resource' (see 'initial_data' field), so cannot handle textures with multiple subresources
+			return nullptr; // Currently only a single subresource data element is passed to 'create_resource' and 'init_resource' (see '_initial_data'), so cannot handle textures with multiple subresources
 
 		GLint row_length = 0;
 		gl.GetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);

@@ -254,7 +254,7 @@ private:
 		return block.instructions.emplace_back(op);
 	}
 
-	void write_result(module &module) override
+	void write_result(effect_module &module) override
 	{
 		// First initialize the UBO type now that all member types are known
 		if (_global_ubo_type != 0)
@@ -1084,10 +1084,12 @@ private:
 				'_' + std::to_string(func.num_threads[2]);
 
 		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
+				[&func](const std::pair<std::string, shader_type> &entry_point) {
+					return entry_point.first == func.unique_name;
+				}) != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, func.type });
+		_module.entry_points.emplace_back(func.unique_name, func.type);
 
 		spv::Id position_variable = 0;
 		spv::Id point_size_variable = 0;

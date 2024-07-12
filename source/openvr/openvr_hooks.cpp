@@ -354,7 +354,7 @@ VR_Interface_Impl(IVRCompositor, Submit, 5, 012, {
 		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithPose_t));
 		break;
 	case vr::Submit_TextureWithDepth:
-		// This is not technically compatible with 'vr::VRTextureWithPoseAndDepth_t', but that is fine, since it's only used for storage and none of the fields are accessed directly
+		// This is not technically compatible with 'vr::VRTextureWithPoseAndDepth_t', but that is fine, since it's only used for storage and none of the members are accessed directly
 		// TODO: The depth texture bounds may be different then the side-by-side bounds which are used for submission
 		std::memcpy(&s_last_texture[eEye], pTexture, sizeof(vr::VRTextureWithDepth_t));
 		break;

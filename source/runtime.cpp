@@ -1899,17 +1899,17 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
 		// Compile shader modules
-		for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
+		for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.module.entry_points)
 		{
-			if (entry_point.type == reshadefx::shader_type::compute && !_device->check_capability(api::device_caps::compute_shader))
+			if (entry_point.second == reshadefx::shader_type::compute && !_device->check_capability(api::device_caps::compute_shader))
 			{
-				effect.errors += "error: " + entry_point.name + ": compute shaders are not supported in D3D9/D3D10\n";
+				effect.errors += "error: " + entry_point.first + ": compute shaders are not supported in D3D9/D3D10\n";
 				effect.compiled = false;
 				break;
 			}
 
-			std::string &cso = effect.assembly[entry_point.name];
-			std::string &cso_text = effect.assembly_text[entry_point.name];
+			std::string &cso = effect.assembly[entry_point.first];
+			std::string &cso_text = effect.assembly_text[entry_point.first];
 
 			if ((_renderer_id & 0xF0000) == 0)
 			{
@@ -1947,7 +1947,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				};
 
 				std::string profile;
-				switch (entry_point.type)
+				switch (entry_point.second)
 				{
 				case reshadefx::shader_type::vertex:
 					profile = "vs";
@@ -1996,12 +1996,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 #endif
 
 				std::string hlsl_attributes;
-				hlsl_attributes += "entrypoint=" + entry_point.name + ';';
+				hlsl_attributes += "entrypoint=" + entry_point.first + ';';
 				hlsl_attributes += "profile=" + profile + ';';
 				hlsl_attributes += "flags=" + std::to_string(compile_flags) + ';';
 
 				const std::string cache_id =
-					effect.source_file.stem().u8string() + '-' + entry_point.name + '-' + std::to_string(_renderer_id) + '-' +
+					effect.source_file.stem().u8string() + '-' + entry_point.first + '-' + std::to_string(_renderer_id) + '-' +
 					std::to_string(std::hash<std::string_view>()(hlsl_attributes) ^ std::hash<std::string_view>()(hlsl));
 
 				if (!load_effect_cache(cache_id, "cso", cso))
@@ -2012,8 +2012,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 					const HRESULT hr = D3DCompile(
 						hlsl.data(), hlsl.size(),
-						nullptr, entry_point.type == reshadefx::shader_type::pixel ? ps_defines : nullptr, nullptr,
-						entry_point.name.c_str(),
+						nullptr, entry_point.second == reshadefx::shader_type::pixel ? ps_defines : nullptr, nullptr,
+						entry_point.first.c_str(),
 						profile.c_str(),
 						compile_flags, 0,
 						&d3d_compiled, &d3d_errors);
@@ -2051,7 +2051,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					{
 						// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
 						if (d3d_errors_string.find("error") == std::string::npos)
-							effect.errors += "error: " + entry_point.name + ": ";
+							effect.errors += "error: " + entry_point.first + ": ";
 
 						effect.errors += d3d_errors_string;
 						effect.compiled = false;
@@ -2083,9 +2083,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 			else if (_renderer_id < 0x20000)
 			{
-				std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.name + " 1\n";
+				std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.first + " 1\n";
 
-				if (entry_point.type != reshadefx::shader_type::pixel)
+				if (entry_point.second != reshadefx::shader_type::pixel)
 				{
 					// OpenGL does not allow using 'discard' in the vertex shader profile
 					glsl += "#define discard\n";
@@ -2094,7 +2094,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					glsl += "#define dFdy(y) y\n";
 					glsl += "#define fwidth(p) p\n";
 				}
-				if (entry_point.type != reshadefx::shader_type::compute)
+				if (entry_point.second != reshadefx::shader_type::compute)
 				{
 					// OpenGL does not allow using 'shared' in vertex/fragment shader profile
 					glsl += "#define shared\n";
@@ -2141,7 +2141,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					{
 					case 15 /* OpEntryPoint */:
 						// Look for any non-matching entry points
-						if (entry_point.name != reinterpret_cast<const char *>(&spirv[inst + 3]))
+						if (entry_point.first != reinterpret_cast<const char *>(&spirv[inst + 3]))
 						{
 							functions_to_remove.push_back(spirv[inst + 2]);
 

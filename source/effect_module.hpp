@@ -259,15 +259,6 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// A shader entry point function.
-	/// </summary>
-	struct entry_point
-	{
-		std::string name;
-		shader_type type = shader_type::unknown;
-	};
-
-	/// <summary>
 	/// A function defined in the effect code.
 	/// </summary>
 	struct function_info
@@ -335,11 +326,11 @@ namespace reshadefx
 	/// <summary>
 	/// In-memory representation of an effect file.
 	/// </summary>
-	struct module
+	struct effect_module
 	{
 		std::vector<char> code;
 
-		std::vector<entry_point> entry_points;
+		std::vector<std::pair<std::string, shader_type>> entry_points;
 
 		std::vector<texture_info> textures;
 		std::vector<sampler_info> samplers;

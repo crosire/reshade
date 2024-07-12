@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	reshadefx::module module;
+	reshadefx::effect_module module;
 	backend->write_result(module);
 
 	if (print_glsl || print_hlsl)

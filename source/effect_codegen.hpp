@@ -26,7 +26,7 @@ namespace reshadefx
 		/// Writes result of the code generation to the specified <paramref name="module"/>.
 		/// </summary>
 		/// <param name="module">Target module to fill.</param>
-		virtual void write_result(struct module &module) = 0;
+		virtual void write_result(effect_module &module) = 0;
 
 	public:
 		/// <summary>
@@ -339,7 +339,7 @@ namespace reshadefx
 			return align_up(size, alignment) * (elements - 1) + size;
 		}
 
-		struct module _module;
+		effect_module _module;
 		std::vector<struct_info> _structs;
 		std::vector<std::unique_ptr<function_info>> _functions;
 		id _next_id = 1;

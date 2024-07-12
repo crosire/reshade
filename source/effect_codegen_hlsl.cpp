@@ -59,7 +59,7 @@ private:
 	bool _uses_bitwise_cast = false;
 	bool _uses_bitwise_intrinsics = false;
 
-	void write_result(module &module) override
+	void write_result(effect_module &module) override
 	{
 		module = std::move(_module);
 
@@ -1029,10 +1029,12 @@ private:
 			func.unique_name = 'E' + func.unique_name;
 
 		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
-				[&func](const entry_point &ep) { return ep.name == func.unique_name; }) != _module.entry_points.end())
+				[&func](const std::pair<std::string, shader_type> &entry_point) {
+					return entry_point.first == func.unique_name;
+				}) != _module.entry_points.end())
 			return;
 
-		_module.entry_points.push_back({ func.unique_name, func.type });
+		_module.entry_points.emplace_back(func.unique_name, func.type);
 
 		// Only have to rewrite the entry point function signature in shader model 3 and for compute (to write "numthreads" attribute)
 		if (_shader_model >= 40 && func.type != shader_type::compute)

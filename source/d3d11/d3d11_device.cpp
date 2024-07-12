@@ -47,7 +47,7 @@ D3D11Device::D3D11Device(IDXGIDevice1 *original_dxgi_device, ID3D11Device *origi
 D3D11Device::~D3D11Device()
 {
 #if RESHADE_ADDON
-	// The '_immediate_context' field has already been deleted by this point
+	// The '_immediate_context' member has already been deleted by this point
 	com_ptr<ID3D11DeviceContext> immediate_context;
 	_orig->GetImmediateContext(&immediate_context);
 

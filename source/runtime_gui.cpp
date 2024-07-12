@@ -4253,10 +4253,10 @@ void reshade::runtime::draw_technique_editor()
 					ImGui::Separator();
 
 					std::string entry_point_name;
-					for (const reshadefx::entry_point &entry_point : effect.module.entry_points)
-						if (const auto assembly_it = effect.assembly_text.find(entry_point.name);
-							assembly_it != effect.assembly_text.end() && ImGui::MenuItem(entry_point.name.c_str()))
-							entry_point_name = entry_point.name;
+					for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.module.entry_points)
+						if (const auto assembly_it = effect.assembly_text.find(entry_point.first);
+							assembly_it != effect.assembly_text.end() && ImGui::MenuItem(entry_point.first.c_str()))
+							entry_point_name = entry_point.first;
 
 					ImGui::EndPopup();
 
