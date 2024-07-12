@@ -1220,6 +1220,34 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 			}
 		}
 
+		// Handle default argument
+		if (accept('='))
+		{
+			expression default_value_exp;
+			if (!parse_expression_multary(default_value_exp))
+			{
+				parse_success = false;
+				expect_parenthesis = false;
+				consume_until(')');
+				break;
+			}
+
+			if (!default_value_exp.is_constant)
+				parse_success = false,
+				error(default_value_exp.location, 3011, '\'' + param.name + "': value must be a literal expression");
+
+			default_value_exp.add_cast_operation(param.type);
+
+			param.default_value = std::move(default_value_exp.constant);
+			param.has_default_value = true;
+		}
+		else
+		{
+			if (!info.parameter_list.empty() && info.parameter_list.back().has_default_value)
+				parse_success = false,
+				error(param.location, 3044, '\'' + name + "': missing default value for parameter '" + param.name + '\'');
+		}
+
 		info.parameter_list.push_back(std::move(param));
 	}
 

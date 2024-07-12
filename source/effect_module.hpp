@@ -163,6 +163,8 @@ namespace reshadefx
 		std::string name;
 		std::string semantic;
 		reshadefx::location location;
+		bool has_default_value = false;
+		reshadefx::constant default_value;
 	};
 
 	/// <summary>

@@ -390,7 +390,7 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 					continue;
 				}
 			}
-			else if (arguments.size() != function->parameter_list.size())
+			else if (arguments.size() > function->parameter_list.size() || (arguments.size() < function->parameter_list.size() && !function->parameter_list[arguments.size()].has_default_value))
 			{
 				continue;
 			}

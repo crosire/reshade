@@ -905,7 +905,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			assert(symbol.function != nullptr);
 
-			std::vector<expression> parameters(arguments.size());
+			std::vector<expression> parameters(symbol.function->parameter_list.size());
 
 			// We need to allocate some temporary variables to pass in and load results from pointer parameters
 			for (size_t i = 0; i < arguments.size(); ++i)
@@ -966,6 +966,19 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					const codegen::id argument_value = _codegen->emit_load(argument_exp);
 					_codegen->emit_store(parameters[i], argument_value);
 				}
+			}
+
+			// Add remaining default arguments
+			for (size_t i = arguments.size(); i < parameters.size(); ++i)
+			{
+				const auto &param = symbol.function->parameter_list[i];
+				assert(param.has_default_value || !_errors.empty());
+
+				const codegen::id argument_value = _codegen->emit_constant(param.type, param.default_value);
+				parameters[i].reset_to_rvalue(param.location, argument_value, param.type);
+
+				// Keep track of whether the parameter is a constant for code generation (this makes the expression invalid for all other uses)
+				parameters[i].is_constant = true;
 			}
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
