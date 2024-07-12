@@ -2134,10 +2134,20 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				}
 			}
 
-			for (codegen::id id : vs_info.referenced_samplers)
-				info.samplers.push_back(_codegen->get_sampler(id));
-			for (codegen::id id : ps_info.referenced_samplers)
-				info.samplers.push_back(_codegen->get_sampler(id));
+			std::unordered_set<uint32_t> referenced_samplers = std::move(vs_info.referenced_samplers);
+			referenced_samplers.insert(ps_info.referenced_samplers.begin(), ps_info.referenced_samplers.end());
+			for (codegen::id id : referenced_samplers)
+			{
+				const sampler_info &sampler = _codegen->get_sampler(id);
+				if (std::find(std::begin(info.render_target_names), std::end(info.render_target_names), sampler.texture_name) != std::end(info.render_target_names))
+				{
+					parse_success = false;
+					error(pass_location, 3020, '\'' + sampler.texture_name + "': cannot sample from texture that is also used as render target in the same pass");
+				}
+
+				info.samplers.push_back(sampler);
+			}
+
 			if (!vs_info.referenced_storages.empty() || !ps_info.referenced_storages.empty())
 			{
 				parse_success = false;
