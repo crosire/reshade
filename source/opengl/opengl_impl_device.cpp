@@ -6,6 +6,7 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "dll_log.hpp"
+#include "dll_resources.hpp"
 #include "ini_file.hpp"
 #include <cmath> // std::log2f
 #include <cstdio> // std::sscanf
@@ -111,34 +112,29 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	if (!_reserved_texture_names.empty())
 		gl.GenTextures(static_cast<GLsizei>(_reserved_texture_names.size()), _reserved_texture_names.data());
 
-	// Create mipmap generation program used in the 'generate_mipmaps' function
-	static const char *const mipmap_shader =
-		"#version 430\n"
-		"layout(binding = 0) uniform sampler2D src;\n"
-		"layout(binding = 1) uniform writeonly image2D dest;\n"
-		"layout(location = 0) uniform vec3 texel;\n"
-		"layout(local_size_x = 8, local_size_y = 8) in;\n"
-		"void main()\n"
-		"{\n"
-		"	vec2 uv = texel.xy * (vec2(gl_GlobalInvocationID.xy) + vec2(0.5));\n"
-		"	imageStore(dest, ivec2(gl_GlobalInvocationID.xy), textureLod(src, uv, int(texel.z)));\n"
-		"}\n";
+	// Create mipmap generation states used in the 'command_list::generate_mipmaps' implementation
+	{
+		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS_GLSL);
 
-	const GLuint mipmap_cs = gl.CreateShader(GL_COMPUTE_SHADER);
-	gl.ShaderSource(mipmap_cs, 1, &mipmap_shader, 0);
-	gl.CompileShader(mipmap_cs);
+		const int shader_source_length[] = { static_cast<int>(cs.data_size) };
+		const char *const shader_source[] = { static_cast<const char *>(cs.data) };
 
-	_mipmap_program = gl.CreateProgram();
-	gl.AttachShader(_mipmap_program, mipmap_cs);
-	gl.LinkProgram(_mipmap_program);
-	gl.DeleteShader(mipmap_cs);
+		const GLuint mipmap_cs = gl.CreateShader(GL_COMPUTE_SHADER);
+		gl.ShaderSource(mipmap_cs, static_cast<GLsizei>(std::size(shader_source)), shader_source, shader_source_length);
+		gl.CompileShader(mipmap_cs);
 
-	gl.GenSamplers(1, &_mipmap_sampler);
-	gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-	gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+		_mipmap_program = gl.CreateProgram();
+		gl.AttachShader(_mipmap_program, mipmap_cs);
+		gl.LinkProgram(_mipmap_program);
+		gl.DeleteShader(mipmap_cs);
+
+		gl.GenSamplers(1, &_mipmap_sampler);
+		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	}
 }
 reshade::opengl::device_impl::~device_impl()
 {

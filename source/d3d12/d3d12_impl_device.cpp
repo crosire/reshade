@@ -49,7 +49,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	assert(_descriptor_heaps.size() == 2);
 #endif
 
-	// Create mipmap generation states
+	// Create mipmap generation states used in 'command_list::generate_mipmaps' implementation
 	{
 		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
 

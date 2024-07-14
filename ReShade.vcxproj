@@ -751,6 +751,9 @@
   <ItemGroup>
     <None Include="res\exports.def" />
     <None Include="res\fonts\forkawesome.inl" />
+    <None Include="res\shaders\imgui_ps_430.glsl" />
+    <None Include="res\shaders\imgui_vs_430.glsl" />
+    <None Include="res\shaders\mipmap_cs_430.glsl" />
     <None Include="res\version.rc2" />
     <None Include="tools\update_version.ps1" />
   </ItemGroup>
@@ -781,25 +784,25 @@
       <ShaderType>Vertex</ShaderType>
       <ShaderModel>4.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="res\shaders\mipmap_cs.hlsl">
+    <FxCompile Include="res\shaders\mipmap_cs_5_0.hlsl">
       <ShaderType>Compute</ShaderType>
       <ShaderModel>5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="res\shaders\imgui_ps.glsl">
+    <CustomBuild Include="res\shaders\imgui_ps_450.glsl">
       <FileType>Document</FileType>
       <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "res\shaders\%(Filename).spv"</Command>
       <Outputs>res\shaders\%(Filename).spv</Outputs>
       <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
-    <CustomBuild Include="res\shaders\imgui_ps_hdr.glsl">
+    <CustomBuild Include="res\shaders\imgui_ps_450_hdr.glsl">
       <FileType>Document</FileType>
       <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "res\shaders\%(Filename).spv"</Command>
       <Outputs>res\shaders\%(Filename).spv</Outputs>
       <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
-    <CustomBuild Include="res\shaders\imgui_vs.glsl">
+    <CustomBuild Include="res\shaders\imgui_vs_450.glsl">
       <FileType>Document</FileType>
       <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert "%(FullPath)" -o "res\shaders\%(Filename).spv"</Command>
       <Outputs>res\shaders\%(Filename).spv</Outputs>

@@ -76,17 +76,23 @@ IDR_IMGUI_PS_4_0        RCDATA                  "shaders\\imgui_ps_4_0.cso"
 
 IDR_IMGUI_PS_4_0_HDR    RCDATA                  "shaders\\imgui_ps_4_0_hdr.cso"
 
-IDR_IMGUI_PS_SPIRV      RCDATA                  "shaders\\imgui_ps.spv"
+IDR_IMGUI_PS_GLSL       RCDATA                  "shaders\\imgui_ps_430.glsl"
 
-IDR_IMGUI_PS_SPIRV_HDR  RCDATA                  "shaders\\imgui_ps_hdr.spv"
+IDR_IMGUI_PS_SPIRV      RCDATA                  "shaders\\imgui_ps_450.spv"
+
+IDR_IMGUI_PS_SPIRV_HDR  RCDATA                  "shaders\\imgui_ps_450_hdr.spv"
 
 IDR_IMGUI_VS_3_0        RCDATA                  "shaders\\imgui_vs_3_0.cso"
 
 IDR_IMGUI_VS_4_0        RCDATA                  "shaders\\imgui_vs_4_0.cso"
 
-IDR_IMGUI_VS_SPIRV      RCDATA                  "shaders\\imgui_vs.spv"
+IDR_IMGUI_VS_GLSL       RCDATA                  "shaders\\imgui_vs_430.glsl"
 
-IDR_MIPMAP_CS           RCDATA                  "shaders\\mipmap_cs.cso"
+IDR_IMGUI_VS_SPIRV      RCDATA                  "shaders\\imgui_vs_450.spv"
+
+IDR_MIPMAP_CS           RCDATA                  "shaders\\mipmap_cs_5_0.cso"
+
+IDR_MIPMAP_CS_GLSL      RCDATA                  "shaders\\mipmap_cs_430.glsl"
 
 IDR_LICENSE_GL3W        RCDATA                  "..\\deps\\gl3w\\UNLICENSE"
 

@@ -4535,60 +4535,25 @@ bool reshade::runtime::init_imgui_resources()
 	if (_imgui_pipeline != 0)
 		return true;
 
-	api::shader_desc vs_desc, ps_desc;
+	const bool is_possibe_hdr_swapchain =
+		((_renderer_id & 0xB000) == 0xB000 || (_renderer_id & 0xC000) == 0xC000 || (_renderer_id & 0x20000) == 0x20000) &&
+		(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float);
 
-	if ((_renderer_id & 0xF0000) == 0 || _renderer_id >= 0x20000)
-	{
-		const bool is_possibe_hdr_swapchain =
-			((_renderer_id & 0xB000) == 0xB000 || (_renderer_id & 0xC000) == 0xC000 || (_renderer_id & 0x20000) == 0x20000) &&
-			(_back_buffer_format == reshade::api::format::r10g10b10a2_unorm || _back_buffer_format == reshade::api::format::b10g10r10a2_unorm || _back_buffer_format == reshade::api::format::r16g16b16a16_float);
+	const resources::data_resource vs_res = resources::load_data_resource(
+		_renderer_id >= 0x20000 ? IDR_IMGUI_VS_SPIRV :
+		_renderer_id >= 0x10000 ? IDR_IMGUI_VS_GLSL :
+		_renderer_id >= 0x0a000 ? IDR_IMGUI_VS_4_0 : IDR_IMGUI_VS_3_0);
+	api::shader_desc vs_desc;
+	vs_desc.code = vs_res.data;
+	vs_desc.code_size = vs_res.data_size;
 
-		const resources::data_resource vs_res = resources::load_data_resource(_renderer_id >= 0x20000 ? IDR_IMGUI_VS_SPIRV : _renderer_id < 0xa000 ? IDR_IMGUI_VS_3_0 : IDR_IMGUI_VS_4_0);
-		vs_desc.code = vs_res.data;
-		vs_desc.code_size = vs_res.data_size;
-
-		const resources::data_resource ps_res = resources::load_data_resource(_renderer_id >= 0x20000 ? !is_possibe_hdr_swapchain ? IDR_IMGUI_PS_SPIRV : IDR_IMGUI_PS_SPIRV_HDR : _renderer_id < 0xa000 ? IDR_IMGUI_PS_3_0 : !is_possibe_hdr_swapchain ? IDR_IMGUI_PS_4_0 : IDR_IMGUI_PS_4_0_HDR);
-		ps_desc.code = ps_res.data;
-		ps_desc.code_size = ps_res.data_size;
-	}
-	else
-	{
-		assert(_device->get_api() == api::device_api::opengl);
-
-		// These need to be static so that the shader source memory doesn't fall out of scope before pipeline creation below
-		static const char vertex_shader_code[] =
-			"#version 430\n"
-			"layout(binding = 0) uniform Buf { mat4 proj; };\n"
-			"layout(location = 0) in vec2 pos;\n"
-			"layout(location = 1) in vec2 tex;\n"
-			"layout(location = 2) in vec4 col;\n"
-			"out vec4 frag_col;\n"
-			"out vec2 frag_tex;\n"
-			"void main()\n"
-			"{\n"
-			"	frag_col = col;\n"
-			"	frag_tex = tex;\n"
-			"	gl_Position = proj * vec4(pos.xy, 0, 1);\n"
-			"}\n";
-		static const char fragment_shader_code[] =
-			"#version 430\n"
-			"layout(binding = 0) uniform sampler2D s0;\n"
-			"in vec4 frag_col;\n"
-			"in vec2 frag_tex;\n"
-			"out vec4 col;\n"
-			"void main()\n"
-			"{\n"
-			"	col = frag_col * texture(s0, frag_tex.st);\n"
-			"}\n";
-
-		vs_desc.code = vertex_shader_code;
-		vs_desc.code_size = sizeof(vertex_shader_code);
-		vs_desc.entry_point = "main";
-
-		ps_desc.code = fragment_shader_code;
-		ps_desc.code_size = sizeof(fragment_shader_code);
-		ps_desc.entry_point = "main";
-	}
+	const resources::data_resource ps_res = resources::load_data_resource(
+		_renderer_id >= 0x20000 ? (!is_possibe_hdr_swapchain ? IDR_IMGUI_PS_SPIRV : IDR_IMGUI_PS_SPIRV_HDR) :
+		_renderer_id >= 0x10000 ? IDR_IMGUI_PS_GLSL :
+		_renderer_id >= 0x0a000 ? (!is_possibe_hdr_swapchain ? IDR_IMGUI_PS_4_0 : IDR_IMGUI_PS_4_0_HDR) : IDR_IMGUI_PS_3_0);
+	api::shader_desc ps_desc;
+	ps_desc.code = ps_res.data;
+	ps_desc.code_size = ps_res.data_size;
 
 	std::vector<api::pipeline_subobject> subobjects;
 	subobjects.push_back({ api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
