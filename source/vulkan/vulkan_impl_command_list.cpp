@@ -1192,6 +1192,7 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 
 	int32_t width = view_data->image_extent.width >> view_data->create_info.subresourceRange.baseMipLevel;
 	int32_t height = view_data->image_extent.height >> view_data->create_info.subresourceRange.baseMipLevel;
+	const int32_t depth = view_data->image_extent.depth;
 
 	barrier.subresourceRange.layerCount = std::min(barrier.subresourceRange.layerCount, view_data->create_info.subresourceRange.layerCount - barrier.subresourceRange.baseArrayLayer);
 
@@ -1208,10 +1209,10 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 
 		VkImageBlit blit;
 		blit.srcOffsets[0] = { 0, 0, 0 };
-		blit.srcOffsets[1] = { width, height, 1 };
+		blit.srcOffsets[1] = { width, height, depth };
 		blit.srcSubresource = { barrier.subresourceRange.aspectMask, level - 1, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
 		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, 1 };
+		blit.dstOffsets[1] = { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, depth };
 		blit.dstSubresource = { barrier.subresourceRange.aspectMask, level, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
 		vk.CmdBlitImage(_orig, view_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, view_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 

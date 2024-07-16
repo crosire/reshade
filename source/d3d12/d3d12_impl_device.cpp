@@ -53,9 +53,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	{
 		const resources::data_resource cs = resources::load_data_resource(IDR_MIPMAP_CS);
 
-		// Creating a root signature with static samplers here cause banding artifacts in Call of Duty: Modern Warfare for some strange reason, so need to use sampler in descriptor table instead
-		if (com_ptr<ID3DBlob> signature_blob;
-			FAILED(_orig->CreateRootSignature(0, cs.data, cs.data_size, IID_PPV_ARGS(&_mipmap_signature))))
+		if (FAILED(_orig->CreateRootSignature(0, cs.data, cs.data_size, IID_PPV_ARGS(&_mipmap_signature))))
 		{
 			LOG(ERROR) << "Failed to create mipmap generation signature!";
 		}

@@ -1898,7 +1898,6 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 	const GLenum target = srv.handle >> 40;
 	const GLuint object = srv.handle & 0xFFFFFFFF;
 
-	gl.BindSampler(0, _device_impl->_mipmap_sampler);
 	gl.ActiveTexture(GL_TEXTURE0); // src
 	gl.BindTexture(target, object);
 
@@ -1924,7 +1923,7 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 		const GLuint width = std::max(1u, base_width >> level);
 		const GLuint height = std::max(1u, base_height >> level);
 
-		gl.Uniform3f(0 /* info */, 1.0f / width, 1.0f / height, static_cast<float>(level - 1));
+		gl.Uniform1i(0 /* info */, static_cast<GLint>(level));
 		gl.BindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
 
 		gl.DispatchCompute(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);

@@ -127,13 +127,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 		gl.AttachShader(_mipmap_program, mipmap_cs);
 		gl.LinkProgram(_mipmap_program);
 		gl.DeleteShader(mipmap_cs);
-
-		gl.GenSamplers(1, &_mipmap_sampler);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		gl.SamplerParameteri(_mipmap_sampler, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	}
 }
 reshade::opengl::device_impl::~device_impl()
@@ -142,7 +135,6 @@ reshade::opengl::device_impl::~device_impl()
 
 	// Destroy mipmap generation program
 	gl.DeleteProgram(_mipmap_program);
-	gl.DeleteSamplers(1, &_mipmap_sampler);
 
 	// Free range of reserved resource names
 	gl.DeleteBuffers(static_cast<GLsizei>(_reserved_buffer_names.size()), _reserved_buffer_names.data());

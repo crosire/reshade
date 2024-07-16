@@ -1011,49 +1011,36 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count * 2, base_handle, base_handle_gpu))
+	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count, base_handle, base_handle_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << (level_count * 2) << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::shader_resource_view) << " and " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
-		return;
-	}
-	D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle;
-	D3D12_GPU_DESCRIPTOR_HANDLE sampler_handle_gpu;
-	if (!_device_impl->_gpu_sampler_heap.allocate_transient(1, sampler_handle, sampler_handle_gpu))
-	{
-		LOG(ERROR) << "Failed to allocate " << 1 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::sampler) << '!';
+		LOG(ERROR) << "Failed to allocate " << level_count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::shader_resource_view) << " and " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
 		return;
 	}
 
-	D3D12_SAMPLER_DESC sampler_desc = {};
-	sampler_desc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-	sampler_desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sampler_desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sampler_desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
+	srv_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
+	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv_desc.Texture2DArray.MostDetailedMip = 0;
+	srv_desc.Texture2DArray.MipLevels = level_count;
+	srv_desc.Texture2DArray.FirstArraySlice = 0;
+	srv_desc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+	srv_desc.Texture2DArray.PlaneSlice = 0;
+	srv_desc.Texture2DArray.ResourceMinLODClamp = 0.0f;
 
-	_device_impl->_orig->CreateSampler(&sampler_desc, sampler_handle);
+	_device_impl->_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &srv_desc, base_handle);
 
-	for (uint32_t level = view_desc.texture.first_level; level < view_desc.texture.first_level + level_count;
-			++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
+	for (uint32_t level = view_desc.texture.first_level + 1; level < view_desc.texture.first_level + level_count; ++level)
 	{
-		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
-		srv_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
-		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srv_desc.Texture2D.MipLevels = 1;
-		srv_desc.Texture2D.MostDetailedMip = level;
-		srv_desc.Texture2D.PlaneSlice = 0;
-		srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+		base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-		_device_impl->_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &srv_desc, base_handle);
-	}
-	for (uint32_t level = view_desc.texture.first_level + 1; level < view_desc.texture.first_level + level_count;
-			++level, base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
-	{
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc;
 		uav_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
-		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		uav_desc.Texture2D.MipSlice = level;
-		uav_desc.Texture2D.PlaneSlice = 0;
+		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+		uav_desc.Texture2DArray.MipSlice = level;
+		uav_desc.Texture2DArray.FirstArraySlice = 0;
+		uav_desc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+		uav_desc.Texture2DArray.PlaneSlice = 0;
 
 		_device_impl->_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &uav_desc, base_handle);
 	}
@@ -1071,7 +1058,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	_current_root_signature[1] = nullptr;
 
-	_orig->SetComputeRootDescriptorTable(3, sampler_handle_gpu);
+	_orig->SetComputeRootDescriptorTable(1, base_handle_gpu);
 
 	D3D12_RESOURCE_BARRIER barriers[2];
 	barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
@@ -1090,15 +1077,12 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
 		const uint32_t height = std::max(1u, desc.Height >> level);
 
-		const float dimensions[2] = { 1.0f / width, 1.0f / height };
-		_orig->SetComputeRoot32BitConstants(0, 2, dimensions, 0);
+		_orig->SetComputeRoot32BitConstant(0, level, 0);
 
 		// Bind next higher mipmap level as input
-		_orig->SetComputeRootDescriptorTable(1, _device_impl->offset_descriptor_handle(base_handle_gpu, level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
-		// There is no UAV for level 0, so substract one
-		_orig->SetComputeRootDescriptorTable(2, _device_impl->offset_descriptor_handle(base_handle_gpu, level_count + level - 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		_orig->SetComputeRootDescriptorTable(2, _device_impl->offset_descriptor_handle(base_handle_gpu, level, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), desc.DepthOrArraySize);
 
 		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
 		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
