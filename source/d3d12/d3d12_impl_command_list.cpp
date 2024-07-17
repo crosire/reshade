@@ -1005,45 +1005,39 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	assert(resource != 0);
 
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
-
 	const api::resource_view_desc view_desc = _device_impl->get_resource_view_desc(srv);
+
 	const uint32_t level_count = std::min(view_desc.texture.level_count, static_cast<uint32_t>(desc.MipLevels));
+	if (level_count == 1)
+		return; // There are no mipmaps to generate
+
+	const uint32_t multiple_of_6_remainder = (level_count - 1) % 6;
+	const uint32_t level_count_multiple_of_6 = (multiple_of_6_remainder != 0) ? level_count + 6 - multiple_of_6_remainder : level_count;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count, base_handle, base_handle_gpu))
+	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count_multiple_of_6, base_handle, base_handle_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << level_count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::shader_resource_view) << " and " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
+		LOG(ERROR) << "Failed to allocate " << level_count_multiple_of_6 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
 		return;
 	}
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
-	srv_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
-	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srv_desc.Texture2DArray.MostDetailedMip = 0;
-	srv_desc.Texture2DArray.MipLevels = level_count;
-	srv_desc.Texture2DArray.FirstArraySlice = 0;
-	srv_desc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
-	srv_desc.Texture2DArray.PlaneSlice = 0;
-	srv_desc.Texture2DArray.ResourceMinLODClamp = 0.0f;
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc;
+	uav_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
+	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+	uav_desc.Texture2DArray.MipSlice = view_desc.texture.first_level;
+	uav_desc.Texture2DArray.FirstArraySlice = 0;
+	uav_desc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+	uav_desc.Texture2DArray.PlaneSlice = 0;
 
-	_device_impl->_orig->CreateShaderResourceView(reinterpret_cast<ID3D12Resource *>(resource.handle), &srv_desc, base_handle);
-
-	for (uint32_t level = view_desc.texture.first_level + 1; level < view_desc.texture.first_level + level_count; ++level)
-	{
-		base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc;
-		uav_desc.Format = convert_format(api::format_to_default_typed(view_desc.format, 0));
-		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-		uav_desc.Texture2DArray.MipSlice = level;
-		uav_desc.Texture2DArray.FirstArraySlice = 0;
-		uav_desc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
-		uav_desc.Texture2DArray.PlaneSlice = 0;
-
+	for (uint32_t level = 0; level < level_count; ++level, ++uav_desc.Texture2DArray.MipSlice,
+			base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 		_device_impl->_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &uav_desc, base_handle);
-	}
+
+	// Clear out remaining descriptors
+	for (uint32_t level = level_count; level < level_count_multiple_of_6; ++level,
+			base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
+		_device_impl->_orig->CreateUnorderedAccessView(nullptr, nullptr, &uav_desc, base_handle);
 
 	if (_current_descriptor_heaps[0] != _device_impl->_gpu_sampler_heap.get() ||
 		_current_descriptor_heaps[1] != _device_impl->_gpu_view_heap.get())
@@ -1058,36 +1052,39 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 
 	_current_root_signature[1] = nullptr;
 
-	_orig->SetComputeRootDescriptorTable(1, base_handle_gpu);
-
 	D3D12_RESOURCE_BARRIER barriers[2];
 	barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	barriers[0].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
+	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	barriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barriers[1] = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
 	barriers[1].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
+	_orig->ResourceBarrier(1, &barriers[0]);
 
-	for (uint32_t level = view_desc.texture.first_level + 1; level < view_desc.texture.first_level + level_count; ++level)
+	for (uint32_t level = 0;;)
 	{
-		barriers[0].Transition.Subresource = level;
+		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> (view_desc.texture.first_level + level));
+		const uint32_t height = std::max(1u, desc.Height >> (view_desc.texture.first_level + level));
 
-		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		_orig->ResourceBarrier(1, barriers);
+		_orig->SetComputeRoot32BitConstant(0, level_count - level, 0);
 
-		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> level);
-		const uint32_t height = std::max(1u, desc.Height >> level);
+		_orig->SetComputeRootDescriptorTable(1, _device_impl->offset_descriptor_handle(base_handle_gpu, level, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-		_orig->SetComputeRoot32BitConstant(0, level, 0);
+		_orig->Dispatch(((width - 1) / 64) + 1, ((height - 1) / 64) + 1, desc.DepthOrArraySize);
 
-		// Bind next higher mipmap level as input
-		_orig->SetComputeRootDescriptorTable(2, _device_impl->offset_descriptor_handle(base_handle_gpu, level, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		level += 6;
 
-		_orig->Dispatch(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), desc.DepthOrArraySize);
-
-		// Wait for all accesses to be finished, since the result will be the input for the next mipmap
-		barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-		barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-		_orig->ResourceBarrier(2, barriers);
+		if (level + 1 < level_count)
+		{
+			_orig->ResourceBarrier(1, &barriers[1]);
+		}
+		else
+		{
+			std::swap(barriers[0].Transition.StateBefore, barriers[0].Transition.StateAfter);
+			_orig->ResourceBarrier(1, &barriers[0]);
+			break;
+		}
 	}
 }
 
