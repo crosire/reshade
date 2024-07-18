@@ -1901,37 +1901,39 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 	gl.ActiveTexture(GL_TEXTURE0); // src
 	gl.BindTexture(target, object);
 
-#if 0
-	gl.GenerateMipmap(target);
-#else
-	// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
-	gl.UseProgram(_device_impl->_mipmap_program);
-
-	GLuint levels = 0;
-	gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&levels));
-	GLuint base_width = 0;
-	gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_width));
-	GLuint base_height = 0;
-	gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&base_height));
 	GLenum internal_format = GL_NONE;
 	gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&internal_format));
 
-	assert(internal_format != GL_SRGB8 && internal_format != GL_SRGB8_ALPHA8);
-
-	for (GLuint level = 1; level < levels; ++level)
+	if (target == GL_TEXTURE_2D && internal_format != GL_SRGB8 && internal_format != GL_SRGB8_ALPHA8)
 	{
-		const GLuint width = std::max(1u, base_width >> level);
-		const GLuint height = std::max(1u, base_height >> level);
+		GLuint level_count = 0;
+		gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&level_count));
+		GLuint base_level_width = 0;
+		gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_level_width));
+		GLuint base_level_height = 0;
+		gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&base_level_height));
 
-		gl.Uniform1i(0 /* info */, static_cast<GLint>(level));
-		gl.BindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
+		// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
+		gl.UseProgram(_device_impl->_mipmap_program);
 
-		gl.DispatchCompute(std::max(1u, (width + 7) / 8), std::max(1u, (height + 7) / 8), 1);
+		for (GLuint level = 1; level < level_count; ++level)
+		{
+			const GLuint width = std::max(1u, base_level_width >> level);
+			const GLuint height = std::max(1u, base_level_height >> level);
 
-		// Ensure next iteration reads the data written by this iteration
-		gl.MemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+			gl.Uniform1i(0 /* src_level */, static_cast<GLint>(level - 1));
+			gl.BindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
+
+			gl.DispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+
+			// Ensure next iteration reads the data written by this iteration
+			gl.MemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+		}
 	}
-#endif
+	else
+	{
+		gl.GenerateMipmap(target);
+	}
 }
 
 void reshade::opengl::device_context_impl::begin_query(api::query_heap heap, api::query_type type, uint32_t index)

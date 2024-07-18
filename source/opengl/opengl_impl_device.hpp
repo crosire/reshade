@@ -111,7 +111,6 @@ namespace reshade::opengl
 			api::subresource_box box;
 			api::map_access access;
 		};
-
 		std::unordered_map<size_t, map_info> _map_lookup;
 
 		std::atomic<uint64_t> _fbo_lookup_version = 0;
