@@ -15,13 +15,13 @@
         <ComboBoxItem x:Uid="SortByAZ">A to Z</ComboBoxItem>
         <ComboBoxItem x:Uid="SortByZA">Z to A</ComboBoxItem>
       </ComboBox>
-      <TextBlock x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Text="Sort by:" />
+      <TextBlock x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource TextStyle}" Text="Sort by:" />
     </DockPanel>
-    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap">
+    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Bottom" Margin="10,5" TextWrapping="Wrap" Style="{StaticResource TextStyle}">
       Browse and select a game to manage its ReShade installation.
     </TextBlock>
     <Grid DockPanel.Dock="Bottom" Margin="10,5">
-      <TextBlock x:Uid="BrowseButtonDescription" HorizontalAlignment="Left" VerticalAlignment="Center" Text="Can't find the desired game in the list?" />
+      <TextBlock x:Uid="BrowseButtonDescription" HorizontalAlignment="Left" VerticalAlignment="Center" Style="{StaticResource TextStyle}" Text="Can't find the desired game in the list?" />
       <Button x:Uid="BrowseButton" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Content="_Browse..." Click="OnBrowseClick" />
     </Grid>
     <TextBox x:Name="PathBox" DockPanel.Dock="Bottom" Margin="10,0,10,5" HorizontalAlignment="Stretch" GotFocus="OnPathGotFocus" TextChanged="OnPathTextChanged" Text="Search" />
