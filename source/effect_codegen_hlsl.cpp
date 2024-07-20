@@ -1080,7 +1080,7 @@ private:
 			{
 				for (const struct_member_info &member : get_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
-						position_variable_name = param.name + '.' + member.name;
+						position_variable_name = id_to_name(param.definition) + '.' + member.name;
 			}
 
 			if (is_color_semantic(param.semantic))
@@ -1091,7 +1091,7 @@ private:
 			{
 				if (func.type == shader_type::vertex)
 					// Keep track of the position output variable
-					position_variable_name = param.name;
+					position_variable_name = id_to_name(param.definition);
 				else if (func.type == shader_type::pixel)
 					// Change the position input semantic in pixel shaders
 					param.semantic = "VPOS";
@@ -1113,7 +1113,7 @@ private:
 		for (struct_member_info &param : entry_point.parameter_list)
 		{
 			if (is_color_semantic(param.semantic))
-				code += '\t' + param.name + " = float4(0.0, 0.0, 0.0, 0.0);\n";
+				code += '\t' + id_to_name(param.definition) + " = float4(0.0, 0.0, 0.0, 0.0);\n";
 		}
 
 		code += '\t';
@@ -1132,13 +1132,13 @@ private:
 
 		for (size_t i = 0, num_params = func.parameter_list.size(); i < num_params; ++i)
 		{
-			code += func.parameter_list[i].name;
+			code += id_to_name(entry_point.parameter_list[i].definition);
 
 			if (is_color_semantic(func.parameter_list[i].semantic))
 			{
 				code += '.';
-				for (unsigned int k = 0; k < func.parameter_list[i].type.rows; k++)
-					code += "xyzw"[k];
+				for (unsigned int c = 0; c < func.parameter_list[i].type.rows; c++)
+					code += "xyzw"[c];
 			}
 
 			if (i < num_params - 1)
@@ -1150,7 +1150,7 @@ private:
 		// Cast the output value to a four-component vector
 		if (is_color_semantic(func.return_semantic))
 		{
-			for (unsigned int i = 0; i < (4 - func.return_type.rows); i++)
+			for (unsigned int c = 0; c < (4 - func.return_type.rows); c++)
 				code += ", 0.0";
 			code += ')';
 		}
