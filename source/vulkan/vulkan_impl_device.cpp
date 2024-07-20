@@ -1300,20 +1300,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		create_info.layout = (VkPipelineLayout)layout.handle;
 		create_info.maxPipelineRayRecursionDepth = max_recursion_depth;
 
-		VkPipelineLibraryCreateInfoKHR library_info { VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
-		library_info.libraryCount = static_cast<uint32_t>(libraries.size());
-		library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
-
-		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
-		interface_info.maxPipelineRayPayloadSize = max_payload_size;
-		interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
-
-		if ((flags & api::pipeline_flags::library) != 0)
-		{
-			create_info.pLibraryInfo = &library_info;
-			create_info.pLibraryInterface = &interface_info;
-		}
-
 		const size_t max_shader_stage_count = raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size();
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
 		std::vector<VkSpecializationInfo> spec_info;
@@ -1463,6 +1449,22 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (!any_null_intersection)
 			create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_INTERSECTION_SHADERS_BIT_KHR;
 
+		VkPipelineLibraryCreateInfoKHR library_info;
+		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info;
+		if (!libraries.empty())
+		{
+			library_info = { VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
+			library_info.libraryCount = static_cast<uint32_t>(libraries.size());
+			library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
+
+			interface_info = { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
+			interface_info.maxPipelineRayPayloadSize = max_payload_size;
+			interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
+
+			create_info.pLibraryInfo = &library_info;
+			create_info.pLibraryInterface = &interface_info;
+		}
+
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateRayTracingPipelinesKHR(_orig, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
@@ -1476,6 +1478,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	else if (cs_desc.code_size != 0)
 	{
 		VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+		create_info.flags = convert_pipeline_flags(flags);
 		create_info.layout = (VkPipelineLayout)layout.handle;
 
 		VkSpecializationInfo spec_info;
@@ -1500,6 +1503,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	else
 	{
 		VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+		create_info.flags = convert_pipeline_flags(flags);
 		create_info.layout = (VkPipelineLayout)layout.handle;
 
 		VkPipelineShaderStageCreateInfo shader_stage_info[6];
@@ -1652,6 +1656,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (_dynamic_rendering_ext)
 		{
 			dynamic_rendering_info = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+			dynamic_rendering_info.pNext = create_info.pNext;
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
 			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats.p;
 
@@ -1732,6 +1737,17 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 				goto exit_failure;
 
 			create_info.renderPass = render_pass;
+		}
+
+		VkPipelineLibraryCreateInfoKHR library_info;
+		if (!libraries.empty())
+		{
+			library_info = { VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
+			library_info.pNext = create_info.pNext;
+			library_info.libraryCount = static_cast<uint32_t>(libraries.size());
+			library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
+
+			create_info.pNext = &library_info;
 		}
 
 		if (VkPipeline object = VK_NULL_HANDLE;

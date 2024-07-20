@@ -502,7 +502,7 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 	}
 }
 
-auto reshade::vulkan::convert_access_to_usage(VkAccessFlags flags) -> api::resource_usage
+auto reshade::vulkan::convert_access_to_usage(VkAccessFlags2 flags) -> api::resource_usage
 {
 	static_assert(
 		VK_ACCESS_INDIRECT_COMMAND_READ_BIT == VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT &&
@@ -797,7 +797,7 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 }
-void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags buffer_flags, api::resource_usage &usage)
+void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags2KHR buffer_flags, api::resource_usage &usage)
 {
 	using namespace reshade;
 
@@ -1246,7 +1246,8 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	if (create_info.mipLevels > 1 && (create_info.usage & (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)) == (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
 		desc.flags |= api::resource_flags::generate_mipmaps;
 
-	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryImageCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO))
+	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryImageCreateInfo>(
+			create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO))
 	{
 		if (external_memory_info->handleTypes != 0)
 		{
@@ -1265,9 +1266,19 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = create_info.size;
 	desc.buffer.stride = 0;
-	convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
 
-	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO))
+	if (const auto usage_flags_info = find_in_structure_chain<VkBufferUsageFlags2CreateInfoKHR>(
+			create_info.pNext, VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR))
+	{
+		convert_buffer_usage_flags_to_usage(usage_flags_info->usage, desc.usage);
+	}
+	else
+	{
+		convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
+	}
+
+	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(
+			create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO))
 	{
 		if (external_memory_info->handleTypes != 0)
 		{
@@ -1680,7 +1691,8 @@ reshade::api::stream_output_desc reshade::vulkan::convert_stream_output_desc(con
 
 	if (create_info != nullptr)
 	{
-		if (const auto stream_info = find_in_structure_chain<VkPipelineRasterizationStateStreamCreateInfoEXT>(create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT))
+		if (const auto stream_info = find_in_structure_chain<VkPipelineRasterizationStateStreamCreateInfoEXT>(
+				create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT))
 		{
 			desc.rasterized_stream = stream_info->rasterizationStream;
 		}
@@ -1774,7 +1786,8 @@ reshade::api::rasterizer_desc reshade::vulkan::convert_rasterizer_desc(const VkP
 		desc.depth_clip_enable = !create_info->depthClampEnable;
 		desc.scissor_enable = true;
 
-		if (const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT))
+		if (const auto conservative_rasterization_info = find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(
+				create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT))
 		{
 			desc.conservative_rasterization = static_cast<uint32_t>(conservative_rasterization_info->conservativeRasterizationMode);
 		}
@@ -2196,8 +2209,13 @@ auto reshade::vulkan::convert_pipeline_flags(api::pipeline_flags value) -> VkPip
 
 	return result;
 }
-auto reshade::vulkan::convert_pipeline_flags(VkPipelineCreateFlags value) -> api::pipeline_flags
+auto reshade::vulkan::convert_pipeline_flags(VkPipelineCreateFlags2KHR value) -> api::pipeline_flags
 {
+	static_assert(
+		VK_PIPELINE_CREATE_LIBRARY_BIT_KHR == VK_PIPELINE_CREATE_2_LIBRARY_BIT_KHR &&
+		VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR == VK_PIPELINE_CREATE_2_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR &&
+		VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR == VK_PIPELINE_CREATE_2_RAY_TRACING_SKIP_AABBS_BIT_KHR);
+
 	api::pipeline_flags result = api::pipeline_flags::none;
 	if ((value & VK_PIPELINE_CREATE_LIBRARY_BIT_KHR) != 0)
 		result |= api::pipeline_flags::library;
