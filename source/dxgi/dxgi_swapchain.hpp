@@ -95,8 +95,14 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	unsigned short _interface_version;
 
 	IUnknown *const _direct3d_device;
-	IUnknown *const _direct3d_command_queue;
+	// The GOG Galaxy overlay scans the swap chain object memory for the D3D12 command queue, but fails if it cannot find at least two occurences of it.
+	// In that case it falls back to using the first (normal priority) direct command queue that 'ID3D12CommandQueue::ExecuteCommandLists' is called on,
+	// but if this is not the queue the swap chain was created with (DLSS Frame Generation e.g. creates a separate high priority one for presentation), D3D12 removes the device.
+	// Instead spoof a more similar layout to the original 'CDXGISwapChain' implementation, so that the GOG Galaxy overlay successfully extracts and
+	// later uses these command queue pointer offsets directly (the second of which is indexed with the back buffer index), ensuring the correct queue is used.
+	IUnknown *const _direct3d_command_queue, *_direct3d_command_queue_per_back_buffer[DXGI_MAX_SWAP_CHAIN_BUFFERS] = {};
 	const unsigned int _direct3d_version;
+
 	std::shared_mutex _impl_mutex;
 	reshade::api::swapchain *const _impl;
 	bool _is_initialized = false;

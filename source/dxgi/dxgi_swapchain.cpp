@@ -94,6 +94,9 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	// Add reference to command queue as well to ensure it is kept alive for the lifetime of the effect runtime
 	_direct3d_command_queue->AddRef();
 
+	for (size_t i = 0; i < std::size(_direct3d_command_queue_per_back_buffer); ++i)
+		_direct3d_command_queue_per_back_buffer[i] = _direct3d_command_queue;
+
 	reshade::create_effect_runtime(_impl, command_queue);
 	on_init();
 }
