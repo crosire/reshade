@@ -829,7 +829,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
 
 		// Patch the format list in the create info of the application
-		if (const auto format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR))
+		if (const auto format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR))
 		{
 			format_list.insert(format_list.end(),
 				format_list_info2->pViewFormats, format_list_info2->pViewFormats + format_list_info2->viewFormatCount);
@@ -867,87 +868,90 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 	}
 
-	LOG(INFO) << "> Dumping swap chain description:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Parameter                               | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | flags                                   | " << std::setw(39) << std::hex << create_info.flags << std::dec << " |";
-	LOG(INFO) << "  | surface                                 | " << std::setw(39) << create_info.surface << " |";
-	LOG(INFO) << "  | minImageCount                           | " << std::setw(39) << create_info.minImageCount << " |";
-
-	const char *format_string = nullptr;
-	switch (create_info.imageFormat)
+	// Dump swap chain description
 	{
-	case VK_FORMAT_UNDEFINED:
-		format_string = "VK_FORMAT_UNDEFINED";
-		break;
-	case VK_FORMAT_R8G8B8A8_UNORM:
-		format_string = "VK_FORMAT_R8G8B8A8_UNORM";
-		break;
-	case VK_FORMAT_R8G8B8A8_SRGB:
-		format_string = "VK_FORMAT_R8G8B8A8_SRGB";
-		break;
-	case VK_FORMAT_B8G8R8A8_UNORM:
-		format_string = "VK_FORMAT_B8G8R8A8_UNORM";
-		break;
-	case VK_FORMAT_B8G8R8A8_SRGB:
-		format_string = "VK_FORMAT_B8G8R8A8_SRGB";
-		break;
-	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-		format_string = "VK_FORMAT_A2B10G10R10_UNORM_PACK32";
-		break;
-	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
-		format_string = "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
-		break;
-	case VK_FORMAT_R16G16B16A16_UNORM:
-		format_string = "VK_FORMAT_R16G16B16A16_UNORM";
-		break;
-	case VK_FORMAT_R16G16B16A16_SFLOAT:
-		format_string = "VK_FORMAT_R16G16B16A16_SFLOAT";
-		break;
+		LOG(INFO) << "> Dumping swap chain description:";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Parameter                               | Value                                   |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | flags                                   | " << std::setw(39) << std::hex << create_info.flags << std::dec << " |";
+		LOG(INFO) << "  | surface                                 | " << std::setw(39) << create_info.surface << " |";
+		LOG(INFO) << "  | minImageCount                           | " << std::setw(39) << create_info.minImageCount << " |";
+
+		const char *format_string = nullptr;
+		switch (create_info.imageFormat)
+		{
+		case VK_FORMAT_UNDEFINED:
+			format_string = "VK_FORMAT_UNDEFINED";
+			break;
+		case VK_FORMAT_R8G8B8A8_UNORM:
+			format_string = "VK_FORMAT_R8G8B8A8_UNORM";
+			break;
+		case VK_FORMAT_R8G8B8A8_SRGB:
+			format_string = "VK_FORMAT_R8G8B8A8_SRGB";
+			break;
+		case VK_FORMAT_B8G8R8A8_UNORM:
+			format_string = "VK_FORMAT_B8G8R8A8_UNORM";
+			break;
+		case VK_FORMAT_B8G8R8A8_SRGB:
+			format_string = "VK_FORMAT_B8G8R8A8_SRGB";
+			break;
+		case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
+			format_string = "VK_FORMAT_A2B10G10R10_UNORM_PACK32";
+			break;
+		case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
+			format_string = "VK_FORMAT_A2R10G10B10_UNORM_PACK32";
+			break;
+		case VK_FORMAT_R16G16B16A16_UNORM:
+			format_string = "VK_FORMAT_R16G16B16A16_UNORM";
+			break;
+		case VK_FORMAT_R16G16B16A16_SFLOAT:
+			format_string = "VK_FORMAT_R16G16B16A16_SFLOAT";
+			break;
+		}
+
+		const char *color_space_string = nullptr;
+		switch (create_info.imageColorSpace)
+		{
+		case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
+			color_space_string = "VK_COLOR_SPACE_SRGB_NONLINEAR_KHR";
+			break;
+		case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
+			color_space_string = "VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT";
+			break;
+		case VK_COLOR_SPACE_BT2020_LINEAR_EXT:
+			color_space_string = "VK_COLOR_SPACE_BT2020_LINEAR_EXT";
+			break;
+		case VK_COLOR_SPACE_HDR10_ST2084_EXT:
+			color_space_string = "VK_COLOR_SPACE_HDR10_ST2084_EXT";
+			break;
+		case VK_COLOR_SPACE_HDR10_HLG_EXT:
+			color_space_string = "VK_COLOR_SPACE_HDR10_HLG_EXT";
+			break;
+		}
+
+		if (format_string != nullptr)
+			LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << format_string << " |";
+		else
+			LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";
+
+		if (color_space_string != nullptr)
+			LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << color_space_string << " |";
+		else
+			LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
+
+		LOG(INFO) << "  | imageExtent                             | " << std::setw(19) << create_info.imageExtent.width << ' ' << std::setw(19) << create_info.imageExtent.height << " |";
+		LOG(INFO) << "  | imageArrayLayers                        | " << std::setw(39) << create_info.imageArrayLayers << " |";
+		LOG(INFO) << "  | imageUsage                              | " << std::setw(39) << std::hex << create_info.imageUsage << std::dec << " |";
+		LOG(INFO) << "  | imageSharingMode                        | " << std::setw(39) << create_info.imageSharingMode << " |";
+		LOG(INFO) << "  | queueFamilyIndexCount                   | " << std::setw(39) << create_info.queueFamilyIndexCount << " |";
+		LOG(INFO) << "  | preTransform                            | " << std::setw(39) << std::hex << create_info.preTransform << std::dec << " |";
+		LOG(INFO) << "  | compositeAlpha                          | " << std::setw(39) << std::hex << create_info.compositeAlpha << std::dec << " |";
+		LOG(INFO) << "  | presentMode                             | " << std::setw(39) << create_info.presentMode << " |";
+		LOG(INFO) << "  | clipped                                 | " << std::setw(39) << (create_info.clipped ? "true" : "false") << " |";
+		LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	}
-
-	const char *color_space_string = nullptr;
-	switch (create_info.imageColorSpace)
-	{
-	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
-		color_space_string = "VK_COLOR_SPACE_SRGB_NONLINEAR_KHR";
-		break;
-	case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
-		color_space_string = "VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT";
-		break;
-	case VK_COLOR_SPACE_BT2020_LINEAR_EXT:
-		color_space_string = "VK_COLOR_SPACE_BT2020_LINEAR_EXT";
-		break;
-	case VK_COLOR_SPACE_HDR10_ST2084_EXT:
-		color_space_string = "VK_COLOR_SPACE_HDR10_ST2084_EXT";
-		break;
-	case VK_COLOR_SPACE_HDR10_HLG_EXT:
-		color_space_string = "VK_COLOR_SPACE_HDR10_HLG_EXT";
-		break;
-	}
-
-	if (format_string != nullptr)
-		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << format_string << " |";
-	else
-		LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";
-
-	if (color_space_string != nullptr)
-		LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << color_space_string << " |";
-	else
-		LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
-
-	LOG(INFO) << "  | imageExtent                             | " << std::setw(19) << create_info.imageExtent.width << ' ' << std::setw(19) << create_info.imageExtent.height << " |";
-	LOG(INFO) << "  | imageArrayLayers                        | " << std::setw(39) << create_info.imageArrayLayers << " |";
-	LOG(INFO) << "  | imageUsage                              | " << std::setw(39) << std::hex << create_info.imageUsage << std::dec << " |";
-	LOG(INFO) << "  | imageSharingMode                        | " << std::setw(39) << create_info.imageSharingMode << " |";
-	LOG(INFO) << "  | queueFamilyIndexCount                   | " << std::setw(39) << create_info.queueFamilyIndexCount << " |";
-	LOG(INFO) << "  | preTransform                            | " << std::setw(39) << std::hex << create_info.preTransform << std::dec << " |";
-	LOG(INFO) << "  | compositeAlpha                          | " << std::setw(39) << std::hex << create_info.compositeAlpha << std::dec << " |";
-	LOG(INFO) << "  | presentMode                             | " << std::setw(39) << create_info.presentMode << " |";
-	LOG(INFO) << "  | clipped                                 | " << std::setw(39) << (create_info.clipped ? "true" : "false") << " |";
-	LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	// Look up window handle from surface
 	const HWND hwnd = g_surface_windows.at(create_info.surface);
@@ -969,6 +973,22 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	desc.present_mode = static_cast<uint32_t>(create_info.presentMode);
 	desc.present_flags = create_info.flags;
 
+	// Optionally change fullscreen state
+	VkSurfaceFullScreenExclusiveInfoEXT fullscreen_info;
+	if (const auto existing_fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT))
+	{
+		fullscreen_info = *existing_fullscreen_info;
+
+		desc.fullscreen_state = existing_fullscreen_info->fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT;
+	}
+	else
+	{
+		fullscreen_info = { VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT };
+		fullscreen_info.pNext = const_cast<void *>(create_info.pNext);
+		fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT;
+	}
+
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
 		create_info.imageFormat = reshade::vulkan::convert_format(desc.back_buffer.texture.format);
@@ -980,6 +1000,25 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.minImageCount = desc.back_buffer_count;
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
 		create_info.flags = static_cast<uint32_t>(desc.present_flags);
+
+		if (desc.fullscreen_state)
+		{
+			if (fullscreen_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
+			{
+				fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT;
+
+				create_info.pNext = &fullscreen_info;
+			}
+		}
+		else
+		{
+			if (fullscreen_info.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT)
+			{
+				fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
+
+				create_info.pNext = &fullscreen_info;
+			}
+		}
 	}
 #endif
 
@@ -1081,12 +1120,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	for (uint32_t i = 0; i < num_images; ++i)
 		create_default_view(device_impl, swapchain_images[i]);
 
-	if (const auto fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT))
+	if (fullscreen_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT)
 	{
 		if (const auto fullscreen_win32_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveWin32InfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT))
 			swapchain_impl->hmonitor = fullscreen_win32_info->hmonitor;
 
-		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info->fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->hmonitor);
+		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->hmonitor);
 	}
 #endif
 

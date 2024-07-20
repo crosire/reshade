@@ -8,7 +8,6 @@
 #include "d3d11/d3d11_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
-#include "ini_file.hpp"
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
@@ -17,6 +16,153 @@ extern bool is_windows7();
 
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
+
+#if RESHADE_ADDON
+static auto floating_point_to_rational(float value) -> DXGI_RATIONAL
+{
+	float integer_component = 0.0f;
+	const float fractional_component = std::modf(value, &integer_component);
+	if (fractional_component == 0.0f)
+		return DXGI_RATIONAL { static_cast<UINT>(value), 1 };
+	else
+		return DXGI_RATIONAL { static_cast<UINT>(value * 1000), 1000 };
+}
+static auto rational_to_floating_point(DXGI_RATIONAL value) -> float
+{
+	return value.Denominator != 0 ? static_cast<float>(value.Numerator) / static_cast<float>(value.Denominator) : 0.0f;
+}
+
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
+{
+	reshade::api::swapchain_desc desc = {};
+	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
+	desc.back_buffer.texture.width = internal_desc.BufferDesc.Width;
+	desc.back_buffer.texture.height = internal_desc.BufferDesc.Height;
+	desc.back_buffer.texture.depth_or_layers = 1;
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.BufferDesc.Format);
+	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+
+	RECT window_rect = {};
+	GetClientRect(internal_desc.OutputWindow, &window_rect);
+	if (internal_desc.BufferDesc.Width == 0)
+		desc.back_buffer.texture.width = window_rect.right;
+	if (internal_desc.BufferDesc.Height == 0)
+		desc.back_buffer.texture.height = window_rect.bottom;
+
+	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
+		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
+	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
+		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
+	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
+		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
+
+	desc.back_buffer_count = internal_desc.BufferCount;
+	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
+	desc.present_flags = internal_desc.Flags;
+	desc.fullscreen_state = internal_desc.Windowed == FALSE;
+	desc.fullscreen_refresh_rate = rational_to_floating_point(internal_desc.BufferDesc.RefreshRate);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, internal_desc.OutputWindow))
+	{
+		internal_desc.BufferDesc.Width = desc.back_buffer.texture.width;
+		internal_desc.BufferDesc.Height = desc.back_buffer.texture.height;
+		internal_desc.BufferDesc.RefreshRate = floating_point_to_rational(desc.fullscreen_refresh_rate);
+		internal_desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
+		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
+
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+
+		internal_desc.BufferCount = desc.back_buffer_count;
+		internal_desc.Windowed = !desc.fullscreen_state;
+		internal_desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.present_mode);
+		internal_desc.Flags = desc.present_flags;
+
+		return true;
+	}
+
+	return false;
+}
+bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window)
+{
+	reshade::api::swapchain_desc desc = {};
+	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
+	desc.back_buffer.texture.width = internal_desc.Width;
+	desc.back_buffer.texture.height = internal_desc.Height;
+	desc.back_buffer.texture.depth_or_layers = internal_desc.Stereo ? 2 : 1;
+	desc.back_buffer.texture.levels = 1;
+	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.Format);
+	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
+	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+
+	if (window != nullptr)
+	{
+		RECT window_rect = {};
+		GetClientRect(window, &window_rect);
+		if (internal_desc.Width == 0)
+			desc.back_buffer.texture.width = window_rect.right;
+		if (internal_desc.Height == 0)
+			desc.back_buffer.texture.height = window_rect.bottom;
+	}
+
+	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
+		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
+	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
+		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
+	if (internal_desc.BufferUsage & DXGI_USAGE_SHARED)
+		desc.back_buffer.flags |= reshade::api::resource_flags::shared;
+	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
+		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
+
+	desc.back_buffer_count = internal_desc.BufferCount;
+	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
+	desc.present_flags = internal_desc.Flags;
+
+	if (fullscreen_desc != nullptr)
+	{
+		desc.fullscreen_state = fullscreen_desc->Windowed == FALSE;
+		desc.fullscreen_refresh_rate = rational_to_floating_point(fullscreen_desc->RefreshRate);
+	}
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
+	{
+		internal_desc.Width = desc.back_buffer.texture.width;
+		internal_desc.Height = desc.back_buffer.texture.height;
+		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
+		internal_desc.Stereo = desc.back_buffer.texture.depth_or_layers > 1;
+		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
+
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		if ((desc.back_buffer.flags & reshade::api::resource_flags::shared) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_SHARED;
+		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
+
+		internal_desc.BufferCount = desc.back_buffer_count;
+		internal_desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.present_mode);
+		internal_desc.Flags = desc.present_flags;
+
+		if (fullscreen_desc != nullptr)
+		{
+			fullscreen_desc->RefreshRate = floating_point_to_rational(desc.fullscreen_refresh_rate);
+			fullscreen_desc->Windowed = !desc.fullscreen_state;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+#endif
 
 static void dump_format(DXGI_FORMAT format)
 {
@@ -53,7 +199,7 @@ static void dump_format(DXGI_FORMAT format)
 }
 static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 {
-	LOG(INFO) <<     "  | SampleCount                             | " << std::setw(39) << desc.Count   << " |";
+	LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << desc.Count << " |";
 	switch (desc.Quality)
 	{
 	case D3D11_CENTER_MULTISAMPLE_PATTERN:
@@ -66,186 +212,6 @@ static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
 		LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << desc.Quality << " |";
 		break;
 	}
-}
-
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
-{
-	bool modified = false;
-
-#if RESHADE_ADDON
-	reshade::api::swapchain_desc desc = {};
-	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
-	desc.back_buffer.texture.width = internal_desc.BufferDesc.Width;
-	desc.back_buffer.texture.height = internal_desc.BufferDesc.Height;
-	desc.back_buffer.texture.depth_or_layers = 1;
-	desc.back_buffer.texture.levels = 1;
-	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.BufferDesc.Format);
-	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
-
-	RECT window_rect = {};
-	GetClientRect(internal_desc.OutputWindow, &window_rect);
-	if (internal_desc.BufferDesc.Width == 0)
-		desc.back_buffer.texture.width = window_rect.right;
-	if (internal_desc.BufferDesc.Height == 0)
-		desc.back_buffer.texture.height = window_rect.bottom;
-
-	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
-		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
-	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
-		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
-	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
-		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
-
-	desc.back_buffer_count = internal_desc.BufferCount;
-	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
-	desc.present_flags = internal_desc.Flags;
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, internal_desc.OutputWindow))
-	{
-		internal_desc.BufferDesc.Width = desc.back_buffer.texture.width;
-		internal_desc.BufferDesc.Height = desc.back_buffer.texture.height;
-		internal_desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
-		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
-
-		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
-
-		internal_desc.BufferCount = desc.back_buffer_count;
-		internal_desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.present_mode);
-		internal_desc.Flags = desc.present_flags;
-
-		modified = true;
-	}
-#endif
-
-	ini_file &config = reshade::global_config();
-
-	if (config.get("APP", "ForceWindowed"))
-	{
-		internal_desc.Windowed = TRUE;
-
-		modified = true;
-	}
-	if (config.get("APP", "ForceFullscreen"))
-	{
-		internal_desc.Windowed = FALSE;
-
-		modified = true;
-	}
-	if (config.get("APP", "ForceDefaultRefreshRate"))
-	{
-		internal_desc.BufferDesc.RefreshRate = { 0, 1 };
-
-		modified = true;
-	}
-
-	if (unsigned int force_resolution[2] = {};
-		config.get("APP", "ForceResolution", force_resolution) &&
-		force_resolution[0] != 0 && force_resolution[1] != 0)
-	{
-		internal_desc.BufferDesc.Width = force_resolution[0];
-		internal_desc.BufferDesc.Height = force_resolution[1];
-
-		modified = true;
-	}
-
-	if (config.get("APP", "Force10BitFormat"))
-	{
-		internal_desc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-
-		modified = true;
-	}
-
-	return modified;
-}
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, [[maybe_unused]] HWND window)
-{
-	bool modified = false;
-
-#if RESHADE_ADDON
-	reshade::api::swapchain_desc desc = {};
-	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
-	desc.back_buffer.texture.width = internal_desc.Width;
-	desc.back_buffer.texture.height = internal_desc.Height;
-	desc.back_buffer.texture.depth_or_layers = internal_desc.Stereo ? 2 : 1;
-	desc.back_buffer.texture.levels = 1;
-	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.Format);
-	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
-
-	if (window != nullptr)
-	{
-		RECT window_rect = {};
-		GetClientRect(window, &window_rect);
-		if (internal_desc.Width == 0)
-			desc.back_buffer.texture.width = window_rect.right;
-		if (internal_desc.Height == 0)
-			desc.back_buffer.texture.height = window_rect.bottom;
-	}
-
-	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
-		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
-	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
-		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
-	if (internal_desc.BufferUsage & DXGI_USAGE_SHARED)
-		desc.back_buffer.flags |= reshade::api::resource_flags::shared;
-	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
-		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
-
-	desc.back_buffer_count = internal_desc.BufferCount;
-	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
-	desc.present_flags = internal_desc.Flags;
-
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
-	{
-		internal_desc.Width = desc.back_buffer.texture.width;
-		internal_desc.Height = desc.back_buffer.texture.height;
-		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
-		internal_desc.Stereo = desc.back_buffer.texture.depth_or_layers > 1;
-		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
-
-		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
-		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		if ((desc.back_buffer.flags & reshade::api::resource_flags::shared) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_SHARED;
-		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
-			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
-
-		internal_desc.BufferCount = desc.back_buffer_count;
-		internal_desc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.present_mode);
-		internal_desc.Flags = desc.present_flags;
-
-		modified = true;
-	}
-#endif
-
-	ini_file &config = reshade::global_config();
-
-	if (unsigned int force_resolution[2] = {};
-		config.get("APP", "ForceResolution", force_resolution) &&
-		force_resolution[0] != 0 && force_resolution[1] != 0)
-	{
-		internal_desc.Width = force_resolution[0];
-		internal_desc.Height = force_resolution[1];
-
-		modified = true;
-	}
-
-	if (config.get("APP", "Force10BitFormat"))
-	{
-		internal_desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
-
-		modified = true;
-	}
-
-	return modified;
 }
 
 static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
@@ -269,29 +235,11 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
+#if RESHADE_ADDON
 	modify_swapchain_desc(desc);
+#endif
 }
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc)
-{
-	LOG(INFO) << "> Dumping swap chain description:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Parameter                               | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
-	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
-	dump_format(desc.Format);
-	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
-	dump_sample_desc(desc.SampleDesc);
-	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
-	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
-	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
-	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-
-	modify_swapchain_desc(desc, nullptr);
-}
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC &fullscreen_desc, HWND window = nullptr)
+static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = nullptr, [[maybe_unused]] HWND window = nullptr)
 {
 	LOG(INFO) << "> Dumping swap chain description:";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
@@ -299,36 +247,32 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width   << " |";
 	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height  << " |";
-	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << fullscreen_desc.RefreshRate.Numerator << ' ' << std::setw(19) << fullscreen_desc.RefreshRate.Denominator << " |";
+	if (fullscreen_desc != nullptr)
+	{
+		LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << fullscreen_desc->RefreshRate.Numerator << ' ' << std::setw(19) << fullscreen_desc->RefreshRate.Denominator << " |";
+	}
 	dump_format(desc.Format);
 	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo ? "TRUE" : "FALSE") << " |";
-	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << fullscreen_desc.ScanlineOrdering << " |";
-	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << fullscreen_desc.Scaling << " |";
+	if (fullscreen_desc != nullptr)
+	{
+		LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << fullscreen_desc->ScanlineOrdering << " |";
+		LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << fullscreen_desc->Scaling << " |";
+	}
 	dump_sample_desc(desc.SampleDesc);
 	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << std::hex << desc.BufferUsage << std::dec << " |";
 	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (fullscreen_desc.Windowed ? "TRUE" : "FALSE") << " |";
+	if (fullscreen_desc != nullptr)
+	{
+		LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (fullscreen_desc->Windowed ? "TRUE" : "FALSE") << " |";
+	}
 	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect  << " |";
 	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode   << " |";
 	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
-	modify_swapchain_desc(desc, window);
-
-	ini_file &config = reshade::global_config();
-
-	if (config.get("APP", "ForceWindowed"))
-	{
-		fullscreen_desc.Windowed = TRUE;
-	}
-	if (config.get("APP", "ForceFullscreen"))
-	{
-		fullscreen_desc.Windowed = FALSE;
-	}
-	if (config.get("APP", "ForceDefaultRefreshRate"))
-	{
-		fullscreen_desc.RefreshRate = { 0, 1 };
-	}
+#if RESHADE_ADDON
+	modify_swapchain_desc(desc, fullscreen_desc, window);
+#endif
 }
 
 UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
@@ -425,11 +369,6 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 
 	if (swapchain_proxy != nullptr)
 	{
-		ini_file &config = reshade::global_config();
-		config.get("APP", "ForceVSync", swapchain_proxy->_force_vsync);
-		config.get("APP", "ForceWindowed", swapchain_proxy->_force_windowed);
-		config.get("APP", "ForceFullscreen", swapchain_proxy->_force_fullscreen);
-
 #if RESHADE_VERBOSE_LOG
 		LOG(DEBUG) << "Returning " << "IDXGISwapChain" << swapchain_proxy->_interface_version << " object " << swapchain_proxy << " (" << swapchain_proxy->_orig << ").";
 #endif
@@ -496,7 +435,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		fullscreen_desc = *pFullscreenDesc;
 	else
 		fullscreen_desc.Windowed = TRUE;
-	dump_and_modify_swapchain_desc(desc, fullscreen_desc, hWnd);
+	dump_and_modify_swapchain_desc(desc, &fullscreen_desc, hWnd);
 
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);

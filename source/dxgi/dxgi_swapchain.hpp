@@ -107,9 +107,5 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	reshade::api::swapchain *const _impl;
 	bool _is_initialized = false;
 	bool _was_still_drawing_last_frame = false;
-
-	bool _force_vsync = false;
-	bool _force_windowed = false;
-	bool _force_fullscreen = false;
 	BOOL _current_fullscreen_state = -1;
 };

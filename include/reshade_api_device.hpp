@@ -1217,6 +1217,17 @@ namespace reshade { namespace api
 		/// <para>Depending on the graphics API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
 		/// </summary>
 		uint32_t present_flags = 0;
+
+		/// <summary>
+		/// Initial fullscreen state.
+		/// </summary>
+		bool fullscreen_state = false;
+
+		/// <summary>
+		/// Refresh rate of the display in fullscreen mode, in Hertz.
+		/// Set to zero to use the default.
+		/// </summary>
+		float fullscreen_refresh_rate = 0;
 	};
 
 	/// <summary>

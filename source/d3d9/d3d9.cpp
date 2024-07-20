@@ -7,7 +7,6 @@
 #include "d3d9_swapchain.hpp"
 #include "d3d9_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get HRESULT log overloads
-#include "ini_file.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
 
@@ -94,25 +93,26 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 		if (pp.BackBufferHeight == 0)
 			desc.back_buffer.texture.height = window_rect.bottom;
 
-		if (pp.BackBufferFormat == D3DFMT_UNKNOWN)
+		if (D3DDISPLAYMODE current_mode;
+			pp.BackBufferFormat == D3DFMT_UNKNOWN &&
+			SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
 		{
-			D3DDISPLAYMODE current_mode;
-			if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
-			{
-				desc.back_buffer.texture.format = reshade::d3d9::convert_format(current_mode.Format);
-			}
+			desc.back_buffer.texture.format = reshade::d3d9::convert_format(current_mode.Format);
 		}
 	}
 
 	desc.back_buffer_count = pp.BackBufferCount;
 	desc.present_mode = pp.SwapEffect;
 	desc.present_flags = pp.Flags;
+	desc.fullscreen_state = pp.Windowed == FALSE;
+	desc.fullscreen_refresh_rate = static_cast<float>(pp.FullScreen_RefreshRateInHz);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
 	{
 		pp.BackBufferWidth = desc.back_buffer.texture.width;
 		pp.BackBufferHeight = desc.back_buffer.texture.height;
 		pp.BackBufferFormat = reshade::d3d9::convert_format(desc.back_buffer.texture.format);
+		pp.BackBufferCount = desc.back_buffer_count;
 
 		if (desc.back_buffer.texture.samples > 1)
 		{
@@ -132,56 +132,35 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 			pp.MultiSampleQuality = 0;
 		}
 
-		pp.BackBufferCount = desc.back_buffer_count;
 		pp.SwapEffect = static_cast<D3DSWAPEFFECT>(desc.present_mode);
 		pp.Flags = desc.present_flags;
+
+		if (!desc.fullscreen_state)
+		{
+			pp.Windowed = TRUE;
+			pp.FullScreen_RefreshRateInHz = 0;
+		}
+		else
+		{
+			pp.Windowed = FALSE;
+			pp.FullScreen_RefreshRateInHz = static_cast<UINT>(desc.fullscreen_refresh_rate);
+
+			// Use default values when not provided
+			if (D3DDISPLAYMODE current_mode;
+				SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
+			{
+				if (desc.back_buffer.texture.width == 0)
+					pp.BackBufferWidth = current_mode.Width;
+				if (desc.back_buffer.texture.height == 0)
+					pp.BackBufferHeight = current_mode.Height;
+				if (desc.back_buffer.texture.format == reshade::api::format::unknown)
+					pp.BackBufferFormat = current_mode.Format;
+				if (desc.fullscreen_refresh_rate == 0)
+					pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
+			}
+		}
 	}
 #endif
-
-	ini_file &config = reshade::global_config();
-
-	if (config.get("APP", "ForceVSync"))
-	{
-		pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-	}
-
-	if (config.get("APP", "ForceWindowed"))
-	{
-		pp.Windowed = TRUE;
-		pp.FullScreen_RefreshRateInHz = 0;
-	}
-	if (config.get("APP", "ForceFullscreen"))
-	{
-		D3DDISPLAYMODE current_mode;
-		if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
-		{
-			pp.BackBufferWidth = current_mode.Width;
-			pp.BackBufferHeight = current_mode.Height;
-			pp.BackBufferFormat = current_mode.Format;
-			pp.Windowed = FALSE;
-			pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
-		}
-	}
-	if (config.get("APP", "ForceDefaultRefreshRate") && !pp.Windowed)
-	{
-		D3DDISPLAYMODE current_mode;
-		if (SUCCEEDED(d3d->GetAdapterDisplayMode(adapter_index, &current_mode)))
-		{
-			pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
-		}
-	}
-
-	if (unsigned int force_resolution[2] = {};
-		config.get("APP", "ForceResolution", force_resolution) && force_resolution[0] != 0 && force_resolution[1] != 0)
-	{
-		pp.BackBufferWidth = force_resolution[0];
-		pp.BackBufferHeight = force_resolution[1];
-	}
-
-	if (config.get("APP", "Force10BitFormat"))
-	{
-		pp.BackBufferFormat = D3DFMT_A2R10G10B10;
-	}
 }
 void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
 {
