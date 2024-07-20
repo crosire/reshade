@@ -172,48 +172,6 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 
 	return files;
 }
-
-static int format_color_bit_depth(reshade::api::format value)
-{
-	switch (value)
-	{
-	default:
-		assert(false);
-		return 0;
-	case reshade::api::format::b5g6r5_unorm:
-	case reshade::api::format::b5g5r5a1_unorm:
-	case reshade::api::format::b5g5r5x1_unorm:
-		return 5;
-	case reshade::api::format::r8g8b8a8_typeless:
-	case reshade::api::format::r8g8b8a8_unorm:
-	case reshade::api::format::r8g8b8a8_unorm_srgb:
-	case reshade::api::format::r8g8b8x8_unorm:
-	case reshade::api::format::r8g8b8x8_unorm_srgb:
-	case reshade::api::format::b8g8r8a8_typeless:
-	case reshade::api::format::b8g8r8a8_unorm:
-	case reshade::api::format::b8g8r8a8_unorm_srgb:
-	case reshade::api::format::b8g8r8x8_typeless:
-	case reshade::api::format::b8g8r8x8_unorm:
-	case reshade::api::format::b8g8r8x8_unorm_srgb:
-		return 8;
-	case reshade::api::format::r10g10b10a2_typeless:
-	case reshade::api::format::r10g10b10a2_unorm:
-	case reshade::api::format::r10g10b10a2_xr_bias:
-	case reshade::api::format::b10g10r10a2_typeless:
-	case reshade::api::format::b10g10r10a2_unorm:
-		return 10;
-	case reshade::api::format::r11g11b10_float:
-		return 11;
-	case reshade::api::format::r16g16b16a16_typeless:
-	case reshade::api::format::r16g16b16a16_float:
-		return 16;
-	case reshade::api::format::r32g32b32_typeless:
-	case reshade::api::format::r32g32b32_float:
-	case reshade::api::format::r32g32b32a32_typeless:
-	case reshade::api::format::r32g32b32a32_float:
-		return 32;
-	}
-}
 #endif
 
 reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr) :
@@ -1509,7 +1467,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	attributes += "width=" + std::to_string(_effect_width) + ';';
 	attributes += "height=" + std::to_string(_effect_height) + ';';
 	attributes += "color_space=" + std::to_string(static_cast<uint32_t>(_back_buffer_color_space)) + ';';
-	attributes += "color_bit_depth=" + std::to_string(format_color_bit_depth(_effect_color_format)) + ';';
+	attributes += "color_bit_depth=" + std::to_string(api::format_bit_depth(_effect_color_format)) + ';';
 	attributes += "version=" + std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION) + ';';
 	attributes += "performance_mode=" + std::string(_performance_mode ? "1" : "0") + ';';
 	attributes += "vendor=" + std::to_string(_vendor_id) + ';';
@@ -1642,7 +1600,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 		pp.add_macro_definition("BUFFER_COLOR_SPACE", std::to_string(static_cast<uint32_t>(_back_buffer_color_space)));
-		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(format_color_bit_depth(_effect_color_format)));
+		pp.add_macro_definition("BUFFER_COLOR_BIT_DEPTH", std::to_string(api::format_bit_depth(_effect_color_format)));
 
 		for (const std::pair<std::string, std::string> &definition : preprocessor_definitions)
 		{
@@ -2252,7 +2210,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					effect.errors += ") already created a texture with a different image file\n";
 				}
 
-				if (existing_texture->semantic == "COLOR" && format_color_bit_depth(_effect_color_format) != 8)
+				if (existing_texture->semantic == "COLOR" && api::format_bit_depth(_effect_color_format) != 8)
 				{
 					for (const reshadefx::sampler_info &sampler_info : effect.module.samplers)
 					{
@@ -3735,7 +3693,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 
 #if RESHADE_ADDON
 	// Reload effects to update 'BUFFER_WIDTH', 'BUFFER_HEIGHT' and 'BUFFER_COLOR_BIT_DEPTH' definitions (unless this is the 'update_effect_color_and_stencil_tex' call in 'on_init')
-	const bool force_reload = _is_initialized && (width != _effect_width || height != _effect_height || format_color_bit_depth(color_format_typeless) != format_color_bit_depth(_effect_color_format));
+	const bool force_reload = _is_initialized && (width != _effect_width || height != _effect_height || api::format_bit_depth(color_format_typeless) != api::format_bit_depth(_effect_color_format));
 #endif
 
 	_effect_width = width;

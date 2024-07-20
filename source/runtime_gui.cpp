@@ -2631,7 +2631,7 @@ void reshade::runtime::draw_gui_statistics()
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
 #if RESHADE_FX
-		ImGui::Text("format %u", _effect_color_format);
+		ImGui::Text("format %u (%u bpc)", _effect_color_format, api::format_bit_depth(_effect_color_format));
 		if (_gather_gpu_statistics && post_processing_time_gpu != 0)
 			ImGui::Text("%*.3f ms GPU", gpu_digits + 4, (post_processing_time_gpu * 1e-6f));
 #endif

@@ -417,6 +417,50 @@ namespace reshade { namespace api
 	}
 
 	/// <summary>
+	/// Gets the average component bit depth of the specified format <paramref name="value"/>.
+	/// </summary>
+	inline const uint32_t format_bit_depth(format value)
+	{
+		switch (value)
+		{
+		case format::b5g6r5_unorm:
+		case format::b5g5r5a1_unorm:
+		case format::b5g5r5x1_unorm:
+			return 5;
+		case format::r8g8b8a8_typeless:
+		case format::r8g8b8a8_unorm:
+		case format::r8g8b8a8_unorm_srgb:
+		case format::r8g8b8x8_unorm:
+		case format::r8g8b8x8_unorm_srgb:
+		case format::b8g8r8a8_typeless:
+		case format::b8g8r8a8_unorm:
+		case format::b8g8r8a8_unorm_srgb:
+		case format::b8g8r8x8_typeless:
+		case format::b8g8r8x8_unorm:
+		case format::b8g8r8x8_unorm_srgb:
+			return 8;
+		case format::r10g10b10a2_typeless:
+		case format::r10g10b10a2_unorm:
+		case format::r10g10b10a2_xr_bias:
+		case format::b10g10r10a2_typeless:
+		case format::b10g10r10a2_unorm:
+			return 10;
+		case format::r11g11b10_float:
+			return 11;
+		case format::r16g16b16a16_typeless:
+		case format::r16g16b16a16_float:
+			return 16;
+		case format::r32g32b32_typeless:
+		case format::r32g32b32_float:
+		case format::r32g32b32a32_typeless:
+		case format::r32g32b32a32_float:
+			return 32;
+		default:
+			return 0;
+		}
+	}
+
+	/// <summary>
 	/// Gets the number of bytes a texture row of the specified format <paramref name="value"/> occupies.
 	/// </summary>
 	inline const uint32_t format_row_pitch(format value, uint32_t width)
