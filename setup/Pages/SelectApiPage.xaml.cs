@@ -56,7 +56,7 @@ namespace ReShade.Setup.Pages
 			set
 			{
 				ApiD3D9.IsChecked = value == Api.D3D9;
-				ApiDXGI.IsChecked = value == Api.D3D10 || value == Api.D3D11 || value == Api.D3D12;
+				ApiDXGI.IsChecked = value == Api.D3D10 || value == Api.D3D11 || value == Api.D3D12 || value == Api.DXGI;
 				ApiOpenGL.IsChecked = value == Api.OpenGL;
 				ApiVulkan.IsChecked = value == Api.Vulkan;
 			}
