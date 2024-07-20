@@ -6,7 +6,6 @@
  * Heavily modified fork of https://github.com/BalazsJako/ImGuiColorTextEdit
  */
 
-#include "effect_lexer.hpp"
 #include "imgui_code_editor.hpp"
 #include <cmath> // std::abs, std::floor, std::fmod
 #include <cctype> // std::isblank, std::tolower
@@ -1769,6 +1768,8 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 
 	return false; // No match found
 }
+
+#include "effect_lexer.hpp"
 
 void reshade::imgui::code_editor::colorize()
 {
