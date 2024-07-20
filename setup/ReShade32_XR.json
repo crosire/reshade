@@ -6,6 +6,6 @@
 		"api_version": "1.0",
 		"implementation_version": "2",
 		"description": "crosire's ReShade post-processing injector for 32-bit",
-		"disable_environment": "DISABLE_XR_APILAYER_reshade"
+		"disable_environment": "DISABLE_XR_APILAYER_reshade_1"
 	}
 }
