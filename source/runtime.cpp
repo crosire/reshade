@@ -1554,9 +1554,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
 	}
-	else
+	else if (!effect.compiled)
 	{
-		// Clear any errors from previous loading attempts
+		// Clear any errors from a previous failed loading attempt (since it will now try again and append to the errors list)
 		effect.errors.clear();
 	}
 
@@ -1861,309 +1861,312 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
-		// Compile shader modules
-		for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.module.entry_points)
+		if (effect.assembly.empty())
 		{
-			if (entry_point.second == reshadefx::shader_type::compute && !_device->check_capability(api::device_caps::compute_shader))
+			// Compile shader modules
+			for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.module.entry_points)
 			{
-				effect.errors += "error: " + entry_point.first + ": compute shaders are not supported in D3D9/D3D10\n";
-				effect.compiled = false;
-				break;
-			}
-
-			std::string &cso = effect.assembly[entry_point.first];
-			std::string &cso_text = effect.assembly_text[entry_point.first];
-
-			if ((_renderer_id & 0xF0000) == 0)
-			{
-				assert(_d3d_compiler_module != nullptr);
-
-				// Copy string, since this has to be repeated for every entry point
-				std::string hlsl = code_preamble;
-
-				if (_renderer_id == 0x9000)
+				if (entry_point.second == reshadefx::shader_type::compute && !_device->check_capability(api::device_caps::compute_shader))
 				{
-					// Create SEMANTIC_PIXEL_SIZE constants
-					hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_effect_width) + ", 1.0 / " + std::to_string(_effect_height) + '\n';
+					effect.errors += "error: " + entry_point.first + ": compute shaders are not supported in D3D9/D3D10\n";
+					effect.compiled = false;
+					break;
+				}
 
-					uint32_t semantic_index = 0;
-					for (const reshadefx::texture_info &tex : effect.module.textures)
+				std::string &cso = effect.assembly[entry_point.first];
+				std::string &cso_text = effect.assembly_text[entry_point.first];
+
+				if ((_renderer_id & 0xF0000) == 0)
+				{
+					assert(_d3d_compiler_module != nullptr);
+
+					// Copy string, since this has to be repeated for every entry point
+					std::string hlsl = code_preamble;
+
+					if (_renderer_id == 0x9000)
 					{
-						if (tex.semantic.empty() || tex.semantic == "COLOR")
-							continue;
+						// Create SEMANTIC_PIXEL_SIZE constants
+						hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_effect_width) + ", 1.0 / " + std::to_string(_effect_height) + '\n';
 
-						semantic_index++;
-						assert((effect.uniform_data_storage.size() / 16) <= (255 - semantic_index));
+						uint32_t semantic_index = 0;
+						for (const reshadefx::texture_info &tex : effect.module.textures)
+						{
+							if (tex.semantic.empty() || tex.semantic == "COLOR")
+								continue;
 
-						// Avoid duplicate declarations if the semantic was used multiple times
-						if (hlsl.find(tex.semantic + "_PIXEL_SIZE") == std::string::npos)
-							hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
+							semantic_index++;
+							assert((effect.uniform_data_storage.size() / 16) <= (255 - semantic_index));
+
+							// Avoid duplicate declarations if the semantic was used multiple times
+							if (hlsl.find(tex.semantic + "_PIXEL_SIZE") == std::string::npos)
+								hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
+						}
 					}
-				}
 
-				hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-				hlsl.append(effect.module.code.data(), effect.module.code.size());
+					hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
+					hlsl.append(effect.module.code.data(), effect.module.code.size());
 
-				// Overwrite position semantic in pixel shaders
-				const D3D_SHADER_MACRO ps_defines[] = {
-					{ "POSITION", "VPOS" }, { nullptr, nullptr }
-				};
+					// Overwrite position semantic in pixel shaders
+					const D3D_SHADER_MACRO ps_defines[] = {
+						{ "POSITION", "VPOS" }, { nullptr, nullptr }
+					};
 
-				std::string profile;
-				switch (entry_point.second)
-				{
-				case reshadefx::shader_type::vertex:
-					profile = "vs";
-					break;
-				case reshadefx::shader_type::pixel:
-					profile = "ps";
-					break;
-				case reshadefx::shader_type::compute:
-					profile = "cs";
-					break;
-				}
+					std::string profile;
+					switch (entry_point.second)
+					{
+					case reshadefx::shader_type::vertex:
+						profile = "vs";
+						break;
+					case reshadefx::shader_type::pixel:
+						profile = "ps";
+						break;
+					case reshadefx::shader_type::compute:
+						profile = "cs";
+						break;
+					}
 
-				switch (_renderer_id)
-				{
-				default:
-				case D3D_FEATURE_LEVEL_11_0:
-					profile += "_5_0";
-					break;
-				case D3D_FEATURE_LEVEL_10_1:
-					profile += "_4_1";
-					break;
-				case D3D_FEATURE_LEVEL_10_0:
-					profile += "_4_0";
-					break;
-				case D3D_FEATURE_LEVEL_9_1:
-				case D3D_FEATURE_LEVEL_9_2:
-					profile += "_4_0_level_9_1";
-					break;
-				case D3D_FEATURE_LEVEL_9_3:
-					profile += "_4_0_level_9_3";
-					break;
-				case 0x9000:
-					profile += "_3_0";
-					break;
-				}
+					switch (_renderer_id)
+					{
+					default:
+					case D3D_FEATURE_LEVEL_11_0:
+						profile += "_5_0";
+						break;
+					case D3D_FEATURE_LEVEL_10_1:
+						profile += "_4_1";
+						break;
+					case D3D_FEATURE_LEVEL_10_0:
+						profile += "_4_0";
+						break;
+					case D3D_FEATURE_LEVEL_9_1:
+					case D3D_FEATURE_LEVEL_9_2:
+						profile += "_4_0_level_9_1";
+						break;
+					case D3D_FEATURE_LEVEL_9_3:
+						profile += "_4_0_level_9_3";
+						break;
+					case 0x9000:
+						profile += "_3_0";
+						break;
+					}
 
-				UINT compile_flags = 0;
-				if (skip_optimization)
-					compile_flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-				else if (_performance_mode)
-					compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-				if (_renderer_id >= D3D_FEATURE_LEVEL_10_0)
-					compile_flags |= D3DCOMPILE_ENABLE_STRICTNESS;
+					UINT compile_flags = 0;
+					if (skip_optimization)
+						compile_flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+					else if (_performance_mode)
+						compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
+					if (_renderer_id >= D3D_FEATURE_LEVEL_10_0)
+						compile_flags |= D3DCOMPILE_ENABLE_STRICTNESS;
 #ifndef NDEBUG
-				compile_flags |= D3DCOMPILE_DEBUG;
+					compile_flags |= D3DCOMPILE_DEBUG;
 #endif
 
-				std::string hlsl_attributes;
-				hlsl_attributes += "entrypoint=" + entry_point.first + ';';
-				hlsl_attributes += "profile=" + profile + ';';
-				hlsl_attributes += "flags=" + std::to_string(compile_flags) + ';';
+					std::string hlsl_attributes;
+					hlsl_attributes += "entrypoint=" + entry_point.first + ';';
+					hlsl_attributes += "profile=" + profile + ';';
+					hlsl_attributes += "flags=" + std::to_string(compile_flags) + ';';
 
-				const std::string cache_id =
-					effect.source_file.stem().u8string() + '-' + entry_point.first + '-' + std::to_string(_renderer_id) + '-' +
-					std::to_string(std::hash<std::string_view>()(hlsl_attributes) ^ std::hash<std::string_view>()(hlsl));
+					const std::string cache_id =
+						effect.source_file.stem().u8string() + '-' + entry_point.first + '-' + std::to_string(_renderer_id) + '-' +
+						std::to_string(std::hash<std::string_view>()(hlsl_attributes) ^ std::hash<std::string_view>()(hlsl));
 
-				if (!load_effect_cache(cache_id, "cso", cso))
-				{
-					const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
-					assert(D3DCompile != nullptr);
-
-					com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-					const HRESULT hr = D3DCompile(
-						hlsl.data(), hlsl.size(),
-						nullptr, entry_point.second == reshadefx::shader_type::pixel ? ps_defines : nullptr, nullptr,
-						entry_point.first.c_str(),
-						profile.c_str(),
-						compile_flags, 0,
-						&d3d_compiled, &d3d_errors);
-
-					std::string d3d_errors_string;
-					if (d3d_errors != nullptr) // Append warnings to the output error string as well
-						d3d_errors_string.assign(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-					d3d_errors.reset();
-
-					// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-					for (size_t line_offset = 0, next_line_offset; (next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
+					if (!load_effect_cache(cache_id, "cso", cso))
 					{
-						const std::string_view cur_line(d3d_errors_string.data() + line_offset, next_line_offset - line_offset);
+						const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
+						assert(D3DCompile != nullptr);
 
-						if (const size_t end_offset = d3d_errors_string.find('\n', next_line_offset + 1);
-							end_offset != std::string::npos)
+						com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
+						const HRESULT hr = D3DCompile(
+							hlsl.data(), hlsl.size(),
+							nullptr, entry_point.second == reshadefx::shader_type::pixel ? ps_defines : nullptr, nullptr,
+							entry_point.first.c_str(),
+							profile.c_str(),
+							compile_flags, 0,
+							&d3d_compiled, &d3d_errors);
+
+						std::string d3d_errors_string;
+						if (d3d_errors != nullptr) // Append warnings to the output error string as well
+							d3d_errors_string.assign(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
+						d3d_errors.reset();
+
+						// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
+						for (size_t line_offset = 0, next_line_offset; (next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
 						{
-							const std::string_view next_line(d3d_errors_string.data() + next_line_offset + 1, end_offset - next_line_offset - 1);
-							if (cur_line == next_line)
+							const std::string_view cur_line(d3d_errors_string.data() + line_offset, next_line_offset - line_offset);
+
+							if (const size_t end_offset = d3d_errors_string.find('\n', next_line_offset + 1);
+								end_offset != std::string::npos)
 							{
-								d3d_errors_string.erase(next_line_offset, end_offset - next_line_offset);
+								const std::string_view next_line(d3d_errors_string.data() + next_line_offset + 1, end_offset - next_line_offset - 1);
+								if (cur_line == next_line)
+								{
+									d3d_errors_string.erase(next_line_offset, end_offset - next_line_offset);
+									next_line_offset = line_offset - 1;
+								}
+							}
+
+							// Also remove D3DCompiler warnings about 'groupshared' specifier used in VS/PS modules
+							if (cur_line.find("X3579") != std::string_view::npos)
+							{
+								d3d_errors_string.erase(line_offset, next_line_offset + 1 - line_offset);
 								next_line_offset = line_offset - 1;
 							}
 						}
 
-						// Also remove D3DCompiler warnings about 'groupshared' specifier used in VS/PS modules
-						if (cur_line.find("X3579") != std::string_view::npos)
+						if (FAILED(hr))
 						{
-							d3d_errors_string.erase(line_offset, next_line_offset + 1 - line_offset);
-							next_line_offset = line_offset - 1;
+							// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
+							if (d3d_errors_string.find("error") == std::string::npos)
+								effect.errors += "error: " + entry_point.first + ": ";
+
+							effect.errors += d3d_errors_string;
+							effect.compiled = false;
+							break;
 						}
+						else
+						{
+							// Append warnings
+							effect.errors += d3d_errors_string;
+						}
+
+						cso.resize(d3d_compiled->GetBufferSize());
+						std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
+
+						save_effect_cache(cache_id, "cso", cso);
 					}
 
-					if (FAILED(hr))
+					if (!load_effect_cache(cache_id, "asm", cso_text))
 					{
-						// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
-						if (d3d_errors_string.find("error") == std::string::npos)
-							effect.errors += "error: " + entry_point.first + ": ";
+						const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
+						assert(D3DDisassemble != nullptr);
 
-						effect.errors += d3d_errors_string;
-						effect.compiled = false;
-						break;
+						com_ptr<ID3DBlob> d3d_disassembled;
+						if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
+							cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
+
+						save_effect_cache(cache_id, "asm", cso_text);
 					}
-					else
+				}
+				else if (_renderer_id < 0x20000)
+				{
+					std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.first + " 1\n";
+
+					if (entry_point.second != reshadefx::shader_type::pixel)
 					{
-						// Append warnings
-						effect.errors += d3d_errors_string;
+						// OpenGL does not allow using 'discard' in the vertex shader profile
+						glsl += "#define discard\n";
+						// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+						glsl += "#define dFdx(x) x\n";
+						glsl += "#define dFdy(y) y\n";
+						glsl += "#define fwidth(p) p\n";
+					}
+					if (entry_point.second != reshadefx::shader_type::compute)
+					{
+						// OpenGL does not allow using 'shared' in vertex/fragment shader profile
+						glsl += "#define shared\n";
+						glsl += "#define atomicAdd(a, b) a\n";
+						glsl += "#define atomicAnd(a, b) a\n";
+						glsl += "#define atomicOr(a, b) a\n";
+						glsl += "#define atomicXor(a, b) a\n";
+						glsl += "#define atomicMin(a, b) a\n";
+						glsl += "#define atomicMax(a, b) a\n";
+						glsl += "#define atomicExchange(a, b) a\n";
+						glsl += "#define atomicCompSwap(a, b, c) a\n";
+						// Barrier intrinsics are only available in compute shaders
+						glsl += "#define barrier()\n";
+						glsl += "#define memoryBarrier()\n";
+						glsl += "#define groupMemoryBarrier()\n";
 					}
 
-					cso.resize(d3d_compiled->GetBufferSize());
-					std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
+					glsl += code_preamble;
+					glsl += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
+					glsl.append(effect.module.code.data(), effect.module.code.size());
 
-					save_effect_cache(cache_id, "cso", cso);
+					cso_text = cso = std::move(glsl);
 				}
-
-				if (!load_effect_cache(cache_id, "asm", cso_text))
+				else
 				{
-					const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
-					assert(D3DDisassemble != nullptr);
-
-					com_ptr<ID3DBlob> d3d_disassembled;
-					if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-						cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
-
-					save_effect_cache(cache_id, "asm", cso_text);
-				}
-			}
-			else if (_renderer_id < 0x20000)
-			{
-				std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.first + " 1\n";
-
-				if (entry_point.second != reshadefx::shader_type::pixel)
-				{
-					// OpenGL does not allow using 'discard' in the vertex shader profile
-					glsl += "#define discard\n";
-					// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-					glsl += "#define dFdx(x) x\n";
-					glsl += "#define dFdy(y) y\n";
-					glsl += "#define fwidth(p) p\n";
-				}
-				if (entry_point.second != reshadefx::shader_type::compute)
-				{
-					// OpenGL does not allow using 'shared' in vertex/fragment shader profile
-					glsl += "#define shared\n";
-					glsl += "#define atomicAdd(a, b) a\n";
-					glsl += "#define atomicAnd(a, b) a\n";
-					glsl += "#define atomicOr(a, b) a\n";
-					glsl += "#define atomicXor(a, b) a\n";
-					glsl += "#define atomicMin(a, b) a\n";
-					glsl += "#define atomicMax(a, b) a\n";
-					glsl += "#define atomicExchange(a, b) a\n";
-					glsl += "#define atomicCompSwap(a, b, c) a\n";
-					// Barrier intrinsics are only available in compute shaders
-					glsl += "#define barrier()\n";
-					glsl += "#define memoryBarrier()\n";
-					glsl += "#define groupMemoryBarrier()\n";
-				}
-
-				glsl += code_preamble;
-				glsl += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-				glsl.append(effect.module.code.data(), effect.module.code.size());
-
-				cso_text = cso = std::move(glsl);
-			}
-			else
-			{
-				assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
+					assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
 
 #if 1
-				// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
-				// On AMD for instance creating a graphics pipeline just fails with a generic 'VK_ERROR_OUT_OF_HOST_MEMORY'. On NVIDIA artifacts occur on some driver versions.
-				// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
-				uint32_t current_function = 0, current_function_offset = 0;
-				// Copy SPIR-V, so that all but the current entry point are only removed from that copy
-				std::vector<uint32_t> spirv(reinterpret_cast<const uint32_t *>(effect.module.code.data()), reinterpret_cast<const uint32_t *>(effect.module.code.data() + effect.module.code.size()));
-				std::vector<uint32_t> functions_to_remove, variables_to_remove;
+					// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
+					// On AMD for instance creating a graphics pipeline just fails with a generic 'VK_ERROR_OUT_OF_HOST_MEMORY'. On NVIDIA artifacts occur on some driver versions.
+					// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
+					uint32_t current_function = 0, current_function_offset = 0;
+					// Copy SPIR-V, so that all but the current entry point are only removed from that copy
+					std::vector<uint32_t> spirv(reinterpret_cast<const uint32_t *>(effect.module.code.data()), reinterpret_cast<const uint32_t *>(effect.module.code.data() + effect.module.code.size()));
+					std::vector<uint32_t> functions_to_remove, variables_to_remove;
 
-				for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
-				{
-					const uint32_t op = spirv[inst] & 0xFFFF;
-					const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
-					assert(len != 0);
-
-					switch (op)
+					for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
 					{
-					case 15 /* OpEntryPoint */:
-						// Look for any non-matching entry points
-						if (entry_point.first != reinterpret_cast<const char *>(&spirv[inst + 3]))
-						{
-							functions_to_remove.push_back(spirv[inst + 2]);
+						const uint32_t op = spirv[inst] & 0xFFFF;
+						const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
+						assert(len != 0);
 
-							// Get interface variables
-							for (uint32_t k = inst + 3 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
-								variables_to_remove.push_back(spirv[k]);
+						switch (op)
+						{
+						case 15 /* OpEntryPoint */:
+							// Look for any non-matching entry points
+							if (entry_point.first != reinterpret_cast<const char *>(&spirv[inst + 3]))
+							{
+								functions_to_remove.push_back(spirv[inst + 2]);
 
-							// Remove this entry point from the module
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
+								// Get interface variables
+								for (uint32_t k = inst + 3 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
+									variables_to_remove.push_back(spirv[k]);
+
+								// Remove this entry point from the module
+								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+								continue;
+							}
+							break;
+						case 16 /* OpExecutionMode */:
+							if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
+							{
+								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+								continue;
+							}
+							break;
+						case 59 /* OpVariable */:
+							// Remove all declarations of the interface variables for non-matching entry points
+							if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
+							{
+								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+								continue;
+							}
+							break;
+						case 71 /* OpDecorate */:
+							// Remove all decorations targeting any of the interface variables for non-matching entry points
+							if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
+							{
+								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
+								continue;
+							}
+							break;
+						case 54 /* OpFunction */:
+							current_function = spirv[inst + 2];
+							current_function_offset = inst;
+							break;
+						case 56 /* OpFunctionEnd */:
+							// Remove all function definitions for non-matching entry points
+							if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
+							{
+								spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
+								inst = current_function_offset;
+								continue;
+							}
+							break;
 						}
-						break;
-					case 16 /* OpExecutionMode */:
-						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 59 /* OpVariable */:
-						// Remove all declarations of the interface variables for non-matching entry points
-						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 71 /* OpDecorate */:
-						// Remove all decorations targeting any of the interface variables for non-matching entry points
-						if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-							continue;
-						}
-						break;
-					case 54 /* OpFunction */:
-						current_function = spirv[inst + 2];
-						current_function_offset = inst;
-						break;
-					case 56 /* OpFunctionEnd */:
-						// Remove all function definitions for non-matching entry points
-						if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
-						{
-							spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
-							inst = current_function_offset;
-							continue;
-						}
-						break;
+
+						inst += len;
 					}
 
-					inst += len;
-				}
-
-				cso.resize(spirv.size() * sizeof(uint32_t));
-				std::memcpy(cso.data(), spirv.data(), cso.size());
+					cso.resize(spirv.size() * sizeof(uint32_t));
+					std::memcpy(cso.data(), spirv.data(), cso.size());
 #else
-				cso.resize(effect.module.code.size());
-				std::memcpy(cso.data(), effect.module.code.data(), effect.module.code.size());
+					cso.resize(effect.module.code.size());
+					std::memcpy(cso.data(), effect.module.code.data(), effect.module.code.size());
 #endif
+				}
 			}
 		}
 
