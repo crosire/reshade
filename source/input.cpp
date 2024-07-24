@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
+#include <shared_mutex>
 #include <unordered_map>
 #include <cstring> // std::memset
 #include <algorithm> // std::any_of, std::copy_n, std::max_element
@@ -135,7 +136,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	ScreenToClient(static_cast<HWND>(input->_window), &details.pt);
 
 	// Prevent input threads from modifying input while it is accessed elsewhere
-	const std::unique_lock<std::shared_mutex> input_lock(input->_mutex);
+	const std::unique_lock<std::recursive_mutex> input_lock(input->_mutex);
 
 	input->_mouse_position[0] = details.pt.x;
 	input->_mouse_position[1] = details.pt.y;

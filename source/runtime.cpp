@@ -657,7 +657,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	}
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	std::shared_lock<std::shared_mutex> input_lock;
+	std::unique_lock<std::recursive_mutex> input_lock;
 	if (_input != nullptr)
 		input_lock = _input->lock();
 
@@ -3883,7 +3883,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		return;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
-	std::shared_lock<std::shared_mutex> input_lock;
+	std::unique_lock<std::recursive_mutex> input_lock;
 	if (_input != nullptr
 #if RESHADE_ADDON
 		&& !_is_in_present_call

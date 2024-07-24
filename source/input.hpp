@@ -5,9 +5,9 @@
 
 #pragma once
 
+#include <mutex>
 #include <memory>
 #include <string>
-#include <shared_mutex>
 
 namespace reshade
 {
@@ -90,7 +90,7 @@ namespace reshade
 		/// Locks access to the input data so it cannot be modified in another thread.
 		/// </summary>
 		/// <returns>RAII object holding the lock, which releases it after going out of scope.</returns>
-		auto lock() { return std::shared_lock<std::shared_mutex>(_mutex); }
+		auto lock() { return std::unique_lock<std::recursive_mutex>(_mutex); }
 
 		/// <summary>
 		/// Notifies the input manager to advance a frame.
@@ -117,7 +117,7 @@ namespace reshade
 		static bool handle_window_message(const void *message_data);
 
 	private:
-		std::shared_mutex _mutex;
+		std::recursive_mutex _mutex;
 		window_handle _window;
 		bool _block_mouse = false;
 		bool _block_keyboard = false;
