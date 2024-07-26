@@ -10,6 +10,7 @@
 #include <cctype> // std::toupper
 #include <cassert>
 #include <algorithm> // std::min, std::sort, std::transform
+#include <utf8/core.h>
 
 static std::shared_mutex s_ini_cache_mutex;
 static std::unordered_map<std::wstring, std::unique_ptr<ini_file>> s_ini_cache;
@@ -42,8 +43,8 @@ bool ini_file::load()
 	_modified_at = modified_at;
 
 	file.imbue(std::locale("en-us.UTF-8"));
-	// Remove BOM (0xefbbbf means 0xfeff)
-	if (file.get() != 0xef || file.get() != 0xbb || file.get() != 0xbf)
+	// Remove BOM
+	if (file.get() != utf8::bom[0] || file.get() != utf8::bom[1] || file.get() != utf8::bom[2])
 		file.seekg(0, std::ios::beg);
 
 	std::string line, section;

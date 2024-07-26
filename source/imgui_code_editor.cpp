@@ -9,6 +9,7 @@
 #include "imgui_code_editor.hpp"
 #include <cmath> // std::abs, std::floor, std::fmod
 #include <cctype> // std::isblank, std::tolower
+#include <cstdio> // std::snprintf
 #include <algorithm> // std::max, std::min
 #include <utf8/unchecked.h>
 #include <imgui.h>
@@ -136,7 +137,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	char buf[128] = "", *buf_end = buf;
 
 	// Deduce text start offset by evaluating maximum number of lines plus two spaces as text width
-	snprintf(buf, 16, " %zu ", _lines.size());
+	std::snprintf(buf, 16, " %zu ", _lines.size());
 	const float text_start = ImGui::CalcTextSize(buf).x + _left_margin;
 	// The following holds the approximate width and height of a default character for offset calculation
 	const ImVec2 char_advance = ImVec2(calc_text_size(" ").x, ImGui::GetTextLineHeightWithSpacing() * _line_spacing);
@@ -506,7 +507,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		}
 
 		// Draw line number (right aligned)
-		snprintf(buf, 16, "%zu  ", line_no + 1);
+		std::snprintf(buf, 16, "%zu  ", line_no + 1);
 
 		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), palette[color_line_number], buf);
 
@@ -755,7 +756,10 @@ void reshade::imgui::code_editor::set_text(const std::string_view text)
 	_undo_base_index = 0;
 	_errors.clear();
 
-	for (auto it = text.begin(); it < text.end();)
+	std::string_view::const_iterator it = text.begin();
+	if (utf8::starts_with_bom(it, text.end()))
+		it += std::size(utf8::bom);
+	for (; it < text.end();)
 	{
 		const utf8::utfchar32_t c = utf8::unchecked::next(it);
 		if (c == '\r')
@@ -1789,11 +1793,11 @@ void reshade::imgui::code_editor::colorize()
 		_colorize_line_end = 0;
 	}
 
-	// Copy lines into string for consumption by the lexer
+	// Copy lines into string for consumption by the lexer (needs to use the same offsets as the indices in '_lines', so strip any unicode characters which are multi-byte)
 	std::string input_string;
 	for (size_t l = from; l < to && l < _lines.size(); ++l, input_string.push_back('\n'))
 		for (size_t k = 0; k < _lines[l].size(); ++k)
-			utf8::unchecked::append(_lines[l][k].c, std::back_inserter(input_string));
+			input_string += _lines[l][k].c < 0x80 ? static_cast<char>(_lines[l][k].c) : '?';
 
 	reshadefx::lexer lexer(
 		std::move(input_string),
