@@ -42,7 +42,6 @@ bool ini_file::load()
 	_modified = false;
 	_modified_at = modified_at;
 
-	file.imbue(std::locale("en-us.UTF-8"));
 	// Remove BOM
 	if (file.get() != utf8::bom[0] || file.get() != utf8::bom[1] || file.get() != utf8::bom[2])
 		file.seekg(0, std::ios::beg);
@@ -198,8 +197,6 @@ bool ini_file::save()
 	std::ofstream file(_path);
 	if (!file)
 		return false;
-
-	file.imbue(std::locale("en-us.UTF-8"));
 
 	const std::string str = data.str();
 
