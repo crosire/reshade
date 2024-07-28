@@ -3735,12 +3735,13 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	}
 #endif
 
-	if (!_device->create_resource(
+	if (stencil_format == api::format::unknown ||
+		!_device->create_resource(
 			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 	{
 		LOG(ERROR) << "Failed to create effect stencil resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(stencil_format) << ")!";
-		return false;
+		return true; // Ignore this error, since most effects can still be rendered without stencil
 	}
 
 	_effect_stencil_format = stencil_format;
