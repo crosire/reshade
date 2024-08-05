@@ -6,10 +6,13 @@
 #include <reshade.hpp>
 #include "config.hpp"
 #include "crc32_hash.hpp"
+#include <cstring>
 #include <fstream>
 #include <filesystem>
 
 using namespace reshade::api;
+
+constexpr uint32_t SPIRV_MAGIC = 0x07230203;
 
 static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
@@ -21,11 +24,10 @@ static bool load_shader_code(device_api device_type, shader_desc &desc, std::vec
 	uint32_t shader_hash = compute_crc32(static_cast<const uint8_t *>(desc.code), desc.code_size);
 
 	const wchar_t *extension = L".cso";
-	if (device_type == device_api::vulkan || (
-		device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == 0x07230203 /* SPIR-V magic */))
+	if (device_type == device_api::vulkan || (device_type == device_api::opengl && desc.code_size > sizeof(uint32_t) && *static_cast<const uint32_t *>(desc.code) == SPIRV_MAGIC))
 		extension = L".spv"; // Vulkan uses SPIR-V (and sometimes OpenGL does too)
 	else if (device_type == device_api::opengl)
-		extension = L".glsl"; // OpenGL otherwise uses plain text GLSL
+		extension = desc.code_size > 5 && std::strncmp(static_cast<const char *>(desc.code), "!!ARB", 5) == 0 ? L".txt" : L".glsl"; // OpenGL otherwise uses plain text ARB assembly language or GLSL
 
 	// Prepend executable file name to image files
 	wchar_t file_prefix[MAX_PATH] = L"";

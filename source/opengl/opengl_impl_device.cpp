@@ -10,7 +10,7 @@
 #include "ini_file.hpp"
 #include <cmath> // std::log2f
 #include <cstdio> // std::sscanf
-#include <cstring> // std::memcpy, std::strcmp, std::strncpy
+#include <cstring> // std::memcpy, std::strcmp, std::strncmp, std::strncpy
 #include <algorithm> // std::copy_n, std::fill_n, std::max
 
 #define gl gl3wProcs.gl
@@ -1791,7 +1791,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 
 static bool create_shader_module(GLenum type, const reshade::api::shader_desc &desc, GLuint &shader_object)
 {
-	if (desc.code_size > 5 && strncmp(static_cast<const char *>(desc.code), "!!ARB", 5) == 0)
+	if (desc.code_size > 5 && std::strncmp(static_cast<const char *>(desc.code), "!!ARB", 5) == 0)
 	{
 		// Not implemented
 		return false;
