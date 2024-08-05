@@ -1,0 +1,51 @@
+diff --git a/imgui_widgets.cpp b/imgui_widgets.cpp
+--- a/imgui_widgets.cpp
++++ b/imgui_widgets.cpp
+@@ -7110,8 +7110,6 @@ int ImGui::PlotEx(ImGuiPlotType plot_type, const char* label, float (*values_get
+             }
+             else if (plot_type == ImGuiPlotType_Histogram)
+             {
+-                if (pos1.x >= pos0.x + 2.0f)
+-                    pos1.x -= 1.0f;
+                 window->DrawList->AddRectFilled(pos0, pos1, idx_hovered == v1_idx ? col_hovered : col_base);
+             }
+ 
+diff --git a/imgui.cpp b/imgui.cpp
+--- a/imgui.cpp
++++ b/imgui.cpp
+@@ -4490,14 +4490,15 @@ void ImGui::StartMouseMovingWindowOrNode(ImGuiWindow* window, ImGuiDockNode* nod
+ {
+     ImGuiContext& g = *GImGui;
+     bool can_undock_node = false;
+-    if (undock && node != NULL && node->VisibleWindow && (node->VisibleWindow->Flags & ImGuiWindowFlags_NoMove) == 0 && (node->MergedFlags & ImGuiDockNodeFlags_NoUndocking) == 0)
++    if (node != NULL && node->VisibleWindow && (node->VisibleWindow->Flags & ImGuiWindowFlags_NoMove) == 0 && (node->MergedFlags & ImGuiDockNodeFlags_NoUndocking) == 0)
+     {
+         // Can undock if:
+         // - part of a hierarchy with more than one visible node (if only one is visible, we'll just move the root window)
+         // - part of a dockspace node hierarchy: so we can undock the last single visible node too (trivia: undocking from a fixed/central node will create a new node and copy windows)
+         ImGuiDockNode* root_node = DockNodeGetRootNode(node);
+         if (root_node->OnlyNodeWithWindows != node || root_node->CentralNode != NULL)   // -V1051 PVS-Studio thinks node should be root_node and is wrong about that.
+-            can_undock_node = true;
++            if (undock || root_node->IsDockSpace())
++                can_undock_node = true;
+     }
+ 
+     const bool clicked = IsMouseClicked(0);
+@@ -13233,6 +13234,8 @@ static ImGuiWindow* FindWindowNavFocusable(int i_start, int i_stop, int dir) //
+ 
+ static void NavUpdateWindowingHighlightWindow(int focus_change_dir)
+ {
++    focus_change_dir *= -1;
++
+     ImGuiContext& g = *GImGui;
+     IM_ASSERT(g.NavWindowingTarget);
+     if (g.NavWindowingTarget->Flags & ImGuiWindowFlags_Modal)
+@@ -13484,7 +13487,7 @@ void ImGui::NavUpdateWindowingOverlay()
+     SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+     PushStyleVar(ImGuiStyleVar_WindowPadding, g.Style.WindowPadding * 2.0f);
+     Begin("###NavWindowingList", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+-    for (int n = g.WindowsFocusOrder.Size - 1; n >= 0; n--)
++    for (int n = 0; n < g.WindowsFocusOrder.Size; n++)
+     {
+         ImGuiWindow* window = g.WindowsFocusOrder[n];
+         IM_ASSERT(window != NULL); // Fix static analyzers
