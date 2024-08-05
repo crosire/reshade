@@ -69,3 +69,16 @@ Shows how to use the ReShade API to create acceleration structures and trace ray
 ## [15-effect_runtime_sync](/examples/15-effect_runtime_sync)
 
 Built-in add-on that adds preset synchronization between different effect runtime instances, e.g. to have changes in a desktop window reflect in VR.
+
+## [16-swapchain_override](/examples/16-swapchain_override)
+
+Adds options to ReShade.ini to force the application into windowed or fullscreen mode, or force a specific resolution or the default refresh rate.
+
+```
+[APP]
+ForceWindowed=0
+ForceFullscreen=0
+Force10BitFormat=0
+ForceDefaultRefreshRate=0
+ForceResolution=0,0
+```
