@@ -804,7 +804,7 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 			}
 #endif
 #if RESHADE_ADDON >= 2
-			if (update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels))
+			if (!update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, format, type, pixels))
 #endif
 #if RESHADE_ADDON
 				trampoline(target, level, internalformat, width, height, border, format, type, pixels);
@@ -1531,7 +1531,7 @@ void APIENTRY glCompressedTexImage2D(GLenum target, GLint level, GLenum internal
 			}
 #endif
 #if RESHADE_ADDON >= 2
-			if (update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data))
+			if (!update_texture_region(target, 0, level, 0, 0, 0, width, height, 1, internalformat, GL_UNSIGNED_BYTE, data))
 #endif
 #if RESHADE_ADDON
 				trampoline(target, level, internalformat, width, height, border, imageSize, data);
