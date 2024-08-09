@@ -21,6 +21,12 @@ using namespace reshadefx;
 
 static_assert(sizeof(codegen::id) == sizeof(spv::Id), "unexpected SPIR-V id type size");
 
+inline uint32_t align_up(uint32_t size, uint32_t alignment)
+{
+	alignment -= 1;
+	return ((size + alignment) & ~alignment);
+}
+
 /// <summary>
 /// A single instruction in a SPIR-V module
 /// </summary>
@@ -1783,21 +1789,10 @@ private:
 		return access_chain->result;
 	}
 
+	using codegen::emit_constant;
 	id   emit_constant(uint32_t value)
 	{
 		return emit_constant({ type::t_uint, 1, 1 }, value);
-	}
-	id   emit_constant(const type &data_type, uint32_t value)
-	{
-		// Create a constant value of the specified type
-		constant data = {}; // Initialize to zero, so that components not set below still have a defined value for the lookup via std::memcmp
-		for (unsigned int i = 0; i < data_type.components(); ++i)
-			if (data_type.is_integral())
-				data.as_uint[i] = value;
-			else
-				data.as_float[i] = static_cast<float>(value);
-
-		return emit_constant(data_type, data, false);
 	}
 	id   emit_constant(const type &data_type, const constant &data) override
 	{

@@ -146,14 +146,25 @@ bool reshadefx::parser::accept_type_class(type &type)
 		if (accept('<'))
 		{
 			if (!accept_type_class(type)) // This overwrites the base type again
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected vector element type"), false;
+			{
+				error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected vector element type");
+				return false;
+			}
 			else if (!type.is_scalar())
-				return error(_token.location, 3122, "vector element type must be a scalar type"), false;
+			{
+				error(_token.location, 3122, "vector element type must be a scalar type");
+				return false;
+			}
 
 			if (!expect(',') || !expect(tokenid::int_literal))
+			{
 				return false;
+			}
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
-				return error(_token.location, 3052, "vector dimension must be between 1 and 4"), false;
+			{
+				error(_token.location, 3052, "vector dimension must be between 1 and 4");
+				return false;
+			}
 
 			type.rows = static_cast<unsigned int>(_token.literal_as_int);
 
@@ -171,21 +182,37 @@ bool reshadefx::parser::accept_type_class(type &type)
 		if (accept('<'))
 		{
 			if (!accept_type_class(type)) // This overwrites the base type again
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected matrix element type"), false;
+			{
+				error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected matrix element type");
+				return false;
+			}
 			else if (!type.is_scalar())
-				return error(_token.location, 3123, "matrix element type must be a scalar type"), false;
+			{
+				error(_token.location, 3123, "matrix element type must be a scalar type");
+				return false;
+			}
 
 			if (!expect(',') || !expect(tokenid::int_literal))
+			{
 				return false;
+			}
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
-				return error(_token.location, 3053, "matrix dimensions must be between 1 and 4"), false;
+			{
+				error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
+				return false;
+			}
 
 			type.rows = static_cast<unsigned int>(_token.literal_as_int);
 
 			if (!expect(',') || !expect(tokenid::int_literal))
+			{
 				return false;
+			}
 			else if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
-				return error(_token.location, 3053, "matrix dimensions must be between 1 and 4"), false;
+			{
+				error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
+				return false;
+			}
 
 			type.cols = static_cast<unsigned int>(_token.literal_as_int);
 
@@ -203,11 +230,20 @@ bool reshadefx::parser::accept_type_class(type &type)
 		if (accept('<'))
 		{
 			if (!accept_type_class(type))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected sampler element type"), false;
+			{
+				error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected sampler element type");
+				return false;
+			}
 			if (type.is_object())
-				return error(_token.location, 3124, "object element type cannot be an object type"), false;
+			{
+				error(_token.location, 3124, "object element type cannot be an object type");
+				return false;
+			}
 			if (!type.is_numeric() || type.is_matrix())
-				return error(_token.location, 3521, "sampler element type must fit in four 32-bit quantities"), false;
+			{
+				error(_token.location, 3521, "sampler element type must fit in four 32-bit quantities");
+				return false;
+			}
 
 			if (type.is_integral() && type.is_signed())
 				type.base = static_cast<type::datatype>(type::t_sampler1d_int + texture_dimension);
@@ -235,11 +271,20 @@ bool reshadefx::parser::accept_type_class(type &type)
 		if (accept('<'))
 		{
 			if (!accept_type_class(type))
-				return error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected storage element type"), false;
+			{
+				error(_token_next.location, 3000, "syntax error: unexpected '" + token::id_to_name(_token_next.id) + "', expected storage element type");
+				return false;
+			}
 			if (type.is_object())
-				return error(_token.location, 3124, "object element type cannot be an object type"), false;
+			{
+				error(_token.location, 3124, "object element type cannot be an object type");
+				return false;
+			}
 			if (!type.is_numeric() || type.is_matrix())
-				return error(_token.location, 3521, "storage element type must fit in four 32-bit quantities"), false;
+			{
+				error(_token.location, 3521, "storage element type must fit in four 32-bit quantities");
+				return false;
+			}
 
 			if (type.is_integral() && type.is_signed())
 				type.base = static_cast<type::datatype>(type::t_storage1d_int + texture_dimension);
@@ -544,9 +589,11 @@ bool reshadefx::parser::parse_expression(expression &exp)
 
 	// Continue parsing if an expression sequence is next (in the form "a, b, c, ...")
 	while (accept(','))
+	{
 		// Overwrite 'exp' since conveniently the last expression in the sequence is the result
 		if (!parse_expression_assignment(exp))
 			return false;
+	}
 
 	return true;
 }
@@ -567,19 +614,22 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 		// Unary operators are only valid on basic types
 		if (!exp.type.is_scalar() && !exp.type.is_vector() && !exp.type.is_matrix())
-			return error(exp.location, 3022, "scalar, vector, or matrix expected"), false;
+		{
+			error(exp.location, 3022, "scalar, vector, or matrix expected");
+			return false;
+		}
 
 		// Special handling for the "++" and "--" operators
 		if (op == tokenid::plus_plus || op == tokenid::minus_minus)
 		{
 			if (exp.type.has(type::q_const) || !exp.is_lvalue)
-				return error(location, 3025, "l-value specifies const object"), false;
+			{
+				error(location, 3025, "l-value specifies const object");
+				return false;
+			}
 
 			// Create a constant one in the type of the expression
-			constant one = {};
-			for (unsigned int i = 0; i < exp.type.components(); ++i)
-				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
-			const codegen::id constant_one = _codegen->emit_constant(exp.type, one);
+			const codegen::id constant_one = _codegen->emit_constant(exp.type, 1);
 
 			const codegen::id value = _codegen->emit_load(exp);
 			const codegen::id result = _codegen->emit_binary_op(location, op, exp.type, value, constant_one);
@@ -591,10 +641,14 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			// The "~" bitwise operator is only valid on integral types
 			if (op == tokenid::tilde && !exp.type.is_integral())
-				return error(exp.location, 3082, "int or unsigned int type required"), false;
+			{
+				error(exp.location, 3082, "int or unsigned int type required");
+				return false;
+			}
+
 			// The logical not operator expects a boolean type as input, so perform cast if necessary
 			if (op == tokenid::exclaim && !exp.type.is_boolean())
-				exp.add_cast_operation({ type::t_bool, exp.type.rows, exp.type.cols }); // Note: The result will be boolean as well
+				exp.add_cast_operation({ type::t_bool, exp.type.rows, exp.type.cols }); // The result will be boolean as well
 
 			// Constant expressions can be evaluated at compile time
 			if (!exp.evaluate_constant_expression(op))
@@ -608,7 +662,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	}
 	else if (accept('('))
 	{
-		// Note: This backup may get overridden in 'accept_type_class', but should point to the same token still
+		// This backup may get overridden in 'accept_type_class', but should point to the same token still
 		backup();
 
 		// Check if this is a C-style cast expression
@@ -631,7 +685,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				// Check if a cast between these types is valid
 				if (!type::rank(exp.type, cast_type))
-					return error(location, 3017, "cannot convert these types (from " + exp.type.description() + " to " + cast_type.description() + ')'), false;
+				{
+					error(location, 3017, "cannot convert these types (from " + exp.type.description() + " to " + cast_type.description() + ')');
+					return false;
+				}
 
 				exp.add_cast_operation(cast_type);
 				return true;
@@ -657,7 +714,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			// There should be a comma between arguments
 			if (!elements.empty() && !expect(','))
-				return consume_until('}'), false;
+			{
+				consume_until('}');
+				return false;
+			}
 
 			// Initializer lists might contain a comma at the end, so break out of the loop if nothing follows afterwards
 			if (peek('}'))
@@ -667,12 +727,23 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Parse the argument expression
 			if (!parse_expression_assignment(element_exp))
-				return consume_until('}'), false;
+			{
+				consume_until('}');
+				return false;
+			}
 
 			if (element_exp.type.is_array())
-				return error(element_exp.location, 3119, "arrays cannot be multi-dimensional"), consume_until('}'), false;
+			{
+				error(element_exp.location, 3119, "arrays cannot be multi-dimensional");
+				consume_until('}');
+				return false;
+			}
 			if (composite_type.base != type::t_void && element_exp.type.definition != composite_type.definition)
-				return error(element_exp.location, 3017, "cannot convert these types (from " + element_exp.type.description() + " to " + composite_type.description() + ')'), false;
+			{
+				error(element_exp.location, 3017, "cannot convert these types (from " + element_exp.type.description() + " to " + composite_type.description() + ')');
+				consume_until('}');
+				return false;
+			}
 
 			is_constant &= element_exp.is_constant; // Result is only constant if all arguments are constant
 			composite_type = type::merge(composite_type, element_exp.type);
@@ -751,12 +822,19 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	{
 		if (!expect('('))
 			return false;
+
 		if (!type.is_numeric())
-			return error(location, 3037, "constructors only defined for numeric base types"), false;
+		{
+			error(location, 3037, "constructors only defined for numeric base types");
+			return false;
+		}
 
 		// Empty constructors do not exist
 		if (accept(')'))
-			return error(location, 3014, "incorrect number of arguments to numeric-type constructor"), false;
+		{
+			error(location, 3014, "incorrect number of arguments to numeric-type constructor");
+			return false;
+		}
 
 		// Parse entire argument expression list
 		bool is_constant = true;
@@ -777,7 +855,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Constructors are only defined for numeric base types
 			if (!argument_exp.type.is_numeric())
-				return error(argument_exp.location, 3017, "cannot convert non-numeric types"), false;
+			{
+				error(argument_exp.location, 3017, "cannot convert non-numeric types");
+				return false;
+			}
 
 			is_constant &= argument_exp.is_constant; // Result is only constant if all arguments are constant
 			num_components += argument_exp.type.components();
@@ -789,7 +870,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 		// The total number of argument elements needs to match the number of elements in the result type
 		if (num_components != type.components())
-			return error(location, 3014, "incorrect number of arguments to numeric-type constructor"), false;
+		{
+			error(location, 3014, "incorrect number of arguments to numeric-type constructor");
+			return false;
+		}
 
 		assert(num_components > 0 && num_components <= 16 && !type.is_array());
 
@@ -800,6 +884,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			for (expression &argument_exp : arguments)
 			{
 				argument_exp.add_cast_operation({ type.base, argument_exp.type.rows, argument_exp.type.cols });
+
 				for (unsigned int k = 0; k < argument_exp.type.components(); ++k)
 					result.as_uint[i++] = argument_exp.constant.as_uint[k];
 			}
@@ -863,7 +948,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			// Can only call symbols that are functions, but do not abort yet if no symbol was found since the identifier may reference an intrinsic
 			if (symbol.id && symbol.op != symbol_type::function)
-				return error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function"), false;
+			{
+				error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function");
+				return false;
+			}
 
 			// Parse entire argument expression list
 			std::vector<expression> arguments;
@@ -887,7 +975,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 			// Function calls can only be made from within functions
 			if (!_codegen->is_in_function())
-				return error(location, 3005, "invalid function call outside of a function"), false;
+			{
+				error(location, 3005, "invalid function call outside of a function");
+				return false;
+			}
 
 			// Try to resolve the call by searching through both function symbols and intrinsics
 			bool undeclared = !symbol.id, ambiguous = false;
@@ -913,7 +1004,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				const auto &param_type = symbol.function->parameter_list[i].type;
 
 				if (param_type.has(type::q_out) && (!arguments[i].is_lvalue || (arguments[i].type.has(type::q_const) && !arguments[i].type.is_object())))
-					return error(arguments[i].location, 3025, "l-value specifies const object for an 'out' parameter"), false;
+				{
+					error(arguments[i].location, 3025, "l-value specifies const object for an 'out' parameter");
+					return false;
+				}
 
 				if (arguments[i].type.components() > param_type.components())
 					warning(arguments[i].location, 3206, "implicit truncation of vector type");
@@ -923,7 +1017,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					if (param_type.is_object() || param_type.has(type::q_groupshared) /* Special case for atomic intrinsics */)
 					{
 						if (arguments[i].type != param_type)
-							return error(location, 3004, "no matching intrinsic overload for '" + identifier + '\''), false;
+						{
+							error(location, 3004, "no matching intrinsic overload for '" + identifier + '\'');
+							return false;
+						}
 
 						assert(arguments[i].is_lvalue);
 
@@ -1011,7 +1108,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		else if (symbol.op == symbol_type::invalid)
 		{
 			// Show error if no symbol matching the identifier was found
-			return error(location, 3004, "undeclared identifier '" + identifier + '\''), false;
+			error(location, 3004, "undeclared identifier '" + identifier + '\'');
+			return false;
 		}
 		else if (symbol.op == symbol_type::variable)
 		{
@@ -1020,7 +1118,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			exp.reset_to_lvalue(location, symbol.id, symbol.type);
 
 			if (_current_function != nullptr &&
-				symbol.scope.level == symbol.scope.namespace_level && symbol.id != 0xFFFFFFFF) // Ignore invalid symbols that were added during error recovery
+				symbol.scope.level == symbol.scope.namespace_level &&
+				// Ignore invalid symbols that were added during error recovery
+				symbol.id != 0xFFFFFFFF)
 			{
 				// Keep track of any global sampler or storage objects referenced in the current function
 				if (symbol.type.is_sampler())
@@ -1037,7 +1137,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		else
 		{
 			// Can only reference variables and constants by name, functions need to be called
-			return error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable"), false;
+			error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable");
+			return false;
 		}
 	}
 
@@ -1050,15 +1151,18 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			// Unary operators are only valid on basic types
 			if (!exp.type.is_scalar() && !exp.type.is_vector() && !exp.type.is_matrix())
-				return error(exp.location, 3022, "scalar, vector, or matrix expected"), false;
+			{
+				error(exp.location, 3022, "scalar, vector, or matrix expected");
+				return false;
+			}
 			if (exp.type.has(type::q_const) || !exp.is_lvalue)
-				return error(exp.location, 3025, "l-value specifies const object"), false;
+			{
+				error(exp.location, 3025, "l-value specifies const object");
+				return false;
+			}
 
 			// Create a constant one in the type of the expression
-			constant one = {};
-			for (unsigned int i = 0; i < exp.type.components(); ++i)
-				if (exp.type.is_floating_point()) one.as_float[i] = 1.0f; else one.as_uint[i] = 1u;
-			const codegen::id constant_one = _codegen->emit_constant(exp.type, one);
+			const codegen::id constant_one = _codegen->emit_constant(exp.type, 1);
 
 			const codegen::id value = _codegen->emit_load(exp, true);
 			const codegen::id result = _codegen->emit_binary_op(location, _token.id, exp.type, value, constant_one);
@@ -1092,15 +1196,18 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_vector())
 			{
-				const size_t length = subscript.size();
+				const int length = static_cast<int>(subscript.size());
 				if (length > 4)
-					return error(location, 3018, "invalid subscript '" + subscript + "', swizzle too long"), false;
+				{
+					error(location, 3018, "invalid subscript '" + subscript + "', swizzle too long");
+					return false;
+				}
 
 				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
 				enum { xyzw, rgba, stpq } set[4];
 
-				for (size_t i = 0; i < length; ++i)
+				for (int i = 0; i < length; ++i)
 				{
 					switch (subscript[i])
 					{
@@ -1117,20 +1224,30 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					case 'p': offsets[i] = 2, set[i] = stpq; break;
 					case 'q': offsets[i] = 3, set[i] = stpq; break;
 					default:
-						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
+						error(location, 3018, "invalid subscript '" + subscript + '\'');
+						return false;
 					}
 
 					if (i > 0 && (set[i] != set[i - 1]))
-						return error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets"), false;
+					{
+						error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets");
+						return false;
+					}
 					if (static_cast<unsigned int>(offsets[i]) >= exp.type.rows)
-						return error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range"), false;
+					{
+						error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range");
+						return false;
+					}
 
 					// The result is not modifiable if a swizzle appears multiple times
-					for (size_t k = 0; k < i; ++k)
-						if (offsets[k] == offsets[i]) {
+					for (int k = 0; k < i; ++k)
+					{
+						if (offsets[k] == offsets[i])
+						{
 							is_const = true;
 							break;
 						}
+					}
 				}
 
 				// Add swizzle to current access chain
@@ -1141,40 +1258,55 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_matrix())
 			{
-				const size_t length = subscript.size();
+				const int length = static_cast<int>(subscript.size());
 				if (length < 3)
-					return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
+				{
+					error(location, 3018, "invalid subscript '" + subscript + '\'');
+					return false;
+				}
 
 				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
 				const int set = subscript[1] == 'm';
 				const int coefficient = !set;
 
-				for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
+				for (int i = 0, j = 0; i < length; i += 3 + set, ++j)
 				{
 					if (subscript[i] != '_' ||
 						subscript[i + set + 1] < '0' + coefficient ||
 						subscript[i + set + 1] > '3' + coefficient ||
 						subscript[i + set + 2] < '0' + coefficient ||
 						subscript[i + set + 2] > '3' + coefficient)
-						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
+					{
+						error(location, 3018, "invalid subscript '" + subscript + '\'');
+						return false;
+					}
 					if (set && subscript[i + 1] != 'm')
-						return error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets"), false;
+					{
+						error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets");
+						return false;
+					}
 
-					const unsigned int row = static_cast<unsigned int>((subscript[i + set + 1] - '0') - coefficient);
-					const unsigned int col = static_cast<unsigned int>((subscript[i + set + 2] - '0') - coefficient);
+					const auto row = static_cast<unsigned int>((subscript[i + set + 1] - '0') - coefficient);
+					const auto col = static_cast<unsigned int>((subscript[i + set + 2] - '0') - coefficient);
 
 					if ((row >= exp.type.rows || col >= exp.type.cols) || j > 3)
-						return error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range"), false;
+					{
+						error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range");
+						return false;
+					}
 
 					offsets[j] = static_cast<signed char>(row * 4 + col);
 
 					// The result is not modifiable if a swizzle appears multiple times
-					for (size_t k = 0; k < j; ++k)
-						if (offsets[k] == offsets[j]) {
+					for (int k = 0; k < j; ++k)
+					{
+						if (offsets[k] == offsets[j])
+						{
 							is_const = true;
 							break;
 						}
+					}
 				}
 
 				// Add swizzle to current access chain
@@ -1189,27 +1321,39 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 
 				// Find member with matching name is structure definition
 				uint32_t member_index = 0;
-				for (const struct_member_info &member : member_list) {
+				for (const struct_member_info &member : member_list)
+				{
 					if (member.name == subscript)
 						break;
 					++member_index;
 				}
 
 				if (member_index >= member_list.size())
-					return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
+				{
+					error(location, 3018, "invalid subscript '" + subscript + '\'');
+					return false;
+				}
 
 				// Add field index to current access chain
 				exp.add_member_access(member_index, member_list[member_index].type);
 			}
 			else if (exp.type.is_scalar())
 			{
-				const size_t length = subscript.size();
+				const int length = static_cast<int>(subscript.size());
 				if (length > 4)
-					return error(location, 3018, "invalid subscript '" + subscript + "', swizzle too long"), false;
+				{
+					error(location, 3018, "invalid subscript '" + subscript + "', swizzle too long");
+					return false;
+				}
 
-				for (size_t i = 0; i < length; ++i)
+				for (int i = 0; i < length; ++i)
+				{
 					if ((subscript[i] != 'x' && subscript[i] != 'r' && subscript[i] != 's') || i > 3)
-						return error(location, 3018, "invalid subscript '" + subscript + '\''), false;
+					{
+						error(location, 3018, "invalid subscript '" + subscript + '\'');
+						return false;
+					}
+				}
 
 				// Promote scalar to vector type using cast
 				auto target_type = exp.type;
@@ -1229,7 +1373,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		else if (accept('['))
 		{
 			if (!exp.type.is_array() && !exp.type.is_vector() && !exp.type.is_matrix())
-				return error(_token.location, 3121, "array, matrix, vector, or indexable object type expected in index expression"), false;
+			{
+				error(_token.location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
+				return false;
+			}
 
 			// Parse index expression
 			expression index_exp;
@@ -1237,14 +1384,20 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				return false;
 
 			if (!index_exp.type.is_scalar() || !index_exp.type.is_integral())
-				return error(index_exp.location, 3120, "invalid type for index - index must be an integer scalar"), false;
+			{
+				error(index_exp.location, 3120, "invalid type for index - index must be an integer scalar");
+				return false;
+			}
 
 			// Add index expression to current access chain
 			if (index_exp.is_constant)
 			{
 				// Check array bounds if known
 				if (exp.type.is_bounded_array() && index_exp.constant.as_uint[0] >= exp.type.array_length)
-					return error(index_exp.location, 3504, "array index out of bounds"), false;
+				{
+					error(index_exp.location, 3504, "array index out of bounds");
+					return false;
+				}
 
 				exp.add_constant_index_access(index_exp.constant.as_uint[0]);
 			}
@@ -1269,10 +1422,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	return true;
 }
 
-bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int left_precedence)
+bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned int left_precedence)
 {
 	// Parse left hand side of the expression
-	if (!parse_expression_unary(lhs))
+	if (!parse_expression_unary(lhs_exp))
 		return false;
 
 	// Check if an operator exists so that this is a binary or ternary expression
@@ -1308,12 +1461,12 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			}
 #endif
 			// Parse the right hand side of the binary operation
-			expression rhs;
-			if (!parse_expression_multary(rhs, right_precedence))
+			expression rhs_exp;
+			if (!parse_expression_multary(rhs_exp, right_precedence))
 				return false;
 
 			// Deduce the result base type based on implicit conversion rules
-			type type = type::merge(lhs.type, rhs.type);
+			type type = type::merge(lhs_exp.type, rhs_exp.type);
 			bool is_bool_result = false;
 
 			// Do some error checking depending on the operator
@@ -1323,8 +1476,11 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 				is_bool_result = true;
 
 				// Cannot check equality between incompatible types
-				if (lhs.type.is_array() || rhs.type.is_array() || lhs.type.definition != rhs.type.definition)
-					return error(rhs.location, 3020, "type mismatch"), false;
+				if (lhs_exp.type.is_array() || rhs_exp.type.is_array() || lhs_exp.type.definition != rhs_exp.type.definition)
+				{
+					error(rhs_exp.location, 3020, "type mismatch");
+					return false;
+				}
 			}
 			else if (op == tokenid::ampersand || op == tokenid::pipe || op == tokenid::caret)
 			{
@@ -1332,10 +1488,16 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 					type.base = type::t_int;
 
 				// Cannot perform bitwise operations on non-integral types
-				if (!lhs.type.is_integral())
-					return error(lhs.location, 3082, "int or unsigned int type required"), false;
-				if (!rhs.type.is_integral())
-					return error(rhs.location, 3082, "int or unsigned int type required"), false;
+				if (!lhs_exp.type.is_integral())
+				{
+					error(lhs_exp.location, 3082, "int or unsigned int type required");
+					return false;
+				}
+				if (!rhs_exp.type.is_integral())
+				{
+					error(rhs_exp.location, 3082, "int or unsigned int type required");
+					return false;
+				}
 			}
 			else
 			{
@@ -1347,20 +1509,26 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 					type.base = type::t_int; // Arithmetic with boolean values treats the operands as integers
 
 				// Cannot perform arithmetic operations on non-basic types
-				if (!lhs.type.is_scalar() && !lhs.type.is_vector() && !lhs.type.is_matrix())
-					return error(lhs.location, 3022, "scalar, vector, or matrix expected"), false;
-				if (!rhs.type.is_scalar() && !rhs.type.is_vector() && !rhs.type.is_matrix())
-					return error(rhs.location, 3022, "scalar, vector, or matrix expected"), false;
+				if (!lhs_exp.type.is_scalar() && !lhs_exp.type.is_vector() && !lhs_exp.type.is_matrix())
+				{
+					error(lhs_exp.location, 3022, "scalar, vector, or matrix expected");
+					return false;
+				}
+				if (!rhs_exp.type.is_scalar() && !rhs_exp.type.is_vector() && !rhs_exp.type.is_matrix())
+				{
+					error(rhs_exp.location, 3022, "scalar, vector, or matrix expected");
+					return false;
+				}
 			}
 
 			// Perform implicit type conversion
-			if (lhs.type.components() > type.components())
-				warning(lhs.location, 3206, "implicit truncation of vector type");
-			if (rhs.type.components() > type.components())
-				warning(rhs.location, 3206, "implicit truncation of vector type");
+			if (lhs_exp.type.components() > type.components())
+				warning(lhs_exp.location, 3206, "implicit truncation of vector type");
+			if (rhs_exp.type.components() > type.components())
+				warning(rhs_exp.location, 3206, "implicit truncation of vector type");
 
-			lhs.add_cast_operation(type);
-			rhs.add_cast_operation(type);
+			lhs_exp.add_cast_operation(type);
+			rhs_exp.add_cast_operation(type);
 
 #if RESHADEFX_SHORT_CIRCUIT
 			// Reset block to left-hand side since the load of the left-hand side value has to happen in there
@@ -1369,10 +1537,10 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 #endif
 
 			// Constant expressions can be evaluated at compile time
-			if (rhs.is_constant && lhs.evaluate_constant_expression(op, rhs.constant))
+			if (rhs_exp.is_constant && lhs_exp.evaluate_constant_expression(op, rhs_exp.constant))
 				continue;
 
-			const codegen::id lhs_value = _codegen->emit_load(lhs);
+			const codegen::id lhs_value = _codegen->emit_load(lhs_exp);
 
 #if RESHADEFX_SHORT_CIRCUIT
 			// Short circuit for logical && and || operators
@@ -1382,38 +1550,41 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 				codegen::id condition_value = lhs_value;
 				// Emit "if (!lhs) result = rhs" for || expression
 				if (op == tokenid::pipe_pipe)
-					condition_value = _codegen->emit_unary_op(lhs.location, tokenid::exclaim, type, lhs_value);
+					condition_value = _codegen->emit_unary_op(lhs_exp.location, tokenid::exclaim, type, lhs_value);
 
 				_codegen->leave_block_and_branch_conditional(condition_value, rhs_block, merge_block);
 
 				_codegen->set_block(rhs_block);
 				// Only load value of right hand side expression after entering the second block
-				const codegen::id rhs_value = _codegen->emit_load(rhs);
+				const codegen::id rhs_value = _codegen->emit_load(rhs_exp);
 				_codegen->leave_block_and_branch(merge_block);
 
 				_codegen->enter_block(merge_block);
 
-				const codegen::id result_value = _codegen->emit_phi(lhs.location, condition_value, lhs_block, rhs_value, rhs_block, lhs_value, lhs_block, type);
+				const codegen::id result_value = _codegen->emit_phi(lhs_exp.location, condition_value, lhs_block, rhs_value, rhs_block, lhs_value, lhs_block, type);
 
-				lhs.reset_to_rvalue(lhs.location, result_value, type);
+				lhs_exp.reset_to_rvalue(lhs_exp.location, result_value, type);
 				continue;
 			}
 #endif
-			const codegen::id rhs_value = _codegen->emit_load(rhs);
+			const codegen::id rhs_value = _codegen->emit_load(rhs_exp);
 
 			// Certain operations return a boolean type instead of the type of the input expressions
 			if (is_bool_result)
 				type = { type::t_bool, type.rows, type.cols };
 
-			const codegen::id result_value = _codegen->emit_binary_op(lhs.location, op, type, lhs.type, lhs_value, rhs_value);
+			const codegen::id result_value = _codegen->emit_binary_op(lhs_exp.location, op, type, lhs_exp.type, lhs_value, rhs_value);
 
-			lhs.reset_to_rvalue(lhs.location, result_value, type);
+			lhs_exp.reset_to_rvalue(lhs_exp.location, result_value, type);
 		}
 		else
 		{
 			// A conditional expression needs a scalar or vector type condition
-			if (!lhs.type.is_scalar() && !lhs.type.is_vector())
-				return error(lhs.location, 3022, "boolean or vector expression expected"), false;
+			if (!lhs_exp.type.is_scalar() && !lhs_exp.type.is_vector())
+			{
+				error(lhs_exp.location, 3022, "boolean or vector expression expected");
+				return false;
+			}
 
 #if RESHADEFX_SHORT_CIRCUIT
 			// Switch block to a new one before parsing first part in case it needs to be skipped during short-circuiting
@@ -1443,12 +1614,18 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 				return false;
 
 			// Check that the condition dimension matches that of at least one side
-			if (lhs.type.rows != true_exp.type.rows && lhs.type.cols != true_exp.type.cols)
-				return error(lhs.location, 3020, "dimension of conditional does not match value"), false;
+			if (lhs_exp.type.rows != true_exp.type.rows && lhs_exp.type.cols != true_exp.type.cols)
+			{
+				error(lhs_exp.location, 3020, "dimension of conditional does not match value");
+				return false;
+			}
 
 			// Check that the two value expressions can be converted between each other
 			if (true_exp.type.array_length != false_exp.type.array_length || true_exp.type.definition != false_exp.type.definition)
-				return error(false_exp.location, 3020, "type mismatch between conditional values"), false;
+			{
+				error(false_exp.location, 3020, "type mismatch between conditional values");
+				return false;
+			}
 
 			// Deduce the result base type based on implicit conversion rules
 			const type type = type::merge(true_exp.type, false_exp.type);
@@ -1463,13 +1640,13 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 			_codegen->set_block(condition_block);
 #else
 			// The conditional operator instruction expects the condition to be a boolean type
-			lhs.add_cast_operation({ type::t_bool, type.rows, 1 });
+			lhs_exp.add_cast_operation({ type::t_bool, type.rows, 1 });
 #endif
 			true_exp.add_cast_operation(type);
 			false_exp.add_cast_operation(type);
 
 			// Load condition value from expression
-			const codegen::id condition_value = _codegen->emit_load(lhs);
+			const codegen::id condition_value = _codegen->emit_load(lhs_exp);
 
 #if RESHADEFX_SHORT_CIRCUIT
 			_codegen->leave_block_and_branch_conditional(condition_value, true_block, false_block);
@@ -1486,24 +1663,24 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs, unsigned int l
 
 			_codegen->enter_block(merge_block);
 
-			const codegen::id result_value = _codegen->emit_phi(lhs.location, condition_value, condition_block, true_value, true_block, false_value, false_block, type);
+			const codegen::id result_value = _codegen->emit_phi(lhs_exp.location, condition_value, condition_block, true_value, true_block, false_value, false_block, type);
 #else
 			const codegen::id true_value = _codegen->emit_load(true_exp);
 			const codegen::id false_value = _codegen->emit_load(false_exp);
 
-			const codegen::id result_value = _codegen->emit_ternary_op(lhs.location, op, type, condition_value, true_value, false_value);
+			const codegen::id result_value = _codegen->emit_ternary_op(lhs_exp.location, op, type, condition_value, true_value, false_value);
 #endif
-			lhs.reset_to_rvalue(lhs.location, result_value, type);
+			lhs_exp.reset_to_rvalue(lhs_exp.location, result_value, type);
 		}
 	}
 
 	return true;
 }
 
-bool reshadefx::parser::parse_expression_assignment(expression &lhs)
+bool reshadefx::parser::parse_expression_assignment(expression &lhs_exp)
 {
 	// Parse left hand side of the expression
-	if (!parse_expression_multary(lhs))
+	if (!parse_expression_multary(lhs_exp))
 		return false;
 
 	// Check if an operator exists so that this is an assignment
@@ -1514,43 +1691,52 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs)
 
 		// Parse right hand side of the assignment expression
 		// This may be another assignment expression to support chains like "a = b = c = 0;"
-		expression rhs;
-		if (!parse_expression_assignment(rhs))
+		expression rhs_exp;
+		if (!parse_expression_assignment(rhs_exp))
 			return false;
 
 		// Check if the assignment is valid
-		if (lhs.type.has(type::q_const) || !lhs.is_lvalue)
-			return error(lhs.location, 3025, "l-value specifies const object"), false;
-		if (!type::rank(lhs.type, rhs.type))
-			return error(rhs.location, 3020, "cannot convert these types (from " + rhs.type.description() + " to " + lhs.type.description() + ')'), false;
+		if (lhs_exp.type.has(type::q_const) || !lhs_exp.is_lvalue)
+		{
+			error(lhs_exp.location, 3025, "l-value specifies const object");
+			return false;
+		}
+		if (!type::rank(lhs_exp.type, rhs_exp.type))
+		{
+			error(rhs_exp.location, 3020, "cannot convert these types (from " + rhs_exp.type.description() + " to " + lhs_exp.type.description() + ')');
+			return false;
+		}
 
 		// Cannot perform bitwise operations on non-integral types
-		if (!lhs.type.is_integral() && (op == tokenid::ampersand_equal || op == tokenid::pipe_equal || op == tokenid::caret_equal))
-			return error(lhs.location, 3082, "int or unsigned int type required"), false;
+		if (!lhs_exp.type.is_integral() && (op == tokenid::ampersand_equal || op == tokenid::pipe_equal || op == tokenid::caret_equal))
+		{
+			error(lhs_exp.location, 3082, "int or unsigned int type required");
+			return false;
+		}
 
 		// Perform implicit type conversion of right hand side value
-		if (rhs.type.components() > lhs.type.components())
-			warning(rhs.location, 3206, "implicit truncation of vector type");
+		if (rhs_exp.type.components() > lhs_exp.type.components())
+			warning(rhs_exp.location, 3206, "implicit truncation of vector type");
 
-		rhs.add_cast_operation(lhs.type);
+		rhs_exp.add_cast_operation(lhs_exp.type);
 
-		codegen::id result = _codegen->emit_load(rhs);
+		codegen::id result_value = _codegen->emit_load(rhs_exp);
 
 		// Check if this is an assignment with an additional arithmetic instruction
 		if (op != tokenid::equal)
 		{
 			// Load value for modification
-			const codegen::id value = _codegen->emit_load(lhs);
+			const codegen::id lhs_value = _codegen->emit_load(lhs_exp);
 
 			// Handle arithmetic assignment operation
-			result = _codegen->emit_binary_op(lhs.location, op, lhs.type, value, result);
+			result_value = _codegen->emit_binary_op(lhs_exp.location, op, lhs_exp.type, lhs_value, result_value);
 		}
 
 		// Write result back to variable
-		_codegen->emit_store(lhs, result);
+		_codegen->emit_store(lhs_exp, result_value);
 
 		// Return the result value since you can write assignments within expressions
-		lhs.reset_to_rvalue(lhs.location, result, lhs.type);
+		lhs_exp.reset_to_rvalue(lhs_exp.location, result_value, lhs_exp.type);
 	}
 
 	return true;

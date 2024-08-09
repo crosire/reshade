@@ -20,6 +20,12 @@ inline char to_digit(unsigned int value)
 	return '0' + static_cast<char>(value);
 }
 
+inline uint32_t align_up(uint32_t size, uint32_t alignment)
+{
+	alignment -= 1;
+	return ((size + alignment) & ~alignment);
+}
+
 class codegen_glsl final : public codegen
 {
 public:

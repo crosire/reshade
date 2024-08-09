@@ -129,6 +129,19 @@ namespace reshadefx
 		/// <param name="data">Actual constant data to convert into a SSA ID.</param>
 		/// <returns>New SSA ID with the constant value.</returns>
 		virtual id emit_constant(const type &type, const constant &data) = 0;
+		id emit_constant(const type &data_type, uint32_t value)
+		{
+			// Create a constant value of the specified type
+			constant data = {}; // Initialize to zero, so that components not set below still have a defined value for lookup via std::memcmp
+			for (unsigned int i = 0; i < data_type.components(); ++i)
+			{
+				if (data_type.is_integral())
+					data.as_uint[i] = value;
+				else
+					data.as_float[i] = static_cast<float>(value);
+			}
+			return emit_constant(data_type, data);
+		}
 
 		/// <summary>
 		/// Adds an unary operation to the output (built-in operation with one argument).
@@ -328,16 +341,6 @@ namespace reshadefx
 
 	protected:
 		id make_id() { return _next_id++; }
-
-		static uint32_t align_up(uint32_t size, uint32_t alignment)
-		{
-			alignment -= 1;
-			return ((size + alignment) & ~alignment);
-		}
-		static uint32_t align_up(uint32_t size, uint32_t alignment, uint32_t elements)
-		{
-			return align_up(size, alignment) * (elements - 1) + size;
-		}
 
 		effect_module _module;
 		std::vector<struct_info> _structs;
