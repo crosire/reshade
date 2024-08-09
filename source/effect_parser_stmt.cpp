@@ -1544,7 +1544,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						else if (property_name == "Format")
 							texture_info.format = static_cast<texture_format>(value);
 						else
-							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+							error(property_location, 3004, "unrecognized property '" + property_name + '\'');
 					}
 					else if (type.is_sampler())
 					{
@@ -1570,14 +1570,14 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						else if (property_name == "MipLODBias" || property_name == "MipMapLodBias")
 							sampler_info.lod_bias = static_cast<float>(value);
 						else
-							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+							error(property_location, 3004, "unrecognized property '" + property_name + '\'');
 					}
 					else if (type.is_storage())
 					{
 						if (property_name == "MipLOD" || property_name == "MipLevel")
 							storage_info.level = value > 0 && value < std::numeric_limits<uint16_t>::max() ? static_cast<uint16_t>(value) : 0;
 						else
-							return error(property_location, 3004, "unrecognized property '" + property_name + '\''), consume_until('}'), false;
+							error(property_location, 3004, "unrecognized property '" + property_name + '\'');
 					}
 				}
 
@@ -2060,7 +2060,6 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			else if (state_name == "GenerateMipmaps" || state_name == "GenerateMipMaps")
 				info.generate_mipmaps = (value != 0);
 			else
-				parse_success = false,
 				error(state_location, 3004, "unrecognized pass state '" + state_name + '\'');
 
 #undef SET_STATE_VALUE_INDEXED
