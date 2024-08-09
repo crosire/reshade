@@ -18,7 +18,11 @@ struct __declspec(uuid("0d7525f9-c4e1-426e-bc99-15bbd5fd51f2")) video_capture
 	AVFormatContext *output_ctx = nullptr;
 	AVFrame *frame = nullptr;
 
-	reshade::api::resource host_resource;
+	// Create multiple host resources, to buffer copies from device to host over multiple frames
+	reshade::api::resource host_resources[3];
+	uint64_t copy_finished_fence_value = 1;
+	uint64_t copy_initiated_fence_value = 1;
+	reshade::api::fence copy_finished_fence = {};
 
 	std::chrono::system_clock::time_point last_time;
 	std::chrono::system_clock::time_point start_time;
@@ -197,14 +201,24 @@ static void encode_frame(AVCodecContext *enc, AVFormatContext *s, AVFrame *frame
 
 static void on_init(reshade::api::effect_runtime *runtime)
 {
-	runtime->create_private_data<video_capture>();
+	video_capture &data = runtime->create_private_data<video_capture>();
+
+	// Create a fence that is used to communicate status of copies between device and host
+	if (!runtime->get_device()->create_fence(0, reshade::api::fence_flags::none, &data.copy_finished_fence))
+	{
+		reshade::log_message(reshade::log_level::error, "Failed to create copy fence!");
+	}
 }
 static void on_destroy(reshade::api::effect_runtime *runtime)
 {
 	video_capture &data = runtime->get_private_data<video_capture>();
 
-	if (data.host_resource != 0)
-		runtime->get_device()->destroy_resource(data.host_resource);
+	reshade::api::device *const device = runtime->get_device();
+
+	for (reshade::api::resource &host_resource : data.host_resources)
+		device->destroy_resource(host_resource);
+
+	device->destroy_fence(data.copy_finished_fence);
 
 	// Flush the encoder
 	if (data.output_ctx != nullptr)
@@ -220,6 +234,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 	video_capture &data = runtime->get_private_data<video_capture>();
 
 	reshade::api::device *const device = runtime->get_device();
+	reshade::api::command_queue *const queue = runtime->get_command_queue();
 
 	const reshade::api::resource rtv_resource = device->get_resource_from_view(rtv);
 
@@ -229,15 +244,19 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 		{
 			reshade::log_message(reshade::log_level::info, "Stopping video recording ...");
 
-			runtime->get_command_queue()->wait_idle();
+			queue->wait_idle();
 
-			device->destroy_resource(data.host_resource);
-			data.host_resource = { 0 };
+			for (reshade::api::resource &host_resource : data.host_resources)
+			{
+				device->destroy_resource(host_resource);
+				host_resource = { 0 };
+			}
 
 			// Flush the encoder
 			encode_frame(data.codec_ctx, data.output_ctx, nullptr);
 
-			data.destroy_format_ctx(); data.destroy_codec_ctx();
+			data.destroy_format_ctx();
+			data.destroy_codec_ctx();
 		}
 		else
 		{
@@ -253,23 +272,31 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 			desc.usage = reshade::api::resource_usage::copy_dest;
 			desc.flags = reshade::api::resource_flags::none;
 
-			if (device->create_resource(desc, nullptr, reshade::api::resource_usage::copy_dest, &data.host_resource))
+			for (size_t i = 0; i < std::size(data.host_resources); ++i)
 			{
-				reshade::log_message(reshade::log_level::info, "Starting video recording ...");
+				if (!device->create_resource(desc, nullptr, reshade::api::resource_usage::copy_dest, &data.host_resources[i]))
+				{
+					reshade::log_message(reshade::log_level::error, "Failed to create host resource!");
 
-				data.start_time = data.last_time = std::chrono::system_clock::now();
-			}
-			else
-			{
-				reshade::log_message(reshade::log_level::error, "Failed to create host resource!");
+					for (size_t k = 0; k < i; ++k)
+					{
+						device->destroy_resource(data.host_resources[k]);
+						data.host_resources[k] = { 0 };
+					}
 
-				data.destroy_format_ctx(); data.destroy_codec_ctx();
-				return;
+					data.destroy_format_ctx();
+					data.destroy_codec_ctx();
+					return;
+				}
 			}
+
+			reshade::log_message(reshade::log_level::info, "Starting video recording ...");
+
+			data.start_time = data.last_time = std::chrono::system_clock::now();
 		}
 	}
 
-	if (data.codec_ctx == nullptr || data.output_ctx == nullptr || data.host_resource == 0)
+	if (data.codec_ctx == nullptr || data.output_ctx == nullptr || data.host_resources[0] == 0)
 		return;
 
 	// Only encode a frame every few frames, depending on the set codec framerate
@@ -278,24 +305,40 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 		return;
 	data.last_time = time;
 
-	// TODO: This is slow/incorrect, because blocking for the frame and copy to finish.
-	// Instead multiple resources should be created and copied into in a round-robin fashion, only the oldest of which is mapped below and copied into the video frame.
-	// See the OBS capture add-on example which does this.
-	reshade::api::command_list *const cmd_list = runtime->get_command_queue()->get_immediate_command_list();
+	// Copy frame to the host, but delay mapping and reading that copy for a few frames afterwards, so that the device has enough time to finish the copy to host memory (this is asynchronous and it can take a bit for the device to catch up)
+	reshade::api::command_list *const cmd_list = queue->get_immediate_command_list();
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::render_target, reshade::api::resource_usage::copy_source);
-	cmd_list->copy_texture_region(rtv_resource, 0, nullptr, data.host_resource, 0, nullptr);
+	size_t host_resource_index = data.copy_initiated_fence_value % std::size(data.host_resources);
+	cmd_list->copy_texture_region(rtv_resource, 0, nullptr, data.host_resources[host_resource_index], 0, nullptr);
 	cmd_list->barrier(rtv_resource, reshade::api::resource_usage::copy_source, reshade::api::resource_usage::render_target);
 
-	runtime->get_command_queue()->flush_immediate_command_list();
+	queue->flush_immediate_command_list();
+	// Signal the fence once the copy has finished
+	queue->signal(data.copy_finished_fence, data.copy_initiated_fence_value++);
 
-	// Wait for the above copy command to finish executing on the GPU
-	runtime->get_command_queue()->wait_idle();
+	// Check if a previous copy has already finished (by waiting on the corresponding fence value with a timeout of zero)
+	if (!device->wait(data.copy_finished_fence, data.copy_finished_fence_value, 0))
+	{
+		// If all copies are still underway, check if all available space to buffer another frame is already used (if yes, have to wait for the oldest copy to finish, if no, can return and handle another frame)
+		if (data.copy_initiated_fence_value - data.copy_finished_fence_value >= std::size(data.host_resources))
+		{
+			device->wait(data.copy_finished_fence, data.copy_finished_fence_value, UINT64_MAX);
+		}
+		else
+		{
+			return;
+		}
+	}
 
 	if (av_frame_make_writable(data.frame) < 0)
 		return;
 
+	// Map the oldest finished copy for reading
+	host_resource_index = data.copy_finished_fence_value % std::size(data.host_resources);
+	data.copy_finished_fence_value++;
+
 	reshade::api::subresource_data host_data;
-	if (!device->map_texture_region(data.host_resource, 0, nullptr, reshade::api::map_access::read_only, &host_data))
+	if (!device->map_texture_region(data.host_resources[host_resource_index], 0, nullptr, reshade::api::map_access::read_only, &host_data))
 		return;
 
 	for (int y = 0; y < data.codec_ctx->height; ++y)
@@ -311,7 +354,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 		}
 	}
 
-	device->unmap_texture_region(data.host_resource, 0);
+	device->unmap_texture_region(data.host_resources[host_resource_index], 0);
 
 	data.frame->pts = av_rescale_q(
 		std::chrono::duration_cast<std::chrono::milliseconds>(time - data.start_time).count(),
