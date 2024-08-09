@@ -59,6 +59,24 @@ static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *)
 	return modified;
 }
 
+static bool on_set_fullscreen_state(reshade::api::swapchain *swapchain, bool fullscreen, void *)
+{
+	if (bool force_windowed;
+		reshade::get_config_value(nullptr, "APP", "ForceWindowed", force_windowed) && force_windowed)
+	{
+		if (fullscreen)
+			return true; // Prevent entering fullscreen mode
+	}
+	if (bool force_fullscreen;
+		reshade::get_config_value(nullptr, "APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+	{
+		if (!fullscreen)
+			return true; // Prevent leaving fullscreen mode
+	}
+
+	return false;
+}
+
 extern "C" __declspec(dllexport) const char *NAME = "Swap chain override";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Adds options to force the application into windowed or fullscreen mode, or force a specific resolution or the default refresh rate.";
 
@@ -70,6 +88,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		if (!reshade::register_addon(hModule))
 			return FALSE;
 		reshade::register_event<reshade::addon_event::create_swapchain>(on_create_swapchain);
+		reshade::register_event<reshade::addon_event::set_fullscreen_state>(on_set_fullscreen_state);
 		break;
 	case DLL_PROCESS_DETACH:
 		reshade::unregister_addon(hModule);
