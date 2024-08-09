@@ -1934,8 +1934,10 @@ void reshade::runtime::draw_gui_home()
 		if (!_last_reload_successful)
 		{
 			ImGui::PushTextWrapPos();
-			ImGui::TextColored(COLOR_RED, _("There were errors loading some effects."));
-			ImGui::TextColored(COLOR_RED, _("Hover the cursor over any red entries below to see the error messages and/or check the log for more details."));
+			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+			ImGui::TextUnformatted(_("There were errors loading some effects."));
+			ImGui::TextUnformatted(_("Hover the cursor over any red entries below to see the error messages and/or check the log for more details."));
+			ImGui::PopStyleColor();
 			ImGui::PopTextWrapPos();
 			ImGui::Spacing();
 		}
@@ -3027,13 +3029,13 @@ void reshade::runtime::draw_gui_log()
 				else if (_log_lines[i].find("DEBUG |") != std::string::npos)
 					textcol = ImColor(100, 100, 255);
 
+				if (_log_wordwrap)
+					ImGui::PushTextWrapPos();
 				ImGui::PushStyleColor(ImGuiCol_Text, textcol);
-				if (_log_wordwrap) ImGui::PushTextWrapPos();
-
 				ImGui::TextUnformatted(_log_lines[i].c_str(), _log_lines[i].c_str() + _log_lines[i].size());
-
-				if (_log_wordwrap) ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
+				if (_log_wordwrap)
+					ImGui::PopTextWrapPos();
 			}
 		}
 	}
@@ -3188,8 +3190,10 @@ void reshade::runtime::draw_gui_addons()
 #if RESHADE_ADDON == 1
 		ImGui::TextColored(COLOR_YELLOW, _("Some add-ons were not loaded because this build of ReShade has only limited add-on functionality."));
 #else
-		ImGui::TextColored(COLOR_RED, _("There were errors loading some add-ons."));
-		ImGui::TextColored(COLOR_RED, _("Check the log for more details."));
+		ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
+		ImGui::TextUnformatted(_("There were errors loading some add-ons."));
+		ImGui::TextUnformatted(_("Check the log for more details."));
+		ImGui::PopStyleColor();
 #endif
 		ImGui::PopTextWrapPos();
 		ImGui::Spacing();
@@ -3949,11 +3953,13 @@ void reshade::runtime::draw_technique_editor()
 {
 	if (_reload_count != 0 && _effects.empty())
 	{
-		ImGui::TextColored(COLOR_YELLOW, _("No effect files (.fx) found in the configured effect search paths%c"), _effect_search_paths.empty() ? '.' : ':');
+		ImGui::PushStyleColor(ImGuiCol_Text, COLOR_YELLOW);
+		ImGui::TextWrapped(_("No effect files (.fx) found in the configured effect search paths%c"), _effect_search_paths.empty() ? '.' : ':');
 		for (const std::filesystem::path &search_path : _effect_search_paths)
-			ImGui::TextColored(COLOR_YELLOW, "  %s", (g_reshade_base_path / search_path).lexically_normal().u8string().c_str());
+			ImGui::Text("  %s", (g_reshade_base_path / search_path).lexically_normal().u8string().c_str());
 		ImGui::Spacing();
-		ImGui::TextColored(COLOR_YELLOW, _("Please verify they are set up correctly in the settings and hit 'Reload'!"));
+		ImGui::TextWrapped(_("Please verify they are set up correctly in the settings and hit 'Reload'!"));
+		ImGui::PopStyleColor();
 		return;
 	}
 
