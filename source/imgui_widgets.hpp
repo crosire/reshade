@@ -129,4 +129,12 @@ namespace reshade::imgui
 	/// <param name="size">Size of the widget.</param>
 	/// <param name="tint_col">Optional tint color mulitplied with each pixel of the image during rendering.</param>
 	void image_with_checkerboard_background(ImTextureID user_texture_id, const ImVec2 &size, ImU32 tint_col = 0xFFFFFFFF);
+
+	/// <summary>
+	/// Adds a spinner in style of the ReShade logo, to indicate loading progress.
+	/// </summary>
+	/// <param name="value">Percentage value between zero and one for a standard progress indicator, or negative for a spinning animation.</param>
+	/// <param name="radius">Radius of the circle.</param>
+	/// <param name="thickness">Thickness of the circle.</param>
+	void spinner(float value, float radius, float thickness);
 }

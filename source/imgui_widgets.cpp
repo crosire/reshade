@@ -978,3 +978,50 @@ void reshade::imgui::image_with_checkerboard_background(ImTextureID user_texture
 	// Add image on top
 	ImGui::Image(user_texture_id, size, ImVec2(0, 0), ImVec2(1, 1), ImColor(tint_col));
 }
+
+void reshade::imgui::spinner(float value, float radius, float thickness)
+{
+	ImDrawList *const draw_list = ImGui::GetWindowDrawList();
+
+	const ImVec2 pos = ImGui::GetCursorScreenPos();
+	const ImVec2 radius_with_padding = ImVec2(radius + thickness * 0.5f, radius + thickness * 0.5f);
+	const ImVec2 center = pos + radius_with_padding;
+
+	if (value < 0.0f)
+		value = ImAbs(ImSin(static_cast<float>(ImGui::GetTime())));
+
+	const ImU32 colors[6 + 1] = {
+		0xFF00FF00,
+		0xFFFFFF00,
+		0xFFFF0000,
+		0xFFFF00FF,
+		0xFF0001FF,
+		0xFF00FFFF,
+		0xFF00FF00
+	};
+
+	const float epsilon = 0.5f / radius;
+	const float rotation = 0.15f * IM_PI;
+
+	draw_list->PathClear();
+
+	for (int n = 0; n < 6; ++n)
+	{
+		if (n > value * 6)
+			break;
+
+		const float a_min = 2.0f * IM_PI * (n / 6.0f) - rotation - epsilon;
+		const float a_max = 2.0f * IM_PI * ImClamp(value, n / 6.0f, (n + 1) / 6.0f) - rotation + epsilon;
+
+		const int vert_beg_idx = draw_list->VtxBuffer.Size;
+		draw_list->PathArcTo(center, radius, a_min, a_max);
+		draw_list->PathStroke(colors[n], 0, thickness);
+		const int vert_end_idx = draw_list->VtxBuffer.Size;
+
+		const ImVec2 gradient_p0(center.x + ImCos(a_min) * radius, center.y + ImSin(a_min) * radius);
+		const ImVec2 gradient_p1(center.x + ImCos(a_max) * radius, center.y + ImSin(a_max) * radius);
+		ImGui::ShadeVertsLinearColorGradientKeepAlpha(draw_list, vert_beg_idx, vert_end_idx, gradient_p0, gradient_p1, colors[n], colors[n == 2 || n == 5 ? n : n + 1]);
+	}
+
+	ImGui::Dummy(radius_with_padding * 2);
+}

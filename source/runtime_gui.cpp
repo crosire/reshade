@@ -1087,15 +1087,16 @@ void reshade::runtime::draw_gui()
 #endif
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
+	const bool show_spinner = _reload_count > 1 && _tutorial_index != 0;
 
 	// Create ImGui widgets and windows
-	if (show_splash_window)
+	if (show_splash_window && !(show_spinner && show_overlay))
 	{
 		ImGui::SetNextWindowPos(_imgui_context->Style.WindowPadding);
 		ImGui::SetNextWindowSize(ImVec2(imgui_io.DisplaySize.x - 20.0f, 0.0f));
 		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.0f);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.862745f, 0.862745f, 0.862745f, 1.0f));
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, 0.7f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.117647f, 0.117647f, 0.117647f, show_spinner ? 0.0f : 0.7f));
 		ImGui::Begin("Splash Window", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
@@ -1105,10 +1106,14 @@ void reshade::runtime::draw_gui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
-		ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
-
-		if (_reload_count <= 1 || _tutorial_index == 0)
+		if (show_spinner)
 		{
+			imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16, 10);
+		}
+		else
+		{
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
+
 			if ((s_latest_version[0] > VERSION_MAJOR) ||
 				(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] > VERSION_MINOR) ||
 				(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] == VERSION_MINOR && s_latest_version[2] > VERSION_REVISION))
@@ -1122,77 +1127,77 @@ void reshade::runtime::draw_gui()
 			{
 				ImGui::Text(_("Visit %s for news, updates, effects and discussion."), "https://reshade.me");
 			}
-		}
 
-		ImGui::Spacing();
+			ImGui::Spacing();
 
 #if RESHADE_FX
-		if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
-		{
-			ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
-			ImGui::SameLine(15);
-			ImGui::Text(_(
-				"Compiling (%zu effects remaining) ... "
-				"This might take a while. The application could become unresponsive for some time."),
-				_reload_remaining_effects.load());
-		}
-		else
-#endif
-		{
-			ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
-			ImGui::SameLine(15);
-
-			if (_input == nullptr)
+			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
-				ImGui::TextColored(COLOR_YELLOW, _("No keyboard or mouse input available."));
-				if (_input_gamepad != nullptr)
+				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
+				ImGui::Text(_(
+					"Compiling (%zu effects remaining) ... "
+					"This might take a while. The application could become unresponsive for some time."),
+					_reload_remaining_effects.load());
+			}
+			else
+#endif
+			{
+				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
+				ImGui::SameLine(15);
+
+				if (_input == nullptr)
 				{
-					ImGui::SameLine();
-					ImGui::TextColored(COLOR_YELLOW, _("Use gamepad instead: Press 'left + right shoulder + start button' to open the configuration overlay."));
+					ImGui::TextColored(COLOR_YELLOW, _("No keyboard or mouse input available."));
+					if (_input_gamepad != nullptr)
+					{
+						ImGui::SameLine();
+						ImGui::TextColored(COLOR_YELLOW, _("Use gamepad instead: Press 'left + right shoulder + start button' to open the configuration overlay."));
+					}
+				}
+#if RESHADE_FX
+				else if (_tutorial_index == 0)
+				{
+					const std::string label = _("ReShade is now installed successfully! Press '%s' to start the tutorial.");
+					const size_t key_offset = label.find("%s");
+
+					ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextUnformatted(label.c_str() + key_offset + 2, label.c_str() + label.size());
+				}
+#endif
+				else
+				{
+					const std::string label = _("Press '%s' to open the configuration overlay.");
+					const size_t key_offset = label.find("%s");
+
+					ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+					ImGui::SameLine(0.0f, 0.0f);
+					ImGui::TextUnformatted(label.c_str() + key_offset + 2, label.c_str() + label.size());
 				}
 			}
-#if RESHADE_FX
-			else if (_tutorial_index == 0)
-			{
-				const std::string label = _("ReShade is now installed successfully! Press '%s' to start the tutorial.");
-				const size_t key_offset = label.find("%s");
 
-				ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextUnformatted(label.c_str() + key_offset + 2, label.c_str() + label.size());
-			}
-#endif
-			else
-			{
-				const std::string label = _("Press '%s' to open the configuration overlay.");
-				const size_t key_offset = label.find("%s");
-
-				ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::TextUnformatted(label.c_str() + key_offset + 2, label.c_str() + label.size());
-			}
-		}
-
-		std::string error_message;
+			std::string error_message;
 #if RESHADE_ADDON
-		if (!addon_all_loaded)
-			error_message += _("There were errors loading some add-ons."),
-			error_message += ' ';
+			if (!addon_all_loaded)
+				error_message += _("There were errors loading some add-ons."),
+				error_message += ' ';
 #endif
 #if RESHADE_FX
-		if (!_last_reload_successful)
-			error_message += _("There were errors loading some effects."),
-			error_message += ' ';
+			if (!_last_reload_successful)
+				error_message += _("There were errors loading some effects."),
+				error_message += ' ';
 #endif
-		if (!error_message.empty())
-		{
-			error_message += _("Check the log for more details.");
-			ImGui::Spacing();
-			ImGui::TextColored(COLOR_RED, error_message.c_str());
+			if (!error_message.empty())
+			{
+				error_message += _("Check the log for more details.");
+				ImGui::Spacing();
+				ImGui::TextColored(COLOR_RED, error_message.c_str());
+			}
 		}
 
 		viewport_offset.y += ImGui::GetWindowHeight() + _imgui_context->Style.WindowPadding.x; // Add small space between windows
@@ -1858,11 +1863,8 @@ void reshade::runtime::draw_gui_home()
 
 	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 	{
-		std::string loading_message = ICON_FK_REFRESH " ";
-		loading_message += _("Loading ...");
-		loading_message += " ";
-		ImGui::SetCursorPos((ImGui::GetWindowSize() - ImGui::CalcTextSize(loading_message.c_str())) * 0.5f);
-		ImGui::TextUnformatted(loading_message.c_str(), loading_message.c_str() + loading_message.size());
+		ImGui::SetCursorPos(ImGui::GetWindowSize() * 0.5f - ImVec2(21, 21));
+		imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16, 10);
 		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other threads during that time
 	}
 
