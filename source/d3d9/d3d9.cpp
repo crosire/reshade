@@ -225,10 +225,11 @@ extern thread_local bool g_in_dxgi_runtime;
 
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
+	const auto trampoline = reshade::hooks::call(IDirect3D9_CreateDevice, reshade::hooks::vtable_from_instance(pD3D) + 16);
+
 	// Pass on unmodified in case this called from within the runtime, to avoid hooking internal devices
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(IDirect3D9_CreateDevice, reshade::hooks::vtable_from_instance(pD3D) + 16)(
-			pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+		return trampoline(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	LOG(INFO) << "Redirecting " << "IDirect3D9::CreateDevice" << '('
 		<<   "this = " << pD3D
@@ -267,7 +268,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDirect3D9_CreateDevice, reshade::hooks::vtable_from_instance(pD3D) + 16)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, ppReturnedDeviceInterface);
+	const HRESULT hr = trampoline(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, ppReturnedDeviceInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3d9-createdevice)
@@ -295,9 +296,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
+	const auto trampoline = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, reshade::hooks::vtable_from_instance(pD3D) + 20);
+
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, reshade::hooks::vtable_from_instance(pD3D) + 20)(
-			pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
+		return trampoline(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
 	LOG(INFO) << "Redirecting " << "IDirect3D9Ex::CreateDeviceEx" << '('
 		<<   "this = " << pD3D
@@ -340,7 +342,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDirect3D9Ex_CreateDeviceEx, reshade::hooks::vtable_from_instance(pD3D) + 20)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pp.Windowed ? nullptr : &fullscreen_mode, ppReturnedDeviceInterface);
+	const HRESULT hr = trampoline(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, pp.Windowed ? nullptr : &fullscreen_mode, ppReturnedDeviceInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 
 	// Update output values (see https://docs.microsoft.com/windows/win32/api/d3d9/nf-d3d9-idirect3d9ex-createdeviceex)
@@ -368,14 +370,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 extern "C" IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
+	const auto trampoline = reshade::hooks::call(Direct3DCreate9);
+
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(Direct3DCreate9)(SDKVersion);
+		return trampoline(SDKVersion);
 
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9" << '(' << "SDKVersion = " << SDKVersion << ')' << " ...";
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9)(SDKVersion);
+	IDirect3D9 *const res = trampoline(SDKVersion);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (res == nullptr)
 	{
@@ -393,20 +397,24 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 extern "C"     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
+	const auto trampoline = reshade::hooks::call(Direct3DCreate9Ex);
+
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
+		return trampoline(SDKVersion, ppD3D);
 
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9Ex" << '(' << "SDKVersion = " << SDKVersion << ", ppD3D = " << ppD3D << ')' << " ...";
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(Direct3DCreate9Ex)(SDKVersion, ppD3D);
+	const HRESULT hr = trampoline(SDKVersion, ppD3D);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "Direct3DCreate9Ex" << " failed with error code " << hr << '.';
 		return hr;
 	}
+
+	assert(ppD3D != nullptr);
 
 	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));

@@ -39,8 +39,10 @@ void init_device_proxy_for_d3d9on12(Direct3DDevice9 *device_proxy)
 
 extern "C" IDirect3D9 *WINAPI Direct3DCreate9On12(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries) // Export ordinal 20
 {
+	const auto trampoline = reshade::hooks::call(Direct3DCreate9On12);
+
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(Direct3DCreate9On12)(SDKVersion, pOverrideList, NumOverrideEntries);
+		return trampoline(SDKVersion, pOverrideList, NumOverrideEntries);
 
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9On12" << '('
 		<<   "SDKVersion = " << SDKVersion
@@ -69,7 +71,7 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9On12(UINT SDKVersion, D3D9ON12_ARGS
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	IDirect3D9 *const res = reshade::hooks::call(Direct3DCreate9On12)(SDKVersion, override_list.p, NumOverrideEntries);
+	IDirect3D9 *const res = trampoline(SDKVersion, override_list.p, NumOverrideEntries);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (res == nullptr)
 	{
@@ -87,8 +89,10 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9On12(UINT SDKVersion, D3D9ON12_ARGS
 
 extern "C"     HRESULT WINAPI Direct3DCreate9On12Ex(UINT SDKVersion, D3D9ON12_ARGS *pOverrideList, UINT NumOverrideEntries, IDirect3D9Ex **ppOutputInterface) // Export ordinal 21
 {
+	const auto trampoline = reshade::hooks::call(Direct3DCreate9On12Ex);
+
 	if (g_in_d3d9_runtime)
-		return reshade::hooks::call(Direct3DCreate9On12Ex)(SDKVersion, pOverrideList, NumOverrideEntries, ppOutputInterface);
+		return trampoline(SDKVersion, pOverrideList, NumOverrideEntries, ppOutputInterface);
 
 	LOG(INFO) << "Redirecting " << "Direct3DCreate9On12Ex" << '('
 		<<   "SDKVersion = " << SDKVersion
@@ -118,13 +122,15 @@ extern "C"     HRESULT WINAPI Direct3DCreate9On12Ex(UINT SDKVersion, D3D9ON12_AR
 
 	assert(!g_in_dxgi_runtime);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(Direct3DCreate9On12Ex)(SDKVersion, override_list.p, NumOverrideEntries, ppOutputInterface);
+	const HRESULT hr = trampoline(SDKVersion, override_list.p, NumOverrideEntries, ppOutputInterface);
 	g_in_d3d9_runtime = g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
 		LOG(WARN) << "Direct3DCreate9On12Ex" << " failed with error code " << hr << '.';
 		return hr;
 	}
+
+	assert(ppOutputInterface != nullptr);
 
 	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(*ppOutputInterface), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppOutputInterface), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));

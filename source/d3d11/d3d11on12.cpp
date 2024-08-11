@@ -15,10 +15,11 @@ extern thread_local bool g_in_dxgi_runtime;
 
 extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, CONST D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, IUnknown *CONST *ppCommandQueues, UINT NumQueues, UINT NodeMask, ID3D11Device **ppDevice, ID3D11DeviceContext **ppImmediateContext, D3D_FEATURE_LEVEL *pChosenFeatureLevel)
 {
+	const auto trampoline = reshade::hooks::call(D3D11On12CreateDevice);
+
 	// The Steam overlay creates a D3D11on12 device during 'IDXGISwapChain::Present', which can be ignored, so return early in that case
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(D3D11On12CreateDevice)(
-			pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+		return trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
 
 	LOG(INFO) << "Redirecting " << "D3D11On12CreateDevice" << '('
 		<<   "pDevice = " << pDevice
@@ -42,7 +43,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	{
 		LOG(WARN) << "Skipping D3D11on12 device because it was created without a proxy Direct3D 12 device.";
 
-		return reshade::hooks::call(D3D11On12CreateDevice)(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+		return trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
 	}
 
 	temp_mem<IUnknown *> command_queues(NumQueues);
@@ -61,7 +62,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
 	g_in_dxgi_runtime = true;
-	HRESULT hr = reshade::hooks::call(D3D11On12CreateDevice)(pDevice, Flags, pFeatureLevels, FeatureLevels, command_queues.p, NumQueues, NodeMask, ppDevice, nullptr, &FeatureLevel);
+	HRESULT hr = trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, command_queues.p, NumQueues, NodeMask, ppDevice, nullptr, &FeatureLevel);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{

@@ -378,8 +378,10 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
 {
+	const auto trampoline = reshade::hooks::call(IDXGIFactory_CreateSwapChain, reshade::hooks::vtable_from_instance(pFactory) + 10);
+
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(IDXGIFactory_CreateSwapChain, reshade::hooks::vtable_from_instance(pFactory) + 10)(pFactory, pDevice, pDesc, ppSwapChain);
+		return trampoline(pFactory, pDevice, pDesc, ppSwapChain);
 
 	LOG(INFO) << "Redirecting " << "IDXGIFactory::CreateSwapChain" << '('
 		<<   "this = " << pFactory
@@ -398,7 +400,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDXGIFactory_CreateSwapChain, reshade::hooks::vtable_from_instance(pFactory) + 10)(pFactory, pDevice, &desc, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, &desc, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -413,8 +415,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pFactory, IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
+	const auto trampoline = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, reshade::hooks::vtable_from_instance(pFactory) + 15);
+
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, reshade::hooks::vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+		return trampoline(pFactory, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
 	LOG(INFO) << "Redirecting " << "IDXGIFactory2::CreateSwapChainForHwnd" << '('
 		<<   "this = " << pFactory
@@ -441,7 +445,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForHwnd, reshade::hooks::vtable_from_instance(pFactory) + 15)(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -455,8 +459,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 }
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
+	const auto trampoline = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, reshade::hooks::vtable_from_instance(pFactory) + 16);
+
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, reshade::hooks::vtable_from_instance(pFactory) + 16)(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
+		return trampoline(pFactory, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
 
 	LOG(INFO) << "Redirecting " << "IDXGIFactory2::CreateSwapChainForCoreWindow" << '('
 		<<   "this = " << pFactory
@@ -478,7 +484,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForCoreWindow, reshade::hooks::vtable_from_instance(pFactory) + 16)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -492,8 +498,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 }
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
+	const auto trampoline = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition, reshade::hooks::vtable_from_instance(pFactory) + 24);
+
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition, reshade::hooks::vtable_from_instance(pFactory) + 24)(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
+		return trampoline(pFactory, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
 
 	LOG(INFO) << "Redirecting " << "IDXGIFactory2::CreateSwapChainForComposition" << '('
 		<<   "this = " << pFactory
@@ -514,7 +522,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = reshade::hooks::call(IDXGIFactory2_CreateSwapChainForComposition, reshade::hooks::vtable_from_instance(pFactory) + 24)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{

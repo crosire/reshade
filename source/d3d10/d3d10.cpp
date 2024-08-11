@@ -78,10 +78,11 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 
 extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device1 **ppDevice)
 {
+	const auto trampoline = reshade::hooks::call(D3D10CreateDeviceAndSwapChain1);
+
 	// Pass on unmodified in case this called from within 'CDXGISwapChain::EnsureChildDeviceInternal', which indicates that the DXGI runtime is trying to create an internal device, which should not be hooked
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(
-			pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
+		return trampoline(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
 	LOG(INFO) << "Redirecting " << "D3D10CreateDeviceAndSwapChain1" << '('
 		<<   "pAdapter = " << pAdapter
@@ -102,7 +103,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 
 	// This may call 'D3D11CreateDeviceAndSwapChain' internally, so to avoid duplicated hooks, set the flag that forces it to return early
 	g_in_dxgi_runtime = true;
-	HRESULT hr = reshade::hooks::call(D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
+	HRESULT hr = trampoline(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
