@@ -1250,8 +1250,8 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			(!s_use_format_filtering || check_depth_format(item.desc.texture.format)) &&
 			(!s_use_aspect_ratio_heuristics || check_aspect_ratio(static_cast<float>(item.desc.texture.width), static_cast<float>(item.desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height)));
 
-		char label[512] = "";
-		sprintf_s(label, "%c 0x%016llx", (selected ? '>' : ' '), item.resource.handle);
+		char label[21];
+		std::snprintf(label, std::size(label), "%c 0x%016llx", (selected ? '>' : ' '), item.resource.handle);
 
 		ImGui::BeginDisabled(disabled);
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[disabled ? ImGuiCol_TextDisabled : selected || candidate ? ImGuiCol_ButtonActive : ImGuiCol_Text]);
@@ -1293,7 +1293,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			{
 				const clear_stats &clear_stats = item.snapshot.clears[clear_index - 1];
 
-				sprintf_s(label, "%c   CLEAR %2u", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
+				std::snprintf(label, std::size(label), "%c   CLEAR %2u", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
 
 				if (bool value = (depth_stencil_backup->force_clear_index == clear_index);
 					ImGui::Checkbox(label, &value))

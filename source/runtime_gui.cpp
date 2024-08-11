@@ -1163,7 +1163,9 @@ void reshade::runtime::draw_gui()
 
 					ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
 					ImGui::SameLine(0.0f, 0.0f);
-					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+					ImGui::TextUnformatted(input::key_name(_overlay_key_data).c_str());
+					ImGui::PopStyleColor();
 					ImGui::SameLine(0.0f, 0.0f);
 					ImGui::TextUnformatted(label.c_str() + key_offset + 2, label.c_str() + label.size());
 				}
@@ -1175,7 +1177,9 @@ void reshade::runtime::draw_gui()
 
 					ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
 					ImGui::SameLine(0.0f, 0.0f);
-					ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", input::key_name(_overlay_key_data).c_str());
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+					ImGui::TextUnformatted(input::key_name(_overlay_key_data).c_str());
+					ImGui::PopStyleColor();
 					ImGui::SameLine(0.0f, 0.0f);
 					ImGui::TextUnformatted(label.c_str() + key_offset + 2, label.c_str() + label.size());
 				}

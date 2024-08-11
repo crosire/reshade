@@ -396,8 +396,8 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 			language = translation[0], codepage = translation[1];
 
 		const auto query_file_version_info = [&version_data, language, codepage](std::string &target, const char *name) {
-			char subblock[64] = "";
-			sprintf_s(subblock, "\\StringFileInfo\\%04x%04x\\%s", language, codepage, name);
+			char subblock[64];
+			std::snprintf(subblock, std::size(subblock), "\\StringFileInfo\\%04x%04x\\%s", language, codepage, name);
 			if (char *value = nullptr;
 				VerQueryValueA(version_data.data(), subblock, reinterpret_cast<LPVOID *>(&value), nullptr))
 				target = value;
