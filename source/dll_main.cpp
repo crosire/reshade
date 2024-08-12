@@ -132,8 +132,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			g_reshade_dll_path = get_module_path(hModule);
 			g_target_executable_path = get_module_path(nullptr);
 
-			const ini_file &config = reshade::global_config();
-
 			const std::filesystem::path module_name = g_reshade_dll_path.stem();
 
 			const bool is_d3d = _wcsnicmp(module_name.c_str(), L"d3d", 3) == 0;
@@ -143,6 +141,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			// UWP apps do not have write access to the application directory, so never default the base path to it for them
 			const bool default_base_to_target_executable_path = !is_d3d && !is_dxgi && !is_opengl && !is_dinput && !is_uwp_app();
+
+			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
+
+			const ini_file &config = reshade::global_config();
 
 			// When ReShade is not loaded by proxy, only actually load when a configuration file exists for the target executable
 			// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
@@ -158,8 +160,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
 				}
 			}
-
-			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
 			if (config.get("INSTALL", "Logging") || (!config.has("INSTALL", "Logging") && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOGGING", nullptr, 0)))
 			{
