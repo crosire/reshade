@@ -421,7 +421,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		!_device_impl->_gpu_view_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu) :
 		!_device_impl->_gpu_sampler_heap.allocate_transient(update.binding + update.count, base_handle, base_handle_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << update.count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(update.type) << '!';
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", update.count, static_cast<uint32_t>(update.type));
 		return;
 	}
 
@@ -948,7 +948,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_uint(api::re
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(1, table_base, table_base_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << 1 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", 1u, static_cast<uint32_t>(api::descriptor_type::unordered_access_view));
 		return;
 	}
 
@@ -976,7 +976,7 @@ void reshade::d3d12::command_list_impl::clear_unordered_access_view_float(api::r
 	D3D12_GPU_DESCRIPTOR_HANDLE table_base_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(1, table_base, table_base_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << 1 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", 1u, static_cast<uint32_t>(api::descriptor_type::unordered_access_view));
 		return;
 	}
 
@@ -1018,7 +1018,7 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
 	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count_multiple_of_6, base_handle, base_handle_gpu))
 	{
-		LOG(ERROR) << "Failed to allocate " << level_count_multiple_of_6 << " transient descriptor handle(s) of type " << static_cast<uint32_t>(api::descriptor_type::unordered_access_view) << '!';
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", level_count_multiple_of_6, static_cast<uint32_t>(api::descriptor_type::unordered_access_view));
 		return;
 	}
 

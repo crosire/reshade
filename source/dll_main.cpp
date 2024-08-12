@@ -153,7 +153,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				{
 #ifndef NDEBUG
 					// Log was not yet opened at this point, so this only writes to debug output
-					LOG(WARN) << "ReShade was not enabled for " << g_target_executable_path << "! Aborting initialization ...";
+					reshade::log::message(reshade::log::level::warning, "ReShade was not enabled for '%s'! Aborting initialization ...", g_target_executable_path.u8string().c_str());
 #endif
 					return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
 				}
@@ -180,25 +180,27 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 #ifndef NDEBUG
 					if (ec)
-						LOG(ERROR) << "Opening the ReShade log file" << " failed with error code " << ec.value() << '.';
+						reshade::log::message(reshade::log::level::error, "Opening the ReShade log file failed with error code %d.", ec.value());
 #endif
 				}
 			}
 
-			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' "
+			reshade::log::message(reshade::log::level::info,
+				"Initializing crosire's ReShade version '" VERSION_STRING_FILE "' "
 #ifndef _WIN64
 				"(32-bit) "
 #else
 				"(64-bit) "
 #endif
-				"loaded from " << g_reshade_dll_path << " into " <<
+				"loaded from '%s' into '%s' (0x%X) ...",
+				g_reshade_dll_path.u8string().c_str(),
 #ifndef NDEBUG
-				static_cast<const wchar_t *>(GetCommandLineW()) <<
+				static_cast<const char *>(GetCommandLineA()),
 #else
 				// Do not log full command-line in release builds, since it may contain sensitive information like authentication tokens
-				g_target_executable_path <<
+				g_target_executable_path.u8string().c_str(),
 #endif
-				" (" << std::hex << (std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF) << std::dec << ") ...";
+				static_cast<unsigned int>(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
 
 			// Check if another ReShade instance was already loaded into the process
 			if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
@@ -207,7 +209,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				{
 					if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 					{
-						LOG(WARN) << "Another ReShade instance was already loaded from " << get_module_path(modules[i]) << "! Aborting initialization ...";
+						reshade::log::message(reshade::log::level::warning, "Another ReShade instance was already loaded from '%s'! Aborting initialization ...", get_module_path(modules[i]).u8string().c_str());
 						return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
 					}
 				}
@@ -256,7 +258,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 						if (dbghelp_write_dump(GetCurrentProcess(), GetCurrentProcessId(), file, MiniDumpNormal, &info, nullptr, nullptr))
 							dump_index++;
 						else
-							LOG(ERROR) << "Failed to write minidump!";
+							reshade::log::message(reshade::log::level::error, "Failed to write minidump!");
 
 						CloseHandle(file);
 					}
@@ -335,16 +337,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				}
 			}
 
-			LOG(INFO) << "Initialized.";
+			reshade::log::message(reshade::log::level::info, "Initialized.");
 			break;
 		}
 		case DLL_PROCESS_DETACH:
 		{
-			LOG(INFO) << "Exiting ...";
+			reshade::log::message(reshade::log::level::info, "Exiting ...");
 
 #if RESHADE_ADDON
 			if (reshade::has_loaded_addons())
-				LOG(WARN) << "Add-ons are still loaded! Application may crash on exit.";
+				reshade::log::message(reshade::log::level::warning, "Add-ons are still loaded! Application may crash on exit.");
 #endif
 
 			reshade::hooks::uninstall();
@@ -365,7 +367,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				RemoveVectoredExceptionHandler(s_exception_handler_handle);
 #endif
 
-			LOG(INFO) << "Finished exiting.";
+			reshade::log::message(reshade::log::level::info, "Finished exiting.");
 			break;
 		}
 	}

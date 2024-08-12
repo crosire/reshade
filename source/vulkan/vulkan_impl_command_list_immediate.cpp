@@ -98,7 +98,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_in
 	// Submit all asynchronous commands in one batch to the current queue
 	if (vk.EndCommandBuffer(_orig) != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to close immediate command list!";
+		log::message(log::level::error, "Failed to close immediate command list!");
 
 		// Have to reset the command buffer when closing it was unsuccessful
 		vk.BeginCommandBuffer(_orig, &begin_info);
@@ -120,7 +120,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_in
 
 	if (vk.QueueSubmit(_parent_queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to submit immediate command list!";
+		log::message(log::level::error, "Failed to submit immediate command list!");
 
 		// Have to reset the command buffer when submitting it was unsuccessful
 		vk.BeginCommandBuffer(_orig, &begin_info);

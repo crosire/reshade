@@ -127,7 +127,7 @@ void reshade::d3d9::device_impl::on_init()
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to create copy pipeline!";
+		log::message(log::level::error, "Failed to create copy pipeline!");
 	}
 }
 void reshade::d3d9::device_impl::on_reset()
@@ -1065,7 +1065,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			com_ptr<IDirect3DTexture9> intermediate;
 			if (FAILED(_orig->CreateTexture(width, height, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
 			{
-				LOG(ERROR) << "Failed to create upload buffer (width = " << width << ", height = " << height << ", levels = " << "1" << ", usage = " << (use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC") << ", format = " << desc.Format << ")!";
+				log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, levels = 1, usage = %s, format = %d)!", width, height, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
 				return;
 			}
 
@@ -1154,7 +1154,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			{
 				if (FAILED(_orig->CreateVolumeTexture(width, height, depth, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
 				{
-					LOG(ERROR) << "Failed to create upload buffer (width = " << width << ", height = " << height << ", depth = " << depth << ", levels = " << "1" << ", usage = " << (use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC") << ", format = " << desc.Format << ")!";
+					log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, depth = %u, levels = 1, usage = %s, format = %d)!", width, height, depth, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
 					return;
 				}
 			}
@@ -1250,7 +1250,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			com_ptr<IDirect3DCubeTexture9> intermediate;
 			if (FAILED(_orig->CreateCubeTexture(width, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
 			{
-				LOG(ERROR) << "Failed to create upload buffer (width = " << width << ", height = " << height << ", levels = " << "1" << ", usage = " << (use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC") << ", format = " << desc.Format << ")!";
+				log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, levels = 1, usage = %s, format = %d)!", width, height, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
 				return;
 			}
 
@@ -1553,7 +1553,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 
 			if (FAILED(_orig->CreateVertexBuffer(max_vertices * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_default_input_stream, nullptr)))
 			{
-				LOG(ERROR) << "Failed to create default input stream!";
+				log::message(log::level::error, "Failed to create default input stream!");
 				goto exit_failure;
 			}
 
@@ -1576,7 +1576,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 
 			if (FAILED(_orig->CreateVertexDeclaration(declaration, &_default_input_layout)))
 			{
-				LOG(ERROR) << "Failed to create default vertex declaration!";
+				log::message(log::level::error, "Failed to create default vertex declaration!");
 				goto exit_failure;
 			}
 		}

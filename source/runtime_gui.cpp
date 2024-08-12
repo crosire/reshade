@@ -199,7 +199,7 @@ void reshade::runtime::build_font_atlas()
 	{
 		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, atlas->GetGlyphRangesDefault()) != nullptr))
 		{
-			LOG(ERROR) << "Failed to load latin font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			log::message(log::level::error, "Failed to load latin font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 			resolved_font_path.clear();
 		}
 
@@ -215,7 +215,7 @@ void reshade::runtime::build_font_atlas()
 	{
 		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, glyph_ranges) != nullptr))
 		{
-			LOG(ERROR) << "Failed to load font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			log::message(log::level::error, "Failed to load font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 			resolved_font_path.clear();
 		}
 
@@ -242,7 +242,7 @@ void reshade::runtime::build_font_atlas()
 
 		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, glyph_ranges) != nullptr))
 		{
-			LOG(ERROR) << "Failed to load editor font from " << resolved_font_path << " with error code " << ec.value() << '!';
+			log::message(log::level::error, "Failed to load editor font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 			resolved_font_path.clear();
 		}
 
@@ -253,12 +253,12 @@ void reshade::runtime::build_font_atlas()
 	if (atlas->Build())
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Font atlas size: " << atlas->TexWidth << 'x' << atlas->TexHeight;
+		log::message(log::level::debug, "Font atlas size: %dx%d", atlas->TexWidth, atlas->TexHeight);
 #endif
 	}
 	else
 	{
-		LOG(ERROR) << "Failed to build font atlas!";
+		log::message(log::level::error, "Failed to build font atlas!");
 
 		_font_path.clear();
 		_latin_font_path.clear();
@@ -300,7 +300,7 @@ void reshade::runtime::build_font_atlas()
 			api::resource_desc(width, height, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
 			&initial_data, api::resource_usage::shader_resource, &_font_atlas_tex))
 	{
-		LOG(ERROR) << "Failed to create front atlas resource!";
+		log::message(log::level::error, "Failed to create front atlas resource!");
 		return;
 	}
 
@@ -309,7 +309,7 @@ void reshade::runtime::build_font_atlas()
 
 	if (!_device->create_resource_view(_font_atlas_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_font_atlas_srv))
 	{
-		LOG(ERROR) << "Failed to create font atlas resource view!";
+		log::message(log::level::error, "Failed to create font atlas resource view!");
 		return;
 	}
 
@@ -1803,7 +1803,7 @@ void reshade::runtime::draw_gui_home()
 						}
 						else if (!_template_preset_path.empty() && !std::filesystem::copy_file(_template_preset_path, new_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
 						{
-							LOG(ERROR) << "Failed to copy preset template " << _template_preset_path << " to " << new_preset_path << " with error code " << ec.value() << '!';
+							log::message(log::level::error, "Failed to copy preset template '%s' to '%s' with error code %d!", _template_preset_path.u8string().c_str(), new_preset_path.u8string().c_str(), ec.value());
 						}
 					}
 				}
@@ -4526,7 +4526,7 @@ bool reshade::runtime::init_imgui_resources()
 
 		if (!_device->create_sampler(sampler_desc, &_imgui_sampler_state))
 		{
-			LOG(ERROR) << "Failed to create ImGui sampler object!";
+			log::message(log::level::error, "Failed to create ImGui sampler object!");
 			return false;
 		}
 	}
@@ -4561,7 +4561,7 @@ bool reshade::runtime::init_imgui_resources()
 
 		if (!_device->create_pipeline_layout(num_layout_params, layout_params, &_imgui_pipeline_layout))
 		{
-			LOG(ERROR) << "Failed to create ImGui pipeline layout!";
+			log::message(log::level::error, "Failed to create ImGui pipeline layout!");
 			return false;
 		}
 	}
@@ -4634,7 +4634,7 @@ bool reshade::runtime::init_imgui_resources()
 	}
 	else
 	{
-		LOG(ERROR) << "Failed to create ImGui pipeline!";
+		log::message(log::level::error, "Failed to create ImGui pipeline!");
 		return false;
 	}
 }
@@ -4656,7 +4656,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		const int new_size = draw_data->TotalIdxCount + 10000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
 		{
-			LOG(ERROR) << "Failed to create ImGui index buffer!";
+			log::message(log::level::error, "Failed to create ImGui index buffer!");
 			return;
 		}
 
@@ -4676,7 +4676,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		const int new_size = draw_data->TotalVtxCount + 5000;
 		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
 		{
-			LOG(ERROR) << "Failed to create ImGui vertex buffer!";
+			log::message(log::level::error, "Failed to create ImGui vertex buffer!");
 			return;
 		}
 

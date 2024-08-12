@@ -579,7 +579,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	if (const std::unique_lock<std::shared_mutex> lock(_device_impl->_mutex);
 		vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 	{
-		LOG(ERROR) << "Failed to allocate " << update.count << " transient descriptor handle(s) of type " << static_cast<uint32_t>(update.type) << '!';
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", static_cast<unsigned int>(update.type), update.count);
 		return;
 	}
 

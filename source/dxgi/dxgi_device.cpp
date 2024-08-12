@@ -39,7 +39,7 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgrading IDXGIDevice" << _interface_version << " object " << this << " to IDXGIDevice" << version << '.';
+			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIDevice%hu object %p to IDXGIDevice%hu.", _interface_version, this, version);
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGIDevice1 *>(new_interface);

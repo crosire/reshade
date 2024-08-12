@@ -76,7 +76,7 @@ static void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkIm
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
-	LOG(INFO) << "Redirecting " << "vkCreateDevice" << '(' << "physicalDevice = " << physicalDevice << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pDevice = " << pDevice << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateDevice(physicalDevice = %p, pCreateInfo = %p, pAllocator = %p, pDevice = %p) ...", physicalDevice, pCreateInfo, pAllocator, pDevice);
 
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
@@ -118,9 +118,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	if (trampoline == nullptr) // Unable to resolve next 'vkCreateDevice' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
-	LOG(INFO) << "> Dumping enabled device extensions:";
+	reshade::log::message(reshade::log::level::info, "> Dumping enabled device extensions:");
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
-		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
+		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->ppEnabledExtensionNames[i]);
 
 	auto enum_queue_families = instance_dispatch.GetPhysicalDeviceQueueFamilyProperties;
 	assert(enum_queue_families != nullptr);
@@ -142,7 +142,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		if (pCreateInfo->pQueueCreateInfos[i].queueCount > 0 && (queue_families[queue_family_index].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 		{
 			if (pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0] < 1.0f)
-				LOG(WARN) << "Vulkan queue used for rendering has a low priority (" << pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0] << ").";
+				reshade::log::message(reshade::log::level::warning, "Vulkan queue used for rendering has a low priority (%f).", pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0]);
 
 			graphics_queue_family_index = queue_family_index;
 			break;
@@ -174,14 +174,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
 			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.cend())
 	{
-		LOG(WARN) << "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.";
+		reshade::log::message(reshade::log::level::warning, "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.");
 
 		graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 	}
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	else if (graphics_queue_family_index == std::numeric_limits<uint32_t>::max())
 	{
-		LOG(WARN) << "Skipping device because it is not created with a graphics queue.";
+		reshade::log::message(reshade::log::level::warning, "Skipping device because it is not created with a graphics queue.");
 	}
 	else
 	{
@@ -206,14 +206,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			if (required)
 			{
-				LOG(ERROR) << "Required extension \"" << name << "\" is not supported on this device. Initialization failed.";
+				reshade::log::message(reshade::log::level::error, "Required extension \"%s\" is not supported on this device. Initialization failed.", name);
 
 				// Reset queue family index to prevent ReShade initialization
 				graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 			}
 			else
 			{
-				LOG(WARN)  << "Optional extension \"" << name << "\" is not supported on this device.";
+				reshade::log::message(reshade::log::level::warning, "Optional extension \"%s\" is not supported on this device.", name);
 			}
 
 			return false;
@@ -406,7 +406,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	g_in_dxgi_runtime = false;
 	if (result < VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateDevice" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateDevice failed with error code %d.", static_cast<int>(result));
 		return result;
 	}
 
@@ -717,7 +717,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	if (!g_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl))
 	{
-		LOG(WARN) << "Failed to register Vulkan device " << device << '.';
+		reshade::log::message(reshade::log::level::warning, "Failed to register Vulkan device %p.", device);
 	}
 
 #if RESHADE_ADDON
@@ -756,13 +756,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning Vulkan device " << device << '.';
+	reshade::log::message(reshade::log::level::debug, "Returning Vulkan device %p.", device);
 #endif
 	return result;
 }
 void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
 {
-	LOG(INFO) << "Redirecting " << "vkDestroyDevice" << '(' << "device = " << device << ", pAllocator = " << pAllocator << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroyDevice(device = %p, pAllocator = %p) ...", device, pAllocator);
 
 	if (device == VK_NULL_HANDLE)
 		return;
@@ -800,7 +800,7 @@ void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks
 
 VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSwapchainKHR *pSwapchain)
 {
-	LOG(INFO) << "Redirecting " << "vkCreateSwapchainKHR" << '(' << "device = " << device << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSwapchain = " << pSwapchain << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateSwapchainKHR(device = %p, pCreateInfo = %p, pAllocator = %p, pSwapchain = %p) ...", device, pCreateInfo, pAllocator, pSwapchain);
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	GET_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
@@ -870,13 +870,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	// Dump swap chain description
 	{
-		LOG(INFO) << "> Dumping swap chain description:";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | Parameter                               | Value                                   |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(INFO) << "  | flags                                   | " << std::setw(39) << std::hex << create_info.flags << std::dec << " |";
-		LOG(INFO) << "  | surface                                 | " << std::setw(39) << create_info.surface << " |";
-		LOG(INFO) << "  | minImageCount                           | " << std::setw(39) << create_info.minImageCount << " |";
+		reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+		reshade::log::message(reshade::log::level::info, "  | Parameter                               | Value                                   |");
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+		reshade::log::message(reshade::log::level::info, "  | flags                                   |"                               " %-#39x |", static_cast<unsigned int>(create_info.flags));
+		reshade::log::message(reshade::log::level::info, "  | surface                                 |"                                " %-39p |", create_info.surface);
+		reshade::log::message(reshade::log::level::info, "  | minImageCount                           |"                                " %-39u |", create_info.minImageCount);
 
 		const char *format_string = nullptr;
 		switch (create_info.imageFormat)
@@ -931,26 +931,26 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 
 		if (format_string != nullptr)
-			LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << format_string << " |";
+			reshade::log::message(reshade::log::level::info, "  | imageFormat                             |"                            " %-39s |", format_string);
 		else
-			LOG(INFO) << "  | imageFormat                             | " << std::setw(39) << create_info.imageFormat << " |";
+			reshade::log::message(reshade::log::level::info, "  | imageFormat                             |"                            " %-39d |", static_cast<int>(create_info.imageFormat));
 
 		if (color_space_string != nullptr)
-			LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << color_space_string << " |";
+			reshade::log::message(reshade::log::level::info, "  | imageColorSpace                         |"                            " %-39s |", color_space_string);
 		else
-			LOG(INFO) << "  | imageColorSpace                         | " << std::setw(39) << create_info.imageColorSpace << " |";
+			reshade::log::message(reshade::log::level::info, "  | imageColorSpace                         |"                            " %-39d |", static_cast<int>(create_info.imageColorSpace));
 
-		LOG(INFO) << "  | imageExtent                             | " << std::setw(19) << create_info.imageExtent.width << ' ' << std::setw(19) << create_info.imageExtent.height << " |";
-		LOG(INFO) << "  | imageArrayLayers                        | " << std::setw(39) << create_info.imageArrayLayers << " |";
-		LOG(INFO) << "  | imageUsage                              | " << std::setw(39) << std::hex << create_info.imageUsage << std::dec << " |";
-		LOG(INFO) << "  | imageSharingMode                        | " << std::setw(39) << create_info.imageSharingMode << " |";
-		LOG(INFO) << "  | queueFamilyIndexCount                   | " << std::setw(39) << create_info.queueFamilyIndexCount << " |";
-		LOG(INFO) << "  | preTransform                            | " << std::setw(39) << std::hex << create_info.preTransform << std::dec << " |";
-		LOG(INFO) << "  | compositeAlpha                          | " << std::setw(39) << std::hex << create_info.compositeAlpha << std::dec << " |";
-		LOG(INFO) << "  | presentMode                             | " << std::setw(39) << create_info.presentMode << " |";
-		LOG(INFO) << "  | clipped                                 | " << std::setw(39) << (create_info.clipped ? "true" : "false") << " |";
-		LOG(INFO) << "  | oldSwapchain                            | " << std::setw(39) << create_info.oldSwapchain << " |";
-		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		reshade::log::message(reshade::log::level::info, "  | imageExtent                             |"            " %-19u"            " %-19u |", create_info.imageExtent.width, create_info.imageExtent.height);
+		reshade::log::message(reshade::log::level::info, "  | imageArrayLayers                        |"                                " %-39u |", create_info.imageArrayLayers);
+		reshade::log::message(reshade::log::level::info, "  | imageUsage                              |"                               " %-#39x |", static_cast<unsigned int>(create_info.imageUsage));
+		reshade::log::message(reshade::log::level::info, "  | imageSharingMode                        |"                                " %-39d |", static_cast<int>(create_info.imageSharingMode));
+		reshade::log::message(reshade::log::level::info, "  | queueFamilyIndexCount                   |"                                " %-39u |", create_info.queueFamilyIndexCount);
+		reshade::log::message(reshade::log::level::info, "  | preTransform                            |"                               " %-#39x |", static_cast<unsigned int>(create_info.preTransform));
+		reshade::log::message(reshade::log::level::info, "  | compositeAlpha                          |"                               " %-#39x |", static_cast<unsigned int>(create_info.compositeAlpha));
+		reshade::log::message(reshade::log::level::info, "  | presentMode                             |"                                " %-39d |", static_cast<int>(create_info.presentMode));
+		reshade::log::message(reshade::log::level::info, "  | clipped                                 |"                                " %-39s |", create_info.clipped ? "true" : "false");
+		reshade::log::message(reshade::log::level::info, "  | oldSwapchain                            |"                                " %-39p |", create_info.oldSwapchain);
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 	}
 
 	// Look up window handle from surface
@@ -1060,7 +1060,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	g_in_dxgi_runtime = false;
 	if (result < VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateSwapchainKHR" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateSwapchainKHR failed with error code %d.", static_cast<int>(result));
 		return result;
 	}
 
@@ -1132,13 +1132,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	reshade::init_effect_runtime(swapchain_impl);
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning Vulkan swap chain " << *pSwapchain << '.';
+	reshade::log::message(reshade::log::level::debug, "Returning Vulkan swap chain %p.", *pSwapchain);
 #endif
 	return result;
 }
 void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapchain, const VkAllocationCallbacks *pAllocator)
 {
-	LOG(INFO) << "Redirecting " << "vkDestroySwapchainKHR" << '(' << "device = " << device << ", swapchain = " << swapchain << ", pAllocator = " << pAllocator << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroySwapchainKHR(device = %p, swapchain = %p, pAllocator = %p) ...", device, swapchain, pAllocator);
 
 	if (swapchain == VK_NULL_HANDLE)
 		return;
@@ -1197,7 +1197,7 @@ VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapch
 #if RESHADE_VERBOSE_LOG
 	else if (result < VK_SUCCESS)
 	{
-		LOG(WARN) << "vkAcquireNextImageKHR" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkAcquireNextImageKHR failed with error code %d.", static_cast<int>(result));
 	}
 #endif
 
@@ -1219,7 +1219,7 @@ VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextI
 #if RESHADE_VERBOSE_LOG
 	else if (result < VK_SUCCESS)
 	{
-		LOG(WARN) << "vkAcquireNextImage2KHR" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkAcquireNextImage2KHR failed with error code %d.", static_cast<int>(result));
 	}
 #endif
 
@@ -1385,7 +1385,7 @@ VkResult VKAPI_CALL vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDevic
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkBindBufferMemory" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkBindBufferMemory failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1414,7 +1414,7 @@ VkResult VKAPI_CALL vkBindBufferMemory2(VkDevice device, uint32_t bindInfoCount,
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkBindBufferMemory2" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkBindBufferMemory2 failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1447,7 +1447,7 @@ VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image, VkDeviceMe
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkBindImageMemory" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkBindImageMemory failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1479,7 +1479,7 @@ VkResult VKAPI_CALL vkBindImageMemory2(VkDevice device, uint32_t bindInfoCount, 
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkBindImageMemory2" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkBindImageMemory2 failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1525,7 +1525,7 @@ VkResult VKAPI_CALL vkCreateQueryPool(VkDevice device, const VkQueryPoolCreateIn
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateQueryPool" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateQueryPool failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1595,7 +1595,7 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateBuffer" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateBuffer failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1648,7 +1648,7 @@ VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBufferViewCreate
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateBufferView" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateBufferView failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1704,7 +1704,7 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateImage" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateImage failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1759,7 +1759,7 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateImageView" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateImageView failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -1810,7 +1810,7 @@ VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkShaderModuleCr
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateShaderModule" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateShaderModule failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2075,7 +2075,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		else
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(WARN) << "vkCreateGraphicsPipelines" << " failed with error code " << result << '.';
+			reshade::log::message(reshade::log::level::warning, "vkCreateGraphicsPipelines failed with error code %d.", static_cast<int>(result));
 #endif
 
 			for (uint32_t k = 0; k < i; ++k)
@@ -2156,7 +2156,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		else
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(WARN) << "vkCreateComputePipelines" << " failed with error code " << result << '.';
+			reshade::log::message(reshade::log::level::warning, "vkCreateComputePipelines failed with error code %d.", static_cast<int>(result));
 #endif
 
 			for (uint32_t k = 0; k < i; ++k)
@@ -2347,7 +2347,7 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 		else
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(WARN) << "vkCreateRayTracingPipelinesKHR" << " failed with error code " << result << '.';
+			reshade::log::message(reshade::log::level::warning, "vkCreateRayTracingPipelinesKHR failed with error code %d.", static_cast<int>(result));
 #endif
 
 			for (uint32_t k = 0; k < i; ++k)
@@ -2465,7 +2465,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreatePipelineLayout" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreatePipelineLayout failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2524,7 +2524,7 @@ VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerCreateInfo *
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateSampler" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateSampler failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2567,7 +2567,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateDescriptorSetLayout" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateDescriptorSetLayout failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2657,7 +2657,7 @@ VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkDescriptorPo
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateDescriptorPool" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateDescriptorPool failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2716,7 +2716,7 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkAllocateDescriptorSets" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkAllocateDescriptorSets failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2881,7 +2881,7 @@ VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCrea
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateFramebuffer" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateFramebuffer failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2930,7 +2930,7 @@ VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRenderPassCreate
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateRenderPass" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateRenderPass failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -2968,7 +2968,7 @@ VkResult VKAPI_CALL vkCreateRenderPass2(VkDevice device, const VkRenderPassCreat
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateRenderPass2" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateRenderPass2 failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -3034,7 +3034,7 @@ VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBuf
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkAllocateCommandBuffers" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkAllocateCommandBuffers failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}
@@ -3100,7 +3100,7 @@ VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAc
 	if (result < VK_SUCCESS)
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "vkCreateAccelerationStructureKHR" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateAccelerationStructureKHR failed with error code %d.", static_cast<int>(result));
 #endif
 		return result;
 	}

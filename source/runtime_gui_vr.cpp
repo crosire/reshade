@@ -34,7 +34,7 @@ bool reshade::runtime::init_gui_vr()
 	{
 		if (g_client_core == nullptr)
 		{
-			LOG(ERROR) << "Failed to create VR dashboard overlay because SteamVR is not loaded!";
+			log::message(log::level::error, "Failed to create VR dashboard overlay because SteamVR is not loaded!");
 			return true; // Do not prevent effect runtime from initializing
 		}
 
@@ -46,7 +46,7 @@ bool reshade::runtime::init_gui_vr()
 	const vr::EVROverlayError overlay_e = s_overlay->CreateDashboardOverlay("reshade", "ReShade " VERSION_STRING_PRODUCT, &s_main_handle, &s_thumbnail_handle);
 	if (overlay_e != vr::VROverlayError_None)
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay with error code " << static_cast<int>(overlay_e) << '!';
+		log::message(log::level::error, "Failed to create VR dashboard overlay with error code %d!", static_cast<int>(overlay_e));
 		return false;
 	}
 
@@ -70,12 +70,12 @@ bool reshade::runtime::init_gui_vr()
 
 	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source), nullptr, api::resource_usage::copy_source, &_vr_overlay_tex))
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay texture!";
+		log::message(log::level::error, "Failed to create VR dashboard overlay texture!");
 		return false;
 	}
 	if (!_device->create_resource_view(_vr_overlay_tex, api::resource_usage::render_target, api::resource_view_desc(api::format::r8g8b8a8_unorm), &_vr_overlay_target))
 	{
-		LOG(ERROR) << "Failed to create VR dashboard overlay render target!";
+		log::message(log::level::error, "Failed to create VR dashboard overlay render target!");
 		return false;
 	}
 

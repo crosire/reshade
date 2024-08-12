@@ -344,7 +344,7 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 		{
 			_push_constants_data.clear();
 
-			LOG(ERROR) << "Failed to create push constant buffer!";
+			log::message(log::level::error, "Failed to create push constant buffer!");
 			return;
 		}
 

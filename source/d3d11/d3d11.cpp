@@ -13,22 +13,13 @@ extern thread_local bool g_in_dxgi_runtime;
 extern "C" HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(D3D11CreateDevice)(
-			pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
+		return reshade::hooks::call(D3D11CreateDevice)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
 
-	LOG(INFO) << "Redirecting " << "D3D11CreateDevice" << '('
-		<<   "pAdapter = " << pAdapter
-		<< ", DriverType = " << DriverType
-		<< ", Software = " << Software
-		<< ", Flags = " << std::hex << Flags << std::dec
-		<< ", pFeatureLevels = " << pFeatureLevels
-		<< ", FeatureLevels = " << FeatureLevels
-		<< ", SDKVersion = " << SDKVersion
-		<< ", ppDevice = " << ppDevice
-		<< ", pFeatureLevel = " << pFeatureLevel
-		<< ", ppImmediateContext = " << ppImmediateContext
-		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to " << "D3D11CreateDeviceAndSwapChain" << ':';
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D3D11CreateDevice(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, pFeatureLevels = %p, FeatureLevels = %u, SDKVersion = %u, ppDevice = %p, pFeatureLevel = %p, ppImmediateContext = %p) ...",
+		pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
+	reshade::log::message(reshade::log::level::info, "> Passing on to D3D11CreateDeviceAndSwapChain:");
 
 	// The D3D runtime does this internally anyway, so to avoid duplicate hooks, always pass on to D3D11CreateDeviceAndSwapChain
 	return D3D11CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, ppImmediateContext);
@@ -42,20 +33,10 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	if (g_in_dxgi_runtime)
 		return trampoline(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
 
-	LOG(INFO) << "Redirecting " << "D3D11CreateDeviceAndSwapChain" << '('
-		<<   "pAdapter = " << pAdapter
-		<< ", DriverType = " << DriverType
-		<< ", Software = " << Software
-		<< ", Flags = " << std::hex << Flags << std::dec
-		<< ", pFeatureLevels = " << pFeatureLevels
-		<< ", FeatureLevels = " << FeatureLevels
-		<< ", SDKVersion = " << SDKVersion
-		<< ", pSwapChainDesc = " << pSwapChainDesc
-		<< ", ppSwapChain = " << ppSwapChain
-		<< ", ppDevice = " << ppDevice
-		<< ", pFeatureLevel = " << pFeatureLevel
-		<< ", ppImmediateContext = " << ppImmediateContext
-		<< ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D3D11CreateDeviceAndSwapChain(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, pFeatureLevels = %p, FeatureLevels = %u, SDKVersion = %u, pSwapChainDesc = %p, ppSwapChain = %p, ppDevice = %p, pFeatureLevel = %p, ppImmediateContext = %p) ...",
+		pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
 
 #ifndef NDEBUG
 	// Remove flag that prevents turning on the debug layer
@@ -82,14 +63,14 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D11CreateDeviceAndSwapChain" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "D3D11CreateDeviceAndSwapChain failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
 
 	if (pFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
 		*pFeatureLevel = FeatureLevel;
 
-	LOG(INFO) << "Using feature level " << std::hex << FeatureLevel << std::dec << '.';
+	reshade::log::message(reshade::log::level::info, "Using feature level %x.", FeatureLevel);
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
 	if (ppDevice == nullptr)
@@ -108,13 +89,13 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	D3D11Device *device_proxy = nullptr;
 	if (DriverType == D3D_DRIVER_TYPE_WARP || DriverType == D3D_DRIVER_TYPE_REFERENCE)
 	{
-		LOG(WARN) << "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+		reshade::log::message(reshade::log::level::warning, "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.");
 	}
 	else if (DXGI_ADAPTER_DESC adapter_desc;
 		pAdapter != nullptr && SUCCEEDED(pAdapter->GetDesc(&adapter_desc)) &&
 		adapter_desc.VendorId == 0x1414 /* Microsoft */ && adapter_desc.DeviceId == 0x8C /* Microsoft Basic Render Driver */)
 	{
-		LOG(WARN) << "Skipping device because it uses the Microsoft Basic Render Driver.";
+		reshade::log::message(reshade::log::level::warning, "Skipping device because it uses the Microsoft Basic Render Driver.");
 	}
 	else
 	{
@@ -144,7 +125,7 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
 		assert(SUCCEEDED(hr));
 
-		LOG(INFO) << "Calling " << "IDXGIFactory::CreateSwapChain" << ':';
+		reshade::log::message(reshade::log::level::info, "Calling IDXGIFactory::CreateSwapChain:");
 
 		hr = factory->CreateSwapChain(device, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
 	}
@@ -154,8 +135,11 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Returning " << "ID3D11Device0" << " object " << static_cast<ID3D11Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
-				"IDXGIDevice1" << " object " << static_cast<IDXGIDevice1 *>(device_proxy) << " (" << static_cast<DXGIDevice *>(device_proxy)->_orig << ").";
+			reshade::log::message(
+				reshade::log::level::debug,
+				"Returning ID3D11Device0 object %p (%p) and IDXGIDevice1 object %p (%p).",
+				static_cast<ID3D11Device *>(device_proxy), device_proxy->_orig,
+				static_cast<IDXGIDevice1 *>(device_proxy), static_cast<DXGIDevice *>(device_proxy)->_orig);
 #endif
 			*ppDevice = device_proxy;
 		}

@@ -118,7 +118,7 @@ static bool find_file(const std::vector<std::filesystem::path> &search_paths, st
 		}
 		else
 		{
-			LOG(WARN) << "Failed to resolve search path " << search_path << " with error code " << ec.value() << '.';
+			reshade::log::message(reshade::log::level::warning, "Failed to resolve search path '%s' with error code %d.", search_path.u8string().c_str(), ec.value());
 		}
 	}
 
@@ -150,7 +150,7 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 		}
 		else
 		{
-			LOG(WARN) << "Failed to resolve search path " << search_path << " with error code " << ec.value() << '.';
+			reshade::log::message(reshade::log::level::warning, "Failed to resolve search path '%s' with error code %d.", search_path.u8string().c_str(), ec.value());
 		}
 	}
 
@@ -219,9 +219,9 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 
 	if (uint32_t driver_version = 0;
 		_device->get_property(api::device_properties::driver_version, &driver_version))
-		LOG(INFO) << "Running on " << device_description << " Driver " << (driver_version / 100) << '.' << (driver_version % 100) << '.';
+		log::message(log::level::info, "Running on %s Driver %u.%u.", device_description, driver_version / 100, driver_version % 100);
 	else
-		LOG(INFO) << "Running on " << device_description << '.';
+		log::message(log::level::info, "Running on %s.", device_description);
 
 	check_for_update();
 
@@ -323,7 +323,7 @@ bool reshade::runtime::on_init()
 				api::resource_view_desc(api::format_to_default_typed(_back_buffer_format, 1)),
 				&_back_buffer_targets.emplace_back()))
 		{
-			LOG(ERROR) << "Failed to create resolve texture resource!";
+			log::message(log::level::error, "Failed to create resolve texture resource!");
 			goto exit_failure;
 		}
 
@@ -335,7 +335,7 @@ bool reshade::runtime::on_init()
 					api::resource_view_desc(_back_buffer_format),
 					&_back_buffer_resolved_srv))
 			{
-				LOG(ERROR) << "Failed to create resolve shader resource view!";
+				log::message(log::level::error, "Failed to create resolve shader resource view!");
 				goto exit_failure;
 			}
 
@@ -363,7 +363,7 @@ bool reshade::runtime::on_init()
 				!_device->create_pipeline(_copy_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_copy_pipeline) ||
 				!_device->create_sampler(sampler_desc, &_copy_sampler_state))
 			{
-				LOG(ERROR) << "Failed to create copy pipeline!";
+				log::message(log::level::error, "Failed to create copy pipeline!");
 				goto exit_failure;
 			}
 		}
@@ -378,7 +378,7 @@ bool reshade::runtime::on_init()
 				api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
 				nullptr, api::resource_usage::shader_resource, &_empty_tex))
 		{
-			LOG(ERROR) << "Failed to create empty texture resource!";
+			log::message(log::level::error, "Failed to create empty texture resource!");
 			goto exit_failure;
 		}
 
@@ -386,7 +386,7 @@ bool reshade::runtime::on_init()
 
 		if (!_device->create_resource_view(_empty_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format::r16_float), &_empty_srv))
 		{
-			LOG(ERROR) << "Failed to create empty texture shader resource view!";
+			log::message(log::level::error, "Failed to create empty texture shader resource view!");
 			goto exit_failure;
 		}
 	}
@@ -436,7 +436,7 @@ bool reshade::runtime::on_init()
 					api::format_to_default_typed(back_buffer_desc.texture.format, 1), 0, 1, 0, 1),
 				&_back_buffer_targets.emplace_back()))
 		{
-			LOG(ERROR) << "Failed to create back buffer render targets!";
+			log::message(log::level::error, "Failed to create back buffer render targets!");
 			goto exit_failure;
 		}
 	}
@@ -474,7 +474,7 @@ bool reshade::runtime::on_init()
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
 
-	LOG(INFO) << "Recreated runtime environment on runtime " << this << " (" << _config_path << ").";
+	log::message(log::level::info, "Recreated runtime environment on runtime %p ('%s').", this, _config_path.u8string().c_str());
 
 	return true;
 
@@ -596,7 +596,7 @@ void reshade::runtime::on_reset()
 	invoke_addon_event<addon_event::destroy_effect_runtime>(this);
 #endif
 
-	LOG(INFO) << "Destroyed runtime environment on runtime " << this << " (" << _config_path << ").";
+	log::message(log::level::info, "Destroyed runtime environment on runtime %p ('%s').", this, _config_path.u8string().c_str());
 }
 void reshade::runtime::on_present(api::command_queue *present_queue)
 {
@@ -612,7 +612,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		if (_queue_sync_fence == 0)
 		{
 			if (!_device->create_fence(_queue_sync_value, api::fence_flags::none, &_queue_sync_fence))
-				LOG(ERROR) << "Failed to create queue synchronization fence!";
+				log::message(log::level::error, "Failed to create queue synchronization fence!");
 		}
 
 		if (_queue_sync_fence != 0)
@@ -992,7 +992,7 @@ void reshade::runtime::load_config()
 		_effect_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
 		std::filesystem::create_directory(_effect_cache_path, ec);
 		if (ec)
-			LOG(ERROR) << "Failed to create effect cache directory " << _effect_cache_path << " with error code " << ec.value() << '!';
+			log::message(log::level::error, "Failed to create effect cache directory '%s' with error code %d!", _effect_cache_path.u8string().c_str(), ec.value());
 	}
 
 	// Use startup preset instead of last selection
@@ -2309,9 +2309,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
 		if (effect.errors.empty())
-			LOG(INFO) << "Successfully compiled " << source_file << " in " << (std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f) << " s.";
+			log::message(log::level::info, "Successfully compiled '%s' in %f s.", source_file.u8string().c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f);
 		else
-			LOG(WARN) << "Successfully compiled " << source_file << " in " << (std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f) << " s with warnings:\n" << effect.errors;
+			log::message(log::level::warning, "Successfully compiled '%s' in %f s with warnings:\n%s", source_file.u8string().c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f, effect.errors.c_str());
 		return true;
 	}
 	else
@@ -2319,9 +2319,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		_last_reload_successful = false;
 
 		if (effect.errors.empty())
-			LOG(ERROR) << "Failed to compile " << source_file << '!';
+			log::message(log::level::error, "Failed to compile '%s'!", source_file.u8string().c_str());
 		else
-			LOG(ERROR) << "Failed to compile " << source_file << ":\n" << effect.errors;
+			log::message(log::level::error, "Failed to compile '%s':\n%s", source_file.u8string().c_str(), effect.errors.c_str());
 		return false;
 	}
 }
@@ -2356,7 +2356,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	// Create optional query heap for time measurements
 	if (!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
-		LOG(ERROR) << "Failed to create query heap for effect file " << effect.source_file << '!';
+		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
 
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
@@ -2421,7 +2421,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	// Create pipeline layout for this effect
 	if (!_device->create_pipeline_layout(sampler_with_resource_view ? 3 : 4, layout_params, &effect.layout))
 	{
-		LOG(ERROR) << "Failed to create pipeline layout for effect file " << effect.source_file << '!';
+		log::message(log::level::error, "Failed to create pipeline layout for effect file '%s'!", effect.source_file.u8string().c_str());
 		return false;
 	}
 
@@ -2438,7 +2438,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
 				nullptr, api::resource_usage::cpu_access, &effect.cb))
 		{
-			LOG(ERROR) << "Failed to create constant buffer for effect file " << effect.source_file << '!';
+			log::message(log::level::error, "Failed to create constant buffer for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 
@@ -2446,7 +2446,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		if (!_device->allocate_descriptor_table(effect.layout, 0, &effect.cb_table))
 		{
-			LOG(ERROR) << "Failed to create constant buffer descriptor table for effect file " << effect.source_file << '!';
+			log::message(log::level::error, "Failed to create constant buffer descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 
@@ -2472,7 +2472,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_table))
 		{
-			LOG(ERROR) << "Failed to create sampler descriptor table for effect file " << effect.source_file << '!';
+			log::message(log::level::error, "Failed to create sampler descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 
@@ -2491,7 +2491,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				api::sampler &sampler_handle = sampler_descriptors[info.binding].sampler;
 				if (!create_effect_sampler_state(info, sampler_handle))
 				{
-					LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
+					log::message(log::level::error, "Failed to create sampler object '%s' in '%s'!", info.unique_name.c_str(), effect.source_file.u8string().c_str());
 					return false;
 				}
 
@@ -2511,7 +2511,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_tables.data()))
 		{
-			LOG(ERROR) << "Failed to create texture descriptor table for effect file " << effect.source_file << '!';
+			log::message(log::level::error, "Failed to create texture descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 	}
@@ -2520,7 +2520,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	{
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, storage_tables.data()))
 		{
-			LOG(ERROR) << "Failed to create storage descriptor table for effect file " << effect.source_file << '!';
+			log::message(log::level::error, "Failed to create storage descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 	}
@@ -2566,7 +2566,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				{
 					effect.errors += "error: internal compiler error";
 
-					LOG(ERROR) << "Failed to create compute pipeline for pass " << pass_index << " in technique '" << tech.name << "' in " << effect.source_file << '!';
+					log::message(log::level::error, "Failed to create compute pipeline for pass %zu in technique '%s' in '%s'!", pass_index, tech.name.c_str(), effect.source_file.u8string().c_str());
 					return false;
 				}
 			}
@@ -2760,7 +2760,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				{
 					effect.errors += "error: internal compiler error";
 
-					LOG(ERROR) << "Failed to create graphics pipeline for pass " << pass_index << " in technique '" << tech.name << "' in " << effect.source_file << '!';
+					log::message(log::level::error, "Failed to create graphics pipeline for pass %zu in technique '%s' in '%s'!", pass_index, tech.name.c_str(), effect.source_file.u8string().c_str());
 					return false;
 				}
 			}
@@ -2792,7 +2792,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 						if (!create_effect_sampler_state(info, sampler_descriptors[info.binding].sampler))
 						{
-							LOG(ERROR) << "Failed to create sampler object '" << info.unique_name << "' in " << effect.source_file << '!';
+							log::message(log::level::error, "Failed to create sampler object '%s' in '%s'!", info.unique_name.c_str(), effect.source_file.u8string().c_str());
 							return false;
 						}
 					}
@@ -3005,7 +3005,7 @@ void reshade::runtime::load_textures()
 		// Search for image file using the provided search paths unless the path provided is already absolute
 		if (!find_file(_texture_search_paths, source_path))
 		{
-			LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' was not found in any of the texture search paths!";
+			log::message(log::level::error, "Source '%s' for texture '%s' was not found in any of the texture search paths!", source_path.u8string().c_str(), tex.unique_name.c_str());
 			_last_reload_successful = false;
 			continue;
 		}
@@ -3023,7 +3023,7 @@ void reshade::runtime::load_textures()
 			{
 				if (!is_floating_point_format)
 				{
-					LOG(ERROR) << "Source " << source_path << " for texture '" << tex.unique_name << "' is a Cube LUT file, which can only be loaded into textures with a floating-point format!";
+					log::message(log::level::error, "Source '%s' for texture '%s' is a Cube LUT file, which can only be loaded into textures with a floating-point format!", source_path.u8string().c_str(), tex.unique_name.c_str());
 					_last_reload_successful = false;
 					continue;
 				}
@@ -3118,7 +3118,7 @@ void reshade::runtime::load_textures()
 
 		if (ec || pixels == nullptr)
 		{
-			LOG(ERROR) << "Failed to load " << source_path << " for texture '" << tex.unique_name << "' with error code " << ec.value() << '!';
+			log::message(log::level::error, "Failed to load '%s' for texture '%s' with error code %d!", source_path.u8string().c_str(), tex.unique_name.c_str(), ec.value());
 			_last_reload_successful = false;
 			continue;
 		}
@@ -3148,7 +3148,7 @@ void reshade::runtime::load_textures()
 		case reshadefx::texture_format::rgba32f:
 			break;
 		default:
-			LOG(ERROR) << "Texture upload is not supported for format " << static_cast<int>(tex.format) << " of texture '" << tex.unique_name << "'!";
+			log::message(log::level::error, "Texture upload is not supported for format %d of texture '%s'!", static_cast<int>(tex.format), tex.unique_name.c_str());
 			_last_reload_successful = false;
 			stbi_image_free(pixels);
 			continue;
@@ -3278,7 +3278,7 @@ bool reshade::runtime::create_texture(texture &tex)
 
 	if (!_device->create_resource(api::resource_desc(type, tex.width, tex.height, tex.depth, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
-		LOG(ERROR) << "Failed to create texture '" << tex.unique_name << "' (width = " << tex.width << ", height = " << tex.height << ", levels = " << tex.levels << ", format = " << static_cast<uint32_t>(format) << ", usage = " << std::hex << static_cast<uint32_t>(usage) << std::dec << ")! Make sure the texture dimensions are reasonable.";
+		log::message(log::level::error, "Failed to create texture '%s' (width = %u, height = %u, levels = %hu, format = %u, usage = %#x)! Make sure the texture dimensions are reasonable.", tex.unique_name.c_str(), tex.width, tex.height, tex.levels, static_cast<uint32_t>(format), static_cast<uint32_t>(usage));
 		return false;
 	}
 
@@ -3288,7 +3288,7 @@ bool reshade::runtime::create_texture(texture &tex)
 	{
 		if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_type, view_format, 0, tex.levels, 0, UINT32_MAX), &tex.srv[0]))
 		{
-			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ", levels = " << tex.levels << ")!";
+			log::message(log::level::error, "Failed to create shader resource view for texture '%s' (format = %u, levels = %hu)!", tex.unique_name.c_str(), static_cast<uint32_t>(view_format), tex.levels);
 			return false;
 		}
 		if (view_format_srgb == view_format || tex.storage_access) // sRGB formats do not support storage usage
@@ -3297,7 +3297,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		}
 		else if (!_device->create_resource_view(tex.resource, api::resource_usage::shader_resource, api::resource_view_desc(view_type, view_format_srgb, 0, tex.levels, 0, UINT32_MAX), &tex.srv[1]))
 		{
-			LOG(ERROR) << "Failed to create shader resource view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format_srgb) << ", levels = " << tex.levels << ")!";
+			log::message(log::level::error, "Failed to create shader resource view for texture '%s' (format = %u, levels = %hu)!", tex.unique_name.c_str(), static_cast<uint32_t>(view_format_srgb), tex.levels);
 			return false;
 		}
 	}
@@ -3307,7 +3307,7 @@ bool reshade::runtime::create_texture(texture &tex)
 	{
 		if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format), &tex.rtv[0]))
 		{
-			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ")!";
+			log::message(log::level::error, "Failed to create render target view for texture '%s' (format = %u)!", tex.unique_name.c_str(), static_cast<uint32_t>(view_format));
 			return false;
 		}
 		if (view_format_srgb == view_format || tex.storage_access) // sRGB formats do not support storage usage
@@ -3316,7 +3316,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		}
 		else if (!_device->create_resource_view(tex.resource, api::resource_usage::render_target, api::resource_view_desc(view_format_srgb), &tex.rtv[1]))
 		{
-			LOG(ERROR) << "Failed to create render target view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format_srgb) << ")!";
+			log::message(log::level::error, "Failed to create render target view for texture '%s' (format = %u)!", tex.unique_name.c_str(), static_cast<uint32_t>(view_format_srgb));
 			return false;
 		}
 
@@ -3336,7 +3336,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		{
 			if (!_device->create_resource_view(tex.resource, api::resource_usage::unordered_access, api::resource_view_desc(view_type, view_format, level, 1, 0, UINT32_MAX), &tex.uav[level]))
 			{
-				LOG(ERROR) << "Failed to create unordered access view for texture '" << tex.unique_name << "' (format = " << static_cast<uint32_t>(view_format) << ", level = " << level << ")!";
+				log::message(log::level::error, "Failed to create unordered access view for texture '%s' (format = %u, level = %hu)!", tex.unique_name.c_str(), static_cast<uint32_t>(view_format), level);
 				return false;
 			}
 		}
@@ -3484,7 +3484,7 @@ void reshade::runtime::load_effects(bool force_load_all)
 		if ((_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
 			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
 		{
-			LOG(ERROR) << "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
+			log::message(log::level::error, "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!");
 			return;
 		}
 	}
@@ -3657,7 +3657,7 @@ void reshade::runtime::clear_effect_cache()
 	}
 
 	if (ec)
-		LOG(ERROR) << "Failed to clear effect cache directory with error code " << ec.value() << '!';
+		log::message(log::level::error, "Failed to clear effect cache directory with error code %d!", ec.value());
 }
 
 bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format)
@@ -3692,7 +3692,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 			api::resource_desc(width, height, 1, 1, color_format_typeless, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr, api::resource_usage::shader_resource, &_effect_color_tex))
 	{
-		LOG(ERROR) << "Failed to create effect color resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(color_format_typeless) << ")!";
+		log::message(log::level::error, "Failed to create effect color resource (width = %u, height = %u, format = %u)!", width, height, static_cast<uint32_t>(color_format_typeless));
 		return false;
 	}
 
@@ -3710,7 +3710,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 	if (!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(color_format, 0)), &_effect_color_srv[0]) ||
 		!_device->create_resource_view(_effect_color_tex, api::resource_usage::shader_resource, api::resource_view_desc(api::format_to_default_typed(color_format, 1)), &_effect_color_srv[1]))
 	{
-		LOG(ERROR) << "Failed to create effect color resource view (format = " << static_cast<uint32_t>(color_format) << ")!";
+		log::message(log::level::error, "Failed to create effect color resource view (format = %u)!", static_cast<uint32_t>(color_format));
 		return false;
 	}
 
@@ -3726,7 +3726,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 		else
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(WARN) << "Effects were rendered to different render targets with mismatching format or dimensions. This requires ReShade to recreate resources every frame which is very slow.";
+			log::message(log::level::warning, "Effects were rendered to different render targets with mismatching format or dimensions. This requires ReShade to recreate resources every frame which is very slow.");
 #endif
 
 			// Avoid reloading effects when effect color resource changes every frame
@@ -3741,7 +3741,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &_effect_stencil_tex))
 	{
-		LOG(ERROR) << "Failed to create effect stencil resource (width = " << width << ", height = " << height << ", format = " << static_cast<uint32_t>(stencil_format) << ")!";
+		log::message(log::level::error, "Failed to create effect stencil resource (width = %u, height = %u, format = %u)!", width, height, static_cast<uint32_t>(stencil_format));
 		return true; // Ignore this error, since most effects can still be rendered without stencil
 	}
 
@@ -3751,7 +3751,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 
 	if (!_device->create_resource_view(_effect_stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(stencil_format), &_effect_stencil_dsv))
 	{
-		LOG(ERROR) << "Failed to create effect stencil resource view (format = " << static_cast<uint32_t>(stencil_format) << ")!";
+		log::message(log::level::error, "Failed to create effect stencil resource view (format = %u)!", static_cast<uint32_t>(stencil_format));
 		return false;
 	}
 
@@ -4384,7 +4384,7 @@ void reshade::runtime::save_texture(const texture &tex)
 {
 	if (tex.type == reshadefx::texture_type::texture_3d)
 	{
-		LOG(ERROR) << "Texture saving is not supported for 3D textures!";
+		log::message(log::level::error, "Texture saving is not supported for 3D textures!");
 		return;
 	}
 
@@ -4446,7 +4446,7 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 {
 	if (tex.depth != depth || (tex.depth != 1 && (tex.width != width || tex.height != height)))
 	{
-		LOG(ERROR) << "Resizing image data is not supported for 3D textures like '" << tex.unique_name << "'.";
+		log::message(log::level::error, "Resizing image data is not supported for 3D textures like '%s'.", tex.unique_name.c_str());
 		return;
 	}
 
@@ -4516,7 +4516,7 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 	std::vector<uint8_t> resized;
 	if (tex.width != width || tex.height != height)
 	{
-		LOG(INFO) << "Resizing image data for texture '" << tex.unique_name << "' from " << width << "x" << height << " to " << tex.width << "x" << tex.height << '.';
+		log::message(log::level::info, "Resizing image data for texture '%s' from %ux%u to %ux%u.", tex.unique_name.c_str(), width, height, tex.width, tex.height);
 
 		resized.resize(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * static_cast<size_t>(tex.depth) * static_cast<size_t>(pixel_size));
 
@@ -4898,7 +4898,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
 
-	LOG(INFO) << "Saving screenshot to " << screenshot_path << '.';
+	log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
 
 	_last_screenshot_save_successful = true;
 
@@ -4929,7 +4929,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 			_screenshot_directory_creation_successful = true;
 			if (!std::filesystem::exists(screenshot_path.parent_path(), ec))
 				if (!(_screenshot_directory_creation_successful = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
-					LOG(ERROR) << "Failed to create screenshot directory " << screenshot_path.parent_path() << " with error code " << ec.value() << '!';
+					log::message(log::level::error, "Failed to create screenshot directory '%s' with error code %d!", screenshot_path.parent_path().u8string().c_str(), ec.value());
 
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
@@ -4977,7 +4977,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 					// Preset was flushed to disk, so can just copy it over to the new location
 					if (!std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
-						LOG(ERROR) << "Failed to copy preset file for screenshot to " << screenshot_preset_path << " with error code " << ec.value() << '!';
+						log::message(log::level::error, "Failed to copy preset file for screenshot to '%s' with error code %d!", screenshot_preset_path.u8string().c_str(), ec.value());
 				}
 #endif
 
@@ -4987,7 +4987,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 			}
 			else
 			{
-				LOG(ERROR) << "Failed to write screenshot to " << screenshot_path << '!';
+				log::message(log::level::error, "Failed to write screenshot to '%s'!", screenshot_path.u8string().c_str());
 			}
 
 			if (_last_screenshot_save_successful)
@@ -5028,7 +5028,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 
 	if (!utils::execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_hide_window))
 	{
-		LOG(ERROR) << "Failed to execute screenshot post-save command!";
+		log::message(log::level::error, "Failed to execute screenshot post-save command!");
 		return false;
 	}
 
@@ -5049,7 +5049,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 		view_format != api::format::r10g10b10a2_unorm &&
 		view_format != api::format::b10g10r10a2_unorm)
 	{
-		LOG(ERROR) << "Screenshots are not supported for format " << static_cast<uint32_t>(desc.texture.format) << '!';
+		log::message(log::level::error, "Screenshots are not supported for format %u!", static_cast<uint32_t>(desc.texture.format));
 		return false;
 	}
 
@@ -5057,7 +5057,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	api::resource intermediate;
 	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 	{
-		LOG(ERROR) << "Failed to create system memory texture for screenshot capture!";
+		log::message(log::level::error, "Failed to create system memory texture for screenshot capture!");
 		return false;
 	}
 

@@ -98,7 +98,7 @@ reshade::vulkan::device_impl::device_impl(
 
 		if (vk.CreateDescriptorPool(_orig, &create_info, nullptr, &_descriptor_pool) != VK_SUCCESS)
 		{
-			LOG(ERROR) << "Failed to create descriptor pool!";
+			log::message(log::level::error, "Failed to create descriptor pool!");
 		}
 	}
 
@@ -113,7 +113,7 @@ reshade::vulkan::device_impl::device_impl(
 
 			if (vk.CreateDescriptorPool(_orig, &create_info, nullptr, &_transient_descriptor_pool[i]) != VK_SUCCESS)
 			{
-				LOG(ERROR) << "Failed to create transient descriptor pool!";
+				log::message(log::level::error, "Failed to create transient descriptor pool!");
 			}
 		}
 	}
@@ -122,7 +122,7 @@ reshade::vulkan::device_impl::device_impl(
 
 		if (vk.CreatePrivateDataSlot(_orig, &create_info, nullptr, &_private_data_slot) != VK_SUCCESS)
 		{
-			LOG(ERROR) << "Failed to create private data slot!";
+			log::message(log::level::error, "Failed to create private data slot!");
 		}
 	}
 }
@@ -1050,7 +1050,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 		if (vmaCreateBuffer(_alloc, &create_info, &alloc_info, &intermediate, &intermediate_mem, nullptr) != VK_SUCCESS)
 		{
-			LOG(ERROR) << "Failed to create upload buffer (width = " << create_info.size << ")!";
+			log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", create_info.size);
 			return;
 		}
 	}

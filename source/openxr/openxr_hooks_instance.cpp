@@ -18,7 +18,7 @@ lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
 
 XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreateInfo, const XrApiLayerCreateInfo *pApiLayerInfo, XrInstance *pInstance)
 {
-	LOG(INFO) << "Redirecting " << "xrCreateApiLayerInstance" << '(' << "pCreateInfo = " << pCreateInfo << ", pApiLayerInfo = " << pApiLayerInfo << ", pInstance = " << pInstance << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting xrCreateApiLayerInstance(pCreateInfo = %p, pApiLayerInfo = %p, pInstance = %p) ...", pCreateInfo, pApiLayerInfo, pInstance);
 
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
@@ -39,20 +39,20 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	if (trampoline == nullptr || get_instance_proc == nullptr) // Unable to resolve next 'xrCreateApiLayerInstance' function in the call chain
 		return XR_ERROR_INITIALIZATION_FAILED;
 
-	LOG(INFO) << "> Dumping enabled instance extensions:";
+	reshade::log::message(reshade::log::level::info, "> Dumping enabled instance extensions:");
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
-		LOG(INFO) << "  " << pCreateInfo->enabledExtensionNames[i];
+		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->enabledExtensionNames[i]);
 
 	XrApiLayerCreateInfo api_layer_info = *pApiLayerInfo;
 	api_layer_info.nextInfo = pApiLayerInfo->nextInfo->next;
 
-	LOG(INFO) << "> Requesting new OpenXR instance for API version " << XR_VERSION_MAJOR(pCreateInfo->applicationInfo.apiVersion) << '.' << XR_VERSION_MINOR(pCreateInfo->applicationInfo.apiVersion) << '.';
+	reshade::log::message(reshade::log::level::info, "> Requesting new OpenXR instance for API version %hu.%hu.", XR_VERSION_MAJOR(pCreateInfo->applicationInfo.apiVersion), XR_VERSION_MINOR(pCreateInfo->applicationInfo.apiVersion));
 
 	// Continue calling down the chain
 	const XrResult result = trampoline(pCreateInfo, &api_layer_info, pInstance);
 	if (XR_FAILED(result))
 	{
-		LOG(WARN) << "xrCreateApiLayerInstance" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "xrCreateApiLayerInstance failed with error code %d.", static_cast<int>(result));
 		return result;
 	}
 
@@ -76,14 +76,14 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	g_openxr_instances.emplace(instance, openxr_dispatch_table { dispatch_table, instance });
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning OpenXR instance " << instance << '.';
+	reshade::log::message(reshade::log::level::debug, "Returning OpenXR instance %" PRIx64 ".", instance);
 #endif
 	return result;
 }
 
 XrResult XRAPI_CALL xrDestroyInstance(XrInstance instance)
 {
-	LOG(INFO) << "Redirecting " << "xrDestroyInstance" << '(' << "instance = " << instance << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting xrDestroyInstance(instance = %" PRIx64 ") ...", instance);
 
 	// Get function pointer before removing it next
 	GET_DISPATCH_PTR(DestroyInstance);

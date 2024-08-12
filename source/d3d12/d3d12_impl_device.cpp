@@ -13,6 +13,7 @@
 #include <cwchar> // std::wcslen
 #include <cstring> // std::memcmp, std::memcpy, std::strlen
 #include <algorithm> // std::copy_n, std::find, std::find_if, std::max, std::min
+#include <utf8/unchecked.h>
 #include <dxgi1_4.h>
 
 extern bool is_windows7();
@@ -55,7 +56,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 
 		if (FAILED(_orig->CreateRootSignature(0, cs.data, cs.data_size, IID_PPV_ARGS(&_mipmap_signature))))
 		{
-			LOG(ERROR) << "Failed to create mipmap generation signature!";
+			log::message(log::level::error, "Failed to create mipmap generation signature!");
 		}
 		else
 		{
@@ -65,7 +66,7 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 
 			if (FAILED(_orig->CreateComputePipelineState(&pso_desc, IID_PPV_ARGS(&_mipmap_pipeline))))
 			{
-				LOG(ERROR) << "Failed to create mipmap generation pipeline!";
+				log::message(log::level::error, "Failed to create mipmap generation pipeline!");
 			}
 		}
 	}
@@ -690,7 +691,7 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 	com_ptr<ID3D12Resource> intermediate;
 	if (FAILED(_orig->CreateCommittedResource(&upload_heap_props, D3D12_HEAP_FLAG_NONE, &intermediate_desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate))))
 	{
-		LOG(ERROR) << "Failed to create upload buffer (width = " << intermediate_desc.Width << ")!";
+		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", intermediate_desc.Width);
 		return;
 	}
 	intermediate->SetName(L"ReShade upload buffer");
@@ -762,7 +763,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	com_ptr<ID3D12Resource> intermediate;
 	if (FAILED(_orig->CreateCommittedResource(&upload_heap_props, D3D12_HEAP_FLAG_NONE, &intermediate_desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediate))))
 	{
-		LOG(ERROR) << "Failed to create upload buffer (width = " << intermediate_desc.Width << ")!";
+		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", intermediate_desc.Width);
 		return;
 	}
 	intermediate->SetName(L"ReShade upload buffer");
@@ -1479,7 +1480,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	else
 	{
 		if (error_blob != nullptr)
-			LOG(ERROR) << "Failed to create root signature: " << static_cast<const char *>(error_blob->GetBufferPointer());
+			log::message(log::level::error, "Failed to create root signature: %s", static_cast<const char *>(error_blob->GetBufferPointer()));
 
 		delete[] set_ranges;
 
@@ -2171,18 +2172,18 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 #else
 	if (heap_index >= (1ull << std::min(sizeof(SIZE_T) * 8 - heap_index_start, heap_index_start)))
 	{
-		LOG(ERROR) << "Descriptor heap index is too big to fit into handle!";
+		reshade::log::message(reshade::log::level::error, "Descriptor heap index is too big to fit into handle!");
 	}
 #endif
 	if (_device->GetDescriptorHandleIncrementSize(heap_desc.Type) < (1 << 3))
 	{
 		assert(false);
-		LOG(ERROR) << "Descriptor heap contains descriptors that are too small!";
+		reshade::log::message(reshade::log::level::error, "Descriptor heap contains descriptors that are too small!");
 	}
 	if ((heap_desc.NumDescriptors * _device->GetDescriptorHandleIncrementSize(heap_desc.Type)) >= (1 << heap_index_start))
 	{
 		assert(false);
-		LOG(ERROR) << "Descriptor heap contains too many descriptors to fit into handle!";
+		reshade::log::message(reshade::log::level::error, "Descriptor heap contains too many descriptors to fit into handle!");
 	}
 
 	if (heap_desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)

@@ -12,13 +12,10 @@
 
 extern "C" HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, REFIID riidltf, LPVOID *ppvOut, LPUNKNOWN pUnkOuter)
 {
-	LOG(INFO) << "Redirecting " << "DirectInput8Create" << '('
-		<<   "hinst = " << hinst
-		<< ", dwVersion = " << std::hex << dwVersion << std::dec
-		<< ", riidltf = " << riidltf
-		<< ", ppvOut = " << ppvOut
-		<< ", pUnkOuter = " << pUnkOuter
-		<< ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting DirectInput8Create(hinst = %p, dwVersion = %x, riidltf = %s, ppvOut = %p, pUnkOuter = %p) ...",
+		hinst, dwVersion, reshade::log::iid_to_string(riidltf).c_str(), ppvOut, pUnkOuter);
 
 	return reshade::hooks::call(DirectInput8Create)(hinst, dwVersion, riidltf, ppvOut, pUnkOuter);
 }

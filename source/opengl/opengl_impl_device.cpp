@@ -1830,7 +1830,7 @@ static bool create_shader_module(GLenum type, const reshade::api::shader_desc &d
 			std::vector<char> log(log_size);
 			gl.GetShaderInfoLog(shader_object, log_size, nullptr, log.data());
 
-			LOG(ERROR) << "Failed to compile GLSL shader:\n" << log.data();
+			reshade::log::message(reshade::log::level::error, "Failed to compile GLSL shader:\n%s", log.data());
 		}
 
 		return false;
@@ -1976,7 +1976,7 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 				std::vector<char> log(log_size);
 				gl.GetProgramInfoLog(impl->program, log_size, nullptr, log.data());
 
-				LOG(ERROR) << "Failed to link GLSL program:\n" << log.data();
+				reshade::log::message(reshade::log::level::error, "Failed to link GLSL program:\n%s", log.data());
 			}
 
 			gl.DeleteProgram(impl->program);

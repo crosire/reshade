@@ -6,21 +6,9 @@
 #pragma once
 
 #include <cassert>
-#include <iomanip>
-#include <sstream>
+#include <cinttypes>
+#include <string>
 #include <filesystem>
-#include <utf8/unchecked.h>
-
-#undef INFO
-#undef ERROR // This is defined in the Windows SDK headers
-#undef WARN
-#undef DEBUG
-
-#define LOG(LEVEL) LOG_##LEVEL()
-#define LOG_INFO() reshade::log::message(reshade::log::level::info)
-#define LOG_ERROR() reshade::log::message(reshade::log::level::error)
-#define LOG_WARN() reshade::log::message(reshade::log::level::warning)
-#define LOG_DEBUG() reshade::log::message(reshade::log::level::debug)
 
 namespace reshade::log
 {
@@ -41,112 +29,67 @@ namespace reshade::log
 	/// <summary>
 	/// Constructs a single log message including current time and level and writes it to the open log file.
 	/// </summary>
-	struct message
-	{
-		explicit message(level level);
-		~message();
-
-		template <typename T>
-		message &operator<<(const T &value)
-		{
-			_line_stream << value;
-			return *this;
-		}
-
-#if defined(_REFIID_DEFINED) && defined(_COMBASEAPI_H_)
-		template <>
-		message &operator<<(REFIID riid)
-		{
-			OLECHAR riid_string[40];
-			if (StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string)))
-				operator<<(riid_string);
-			return *this;
-		}
-#endif
+	void message(level level, const char *format, ...);
 
 #if defined(_HRESULT_DEFINED)
-		template <>
-		message &operator<<(const HRESULT &hresult) // Note: HRESULT is just an alias for long, so this falsely catches all long values too
+	inline std::string hr_to_string(HRESULT hr)
+	{
+		switch (hr)
 		{
-			switch (hresult)
-			{
-			case E_NOTIMPL:
-				return *this << "E_NOTIMPL";
-			case E_OUTOFMEMORY:
-				return *this << "E_OUTOFMEMORY";
-			case E_INVALIDARG:
-				return *this << "E_INVALIDARG";
-			case E_NOINTERFACE:
-				return *this << "E_NOINTERFACE";
-			case E_FAIL:
-				return *this << "E_FAIL";
-			case 0x8876017C:
-				return *this << "D3DERR_OUTOFVIDEOMEMORY";
-			case 0x88760868:
-				return *this << "D3DERR_DEVICELOST";
-			case 0x8876086A:
-				return *this << "D3DERR_NOTAVAILABLE";
-			case 0x8876086C:
-				return *this << "D3DERR_INVALIDCALL";
-			case 0x88760870:
-				return *this << "D3DERR_DEVICEREMOVED";
-			case 0x88760874:
-				return *this << "D3DERR_DEVICEHUNG";
-			case DXGI_ERROR_INVALID_CALL:
-				return *this << "DXGI_ERROR_INVALID_CALL";
-			case DXGI_ERROR_UNSUPPORTED:
-				return *this << "DXGI_ERROR_UNSUPPORTED";
-			case DXGI_ERROR_DEVICE_REMOVED:
-				return *this << "DXGI_ERROR_DEVICE_REMOVED";
-			case DXGI_ERROR_DEVICE_HUNG:
-				return *this << "DXGI_ERROR_DEVICE_HUNG";
-			case DXGI_ERROR_DEVICE_RESET:
-				return *this << "DXGI_ERROR_DEVICE_RESET";
-			case DXGI_ERROR_DRIVER_INTERNAL_ERROR:
-				return *this << "DXGI_ERROR_DRIVER_INTERNAL_ERROR";
-			default:
-				return *this << std::hex << static_cast<unsigned long>(hresult) << std::dec;
-			}
+		case E_NOTIMPL:
+			return "E_NOTIMPL";
+		case E_OUTOFMEMORY:
+			return "E_OUTOFMEMORY";
+		case E_INVALIDARG:
+			return "E_INVALIDARG";
+		case E_NOINTERFACE:
+			return "E_NOINTERFACE";
+		case E_FAIL:
+			return "E_FAIL";
+		case 0x8876017C:
+			return "D3DERR_OUTOFVIDEOMEMORY";
+		case 0x88760868:
+			return "D3DERR_DEVICELOST";
+		case 0x8876086A:
+			return "D3DERR_NOTAVAILABLE";
+		case 0x8876086C:
+			return "D3DERR_INVALIDCALL";
+		case 0x88760870:
+			return "D3DERR_DEVICEREMOVED";
+		case 0x88760874:
+			return "D3DERR_DEVICEHUNG";
+		case DXGI_ERROR_INVALID_CALL:
+			return "DXGI_ERROR_INVALID_CALL";
+		case DXGI_ERROR_UNSUPPORTED:
+			return "DXGI_ERROR_UNSUPPORTED";
+		case DXGI_ERROR_DEVICE_REMOVED:
+			return "DXGI_ERROR_DEVICE_REMOVED";
+		case DXGI_ERROR_DEVICE_HUNG:
+			return "DXGI_ERROR_DEVICE_HUNG";
+		case DXGI_ERROR_DEVICE_RESET:
+			return "DXGI_ERROR_DEVICE_RESET";
+		case DXGI_ERROR_DRIVER_INTERNAL_ERROR:
+			return "DXGI_ERROR_DRIVER_INTERNAL_ERROR";
+		default:
+			char temp_string[11];
+			return std::string(temp_string, std::snprintf(temp_string, std::size(temp_string), "%#x", hr));
 		}
+	}
 #endif
 
-		template <>
-		message &operator<<(const std::wstring &message)
+#if defined(_REFIID_DEFINED) && defined(_COMBASEAPI_H_)
+	inline std::string iid_to_string(REFIID riid)
+	{
+		OLECHAR riid_string[40];
+		const int len = StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
+		if (len != 0)
 		{
-			static_assert(sizeof(std::wstring::value_type) == sizeof(uint16_t), "expected 'std::wstring' to use UTF-16 encoding");
-
-			std::string utf8_message;
-			utf8_message.reserve(message.size());
-			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8_message));
-
-			return operator<<(utf8_message);
+			char temp_string[40];
+			for (int i = 0; i < len; ++i)
+				temp_string[i] = riid_string[i] & 0xFF;
+			return std::string(temp_string, len);
 		}
-
-		template <>
-		message &operator<<(const std::filesystem::path &path)
-		{
-			return operator<<('"' + path.u8string() + '"');
-		}
-
-		inline message &operator<<(const char *message)
-		{
-			assert(message != nullptr);
-			_line_stream << message;
-			return *this;
-		}
-
-		inline message &operator<<(const wchar_t *message)
-		{
-			static_assert(sizeof(wchar_t) == sizeof(uint16_t), "expected 'wchar_t' to use UTF-16 encoding");
-
-			assert(message != nullptr);
-			std::string utf8_message;
-			utf8::unchecked::utf16to8(message, message + wcslen(message), std::back_inserter(utf8_message));
-
-			return operator<<(utf8_message);
-		}
-
-	private:
-		std::ostringstream _line_stream;
-	};
+		return "{...}";
+	}
+#endif
 }

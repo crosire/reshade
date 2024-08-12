@@ -35,7 +35,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadGraphicsPipeline(ID3D12Pipel
 	else
 	{
 		// 'E_INVALIDARG' is a common occurence indicating that the requested pipeline was not in the library
-		LOG(WARN) << "ID3D12PipelineLibrary::LoadGraphicsPipeline" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D12PipelineLibrary::LoadGraphicsPipeline failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -64,7 +64,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadComputePipeline(ID3D12Pipeli
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D12PipelineLibrary::LoadComputePipeline" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D12PipelineLibrary::LoadComputePipeline failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -94,7 +94,7 @@ HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary1_LoadPipeline(ID3D12PipelineLibr
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D12PipelineLibrary1::LoadPipeline" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D12PipelineLibrary1::LoadPipeline failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 

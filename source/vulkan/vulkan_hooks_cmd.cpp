@@ -268,7 +268,7 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 #if RESHADE_VERBOSE_LOG
 	if (result < VK_SUCCESS)
 	{
-		LOG(WARN) << "vkBeginCommandBuffer" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkBeginCommandBuffer failed with error code %d.", static_cast<int>(result));
 	}
 #endif
 	return result;
@@ -299,7 +299,7 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 #if RESHADE_VERBOSE_LOG
 	if (result < VK_SUCCESS)
 	{
-		LOG(WARN) << "vkEndCommandBuffer" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkEndCommandBuffer failed with error code %d.", static_cast<int>(result));
 	}
 #endif
 	return result;

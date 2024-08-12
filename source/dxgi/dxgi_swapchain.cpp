@@ -154,7 +154,7 @@ bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgrading IDXGISwapChain" << _interface_version << " object " << this << " to IDXGISwapChain" << version << '.';
+			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGISwapChain%hu object %p to IDXGISwapChain%hu.", _interface_version, this, version);
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGISwapChain *>(new_interface);
@@ -198,7 +198,7 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ").";
+	reshade::log::message(reshade::log::level::debug, "Destroying IDXGISwapChain%hu object %p (%p).", interface_version, this, orig);
 #endif
 	delete this;
 
@@ -206,14 +206,14 @@ ULONG   STDMETHODCALLTYPE DXGISwapChain::Release()
 	if (BOOL fullscreen = FALSE;
 		SUCCEEDED(orig->GetFullscreenState(&fullscreen, nullptr)) && fullscreen)
 	{
-		LOG(WARN) << "Attempted to destroy swap chain while still in fullscreen mode.";
+		reshade::log::message(reshade::log::level::warning, "Attempted to destroy swap chain while still in fullscreen mode.");
 	}
 	else
 	{
 		// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
 		const ULONG ref_orig = orig->Release();
 		if (ref_orig != 0) // Verify internal reference count
-			LOG(WARN) << "Reference count for " << "IDXGISwapChain" << interface_version << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+			reshade::log::message(reshade::log::level::warning, "Reference count for IDXGISwapChain%hu object %p (%p) is inconsistent (%lu).", interface_version, this, orig, ref_orig);
 	}
 
 	return 0;
@@ -260,7 +260,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, voi
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
 {
-	LOG(INFO) << "Redirecting " << "IDXGISwapChain::SetFullscreenState" << '(' << "this = " << this << ", Fullscreen = " << (Fullscreen ? "TRUE" : "FALSE") << ", pTarget = " << pTarget << ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGISwapChain::SetFullscreenState(this = %p, Fullscreen = %s, pTarget = %p) ...",
+		this, Fullscreen ? "TRUE" : "FALSE", pTarget);
 
 	_current_fullscreen_state = -1;
 
@@ -313,14 +316,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
-	LOG(INFO) << "Redirecting " << "IDXGISwapChain::ResizeBuffers" << '('
-		<<   "this = " << this
-		<< ", BufferCount = " << BufferCount
-		<< ", Width = " << Width
-		<< ", Height = " << Height
-		<< ", NewFormat = " << NewFormat
-		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
-		<< ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGISwapChain::ResizeBuffers(this = %p, BufferCount = %u, Width = %u, Height = %u, NewFormat = %d, SwapChainFlags = %#x) ...",
+		this, BufferCount, Width, Height, static_cast<int>(NewFormat), SwapChainFlags);
 
 	on_reset();
 
@@ -362,12 +361,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
-		LOG(WARN) << "IDXGISwapChain::ResizeBuffers" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
+		reshade::log::message(reshade::log::level::warning, "IDXGISwapChain::ResizeBuffers failed with error code DXGI_ERROR_INVALID_CALL.");
 		on_init();
 	}
 	else
 	{
-		LOG(ERROR) << "IDXGISwapChain::ResizeBuffers" << " failed with error code " << hr << '!';
+		reshade::log::message(reshade::log::level::error, "IDXGISwapChain::ResizeBuffers failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 	}
 
 	return hr;
@@ -528,9 +527,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	}
 
 	if (color_space_string != nullptr)
-		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << color_space_string << ')' << " ...";
+		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %s) ...", color_space_string);
 	else
-		LOG(INFO) << "Redirecting " << "IDXGISwapChain3::SetColorSpace1" << '(' << "ColorSpace = " << ColorSpace << ')' << " ...";
+		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
 	// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
 	DXGI_COLOR_SPACE_TYPE prev_color_space = ColorSpace;
@@ -570,18 +569,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 
 	return hr;
 }
-HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
 {
-	LOG(INFO) << "Redirecting " << "IDXGISwapChain3::ResizeBuffers1" << '('
-		<<   "this = " << this
-		<< ", BufferCount = " << BufferCount
-		<< ", Width = " << Width
-		<< ", Height = " << Height
-		<< ", Format = " << Format
-		<< ", SwapChainFlags = " << std::hex << SwapChainFlags << std::dec
-		<< ", pCreationNodeMask = " << pCreationNodeMask
-		<< ", ppPresentQueue = " << ppPresentQueue
-		<< ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGISwapChain3::ResizeBuffers1(this = %p, BufferCount = %u, Width = %u, Height = %u, Format = %d, SwapChainFlags = %#x, pCreationNodeMask = %p, ppPresentQueue = %p) ...",
+		this, BufferCount, Width, Height, static_cast<int>(NewFormat), SwapChainFlags, pCreationNodeMask, ppPresentQueue);
 
 	on_reset();
 
@@ -605,8 +598,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		desc.BufferCount = BufferCount;
 		desc.Width = Width;
 		desc.Height = Height;
-		if (Format != DXGI_FORMAT_UNKNOWN)
-			desc.Format = Format;
+		if (NewFormat != DXGI_FORMAT_UNKNOWN)
+			desc.Format = NewFormat;
 		desc.Flags = SwapChainFlags;
 
 		fullscreen_desc.Windowed = !fullscreen;
@@ -615,7 +608,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		{
 			Width = desc.Width;
 			Height = desc.Height;
-			Format = desc.Format;
+			NewFormat = desc.Format;
 		}
 	}
 #endif
@@ -631,7 +624,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask, present_queues.p);
+	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, NewFormat, SwapChainFlags, pCreationNodeMask, present_queues.p);
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
@@ -639,12 +632,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL)
 	{
-		LOG(WARN) << "IDXGISwapChain3::ResizeBuffers1" << " failed with error code " << "DXGI_ERROR_INVALID_CALL" << '.';
+		reshade::log::message(reshade::log::level::warning, "IDXGISwapChain3::ResizeBuffers1 failed with error code DXGI_ERROR_INVALID_CALL.");
 		on_init();
 	}
 	else
 	{
-		LOG(ERROR) << "IDXGISwapChain3::ResizeBuffers1" << " failed with error code " << hr << '!';
+		reshade::log::message(reshade::log::level::error, "IDXGISwapChain3::ResizeBuffers1 failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 	}
 
 	return hr;
@@ -811,7 +804,7 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 
 	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
 	{
-		LOG(ERROR) << "Device was lost with " << hr << '!';
+		reshade::log::message(reshade::log::level::error, "Device was lost with %s!", reshade::log::hr_to_string(hr).c_str());
 
 		if (hr == DXGI_ERROR_DEVICE_REMOVED)
 		{
@@ -829,7 +822,7 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 				break;
 			}
 
-			LOG(ERROR) << "> Device removal reason is " << reason << '.';
+			reshade::log::message(reshade::log::level::error, "> Device removal reason is %s.", reshade::log::hr_to_string(reason).c_str());
 		}
 	}
 }

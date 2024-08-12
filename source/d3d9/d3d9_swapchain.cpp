@@ -57,7 +57,7 @@ bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
 		if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&new_interface))))
 			return false;
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Upgrading IDirect3DSwapChain9 object " << this << " to IDirect3DSwapChain9Ex.";
+		reshade::log::message(reshade::log::level::debug, "Upgrading IDirect3DSwapChain9 object %p to IDirect3DSwapChain9Ex.", this);
 #endif
 		_orig->Release();
 		_orig = new_interface;
@@ -105,14 +105,14 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	const auto orig = _orig;
 	const bool extended_interface = _extended_interface;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ").";
+	reshade::log::message(reshade::log::level::debug, "Destroying IDirect3DSwapChain9%s object %p (%p).", extended_interface ? "Ex" : "", this, orig);
 #endif
 	this->~Direct3DSwapChain9();
 
 	// Only release internal reference after the effect runtime has been destroyed, so any references it held are cleaned up at this point
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "IDirect3DSwapChain9" << (extended_interface ? "Ex" : "") << " object " << this << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+		reshade::log::message(reshade::log::level::warning, "Reference count for IDirect3DSwapChain9%s object %p (%p) is inconsistent (%lu).", extended_interface ? "Ex" : "", this, orig, ref_orig);
 
 	operator delete(this, sizeof(Direct3DSwapChain9));
 	return 0;
@@ -251,7 +251,7 @@ void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
 	// Ignore D3DERR_DEVICELOST, since it can frequently occur when minimizing out of exclusive fullscreen
 	if (hr == D3DERR_DEVICEREMOVED || hr == D3DERR_DEVICEHUNG)
 	{
-		LOG(ERROR) << "Device was lost with " << hr << '!';
+		reshade::log::message(reshade::log::level::error, "Device was lost with %s!", reshade::log::hr_to_string(hr).c_str());
 		// Do not clean up resources, since application has to call 'IDirect3DDevice9::Reset' anyway, which will take care of that
 	}
 }

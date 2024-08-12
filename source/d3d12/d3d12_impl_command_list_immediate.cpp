@@ -78,7 +78,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 
 	if (const HRESULT hr = _orig->Close(); FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to close immediate command list!" << " HRESULT is " << hr << '.';
+		log::message(log::level::error, "Failed to close immediate command list with error code %s!", reshade::log::hr_to_string(hr).c_str());
 
 		_current_query_fences.clear();
 

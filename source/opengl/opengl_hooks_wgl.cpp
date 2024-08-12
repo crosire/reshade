@@ -311,7 +311,7 @@ public:
 		// Do not use default FBO description of device to compare, since it may be shared and changed repeatedly by multiple swap chains
 		if (width != _last_width || height != _last_height)
 		{
-			LOG(INFO) << "Resizing device context " << _orig << " to " << width << "x" << height << " ...";
+			reshade::log::message(reshade::log::level::info, "Resizing device context %p to %ux%u ...", _orig, width, height);
 
 			on_init(context, width, height);
 		}
@@ -355,151 +355,154 @@ reshade::api::pipeline_layout get_opengl_pipeline_layout()
 
 extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
-	LOG(INFO) << "Redirecting " << "wglChoosePixelFormat" << '(' << "hdc = " << hdc << ", ppfd = " << ppfd << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglChoosePixelFormat(hdc = %p, ppfd = %p) ...", hdc, ppfd);
 
 	assert(ppfd != nullptr);
 
-	LOG(INFO) << "> Dumping pixel format descriptor:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Name                                    | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << ppfd->dwFlags << std::dec << " |";
-	LOG(INFO) << "  | ColorBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
-	LOG(INFO) << "  | DepthBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
-	LOG(INFO) << "  | StencilBits                             | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << " |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	reshade::log::message(reshade::log::level::info, "> Dumping pixel format descriptor:");
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+	reshade::log::message(reshade::log::level::info, "  | Name                                    | Value                                   |");
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+	reshade::log::message(reshade::log::level::info, "  | Flags                                   | %-#39lx |", ppfd->dwFlags);
+	reshade::log::message(reshade::log::level::info, "  | ColorBits                               | %-39u |", static_cast<unsigned int>(ppfd->cColorBits));
+	reshade::log::message(reshade::log::level::info, "  | DepthBits                               | %-39u |", static_cast<unsigned int>(ppfd->cDepthBits));
+	reshade::log::message(reshade::log::level::info, "  | StencilBits                             | %-39u |", static_cast<unsigned int>(ppfd->cStencilBits));
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
-		LOG(WARN) << "Layered OpenGL contexts are not supported.";
+		reshade::log::message(reshade::log::level::warning, "Layered OpenGL contexts are not supported.");
 	}
 	else if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
-		LOG(WARN) << "Single buffered OpenGL contexts are not supported.";
+		reshade::log::message(reshade::log::level::warning, "Single buffered OpenGL contexts are not supported.");
 	}
 
 	// Note: Windows calls into 'wglDescribePixelFormat' repeatedly from this, so make sure it reports correct results
 	const int format = reshade::hooks::call(wglChoosePixelFormat)(hdc, ppfd);
 	if (format != 0)
-		LOG(INFO) << "Returning pixel format: " << format;
+		reshade::log::message(reshade::log::level::info, "Returning pixel format: %d", format);
 	else
-		LOG(WARN) << "wglChoosePixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglChoosePixelFormat failed with error code %lu.", GetLastError() & 0xFFFF);
 
 	return format;
 }
 		   BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
-	LOG(INFO) << "Redirecting " << "wglChoosePixelFormatARB" << '(' << "hdc = " << hdc << ", piAttribIList = " << piAttribIList << ", pfAttribFList = " << pfAttribFList << ", nMaxFormats = " << nMaxFormats << ", piFormats = " << piFormats << ", nNumFormats = " << nNumFormats << ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglChoosePixelFormatARB(hdc = %p, piAttribIList = %p, pfAttribFList = %p, nMaxFormats = %u, piFormats = %p, nNumFormats = %p) ...",
+		hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats);
 
 	bool layerplanes = false, doublebuffered = false;
 
-	LOG(INFO) << "> Dumping attributes:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Attribute                               | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	reshade::log::message(reshade::log::level::info,"> Dumping attributes:");
+	reshade::log::message(reshade::log::level::info,"  +-----------------------------------------+-----------------------------------------+");
+	reshade::log::message(reshade::log::level::info,"  | Attribute                               | Value                                   |");
+	reshade::log::message(reshade::log::level::info,"  +-----------------------------------------+-----------------------------------------+");
 
 	for (const int *attrib = piAttribIList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
 		switch (attrib[0])
 		{
 		case wgl_attribute::WGL_DRAW_TO_WINDOW_ARB:
-			LOG(INFO) << "  | WGL_DRAW_TO_WINDOW_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_DRAW_TO_WINDOW_ARB                  | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_DRAW_TO_BITMAP_ARB:
-			LOG(INFO) << "  | WGL_DRAW_TO_BITMAP_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_DRAW_TO_BITMAP_ARB                  | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_ACCELERATION_ARB:
-			LOG(INFO) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_ACCELERATION_ARB                    | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		case wgl_attribute::WGL_SWAP_LAYER_BUFFERS_ARB:
 			layerplanes = layerplanes || attrib[1] != FALSE;
-			LOG(INFO) << "  | WGL_SWAP_LAYER_BUFFERS_ARB              | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_SWAP_LAYER_BUFFERS_ARB              | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_SWAP_METHOD_ARB:
-			LOG(INFO) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_SWAP_METHOD_ARB                     | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		case wgl_attribute::WGL_NUMBER_OVERLAYS_ARB:
 			layerplanes = layerplanes || attrib[1] != 0;
-			LOG(INFO) << "  | WGL_NUMBER_OVERLAYS_ARB                 | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_NUMBER_OVERLAYS_ARB                 | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_NUMBER_UNDERLAYS_ARB:
 			layerplanes = layerplanes || attrib[1] != 0;
-			LOG(INFO) << "  | WGL_NUMBER_UNDERLAYS_ARB                | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_NUMBER_UNDERLAYS_ARB                | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_SUPPORT_GDI_ARB:
-			LOG(INFO) << "  | WGL_SUPPORT_GDI_ARB                     | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_SUPPORT_GDI_ARB                     | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_SUPPORT_OPENGL_ARB:
-			LOG(INFO) << "  | WGL_SUPPORT_OPENGL_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_SUPPORT_OPENGL_ARB                  | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_DOUBLE_BUFFER_ARB:
 			doublebuffered = attrib[1] != FALSE;
-			LOG(INFO) << "  | WGL_DOUBLE_BUFFER_ARB                   | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_DOUBLE_BUFFER_ARB                   | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_STEREO_ARB:
-			LOG(INFO) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_STEREO_ARB                          | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_PIXEL_TYPE_ARB:
-			LOG(INFO) << "  | WGL_PIXEL_TYPE_ARB                      | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_PIXEL_TYPE_ARB                      | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		case wgl_attribute::WGL_COLOR_BITS_ARB:
-			LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_COLOR_BITS_ARB                      | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_RED_BITS_ARB:
-			LOG(INFO) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_RED_BITS_ARB                        | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_GREEN_BITS_ARB:
-			LOG(INFO) << "  | WGL_GREEN_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_GREEN_BITS_ARB                      | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_BLUE_BITS_ARB:
-			LOG(INFO) << "  | WGL_BLUE_BITS_ARB                       | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_BLUE_BITS_ARB                       | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_ALPHA_BITS_ARB:
-			LOG(INFO) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_ALPHA_BITS_ARB                      | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_DEPTH_BITS_ARB:
-			LOG(INFO) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_DEPTH_BITS_ARB                      | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_STENCIL_BITS_ARB:
-			LOG(INFO) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_STENCIL_BITS_ARB                    | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_DRAW_TO_PBUFFER_ARB:
-			LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_DRAW_TO_PBUFFER_ARB                 | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case wgl_attribute::WGL_SAMPLE_BUFFERS_ARB:
-			LOG(INFO) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_SAMPLE_BUFFERS_ARB                  | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_SAMPLES_ARB:
-			LOG(INFO) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_SAMPLES_ARB                         | %-39d |", attrib[1]);
 			break;
 		case wgl_attribute::WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB:
-			LOG(INFO) << "  | WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		default:
-			LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | %-#39x | %-39d |", static_cast<unsigned int>(attrib[0]), attrib[1]);
 			break;
 		}
 	}
 
 	for (const FLOAT *attrib = pfAttribFList; attrib != nullptr && *attrib != 0.0f; attrib += 2)
 	{
-		LOG(INFO) << "  | " << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << " |";
+		reshade::log::message(reshade::log::level::info, "  | %-#39x | %-39f |", static_cast<unsigned int>(attrib[0]), attrib[1]);
 	}
 
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 	if (layerplanes)
 	{
-		LOG(WARN) << "Layered OpenGL contexts are not supported.";
+		reshade::log::message(reshade::log::level::warning, "Layered OpenGL contexts are not supported.");
 	}
 	else if (!doublebuffered)
 	{
-		LOG(WARN) << "Single buffered OpenGL contexts are not supported.";
+		reshade::log::message(reshade::log::level::warning, "Single buffered OpenGL contexts are not supported.");
 	}
 
 	if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARN) << "wglChoosePixelFormatARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglChoosePixelFormatARB failed with error code %lu.", GetLastError() & 0xFFFF);
 		return FALSE;
 	}
 
@@ -514,7 +517,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 		formats += ' ' + std::to_string(piFormats[i]);
 	}
 
-	LOG(INFO) << "Returning pixel format(s):" << formats;
+	reshade::log::message(reshade::log::level::info, "Returning pixel format(s):%s", formats.c_str());
 
 	return TRUE;
 }
@@ -527,7 +530,7 @@ extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 {
 	if (iLayerPlane != 0)
 	{
-		LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 		SetLastError(ERROR_INVALID_PARAMETER);
 		return FALSE;
 	}
@@ -538,7 +541,7 @@ extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 {
 	if (iLayerPlane != 0)
 	{
-		LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 		SetLastError(ERROR_INVALID_PARAMETER);
 		return FALSE;
 	}
@@ -547,7 +550,7 @@ extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 }
 extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
 {
-	LOG(INFO) << "Redirecting " << "wglSetPixelFormat" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", ppfd = " << ppfd << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglSetPixelFormat(hdc = %p, iPixelFormat = %d, ppfd = %p) ...", hdc, iPixelFormat, ppfd);
 
 #if RESHADE_ADDON
 	reshade::load_addons();
@@ -641,7 +644,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 			UINT num_formats = 0;
 			if (!reshade::hooks::call(wglChoosePixelFormatARB)(hdc, reinterpret_cast<const int *>(attribs), nullptr, 1, &iPixelFormat, &num_formats) || num_formats == 0)
 			{
-				LOG(ERROR) << "Failed to find a suitable pixel format with error code " << (GetLastError() & 0xFFFF) << '!';
+				reshade::log::message(reshade::log::level::error, "Failed to find a suitable pixel format with error code %lu!", GetLastError() & 0xFFFF);
 			}
 			else
 			{
@@ -655,7 +658,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 			const int pixel_format = reshade::hooks::call(wglChoosePixelFormat)(hdc, &pfd);
 			if (pixel_format == 0)
 			{
-				LOG(ERROR) << "Failed to find a suitable pixel format with error code " << (GetLastError() & 0xFFFF) << '!';
+				reshade::log::message(reshade::log::level::error, "Failed to find a suitable pixel format with error code %lu!", GetLastError() & 0xFFFF);
 			}
 			else
 			{
@@ -671,13 +674,13 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 	if (!reshade::hooks::call(wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARN) << "wglSetPixelFormat" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglSetPixelFormat failed with error code %lu.", GetLastError() & 0xFFFF);
 		return FALSE;
 	}
 
 	if (GetPixelFormat(hdc) == 0)
 	{
-		LOG(WARN) << "Application mistakenly called wglSetPixelFormat directly. Passing on to SetPixelFormat ...";
+		reshade::log::message(reshade::log::level::warning, "Application mistakenly called wglSetPixelFormat directly. Passing on to SetPixelFormat ...");
 
 		SetPixelFormat(hdc, iPixelFormat, ppfd);
 	}
@@ -691,32 +694,44 @@ extern "C" int   WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT n
 
 extern "C" BOOL  WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
-	LOG(INFO) << "Redirecting " << "wglDescribeLayerPlane" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", iLayerPlane = " << iLayerPlane << ", nBytes = " << nBytes << ", plpd = " << plpd << ')' << " ...";
-	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglDescribeLayerPlane(hdc = %p, iPixelFormat = %d, iLayerPlane = %d, nBytes = %u, plpd = %p) ...",
+		hdc, iPixelFormat, iLayerPlane, nBytes, plpd);
+	reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 extern "C" BOOL  WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 {
-	LOG(INFO) << "Redirecting " << "wglRealizeLayerPalette" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", b = " << (b ? "TRUE" : "FALSE") << ')' << " ...";
-	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglRealizeLayerPalette(hdc = %p, iLayerPlane = %d, b = %s) ...",
+		hdc, iLayerPlane, b ? "TRUE" : "FALSE");
+	reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return FALSE;
 }
 extern "C" int   WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
-	LOG(INFO) << "Redirecting " << "wglGetLayerPaletteEntries" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", iStart = " << iStart << ", cEntries = " << cEntries << ", pcr = " << pcr << ')' << " ...";
-	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglGetLayerPaletteEntries(hdc = %p, iLayerPlane = %d, iStart = %d, cEntries = %d, pcr = %p) ...",
+		hdc, iLayerPlane, iStart, cEntries, pcr);
+	reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return 0;
 }
 extern "C" int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, const COLORREF *pcr)
 {
-	LOG(INFO) << "Redirecting " << "wglSetLayerPaletteEntries" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ", iStart = " << iStart << ", cEntries = " << cEntries << ", pcr = " << pcr << ')' << " ...";
-	LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglSetLayerPaletteEntries(hdc = %p, iLayerPlane = %d, iStart = %d, cEntries = %d, pcr = %p) ...",
+		hdc, iLayerPlane, iStart, cEntries, pcr);
+	reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 	return 0;
@@ -724,8 +739,8 @@ extern "C" int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int 
 
 extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 {
-	LOG(INFO) << "Redirecting " << "wglCreateContext" << '(' << "hdc = " << hdc << ')' << " ...";
-	LOG(INFO) << "> Passing on to " << "wglCreateLayerContext" << ':';
+	reshade::log::message(reshade::log::level::info, "Redirecting wglCreateContext(hdc = %p) ...", hdc);
+	reshade::log::message(reshade::log::level::info, "> Passing on to wglCreateLayerContext:");
 
 	const HGLRC hglrc = wglCreateLayerContext(hdc, 0);
 	if (hglrc == nullptr)
@@ -739,13 +754,16 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning OpenGL context " << hglrc << '.';
+	reshade::log::message(reshade::log::level::debug, "Returning OpenGL context %p.", hglrc);
 #endif
 	return hglrc;
 }
 		   HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
-	LOG(INFO) << "Redirecting " << "wglCreateContextAttribsARB" << '(' << "hdc = " << hdc << ", hShareContext = " << hShareContext << ", piAttribList = " << piAttribList << ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglCreateContextAttribsARB(hdc = %p, hShareContext = %p, piAttribList = %p) ...",
+		hdc, hShareContext, piAttribList);
 
 	int i = 0, major = 1, minor = 0, flags = 0;
 	bool compatibility = false;
@@ -786,11 +804,11 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	attribs[i].name = wgl_attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
 	attribs[i++].value = compatibility ? wgl_attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : wgl_attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 
-	LOG(INFO) << "> Requesting " << (compatibility ? "compatibility" : "core") << " OpenGL context for version " << major << '.' << minor << '.';
+	reshade::log::message(reshade::log::level::info, "> Requesting %s OpenGL context for version %d.%d.", compatibility ? "compatibility" : "core", major, minor);
 
 	if (major < 4 || (major == 4 && minor < 3))
 	{
-		LOG(INFO) << "> Replacing requested version with 4.3.";
+		reshade::log::message(reshade::log::level::info, "> Replacing requested version with 4.3.");
 
 		for (int k = 0; k < i; ++k)
 		{
@@ -812,7 +830,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	const HGLRC hglrc = reshade::hooks::call(wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
 	if (hglrc == nullptr)
 	{
-		LOG(WARN) << "wglCreateContextAttribsARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglCreateContextAttribsARB failed with error code %lu.", GetLastError() & 0xFFFF);
 		return nullptr;
 	}
 
@@ -832,17 +850,17 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning OpenGL context " << hglrc << '.';
+	reshade::log::message(reshade::log::level::debug, "Returning OpenGL context %p.", hglrc);
 #endif
 	return hglrc;
 }
 extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 {
-	LOG(INFO) << "Redirecting " << "wglCreateLayerContext" << '(' << "hdc = " << hdc << ", iLayerPlane = " << iLayerPlane << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglCreateLayerContext(hdc = %p, iLayerPlane = %d) ...", hdc, iLayerPlane);
 
 	if (iLayerPlane != 0)
 	{
-		LOG(WARN) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
+		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", iLayerPlane);
 		SetLastError(ERROR_INVALID_PARAMETER);
 		return nullptr;
 	}
@@ -850,7 +868,7 @@ extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 	const HGLRC hglrc = reshade::hooks::call(wglCreateLayerContext)(hdc, iLayerPlane);
 	if (hglrc == nullptr)
 	{
-		LOG(WARN) << "wglCreateLayerContext" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglCreateLayerContext failed with error code %lu.", GetLastError() & 0xFFFF);
 		return nullptr;
 	}
 
@@ -866,7 +884,7 @@ extern "C" BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask
 }
 extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
-	LOG(INFO) << "Redirecting " << "wglDeleteContext" << '(' << "hglrc = " << hglrc << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglDeleteContext(hglrc = %p) ...", hglrc);
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
 
@@ -886,7 +904,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				}
 				else
 				{
-					LOG(WARN) << "Unable to make context current! Leaking resources ...";
+					reshade::log::message(reshade::log::level::warning, "Unable to make context current! Leaking resources ...");
 				}
 			}
 			else
@@ -894,7 +912,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				if (std::any_of(s_opengl_contexts.begin(), s_opengl_contexts.end(),
 						[hglrc, device](const std::pair<HGLRC, reshade::opengl::device_context_impl *> &context_info) { return context_info.first != hglrc && device == context_info.second->get_device(); }))
 				{
-					LOG(WARN) << "Another context referencing the context being destroyed still exists! Application may crash.";
+					reshade::log::message(reshade::log::level::warning, "Another context referencing the context being destroyed still exists! Application may crash.");
 				}
 
 				const HDC prev_hdc = wglGetCurrentDC();
@@ -941,7 +959,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				}
 				else
 				{
-					LOG(WARN) << "Unable to make context current (error code " << (GetLastError() & 0xFFFF) << ")! Leaking resources ...";
+					reshade::log::message(reshade::log::level::warning, "Unable to make context current (error code %lu)! Leaking resources ...", GetLastError() & 0xFFFF);
 				}
 
 				if (dummy_window_handle != nullptr)
@@ -975,7 +993,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!reshade::hooks::call(wglDeleteContext)(hglrc))
 	{
-		LOG(WARN) << "wglDeleteContext" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglDeleteContext failed with error code %lu.", GetLastError() & 0xFFFF);
 		return FALSE;
 	}
 
@@ -984,11 +1002,11 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 
 extern "C" BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
-	LOG(INFO) << "Redirecting " << "wglShareLists" << '(' << "hglrc1 = " << hglrc1 << ", hglrc2 = " << hglrc2 << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglShareLists(hglrc1 = %p, hglrc2 = %p) ...", hglrc1, hglrc2);
 
 	if (!reshade::hooks::call(wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARN) << "wglShareLists" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglShareLists failed with error code %lu.", GetLastError() & 0xFFFF);
 		return FALSE;
 	}
 
@@ -1002,7 +1020,7 @@ extern "C" BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Redirecting " << "wglMakeCurrent" << '(' << "hdc = " << hdc << ", hglrc = " << hglrc << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglMakeCurrent(hdc = %p, hglrc = %p) ...", hdc, hglrc);
 #endif
 
 	HGLRC shared_hglrc = hglrc;
@@ -1012,7 +1030,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (!trampoline(hdc, hglrc))
 	{
 #if RESHADE_VERBOSE_LOG
-		LOG(WARN) << "wglMakeCurrent" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglMakeCurrent failed with error code %lu.", GetLastError() & 0xFFFF);
 #endif
 		return FALSE;
 	}
@@ -1037,7 +1055,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		shared_hglrc = it->second;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Using shared OpenGL context " << shared_hglrc << '.';
+		reshade::log::message(reshade::log::level::debug, "> Using shared OpenGL context %p.", shared_hglrc);
 #endif
 	}
 
@@ -1068,7 +1086,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (!gl3wIsSupported(4, 3))
 		{
-			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
+			reshade::log::message(reshade::log::level::error, "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.");
 
 			g_current_context = nullptr;
 
@@ -1123,14 +1141,14 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(WARN) << "Skipping render context " << hglrc << " because there is no window associated with device context " << hdc << '.';
+			reshade::log::message(reshade::log::level::warning, "Skipping render context %p because there is no window associated with device context %p.", hglrc, hdc);
 #endif
 		}
 		else
 		{
 			if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
 			{
-				LOG(WARN) << "Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
+				reshade::log::message(reshade::log::level::warning, "Window class style of window %p is missing 'CS_OWNDC' flag.", hwnd);
 			}
 
 			assert(wglGetPixelFormat(hdc) == device->get_pixel_format());
@@ -1183,7 +1201,10 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 
 	 HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
 {
-	LOG(INFO) << "Redirecting " << "wglCreatePbufferARB" << '(' << "hdc = " << hdc << ", iPixelFormat = " << iPixelFormat << ", iWidth = " << iWidth << ", iHeight = " << iHeight << ", piAttribList = " << piAttribList << ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting wglCreatePbufferARB(hdc = %p, iPixelFormat = %d, iWidth = %d, iHeight = %d, piAttribList = %p) ...",
+		hdc, iPixelFormat, iWidth, iHeight, piAttribList);
 
 	struct attribute
 	{
@@ -1200,51 +1221,51 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 		};
 	};
 
-	LOG(INFO) << "> Dumping attributes:";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(INFO) << "  | Attribute                               | Value                                   |";
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	reshade::log::message(reshade::log::level::info, "> Dumping attributes:");
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+	reshade::log::message(reshade::log::level::info, "  | Attribute                               | Value                                   |");
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
 		switch (attrib[0])
 		{
 		case attribute::WGL_PBUFFER_LARGEST_ARB:
-			LOG(INFO) << "  | WGL_PBUFFER_LARGEST_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_PBUFFER_LARGEST_ARB                 | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case attribute::WGL_TEXTURE_FORMAT_ARB:
-			LOG(INFO) << "  | WGL_TEXTURE_FORMAT_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_TEXTURE_FORMAT_ARB                  | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		case attribute::WGL_TEXTURE_TARGET_ARB:
-			LOG(INFO) << "  | WGL_TEXTURE_TARGET_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | WGL_TEXTURE_TARGET_ARB                  | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		default:
-			LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
+			reshade::log::message(reshade::log::level::info, "  | %-#39x | %-39d |", static_cast<unsigned int>(attrib[0]), attrib[1]);
 			break;
 		}
 	}
 
-	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 	const HPBUFFERARB hpbuffer = reshade::hooks::call(wglCreatePbufferARB)(hdc, iPixelFormat, iWidth, iHeight, piAttribList);
 	if (hpbuffer == nullptr)
 	{
-		LOG(WARN) << "wglCreatePbufferARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglCreatePbufferARB failed with error code %lu.", GetLastError() & 0xFFFF);
 		return nullptr;
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning pixel buffer " << hpbuffer << '.';
+	reshade::log::message(reshade::log::level::info, "Returning pixel buffer %p.", hpbuffer);
 #endif
 	return hpbuffer;
 }
 		   BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 {
-	LOG(INFO) << "Redirecting " << "wglDestroyPbufferARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglDestroyPbufferARB(hPbuffer = %p) ...", hPbuffer);
 
 	if (!reshade::hooks::call(wglDestroyPbufferARB)(hPbuffer))
 	{
-		LOG(WARN) << "wglDestroyPbufferARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglDestroyPbufferARB failed with error code %lu.", GetLastError() & 0xFFFF);
 		return FALSE;
 	}
 
@@ -1252,12 +1273,12 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 }
 		   HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 {
-	LOG(INFO) << "Redirecting " << "wglGetPbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglGetPbufferDCARB(hPbuffer = %p) ...", hPbuffer);
 
 	const HDC hdc = reshade::hooks::call(wglGetPbufferDCARB)(hPbuffer);
 	if (hdc == nullptr)
 	{
-		LOG(WARN) << "wglGetPbufferDCARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglGetPbufferDCARB failed with error code %lu.", GetLastError() & 0xFFFF);
 		return nullptr;
 	}
 
@@ -1266,17 +1287,17 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(INFO) << "Returning pixel buffer device context " << hdc << '.';
+	reshade::log::message(reshade::log::level::info, "Returning pixel buffer device context %p.", hdc);
 #endif
 	return hdc;
 }
 		   int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 {
-	LOG(INFO) << "Redirecting " << "wglReleasePbufferDCARB" << '(' << "hPbuffer = " << hPbuffer << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting wglReleasePbufferDCARB(hPbuffer = %p) ...", hPbuffer);
 
 	if (!reshade::hooks::call(wglReleasePbufferDCARB)(hPbuffer, hdc))
 	{
-		LOG(WARN) << "wglReleasePbufferDCARB" << " failed with error code " << (GetLastError() & 0xFFFF) << '.';
+		reshade::log::message(reshade::log::level::warning, "wglReleasePbufferDCARB failed with error code %lu.", GetLastError() & 0xFFFF);
 		return FALSE;
 	}
 
@@ -1316,8 +1337,8 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 		const int index = (i >= WGL_SWAP_UNDERLAY1) ? static_cast<int>(-std::log2f(static_cast<float>(i >> 16)) - 1) : static_cast<int>(std::log2f(static_cast<float>(i)));
 
 #if RESHADE_VERBOSE_LOG
-		LOG(INFO) << "Redirecting " << "wglSwapLayerBuffers" << '(' << "hdc = " << hdc << ", i = " << i << ')' << " ...";
-		LOG(WARN) << "Access to layer plane at index " << index << " is unsupported.";
+		reshade::log::message(reshade::log::level::info, "Redirecting wglSwapLayerBuffers(hdc = %p, i = %u) ...", hdc, i);
+		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", index);
 #endif
 
 		SetLastError(ERROR_INVALID_PARAMETER);

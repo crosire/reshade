@@ -56,7 +56,7 @@ static vr::EVRCompositorError on_vr_submit_d3d10(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
+		reshade::log::message(reshade::log::level::error, "Failed to initialize effect runtime or copy the eye texture for eye %d!", static_cast<int>(eye));
 #endif
 		return submit(eye, texture, bounds, flags);
 	}
@@ -105,7 +105,7 @@ static vr::EVRCompositorError on_vr_submit_d3d11(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
+		reshade::log::message(reshade::log::level::error, "Failed to initialize effect runtime or copy the eye texture for eye %d!", static_cast<int>(eye));
 #endif
 		return submit(eye, texture, bounds, flags);
 	}
@@ -141,7 +141,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
+		reshade::log::message(reshade::log::level::error, "Failed to initialize effect runtime or copy the eye texture for eye %d!", static_cast<int>(eye));
 #endif
 		return submit(eye, (void *)texture, bounds, flags);
 	}
@@ -181,7 +181,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
+		reshade::log::message(reshade::log::level::error, "Failed to initialize effect runtime or copy the eye texture for eye %d!", static_cast<int>(eye));
 #endif
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
 	}
@@ -228,7 +228,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
-		LOG(ERROR) << "Failed to initialize effect runtime or copy the eye texture for eye " << eye << '!';
+		reshade::log::message(reshade::log::level::error, "Failed to initialize effect runtime or copy the eye texture for eye %d!", static_cast<int>(eye));
 #endif
 		return submit(eye, (void *)texture, bounds, flags);
 	}
@@ -386,7 +386,7 @@ VR_Interface_Impl(IVRCompositor, Submit, 5, 012, {
 }, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
 
 VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
-	LOG(INFO) << "Redirecting " << "IVRClientCore::Cleanup" << '(' << "this = " << pThis << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting IVRClientCore::Cleanup(this = %p) ...", pThis);
 
 	delete s_vr_swapchain;
 	s_vr_swapchain = nullptr;
@@ -397,7 +397,7 @@ VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
 VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 	assert(pchNameAndVersion != nullptr);
 
-	LOG(INFO) << "Redirecting " << "IVRClientCore::GetGenericInterface" << '(' << "this = " << pThis << ", pchNameAndVersion = " << pchNameAndVersion << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting IVRClientCore::GetGenericInterface(this = %p, pchNameAndVersion = %s) ...", pThis, pchNameAndVersion);
 
 	void *const interface_instance = VR_Interface_Call(pchNameAndVersion, peError);
 
@@ -426,7 +426,7 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 {
 	assert(pInterfaceName != nullptr);
 
-	LOG(INFO) << "Redirecting " << "VRClientCoreFactory" << '(' << "pInterfaceName = " << pInterfaceName << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting VRClientCoreFactory(pInterfaceName = %s) ...", pInterfaceName);
 
 	void *const interface_instance = reshade::hooks::call(VRClientCoreFactory)(pInterfaceName, pReturnCode);
 

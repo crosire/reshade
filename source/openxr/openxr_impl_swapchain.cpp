@@ -105,7 +105,7 @@ void reshade::openxr::swapchain_impl::on_present(uint32_t view_count, const api:
 
 	if (target_width != target_desc.texture.width || region_height != target_desc.texture.height || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(target_desc.texture.format))
 	{
-		LOG(INFO) << "Resizing runtime " << this << " in VR to " << target_width << "x" << region_height << " ...";
+		reshade::log::message(reshade::log::level::info, "Resizing runtime %p in VR to %ux%u ...", this, target_width, region_height);
 
 		on_reset();
 
@@ -117,7 +117,7 @@ void reshade::openxr::swapchain_impl::on_present(uint32_t view_count, const api:
 				api::resource_desc(target_width, region_height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest),
 				nullptr, api::resource_usage::general, &_side_by_side_texture))
 		{
-			LOG(ERROR) << "Failed to create region texture!";
+			reshade::log::message(reshade::log::level::error, "Failed to create region texture!");
 			return;
 		}
 

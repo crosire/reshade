@@ -21,7 +21,7 @@ lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
-	LOG(INFO) << "Redirecting " << "vkCreateInstance" << '(' << "pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pInstance = " << pInstance << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateInstance(pCreateInfo = %p, pAllocator = %p, pInstance = %p) ...", pCreateInfo, pAllocator, pInstance);
 
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
@@ -58,20 +58,20 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (trampoline == nullptr || get_instance_proc == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
-	LOG(INFO) << "> Dumping enabled instance extensions:";
+	reshade::log::message(reshade::log::level::info, "> Dumping enabled instance extensions:");
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
-		LOG(INFO) << "  " << pCreateInfo->ppEnabledExtensionNames[i];
+		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->ppEnabledExtensionNames[i]);
 
 	VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	if (pCreateInfo->pApplicationInfo != nullptr)
 		app_info = *pCreateInfo->pApplicationInfo;
 
-	LOG(INFO) << "> Requesting new Vulkan instance for API version " << VK_VERSION_MAJOR(app_info.apiVersion) << '.' << VK_VERSION_MINOR(app_info.apiVersion) << '.';
+	reshade::log::message(reshade::log::level::info, "> Requesting new Vulkan instance for API version %u.%u.", VK_VERSION_MAJOR(app_info.apiVersion), VK_VERSION_MINOR(app_info.apiVersion));
 
 	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
 	if (app_info.apiVersion < VK_API_VERSION_1_1)
 	{
-		LOG(INFO) << "> Replacing requested version with 1.1.";
+		reshade::log::message(reshade::log::level::info, "> Replacing requested version with 1.1.");
 
 		app_info.apiVersion = VK_API_VERSION_1_1;
 	}
@@ -105,11 +105,11 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 			if (required)
 			{
-				LOG(ERROR) << "Required extension \"" << name << "\" is not supported on this instance. Initialization failed.";
+				reshade::log::message(reshade::log::level::error, "Required extension \"%s\" is not supported on this instance. Initialization failed.", name);
 			}
 			else
 			{
-				LOG(WARN) << "Optional extension \"" << name << "\" is not supported on this instance.";
+				reshade::log::message(reshade::log::level::warning, "Optional extension \"%s\" is not supported on this instance.", name);
 			}
 
 			return false;
@@ -128,7 +128,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	const VkResult result = trampoline(&create_info, pAllocator, pInstance);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateInstance" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateInstance failed with error code %d.", static_cast<int>(result));
 		return result;
 	}
 
@@ -168,14 +168,14 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	g_vulkan_instances.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Returning Vulkan instance " << instance << '.';
+	reshade::log::message(reshade::log::level::debug, "Returning Vulkan instance %p.", instance);
 #endif
 	return VK_SUCCESS;
 }
 
 void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks *pAllocator)
 {
-	LOG(INFO) << "Redirecting " << "vkDestroyInstance" << '(' << "instance = " << instance << ", pAllocator = " << pAllocator << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroyInstance(instance = %p, pAllocator = %p) ...", instance, pAllocator);
 
 	// Get function pointer before removing it next
 	GET_DISPATCH_PTR(DestroyInstance, instance);
@@ -188,13 +188,13 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 
 VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
 {
-	LOG(INFO) << "Redirecting " << "vkCreateWin32SurfaceKHR" << '(' << "instance = " << instance << ", pCreateInfo = " << pCreateInfo << ", pAllocator = " << pAllocator << ", pSurface = " << pSurface << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateWin32SurfaceKHR(instance = %p, pCreateInfo = %p, pAllocator = %p, pSurface = %p) ...", instance, pCreateInfo, pAllocator, pSurface);
 
 	GET_DISPATCH_PTR(CreateWin32SurfaceKHR, instance);
 	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
 	if (result != VK_SUCCESS)
 	{
-		LOG(WARN) << "vkCreateWin32SurfaceKHR" << " failed with error code " << result << '.';
+		reshade::log::message(reshade::log::level::warning, "vkCreateWin32SurfaceKHR failed with error code %d.", static_cast<int>(result));
 		return result;
 	}
 
@@ -205,7 +205,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 
 void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
 {
-	LOG(INFO) << "Redirecting " << "vkDestroySurfaceKHR" << '(' << "instance = " << instance << ", surface = " << surface << ", pAllocator = " << pAllocator << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroySurfaceKHR(instance = %p, surface = %p, pAllocator = %) ...", instance, surface, pAllocator);
 
 	g_surface_windows.erase(surface);
 

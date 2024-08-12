@@ -23,7 +23,7 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 		// Ensure the immediate command list was initialized successfully, otherwise disable it
 		if (_immediate_cmd_list->_orig == nullptr)
 		{
-			LOG(ERROR) << "Failed to create immediate command list for queue " << _orig << '!';
+			log::message(log::level::error, "Failed to create immediate command list for queue %p!", _orig);
 
 			delete _immediate_cmd_list;
 			_immediate_cmd_list = nullptr;
@@ -35,7 +35,7 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	if (_wait_idle_fence_event == nullptr ||
 		FAILED(_device_impl->_orig->CreateFence(_wait_idle_fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_wait_idle_fence))))
 	{
-		LOG(ERROR) << "Failed to create wait for idle resources for queue " << _orig << '!';
+		log::message(log::level::error, "Failed to create wait for idle resources for queue %p!", _orig);
 	}
 }
 reshade::d3d12::command_queue_impl::~command_queue_impl()

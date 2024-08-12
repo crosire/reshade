@@ -12,18 +12,13 @@ extern thread_local bool g_in_dxgi_runtime;
 extern "C" HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, ID3D10Device **ppDevice)
 {
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(D3D10CreateDevice)(
-			pAdapter, DriverType, Software, Flags, SDKVersion, ppDevice);
+		return reshade::hooks::call(D3D10CreateDevice)(pAdapter, DriverType, Software, Flags, SDKVersion, ppDevice);
 
-	LOG(INFO) << "Redirecting " << "D3D10CreateDevice" << '('
-		<<   "pAdapter = " << pAdapter
-		<< ", DriverType = " << DriverType
-		<< ", Software = " << Software
-		<< ", Flags = " << std::hex << Flags << std::dec
-		<< ", SDKVersion = " << SDKVersion
-		<< ", ppDevice = " << ppDevice
-		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to " << "D3D10CreateDeviceAndSwapChain1" << ':';
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D3D10CreateDevice(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, SDKVersion = %u, ppDevice = %p) ...",
+		pAdapter, DriverType, Software, Flags, SDKVersion, ppDevice);
+	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1:");
 
 	// Only 'd3d10.dll' is guaranteed to be loaded at this point, but the 'D3D10CreateDeviceAndSwapChain1' entry point is in 'd3d10_1.dll', so load that now to make sure hooks can be resolved
 	LoadLibraryW(L"d3d10_1.dll");
@@ -36,19 +31,13 @@ extern "C" HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER
 extern "C" HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, ID3D10Device1 **ppDevice)
 {
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(D3D10CreateDevice1)(
-			pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, ppDevice);
+		return reshade::hooks::call(D3D10CreateDevice1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, ppDevice);
 
-	LOG(INFO) << "Redirecting " << "D3D10CreateDevice1" << '('
-		<<   "pAdapter = " << pAdapter
-		<< ", DriverType = " << DriverType
-		<< ", Software = " << Software
-		<< ", Flags = " << std::hex << Flags
-		<< ", HardwareLevel = " << HardwareLevel << std::dec
-		<< ", SDKVersion = " << SDKVersion
-		<< ", ppDevice = " << ppDevice
-		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to " << "D3D10CreateDeviceAndSwapChain1" << ':';
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D3D10CreateDevice1(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, HardwareLevel = %x, SDKVersion = %u, ppDevice = %p) ...",
+		pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, ppDevice);
+	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1:");
 
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 }
@@ -56,20 +45,13 @@ extern "C" HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVE
 extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device **ppDevice)
 {
 	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain)(
-			pAdapter, DriverType, Software, Flags, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
+		return reshade::hooks::call(D3D10CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
-	LOG(INFO) << "Redirecting " << "D3D10CreateDeviceAndSwapChain" << '('
-		<<   "pAdapter = " << pAdapter
-		<< ", DriverType = " << DriverType
-		<< ", Software = " << Software
-		<< ", Flags = " << std::hex << Flags << std::dec
-		<< ", SDKVersion = " << SDKVersion
-		<< ", pSwapChainDesc = " << pSwapChainDesc
-		<< ", ppSwapChain = " << ppSwapChain
-		<< ", ppDevice = " << ppDevice
-		<< ')' << " ...";
-	LOG(INFO) << "> Passing on to " << "D3D10CreateDeviceAndSwapChain1" << ':';
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D3D10CreateDeviceAndSwapChain(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, SDKVersion = %u, pSwapChainDesc = %p, ppSwapChain = %p, ppDevice = %p) ...",
+		pAdapter, DriverType, Software, Flags, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
+	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1:");
 
 	LoadLibraryW(L"d3d10_1.dll");
 
@@ -84,17 +66,10 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	if (g_in_dxgi_runtime)
 		return trampoline(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
-	LOG(INFO) << "Redirecting " << "D3D10CreateDeviceAndSwapChain1" << '('
-		<<   "pAdapter = " << pAdapter
-		<< ", DriverType = " << DriverType
-		<< ", Software = " << Software
-		<< ", Flags = " << std::hex << Flags
-		<< ", HardwareLevel = " << HardwareLevel << std::dec
-		<< ", SDKVersion = " << SDKVersion
-		<< ", pSwapChainDesc = " << pSwapChainDesc
-		<< ", ppSwapChain = " << ppSwapChain
-		<< ", ppDevice = " << ppDevice
-		<< ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D3D10CreateDeviceAndSwapChain1(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, HardwareLevel = %x, SDKVersion = %u, pSwapChainDesc = %p, ppSwapChain = %p, ppDevice = %p) ...",
+		pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
 #ifndef NDEBUG
 	// Remove flag that prevents turning on the debug layer
@@ -107,7 +82,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D3D10CreateDeviceAndSwapChain1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "D3D10CreateDeviceAndSwapChain1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
 
@@ -128,7 +103,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	D3D10Device *device_proxy = nullptr;
 	if (DriverType == D3D10_DRIVER_TYPE_WARP || DriverType == D3D10_DRIVER_TYPE_REFERENCE)
 	{
-		LOG(WARN) << "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.";
+		reshade::log::message(reshade::log::level::warning, "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.");
 	}
 	else
 	{
@@ -154,7 +129,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
 		assert(SUCCEEDED(hr));
 
-		LOG(INFO) << "Calling " << "IDXGIFactory::CreateSwapChain" << ':';
+		reshade::log::message(reshade::log::level::info, "Calling IDXGIFactory::CreateSwapChain:");
 
 		hr = factory->CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
 	}
@@ -164,8 +139,11 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 		if (device_proxy != nullptr)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Returning " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(device_proxy) << " (" << device_proxy->_orig << ") and " <<
-				"IDXGIDevice1" << " object " << static_cast<IDXGIDevice1 *>(device_proxy) << " (" << static_cast<DXGIDevice *>(device_proxy)->_orig << ").";
+			reshade::log::message(
+				reshade::log::level::debug,
+				"Returning ID3D10Device1 object %p (%p) and IDXGIDevice1 object %p (%p).",
+				static_cast<ID3D10Device *>(device_proxy), device_proxy->_orig,
+				static_cast<IDXGIDevice1 *>(device_proxy), static_cast<DXGIDevice *>(device_proxy)->_orig);
 #endif
 			*ppDevice = device_proxy;
 		}

@@ -121,14 +121,16 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 
 	const auto orig = _orig;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") and " <<
-		"IDXGIDevice" << DXGIDevice::_interface_version << " object " << static_cast<IDXGIDevice1 *>(this) << " (" << DXGIDevice::_orig << ").";
+	reshade::log::message(
+		reshade::log::level::debug,
+		"Destroying ID3D10Device1 object %p (%p) and IDXGIDevice%hu object %p (%p).",
+		static_cast<ID3D10Device *>(this), orig, DXGIDevice::_interface_version, static_cast<IDXGIDevice1 *>(this), DXGIDevice::_orig);
 #endif
 	delete this;
 
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "ID3D10Device1" << " object " << static_cast<ID3D10Device *>(this) << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+		reshade::log::message(reshade::log::level::warning, "Reference count for ID3D10Device1 object %p (%p) is inconsistent (%lu).", static_cast<ID3D10Device *>(this), orig, ref_orig);
 	return 0;
 }
 
@@ -810,7 +812,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateBuffer" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateBuffer failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -872,7 +874,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateTexture1D" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateTexture1D failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -933,7 +935,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateTexture2D" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateTexture2D failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -994,7 +996,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateTexture3D" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateTexture3D failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1037,7 +1039,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateShaderResourceView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1080,7 +1082,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateRenderTargetView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1123,7 +1125,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateDepthStencilView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1181,7 +1183,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateInputLayout" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateInputLayout failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1227,7 +1229,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateVertexShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateVertexShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1273,7 +1275,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateGeometryShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateGeometryShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1324,7 +1326,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateGeometryShaderWithStreamOutput" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateGeometryShaderWithStreamOutput failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1370,7 +1372,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreatePixelShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreatePixelShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1417,7 +1419,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateBlendState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateBlendState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1464,7 +1466,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateDepthStencilState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateDepthStencilState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1509,7 +1511,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateRasterizerState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateRasterizerState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1552,7 +1554,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateSamplerState(const D3D10_SAMPLER_DE
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::CreateSamplerState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::CreateSamplerState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1656,7 +1658,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device::OpenSharedResource" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device::OpenSharedResource failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1708,7 +1710,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device1::CreateShaderResourceView1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device1::CreateShaderResourceView1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1755,7 +1757,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D10Device1::CreateBlendState1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D10Device1::CreateBlendState1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 

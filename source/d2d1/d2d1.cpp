@@ -12,11 +12,10 @@
 #define ID2D1Factory_CreateDevice_Impl(vtable_index, factory_interface_version, device_interface_version) \
 	HRESULT STDMETHODCALLTYPE ID2D1Factory##factory_interface_version##_CreateDevice(ID2D1Factory##factory_interface_version *factory, IDXGIDevice *dxgiDevice, ID2D1Device##device_interface_version **d2dDevice) \
 	{ \
-		LOG(INFO) << "Redirecting " << "ID2D1Factory" #factory_interface_version "::CreateDevice" << '(' \
-			<<   "this = " << factory \
-			<< ", dxgiDevice = " << dxgiDevice \
-			<< ", d2dDevice = " << d2dDevice \
-			<< ')' << " ..."; \
+		reshade::log::message( \
+			reshade::log::level::info, \
+			"Redirecting ID2D1Factory" #factory_interface_version "::CreateDevice(this = %p, dxgiDevice = %p, d2dDevice = %p) ...", \
+			factory, dxgiDevice , d2dDevice); \
 		\
 		if (com_ptr<DXGIDevice> device_proxy; \
 			SUCCEEDED(dxgiDevice->QueryInterface(&device_proxy))) \
@@ -24,7 +23,9 @@
 		\
 		const HRESULT hr = reshade::hooks::call(ID2D1Factory##factory_interface_version##_CreateDevice, reshade::hooks::vtable_from_instance(factory) + vtable_index)(factory, dxgiDevice, d2dDevice); \
 		if (FAILED(hr)) \
-			LOG(WARN) << "ID2D1Factory" #factory_interface_version "::CreateDevice" << " failed with error code " << hr << '.'; \
+		{ \
+			reshade::log::message(reshade::log::level::warning, "ID2D1Factory" #factory_interface_version "::CreateDevice failed with error code %s.", reshade::log::hr_to_string(hr).c_str()); \
+		} \
 		return hr; \
 	}
 
@@ -38,11 +39,10 @@ ID2D1Factory_CreateDevice_Impl(32, 7, 6)
 
 extern "C" HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_CREATION_PROPERTIES *creationProperties, ID2D1Device **d2dDevice)
 {
-	LOG(INFO) << "Redirecting " << "D2D1CreateDevice" << '('
-		<<   "dxgiDevice = " << dxgiDevice
-		<< ", creationProperties = " << creationProperties
-		<< ", d2dDevice = " << d2dDevice
-		<< ')' << " ...";
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting D2D1CreateDevice(dxgiDevice = %p, creationProperties = %p, d2dDevice = %p) ...",
+		dxgiDevice, creationProperties, d2dDevice);
 
 	// Get original DXGI device and pass that into D2D1 (since D2D1 does not work properly when a wrapped device is passed to it)
 	if (com_ptr<DXGIDevice> device_proxy;
@@ -54,18 +54,18 @@ extern "C" HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_C
 
 	const HRESULT hr = reshade::hooks::call<D2D1CreateDevice_t>(D2D1CreateDevice)(dxgiDevice, creationProperties, d2dDevice);
 	if (FAILED(hr))
-		LOG(WARN) << "D2D1CreateDevice" << " failed with error code " << hr << '.';
+	{
+		reshade::log::message(reshade::log::level::warning, "D2D1CreateDevice failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
+	}
+
 	return hr;
 }
 
 extern "C" HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, CONST D2D1_FACTORY_OPTIONS *pFactoryOptions, void **ppIFactory)
 {
-	LOG(INFO) << "Redirecting " << "D2D1CreateFactory" << '('
-		<<   "factoryType = " << factoryType
-		<< ", riid = " << riid
-		<< ", pFactoryOptions = " << pFactoryOptions
-		<< ", ppIFactory = " << ppIFactory
-		<< ')' << " ...";
+	reshade::log::message(reshade::log::level::info,
+		"Redirecting D2D1CreateFactory(factoryType = %d, riid = %s, pFactoryOptions = %p, ppIFactory = %p) ...",
+		factoryType, reshade::log::iid_to_string(riid).c_str(), pFactoryOptions, ppIFactory);
 
 	// Choose the correct overload (instead of the template D2D1CreateFactory functions also defined in the header)
 	using D2D1CreateFactory_t = HRESULT(WINAPI *)(D2D1_FACTORY_TYPE, REFIID, CONST D2D1_FACTORY_OPTIONS *, void **);
@@ -73,7 +73,7 @@ extern "C" HRESULT WINAPI D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFII
 	const HRESULT hr = reshade::hooks::call<D2D1CreateFactory_t>(D2D1CreateFactory)(factoryType, riid, pFactoryOptions, ppIFactory);
 	if (FAILED(hr))
 	{
-		LOG(WARN) << "D2D1CreateFactory" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "D2D1CreateFactory failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
 

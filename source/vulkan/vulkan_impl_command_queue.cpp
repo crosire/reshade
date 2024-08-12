@@ -25,7 +25,7 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 		// Ensure the immediate command list was initialized successfully, otherwise disable it
 		if (_immediate_cmd_list->_orig == VK_NULL_HANDLE)
 		{
-			LOG(ERROR) << "Failed to create immediate command list for queue " << _orig << '!';
+			log::message(log::level::error, "Failed to create immediate command list for queue %p!", _orig);
 
 			delete _immediate_cmd_list;
 			_immediate_cmd_list = nullptr;

@@ -83,7 +83,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 		return false;
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Installing hook for " << name << " at 0x" << hook.target << " with 0x" << hook.replacement << " using method " << static_cast<int>(method) << " ...";
+	reshade::log::message(reshade::log::level::debug, "Installing hook for %s at 0x%p with 0x%p using method %d ...", name, hook.target, hook.replacement, static_cast<int>(method));
 #endif
 	auto status = reshade::hook::status::unknown;
 
@@ -117,7 +117,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 
 	if (status != reshade::hook::status::success)
 	{
-		LOG(ERROR) << "Failed to install hook for " << name << " with status code " << static_cast<int>(status) << '!';
+		reshade::log::message(reshade::log::level::error, "Failed to install hook for %s with status code %d!", name, static_cast<int>(status));
 		return false;
 	}
 
@@ -127,7 +127,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Succeeded.";
+	reshade::log::message(reshade::log::level::debug, "> Succeeded.");
 #endif
 
 	return true;
@@ -142,7 +142,7 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 
 	if (target_exports.empty())
 	{
-		LOG(WARN) << "> Empty export table! Skipped.";
+		reshade::log::message(reshade::log::level::warning, "> Empty export table! Skipped.");
 		return false;
 	}
 
@@ -151,10 +151,10 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 	matches.reserve(replacement_exports.size());
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Dumping matches in export table:";
-	LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
-	LOG(DEBUG) << "  | Address            | Ordinal | Name                                               |";
-	LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
+	reshade::log::message(reshade::log::level::debug, "> Dumping matches in export table:");
+	reshade::log::message(reshade::log::level::debug, "  +--------------------+---------+----------------------------------------------------+");
+	reshade::log::message(reshade::log::level::debug, "  | Address            | Ordinal | Name                                               |");
+	reshade::log::message(reshade::log::level::debug, "  +--------------------+---------+----------------------------------------------------+");
 #endif
 
 	// Analyze export tables and find entries that exist in both modules
@@ -187,16 +187,16 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 			std::strcmp(symbol.name, "Direct3D9EnableMaximizedWindowedModeShim") != 0)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
+			reshade::log::message(reshade::log::level::debug, "  | 0x%016p | %-7hu | %-50s |", symbol.address, symbol.ordinal, symbol.name);
 #endif
 			matches.push_back(std::make_tuple(symbol.name, symbol.address, it->address));
 		}
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "  +--------------------+---------+----------------------------------------------------+";
+	reshade::log::message(reshade::log::level::debug, "  +--------------------+---------+----------------------------------------------------+");
 #endif
-	LOG(INFO) << "> Found " << matches.size() << " match(es). Installing ...";
+	reshade::log::message(reshade::log::level::info, "> Found %zu match(es). Installing ...", matches.size());
 
 	// Hook all matching exports
 	for (const std::tuple<const char *, reshade::hook::address, reshade::hook::address> &match : matches)
@@ -221,12 +221,12 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 static bool uninstall_internal(const char *name, reshade::hook &hook, hook_method method)
 {
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Uninstalling hook for " << name << " ...";
+	reshade::log::message(reshade::log::level::debug, "Uninstalling hook for %s ...", name);
 #endif
 
 	if (hook.uninstalled())
 	{
-		LOG(WARN) << "Hook for " << name << " was already uninstalled.";
+		reshade::log::message(reshade::log::level::warning, "Hook for %s was already uninstalled.", name);
 		return true;
 	}
 
@@ -236,7 +236,7 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 	{
 	case hook_method::export_hook:
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "> Skipped.";
+		reshade::log::message(reshade::log::level::debug, "> Skipped.");
 #endif
 		return true;
 	case hook_method::function_hook:
@@ -263,12 +263,12 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 
 	if (status != reshade::hook::status::success)
 	{
-		LOG(WARN) << "Failed to uninstall hook for " << name << " with status code " << static_cast<int>(status) << '.';
+		reshade::log::message(reshade::log::level::warning, "Failed to uninstall hook for %s with status code %d.", name, static_cast<int>(status));
 		return false;
 	}
 
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "> Succeeded.";
+	reshade::log::message(reshade::log::level::debug, "> Succeeded.");
 #endif
 	hook.trampoline = nullptr;
 
@@ -320,7 +320,7 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
 					return false;
 
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via LoadLibrary(" << loaded_path << ")) ...";
+				reshade::log::message(reshade::log::level::info, "Installing delayed hooks for '%s' (Just loaded via LoadLibrary('%s')) ...", path.u8string().c_str(), loaded_path.u8string().c_str());
 
 				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
 			});
@@ -329,7 +329,7 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 	}
 	else
 	{
-		LOG(WARN) << "Ignoring LoadLibrary(" << loaded_path << ") call to avoid possible deadlock.";
+		reshade::log::message(reshade::log::level::warning, "Ignoring LoadLibrary('%s') call to avoid possible deadlock.", loaded_path.u8string().c_str());
 	}
 }
 
@@ -434,7 +434,7 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], size_t vt
 }
 void reshade::hooks::uninstall()
 {
-	LOG(INFO) << "Uninstalling " << s_hooks.size() << " hook(s) ...";
+	log::message(log::level::info, "Uninstalling %zu hook(s) ...", s_hooks.size());
 
 	// Disable all hooks in a single batch job
 	for (named_hook &hook_info : s_hooks)
@@ -466,7 +466,7 @@ void reshade::hooks::uninstall()
 	if (g_export_module_handle)
 	{
 		if (!FreeLibrary(g_export_module_handle))
-			LOG(WARN) << "Failed to unload " << s_export_hook_path << " with error code " << GetLastError() << '!';
+			log::message(log::level::warning, "Failed to unload '%s' with error code %lu!", s_export_hook_path.u8string().c_str(), GetLastError());
 		g_export_module_handle = nullptr;
 	}
 }
@@ -485,7 +485,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			LdrRegisterDllNotification(0, reinterpret_cast<FARPROC>(&DllNotificationCallback), nullptr, &s_dll_notification_cookie) != 0 /* STATUS_SUCCESS */)
 		{
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Using LoadLibrary hooks.";
+			log::message(log::level::debug, "Using LoadLibrary hooks.");
 #endif
 
 			// Fall back 'LoadLibrary' hooks if DLL notification registration failed or the Steam overlay is used
@@ -499,12 +499,12 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 			if (hook::apply_queued_actions())
 				s_dll_notification_cookie = reinterpret_cast<PVOID>(-1); // Set cookie to something so that these hooks are only installed once
 			else
-				LOG(ERROR) << "Failed to install LoadLibrary hooks!";
+				log::message(log::level::error, "Failed to install LoadLibrary hooks!");
 		}
 	}
 #endif
 
-	LOG(INFO) << "Registering hooks for " << target_path << " ...";
+	log::message(log::level::info, "Registering hooks for '%s' ...", target_path.u8string().c_str());
 
 	// Compare module names and delay export hooks for later installation since we cannot call 'LoadLibrary' from this function (it is called from 'DLLMain', which does not allow this)
 	// Do a case insensitive comparison here to catch cases like "OPENGL32" refering to the same module as "opengl32.dll"
@@ -514,7 +514,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	{
 		assert(target_path != g_reshade_dll_path);
 
-		LOG(INFO) << "> Delayed until first call to an exported function.";
+		log::message(log::level::info, "> Delayed until first call to an exported function.");
 
 		s_export_hook_path = target_path;
 
@@ -525,13 +525,13 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
 	else if (HMODULE handle; !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path.c_str(), &handle))
 	{
-		LOG(INFO) << "> Delayed.";
+		log::message(log::level::info, "> Delayed.");
 
 		s_delayed_hook_paths.push_back(target_path);
 	}
 	else // The target module is already loaded, so we can safely install hooks right away
 	{
-		LOG(INFO) << "> Libraries loaded.";
+		log::message(log::level::info, "> Libraries loaded.");
 
 		install_internal(handle, g_module_handle, hook_method::function_hook);
 
@@ -551,7 +551,7 @@ void reshade::hooks::ensure_export_module_loaded()
 		const HMODULE handle = LoadLibraryW(s_export_hook_path.c_str());
 		s_is_loading_export_module = false;
 
-		LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
+		log::message(log::level::info, "Installing export hooks for '%s' ...", s_export_hook_path.u8string().c_str());
 
 		if (handle != nullptr)
 		{
@@ -564,7 +564,7 @@ void reshade::hooks::ensure_export_module_loaded()
 		}
 		else
 		{
-			LOG(ERROR) << "Failed to load " << s_export_hook_path << '!';
+			log::message(log::level::error, "Failed to load '%s'!", s_export_hook_path.u8string().c_str());
 		}
 	}
 }
@@ -586,7 +586,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement, hook::add
 			ensure_export_module_loaded();
 	}
 
-	LOG(ERROR) << "Unable to resolve hook for 0x" << replacement << '!';
+	log::message(log::level::error, "Unable to resolve hook for 0x%p!", replacement);
 
 	return nullptr;
 }

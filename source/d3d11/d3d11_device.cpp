@@ -89,7 +89,7 @@ bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			LOG(DEBUG) << "Upgrading ID3D11Device" << _interface_version << " object " << static_cast<ID3D11Device *>(this) << " to ID3D11Device" << version << '.';
+			reshade::log::message(reshade::log::level::debug, "Upgrading ID3D11Device%hu object %p to ID3D11Device%hu.", _interface_version, static_cast<ID3D11Device *>(this), version);
 #endif
 			_orig->Release();
 			_orig = static_cast<ID3D11Device *>(new_interface);
@@ -188,15 +188,17 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
-	LOG(DEBUG) << "Destroying " << "ID3D11Device" << interface_version << " object " << static_cast<ID3D11Device *>(this) << " (" << orig << ") and " <<
-		"IDXGIDevice" << DXGIDevice::_interface_version << " object " << static_cast<IDXGIDevice1 *>(this) << " (" << DXGIDevice::_orig << ").";
+	reshade::log::message(
+		reshade::log::level::debug,
+		"Destroying ID3D11Device%hu object %p (%p) and IDXGIDevice%hu object %p (%p).",
+		interface_version, static_cast<ID3D11Device *>(this), orig, DXGIDevice::_interface_version, static_cast<IDXGIDevice1 *>(this), DXGIDevice::_orig);
 #endif
 	delete this;
 
 	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
-		LOG(WARN) << "Reference count for " << "ID3D11Device" << interface_version << " object " << static_cast<ID3D11Device *>(this) << " (" << orig << ") is inconsistent (" << ref_orig << ").";
+		reshade::log::message(reshade::log::level::warning, "Reference count for ID3D11Device%hu object %p (%p) is inconsistent (%lu).", interface_version, static_cast<ID3D11Device *>(this), orig, ref_orig);
 	return 0;
 }
 
@@ -247,7 +249,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateBuffer" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateBuffer failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -302,7 +304,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateTexture1D" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateTexture1D failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -356,7 +358,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateTexture2D" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateTexture2D failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -410,7 +412,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateTexture3D" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateTexture3D failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -453,7 +455,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateShaderResourceView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateShaderResourceView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -496,7 +498,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateUnorderedAccessView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateUnorderedAccessView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -539,7 +541,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateRenderTargetView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateRenderTargetView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -582,7 +584,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateDepthStencilView" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateDepthStencilView failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -640,7 +642,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateInputLayout" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateInputLayout failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -686,7 +688,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateVertexShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateVertexShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -732,7 +734,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateGeometryShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateGeometryShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -783,7 +785,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateGeometryShaderWithStreamOutput" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateGeometryShaderWithStreamOutput failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -829,7 +831,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreatePixelShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreatePixelShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -875,7 +877,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateHullShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateHullShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -921,7 +923,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateDomainShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateDomainShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -967,7 +969,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateComputeShader" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateComputeShader failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1018,7 +1020,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateBlendState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateBlendState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1065,7 +1067,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateDepthStencilState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateDepthStencilState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1110,7 +1112,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateRasterizerState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateRasterizerState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1153,7 +1155,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateSamplerState(const D3D11_SAMPLER_DE
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateSamplerState" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateSamplerState failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1173,7 +1175,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateCounter(const D3D11_COUNTER_DESC *p
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, ID3D11DeviceContext **ppDeferredContext)
 {
-	LOG(INFO) << "Redirecting " << "ID3D11Device::CreateDeferredContext" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting ID3D11Device::CreateDeferredContext(this = %p, ContextFlags = %u, ppDeferredContext = %p) ...", this, ContextFlags, ppDeferredContext);
 
 	if (ppDeferredContext == nullptr)
 		return E_INVALIDARG;
@@ -1185,13 +1187,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		reshade::log::message(reshade::log::level::debug, "Returning ID3D11DeviceContext object %p (%p).", device_context_proxy, device_context_proxy->_orig);
 #endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::CreateDeferredContext" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::CreateDeferredContext failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1263,7 +1265,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource(HANDLE hResource, REFI
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device::OpenSharedResource" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device::OpenSharedResource failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1346,7 +1348,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 {
 	assert(_interface_version >= 1);
 
-	LOG(INFO) << "Redirecting " << "ID3D11Device1::CreateDeferredContext1" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting ID3D11Device1::CreateDeferredContext1(this = %p, ContextFlags = %u, ppDeferredContext = %p) ...", this, ContextFlags, ppDeferredContext);
 
 	if (ppDeferredContext == nullptr)
 		return E_INVALIDARG;
@@ -1358,13 +1360,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext1" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		reshade::log::message(reshade::log::level::debug, "Returning ID3D11DeviceContext1 object %p (%p).", device_context_proxy, device_context_proxy->_orig);
 #endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::CreateDeferredContext1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device1::CreateDeferredContext1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1413,7 +1415,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::CreateBlendState1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device1::CreateBlendState1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1460,7 +1462,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::CreateRasterizerState1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device1::CreateRasterizerState1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1538,7 +1540,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource1(HANDLE hResource, REF
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::OpenSharedResource1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device1::OpenSharedResource1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1611,7 +1613,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device1::OpenSharedResourceByName" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device1::OpenSharedResourceByName failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1634,7 +1636,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 {
 	assert(_interface_version >= 2);
 
-	LOG(INFO) << "Redirecting " << "ID3D11Device2::CreateDeferredContext2" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting ID3D11Device2::CreateDeferredContext2(this = %p, ContextFlags = %u, ppDeferredContext = %p) ...", this, ContextFlags, ppDeferredContext);
 
 	if (ppDeferredContext == nullptr)
 		return E_INVALIDARG;
@@ -1646,13 +1648,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags,
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext2" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		reshade::log::message(reshade::log::level::debug, "Returning ID3D11DeviceContext2 object %p (%p).", device_context_proxy, device_context_proxy->_orig);
 #endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device2::CreateDeferredContext2" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device2::CreateDeferredContext2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1719,7 +1721,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateTexture2D1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateTexture2D1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1775,7 +1777,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateTexture3D1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateTexture3D1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1822,7 +1824,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateRasterizerState2" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateRasterizerState2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1867,7 +1869,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateShaderResourceView1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateShaderResourceView1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1912,7 +1914,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateUnorderedAccessView1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateUnorderedAccessView1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1957,7 +1959,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateRenderTargetView1" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateRenderTargetView1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
@@ -1984,7 +1986,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 {
 	assert(_interface_version >= 3);
 
-	LOG(INFO) << "Redirecting " << "ID3D11Device3::CreateDeferredContext3" << '(' << "this = " << this << ", ContextFlags = " << ContextFlags << ", ppDeferredContext = " << ppDeferredContext << ')' << " ...";
+	reshade::log::message(reshade::log::level::info, "Redirecting ID3D11Device3::CreateDeferredContext3(this = %p, ContextFlags = %u, ppDeferredContext = %p) ...", this, ContextFlags, ppDeferredContext);
 
 	if (ppDeferredContext == nullptr)
 		return E_INVALIDARG;
@@ -1996,13 +1998,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags,
 		*ppDeferredContext = device_context_proxy;
 
 #if RESHADE_VERBOSE_LOG
-		LOG(DEBUG) << "Returning " << "ID3D11DeviceContext3" << " object " << device_context_proxy << " (" << device_context_proxy->_orig << ").";
+		reshade::log::message(reshade::log::level::debug, "Returning ID3D11DeviceContext3 object %p (%p).", device_context_proxy, device_context_proxy->_orig);
 #endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
 	{
-		LOG(WARN) << "ID3D11Device3::CreateDeferredContext3" << " failed with error code " << hr << '.';
+		reshade::log::message(reshade::log::level::warning, "ID3D11Device3::CreateDeferredContext3 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 	}
 #endif
 
