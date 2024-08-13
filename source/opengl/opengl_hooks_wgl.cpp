@@ -15,7 +15,6 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
-#include <cmath> // std::log2f
 #include <cstring> // std::strcmp
 #include <algorithm> // std::any_of, std::find_if
 
@@ -1334,11 +1333,23 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
-		const int index = (i >= WGL_SWAP_UNDERLAY1) ? static_cast<int>(-std::log2f(static_cast<float>(i >> 16)) - 1) : static_cast<int>(std::log2f(static_cast<float>(i)));
+		int plane_index = 0;
+		if (i >= WGL_SWAP_UNDERLAY1)
+		{
+			DWORD bit_index = 0;
+			BitScanReverse(&bit_index, i >> 16);
+			plane_index = -static_cast<int>(bit_index) - 1;
+		}
+		else
+		{
+			DWORD bit_index = 0;
+			BitScanReverse(&bit_index, i);
+			plane_index = +static_cast<int>(bit_index);
+		}
 
 #if RESHADE_VERBOSE_LOG
-		reshade::log::message(reshade::log::level::info, "Redirecting wglSwapLayerBuffers(hdc = %p, i = %u) ...", hdc, i);
-		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", index);
+		reshade::log::message(reshade::log::level::info, "Redirecting wglSwapLayerBuffers(hdc = %p, i = %x) ...", hdc, i);
+		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", plane_index);
 #endif
 
 		SetLastError(ERROR_INVALID_PARAMETER);

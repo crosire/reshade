@@ -8,7 +8,6 @@
 #include "dll_log.hpp"
 #include "dll_resources.hpp"
 #include "ini_file.hpp"
-#include <cmath> // std::log2f
 #include <cstdio> // std::sscanf
 #include <cstring> // std::memcpy, std::strcmp, std::strncmp, std::strncpy
 #include <algorithm> // std::copy_n, std::fill_n, std::max
@@ -538,9 +537,14 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		gl.GenTextures(1, &object);
 		gl.BindTexture(target, object);
 
-		const GLuint levels = (desc.texture.levels != 0) ?
-			desc.texture.levels :
-			static_cast<uint32_t>(std::log2f(static_cast<float>(std::max(desc.texture.width, desc.texture.height)))) + 1;
+		GLuint levels = desc.texture.levels;
+		if (levels == 0)
+		{
+			DWORD bit_index = 0;
+			BitScanReverse(&bit_index, std::max(desc.texture.width, desc.texture.height));
+			levels = static_cast<GLuint>(bit_index) + 1;
+		}
+
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
 
 #if 0
