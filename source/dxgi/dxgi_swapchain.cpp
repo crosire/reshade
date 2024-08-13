@@ -346,7 +346,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			BufferCount = desc.BufferCount;
 			Width = desc.BufferDesc.Width;
 			Height = desc.BufferDesc.Height;
-			NewFormat = static_cast<DXGI_FORMAT>(desc.BufferDesc.Format);
+			NewFormat = desc.BufferDesc.Format;
 			SwapChainFlags = desc.Flags;
 		}
 	}
@@ -606,9 +606,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 		if (modify_swapchain_desc(desc, &fullscreen_desc, hwnd))
 		{
+			BufferCount = desc.BufferCount;
 			Width = desc.Width;
 			Height = desc.Height;
 			NewFormat = desc.Format;
+			SwapChainFlags = desc.Flags;
 		}
 	}
 #endif
