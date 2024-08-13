@@ -55,6 +55,8 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
 	if (internal_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT)
 		desc.back_buffer.usage |= reshade::api::resource_usage::render_target;
+	if (internal_desc.BufferUsage & DXGI_USAGE_SHARED)
+		desc.back_buffer.flags |= reshade::api::resource_flags::shared;
 	if (internal_desc.BufferUsage & DXGI_USAGE_UNORDERED_ACCESS)
 		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
 
@@ -76,6 +78,8 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::render_target) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		if ((desc.back_buffer.flags & reshade::api::resource_flags::shared) != 0)
+			internal_desc.BufferUsage |= DXGI_USAGE_SHARED;
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::unordered_access) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_UNORDERED_ACCESS;
 
@@ -164,43 +168,28 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, DXGI_SWAP_CHAIN
 }
 #endif
 
-static void dump_format(DXGI_FORMAT format)
+static std::string format_to_string(DXGI_FORMAT format)
 {
-	const char *format_string = nullptr;
 	switch (format)
 	{
 	case DXGI_FORMAT_UNKNOWN:
-		format_string = "DXGI_FORMAT_UNKNOWN";
-		break;
+		return "DXGI_FORMAT_UNKNOWN";
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		format_string = "DXGI_FORMAT_R8G8B8A8_UNORM";
-		break;
+		return "DXGI_FORMAT_R8G8B8A8_UNORM";
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		format_string = "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
-		break;
+		return "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB";
 	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		format_string = "DXGI_FORMAT_B8G8R8A8_UNORM";
-		break;
+		return "DXGI_FORMAT_B8G8R8A8_UNORM";
 	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-		format_string = "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
-		break;
+		return "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB";
 	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		format_string = "DXGI_FORMAT_R10G10B10A2_UNORM";
-		break;
+		return "DXGI_FORMAT_R10G10B10A2_UNORM";
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		format_string = "DXGI_FORMAT_R16G16B16A16_FLOAT";
-		break;
+		return "DXGI_FORMAT_R16G16B16A16_FLOAT";
+	default:
+		char temp_string[11];
+		return std::string(temp_string, std::snprintf(temp_string, std::size(temp_string), "%u", static_cast<unsigned int>(format)));
 	}
-
-	if (format_string != nullptr)
-		reshade::log::message(reshade::log::level::info, "  | Format                                  |"                            " %-39s |", format_string);
-	else
-		reshade::log::message(reshade::log::level::info, "  | Format                                  |"                            " %-39d |", static_cast<int>(format));
-}
-static void dump_sample_desc(const DXGI_SAMPLE_DESC &desc)
-{
-	reshade::log::message(reshade::log::level::info, "  | SampleCount                             |"                                " %-39u |", desc.Count);
-	reshade::log::message(reshade::log::level::info, "  | SampleQuality                           |"                                " %-39d |", static_cast<int>(desc.Quality));
 }
 
 static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
@@ -212,11 +201,12 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc)
 	reshade::log::message(reshade::log::level::info, "  | Width                                   |"                                " %-39u |", desc.BufferDesc.Width);
 	reshade::log::message(reshade::log::level::info, "  | Height                                  |"                                " %-39u |", desc.BufferDesc.Height);
 	reshade::log::message(reshade::log::level::info, "  | RefreshRate                             |"            " %-19u"            " %-19u |", desc.BufferDesc.RefreshRate.Numerator, desc.BufferDesc.RefreshRate.Denominator);
-	dump_format(desc.BufferDesc.Format);
+	reshade::log::message(reshade::log::level::info, "  | Format                                  |"                                " %-39s |", format_to_string(desc.BufferDesc.Format).c_str());
 	reshade::log::message(reshade::log::level::info, "  | ScanlineOrdering                        |"                                " %-39d |", static_cast<int>(desc.BufferDesc.ScanlineOrdering));
 	reshade::log::message(reshade::log::level::info, "  | Scaling                                 |"                                " %-39d |", static_cast<int>(desc.BufferDesc.Scaling));
-	dump_sample_desc(desc.SampleDesc);
-	reshade::log::message(reshade::log::level::info, "  | BufferUsage                             |"                               " %-#39x |", static_cast<unsigned int>(desc.BufferUsage));
+	reshade::log::message(reshade::log::level::info, "  | SampleCount                             |"                                " %-39u |", desc.SampleDesc.Count);
+	reshade::log::message(reshade::log::level::info, "  | SampleQuality                           |"                                " %-39d |", static_cast<int>(desc.SampleDesc.Quality));
+	reshade::log::message(reshade::log::level::info, "  | BufferUsage                             |"                               " %-#39x |", desc.BufferUsage);
 	reshade::log::message(reshade::log::level::info, "  | BufferCount                             |"                                " %-39u |", desc.BufferCount);
 	reshade::log::message(reshade::log::level::info, "  | OutputWindow                            |"                                " %-39p |", desc.OutputWindow);
 	reshade::log::message(reshade::log::level::info, "  | Windowed                                |"                                " %-39s |", desc.Windowed ? "TRUE" : "FALSE");
@@ -238,21 +228,22 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWA
 	reshade::log::message(reshade::log::level::info, "  | Height                                  |"                                " %-39u |", desc.Height);
 	if (fullscreen_desc != nullptr)
 	{
-		reshade::log::message(reshade::log::level::info, "  | RefreshRate                             |"            " %-19u"        " %-19u |", fullscreen_desc->RefreshRate.Numerator, fullscreen_desc->RefreshRate.Denominator);
+	reshade::log::message(reshade::log::level::info, "  | RefreshRate                             |"              " %-19u"          " %-19u |", fullscreen_desc->RefreshRate.Numerator, fullscreen_desc->RefreshRate.Denominator);
 	}
-	dump_format(desc.Format);
+	reshade::log::message(reshade::log::level::info, "  | Format                                  |"                                " %-39s |", format_to_string(desc.Format).c_str());
 	reshade::log::message(reshade::log::level::info, "  | Stereo                                  |"                                " %-39s |", desc.Stereo ? "TRUE" : "FALSE");
 	if (fullscreen_desc != nullptr)
 	{
-		reshade::log::message(reshade::log::level::info, "  | ScanlineOrdering                        |"                            " %-39d |", static_cast<int>(fullscreen_desc->ScanlineOrdering));
-		reshade::log::message(reshade::log::level::info, "  | Scaling                                 |"                            " %-39d |", static_cast<int>(fullscreen_desc->Scaling));
+	reshade::log::message(reshade::log::level::info, "  | ScanlineOrdering                        |"                                " %-39d |", static_cast<int>(fullscreen_desc->ScanlineOrdering));
+	reshade::log::message(reshade::log::level::info, "  | Scaling                                 |"                                " %-39d |", static_cast<int>(fullscreen_desc->Scaling));
 	}
-	dump_sample_desc(desc.SampleDesc);
-	reshade::log::message(reshade::log::level::info, "  | BufferUsage                             |"                               " %-#39x |", static_cast<unsigned int>(desc.BufferUsage));
+	reshade::log::message(reshade::log::level::info, "  | SampleCount                             |"                                " %-39u |", desc.SampleDesc.Count);
+	reshade::log::message(reshade::log::level::info, "  | SampleQuality                           |"                                " %-39d |", static_cast<int>(desc.SampleDesc.Quality));
+	reshade::log::message(reshade::log::level::info, "  | BufferUsage                             |"                               " %-#39x |", desc.BufferUsage);
 	reshade::log::message(reshade::log::level::info, "  | BufferCount                             |"                                " %-39u |", desc.BufferCount);
 	if (fullscreen_desc != nullptr)
 	{
-		reshade::log::message(reshade::log::level::info, "  | Windowed                                |"                            " %-39s |", fullscreen_desc->Windowed ? "TRUE" : "FALSE");
+	reshade::log::message(reshade::log::level::info, "  | Windowed                                |"                                " %-39s |", fullscreen_desc->Windowed ? "TRUE" : "FALSE");
 	}
 	reshade::log::message(reshade::log::level::info, "  | SwapEffect                              |"                                " %-39d |", static_cast<int>(desc.SwapEffect));
 	reshade::log::message(reshade::log::level::info, "  | AlphaMode                               |"                                " %-39d |", static_cast<int>(desc.AlphaMode));

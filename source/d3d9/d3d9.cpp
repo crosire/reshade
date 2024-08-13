@@ -14,6 +14,28 @@
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
+static std::string format_to_string(D3DFORMAT format)
+{
+	switch (format)
+	{
+	case D3DFMT_UNKNOWN:
+		return "D3DFMT_UNKNOWN";
+	case D3DFMT_A8R8G8B8:
+		return "D3DFMT_A8R8G8B8";
+	case D3DFMT_X8R8G8B8:
+		return "D3DFMT_X8R8G8B8";
+	case D3DFMT_R5G6B5:
+		return "D3DFMT_R5G6B5";
+	case D3DFMT_X1R5G5B5:
+		return "D3DFMT_X1R5G5B5";
+	case D3DFMT_A2R10G10B10:
+		return "D3DFMT_A2R10G10B10";
+	default:
+		char temp_string[11];
+		return std::string(temp_string, std::snprintf(temp_string, std::size(temp_string), "%lu", static_cast<DWORD>(format)));
+	}
+}
+
 void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
 {
 	reshade::log::message(reshade::log::level::info, "Dumping presentation parameters:");
@@ -22,35 +44,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 	reshade::log::message(reshade::log::level::info, "  | BackBufferWidth                         |"                                " %-39u |", pp.BackBufferWidth);
 	reshade::log::message(reshade::log::level::info, "  | BackBufferHeight                        |"                                " %-39u |", pp.BackBufferHeight);
-
-	const char *format_string = nullptr;
-	switch (pp.BackBufferFormat)
-	{
-	case D3DFMT_UNKNOWN:
-		format_string = "D3DFMT_UNKNOWN";
-		break;
-	case D3DFMT_A8R8G8B8:
-		format_string = "D3DFMT_A8R8G8B8";
-		break;
-	case D3DFMT_X8R8G8B8:
-		format_string = "D3DFMT_X8R8G8B8";
-		break;
-	case D3DFMT_R5G6B5:
-		format_string = "D3DFMT_R5G6B5";
-		break;
-	case D3DFMT_X1R5G5B5:
-		format_string = "D3DFMT_X1R5G5B5";
-		break;
-	case D3DFMT_A2R10G10B10:
-		format_string = "D3DFMT_A2R10G10B10";
-		break;
-	}
-
-	if (format_string != nullptr)
-		reshade::log::message(reshade::log::level::info, "  | BackBufferFormat                        |"                            " %-39s |", format_string);
-	else
-		reshade::log::message(reshade::log::level::info, "  | BackBufferFormat                        |"                           " %-39lu |", static_cast<DWORD>(pp.BackBufferFormat));
-
+	reshade::log::message(reshade::log::level::info, "  | BackBufferFormat                        |"                                " %-39s |", format_to_string(pp.BackBufferFormat).c_str());
 	reshade::log::message(reshade::log::level::info, "  | BackBufferCount                         |"                                " %-39u |", pp.BackBufferCount);
 	reshade::log::message(reshade::log::level::info, "  | MultiSampleType                         |"                               " %-39lu |", static_cast<DWORD>(pp.MultiSampleType));
 	reshade::log::message(reshade::log::level::info, "  | MultiSampleQuality                      |"                               " %-39lu |", pp.MultiSampleQuality);

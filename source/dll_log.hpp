@@ -72,7 +72,7 @@ namespace reshade::log
 			return "DXGI_ERROR_DRIVER_INTERNAL_ERROR";
 		default:
 			char temp_string[11];
-			return std::string(temp_string, std::snprintf(temp_string, std::size(temp_string), "%#x", hr));
+			return std::string(temp_string, std::snprintf(temp_string, std::size(temp_string), "%#lx", static_cast<unsigned long>(hr)));
 		}
 	}
 #endif

@@ -363,10 +363,10 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 	reshade::log::message(reshade::log::level::info, "  | Name                                    | Value                                   |");
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
-	reshade::log::message(reshade::log::level::info, "  | Flags                                   | %-#39lx |", ppfd->dwFlags);
-	reshade::log::message(reshade::log::level::info, "  | ColorBits                               | %-39u |", static_cast<unsigned int>(ppfd->cColorBits));
-	reshade::log::message(reshade::log::level::info, "  | DepthBits                               | %-39u |", static_cast<unsigned int>(ppfd->cDepthBits));
-	reshade::log::message(reshade::log::level::info, "  | StencilBits                             | %-39u |", static_cast<unsigned int>(ppfd->cStencilBits));
+	reshade::log::message(reshade::log::level::info, "  | Flags                                   |"                              " %-#39lx |", ppfd->dwFlags);
+	reshade::log::message(reshade::log::level::info, "  | ColorBits                               |"                                " %-39u |", static_cast<unsigned int>(ppfd->cColorBits));
+	reshade::log::message(reshade::log::level::info, "  | DepthBits                               |"                                " %-39u |", static_cast<unsigned int>(ppfd->cDepthBits));
+	reshade::log::message(reshade::log::level::info, "  | StencilBits                             |"                                " %-39u |", static_cast<unsigned int>(ppfd->cStencilBits));
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
@@ -1074,14 +1074,14 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		gl3wInit2([](const char *name) {
 			extern std::filesystem::path get_system_path();
 			// First attempt to load from the OpenGL ICD
-			FARPROC address = reshade::hooks::call(wglGetProcAddress)(name);
-			if (address == nullptr)
+			FARPROC proc_address = reshade::hooks::call(wglGetProcAddress)(name);
+			if (nullptr == proc_address)
 				// Load from the Windows OpenGL DLL if that fails
-				address = GetProcAddress(GetModuleHandleW((get_system_path() / L"opengl32.dll").c_str()), name);
+				proc_address = GetProcAddress(GetModuleHandleW((get_system_path() / L"opengl32.dll").c_str()), name);
 			// Get trampoline pointers to any hooked functions, so that effect runtime always calls into original OpenGL functions
-			if (address != nullptr && reshade::hooks::is_hooked(address))
-				address = reshade::hooks::call<FARPROC>(nullptr, address);
-			return reinterpret_cast<GL3WglProc>(address);
+			if (nullptr != proc_address && reshade::hooks::is_hooked(proc_address))
+				proc_address = reshade::hooks::call<FARPROC>(nullptr, proc_address);
+			return reinterpret_cast<GL3WglProc>(proc_address);
 		});
 
 		if (!gl3wIsSupported(4, 3))
@@ -1469,9 +1469,9 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 	static const auto trampoline = reshade::hooks::call(wglGetProcAddress);
-	const PROC address = trampoline(lpszProc);
 
-	if (address == nullptr)
+	const PROC proc_address = trampoline(lpszProc);
+	if (proc_address == nullptr)
 		return nullptr;
 	else if (0 == std::strcmp(lpszProc, "glBindTexture"))
 		return reinterpret_cast<PROC>(glBindTexture);
@@ -1830,5 +1830,5 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		s_hooks_installed = true;
 	}
 
-	return address;
+	return proc_address;
 }

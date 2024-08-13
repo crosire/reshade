@@ -2642,10 +2642,10 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::Text("DEV_%X", _device_id);
 		else
 			ImGui::TextUnformatted("Unknown");
-		ImGui::Text("0x%X", std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF);
+		ImGui::Text("0x%X", static_cast<unsigned int>(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
 		ImGui::Text("%.0f ms", std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f);
 #if RESHADE_FX
-		ImGui::Text("format %u (%u bpc)", _effect_color_format, api::format_bit_depth(_effect_color_format));
+		ImGui::Text("Format %u (%u bpc)", static_cast<unsigned int>(_effect_color_format), api::format_bit_depth(_effect_color_format));
 #endif
 		ImGui::Text("%*.3f ms", gpu_digits + 4, _last_frame_duration.count() * 1e-6f);
 #if RESHADE_FX

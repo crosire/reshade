@@ -870,14 +870,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	// Dump swap chain description
 	{
-		reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
-		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
-		reshade::log::message(reshade::log::level::info, "  | Parameter                               | Value                                   |");
-		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
-		reshade::log::message(reshade::log::level::info, "  | flags                                   |"                               " %-#39x |", static_cast<unsigned int>(create_info.flags));
-		reshade::log::message(reshade::log::level::info, "  | surface                                 |"                                " %-39p |", create_info.surface);
-		reshade::log::message(reshade::log::level::info, "  | minImageCount                           |"                                " %-39u |", create_info.minImageCount);
-
 		const char *format_string = nullptr;
 		switch (create_info.imageFormat)
 		{
@@ -930,16 +922,21 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			break;
 		}
 
+		reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+		reshade::log::message(reshade::log::level::info, "  | Parameter                               | Value                                   |");
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+		reshade::log::message(reshade::log::level::info, "  | flags                                   |"                               " %-#39x |", static_cast<unsigned int>(create_info.flags));
+		reshade::log::message(reshade::log::level::info, "  | surface                                 |"                                " %-39p |", create_info.surface);
+		reshade::log::message(reshade::log::level::info, "  | minImageCount                           |"                                " %-39u |", create_info.minImageCount);
 		if (format_string != nullptr)
-			reshade::log::message(reshade::log::level::info, "  | imageFormat                             |"                            " %-39s |", format_string);
+		reshade::log::message(reshade::log::level::info, "  | imageFormat                             |"                                " %-39s |", format_string);
 		else
-			reshade::log::message(reshade::log::level::info, "  | imageFormat                             |"                            " %-39d |", static_cast<int>(create_info.imageFormat));
-
+		reshade::log::message(reshade::log::level::info, "  | imageFormat                             |"                                " %-39d |", static_cast<int>(create_info.imageFormat));
 		if (color_space_string != nullptr)
-			reshade::log::message(reshade::log::level::info, "  | imageColorSpace                         |"                            " %-39s |", color_space_string);
+		reshade::log::message(reshade::log::level::info, "  | imageColorSpace                         |"                                " %-39s |", color_space_string);
 		else
-			reshade::log::message(reshade::log::level::info, "  | imageColorSpace                         |"                            " %-39d |", static_cast<int>(create_info.imageColorSpace));
-
+		reshade::log::message(reshade::log::level::info, "  | imageColorSpace                         |"                                " %-39d |", static_cast<int>(create_info.imageColorSpace));
 		reshade::log::message(reshade::log::level::info, "  | imageExtent                             |"            " %-19u"            " %-19u |", create_info.imageExtent.width, create_info.imageExtent.height);
 		reshade::log::message(reshade::log::level::info, "  | imageArrayLayers                        |"                                " %-39u |", create_info.imageArrayLayers);
 		reshade::log::message(reshade::log::level::info, "  | imageUsage                              |"                               " %-#39x |", static_cast<unsigned int>(create_info.imageUsage));
