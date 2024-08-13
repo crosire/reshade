@@ -3003,21 +3003,15 @@ void reshade::runtime::draw_gui_log()
 
 	if (ImGui::BeginChild("##log", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_Border, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
-		// Limit number of log lines to read, to avoid stalling when log gets too big
-		constexpr size_t LINE_LIMIT = 1000;
-
 		const uintmax_t file_size = std::filesystem::file_size(log_path, ec);
 		if (filter_changed || _last_log_size != file_size)
 		{
 			_log_lines.clear();
 			std::ifstream log_file(log_path);
-			for (std::string line; std::getline(log_file, line) && _log_lines.size() < LINE_LIMIT;)
+			for (std::string line; std::getline(log_file, line);)
 				if (filter_text(line, _log_filter))
 					_log_lines.push_back(line);
 			_last_log_size = file_size;
-
-			if (_log_lines.size() == LINE_LIMIT)
-				_log_lines.push_back("Log was truncated to reduce memory footprint!");
 		}
 
 		ImGuiListClipper clipper;
@@ -3030,7 +3024,7 @@ void reshade::runtime::draw_gui_log()
 
 				if (_log_lines[i].find("ERROR |") != std::string::npos || _log_lines[i].find("error") != std::string::npos)
 					textcol = COLOR_RED;
-				else if (_log_lines[i].find("WARN  |") != std::string::npos || _log_lines[i].find("warning") != std::string::npos || i == LINE_LIMIT)
+				else if (_log_lines[i].find("WARN  |") != std::string::npos || _log_lines[i].find("warning") != std::string::npos)
 					textcol = COLOR_YELLOW;
 				else if (_log_lines[i].find("DEBUG |") != std::string::npos)
 					textcol = ImColor(100, 100, 255);
