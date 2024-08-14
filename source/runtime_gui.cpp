@@ -3530,7 +3530,10 @@ void reshade::runtime::draw_variable_editor()
 					{
 						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
 							category_label.insert(0, " ");
-						category_label += "###" + current_category; // Ensure widget ID does not change with varying width
+						// Ensure widget ID does not change with varying width
+						category_label += "###" + current_category;
+						// Append a unique value so that the context menu does not contain duplicated widgets when a category is made current multiple times
+						category_label += std::to_string(variable_index);
 					}
 
 					if (category_visible = true;
