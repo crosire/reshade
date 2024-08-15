@@ -62,7 +62,7 @@ bool load_texture_image(const resource_desc &desc, subresource_data &data, std::
 	if (desc.texture.width != static_cast<uint32_t>(width) ||
 		desc.texture.height != static_cast<uint32_t>(height))
 	{
-		reshade::log_message(reshade::log_level::error, "Failed to replace texture data because dimensions do not match!");
+		reshade::log::message(reshade::log::level::error, "Failed to replace texture data because dimensions do not match!");
 		return false;
 	}
 
@@ -139,7 +139,7 @@ bool load_texture_image(const resource_desc &desc, subresource_data &data, std::
 		break;
 	default:
 		// Unsupported format
-		reshade::log_message(reshade::log_level::error, "Failed to replace texture data because format is not supported!");
+		reshade::log::message(reshade::log::level::error, "Failed to replace texture data because format is not supported!");
 		return false;
 	}
 

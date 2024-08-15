@@ -12,11 +12,26 @@
 
 namespace reshade::log
 {
+	/// <summary>
+	/// Severity levels for logging.
+	/// </summary>
 	enum class level
 	{
-		info = 3,
+		/// <summary>
+		/// | ERROR | ...
+		/// </summary>
 		error = 1,
+		/// <summary>
+		/// | WARN  | ...
+		/// </summary>
 		warning = 2,
+		/// <summary>
+		/// | INFO  | ...
+		/// </summary>
+		info = 3,
+		/// <summary>
+		/// | DEBUG | ...
+		/// </summary>
 		debug = 4,
 	};
 
@@ -24,6 +39,7 @@ namespace reshade::log
 	/// Opens a log file for writing.
 	/// </summary>
 	/// <param name="path">Path to the log file.</param>
+	/// <param name="ec">Error code that is set on failure.</param>
 	bool open_log_file(const std::filesystem::path &path, std::error_code &ec);
 
 	/// <summary>

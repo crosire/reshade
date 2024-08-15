@@ -53,7 +53,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 
 	if (codec == nullptr)
 	{
-		reshade::log_message(reshade::log_level::error, "Failed to find a H.264 encoder that passes requirements!");
+		reshade::log::message(reshade::log::level::error, "Failed to find a H.264 encoder that passes requirements!");
 		return false;
 	}
 
@@ -83,7 +83,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 		break;
 	default:
 		destroy_codec_ctx();
-		reshade::log_message(reshade::log_level::error, "Unsupported texture format!");
+		reshade::log::message(reshade::log::level::error, "Unsupported texture format!");
 		return false;
 	}
 
@@ -93,7 +93,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to initialize encoder: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(reshade::log_level::error, errbuf);
+		reshade::log::message(reshade::log::level::error, errbuf);
 		return false;
 	}
 
@@ -116,7 +116,7 @@ bool video_capture::init_codec_ctx(const reshade::api::resource_desc &buffer_des
 
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to get frame buffer: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(reshade::log_level::error, errbuf);
+		reshade::log::message(reshade::log::level::error, errbuf);
 		return false;
 	}
 
@@ -143,7 +143,7 @@ bool video_capture::init_format_ctx(const char *filename)
 	{
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to initialize ffmpeg output context: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(reshade::log_level::error, errbuf);
+		reshade::log::message(reshade::log::level::error, errbuf);
 		return false;
 	}
 
@@ -152,7 +152,7 @@ bool video_capture::init_format_ctx(const char *filename)
 		avformat_free_context(output_ctx);
 		output_ctx = nullptr;
 
-		reshade::log_message(reshade::log_level::error, "Failed to open output file!");
+		reshade::log::message(reshade::log::level::error, "Failed to open output file!");
 		return false;
 	}
 
@@ -184,7 +184,7 @@ static void encode_frame(AVCodecContext *enc, AVFormatContext *s, AVFrame *frame
 	{
 		char errbuf[32 + AV_ERROR_MAX_STRING_SIZE] = "Failed to send frame for encoding: ";
 		av_make_error_string(errbuf + strlen(errbuf), sizeof(errbuf) - strlen(errbuf), err);
-		reshade::log_message(reshade::log_level::error, errbuf);
+		reshade::log::message(reshade::log::level::error, errbuf);
 		return;
 	}
 
@@ -206,7 +206,7 @@ static void on_init(reshade::api::effect_runtime *runtime)
 	// Create a fence that is used to communicate status of copies between device and host
 	if (!runtime->get_device()->create_fence(0, reshade::api::fence_flags::none, &data.copy_finished_fence))
 	{
-		reshade::log_message(reshade::log_level::error, "Failed to create copy fence!");
+		reshade::log::message(reshade::log::level::error, "Failed to create copy fence!");
 	}
 }
 static void on_destroy(reshade::api::effect_runtime *runtime)
@@ -242,7 +242,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 	{
 		if (data.output_ctx != nullptr)
 		{
-			reshade::log_message(reshade::log_level::info, "Stopping video recording ...");
+			reshade::log::message(reshade::log::level::info, "Stopping video recording ...");
 
 			queue->wait_idle();
 
@@ -276,7 +276,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 			{
 				if (!device->create_resource(desc, nullptr, reshade::api::resource_usage::copy_dest, &data.host_resources[i]))
 				{
-					reshade::log_message(reshade::log_level::error, "Failed to create host resource!");
+					reshade::log::message(reshade::log::level::error, "Failed to create host resource!");
 
 					for (size_t k = 0; k < i; ++k)
 					{
@@ -290,7 +290,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 				}
 			}
 
-			reshade::log_message(reshade::log_level::info, "Starting video recording ...");
+			reshade::log::message(reshade::log::level::info, "Starting video recording ...");
 
 			data.start_time = data.last_time = std::chrono::system_clock::now();
 		}

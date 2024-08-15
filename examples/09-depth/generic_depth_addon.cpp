@@ -263,7 +263,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		else
 		{
 			depth_stencil_backups.pop_back();
-			reshade::log_message(reshade::log_level::error, "Failed to create backup depth-stencil texture!");
+			reshade::log::message(reshade::log::level::error, "Failed to create backup depth-stencil texture!");
 
 			return nullptr;
 		}
@@ -542,7 +542,7 @@ static bool on_create_resource(device *device, resource_desc &desc, subresource_
 		if (desc.texture.width <= 512)
 			return false;
 		if (desc.texture.format == format::d32_float || desc.texture.format == format::d32_float_s8_uint)
-			reshade::log_message(reshade::log_level::warning, "Replacing high bit depth depth-stencil format with a lower bit depth format");
+			reshade::log::message(reshade::log::level::warning, "Replacing high bit depth depth-stencil format with a lower bit depth format");
 		// Replace texture format with special format that supports normal sampling (see https://aras-p.info/texts/D3D9GPUHacks.html#depth)
 		desc.texture.format = format::intz;
 		desc.usage |= resource_usage::shader_resource;
@@ -623,7 +623,7 @@ static void on_destroy_resource(device *device, resource resource)
 		{
 			lock.unlock();
 
-			reshade::log_message(reshade::log_level::warning, "A depth-stencil resource was destroyed while still in use.");
+			reshade::log::message(reshade::log::level::warning, "A depth-stencil resource was destroyed while still in use.");
 
 			// This is bad ... the resource may still be in use by an effect on the GPU and destroying it would crash it
 			// Try to mitigate that somehow by delaying this thread a little to hopefully give the GPU enough time to catch up before the resource memory is deallocated

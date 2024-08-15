@@ -58,9 +58,9 @@ namespace reshade { namespace internal
 	/// <summary>
 	/// Gets the handle to the ReShade module.
 	/// </summary>
-	inline HMODULE get_reshade_module_handle(HMODULE reshade_module = nullptr)
+	inline HMODULE get_reshade_module_handle(HMODULE initial_handle = nullptr)
 	{
-		static HMODULE handle = reshade_module;
+		static HMODULE handle = initial_handle;
 		if (handle == nullptr)
 		{
 			HMODULE modules[1024]; DWORD num = 0;
@@ -86,9 +86,9 @@ namespace reshade { namespace internal
 	/// <summary>
 	/// Gets the handle to the current add-on module.
 	/// </summary>
-	inline HMODULE get_current_module_handle(HMODULE addon_module = nullptr)
+	inline HMODULE get_current_module_handle(HMODULE initial_handle = nullptr)
 	{
-		static HMODULE handle = addon_module;
+		static HMODULE handle = initial_handle;
 		return handle;
 	}
 } }
@@ -97,44 +97,49 @@ namespace reshade { namespace internal
 
 namespace reshade
 {
-	/// <summary>
-	/// Available log severity levels.
-	/// </summary>
-	enum class log_level
+#if !defined(RESHADE_API_LIBRARY_EXPORT) || defined(BUILTIN_ADDON)
+	namespace log
 	{
 		/// <summary>
-		/// | [ERROR] | ...
+		/// Severity levels for logging.
 		/// </summary>
-		error = 1,
-		/// <summary>
-		/// | [WARN]  | ...
-		/// </summary>
-		warning = 2,
-		/// <summary>
-		/// | [INFO]  | ...
-		/// </summary>
-		info = 3,
-		/// <summary>
-		/// | [DEBUG] | ...
-		/// </summary>
-		debug = 4
-	};
+		enum class level
+		{
+			/// <summary>
+			/// | ERROR | ...
+			/// </summary>
+			error = 1,
+			/// <summary>
+			/// | WARN  | ...
+			/// </summary>
+			warning = 2,
+			/// <summary>
+			/// | INFO  | ...
+			/// </summary>
+			info = 3,
+			/// <summary>
+			/// | DEBUG | ...
+			/// </summary>
+			debug = 4,
+		};
 
-	/// <summary>
-	/// Writes a message to ReShade's log.
-	/// </summary>
-	/// <param name="level">Severity level.</param>
-	/// <param name="message">A null-terminated message string.</param>
-	inline void log_message(log_level level, const char *message)
-	{
+		/// <summary>
+		/// Writes a message to ReShade's log.
+		/// </summary>
+		/// <param name="level">Severity level.</param>
+		/// <param name="message">A null-terminated message string.</param>
+		inline void message(level level, const char *message)
+		{
 #if defined(RESHADE_API_LIBRARY)
-		ReShadeLogMessage(nullptr, static_cast<int>(level), message);
+			ReShadeLogMessage(nullptr, static_cast<int>(level), message);
 #else
-		static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
-			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeLogMessage"));
-		func(internal::get_current_module_handle(), static_cast<int>(level), message);
+			static const auto func = reinterpret_cast<void(*)(HMODULE, int, const char *)>(
+				GetProcAddress(internal::get_reshade_module_handle(), "ReShadeLogMessage"));
+			func(internal::get_current_module_handle(), static_cast<int>(level), message);
 #endif
+		}
 	}
+#endif
 
 	/// <summary>
 	/// Gets the base path ReShade uses to resolve relative paths.

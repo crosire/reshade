@@ -68,12 +68,12 @@ static void on_init_device(device *device)
 
 	if (!device->create_resource(resource_desc(1, 1, 1, 1, format::r8g8b8a8_unorm, 1, memory_heap::gpu_only, resource_usage::shader_resource), &initial_data, resource_usage::shader_resource, &data.green_texture))
 	{
-		reshade::log_message(reshade::log_level::error, "Failed to create green texture!");
+		reshade::log::message(reshade::log::level::error, "Failed to create green texture!");
 		return;
 	}
 	if (!device->create_resource_view(data.green_texture, resource_usage::shader_resource, resource_view_desc(format::r8g8b8a8_unorm), &data.green_texture_srv))
 	{
-		reshade::log_message(reshade::log_level::error, "Failed to create green texture view!");
+		reshade::log::message(reshade::log::level::error, "Failed to create green texture view!");
 		return;
 	}
 }
@@ -299,7 +299,7 @@ static bool save_texture_image(command_queue *queue, resource tex, const resourc
 
 		if (!device->create_resource(resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_default_typed(desc.texture.format), 1, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
 		{
-			reshade::log_message(reshade::log_level::error, "Failed to create system memory texture for texture dumping!");
+			reshade::log::message(reshade::log::level::error, "Failed to create system memory texture for texture dumping!");
 			return false;
 		}
 
