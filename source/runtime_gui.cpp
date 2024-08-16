@@ -1087,7 +1087,11 @@ void reshade::runtime::draw_gui()
 #endif
 
 	ImVec2 viewport_offset = ImVec2(0, 0);
+#if RESHADE_FX
 	const bool show_spinner = _reload_count > 1 && _tutorial_index != 0;
+#else
+	const bool show_spinner = false;
+#endif
 
 	// Create ImGui widgets and windows
 	if (show_splash_window && !(show_spinner && show_overlay))
@@ -1106,11 +1110,13 @@ void reshade::runtime::draw_gui()
 			ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoFocusOnAppearing);
 
+#if RESHADE_FX
 		if (show_spinner)
 		{
 			imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16, 10);
 		}
 		else
+#endif
 		{
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
@@ -1327,6 +1333,7 @@ void reshade::runtime::draw_gui()
 				ImGui::SetCursorPosX(content_width - ImGui::CalcTextSize(temp, temp + temp_size).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp, temp + temp_size);
 		}
+#if RESHADE_FX
 		if (show_preset_name)
 		{
 			const std::string preset_name = _current_preset_path.stem().u8string();
@@ -1334,6 +1341,7 @@ void reshade::runtime::draw_gui()
 				ImGui::SetCursorPosX(content_width - ImGui::CalcTextSize(preset_name.c_str(), preset_name.c_str() + preset_name.size()).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(preset_name.c_str(), preset_name.c_str() + preset_name.size());
 		}
+#endif
 
 		ImGui::Dummy(ImVec2(200, 0)); // Force a minimum window width
 
@@ -2514,7 +2522,9 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::checkbox_tristate(_("Show FPS"), &_show_fps);
 			ImGui::SameLine(0, 10);
 			modified |= imgui::checkbox_tristate(_("Show frame time"), &_show_frametime);
+#if RESHADE_FX
 			modified |= imgui::checkbox_tristate(_("Show preset name"), &_show_preset_name);
+#endif
 			ImGui::EndGroup();
 			ImGui::SetItemTooltip(_("Check to always show, fill out to only show while overlay is open."));
 
