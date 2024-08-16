@@ -1694,7 +1694,7 @@ void reshade::runtime::draw_gui_home()
 			_preset_is_modified = false;
 		}
 
-		ImGui::SetItemTooltip(_("Save current preset automatically on every modification"));
+		ImGui::SetItemTooltip(_("Save current preset automatically on every modification."));
 
 		if (was_auto_save_preset)
 		{
@@ -1709,7 +1709,7 @@ void reshade::runtime::draw_gui_home()
 			if (imgui::confirm_button(ICON_FK_UNDO, button_height, _("Do you really want to reset all techniques and values?")))
 				reload_preset = true;
 
-			ImGui::SetItemTooltip(_("Reset all techniques and values to those of the current preset"));
+			ImGui::SetItemTooltip(_("Reset all techniques and values to those of the current preset."));
 
 			ImGui::EndDisabled();
 
@@ -1732,7 +1732,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetItemTooltip(save_and_clean_preset ?
-			_("Clean up and save the current preset (removes all values for disabled techniques)") : _("Save the current preset"));
+			_("Clean up and save the current preset (removes all values for disabled techniques).") : _("Save the current preset."));
 
 		ImGui::EndDisabled();
 
@@ -1745,7 +1745,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::OpenPopup("##create");
 		}
 
-		ImGui::SetItemTooltip(_("Add a new preset"));
+		ImGui::SetItemTooltip(_("Add a new preset."));
 
 		if (was_loading)
 		{
@@ -1942,7 +1942,7 @@ void reshade::runtime::draw_gui_home()
 			ImGui::PushTextWrapPos();
 			ImGui::PushStyleColor(ImGuiCol_Text, COLOR_RED);
 			ImGui::TextUnformatted(_("There were errors loading some effects."));
-			ImGui::TextUnformatted(_("Hover the cursor over any red entries below to see the error messages and/or check the log for more details."));
+			ImGui::TextUnformatted(_("Hover the cursor over any red entries below to see the related error messages and/or check the log for more details if there are none."));
 			ImGui::PopStyleColor();
 			ImGui::PopTextWrapPos();
 			ImGui::Spacing();
@@ -2049,6 +2049,8 @@ void reshade::runtime::draw_gui_home()
 			reload_effects();
 		}
 
+		ImGui::SetItemTooltip(_("Reload all effects (can hold 'Ctrl' while clicking to clear the effect cache before loading)."));
+
 		ImGui::SameLine();
 
 		if (ImGui::Checkbox(_("Performance Mode"), &_performance_mode))
@@ -2057,7 +2059,7 @@ void reshade::runtime::draw_gui_home()
 			reload_effects(); // Reload effects after switching
 		}
 
-		ImGui::SetItemTooltip(_("Reload all effects into a more optimal representation that can give a performance boost (disables variable tweaking)"));
+		ImGui::SetItemTooltip(_("Reload all effects into a more optimal representation that can give a performance boost, but disables variable tweaking."));
 	}
 	else
 	{
@@ -2157,7 +2159,7 @@ void reshade::runtime::draw_gui_settings()
 		modified |= imgui::path_list(_("Effect search paths"), _effect_search_paths, _file_selection_path, g_reshade_base_path);
 		ImGui::SetItemTooltip(_("List of directory paths to be searched for effect files (.fx).\nPaths that end in \"\\**\" are searched recursively."));
 		modified |= imgui::path_list(_("Texture search paths"), _texture_search_paths, _file_selection_path, g_reshade_base_path);
-		ImGui::SetItemTooltip(_("List of directory paths to be searched for texture image files.\nPaths that end in \"\\**\" are searched recursively."));
+		ImGui::SetItemTooltip(_("List of directory paths to be searched for image files used as source for textures.\nPaths that end in \"\\**\" are searched recursively."));
 
 		if (ImGui::Checkbox(_("Load only enabled effects"), &_effect_load_skipping))
 		{
@@ -3961,7 +3963,7 @@ void reshade::runtime::draw_technique_editor()
 		for (const std::filesystem::path &search_path : _effect_search_paths)
 			ImGui::Text("  %s", (g_reshade_base_path / search_path).lexically_normal().u8string().c_str());
 		ImGui::Spacing();
-		ImGui::TextWrapped(_("Please verify they are set up correctly in the settings and hit 'Reload'!"));
+		ImGui::TextWrapped(_("Go to the settings and configure the 'Effect search paths' option to point to the directory containing effect files, then hit 'Reload'!"));
 		ImGui::PopStyleColor();
 		return;
 	}
@@ -4625,15 +4627,13 @@ bool reshade::runtime::init_imgui_resources()
 	api::format render_target_format = api::format_to_default_typed(_back_buffer_format, 0);
 	subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &render_target_format });
 
-	if (_device->create_pipeline(_imgui_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_imgui_pipeline))
-	{
-		return true;
-	}
-	else
+	if (!_device->create_pipeline(_imgui_pipeline_layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &_imgui_pipeline))
 	{
 		log::message(log::level::error, "Failed to create ImGui pipeline!");
 		return false;
 	}
+
+	return true;
 }
 void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv)
 {
