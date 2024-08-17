@@ -25,6 +25,8 @@ extern "C" void APIENTRY glBindImageTexture(GLuint unit, GLuint texture, GLint l
 extern "C" void APIENTRY glBindImageTextures(GLuint first, GLsizei count, const GLuint *textures);
 #undef glBindMultiTextureEXT
 extern "C" void APIENTRY glBindMultiTextureEXT(GLenum texunit, GLenum target, GLuint texture);
+#undef glBindProgramARB
+extern "C" void APIENTRY glBindProgramARB(GLenum target, GLuint program);
 #undef glBindTexture
 extern "C" void APIENTRY glBindTexture(GLenum target, GLuint texture);
 #undef glBindTextureUnit

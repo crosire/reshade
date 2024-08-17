@@ -4693,6 +4693,34 @@ void APIENTRY glBindTextureUnit(GLuint unit, GLuint texture)
 }
 #endif
 
+void APIENTRY glBindProgramARB(GLenum target, GLuint program)
+{
+	static const auto trampoline = reshade::hooks::call(glBindProgramARB);
+	trampoline(target, program);
+
+#if RESHADE_ADDON >= 2
+	if (g_opengl_context)
+	{
+		reshade::api::pipeline_stage stage;
+		switch (target)
+		{
+		case 0x8620 /* GL_VERTEX_PROGRAM_ARB */:
+			stage = reshade::api::pipeline_stage::vertex_shader;
+			break;
+		case 0x8804 /* GL_FRAGMENT_PROGRAM_ARB */:
+			stage = reshade::api::pipeline_stage::pixel_shader;
+			break;
+		default:
+			assert(false);
+			return;
+		}
+
+		const auto pipeline = (program != 0) ? reshade::api::pipeline { (static_cast<uint64_t>(GL_PROGRAM) << 40) | program } : reshade::api::pipeline {};
+
+		reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(g_opengl_context, stage, pipeline);
+	}
+#endif
+}
 void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, const GLvoid *string)
 {
 	static const auto trampoline = reshade::hooks::call(glProgramStringARB);

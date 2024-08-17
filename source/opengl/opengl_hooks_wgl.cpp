@@ -1811,6 +1811,7 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 #endif
 
 		// GL_ARB_vertex_program / GL_ARB_fragment_program
+		HOOK_PROC(glBindProgramARB);
 		HOOK_PROC(glProgramStringARB);
 		HOOK_PROC(glDeleteProgramsARB);
 
