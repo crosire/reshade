@@ -17,33 +17,33 @@
 #include <ivrclientcore.h>
 #include <stb_image.h>
 
-static vr::IVROverlay *s_overlay = nullptr;
-extern vr::IVRClientCore *g_client_core;
+static vr::IVROverlay *s_vr_overlay = nullptr;
+extern vr::IVRClientCore *g_vr_client_core;
 static vr::VROverlayHandle_t s_main_handle = vr::k_ulOverlayHandleInvalid;
 static vr::VROverlayHandle_t s_thumbnail_handle = vr::k_ulOverlayHandleInvalid;
 
-static constexpr uint32_t OVERLAY_WIDTH = 500;
-static constexpr uint32_t OVERLAY_HEIGHT = 500;
+constexpr uint32_t OVERLAY_WIDTH = 500;
+constexpr uint32_t OVERLAY_HEIGHT = 500;
 
 bool reshade::runtime::init_gui_vr()
 {
 	if (s_main_handle != vr::k_ulOverlayHandleInvalid)
 		return true;
 
-	if (s_overlay == nullptr)
+	if (s_vr_overlay == nullptr)
 	{
-		if (g_client_core == nullptr)
+		if (g_vr_client_core == nullptr)
 		{
 			log::message(log::level::error, "Failed to create VR dashboard overlay because SteamVR is not loaded!");
 			return true; // Do not prevent effect runtime from initializing
 		}
 
 		vr::EVRInitError init_e;
-		if ((s_overlay = static_cast<vr::IVROverlay *>(g_client_core->GetGenericInterface(vr::IVROverlay_Version, &init_e))) == nullptr)
+		if ((s_vr_overlay = static_cast<vr::IVROverlay *>(g_vr_client_core->GetGenericInterface(vr::IVROverlay_Version, &init_e))) == nullptr)
 			return false;
 	}
 
-	const vr::EVROverlayError overlay_e = s_overlay->CreateDashboardOverlay("reshade", "ReShade " VERSION_STRING_PRODUCT, &s_main_handle, &s_thumbnail_handle);
+	const vr::EVROverlayError overlay_e = s_vr_overlay->CreateDashboardOverlay("reshade", "ReShade " VERSION_STRING_PRODUCT, &s_main_handle, &s_thumbnail_handle);
 	if (overlay_e != vr::VROverlayError_None)
 	{
 		log::message(log::level::error, "Failed to create VR dashboard overlay with error code %d!", static_cast<int>(overlay_e));
@@ -56,17 +56,17 @@ bool reshade::runtime::init_gui_vr()
 
 		int width = 0, height = 0, channels = 0;
 		stbi_uc *const icon_data = stbi_load_from_memory(static_cast<const stbi_uc *>(icon.data), static_cast<int>(icon.data_size), &width, &height, &channels, 0);
-		s_overlay->SetOverlayRaw(s_thumbnail_handle, icon_data, width, height, channels);
+		s_vr_overlay->SetOverlayRaw(s_thumbnail_handle, icon_data, width, height, channels);
 		stbi_image_free(icon_data);
 	}
 
 	const vr::HmdVector2_t window_size = { static_cast<float>(OVERLAY_WIDTH), static_cast<float>(OVERLAY_HEIGHT) };
-	s_overlay->SetOverlayMouseScale(s_main_handle, &window_size);
-	s_overlay->SetOverlayInputMethod(s_main_handle, vr::VROverlayInputMethod_Mouse);
+	s_vr_overlay->SetOverlayMouseScale(s_main_handle, &window_size);
+	s_vr_overlay->SetOverlayInputMethod(s_main_handle, vr::VROverlayInputMethod_Mouse);
 
-	s_overlay->SetOverlayFlag(s_main_handle, vr::VROverlayFlags_SendVRSmoothScrollEvents, true);
+	s_vr_overlay->SetOverlayFlag(s_main_handle, vr::VROverlayFlags_SendVRSmoothScrollEvents, true);
 
-	s_overlay->SetOverlayWidthInMeters(s_main_handle, 1.5f);
+	s_vr_overlay->SetOverlayWidthInMeters(s_main_handle, 1.5f);
 
 	if (!_device->create_resource(api::resource_desc(OVERLAY_WIDTH, OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source), nullptr, api::resource_usage::copy_source, &_vr_overlay_tex))
 	{
@@ -92,9 +92,9 @@ void reshade::runtime::deinit_gui_vr()
 	_device->destroy_resource_view(_vr_overlay_target);
 	_vr_overlay_target = {};
 
-	s_overlay->DestroyOverlay(s_main_handle);
+	s_vr_overlay->DestroyOverlay(s_main_handle);
 	s_main_handle = vr::k_ulOverlayHandleInvalid;
-	s_overlay->DestroyOverlay(s_thumbnail_handle);
+	s_vr_overlay->DestroyOverlay(s_thumbnail_handle);
 	s_thumbnail_handle = vr::k_ulOverlayHandleInvalid;
 }
 
@@ -104,7 +104,7 @@ void reshade::runtime::draw_gui_vr()
 	_gather_gpu_statistics = false;
 #endif
 
-	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_overlay->IsOverlayVisible(s_main_handle))
+	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_vr_overlay->IsOverlayVisible(s_main_handle))
 		return;
 
 	build_font_atlas();
@@ -127,7 +127,7 @@ void reshade::runtime::draw_gui_vr()
 	bool keyboard_closed = false;
 
 	vr::VREvent_t ev;
-	while (s_overlay->PollNextOverlayEvent(s_main_handle, &ev, sizeof(ev)))
+	while (s_vr_overlay->PollNextOverlayEvent(s_main_handle, &ev, sizeof(ev)))
 	{
 		switch (ev.eventType)
 		{
@@ -185,13 +185,13 @@ void reshade::runtime::draw_gui_vr()
 
 	ImGui::NewFrame();
 
-	s_overlay->SetOverlayAlpha(s_main_handle, ImGui::GetStyle().Alpha);
+	s_vr_overlay->SetOverlayAlpha(s_main_handle, ImGui::GetStyle().Alpha);
 
 	if (imgui_io.WantTextInput && !keyboard_closed)
 	{
-		s_overlay->ShowKeyboardForOverlay(s_main_handle, vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine, vr::KeyboardFlag_Minimal, nullptr, 0, "", 0);
+		s_vr_overlay->ShowKeyboardForOverlay(s_main_handle, vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine, vr::KeyboardFlag_Minimal, nullptr, 0, "", 0);
 		// Avoid keyboard showing up behind dashboard overlay
-		s_overlay->SetKeyboardPositionForOverlay(s_main_handle, vr::HmdRect2_t { { 0.0f, 1.0f }, { 1.0f, 0.0f } });
+		s_vr_overlay->SetKeyboardPositionForOverlay(s_main_handle, vr::HmdRect2_t { { 0.0f, 1.0f }, { 1.0f, 0.0f } });
 	}
 
 #if RESHADE_LOCALIZATION
@@ -356,7 +356,7 @@ void reshade::runtime::draw_gui_vr()
 		break;
 	}
 
-	s_overlay->SetOverlayTexture(s_main_handle, &texture);
+	s_vr_overlay->SetOverlayTexture(s_main_handle, &texture);
 }
 
 #endif

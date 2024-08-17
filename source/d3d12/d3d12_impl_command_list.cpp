@@ -11,7 +11,7 @@
 #include <algorithm> // std::copy_n, std::fill, std::max, std::min
 
 // IID_ID3D12GraphicsCommandListExt
-static constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
+constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
 
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
 {

@@ -51,9 +51,9 @@ reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
-	extern thread_local reshade::opengl::device_context_impl *g_current_context;
+	extern thread_local reshade::opengl::device_context_impl *g_opengl_context;
 	// Do not access '_device' object to check the device API, in case it was already destroyed
-	if (_is_opengl && g_current_context == nullptr)
+	if (_is_opengl && g_opengl_context == nullptr)
 	{
 		return; // Cannot clean up if OpenGL context was already destroyed
 	}

@@ -110,7 +110,7 @@ static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
 static std::unordered_map<HGLRC, reshade::opengl::device_context_impl *> s_opengl_contexts;
 static std::vector<class wgl_swapchain *> s_opengl_swapchains;
 
-extern thread_local reshade::opengl::device_context_impl *g_current_context;
+extern thread_local reshade::opengl::device_context_impl *g_opengl_context;
 
 class wgl_device : public reshade::opengl::device_impl, public reshade::opengl::device_context_impl
 {
@@ -176,11 +176,11 @@ public:
 	{
 		reshade::api::resource_desc desc = device_impl::get_resource_desc(resource);
 
-		if (g_current_context != nullptr && (resource.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
+		if (g_opengl_context != nullptr && (resource.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
 		{
 			// While each swap chain will use the same pixel format, the dimensions may differ, so pull them from the current context
-			desc.texture.width = g_current_context->_default_fbo_width;
-			desc.texture.height = g_current_context->_default_fbo_height;
+			desc.texture.width = g_opengl_context->_default_fbo_width;
+			desc.texture.height = g_opengl_context->_default_fbo_height;
 		}
 
 		return desc;
@@ -349,7 +349,7 @@ private:
 
 reshade::api::pipeline_layout get_opengl_pipeline_layout()
 {
-	return static_cast<wgl_device *>(g_current_context->get_device())->get_pipeline_layout();
+	return static_cast<wgl_device *>(g_opengl_context->get_device())->get_pipeline_layout();
 }
 
 extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
@@ -966,8 +966,8 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			}
 
 			// Ensure the render context is not still current after deleting
-			if (it->second == g_current_context)
-				g_current_context = nullptr;
+			if (it->second == g_opengl_context)
+				g_opengl_context = nullptr;
 
 			s_opengl_contexts.erase(it);
 		}
@@ -1041,7 +1041,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 	else if (hglrc == nullptr)
 	{
-		g_current_context = nullptr;
+		g_opengl_context = nullptr;
 
 		return TRUE;
 	}
@@ -1061,7 +1061,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (const auto it = s_opengl_contexts.find(shared_hglrc);
 		it != s_opengl_contexts.end())
 	{
-		g_current_context = it->second;
+		g_opengl_context = it->second;
 	}
 	else
 	{
@@ -1087,7 +1087,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			reshade::log::message(reshade::log::level::error, "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.");
 
-			g_current_context = nullptr;
+			g_opengl_context = nullptr;
 
 			return TRUE;
 		}
@@ -1101,25 +1101,25 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end());
 
 		s_opengl_contexts.emplace(shared_hglrc, device);
-		g_current_context = device;
+		g_opengl_context = device;
 	}
 
-	assert(g_current_context != nullptr);
-	const auto device = static_cast<wgl_device *>(g_current_context);
+	assert(g_opengl_context != nullptr);
+	const auto device = static_cast<wgl_device *>(g_opengl_context);
 
 	if (hglrc != shared_hglrc)
 	{
 		if (const auto it = s_opengl_contexts.find(hglrc);
 			it != s_opengl_contexts.end())
 		{
-			g_current_context = it->second;
+			g_opengl_context = it->second;
 		}
 		else
 		{
 			const auto context = new wgl_device_context(device, hglrc);
 
 			s_opengl_contexts.emplace(hglrc, context);
-			g_current_context = context;
+			g_opengl_context = context;
 		}
 	}
 
@@ -1180,9 +1180,9 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
 	if (swapchain != nullptr && width != 0 && height != 0)
-		swapchain->on_init(g_current_context, width, height);
+		swapchain->on_init(g_opengl_context, width, height);
 	else
-		g_current_context->update_default_framebuffer(width, height);
+		g_opengl_context->update_default_framebuffer(width, height);
 
 	return TRUE;
 }
@@ -1309,7 +1309,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 
 extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
-	if (g_current_context != nullptr)
+	if (g_opengl_context != nullptr)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
 
@@ -1317,12 +1317,12 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 				[hdc, hwnd = WindowFromDC(hdc)](wgl_swapchain *const swapchain) {
 					const HDC swapchain_hdc = reinterpret_cast<HDC>(swapchain->_orig);
 					// Fall back to checking for the same window, in case the device context handle has changed (without 'CS_OWNDC')
-					return (swapchain_hdc == hdc || (hwnd != nullptr && WindowFromDC(swapchain_hdc) == hwnd)) && swapchain->get_device() == g_current_context->get_device();
+					return (swapchain_hdc == hdc || (hwnd != nullptr && WindowFromDC(swapchain_hdc) == hwnd)) && swapchain->get_device() == g_opengl_context->get_device();
 				});
 			swapchain_it != s_opengl_swapchains.end())
 		{
 			const auto swapchain = *swapchain_it;
-			swapchain->on_present(g_current_context);
+			swapchain->on_present(g_opengl_context);
 		}
 	}
 

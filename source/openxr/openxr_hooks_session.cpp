@@ -112,12 +112,12 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		else
 		if (const auto binding_opengl = find_in_structure_chain<XrGraphicsBindingOpenGLWin32KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR))
 		{
-			extern thread_local reshade::opengl::device_context_impl *g_current_context;
-			if (g_current_context != nullptr)
+			extern thread_local reshade::opengl::device_context_impl *g_opengl_context;
+			if (g_opengl_context != nullptr)
 			{
-				assert(reinterpret_cast<HGLRC>(g_current_context->get_native()) == binding_opengl->hGLRC);
+				assert(reinterpret_cast<HGLRC>(g_opengl_context->get_native()) == binding_opengl->hGLRC);
 
-				swapchain_impl = new reshade::openxr::swapchain_impl(g_current_context->get_device(), g_current_context, *pSession);
+				swapchain_impl = new reshade::openxr::swapchain_impl(g_opengl_context->get_device(), g_opengl_context, *pSession);
 			}
 		}
 		else

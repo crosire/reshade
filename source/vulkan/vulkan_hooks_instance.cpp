@@ -11,7 +11,7 @@
 #include <algorithm> // std::find_if
 
 lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
-lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
+lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = g_vulkan_instances.at(dispatch_key_from_handle(object)).name; \
@@ -198,7 +198,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 		return result;
 	}
 
-	g_surface_windows.emplace(*pSurface, pCreateInfo->hwnd);
+	g_vulkan_surface_windows.emplace(*pSurface, pCreateInfo->hwnd);
 
 	return VK_SUCCESS;
 }
@@ -207,7 +207,7 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroySurfaceKHR(instance = %p, surface = %p, pAllocator = %) ...", instance, surface, pAllocator);
 
-	g_surface_windows.erase(surface);
+	g_vulkan_surface_windows.erase(surface);
 
 	GET_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);

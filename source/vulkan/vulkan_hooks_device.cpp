@@ -21,7 +21,7 @@ extern thread_local bool g_in_dxgi_runtime;
 
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
-extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_surface_windows;
+extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surface_windows;
 
 #define GET_DISPATCH_PTR(name, object) \
 	GET_DISPATCH_PTR_FROM(name, g_vulkan_devices.at(dispatch_key_from_handle(object)))
@@ -951,7 +951,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 	// Look up window handle from surface
-	const HWND hwnd = g_surface_windows.at(create_info.surface);
+	const HWND hwnd = g_vulkan_surface_windows.at(create_info.surface);
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};

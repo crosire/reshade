@@ -165,19 +165,19 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor, vr::EVREye eye, GLuint object, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags,
 	std::function<vr::EVRCompositorError(vr::EVREye eye, void *texture, const vr::VRTextureBounds_t *bounds, vr::EVRSubmitFlags flags)> submit)
 {
-	extern thread_local reshade::opengl::device_context_impl *g_current_context;
+	extern thread_local reshade::opengl::device_context_impl *g_opengl_context;
 
-	if (g_current_context == nullptr)
+	if (g_opengl_context == nullptr)
 		return submit(eye, reinterpret_cast<void *>(static_cast<uintptr_t>(object)), bounds, flags);
 	else if (s_vr_swapchain == nullptr)
-		s_vr_swapchain = new reshade::openvr::swapchain_impl(g_current_context->get_device(), g_current_context, compositor);
-	else if (s_vr_swapchain->get_device() != g_current_context->get_device())
+		s_vr_swapchain = new reshade::openvr::swapchain_impl(g_opengl_context->get_device(), g_opengl_context, compositor);
+	else if (s_vr_swapchain->get_device() != g_opengl_context->get_device())
 		return vr::VRCompositorError_InvalidTexture;
 
 	const reshade::api::resource eye_texture = reshade::opengl::make_resource_handle(
 		(flags & vr::Submit_GlRenderBuffer) != 0 ? GL_RENDERBUFFER : ((flags & vr::Submit_GlArrayTexture) != 0 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D), object);
 
-	if (!s_vr_swapchain->on_vr_submit(g_current_context, eye, eye_texture, color_space, bounds, eye))
+	if (!s_vr_swapchain->on_vr_submit(g_opengl_context, eye, eye_texture, color_space, bounds, eye))
 	{
 		// Failed to initialize effect runtime or copy the eye texture, so submit normally without applying effects
 #if RESHADE_VERBOSE_LOG
@@ -420,7 +420,7 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 	return interface_instance;
 }, void *, const char *pchNameAndVersion, vr::EVRInitError *peError)
 
-vr::IVRClientCore *g_client_core = nullptr;
+vr::IVRClientCore *g_vr_client_core = nullptr;
 
 extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
 {
@@ -433,7 +433,7 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 	if (static unsigned int client_core_version = 0;
 		client_core_version == 0 && interface_instance != nullptr && std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version))
 	{
-		g_client_core = static_cast<vr::IVRClientCore *>(interface_instance);
+		g_vr_client_core = static_cast<vr::IVRClientCore *>(interface_instance);
 
 		// The 'IVRClientCore::Cleanup' and 'IVRClientCore::GetGenericInterface' functions did not change between 'IVRClientCore_001' and 'IVRClientCore_003'
 		reshade::hooks::install("IVRClientCore::Cleanup", reshade::hooks::vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 1, reinterpret_cast<reshade::hook::address>(&IVRClientCore_Cleanup_001));
@@ -445,7 +445,7 @@ extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int
 
 void check_and_init_openvr_hooks()
 {
-	if (g_client_core != nullptr ||
+	if (g_vr_client_core != nullptr ||
 #ifndef _WIN64
 		GetModuleHandleW(L"vrclient.dll") == nullptr)
 #else
@@ -455,6 +455,6 @@ void check_and_init_openvr_hooks()
 
 	vr::EVRInitError error_code = vr::VRInitError_None;
 	VRClientCoreFactory(vr::IVRClientCore_Version, reinterpret_cast<int *>(&error_code));
-	if (g_client_core != nullptr)
-		g_client_core->GetGenericInterface(vr::IVRCompositor_Version, &error_code);
+	if (g_vr_client_core != nullptr)
+		g_vr_client_core->GetGenericInterface(vr::IVRCompositor_Version, &error_code);
 }

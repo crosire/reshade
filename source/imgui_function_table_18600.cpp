@@ -9,198 +9,201 @@
 #include <new>
 #include "imgui_function_table_18600.hpp"
 
-static void convert(const imgui_io_18971 &new_io, imgui_io_18600 &old_io)
+namespace
 {
-	old_io.ConfigFlags = new_io.ConfigFlags;
-	old_io.BackendFlags = new_io.BackendFlags;
-	old_io.DisplaySize = new_io.DisplaySize;
-	old_io.DeltaTime = new_io.DeltaTime;
-	old_io.IniSavingRate = new_io.IniSavingRate;
-	old_io.IniFilename = new_io.IniFilename;
-	old_io.LogFilename = new_io.LogFilename;
-	old_io.MouseDoubleClickTime = new_io.MouseDoubleClickTime;
-	old_io.MouseDoubleClickMaxDist = new_io.MouseDoubleClickMaxDist;
-	old_io.MouseDragThreshold = new_io.MouseDragThreshold;
-	for (int i = 0; i < 22; ++i)
-		old_io.KeyMap[i] = new_io.KeyMap[i];
-	old_io.KeyRepeatDelay = new_io.KeyRepeatDelay;
-	old_io.KeyRepeatRate = new_io.KeyRepeatRate;
-	old_io.UserData = new_io.UserData;
+	void convert(const imgui_io_18971 &new_io, imgui_io_18600 &old_io)
+	{
+		old_io.ConfigFlags = new_io.ConfigFlags;
+		old_io.BackendFlags = new_io.BackendFlags;
+		old_io.DisplaySize = new_io.DisplaySize;
+		old_io.DeltaTime = new_io.DeltaTime;
+		old_io.IniSavingRate = new_io.IniSavingRate;
+		old_io.IniFilename = new_io.IniFilename;
+		old_io.LogFilename = new_io.LogFilename;
+		old_io.MouseDoubleClickTime = new_io.MouseDoubleClickTime;
+		old_io.MouseDoubleClickMaxDist = new_io.MouseDoubleClickMaxDist;
+		old_io.MouseDragThreshold = new_io.MouseDragThreshold;
+		for (int i = 0; i < 22; ++i)
+			old_io.KeyMap[i] = new_io.KeyMap[i];
+		old_io.KeyRepeatDelay = new_io.KeyRepeatDelay;
+		old_io.KeyRepeatRate = new_io.KeyRepeatRate;
+		old_io.UserData = new_io.UserData;
 
-	// It's not safe to access the internal fields of 'FontAtlas'
-	old_io.Fonts = new_io.Fonts;
-	old_io.FontGlobalScale = new_io.FontGlobalScale;
-	old_io.FontAllowUserScaling = new_io.FontAllowUserScaling;
-	old_io.FontDefault = nullptr;
-	old_io.DisplayFramebufferScale = new_io.DisplayFramebufferScale;
+		// It's not safe to access the internal fields of 'FontAtlas'
+		old_io.Fonts = new_io.Fonts;
+		old_io.FontGlobalScale = new_io.FontGlobalScale;
+		old_io.FontAllowUserScaling = new_io.FontAllowUserScaling;
+		old_io.FontDefault = nullptr;
+		old_io.DisplayFramebufferScale = new_io.DisplayFramebufferScale;
 
-	old_io.ConfigDockingNoSplit = new_io.ConfigDockingNoSplit;
-	old_io.ConfigDockingWithShift = new_io.ConfigDockingWithShift;
-	old_io.ConfigDockingAlwaysTabBar = new_io.ConfigDockingAlwaysTabBar;
-	old_io.ConfigDockingTransparentPayload = new_io.ConfigDockingTransparentPayload;
+		old_io.ConfigDockingNoSplit = new_io.ConfigDockingNoSplit;
+		old_io.ConfigDockingWithShift = new_io.ConfigDockingWithShift;
+		old_io.ConfigDockingAlwaysTabBar = new_io.ConfigDockingAlwaysTabBar;
+		old_io.ConfigDockingTransparentPayload = new_io.ConfigDockingTransparentPayload;
 
-	old_io.ConfigViewportsNoAutoMerge = new_io.ConfigViewportsNoAutoMerge;
-	old_io.ConfigViewportsNoTaskBarIcon = new_io.ConfigViewportsNoTaskBarIcon;
-	old_io.ConfigViewportsNoDecoration = new_io.ConfigViewportsNoDecoration;
-	old_io.ConfigViewportsNoDefaultParent = new_io.ConfigViewportsNoDefaultParent;
+		old_io.ConfigViewportsNoAutoMerge = new_io.ConfigViewportsNoAutoMerge;
+		old_io.ConfigViewportsNoTaskBarIcon = new_io.ConfigViewportsNoTaskBarIcon;
+		old_io.ConfigViewportsNoDecoration = new_io.ConfigViewportsNoDecoration;
+		old_io.ConfigViewportsNoDefaultParent = new_io.ConfigViewportsNoDefaultParent;
 
-	old_io.MouseDrawCursor = new_io.MouseDrawCursor;
-	old_io.ConfigMacOSXBehaviors = new_io.ConfigMacOSXBehaviors;
-	old_io.ConfigInputTextCursorBlink = new_io.ConfigInputTextCursorBlink;
-	old_io.ConfigDragClickToInputText = new_io.ConfigDragClickToInputText;
-	old_io.ConfigWindowsResizeFromEdges = new_io.ConfigWindowsResizeFromEdges;
-	old_io.ConfigWindowsMoveFromTitleBarOnly = new_io.ConfigWindowsMoveFromTitleBarOnly;
-	old_io.ConfigMemoryCompactTimer = new_io.ConfigMemoryCompactTimer;
+		old_io.MouseDrawCursor = new_io.MouseDrawCursor;
+		old_io.ConfigMacOSXBehaviors = new_io.ConfigMacOSXBehaviors;
+		old_io.ConfigInputTextCursorBlink = new_io.ConfigInputTextCursorBlink;
+		old_io.ConfigDragClickToInputText = new_io.ConfigDragClickToInputText;
+		old_io.ConfigWindowsResizeFromEdges = new_io.ConfigWindowsResizeFromEdges;
+		old_io.ConfigWindowsMoveFromTitleBarOnly = new_io.ConfigWindowsMoveFromTitleBarOnly;
+		old_io.ConfigMemoryCompactTimer = new_io.ConfigMemoryCompactTimer;
 
-	old_io.BackendPlatformName = new_io.BackendPlatformName;
-	old_io.BackendRendererName = new_io.BackendRendererName;
-	old_io.BackendPlatformUserData = new_io.BackendPlatformUserData;
-	old_io.BackendRendererUserData = new_io.BackendRendererUserData;
-	old_io.BackendLanguageUserData = new_io.BackendLanguageUserData;
+		old_io.BackendPlatformName = new_io.BackendPlatformName;
+		old_io.BackendRendererName = new_io.BackendRendererName;
+		old_io.BackendPlatformUserData = new_io.BackendPlatformUserData;
+		old_io.BackendRendererUserData = new_io.BackendRendererUserData;
+		old_io.BackendLanguageUserData = new_io.BackendLanguageUserData;
 
-	old_io.GetClipboardTextFn = new_io.GetClipboardTextFn;
-	old_io.SetClipboardTextFn = new_io.SetClipboardTextFn;
-	old_io.ClipboardUserData = new_io.ClipboardUserData;
+		old_io.GetClipboardTextFn = new_io.GetClipboardTextFn;
+		old_io.SetClipboardTextFn = new_io.SetClipboardTextFn;
+		old_io.ClipboardUserData = new_io.ClipboardUserData;
 
-	old_io.MousePos = new_io.MousePos;
-	for (int i = 0; i < 5; ++i)
-		old_io.MouseDown[i] = new_io.MouseDown[i];
-	old_io.MouseWheel = new_io.MouseWheel;
-	old_io.MouseWheelH = new_io.MouseWheelH;
-	old_io.MouseHoveredViewport = new_io.MouseHoveredViewport;
-	old_io.KeyCtrl = new_io.KeyCtrl;
-	old_io.KeyShift = new_io.KeyShift;
-	old_io.KeyAlt = new_io.KeyAlt;
-	old_io.KeySuper = new_io.KeySuper;
-	for (int i = 0; i < 512; ++i)
-		old_io.KeysDown[i] = new_io.KeysDown[i];
-	for (int i = 0; i < 16; ++i)
-		old_io.NavInputs[i] = new_io.NavInputs[i];
+		old_io.MousePos = new_io.MousePos;
+		for (int i = 0; i < 5; ++i)
+			old_io.MouseDown[i] = new_io.MouseDown[i];
+		old_io.MouseWheel = new_io.MouseWheel;
+		old_io.MouseWheelH = new_io.MouseWheelH;
+		old_io.MouseHoveredViewport = new_io.MouseHoveredViewport;
+		old_io.KeyCtrl = new_io.KeyCtrl;
+		old_io.KeyShift = new_io.KeyShift;
+		old_io.KeyAlt = new_io.KeyAlt;
+		old_io.KeySuper = new_io.KeySuper;
+		for (int i = 0; i < 512; ++i)
+			old_io.KeysDown[i] = new_io.KeysDown[i];
+		for (int i = 0; i < 16; ++i)
+			old_io.NavInputs[i] = new_io.NavInputs[i];
 
-	old_io.WantCaptureMouse = new_io.WantCaptureMouse;
-	old_io.WantCaptureKeyboard = new_io.WantCaptureKeyboard;
-	old_io.WantTextInput = new_io.WantTextInput;
-	old_io.WantSetMousePos = new_io.WantSetMousePos;
-	old_io.WantSaveIniSettings = new_io.WantSaveIniSettings;
-	old_io.NavActive = new_io.NavActive;
-	old_io.NavVisible = new_io.NavVisible;
-	old_io.Framerate = new_io.Framerate;
-	old_io.MetricsRenderVertices = new_io.MetricsRenderVertices;
-	old_io.MetricsRenderIndices = new_io.MetricsRenderIndices;
-	old_io.MetricsRenderWindows = new_io.MetricsRenderWindows;
-	old_io.MetricsActiveWindows = new_io.MetricsActiveWindows;
-	old_io.MetricsActiveAllocations = new_io.MetricsActiveAllocations;
-	old_io.MouseDelta = new_io.MouseDelta;
-}
+		old_io.WantCaptureMouse = new_io.WantCaptureMouse;
+		old_io.WantCaptureKeyboard = new_io.WantCaptureKeyboard;
+		old_io.WantTextInput = new_io.WantTextInput;
+		old_io.WantSetMousePos = new_io.WantSetMousePos;
+		old_io.WantSaveIniSettings = new_io.WantSaveIniSettings;
+		old_io.NavActive = new_io.NavActive;
+		old_io.NavVisible = new_io.NavVisible;
+		old_io.Framerate = new_io.Framerate;
+		old_io.MetricsRenderVertices = new_io.MetricsRenderVertices;
+		old_io.MetricsRenderIndices = new_io.MetricsRenderIndices;
+		old_io.MetricsRenderWindows = new_io.MetricsRenderWindows;
+		old_io.MetricsActiveWindows = new_io.MetricsActiveWindows;
+		old_io.MetricsActiveAllocations = new_io.MetricsActiveAllocations;
+		old_io.MouseDelta = new_io.MouseDelta;
+	}
 
-static void convert(const imgui_style_18971 &new_style, imgui_style_18600 &old_style)
-{
-	old_style.Alpha = new_style.Alpha;
-	old_style.DisabledAlpha = new_style.DisabledAlpha;
-	old_style.WindowPadding = new_style.WindowPadding;
-	old_style.WindowRounding = new_style.WindowRounding;
-	old_style.WindowBorderSize = new_style.WindowBorderSize;
-	old_style.WindowMinSize = new_style.WindowMinSize;
-	old_style.WindowTitleAlign = new_style.WindowTitleAlign;
-	old_style.WindowMenuButtonPosition = new_style.WindowMenuButtonPosition;
-	old_style.ChildRounding = new_style.ChildRounding;
-	old_style.ChildBorderSize = new_style.ChildBorderSize;
-	old_style.PopupRounding = new_style.PopupRounding;
-	old_style.PopupBorderSize = new_style.PopupBorderSize;
-	old_style.FramePadding = new_style.FramePadding;
-	old_style.FrameRounding = new_style.FrameRounding;
-	old_style.FrameBorderSize = new_style.FrameBorderSize;
-	old_style.ItemSpacing = new_style.ItemSpacing;
-	old_style.ItemInnerSpacing = new_style.ItemInnerSpacing;
-	old_style.CellPadding = new_style.CellPadding;
-	old_style.TouchExtraPadding = new_style.TouchExtraPadding;
-	old_style.IndentSpacing = new_style.IndentSpacing;
-	old_style.ColumnsMinSpacing = new_style.ColumnsMinSpacing;
-	old_style.ScrollbarSize = new_style.ScrollbarSize;
-	old_style.ScrollbarRounding = new_style.ScrollbarRounding;
-	old_style.GrabMinSize = new_style.GrabMinSize;
-	old_style.GrabRounding = new_style.GrabRounding;
-	old_style.LogSliderDeadzone = new_style.LogSliderDeadzone;
-	old_style.TabRounding = new_style.TabRounding;
-	old_style.TabBorderSize = new_style.TabBorderSize;
-	old_style.TabMinWidthForCloseButton = new_style.TabMinWidthForCloseButton;
-	old_style.ColorButtonPosition = new_style.ColorButtonPosition;
-	old_style.ButtonTextAlign = new_style.ButtonTextAlign;
-	old_style.SelectableTextAlign = new_style.SelectableTextAlign;
-	old_style.DisplayWindowPadding = new_style.DisplayWindowPadding;
-	old_style.DisplaySafeAreaPadding = new_style.DisplaySafeAreaPadding;
-	old_style.MouseCursorScale = new_style.MouseCursorScale;
-	old_style.AntiAliasedLines = new_style.AntiAliasedLines;
-	old_style.AntiAliasedLinesUseTex = new_style.AntiAliasedLinesUseTex;
-	old_style.AntiAliasedFill = new_style.AntiAliasedFill;
-	old_style.CurveTessellationTol = new_style.CurveTessellationTol;
-	old_style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
-	for (int i = 0; i < 55; ++i)
-		old_style.Colors[i] = new_style.Colors[i];
-}
+	void convert(const imgui_style_18971 &new_style, imgui_style_18600 &old_style)
+	{
+		old_style.Alpha = new_style.Alpha;
+		old_style.DisabledAlpha = new_style.DisabledAlpha;
+		old_style.WindowPadding = new_style.WindowPadding;
+		old_style.WindowRounding = new_style.WindowRounding;
+		old_style.WindowBorderSize = new_style.WindowBorderSize;
+		old_style.WindowMinSize = new_style.WindowMinSize;
+		old_style.WindowTitleAlign = new_style.WindowTitleAlign;
+		old_style.WindowMenuButtonPosition = new_style.WindowMenuButtonPosition;
+		old_style.ChildRounding = new_style.ChildRounding;
+		old_style.ChildBorderSize = new_style.ChildBorderSize;
+		old_style.PopupRounding = new_style.PopupRounding;
+		old_style.PopupBorderSize = new_style.PopupBorderSize;
+		old_style.FramePadding = new_style.FramePadding;
+		old_style.FrameRounding = new_style.FrameRounding;
+		old_style.FrameBorderSize = new_style.FrameBorderSize;
+		old_style.ItemSpacing = new_style.ItemSpacing;
+		old_style.ItemInnerSpacing = new_style.ItemInnerSpacing;
+		old_style.CellPadding = new_style.CellPadding;
+		old_style.TouchExtraPadding = new_style.TouchExtraPadding;
+		old_style.IndentSpacing = new_style.IndentSpacing;
+		old_style.ColumnsMinSpacing = new_style.ColumnsMinSpacing;
+		old_style.ScrollbarSize = new_style.ScrollbarSize;
+		old_style.ScrollbarRounding = new_style.ScrollbarRounding;
+		old_style.GrabMinSize = new_style.GrabMinSize;
+		old_style.GrabRounding = new_style.GrabRounding;
+		old_style.LogSliderDeadzone = new_style.LogSliderDeadzone;
+		old_style.TabRounding = new_style.TabRounding;
+		old_style.TabBorderSize = new_style.TabBorderSize;
+		old_style.TabMinWidthForCloseButton = new_style.TabMinWidthForCloseButton;
+		old_style.ColorButtonPosition = new_style.ColorButtonPosition;
+		old_style.ButtonTextAlign = new_style.ButtonTextAlign;
+		old_style.SelectableTextAlign = new_style.SelectableTextAlign;
+		old_style.DisplayWindowPadding = new_style.DisplayWindowPadding;
+		old_style.DisplaySafeAreaPadding = new_style.DisplaySafeAreaPadding;
+		old_style.MouseCursorScale = new_style.MouseCursorScale;
+		old_style.AntiAliasedLines = new_style.AntiAliasedLines;
+		old_style.AntiAliasedLinesUseTex = new_style.AntiAliasedLinesUseTex;
+		old_style.AntiAliasedFill = new_style.AntiAliasedFill;
+		old_style.CurveTessellationTol = new_style.CurveTessellationTol;
+		old_style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
+		for (int i = 0; i < 55; ++i)
+			old_style.Colors[i] = new_style.Colors[i];
+	}
 
-static void convert(const imgui_font_18971 &new_font, imgui_font_18600 &old_font)
-{
-	old_font.IndexAdvanceX = new_font.IndexAdvanceX;
-	old_font.FallbackAdvanceX = new_font.FallbackAdvanceX;
-	old_font.FontSize = new_font.FontSize;
-	old_font.IndexLookup = new_font.IndexLookup;
-	old_font.Glyphs = new_font.Glyphs;
-	old_font.FallbackGlyph = new_font.FallbackGlyph;
-	old_font.ContainerAtlas = new_font.ContainerAtlas;
-	old_font.ConfigData = new_font.ConfigData;
-	old_font.ConfigDataCount = new_font.ConfigDataCount;
-	old_font.FallbackChar = new_font.FallbackChar;
-	old_font.EllipsisChar = new_font.EllipsisChar;
-	old_font.DirtyLookupTables = new_font.DirtyLookupTables;
-	old_font.Scale = new_font.Scale;
-	old_font.Ascent = new_font.Ascent;
-	old_font.Descent = new_font.Descent;
-	old_font.MetricsTotalSurface = new_font.MetricsTotalSurface;
-	memcpy(old_font.Used4kPagesMap, new_font.Used4kPagesMap, sizeof(old_font.Used4kPagesMap));
-}
-static void convert(const imgui_font_18600 &old_font, imgui_font_18971 &new_font)
-{
-	new_font.IndexAdvanceX = old_font.IndexAdvanceX;
-	new_font.FallbackAdvanceX = old_font.FallbackAdvanceX;
-	new_font.FontSize = old_font.FontSize;
-	new_font.IndexLookup = old_font.IndexLookup;
-	new_font.Glyphs = old_font.Glyphs;
-	new_font.FallbackGlyph = old_font.FallbackGlyph;
-	new_font.ContainerAtlas = old_font.ContainerAtlas;
-	new_font.ConfigData = old_font.ConfigData;
-	new_font.ConfigDataCount = old_font.ConfigDataCount;
-	new_font.FallbackChar = old_font.FallbackChar;
-	new_font.EllipsisChar = old_font.EllipsisChar;
-	new_font.EllipsisCharCount = 1;
-	new_font.EllipsisWidth = 4;
-	new_font.EllipsisCharStep = 4;
-	new_font.DirtyLookupTables = old_font.DirtyLookupTables;
-	new_font.Scale = old_font.Scale;
-	new_font.Ascent = old_font.Ascent;
-	new_font.Descent = old_font.Descent;
-	new_font.MetricsTotalSurface = old_font.MetricsTotalSurface;
-	memcpy(new_font.Used4kPagesMap, old_font.Used4kPagesMap, sizeof(new_font.Used4kPagesMap));
-}
+	void convert(const imgui_font_18971 &new_font, imgui_font_18600 &old_font)
+	{
+		old_font.IndexAdvanceX = new_font.IndexAdvanceX;
+		old_font.FallbackAdvanceX = new_font.FallbackAdvanceX;
+		old_font.FontSize = new_font.FontSize;
+		old_font.IndexLookup = new_font.IndexLookup;
+		old_font.Glyphs = new_font.Glyphs;
+		old_font.FallbackGlyph = new_font.FallbackGlyph;
+		old_font.ContainerAtlas = new_font.ContainerAtlas;
+		old_font.ConfigData = new_font.ConfigData;
+		old_font.ConfigDataCount = new_font.ConfigDataCount;
+		old_font.FallbackChar = new_font.FallbackChar;
+		old_font.EllipsisChar = new_font.EllipsisChar;
+		old_font.DirtyLookupTables = new_font.DirtyLookupTables;
+		old_font.Scale = new_font.Scale;
+		old_font.Ascent = new_font.Ascent;
+		old_font.Descent = new_font.Descent;
+		old_font.MetricsTotalSurface = new_font.MetricsTotalSurface;
+		memcpy(old_font.Used4kPagesMap, new_font.Used4kPagesMap, sizeof(old_font.Used4kPagesMap));
+	}
+	void convert(const imgui_font_18600 &old_font, imgui_font_18971 &new_font)
+	{
+		new_font.IndexAdvanceX = old_font.IndexAdvanceX;
+		new_font.FallbackAdvanceX = old_font.FallbackAdvanceX;
+		new_font.FontSize = old_font.FontSize;
+		new_font.IndexLookup = old_font.IndexLookup;
+		new_font.Glyphs = old_font.Glyphs;
+		new_font.FallbackGlyph = old_font.FallbackGlyph;
+		new_font.ContainerAtlas = old_font.ContainerAtlas;
+		new_font.ConfigData = old_font.ConfigData;
+		new_font.ConfigDataCount = old_font.ConfigDataCount;
+		new_font.FallbackChar = old_font.FallbackChar;
+		new_font.EllipsisChar = old_font.EllipsisChar;
+		new_font.EllipsisCharCount = 1;
+		new_font.EllipsisWidth = 4;
+		new_font.EllipsisCharStep = 4;
+		new_font.DirtyLookupTables = old_font.DirtyLookupTables;
+		new_font.Scale = old_font.Scale;
+		new_font.Ascent = old_font.Ascent;
+		new_font.Descent = old_font.Descent;
+		new_font.MetricsTotalSurface = old_font.MetricsTotalSurface;
+		memcpy(new_font.Used4kPagesMap, old_font.Used4kPagesMap, sizeof(new_font.Used4kPagesMap));
+	}
 
-static void convert(const imgui_list_clipper_18971 &new_clipper, imgui_list_clipper_18600 &old_clipper)
-{
-	old_clipper.DisplayStart = new_clipper.DisplayStart;
-	old_clipper.DisplayEnd = new_clipper.DisplayEnd;
-	old_clipper.ItemsCount = new_clipper.ItemsCount;
-	old_clipper.ItemsHeight = new_clipper.ItemsHeight;
-	old_clipper.StartPosY = new_clipper.StartPosY;
-	old_clipper.TempData = new_clipper.TempData;
-}
-static void convert(const imgui_list_clipper_18600 &old_clipper, imgui_list_clipper_18971 &new_clipper)
-{
-	new_clipper.Ctx = ImGui::GetCurrentContext();
-	new_clipper.DisplayStart = old_clipper.DisplayStart;
-	new_clipper.DisplayEnd = old_clipper.DisplayEnd;
-	new_clipper.ItemsCount = old_clipper.ItemsCount;
-	new_clipper.ItemsHeight = old_clipper.ItemsHeight;
-	new_clipper.StartPosY = old_clipper.StartPosY;
-	new_clipper.TempData = old_clipper.TempData;
+	void convert(const imgui_list_clipper_18971 &new_clipper, imgui_list_clipper_18600 &old_clipper)
+	{
+		old_clipper.DisplayStart = new_clipper.DisplayStart;
+		old_clipper.DisplayEnd = new_clipper.DisplayEnd;
+		old_clipper.ItemsCount = new_clipper.ItemsCount;
+		old_clipper.ItemsHeight = new_clipper.ItemsHeight;
+		old_clipper.StartPosY = new_clipper.StartPosY;
+		old_clipper.TempData = new_clipper.TempData;
+	}
+	void convert(const imgui_list_clipper_18600 &old_clipper, imgui_list_clipper_18971 &new_clipper)
+	{
+		new_clipper.Ctx = ImGui::GetCurrentContext();
+		new_clipper.DisplayStart = old_clipper.DisplayStart;
+		new_clipper.DisplayEnd = old_clipper.DisplayEnd;
+		new_clipper.ItemsCount = old_clipper.ItemsCount;
+		new_clipper.ItemsHeight = old_clipper.ItemsHeight;
+		new_clipper.StartPosY = old_clipper.StartPosY;
+		new_clipper.TempData = old_clipper.TempData;
+	}
 }
 
 const imgui_function_table_18600 init_imgui_function_table_18600() { return {

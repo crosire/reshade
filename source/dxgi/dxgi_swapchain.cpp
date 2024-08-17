@@ -651,8 +651,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE T
 	return static_cast<IDXGISwapChain4 *>(_orig)->SetHDRMetaData(Type, Size, pMetaData);
 }
 
-struct unique_direct3d_device_lock : std::unique_lock<std::shared_mutex>
+class unique_direct3d_device_lock : std::unique_lock<std::shared_mutex>
 {
+public:
 	unique_direct3d_device_lock(IUnknown *direct3d_device, unsigned int direct3d_version, std::shared_mutex &mutex) : unique_lock(mutex)
 	{
 		switch (direct3d_version)
@@ -682,6 +683,7 @@ struct unique_direct3d_device_lock : std::unique_lock<std::shared_mutex>
 		}
 	}
 
+private:
 	com_ptr<ID3D11Multithread> multithread;
 	BOOL was_protected = FALSE;
 };
