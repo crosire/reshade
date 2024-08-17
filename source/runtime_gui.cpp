@@ -185,7 +185,36 @@ void reshade::runtime::build_font_atlas()
 		_default_font_path.clear();
 	}
 
-	extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+	const auto add_font_from_file = [atlas](std::filesystem::path &font_path, ImFontConfig cfg, const ImWchar *glyph_ranges, std::error_code &ec) -> bool {
+		if (font_path.empty())
+			return true;
+
+		extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+		if (!resolve_path(font_path, ec))
+			return false;
+
+		if (FILE *const file = _wfsopen(font_path.c_str(), L"rb", SH_DENYNO))
+		{
+			fseek(file, 0, SEEK_END);
+			const size_t data_size = ftell(file);
+			fseek(file, 0, SEEK_SET);
+
+			void *data = IM_ALLOC(data_size);
+			const size_t data_size_read = fread(data, 1, data_size, file);
+			fclose(file);
+			if (data_size_read != data_size)
+			{
+				IM_FREE(data);
+				return false;
+			}
+
+			ImFormatString(cfg.Name, IM_ARRAYSIZE(cfg.Name), "%s, %.0fpx", font_path.stem().u8string().c_str(), cfg.SizePixels);
+
+			return atlas->AddFontFromMemoryTTF(data, static_cast<int>(data_size), cfg.SizePixels, &cfg, glyph_ranges) != nullptr;
+		}
+
+		return false;
+	};
 
 	ImFontConfig cfg;
 	cfg.GlyphOffset.y = std::floor(_font_size / 13.0f); // Not used in AddFontDefault()
@@ -196,7 +225,7 @@ void reshade::runtime::build_font_atlas()
 	resolved_font_path = _latin_font_path;
 	if (!_default_font_path.empty())
 	{
-		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, atlas->GetGlyphRangesDefault()) != nullptr))
+		if (!add_font_from_file(resolved_font_path, cfg, atlas->GetGlyphRangesDefault(), ec))
 		{
 			log::message(log::level::error, "Failed to load latin font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 			resolved_font_path.clear();
@@ -212,7 +241,7 @@ void reshade::runtime::build_font_atlas()
 	// Add main font
 	resolved_font_path = _font_path.empty() ? _default_font_path : _font_path;
 	{
-		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, glyph_ranges) != nullptr))
+		if (!add_font_from_file(resolved_font_path, cfg, glyph_ranges, ec))
 		{
 			log::message(log::level::error, "Failed to load font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 			resolved_font_path.clear();
@@ -239,7 +268,7 @@ void reshade::runtime::build_font_atlas()
 		cfg = ImFontConfig();
 		cfg.SizePixels = static_cast<float>(_editor_font_size);
 
-		if (!resolved_font_path.empty() && !(resolve_path(resolved_font_path, ec) && atlas->AddFontFromFileTTF(resolved_font_path.u8string().c_str(), cfg.SizePixels, &cfg, glyph_ranges) != nullptr))
+		if (!add_font_from_file(resolved_font_path, cfg, glyph_ranges, ec))
 		{
 			log::message(log::level::error, "Failed to load editor font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 			resolved_font_path.clear();
