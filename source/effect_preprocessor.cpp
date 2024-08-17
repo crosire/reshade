@@ -5,8 +5,8 @@
 
 #include "effect_lexer.hpp"
 #include "effect_preprocessor.hpp"
+#include <cstdio> // fclose, fopen, fread, fseek
 #include <cassert>
-#include <fstream>
 #include <algorithm> // std::find_if
 
 #ifndef _WIN32
@@ -61,24 +61,29 @@ static const int s_precedence_lookup[] = {
 	11, 11, 11, 11 // unary operators
 };
 
-static bool read_file(const std::filesystem::path &path, std::string &data)
+static bool read_file(const std::filesystem::path &path, std::string &file_data)
 {
-	std::ifstream file(path, std::ios::binary);
-	if (!file)
-		return false;
-
 	// Read file contents into memory
-	std::error_code ec;
-	const uintmax_t file_size = std::filesystem::file_size(path, ec);
-	if (ec)
+#ifndef _WIN32
+	FILE *const file = fopen(path.c_str(), "rb");
+#else
+	FILE *const file = _wfsopen(path.c_str(), L"rb", SH_DENYWR);
+#endif
+	if (file == nullptr)
 		return false;
 
-	std::string file_data(static_cast<size_t>(file_size + 1), '\0');
-	if (!file.read(file_data.data(), file_size))
-		return false;
+	fseek(file, 0, SEEK_END);
+	const size_t file_size = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	file_data.resize(file_size + 1, '\0'); // One additional character at the end for new line feed set below
+	const size_t file_size_read = fread(file_data.data(), 1, file_size, file);
 
 	// No longer need to have a handle open to the file, since all data was read, so can safely close it
-	file.close();
+	fclose(file);
+
+	if (file_size_read != file_size)
+		return false;
 
 	// Append a new line feed to the end of the input string to avoid issues with parsing
 	file_data.back() = '\n';
@@ -90,7 +95,6 @@ static bool read_file(const std::filesystem::path &path, std::string &data)
 		static_cast<unsigned char>(file_data[2]) == 0xbf)
 		file_data.erase(0, 3);
 
-	data = std::move(file_data);
 	return true;
 }
 

@@ -20,7 +20,6 @@
 #include "reshade_api_object_impl.hpp"
 #include <set>
 #include <thread>
-#include <fstream>
 #include <cmath> // std::abs, std::fmod
 #include <cctype> // std::toupper
 #include <cwctype> // std::towlower
@@ -3010,15 +3009,16 @@ void reshade::runtime::load_textures()
 			continue;
 		}
 
-		std::error_code ec;
-		const uintmax_t file_size = std::filesystem::file_size(source_path, ec);
-
 		void *pixels = nullptr;
 		int width = 0, height = 1, depth = 1, channels = 0;
 		const bool is_floating_point_format = (tex.format == reshadefx::texture_format::r32f || tex.format == reshadefx::texture_format::rg32f || tex.format == reshadefx::texture_format::rgba32f);
 
-		if (auto file = std::ifstream(source_path, std::ios::binary))
+		if (FILE *const file = _wfsopen(source_path.c_str(), L"rb", SH_DENYNO))
 		{
+			fseek(file, 0, SEEK_END);
+			const size_t file_size = ftell(file);
+			fseek(file, 0, SEEK_SET);
+
 			if (source_path.extension() == L".cube")
 			{
 				if (!is_floating_point_format)
@@ -3032,13 +3032,15 @@ void reshade::runtime::load_textures()
 				float domain_max[3] = { 1.0f, 1.0f, 1.0f };
 
 				// Read header information
-				std::string line;
-				while (std::getline(file, line))
+				char line_data[1024];
+				while (fgets(line_data, sizeof(line_data), file))
 				{
+					const std::string_view line(line_data);
+
 					if (line.empty() || line[0] == '#')
 						continue; // Skip lines with comments
 
-					char *p = line.data();
+					char *p = line_data;
 
 					if (line.rfind("TITLE", 0) == 0)
 						continue; // Skip optional line with title
@@ -3078,7 +3080,7 @@ void reshade::runtime::load_textures()
 					}
 
 					// Line has no known keyword, so assume this is where the table data starts and roll back a line to continue reading that below
-					file.seekg(-static_cast<std::streampos>(line.size() + 1), std::ios::cur);
+					fseek(file, -static_cast<long>(line.size() + 1), SEEK_CUR);
 					break;
 				}
 
@@ -3086,12 +3088,15 @@ void reshade::runtime::load_textures()
 				if (pixels != nullptr)
 				{
 					size_t index = 0;
-					while (std::getline(file, line) && (index + 4) <= (static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4))
+
+					while (fgets(line_data, sizeof(line_data), file) && (index + 4) <= (static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4))
 					{
+						const std::string_view line(line_data);
+
 						if (line.empty() || line[0] == '#')
 							continue; // Skip lines with comments
 
-						char *p = line.data();
+						char *p = line_data;
 
 						static_cast<float *>(pixels)[index++] = static_cast<float>(std::strtod(p, &p)) * (domain_max[0] - domain_min[0]) + domain_min[0];
 						static_cast<float *>(pixels)[index++] = static_cast<float>(std::strtod(p, &p)) * (domain_max[1] - domain_min[1]) + domain_min[1];
@@ -3103,22 +3108,25 @@ void reshade::runtime::load_textures()
 			else
 			{
 				// Read texture data into memory in one go since that is faster than reading chunk by chunk
-				std::vector<stbi_uc> file_data(static_cast<size_t>(file_size));
-				file.read(reinterpret_cast<char *>(file_data.data()), file_data.size());
-				file.close();
+				std::vector<stbi_uc> file_data(file_size);
+				const size_t file_size_read = fread(file_data.data(), 1, file_size, file);
+				fclose(file);
 
-				if (is_floating_point_format)
-					pixels = stbi_loadf_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
-				else if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
-					pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &depth, &channels, STBI_rgb_alpha);
-				else
-					pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+				if (file_size_read == file_size)
+				{
+					if (is_floating_point_format)
+						pixels = stbi_loadf_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+					else if (stbi_dds_test_memory(file_data.data(), static_cast<int>(file_data.size())))
+						pixels = stbi_dds_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &depth, &channels, STBI_rgb_alpha);
+					else
+						pixels = stbi_load_from_memory(file_data.data(), static_cast<int>(file_data.size()), &width, &height, &channels, STBI_rgb_alpha);
+				}
 			}
 		}
 
-		if (ec || pixels == nullptr)
+		if (pixels == nullptr)
 		{
-			log::message(log::level::error, "Failed to load '%s' for texture '%s' with error code %d!", source_path.u8string().c_str(), tex.unique_name.c_str(), ec.value());
+			log::message(log::level::error, "Failed to load '%s' for texture '%s'!", source_path.u8string().c_str(), tex.unique_name.c_str());
 			_last_reload_successful = false;
 			continue;
 		}
@@ -3610,18 +3618,18 @@ bool reshade::runtime::load_effect_cache(const std::string &id, const std::strin
 	std::filesystem::path path = g_reshade_base_path / _effect_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
-	std::ifstream file(path, std::ios::binary);
-	if (!file)
+	FILE *const file = _wfsopen(path.c_str(), L"rb", SH_DENYNO);
+	if (file == nullptr)
 		return false;
 
-	std::error_code ec;
-	const uintmax_t file_size = std::filesystem::file_size(path, ec);
-	if (ec)
-		return false;
+	fseek(file, 0, SEEK_END);
+	const size_t file_size = ftell(file);
+	fseek(file, 0, SEEK_SET);
 
-	data.resize(static_cast<size_t>(file_size), '\0');
-	file.read(data.data(), data.size());
-	return !file.fail();
+	data.resize(file_size, '\0');
+	const size_t file_size_read = fread(data.data(), 1, data.size(), file);
+	fclose(file);
+	return file_size_read == data.size();
 }
 bool reshade::runtime::save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const
 {
@@ -3631,12 +3639,13 @@ bool reshade::runtime::save_effect_cache(const std::string &id, const std::strin
 	std::filesystem::path path = g_reshade_base_path / _effect_cache_path;
 	path /= std::filesystem::u8path("reshade-" + id + '.' + type);
 
-	std::ofstream file(path, std::ios::binary | std::ios::trunc);
-	if (!file)
+	FILE *const file = _wfsopen(path.c_str(), L"wb", SH_DENYNO);
+	if (file == nullptr)
 		return false;
 
-	file.write(data.data(), data.size());
-	return !file.fail();
+	const size_t file_size_written = fwrite(data.data(), 1, data.size(), file);
+	fclose(file);
+	return file_size_written == data.size();
 }
 void reshade::runtime::clear_effect_cache()
 {
@@ -4402,35 +4411,35 @@ void reshade::runtime::save_texture(const texture &tex)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (auto file = std::ofstream(screenshot_path, std::ios::binary | std::ios::trunc))
+			if (FILE *const file = _wfsopen(screenshot_path.c_str(), L"wb", SH_DENYNO))
 			{
 				const auto write_callback = [](void *context, void *data, int size) {
-					static_cast<std::ofstream *>(context)->write(static_cast<const char *>(data), size);
+					fwrite(data, 1, size, static_cast<FILE *>(context));
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, &file, width, height, 4, pixels.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, file, width, height, 4, pixels.data()) != 0;
 					break;
 				case 1:
-				{
 #if 1
-					std::vector<uint8_t> encoded_data;
-					save_success = fpng::fpng_encode_image_to_memory(pixels.data(), width, height, 4, encoded_data);
-					write_callback(&file, encoded_data.data(), static_cast<int>(encoded_data.size()));
+					if (std::vector<uint8_t> encoded_data;
+						fpng::fpng_encode_image_to_memory(pixels.data(), width, height, 4, encoded_data))
+						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
 #else
-					save_success = stbi_write_png_to_func(write_callback, &file, width, height, 4, pixels.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, file, width, height, 4, pixels.data(), 0) != 0;
 #endif
 					break;
-				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, &file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
 
-				if (!file)
+				if (ferror(file))
 					save_success = false;
+
+				fclose(file);
 			}
 
 			if (_last_screenshot_save_successful)
@@ -4934,35 +4943,35 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
-			if (auto file = std::ofstream(screenshot_path, std::ios::binary | std::ios::trunc))
+			if (FILE *const file = _wfsopen(screenshot_path.c_str(), L"wb", SH_DENYNO))
 			{
 				const auto write_callback = [](void *context, void *data, int size) {
-					static_cast<std::ofstream *>(context)->write(static_cast<const char *>(data), size);
+					fwrite(data, 1, size, static_cast<FILE *>(context));
 				};
 
 				switch (_screenshot_format)
 				{
 				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, &file, _width, _height, comp, pixels.data()) != 0;
+					save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, pixels.data()) != 0;
 					break;
 				case 1:
-				{
 #if 1
-					std::vector<uint8_t> encoded_data;
-					save_success = fpng::fpng_encode_image_to_memory(pixels.data(), _width, _height, comp, encoded_data);
-					write_callback(&file, encoded_data.data(), static_cast<int>(encoded_data.size()));
+					if (std::vector<uint8_t> encoded_data;
+						fpng::fpng_encode_image_to_memory(pixels.data(), _width, _height, comp, encoded_data))
+						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
 #else
-					save_success = stbi_write_png_to_func(write_callback, &file, _width, _height, comp, pixels.data(), 0) != 0;
+					save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, pixels.data(), 0) != 0;
 #endif
 					break;
-				}
 				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, &file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
+					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				}
 
-				if (!file)
+				if (ferror(file))
 					save_success = false;
+
+				fclose(file);
 			}
 
 			if (save_success)

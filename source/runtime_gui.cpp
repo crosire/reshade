@@ -19,7 +19,6 @@
 #include "platform_utils.hpp"
 #include "fonts/forkawesome.inl"
 #include "fonts/glyph_ranges.hpp"
-#include <fstream>
 #include <cmath> // std::abs, std::ceil, std::floor
 #include <cctype> // std::tolower
 #include <cstdlib> // std::lldiv, std::strtol
@@ -3019,10 +3018,17 @@ void reshade::runtime::draw_gui_log()
 		if (filter_changed || _last_log_size != file_size)
 		{
 			_log_lines.clear();
-			std::ifstream log_file(log_path);
-			for (std::string line; std::getline(log_file, line);)
-				if (filter_text(line, _log_filter))
-					_log_lines.push_back(line);
+
+			if (FILE *const file = _wfsopen(log_path.c_str(), L"r", SH_DENYNO))
+			{
+				char line_data[2048];
+				while (fgets(line_data, sizeof(line_data), file))
+					if (filter_text(line_data, _log_filter))
+						_log_lines.push_back(line_data);
+
+				fclose(file);
+			}
+
 			_last_log_size = file_size;
 		}
 
@@ -4459,9 +4465,18 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 	// Only update text if there is no undo history (in which case it can be assumed that the text is already up-to-date)
 	if (!instance.editor.is_modified() && !instance.editor.can_undo())
 	{
-		if (auto file = std::ifstream(instance.file_path))
+		if (FILE *const file = _wfsopen(instance.file_path.c_str(), L"rb", SH_DENYWR))
 		{
-			instance.editor.set_text(std::string(std::istreambuf_iterator<char>(file), {}));
+			fseek(file, 0, SEEK_END);
+			const size_t file_size = ftell(file);
+			fseek(file, 0, SEEK_SET);
+
+			std::string text(file_size, '\0');
+			fread(text.data(), 1, file_size, file);
+
+			fclose(file);
+
+			instance.editor.set_text(text);
 			instance.editor.set_readonly(false);
 		}
 	}
@@ -4484,10 +4499,11 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 			_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file
-		if (auto file = std::ofstream(instance.file_path, std::ios::trunc))
+		if (FILE *const file = _wfsopen(instance.file_path.c_str(), L"wb", SH_DENYWR))
 		{
 			const std::string text = instance.editor.get_text();
-			file.write(text.data(), text.size());
+			fwrite(text.data(), 1, text.size(), file);
+			fclose(file);
 		}
 
 		if (!is_loading() && instance.effect_index < _effects.size())

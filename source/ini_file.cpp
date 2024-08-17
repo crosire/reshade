@@ -4,8 +4,6 @@
  */
 
 #include "ini_file.hpp"
-#include <fstream>
-#include <sstream>
 #include <shared_mutex>
 #include <cctype> // std::toupper
 #include <cassert>
@@ -35,21 +33,23 @@ bool ini_file::load()
 	// Clear when file does not exist too
 	_sections.clear();
 
-	std::ifstream file(_path);
-	if (!file)
+	FILE *const file = _wfsopen(_path.c_str(), L"r", SH_DENYWR);
+	if (file == nullptr)
 		return false;
 
 	_modified = false;
 	_modified_at = modified_at;
 
-	// Remove BOM
-	if (file.get() != utf8::bom[0] || file.get() != utf8::bom[1] || file.get() != utf8::bom[2])
-		file.seekg(0, std::ios::beg);
+	// Remove BOM (0xefbbbf means 0xfeff)
+	if (fgetc(file) != utf8::bom[0] || fgetc(file) != utf8::bom[1] || fgetc(file) != utf8::bom[2])
+		fseek(file, 0, SEEK_SET);
 
-	std::string line, section;
-	while (std::getline(file, line))
+	std::string section;
+
+	char line_data[2048];
+	while (fgets(line_data, sizeof(line_data), file))
 	{
-		line = trim(line);
+		const std::string_view line = trim(line_data, " \t\r\n");
 
 		if (line.empty() || line[0] == ';' || line[0] == '/' || line[0] == '#')
 			continue;
@@ -65,17 +65,17 @@ bool ini_file::load()
 		const size_t assign_index = line.find('=');
 		if (assign_index != std::string::npos)
 		{
-			const std::string key = trim(line.substr(0, assign_index));
-			const std::string value = trim(line.substr(assign_index + 1));
+			const std::string_view key = trim(line.substr(0, assign_index));
+			const std::string_view value = trim(line.substr(assign_index + 1));
 
 			if (value.empty())
 			{
-				_sections[section].insert({ key, {} });
+				_sections[section].insert({ std::string(key), {} });
 				continue;
 			}
 
 			// Append to key if it already exists
-			ini_file::value_type &elements = _sections[section][key];
+			ini_file::value_type &elements = _sections[section][std::string(key)];
 			for (size_t offset = 0, base = 0, len = value.size(); offset <= len;)
 			{
 				// Treat ",," as an escaped comma and only split on single ","
@@ -104,9 +104,11 @@ bool ini_file::load()
 		}
 		else
 		{
-			_sections[section].insert({ line, {} });
+			_sections[section].insert({ std::string(line), {} });
 		}
 	}
+
+	fclose(file);
 
 	return true;
 }
@@ -123,7 +125,7 @@ bool ini_file::save()
 	if (!ec && (modified_at - _modified_at) > std::chrono::seconds(2))
 		return false; // File exists and was modified on disk and therefore may have different data, so cannot save
 
-	std::stringstream data;
+	std::string data;
 	std::vector<std::string> section_names, key_names;
 
 	section_names.reserve(_sections.size());
@@ -156,11 +158,11 @@ bool ini_file::save()
 
 			// Empty section should have been sorted to the top, so do not need to append it before keys
 			if (!section_name.empty())
-				data << '[' << section_name << ']' << '\n';
+				data += '[' + section_name + ']' + '\n';
 
 			for (const std::string &key_name : key_names)
 			{
-				data << key_name << '=';
+				data += key_name + '=';
 
 				if (const ini_file::value_type &elements = keys.at(key_name); !elements.empty())
 				{
@@ -184,28 +186,25 @@ bool ini_file::save()
 						value.pop_back();
 					}
 
-					data << value;
+					data += value;
 				}
 
-				data << '\n';
+				data += '\n';
 			}
 
-			data << '\n';
+			data += '\n';
 		}
 	}
 
-	std::ofstream file(_path);
-	if (!file)
+	FILE *const file = _wfsopen(_path.c_str(), L"w", SH_DENYWR);
+	if (file == nullptr)
 		return false;
-
-	const std::string str = data.str();
+	const size_t file_size_written = fwrite(data.data(), 1, data.size(), file);
+	fclose(file);
+	if (file_size_written != data.size())
+		return false;
 
 	// Flush stream to disk before updating last write time
-	const bool fail = !(file.write(str.data(), str.size()) && file.flush());
-	file.close();
-	if (fail)
-		return false;
-
 	_modified_at = std::filesystem::last_write_time(_path, ec);
 
 	assert(!ec && std::filesystem::file_size(_path, ec) > 0);
