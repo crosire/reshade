@@ -17,7 +17,6 @@
 
 reshade::opengl::state_block::state_block()
 {
-	memset(this, 0, sizeof(*this));
 }
 
 void reshade::opengl::state_block::capture(bool compatibility)

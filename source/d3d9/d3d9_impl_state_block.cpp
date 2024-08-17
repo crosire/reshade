@@ -25,7 +25,6 @@ reshade::d3d9::state_block::state_block(IDirect3DDevice9 *device) :
 }
 reshade::d3d9::state_block::~state_block()
 {
-	release_all_device_objects();
 }
 
 void reshade::d3d9::state_block::capture()
@@ -78,12 +77,7 @@ void reshade::d3d9::state_block::apply_and_release()
 	// Set viewport after render targets have been set, since 'SetRenderTarget' causes the viewport to be set to the full size of the render target
 	_device->SetViewport(&_viewport);
 
-	release_all_device_objects();
-}
-
-void reshade::d3d9::state_block::release_all_device_objects()
-{
-	_depth_stencil.reset();
 	for (auto &render_target : _render_targets)
 		render_target.reset();
+	_depth_stencil.reset();
 }
