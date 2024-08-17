@@ -1211,15 +1211,16 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 
 		if ((scope_mask_updated & (GLOBAL_SCOPE_FLAG | PRESET_SCOPE_FLAG)) != 0)
 		{
-			_should_reload_effect = _effects.size();
+			_reload_required_effects = { _effects.size() };
 		}
 		else
 		{
 			const size_t effect_index = std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
 				[effect_name = std::filesystem::u8path(effect_name_string)](const effect &effect) { return effect_name == effect.source_file.filename(); }));
 
-			if (effect_index != _should_reload_effect || _should_reload_effect == std::numeric_limits<size_t>::max())
-				_should_reload_effect = effect_index;
+			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
+				std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), effect_index) == _reload_required_effects.cend())
+				_reload_required_effects.push_back(effect_index);
 		}
 	}
 #endif

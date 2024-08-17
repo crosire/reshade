@@ -293,7 +293,7 @@ namespace reshade
 
 		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
 		std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> _preset_preprocessor_definitions;
-		size_t _should_reload_effect = std::numeric_limits<size_t>::max();
+		std::vector<size_t> _reload_required_effects;
 		bool _block_effect_reload_this_frame = false;
 
 		std::filesystem::path _effect_cache_path;
