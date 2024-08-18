@@ -74,7 +74,7 @@ namespace reshadefx
 		bool parse_statement(bool scoped);
 		bool parse_statement_block(bool scoped);
 
-		codegen *_codegen = nullptr;
+		class codegen *_codegen = nullptr;
 		std::string _errors;
 
 		token _token, _token_next, _token_backup;

@@ -199,6 +199,7 @@ namespace reshade
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;
+		std::string generated_code;
 		std::unordered_map<std::string, std::string> assembly;
 		std::unordered_map<std::string, std::string> assembly_text;
 

@@ -55,7 +55,6 @@ int main(int argc, char *argv[])
 	bool vulkan_semantics = false;
 	unsigned int shader_model = 50;
 
-	reshadefx::parser parser;
 	reshadefx::preprocessor pp;
 	pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 	pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", "0");
@@ -168,6 +167,7 @@ int main(int argc, char *argv[])
 	else
 		backend.reset(reshadefx::create_codegen_spirv(vulkan_semantics, debug_info, spec_constants, invert_y_axis));
 
+	reshadefx::parser parser;
 	if (!parser.parse(pp.output(), backend.get()))
 	{
 		if (errorfile == nullptr)
@@ -177,16 +177,15 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	reshadefx::effect_module module;
-	backend->write_result(module);
+	std::vector<char> code = backend->finalize_code();
 
 	if (print_glsl || print_hlsl)
 	{
-		std::cout.write(module.code.data(), module.code.size()).flush();
+		std::cout.write(code.data(), code.size()).flush();
 	}
 	else if (objectfile != nullptr)
 	{
-		std::ofstream(objectfile, std::ios::binary).write(module.code.data(), module.code.size());
+		std::ofstream(objectfile, std::ios::binary).write(code.data(), code.size());
 	}
 
 	return 0;

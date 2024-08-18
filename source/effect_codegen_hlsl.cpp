@@ -65,10 +65,8 @@ private:
 	bool _uses_bitwise_cast = false;
 	bool _uses_bitwise_intrinsics = false;
 
-	void write_result(effect_module &module) override
+	std::string finalize_preamble() const
 	{
-		module = std::move(_module);
-
 		std::string preamble;
 
 #define IMPLEMENT_INTRINSIC_FALLBACK_ASINT(n) \
@@ -256,15 +254,90 @@ private:
 			{
 				preamble += _cbuffer_block;
 			}
-
-			// Offsets were multiplied in 'define_uniform', so adjust total size here accordingly
-			module.total_uniform_size *= 4;
 		}
 
-		module.code.assign(preamble.begin(), preamble.end());
+		return preamble;
+	}
 
-		const std::string &main_block = _blocks.at(0);
-		module.code.insert(module.code.end(), main_block.begin(), main_block.end());
+	std::vector<char> finalize_code() const override
+	{
+		std::string preamble = finalize_preamble();
+
+		std::vector<char> code;
+		code.assign(preamble.begin(), preamble.end());
+
+		{
+			const std::string &block_code = _blocks.at(0);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const texture_info &info : _module.textures)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const sampler_info &info : _module.samplers)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const storage_info &info : _module.storages)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const std::unique_ptr<function_info> &function : _functions)
+		{
+			const std::string &block_code = _blocks.at(function->definition);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		return code;
+	}
+	std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const override
+	{
+		std::string preamble = finalize_preamble();
+
+		if (_shader_model < 40 && entry_point.second == shader_type::pixel)
+			// Overwrite position semantic in pixel shaders
+			preamble += "#define POSITION VPOS\n";
+
+		std::vector<char> code;
+		code.assign(preamble.begin(), preamble.end());
+
+		{
+			const std::string &block_code = _blocks.at(0);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const texture_info &info : _module.textures)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const sampler_info &info : _module.samplers)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const storage_info &info : _module.storages)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const std::unique_ptr<function_info> &function : _functions)
+		{
+			const std::string &block_code = _blocks.at(function->definition);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		return code;
 	}
 
 	template <bool is_param = false, bool is_decl = true>
@@ -712,7 +785,7 @@ private:
 	}
 	id   define_texture(const location &loc, texture_info &info) override
 	{
-		info.id = make_id();
+		info.id = create_block();
 		info.binding = ~0u;
 
 		define_name<naming::unique>(info.id, info.unique_name);
@@ -722,7 +795,7 @@ private:
 			info.binding = _module.num_texture_bindings;
 			_module.num_texture_bindings += 2;
 
-			std::string &code = _blocks.at(_current_block);
+			std::string &code = _blocks.at(info.id);
 
 			write_location(code, loc);
 
@@ -751,11 +824,11 @@ private:
 	}
 	id   define_sampler(const location &loc, const texture_info &tex_info, sampler_info &info) override
 	{
-		info.id = make_id();
+		info.id = create_block();
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		std::string &code = _blocks.at(_current_block);
+		std::string &code = _blocks.at(info.id);
 
 		if (_shader_model >= 40)
 		{
@@ -833,7 +906,7 @@ private:
 	}
 	id   define_storage(const location &loc, const texture_info &, storage_info &info) override
 	{
-		info.id = make_id();
+		info.id = create_block();
 		info.binding = ~0u;
 
 		define_name<naming::unique>(info.id, info.unique_name);
@@ -842,7 +915,7 @@ private:
 		{
 			info.binding = _module.num_storage_bindings++;
 
-			std::string &code = _blocks.at(_current_block);
+			std::string &code = _blocks.at(info.id);
 
 			write_location(code, loc);
 
@@ -894,6 +967,9 @@ private:
 			if (info.type.is_array())
 				info.size = align_up(info.size, 16, info.type.array_length);
 
+			if (_shader_model < 40)
+				_module.total_uniform_size /= 4;
+
 			// Data is packed into 4-byte boundaries (see https://docs.microsoft.com/windows/win32/direct3dhlsl/dx-graphics-hlsl-packing-rules)
 			// This is already guaranteed, since all types are at least 4-byte in size
 			info.offset = _module.total_uniform_size;
@@ -919,6 +995,7 @@ private:
 
 				// Simply put each uniform into a separate constant register in shader model 3 for now
 				info.offset *= 4;
+				_module.total_uniform_size *= 4;
 			}
 
 			write_type(_cbuffer_block, type);
@@ -982,7 +1059,7 @@ private:
 
 		define_name<naming::unique>(info.definition, info.unique_name);
 
-		assert(_current_block == 0 && _current_function_declaration.empty());
+		assert(_current_block == 0 && (_current_function_declaration.empty() || info.type != shader_type::unknown));
 		std::string &code = _current_function_declaration;
 
 		write_location(code, loc);
@@ -1028,13 +1105,15 @@ private:
 	void define_entry_point(function_info &func) override
 	{
 		// Modify entry point name since a new function is created for it below
+		assert(!func.unique_name.empty() && func.unique_name[0] == 'F');
+		if (_shader_model < 40 || func.type == shader_type::compute)
+			func.unique_name[0] = 'E';
+
 		if (func.type == shader_type::compute)
-			func.unique_name = 'E' + func.unique_name +
+			func.unique_name +=
 				'_' + std::to_string(func.num_threads[0]) +
 				'_' + std::to_string(func.num_threads[1]) +
 				'_' + std::to_string(func.num_threads[2]);
-		else if (_shader_model < 40)
-			func.unique_name = 'E' + func.unique_name;
 
 		if (std::find_if(_module.entry_points.begin(), _module.entry_points.end(),
 				[&func](const std::pair<std::string, shader_type> &entry_point) {
@@ -1060,7 +1139,7 @@ private:
 
 		std::string position_variable_name;
 		{
-			if (func.return_type.is_struct() && func.type == shader_type::vertex)
+			if (func.type == shader_type::vertex && func.return_type.is_struct())
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
 				for (const struct_member_info &member : get_struct(func.return_type.definition).member_list)
@@ -1082,7 +1161,7 @@ private:
 		}
 		for (struct_member_info &param : entry_point.parameter_list)
 		{
-			if (param.type.is_struct() && func.type == shader_type::vertex)
+			if (func.type == shader_type::vertex && param.type.is_struct())
 			{
 				for (const struct_member_info &member : get_struct(param.type.definition).member_list)
 					if (is_position_semantic(member.semantic))
@@ -1104,8 +1183,9 @@ private:
 			}
 		}
 
+		assert(_current_function_declaration.empty());
 		if (func.type == shader_type::compute)
-			_blocks.at(_current_block) += "[numthreads(" +
+			_current_function_declaration += "[numthreads(" +
 				std::to_string(func.num_threads[0]) + ", " +
 				std::to_string(func.num_threads[1]) + ", " +
 				std::to_string(func.num_threads[2]) + ")]\n";
@@ -1164,7 +1244,7 @@ private:
 		code += ";\n";
 
 		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
-		if (!position_variable_name.empty() && func.type == shader_type::vertex) // Check if we are in a vertex shader definition
+		if (func.type == shader_type::vertex && !position_variable_name.empty()) // Check if we are in a vertex shader definition
 			code += '\t' + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
 
 		leave_block_and_return(func.return_type.is_void() ? 0 : ret);
@@ -2020,7 +2100,9 @@ private:
 	{
 		assert(_last_block != 0);
 
-		_blocks.at(0) += _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n";
+		const id current_function = _functions.back()->definition;
+
+		_blocks.emplace(current_function, _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n");
 		_current_function_declaration.clear();
 	}
 };

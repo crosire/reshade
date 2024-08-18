@@ -75,11 +75,9 @@ private:
 	bool _uses_componentwise_and = false;
 	bool _uses_componentwise_cond = false;
 
-	void write_result(effect_module &module) override
+	std::string finalize_preamble() const
 	{
-		module = std::move(_module);
-
-		std::string preamble;
+		std::string preamble = "#version 430\n";
 
 		if (_enable_16bit_types)
 			// GL_NV_gpu_shader5, GL_AMD_gpu_shader_half_float or GL_EXT_shader_16bit_storage
@@ -125,10 +123,117 @@ private:
 			// TODO: This technically only works with square matrices
 			preamble += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
 
-		module.code.assign(preamble.begin(), preamble.end());
+		return preamble;
+	}
 
-		const std::string &main_block = _blocks.at(0);
-		module.code.insert(module.code.end(), main_block.begin(), main_block.end());
+	std::vector<char> finalize_code() const override
+	{
+		std::string preamble = finalize_preamble();
+
+		std::vector<char> code;
+		code.assign(preamble.begin(), preamble.end());
+
+		{
+			const std::string &block_code = _blocks.at(0);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const sampler_info &info : _module.samplers)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const storage_info &info : _module.storages)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const std::unique_ptr<function_info> &function : _functions)
+		{
+			const bool is_entry_point = function->unique_name[0] == 'E';
+
+			if (is_entry_point)
+			{
+				const std::string ifdef_code = "#ifdef " + function->unique_name + '\n';
+				code.insert(code.end(), ifdef_code.begin(), ifdef_code.end());
+			}
+
+			const std::string &block_code = _blocks.at(function->definition);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+
+			if (is_entry_point)
+			{
+				const std::string endif_code = "#endif\n";
+				code.insert(code.end(), endif_code.begin(), endif_code.end());
+			}
+		}
+
+		return code;
+	}
+	std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const override
+	{
+		std::string preamble = finalize_preamble();
+
+		if (entry_point.second != shader_type::pixel)
+			preamble +=
+				// OpenGL does not allow using 'discard' in the vertex shader profile
+				"#define discard\n"
+				// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
+				"#define dFdx(x) x\n"
+				"#define dFdy(y) y\n"
+				"#define fwidth(p) p\n";
+
+		if (entry_point.second != shader_type::compute)
+			preamble +=
+				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
+				"#define shared\n"
+				"#define atomicAdd(a, b) a\n"
+				"#define atomicAnd(a, b) a\n"
+				"#define atomicOr(a, b) a\n"
+				"#define atomicXor(a, b) a\n"
+				"#define atomicMin(a, b) a\n"
+				"#define atomicMax(a, b) a\n"
+				"#define atomicExchange(a, b) a\n"
+				"#define atomicCompSwap(a, b, c) a\n"
+				// Barrier intrinsics are only available in compute shaders
+				"#define barrier()\n"
+				"#define memoryBarrier()\n"
+				"#define groupMemoryBarrier()\n";
+
+		std::vector<char> code;
+		code.assign(preamble.begin(), preamble.end());
+
+		{
+			const std::string &main_block = _blocks.at(0);
+			code.insert(code.end(), main_block.begin(), main_block.end());
+		}
+
+		for (const sampler_info &info : _module.samplers)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const storage_info &info : _module.storages)
+		{
+			const std::string &block_code = _blocks.at(info.id);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		for (const std::unique_ptr<function_info> &function : _functions)
+		{
+			const bool is_entry_point = function->unique_name[0] == 'E';
+
+			if (is_entry_point && entry_point.first != function->unique_name)
+				continue;
+
+			const std::string &block_code = _blocks.at(function->definition);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		return code;
 	}
 
 	template <bool is_param = false, bool is_decl = true, bool is_interface = false>
@@ -638,13 +743,13 @@ private:
 	}
 	id   define_sampler(const location &loc, const texture_info &, sampler_info &info) override
 	{
-		info.id = make_id();
+		info.id = create_block();
 		info.binding = _module.num_sampler_bindings++;
 		info.texture_binding = ~0u; // Unset texture bindings
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		std::string &code = _blocks.at(_current_block);
+		std::string &code = _blocks.at(info.id);
 
 		write_location(code, loc);
 
@@ -659,12 +764,12 @@ private:
 	}
 	id   define_storage(const location &loc, const texture_info &tex_info, storage_info &info) override
 	{
-		info.id = make_id();
+		info.id = create_block();
 		info.binding = _module.num_storage_bindings++;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
-		std::string &code = _blocks.at(_current_block);
+		std::string &code = _blocks.at(info.id);
 
 		write_location(code, loc);
 
@@ -795,14 +900,12 @@ private:
 	}
 	id   define_function(const location &loc, function_info &info) override
 	{
-		return define_function(loc, info, false);
-	}
+		assert(!info.unique_name.empty() && (info.unique_name[0] == 'F' || info.unique_name[0] == 'E'));
+		const bool is_entry_point = info.unique_name[0] == 'E';
 
-	id   define_function(const location &loc, function_info &info, bool is_entry_point)
-	{
 		info.definition = make_id();
 
-		// Name is used in other places like the "ENTRY_POINT" defines, so escape it here
+		// Name is used in other places like the entry point defines, so escape it here
 		info.unique_name = escape_name(info.unique_name);
 
 		if (!is_entry_point)
@@ -810,7 +913,7 @@ private:
 		else
 			define_name<naming::reserved>(info.definition, "main");
 
-		assert(_current_block == 0 && _current_function_declaration.empty());
+		assert(_current_block == 0 && (_current_function_declaration.empty() || is_entry_point));
 		std::string &code = _current_function_declaration;
 
 		write_location(code, loc);
@@ -849,9 +952,12 @@ private:
 
 	void define_entry_point(function_info &func) override
 	{
+		assert(!func.unique_name.empty() && func.unique_name[0] == 'F');
+		func.unique_name[0] = 'E';
+
 		// Modify entry point name so each thread configuration is made separate
 		if (func.type == shader_type::compute)
-			func.unique_name = 'E' + func.unique_name +
+			func.unique_name +=
 				'_' + std::to_string(func.num_threads[0]) +
 				'_' + std::to_string(func.num_threads[1]) +
 				'_' + std::to_string(func.num_threads[2]);
@@ -864,14 +970,20 @@ private:
 
 		_module.entry_points.emplace_back(func.unique_name, func.type);
 
-		_blocks.at(0) += "#ifdef ENTRY_POINT_" + func.unique_name + '\n';
+		assert(_current_function_declaration.empty());
 		if (func.type == shader_type::compute)
-			_blocks.at(0) += "layout(local_size_x = " + std::to_string(func.num_threads[0]) +
-			                      ", local_size_y = " + std::to_string(func.num_threads[1]) +
-			                      ", local_size_z = " + std::to_string(func.num_threads[2]) + ") in;\n";
+			_current_function_declaration +=
+				"layout(local_size_x = " + std::to_string(func.num_threads[0]) +
+			         ", local_size_y = " + std::to_string(func.num_threads[1]) +
+			         ", local_size_z = " + std::to_string(func.num_threads[2]) + ") in;\n";
 
-		function_info entry_point;
+		// Generate the glue entry point function
+		function_info entry_point = func;
+
+		// Change function signature to 'void main()'
 		entry_point.return_type = { type::t_void };
+		entry_point.return_semantic.clear();
+		entry_point.parameter_list.clear();
 
 		std::unordered_map<std::string, std::string> semantic_to_varying_variable;
 
@@ -892,21 +1004,19 @@ private:
 			if (type.is_boolean())
 				type.base = type::t_float;
 
-			std::string &code = _blocks.at(0);
-
 			const uint32_t location = semantic_to_location(semantic, std::max(1u, type.array_length));
 
 			for (unsigned int a = 0; a < std::max(1u, type.array_length); ++a)
 			{
-				code += "layout(location = " + std::to_string(location + a) + ") ";
-				write_type<false, false, true>(code, type);
-				code += ' ';
-				code += escape_name(type.is_array() ? name + '_' + std::to_string(a) : name);
-				code += ";\n";
+				_current_function_declaration += "layout(location = " + std::to_string(location + a) + ") ";
+				write_type<false, false, true>(_current_function_declaration, type);
+				_current_function_declaration += ' ';
+				_current_function_declaration += escape_name(type.is_array() ? name + '_' + std::to_string(a) : name);
+				_current_function_declaration += ";\n";
 			}
 		};
 
-		// Translate function parameters to input/output variables
+		// Translate return value to output variable
 		if (func.return_type.is_struct())
 		{
 			const struct_info &definition = get_struct(func.return_type.definition);
@@ -919,6 +1029,7 @@ private:
 			create_varying_variable(func.return_type, type::q_out, "_return", func.return_semantic);
 		}
 
+		// Translate function parameters to input/output variables
 		const auto num_params = static_cast<unsigned int>(func.parameter_list.size());
 		for (unsigned int i = 0; i < num_params; ++i)
 		{
@@ -964,8 +1075,7 @@ private:
 			}
 		}
 
-		// Translate return value to output variable
-		define_function({}, entry_point, true);
+		define_function({}, entry_point);
 		enter_block(create_block());
 
 		std::string &code = _blocks.at(_current_block);
@@ -1313,8 +1423,6 @@ private:
 
 		leave_block_and_return(0);
 		leave_function();
-
-		_blocks.at(0) += "#endif\n";
 	}
 
 	id   emit_load(const expression &exp, bool force_new_id) override
@@ -2203,7 +2311,9 @@ private:
 	{
 		assert(_last_block != 0);
 
-		_blocks.at(0) += _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n";
+		const id current_function = _functions.back()->definition;
+
+		_blocks.emplace(current_function, _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n");
 		_current_function_declaration.clear();
 	}
 };

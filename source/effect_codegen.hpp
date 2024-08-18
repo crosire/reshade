@@ -16,6 +16,8 @@ namespace reshadefx
 	/// </summary>
 	class codegen
 	{
+		friend class parser;
+
 	public:
 		/// <summary>
 		/// Virtual destructor to guarantee that memory of the implementations deriving from this interface is properly destroyed.
@@ -23,12 +25,21 @@ namespace reshadefx
 		virtual ~codegen() {}
 
 		/// <summary>
-		/// Writes result of the code generation to the specified <paramref name="module"/>.
+		/// Gets the module describing the generated code.
 		/// </summary>
-		/// <param name="module">Target module to fill.</param>
-		virtual void write_result(effect_module &module) = 0;
+		const effect_module &module() const { return _module; }
 
-	public:
+		/// <summary>
+		/// Finalizes and returns the generated code for the entire module (all entry points).
+		/// </summary>
+		virtual std::vector<char> finalize_code() const = 0;
+		/// <summary>
+		/// Finalizes and returns the generated code for the specified entry point (and no other entry points).
+		/// </summary>
+		/// <param name="entry_point">Entry point to generate code for.</param>
+		virtual std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const = 0;
+
+	protected:
 		/// <summary>
 		/// An opaque ID referring to a SSA value or basic block.
 		/// </summary>
@@ -82,7 +93,8 @@ namespace reshadefx
 		/// <returns>New SSA ID of the variable.</returns>
 		virtual id define_variable(const location &loc, const type &type, std::string name = std::string(), bool global = false, id initializer_value = 0) = 0;
 		/// <summary>
-		/// Defines a new function and its function parameters and make it current. Any code added after this call is added to this function.
+		/// Defines a new function and its function parameters and make it current.
+		/// Any code added after this call is added to this function.
 		/// </summary>
 		/// <param name="loc">Source location matching this definition (for debugging).</param>
 		/// <param name="info">Description of the function.</param>
@@ -339,7 +351,6 @@ namespace reshadefx
 				[id](const std::unique_ptr<function_info> &info) { return info->definition == id; })->get();
 		}
 
-	protected:
 		id make_id() { return _next_id++; }
 
 		effect_module _module;

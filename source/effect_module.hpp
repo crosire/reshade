@@ -330,8 +330,6 @@ namespace reshadefx
 	/// </summary>
 	struct effect_module
 	{
-		std::vector<char> code;
-
 		std::vector<std::pair<std::string, shader_type>> entry_points;
 
 		std::vector<texture_info> textures;

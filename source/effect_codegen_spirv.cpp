@@ -19,8 +19,6 @@ namespace spv {
 
 using namespace reshadefx;
 
-static_assert(sizeof(codegen::id) == sizeof(spv::Id), "unexpected SPIR-V id type size");
-
 inline uint32_t align_up(uint32_t size, uint32_t alignment)
 {
 	alignment -= 1;
@@ -79,7 +77,7 @@ struct spirv_instruction
 	/// Write this instruction to a SPIR-V module.
 	/// </summary>
 	/// <param name="output">The output stream to append this instruction to.</param>
-	void write(std::vector<uint32_t> &output) const
+	void write(std::vector<char> &output) const
 	{
 		// See https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html
 		// 0             | Opcode: The 16 high-order bits are the WordCount of the instruction. The 16 low-order bits are the opcode enumerant.
@@ -90,19 +88,25 @@ struct spirv_instruction
 		// ...           | ...
 		// WordCount - 1 | Operand N (N is determined by WordCount minus the 1 to 3 words used for the opcode, instruction type <id>, and instruction Result <id>).
 
-		const uint32_t num_words = 1 + (type != 0) + (result != 0) + static_cast<uint32_t>(operands.size());
-		output.push_back((num_words << spv::WordCountShift) | op);
+		const uint32_t word_count = 1 + (type != 0) + (result != 0) + static_cast<uint32_t>(operands.size());
+		write_word(output, (word_count << spv::WordCountShift) | op);
 
 		// Optional instruction type ID
 		if (type != 0)
-			output.push_back(type);
+			write_word(output, type);
 
 		// Optional instruction result ID
 		if (result != 0)
-			output.push_back(result);
+			write_word(output, result);
 
 		// Write out the operands
-		output.insert(output.end(), operands.begin(), operands.end());
+		for (const uint32_t operand : operands)
+			write_word(output, operand);
+	}
+
+	static void write_word(std::vector<char> &output, uint32_t word)
+	{
+		output.insert(output.end(), reinterpret_cast<const char *>(&word), reinterpret_cast<const char *>(&word + 1));
 	}
 
 	operator uint32_t() const
@@ -131,6 +135,8 @@ struct spirv_basic_block
 
 class codegen_spirv final : public codegen
 {
+	static_assert(sizeof(id) == sizeof(spv::Id), "unexpected SPIR-V id type size");
+
 public:
 	codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y) :
 		_debug_info(debug_info),
@@ -260,33 +266,14 @@ private:
 		return block.instructions.emplace_back(op);
 	}
 
-	void write_result(effect_module &module) override
+	void finalize_header_section(std::vector<char> &spirv) const
 	{
-		// First initialize the UBO type now that all member types are known
-		if (_global_ubo_type != 0)
-		{
-			spirv_instruction &type_inst = add_instruction_without_result(spv::OpTypeStruct, _types_and_constants);
-			type_inst.add(_global_ubo_types.begin(), _global_ubo_types.end());
-			type_inst.result = _global_ubo_type;
-
-			spirv_instruction &variable_inst = add_instruction_without_result(spv::OpVariable, _variables);
-			variable_inst.add(spv::StorageClassUniform);
-			variable_inst.type = convert_type({ type::t_struct, 0, 0, type::q_uniform, 0, _global_ubo_type }, true, spv::StorageClassUniform);
-			variable_inst.result = _global_ubo_variable;
-
-			add_name(variable_inst, "$Globals");
-		}
-
-		module = std::move(_module);
-
-		std::vector<spv::Id> spirv;
-
 		// Write SPIRV header info
-		spirv.push_back(spv::MagicNumber);
-		spirv.push_back(0x10300); // Force SPIR-V 1.3
-		spirv.push_back(0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
-		spirv.push_back(_next_id); // Maximum ID
-		spirv.push_back(0u); // Reserved for instruction schema
+		spirv_instruction::write_word(spirv, spv::MagicNumber);
+		spirv_instruction::write_word(spirv, 0x10300); // Force SPIR-V 1.3
+		spirv_instruction::write_word(spirv, 0u); // Generator magic number, see https://www.khronos.org/registry/spir-v/api/spir-v.xml
+		spirv_instruction::write_word(spirv, _next_id); // Maximum ID
+		spirv_instruction::write_word(spirv, 0u); // Reserved for instruction schema
 
 		// All capabilities
 		spirv_instruction(spv::OpCapability)
@@ -308,15 +295,9 @@ private:
 			.add(spv::AddressingModelLogical)
 			.add(spv::MemoryModelGLSL450)
 			.write(spirv);
-
-		// All entry point declarations
-		for (const spirv_instruction &inst : _entries.instructions)
-			inst.write(spirv);
-
-		// All execution mode declarations
-		for (const spirv_instruction &inst : _execution_modes.instructions)
-			inst.write(spirv);
-
+	}
+	void finalize_debug_info_section(std::vector<char> &spirv) const
+	{
 		spirv_instruction(spv::OpSource)
 			.add(spv::SourceLanguageUnknown) // ReShade FX is not a reserved token at the moment
 			.add(0) // Language version, TODO: Maybe fill in ReShade version here?
@@ -330,14 +311,53 @@ private:
 			for (const spirv_instruction &inst : _debug_b.instructions)
 				inst.write(spirv);
 		}
+	}
+	void finalize_type_and_constants_section(std::vector<char> &spirv) const
+	{
+		// All type declarations
+		for (const spirv_instruction &inst : _types_and_constants.instructions)
+			inst.write(spirv);
+
+		// Initialize the UBO type now that all member types are known
+		if (_global_ubo_type == 0 || _global_ubo_variable == 0)
+			return;
+
+		const id global_ubo_type_ptr = _global_ubo_type + 1;
+
+		spirv_instruction(spv::OpTypeStruct, _global_ubo_type)
+			.add(_global_ubo_types.begin(), _global_ubo_types.end())
+			.write(spirv);
+		spirv_instruction(spv::OpTypePointer, global_ubo_type_ptr)
+			.add(spv::StorageClassUniform)
+			.add(_global_ubo_type)
+			.write(spirv);
+
+		spirv_instruction(spv::OpVariable, global_ubo_type_ptr, _global_ubo_variable)
+			.add(spv::StorageClassUniform)
+			.write(spirv);
+	}
+
+	std::vector<char> finalize_code() const override
+	{
+		std::vector<char> spirv;
+		finalize_header_section(spirv);
+
+		// All entry point declarations
+		for (const spirv_instruction &inst : _entries.instructions)
+			inst.write(spirv);
+
+		// All execution mode declarations
+		for (const spirv_instruction &inst : _execution_modes.instructions)
+			inst.write(spirv);
+
+		finalize_debug_info_section(spirv);
 
 		// All annotation instructions
 		for (const spirv_instruction &inst : _annotations.instructions)
 			inst.write(spirv);
 
-		// All type declarations
-		for (const spirv_instruction &inst : _types_and_constants.instructions)
-			inst.write(spirv);
+		finalize_type_and_constants_section(spirv);
+
 		for (const spirv_instruction &inst : _variables.instructions)
 			inst.write(spirv);
 
@@ -360,7 +380,92 @@ private:
 				inst_it->write(spirv);
 		}
 
-		module.code.assign(reinterpret_cast<const char *>(spirv.data()), reinterpret_cast<const char *>(spirv.data() + spirv.size()));
+		return spirv;
+	}
+	std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const override
+	{
+		std::vector<char> spirv;
+		finalize_header_section(spirv);
+
+		std::vector<spv::Id> functions_to_remove, variables_to_remove;
+
+		// The entry point and execution modes declarations
+		for (const spirv_instruction &inst : _entries.instructions)
+		{
+			assert(inst.op == spv::OpEntryPoint);
+
+			// Look for any non-matching entry points
+			if (entry_point.first != reinterpret_cast<const char *>(&inst.operands[2]))
+			{
+				functions_to_remove.push_back(inst.operands[1]);
+
+				// Get interface variables
+				for (uint32_t k = 2 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&inst.operands[2])) + 4) / 4); k < inst.operands.size(); ++k)
+					variables_to_remove.push_back(inst.operands[k]);
+				continue;
+			}
+
+			inst.write(spirv);
+		}
+
+		for (const spirv_instruction &inst : _execution_modes.instructions)
+		{
+			assert(inst.op == spv::OpExecutionMode);
+
+			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), inst.operands[0]) != functions_to_remove.end())
+				continue;
+
+			inst.write(spirv);
+		}
+
+		finalize_debug_info_section(spirv);
+
+		// All annotation instructions
+		for (const spirv_instruction &inst : _annotations.instructions)
+		{
+			// Remove all decorations targeting any of the interface variables for non-matching entry points
+			if (inst.op == spv::OpDecorate && std::find(variables_to_remove.begin(), variables_to_remove.end(), inst.operands[0]) != variables_to_remove.end())
+				continue;
+
+			inst.write(spirv);
+		}
+
+		finalize_type_and_constants_section(spirv);
+
+		for (const spirv_instruction &inst : _variables.instructions)
+		{
+			// Remove all declarations of the interface variables for non-matching entry points
+			if (inst.op == spv::OpVariable && std::find(variables_to_remove.begin(), variables_to_remove.end(), inst.result) != variables_to_remove.end())
+				continue;
+
+			inst.write(spirv);
+		}
+
+		// All function definitions
+		for (const function_blocks &function : _functions_blocks)
+		{
+			if (function.definition.instructions.empty())
+				continue;
+
+			// Remove all function definitions for non-matching entry points
+			assert(function.declaration.instructions[_debug_info ? 1 : 0].op == spv::OpFunction);
+			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), function.declaration.instructions[_debug_info ? 1 : 0].result) != functions_to_remove.end())
+				continue;
+
+			for (const spirv_instruction &inst : function.declaration.instructions)
+				inst.write(spirv);
+
+			// Grab first label and move it in front of variable declarations
+			function.definition.instructions.front().write(spirv);
+			assert(function.definition.instructions.front().op == spv::OpLabel);
+
+			for (const spirv_instruction &inst : function.variables.instructions)
+				inst.write(spirv);
+			for (auto inst_it = function.definition.instructions.begin() + 1; inst_it != function.definition.instructions.end(); ++inst_it)
+				inst_it->write(spirv);
+		}
+
+		return spirv;
 	}
 
 	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, spv::ImageFormat format = spv::ImageFormatUnknown, uint32_t array_stride = 0)
@@ -652,7 +757,7 @@ private:
 		return location + semantic_digit;
 	}
 
-	const spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype) const
+	spv::BuiltIn semantic_to_builtin(const std::string &semantic, shader_type stype) const
 	{
 		if (semantic == "SV_POSITION")
 			return stype == shader_type::pixel ? spv::BuiltInFragCoord : spv::BuiltInPosition;
@@ -674,7 +779,7 @@ private:
 			return spv::BuiltInGlobalInvocationId;
 		return spv::BuiltInMax;
 	}
-	const spv::ImageFormat format_to_image_format(texture_format format)
+	spv::ImageFormat format_to_image_format(texture_format format)
 	{
 		switch (format)
 		{
@@ -932,6 +1037,7 @@ private:
 			if (_global_ubo_type == 0)
 			{
 				_global_ubo_type = make_id();
+				make_id(); // Pointer to '_global_ubo_type'
 
 				add_decoration(_global_ubo_type, spv::DecorationBlock);
 			}
@@ -1082,9 +1188,12 @@ private:
 
 	void define_entry_point(function_info &func) override
 	{
+		assert(!func.unique_name.empty() && func.unique_name[0] == 'F');
+		func.unique_name[0] = 'E';
+
 		// Modify entry point name so each thread configuration is made separate
 		if (func.type == shader_type::compute)
-			func.unique_name = 'E' + func.unique_name +
+			func.unique_name +=
 				'_' + std::to_string(func.num_threads[0]) +
 				'_' + std::to_string(func.num_threads[1]) +
 				'_' + std::to_string(func.num_threads[2]);
@@ -1103,8 +1212,12 @@ private:
 		std::vector<expression> call_params;
 
 		// Generate the glue entry point function
-		function_info entry_point;
+		function_info entry_point = func;
+
+		// Change function signature to 'void main()'
 		entry_point.return_type = { type::t_void };
+		entry_point.return_semantic.clear();
+		entry_point.parameter_list.clear();
 
 		define_function({}, entry_point);
 		enter_block(create_block());
@@ -1393,7 +1506,6 @@ private:
 			return;
 		}
 
-		assert(!func.unique_name.empty());
 		add_instruction_without_result(spv::OpEntryPoint, _entries)
 			.add(model)
 			.add(entry_point.definition)

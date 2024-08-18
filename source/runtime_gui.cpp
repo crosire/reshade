@@ -4131,7 +4131,7 @@ void reshade::runtime::draw_technique_editor()
 					}
 				}
 
-				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
+				if (!effect.generated_code.empty() &&
 					imgui::popup_button(_("Show compiled results"), 18.0f * _font_size))
 				{
 					const bool open_generated_code = ImGui::MenuItem(_("Generated code"));
@@ -4323,7 +4323,7 @@ void reshade::runtime::draw_technique_editor()
 					}
 				}
 
-				if (_renderer_id < 0x20000 && // Hide if using SPIR-V, since that cannot easily be shown here
+				if (!effect.generated_code.empty() &&
 					imgui::popup_button(_("Show compiled results"), 18.0f * _font_size))
 				{
 					const bool open_generated_code = ImGui::MenuItem(_("Generated code"));
@@ -4484,7 +4484,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 	if (instance.generated)
 	{
 		if (instance.entry_point_name.empty())
-			instance.editor.set_text(std::string_view(effect.module.code.data(), effect.module.code.size()));
+			instance.editor.set_text(effect.generated_code);
 		else
 			instance.editor.set_text(effect.assembly_text.at(instance.entry_point_name));
 		instance.editor.set_readonly(true);

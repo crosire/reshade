@@ -1707,6 +1707,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
+	std::unique_ptr<reshadefx::codegen> codegen;
 	if (!effect.compiled && !source.empty())
 	{
 		unsigned shader_model;
@@ -1721,7 +1722,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		else
 			shader_model = 51; // D3D12
 
-		std::unique_ptr<reshadefx::codegen> codegen;
 		if ((_renderer_id & 0xF0000) == 0)
 			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, !_no_debug_info, _performance_mode));
 		else if (_renderer_id < 0x20000)
@@ -1738,7 +1738,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.errors  += parser.errors();
 
 		// Write result to effect module
-		codegen->write_result(effect.module);
+		effect.module = codegen->module();
+		if (_device->get_api() != api::device_api::vulkan)
+		{
+			std::vector<char> generated_code = codegen->finalize_code();
+			effect.generated_code.assign(generated_code.data(), generated_code.size());
+		}
 
 		if (effect.compiled)
 		{
@@ -1905,12 +1910,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					}
 
 					hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-					hlsl.append(effect.module.code.data(), effect.module.code.size());
-
-					// Overwrite position semantic in pixel shaders
-					const D3D_SHADER_MACRO ps_defines[] = {
-						{ "POSITION", "VPOS" }, { nullptr, nullptr }
-					};
+					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point);
+					hlsl.append(code.data(), code.size());
 
 					std::string profile;
 					switch (entry_point.second)
@@ -1978,7 +1979,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
 						const HRESULT hr = D3DCompile(
 							hlsl.data(), hlsl.size(),
-							nullptr, entry_point.second == reshadefx::shader_type::pixel ? ps_defines : nullptr, nullptr,
+							nullptr, nullptr, nullptr,
 							entry_point.first.c_str(),
 							profile.c_str(),
 							compile_flags, 0,
@@ -2044,129 +2045,22 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 							cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
 
+
 						save_effect_cache(cache_id, "asm", cso_text);
 					}
 				}
-				else if (_renderer_id < 0x20000)
-				{
-					std::string glsl = "#version 430\n#define ENTRY_POINT_" + entry_point.first + " 1\n";
-
-					if (entry_point.second != reshadefx::shader_type::pixel)
-					{
-						// OpenGL does not allow using 'discard' in the vertex shader profile
-						glsl += "#define discard\n";
-						// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
-						glsl += "#define dFdx(x) x\n";
-						glsl += "#define dFdy(y) y\n";
-						glsl += "#define fwidth(p) p\n";
-					}
-					if (entry_point.second != reshadefx::shader_type::compute)
-					{
-						// OpenGL does not allow using 'shared' in vertex/fragment shader profile
-						glsl += "#define shared\n";
-						glsl += "#define atomicAdd(a, b) a\n";
-						glsl += "#define atomicAnd(a, b) a\n";
-						glsl += "#define atomicOr(a, b) a\n";
-						glsl += "#define atomicXor(a, b) a\n";
-						glsl += "#define atomicMin(a, b) a\n";
-						glsl += "#define atomicMax(a, b) a\n";
-						glsl += "#define atomicExchange(a, b) a\n";
-						glsl += "#define atomicCompSwap(a, b, c) a\n";
-						// Barrier intrinsics are only available in compute shaders
-						glsl += "#define barrier()\n";
-						glsl += "#define memoryBarrier()\n";
-						glsl += "#define groupMemoryBarrier()\n";
-					}
-
-					glsl += code_preamble;
-					glsl += "#line 1 0\n"; // Reset line number, so it matches what is shown when viewing the generated code
-					glsl.append(effect.module.code.data(), effect.module.code.size());
-
-					cso_text = cso = std::move(glsl);
-				}
 				else
 				{
-					assert(_renderer_id >= 0x14600); // Core since OpenGL 4.6 (see https://www.khronos.org/opengl/wiki/SPIR-V)
+					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point);
+					cso.resize(code.size());
+					std::memcpy(cso.data(), code.data(), code.size());
 
-#if 1
-					// There are various issues with SPIR-V modules that have multiple entry points on all major GPU vendors.
-					// On AMD for instance creating a graphics pipeline just fails with a generic 'VK_ERROR_OUT_OF_HOST_MEMORY'. On NVIDIA artifacts occur on some driver versions.
-					// To work around these problems, create a separate shader module for every entry point and rewrite the SPIR-V module for each to remove all but a single entry point (and associated functions/variables).
-					uint32_t current_function = 0, current_function_offset = 0;
-					// Copy SPIR-V, so that all but the current entry point are only removed from that copy
-					std::vector<uint32_t> spirv(reinterpret_cast<const uint32_t *>(effect.module.code.data()), reinterpret_cast<const uint32_t *>(effect.module.code.data() + effect.module.code.size()));
-					std::vector<uint32_t> functions_to_remove, variables_to_remove;
-
-					for (uint32_t inst = 5 /* Skip SPIR-V header information */; inst < spirv.size();)
+					if (_renderer_id < 0x20000)
 					{
-						const uint32_t op = spirv[inst] & 0xFFFF;
-						const uint32_t len = (spirv[inst] >> 16) & 0xFFFF;
-						assert(len != 0);
+						cso.insert(std::size("#version 430\n") - 1, code_preamble);
 
-						switch (op)
-						{
-						case 15 /* OpEntryPoint */:
-							// Look for any non-matching entry points
-							if (entry_point.first != reinterpret_cast<const char *>(&spirv[inst + 3]))
-							{
-								functions_to_remove.push_back(spirv[inst + 2]);
-
-								// Get interface variables
-								for (uint32_t k = inst + 3 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&spirv[inst + 3])) + 4) / 4); k < inst + len; ++k)
-									variables_to_remove.push_back(spirv[k]);
-
-								// Remove this entry point from the module
-								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-								continue;
-							}
-							break;
-						case 16 /* OpExecutionMode */:
-							if (std::find(functions_to_remove.begin(), functions_to_remove.end(), spirv[inst + 1]) != functions_to_remove.end())
-							{
-								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-								continue;
-							}
-							break;
-						case 59 /* OpVariable */:
-							// Remove all declarations of the interface variables for non-matching entry points
-							if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 2]) != variables_to_remove.end())
-							{
-								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-								continue;
-							}
-							break;
-						case 71 /* OpDecorate */:
-							// Remove all decorations targeting any of the interface variables for non-matching entry points
-							if (std::find(variables_to_remove.begin(), variables_to_remove.end(), spirv[inst + 1]) != variables_to_remove.end())
-							{
-								spirv.erase(spirv.begin() + inst, spirv.begin() + inst + len);
-								continue;
-							}
-							break;
-						case 54 /* OpFunction */:
-							current_function = spirv[inst + 2];
-							current_function_offset = inst;
-							break;
-						case 56 /* OpFunctionEnd */:
-							// Remove all function definitions for non-matching entry points
-							if (std::find(functions_to_remove.begin(), functions_to_remove.end(), current_function) != functions_to_remove.end())
-							{
-								spirv.erase(spirv.begin() + current_function_offset, spirv.begin() + inst + len);
-								inst = current_function_offset;
-								continue;
-							}
-							break;
-						}
-
-						inst += len;
+						cso_text = cso;
 					}
-
-					cso.resize(spirv.size() * sizeof(uint32_t));
-					std::memcpy(cso.data(), spirv.data(), cso.size());
-#else
-					cso.resize(effect.module.code.size());
-					std::memcpy(cso.data(), effect.module.code.data(), effect.module.code.size());
-#endif
 				}
 			}
 		}
@@ -2862,8 +2756,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	if (!descriptor_writes.empty())
 		_device->update_descriptor_tables(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 
+#if 0 // TODO: This no longer works, since assembly may be needed to recreate effect after reloading to get preprocessor text
 	// Clear effect assembly now that it was consumed
 	effect.assembly.clear();
+#endif
 
 	return true;
 }
