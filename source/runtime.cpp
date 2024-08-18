@@ -3607,7 +3607,26 @@ void reshade::runtime::destroy_effects()
 	assert(_techniques.empty() && _technique_sorting.empty());
 
 	_textures_loaded = false;
-	_should_reload_effect = std::numeric_limits<size_t>::max();
+	_reload_required_effects.clear();
+}
+void reshade::runtime::reload_effect_next_frame(const char *effect_name)
+{
+#if RESHADE_FX
+	if (effect_name == nullptr || *effect_name == '\0')
+	{
+		_reload_required_effects = { _effects.size() };
+		return;
+	}
+
+	if (auto it = std::find_if(_effects.cbegin(), _effects.cend(), [effect_name = std::string_view(effect_name)](const effect &effect) { return effect.source_file.filename().u8string() == effect_name; });
+		it != _effects.cend())
+	{
+		if (const size_t effect_index = static_cast<size_t>(std::distance(_effects.cbegin(), it));
+			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
+			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), effect_index) == _reload_required_effects.cend())
+			_reload_required_effects.push_back(effect_index);
+	}
+#endif
 }
 
 bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &data) const
@@ -3728,9 +3747,10 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 #if RESHADE_ADDON
 	if (force_reload)
 	{
-		if (_effects.size() != _should_reload_effect && !_block_effect_reload_this_frame)
+		if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
+			!_block_effect_reload_this_frame)
 		{
-			_should_reload_effect = _effects.size();
+			_reload_required_effects = { _effects.size() };
 		}
 		else
 		{
@@ -3739,7 +3759,7 @@ bool reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint3
 #endif
 
 			// Avoid reloading effects when effect color resource changes every frame
-			_should_reload_effect = std::numeric_limits<size_t>::max();
+			_reload_required_effects.clear();
 			_block_effect_reload_this_frame = true;
 		}
 	}
@@ -3773,16 +3793,18 @@ void reshade::runtime::update_effects()
 	if (_frame_count == 0 && !_no_reload_on_init)
 		reload_effects();
 
-	if (_should_reload_effect != std::numeric_limits<size_t>::max() && !is_loading())
+	if (!_reload_required_effects.empty() && !is_loading())
 	{
 		save_current_preset(); // Save preset preprocessor definitions
 
-		if (_should_reload_effect < _effects.size())
-			reload_effect(_should_reload_effect);
+		assert(_reload_required_effects.back() <= _effects.size());
+
+		if (_reload_required_effects.back() < _effects.size())
+			reload_effect(_reload_required_effects.back());
 		else
 			reload_effects();
 
-		_should_reload_effect = std::numeric_limits<size_t>::max();
+		_reload_required_effects.pop_back();
 	}
 
 	if (_reload_remaining_effects == 0)

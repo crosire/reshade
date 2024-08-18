@@ -799,5 +799,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		virtual void reset_uniform_value(effect_uniform_variable variable) = 0;
+
+		/// <summary>
+		/// TODO
+		/// </summary>
+		/// <param name="effect_name">TODO</param>
+		virtual void reload_effect_next_frame(const char *effect_name) = 0;
 	};
 } }
