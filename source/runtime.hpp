@@ -198,7 +198,7 @@ namespace reshade
 		bool reload_effect(size_t effect_index);
 		void reload_effects(bool force_load_all = false);
 		void destroy_effects();
-		void require_reload_effect(const char *effect_name);
+		void reload_effect_next_frame(const char *effect_name);
 
 		bool load_effect_cache(const std::string &id, const std::string &type, std::string &data) const;
 		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const;

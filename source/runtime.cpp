@@ -3601,7 +3601,7 @@ void reshade::runtime::destroy_effects()
 	_textures_loaded = false;
 	_reload_required_effects.clear();
 }
-void reshade::runtime::require_reload_effect(const char *effect_name)
+void reshade::runtime::reload_effect_next_frame(const char *effect_name)
 {
 #if RESHADE_FX
 	if (effect_name == nullptr || *effect_name == '\0')

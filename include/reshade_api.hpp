@@ -804,6 +804,6 @@ namespace reshade { namespace api
 		/// TODO
 		/// </summary>
 		/// <param name="effect_name">TODO</param>
-		virtual void require_reload_effect(const char *effect_name) = 0;
+		virtual void reload_effect_next_frame(const char *effect_name) = 0;
 	};
 } }
