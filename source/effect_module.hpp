@@ -266,7 +266,7 @@ namespace reshadefx
 	struct function_info
 	{
 		uint32_t definition = 0;
-		reshadefx::type return_type;
+		reshadefx::type return_type = {};
 		std::string name;
 		std::string unique_name;
 		std::string return_semantic;
@@ -275,6 +275,7 @@ namespace reshadefx
 		int num_threads[3] = {};
 		std::unordered_set<uint32_t> referenced_samplers;
 		std::unordered_set<uint32_t> referenced_storages;
+		std::unordered_set<uint32_t> referenced_functions;
 	};
 
 	/// <summary>

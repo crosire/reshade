@@ -1213,6 +1213,7 @@ private:
 
 		// Generate the glue entry point function
 		function_info entry_point = func;
+		entry_point.referenced_functions.insert(func.definition);
 
 		// Change function signature to 'void main()'
 		entry_point.return_type = { type::t_void };

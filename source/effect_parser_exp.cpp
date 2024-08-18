@@ -1079,7 +1079,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
-			const codegen::id result = symbol.op == symbol_type::function ?
+			const codegen::id result = (symbol.op == symbol_type::function) ?
 				_codegen->emit_call(location, symbol.id, symbol.type, parameters) :
 				_codegen->emit_call_intrinsic(location, symbol.id, symbol.type, parameters);
 
@@ -1098,11 +1098,14 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				}
 			}
 
-			if (_current_function != nullptr)
+			if (_current_function != nullptr && symbol.op == symbol_type::function)
 			{
 				// Calling a function makes the caller inherit all sampler and storage object references from the callee
 				_current_function->referenced_samplers.insert(symbol.function->referenced_samplers.begin(), symbol.function->referenced_samplers.end());
 				_current_function->referenced_storages.insert(symbol.function->referenced_storages.begin(), symbol.function->referenced_storages.end());
+
+				_current_function->referenced_functions.insert(symbol.function->definition);
+				_current_function->referenced_functions.insert(symbol.function->referenced_functions.begin(), symbol.function->referenced_functions.end());
 			}
 		}
 		else if (symbol.op == symbol_type::invalid)

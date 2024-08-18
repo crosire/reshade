@@ -210,6 +210,9 @@ private:
 			code.insert(code.end(), main_block.begin(), main_block.end());
 		}
 
+		const function_info &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
+				[&unique_name = entry_point.first](const std::unique_ptr<function_info> &info) { return info->unique_name == unique_name; })->get();
+
 		for (const sampler_info &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
@@ -224,9 +227,9 @@ private:
 
 		for (const std::unique_ptr<function_info> &function : _functions)
 		{
-			const bool is_entry_point = function->unique_name[0] == 'E';
-
-			if (is_entry_point && entry_point.first != function->unique_name)
+			// Skip any unreferenced functions
+			if (entry_point_func.referenced_functions.find(function->definition) == entry_point_func.referenced_functions.end() &&
+				function->unique_name != entry_point.first)
 				continue;
 
 			const std::string &block_code = _blocks.at(function->definition);
@@ -979,6 +982,7 @@ private:
 
 		// Generate the glue entry point function
 		function_info entry_point = func;
+		entry_point.referenced_functions.insert(func.definition);
 
 		// Change function signature to 'void main()'
 		entry_point.return_type = { type::t_void };

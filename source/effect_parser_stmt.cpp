@@ -2130,7 +2130,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					else
 					{
 						// Look up the matching function info for this function definition
-						function_info &function_info = _codegen->get_function(symbol.id);
+						const function_info &function_info = _codegen->get_function(symbol.id);
 
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
 						switch (state_name[0])
