@@ -3800,11 +3800,16 @@ void reshade::runtime::update_effects()
 		assert(_reload_required_effects.back() <= _effects.size());
 
 		if (_reload_required_effects.back() < _effects.size())
+		{
 			reload_effect(_reload_required_effects.back());
+			_reload_required_effects.pop_back();
+		}
 		else
+		{
 			reload_effects();
+			assert(_reload_required_effects.empty());
+		}
 
-		_reload_required_effects.pop_back();
 	}
 
 	if (_reload_remaining_effects == 0)
