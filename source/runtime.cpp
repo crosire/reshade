@@ -3801,8 +3801,9 @@ void reshade::runtime::update_effects()
 
 		if (_reload_required_effects.back() < _effects.size())
 		{
-			reload_effect(_reload_required_effects.back());
+			const size_t effect_index = _reload_required_effects.back();
 			_reload_required_effects.pop_back();
+			reload_effect(effect_index);
 		}
 		else
 		{
