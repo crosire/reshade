@@ -9,16 +9,17 @@
 #include <cctype> // std::toupper
 #include <cassert>
 #include <algorithm> // std::max, std::replace, std::transform
-#include <functional>
 #include <string_view>
 
+template <typename ENTER_TYPE, typename LEAVE_TYPE>
 struct scope_guard
 {
-	template <typename E, typename L>
-	explicit scope_guard(E &&enter_lambda, L &&leave_lambda) : leave(leave_lambda) { enter_lambda(); }
-	~scope_guard() { leave(); }
+	explicit scope_guard(ENTER_TYPE &&enter_lambda, LEAVE_TYPE &&leave_lambda) :
+		leave_lambda(std::forward<LEAVE_TYPE>(leave_lambda)) { enter_lambda(); }
+	~scope_guard() { leave_lambda(); }
 
-	std::function<void()> leave;
+private:
+	LEAVE_TYPE leave_lambda;
 };
 
 bool reshadefx::parser::parse(std::string input, codegen *backend)
