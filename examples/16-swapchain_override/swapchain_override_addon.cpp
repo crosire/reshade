@@ -11,30 +11,59 @@ static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *)
 	bool modified = false;
 
 	if (bool force_windowed;
-		reshade::get_config_value(nullptr, "APP", "ForceWindowed", force_windowed) && force_windowed)
+		reshade::get_config_value(nullptr, "APP", "ForceWindowed", force_windowed))
 	{
-		desc.fullscreen_state = false;
-		modified = true;
+		if (force_windowed)
+		{
+			desc.fullscreen_state = false;
+			modified = true;
+		}
 	}
-	if (bool force_fullscreen;
-		reshade::get_config_value(nullptr, "APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+	else
 	{
-		desc.fullscreen_state = true;
-		modified = true;
+		reshade::set_config_value(nullptr, "APP", "ForceWindowed", "0");
+	}
+
+	if (bool force_fullscreen;
+		reshade::get_config_value(nullptr, "APP", "ForceFullscreen", force_fullscreen))
+	{
+		if (force_fullscreen)
+		{
+			desc.fullscreen_state = true;
+			modified = true;
+		}
+	}
+	else
+	{
+		reshade::set_config_value(nullptr, "APP", "ForceFullscreen", "0");
 	}
 
 	if (bool force_10bit_format;
-		reshade::get_config_value(nullptr, "APP", "Force10BitFormat", force_10bit_format) && force_10bit_format)
+		reshade::get_config_value(nullptr, "APP", "Force10BitFormat", force_10bit_format))
 	{
-		desc.back_buffer.texture.format = reshade::api::format::r10g10b10a2_unorm;
-		modified = true;
+		if (force_10bit_format)
+		{
+			desc.back_buffer.texture.format = reshade::api::format::r10g10b10a2_unorm;
+			modified = true;
+		}
+	}
+	else
+	{
+		reshade::set_config_value(nullptr, "APP", "Force10BitFormat", "0");
 	}
 
 	if (bool force_default_refresh_rate;
-		reshade::get_config_value(nullptr, "APP", "ForceDefaultRefreshRate", force_default_refresh_rate) && force_default_refresh_rate)
+		reshade::get_config_value(nullptr, "APP", "ForceDefaultRefreshRate", force_default_refresh_rate))
 	{
-		desc.fullscreen_refresh_rate = 0.0f;
-		modified = true;
+		if (force_default_refresh_rate)
+		{
+			desc.fullscreen_refresh_rate = 0.0f;
+			modified = true;
+		}
+	}
+	else
+	{
+		reshade::set_config_value(nullptr, "APP", "ForceDefaultRefreshRate", "0");
 	}
 
 	char force_resolution_string[32], *force_resolution_p = force_resolution_string;
@@ -55,22 +84,26 @@ static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *)
 			modified = true;
 		}
 	}
+	else
+	{
+		reshade::set_config_value(nullptr, "APP", "ForceResolution", "0,0");
+	}
 
 	return modified;
 }
 
-static bool on_set_fullscreen_state(reshade::api::swapchain *swapchain, bool fullscreen, void *)
+static bool on_set_fullscreen_state(reshade::api::swapchain *, bool fullscreen, void *)
 {
 	if (bool force_windowed;
-		reshade::get_config_value(nullptr, "APP", "ForceWindowed", force_windowed) && force_windowed)
+		reshade::get_config_value(nullptr, "APP", "ForceWindowed", force_windowed))
 	{
-		if (fullscreen)
+		if (force_windowed && fullscreen)
 			return true; // Prevent entering fullscreen mode
 	}
 	if (bool force_fullscreen;
-		reshade::get_config_value(nullptr, "APP", "ForceFullscreen", force_fullscreen) && force_fullscreen)
+		reshade::get_config_value(nullptr, "APP", "ForceFullscreen", force_fullscreen))
 	{
-		if (!fullscreen)
+		if (force_fullscreen && !fullscreen)
 			return true; // Prevent leaving fullscreen mode
 	}
 
@@ -78,7 +111,14 @@ static bool on_set_fullscreen_state(reshade::api::swapchain *swapchain, bool ful
 }
 
 extern "C" __declspec(dllexport) const char *NAME = "Swap chain override";
-extern "C" __declspec(dllexport) const char *DESCRIPTION = "Adds options to force the application into windowed or fullscreen mode, or force a specific resolution or the default refresh rate.";
+extern "C" __declspec(dllexport) const char *DESCRIPTION = "Adds options to force the application into windowed or fullscreen mode, or force a specific resolution or the default refresh rate.\n\n"
+	"These are controlled via ReShade.ini:\n"
+	"[APP]\n"
+	"ForceWindowed=<0/1>\n"
+	"ForceFullscreen=<0/1>\n"
+	"Force10BitFormat=<0/1>\n"
+	"ForceDefaultRefreshRate=<0/1>\n"
+	"ForceResolution=<width>,<height>";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
