@@ -271,25 +271,25 @@ private:
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const texture_info &info : _module.textures)
+		for (const texture &info : _module.textures)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const sampler_info &info : _module.samplers)
+		for (const sampler &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const storage_info &info : _module.storages)
+		for (const storage &info : _module.storages)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const std::unique_ptr<function_info> &function : _functions)
+		for (const std::unique_ptr<function> &function : _functions)
 		{
 			const std::string &block_code = _blocks.at(function->definition);
 			code.insert(code.end(), block_code.begin(), block_code.end());
@@ -313,28 +313,28 @@ private:
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		const function_info &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
-				[&unique_name = entry_point.first](const std::unique_ptr<function_info> &info) { return info->unique_name == unique_name; })->get();
+		const function &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
+				[&unique_name = entry_point.first](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
 
-		for (const texture_info &info : _module.textures)
+		for (const texture &info : _module.textures)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const sampler_info &info : _module.samplers)
+		for (const sampler &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const storage_info &info : _module.storages)
+		for (const storage &info : _module.storages)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const std::unique_ptr<function_info> &function : _functions)
+		for (const std::unique_ptr<function> &function : _functions)
 		{
 			// Skip any unreferenced functions
 			if (entry_point_func.referenced_functions.find(function->definition) == entry_point_func.referenced_functions.end() &&
@@ -759,7 +759,7 @@ private:
 		block.insert(block.begin(), '\t');
 	}
 
-	id   define_struct(const location &loc, struct_info &info) override
+	id   define_struct(const location &loc, struct_type &info) override
 	{
 		info.definition = make_id();
 		define_name<naming::unique>(info.definition, info.unique_name);
@@ -772,7 +772,7 @@ private:
 
 		code += "struct " + id_to_name(info.definition) + "\n{\n";
 
-		for (const struct_member_info &member : info.member_list)
+		for (const member_type &member : info.member_list)
 		{
 			code += '\t';
 			write_type<true>(code, member.type); // HLSL allows interpolation attributes on struct members, so handle this like a parameter
@@ -791,7 +791,7 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &loc, texture_info &info) override
+	id   define_texture(const location &loc, texture &info) override
 	{
 		info.id = create_block();
 		info.binding = ~0u;
@@ -830,7 +830,7 @@ private:
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, const texture_info &tex_info, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture &tex_info, sampler &info) override
 	{
 		info.id = create_block();
 
@@ -842,7 +842,7 @@ private:
 		{
 			// Try and reuse a sampler binding with the same sampler description
 			const auto existing_sampler_it = std::find_if(_module.samplers.begin(), _module.samplers.end(),
-				[&info](const sampler_info &existing_info) {
+				[&info](const sampler_desc &existing_info) {
 					return
 						existing_info.filter == info.filter &&
 						existing_info.address_u == info.address_u &&
@@ -912,7 +912,7 @@ private:
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, const texture_info &, storage_info &info) override
+	id   define_storage(const location &loc, const texture &, storage &info) override
 	{
 		info.id = create_block();
 		info.binding = ~0u;
@@ -938,7 +938,7 @@ private:
 
 		return info.id;
 	}
-	id   define_uniform(const location &loc, uniform_info &info) override
+	id   define_uniform(const location &loc, uniform &info) override
 	{
 		const id res = make_id();
 
@@ -1061,7 +1061,7 @@ private:
 
 		return res;
 	}
-	id   define_function(const location &loc, function_info &info) override
+	id   define_function(const location &loc, function &info) override
 	{
 		info.definition = make_id();
 
@@ -1077,7 +1077,7 @@ private:
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
-			struct_member_info &param = info.parameter_list[i];
+			member_type &param = info.parameter_list[i];
 
 			param.definition = make_id();
 			define_name<naming::unique>(param.definition, param.name);
@@ -1105,12 +1105,12 @@ private:
 
 		code += '\n';
 
-		_functions.push_back(std::make_unique<function_info>(info));
+		_functions.push_back(std::make_unique<function>(info));
 
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func) override
+	void define_entry_point(function &func) override
 	{
 		// Modify entry point name since a new function is created for it below
 		assert(!func.unique_name.empty() && func.unique_name[0] == 'F');
@@ -1135,7 +1135,7 @@ private:
 		if (_shader_model >= 40 && func.type != shader_type::compute)
 			return;
 
-		function_info entry_point = func;
+		function entry_point = func;
 		entry_point.referenced_functions.insert(func.definition);
 
 		const auto is_color_semantic = [](const std::string &semantic) {
@@ -1151,7 +1151,7 @@ private:
 			if (func.type == shader_type::vertex && func.return_type.is_struct())
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
-				for (const struct_member_info &member : get_struct(func.return_type.struct_definition).member_list)
+				for (const member_type &member : get_struct(func.return_type.struct_definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(ret) + '.' + member.name;
 			}
@@ -1168,11 +1168,11 @@ private:
 					position_variable_name = id_to_name(ret);
 			}
 		}
-		for (struct_member_info &param : entry_point.parameter_list)
+		for (member_type &param : entry_point.parameter_list)
 		{
 			if (func.type == shader_type::vertex && param.type.is_struct())
 			{
-				for (const struct_member_info &member : get_struct(param.type.struct_definition).member_list)
+				for (const member_type &member : get_struct(param.type.struct_definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(param.definition) + '.' + member.name;
 			}
@@ -1205,7 +1205,7 @@ private:
 		std::string &code = _blocks.at(_current_block);
 
 		// Clear all color output parameters so no component is left uninitialized
-		for (struct_member_info &param : entry_point.parameter_list)
+		for (member_type &param : entry_point.parameter_list)
 		{
 			if (is_color_semantic(param.semantic))
 				code += '\t' + id_to_name(param.definition) + " = float4(0.0, 0.0, 0.0, 0.0);\n";
@@ -1823,7 +1823,7 @@ private:
 			// Check 'condition_name' instead of 'condition_value' here to also catch cases where a constant boolean expression was passed in as loop condition
 			bool use_break_statement_for_condition = (_shader_model < 40 && condition_name != "true") &&
 				std::find_if(_module.uniforms.begin(), _module.uniforms.end(),
-					[&](const uniform_info &info) {
+					[&](const uniform &info) {
 						return condition_data.find(info.name) != std::string::npos || condition_name.find(info.name) != std::string::npos;
 					}) != _module.uniforms.end();
 

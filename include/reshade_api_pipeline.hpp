@@ -313,7 +313,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Blend factors in color or alpha blending operations.
+	/// Blend factors in color or alpha blending operations, which modulate values between the pixel shader output and render target.
 	/// </summary>
 	enum class blend_factor : uint32_t
 	{

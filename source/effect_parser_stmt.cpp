@@ -1041,7 +1041,7 @@ bool reshadefx::parser::parse_struct()
 {
 	const location struct_location = std::move(_token.location);
 
-	struct_info info;
+	struct_type info;
 	// The structure name is optional
 	if (accept(tokenid::identifier))
 		info.name = std::move(_token.literal_as_string);
@@ -1058,7 +1058,7 @@ bool reshadefx::parser::parse_struct()
 
 	while (!peek('}')) // Empty structures are possible
 	{
-		struct_member_info member;
+		member_type member;
 
 		if (!parse_type(member.type))
 		{
@@ -1219,7 +1219,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 		return false;
 	}
 
-	function_info info;
+	function info;
 	info.name = name;
 	info.unique_name = 'F' + current_scope().name + name;
 	std::replace(info.unique_name.begin(), info.unique_name.end(), ':', '_');
@@ -1255,7 +1255,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 			break;
 		}
 
-		struct_member_info param;
+		member_type param;
 
 		if (!parse_type(param.type))
 		{
@@ -1446,7 +1446,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 		return false;
 	}
 
-	for (const struct_member_info &param : info.parameter_list)
+	for (const member_type &param : info.parameter_list)
 	{
 		if (!insert_symbol(param.name, { symbol_type::variable, param.definition, param.type }))
 		{
@@ -1554,9 +1554,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 	bool parse_success = true;
 	expression initializer;
-	texture_info texture_info;
-	sampler_info sampler_info;
-	storage_info storage_info;
+	texture texture_info;
+	sampler sampler_info;
+	storage storage_info;
 
 	if (accept(':'))
 	{
@@ -1735,7 +1735,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 					if (type.is_sampler() || type.is_storage())
 					{
-						struct texture_info &target_info = _codegen->get_texture(property_exp.base);
+						struct texture &target_info = _codegen->get_texture(property_exp.base);
 						if (type.is_storage())
 							// Texture is used as storage
 							target_info.storage_access = true;
@@ -1940,7 +1940,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 	{
 		assert(global);
 
-		uniform_info uniform_info;
+		uniform uniform_info;
 		uniform_info.name = name;
 		uniform_info.type = type;
 
@@ -1980,7 +1980,7 @@ bool reshadefx::parser::parse_technique()
 	if (!expect(tokenid::identifier))
 		return false;
 
-	technique_info info;
+	technique info;
 	info.name = std::move(_token.literal_as_string);
 
 	bool parse_success = parse_annotations(info.annotations);
@@ -1990,7 +1990,7 @@ bool reshadefx::parser::parse_technique()
 
 	while (!peek('}'))
 	{
-		pass_info pass;
+		pass pass;
 		if (parse_technique_pass(pass))
 		{
 			info.passes.push_back(std::move(pass));
@@ -2010,7 +2010,7 @@ bool reshadefx::parser::parse_technique()
 
 	return expect('}') && parse_success;
 }
-bool reshadefx::parser::parse_technique_pass(pass_info &info)
+bool reshadefx::parser::parse_technique_pass(pass &info)
 {
 	if (!expect(tokenid::pass))
 		return false;
@@ -2023,7 +2023,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 	bool parse_success = true;
 	bool targets_support_srgb = true;
-	function_info vs_info = {}, ps_info = {}, cs_info = {};
+	function vs_info = {}, ps_info = {}, cs_info = {};
 
 	if (!expect('{'))
 		return false;
@@ -2130,7 +2130,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					else
 					{
 						// Look up the matching function info for this function definition
-						const function_info &function_info = _codegen->get_function(symbol.id);
+						const function &function_info = _codegen->get_function(symbol.id);
 
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
 						switch (state_name[0])
@@ -2208,7 +2208,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 					}
 					else
 					{
-						struct texture_info &target_info = _codegen->get_texture(symbol.id);
+						struct texture &target_info = _codegen->get_texture(symbol.id);
 
 						if (target_info.semantic.empty())
 						{
@@ -2261,34 +2261,34 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 
 				static const std::unordered_map<std::string_view, uint32_t> s_enum_values = {
 					{ "NONE", 0 }, { "ZERO", 0 }, { "ONE", 1 },
-					{ "ADD", uint32_t(pass_blend_op::add) },
-					{ "SUBTRACT", uint32_t(pass_blend_op::subtract) },
-					{ "REVSUBTRACT", uint32_t(pass_blend_op::reverse_subtract) },
-					{ "MIN", uint32_t(pass_blend_op::min) },
-					{ "MAX", uint32_t(pass_blend_op::max) },
-					{ "SRCCOLOR", uint32_t(pass_blend_factor::source_color) },
-					{ "INVSRCCOLOR", uint32_t(pass_blend_factor::one_minus_source_color) },
-					{ "DESTCOLOR", uint32_t(pass_blend_factor::dest_color) },
-					{ "INVDESTCOLOR", uint32_t(pass_blend_factor::one_minus_dest_color) },
-					{ "SRCALPHA", uint32_t(pass_blend_factor::source_alpha) },
-					{ "INVSRCALPHA", uint32_t(pass_blend_factor::one_minus_source_alpha) },
-					{ "DESTALPHA", uint32_t(pass_blend_factor::dest_alpha) },
-					{ "INVDESTALPHA", uint32_t(pass_blend_factor::one_minus_dest_alpha) },
-					{ "KEEP", uint32_t(pass_stencil_op::keep) },
-					{ "REPLACE", uint32_t(pass_stencil_op::replace) },
-					{ "INVERT", uint32_t(pass_stencil_op::invert) },
-					{ "INCR", uint32_t(pass_stencil_op::increment) },
-					{ "INCRSAT", uint32_t(pass_stencil_op::increment_saturate) },
-					{ "DECR", uint32_t(pass_stencil_op::decrement) },
-					{ "DECRSAT", uint32_t(pass_stencil_op::decrement_saturate) },
-					{ "NEVER", uint32_t(pass_stencil_func::never) },
-					{ "EQUAL", uint32_t(pass_stencil_func::equal) },
-					{ "NEQUAL", uint32_t(pass_stencil_func::not_equal) }, { "NOTEQUAL", uint32_t(pass_stencil_func::not_equal)  },
-					{ "LESS", uint32_t(pass_stencil_func::less) },
-					{ "GREATER", uint32_t(pass_stencil_func::greater) },
-					{ "LEQUAL", uint32_t(pass_stencil_func::less_equal) }, { "LESSEQUAL", uint32_t(pass_stencil_func::less_equal) },
-					{ "GEQUAL", uint32_t(pass_stencil_func::greater_equal) }, { "GREATEREQUAL", uint32_t(pass_stencil_func::greater_equal) },
-					{ "ALWAYS", uint32_t(pass_stencil_func::always) },
+					{ "ADD", uint32_t(blend_op::add) },
+					{ "SUBTRACT", uint32_t(blend_op::subtract) },
+					{ "REVSUBTRACT", uint32_t(blend_op::reverse_subtract) },
+					{ "MIN", uint32_t(blend_op::min) },
+					{ "MAX", uint32_t(blend_op::max) },
+					{ "SRCCOLOR", uint32_t(blend_factor::source_color) },
+					{ "INVSRCCOLOR", uint32_t(blend_factor::one_minus_source_color) },
+					{ "DESTCOLOR", uint32_t(blend_factor::dest_color) },
+					{ "INVDESTCOLOR", uint32_t(blend_factor::one_minus_dest_color) },
+					{ "SRCALPHA", uint32_t(blend_factor::source_alpha) },
+					{ "INVSRCALPHA", uint32_t(blend_factor::one_minus_source_alpha) },
+					{ "DESTALPHA", uint32_t(blend_factor::dest_alpha) },
+					{ "INVDESTALPHA", uint32_t(blend_factor::one_minus_dest_alpha) },
+					{ "KEEP", uint32_t(stencil_op::keep) },
+					{ "REPLACE", uint32_t(stencil_op::replace) },
+					{ "INVERT", uint32_t(stencil_op::invert) },
+					{ "INCR", uint32_t(stencil_op::increment) },
+					{ "INCRSAT", uint32_t(stencil_op::increment_saturate) },
+					{ "DECR", uint32_t(stencil_op::decrement) },
+					{ "DECRSAT", uint32_t(stencil_op::decrement_saturate) },
+					{ "NEVER", uint32_t(stencil_func::never) },
+					{ "EQUAL", uint32_t(stencil_func::equal) },
+					{ "NEQUAL", uint32_t(stencil_func::not_equal) }, { "NOTEQUAL", uint32_t(stencil_func::not_equal)  },
+					{ "LESS", uint32_t(stencil_func::less) },
+					{ "GREATER", uint32_t(stencil_func::greater) },
+					{ "LEQUAL", uint32_t(stencil_func::less_equal) }, { "LESSEQUAL", uint32_t(stencil_func::less_equal) },
+					{ "GEQUAL", uint32_t(stencil_func::greater_equal) }, { "GREATEREQUAL", uint32_t(stencil_func::greater_equal) },
+					{ "ALWAYS", uint32_t(stencil_func::always) },
 					{ "POINTS", uint32_t(primitive_topology::point_list) },
 					{ "POINTLIST", uint32_t(primitive_topology::point_list) },
 					{ "LINES", uint32_t(primitive_topology::line_list) },
@@ -2342,28 +2342,28 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				info.stencil_enable = (value != 0);
 			else if (state_name == "ClearRenderTargets")
 				info.clear_render_targets = (value != 0);
-			SET_STATE_VALUE_INDEXED(ColorWriteMask, color_write_mask, value & 0xFF)
-			SET_STATE_VALUE_INDEXED(RenderTargetWriteMask, color_write_mask, value & 0xFF)
+			SET_STATE_VALUE_INDEXED(ColorWriteMask, render_target_write_mask, value & 0xFF)
+			SET_STATE_VALUE_INDEXED(RenderTargetWriteMask, render_target_write_mask, value & 0xFF)
 			else if (state_name == "StencilReadMask" || state_name == "StencilMask")
 				info.stencil_read_mask = value & 0xFF;
 			else if (state_name == "StencilWriteMask")
 				info.stencil_write_mask = value & 0xFF;
-			SET_STATE_VALUE_INDEXED(BlendOp, blend_op, static_cast<pass_blend_op>(value))
-			SET_STATE_VALUE_INDEXED(BlendOpAlpha, blend_op_alpha, static_cast<pass_blend_op>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlend, src_blend, static_cast<pass_blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, src_blend_alpha, static_cast<pass_blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(DestBlend, dest_blend, static_cast<pass_blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_blend_alpha, static_cast<pass_blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(BlendOp, color_blend_op, static_cast<blend_op>(value))
+			SET_STATE_VALUE_INDEXED(BlendOpAlpha, alpha_blend_op, static_cast<blend_op>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlend, source_color_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, source_alpha_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlend, dest_color_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_alpha_blend_factor, static_cast<blend_factor>(value))
 			else if (state_name == "StencilFunc")
-				info.stencil_comparison_func = static_cast<pass_stencil_func>(value);
+				info.stencil_comparison_func = static_cast<stencil_func>(value);
 			else if (state_name == "StencilRef")
 				info.stencil_reference_value = value;
 			else if (state_name == "StencilPass" || state_name == "StencilPassOp")
-				info.stencil_op_pass = static_cast<pass_stencil_op>(value);
+				info.stencil_pass_op = static_cast<stencil_op>(value);
 			else if (state_name == "StencilFail" || state_name == "StencilFailOp")
-				info.stencil_op_fail = static_cast<pass_stencil_op>(value);
+				info.stencil_fail_op = static_cast<stencil_op>(value);
 			else if (state_name == "StencilZFail" || state_name == "StencilDepthFail" || state_name == "StencilDepthFailOp")
-				info.stencil_op_depth_fail = static_cast<pass_stencil_op>(value);
+				info.stencil_depth_fail_op = static_cast<stencil_op>(value);
 			else if (state_name == "VertexCount")
 				info.num_vertices = value;
 			else if (state_name == "PrimitiveType" || state_name == "PrimitiveTopology")
@@ -2432,7 +2432,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				vs_semantic_mapping[vs_info.return_semantic] = vs_info.return_type;
 			}
 
-			for (const struct_member_info &param : vs_info.parameter_list)
+			for (const member_type &param : vs_info.parameter_list)
 			{
 				if (param.semantic.empty())
 				{
@@ -2460,7 +2460,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 				}
 			}
 
-			for (const struct_member_info &param : ps_info.parameter_list)
+			for (const member_type &param : ps_info.parameter_list)
 			{
 				if (param.semantic.empty())
 				{
@@ -2492,7 +2492,7 @@ bool reshadefx::parser::parse_technique_pass(pass_info &info)
 			referenced_samplers.insert(ps_info.referenced_samplers.begin(), ps_info.referenced_samplers.end());
 			for (codegen::id id : referenced_samplers)
 			{
-				const sampler_info &sampler = _codegen->get_sampler(id);
+				const sampler &sampler = _codegen->get_sampler(id);
 				if (std::find(std::begin(info.render_target_names), std::end(info.render_target_names), sampler.texture_name) != std::end(info.render_target_names))
 					error(pass_location, 3020, '\'' + sampler.texture_name + "': cannot sample from texture that is also used as render target in the same pass");
 

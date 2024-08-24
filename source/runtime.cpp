@@ -1801,7 +1801,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			// Fill all specialization constants with values from the current preset
 			if (_performance_mode)
 			{
-				for (reshadefx::uniform_info &constant : effect.module.spec_constants)
+				for (reshadefx::uniform &constant : effect.module.spec_constants)
 				{
 					switch (constant.type.base)
 					{
@@ -1895,7 +1895,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_effect_width) + ", 1.0 / " + std::to_string(_effect_height) + '\n';
 
 						uint32_t semantic_index = 0;
-						for (const reshadefx::texture_info &tex : effect.module.textures)
+						for (const reshadefx::texture &tex : effect.module.textures)
 						{
 							if (tex.semantic.empty() || tex.semantic == "COLOR")
 								continue;
@@ -2110,7 +2110,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 				if (existing_texture->semantic == "COLOR" && api::format_bit_depth(_effect_color_format) != 8)
 				{
-					for (const reshadefx::sampler_info &sampler_info : effect.module.samplers)
+					for (const reshadefx::sampler &sampler_info : effect.module.samplers)
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == new_texture.unique_name)
 						{
@@ -2138,25 +2138,25 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					existing_texture != _textures.end())
 				{
 					// Overwrite referenced texture in samplers with the pooled one
-					for (reshadefx::sampler_info &sampler_info : effect.module.samplers)
+					for (reshadefx::sampler &sampler_info : effect.module.samplers)
 						if (sampler_info.texture_name == new_texture.unique_name)
 							sampler_info.texture_name = existing_texture->unique_name;
 					// Overwrite referenced texture in storages with the pooled one
-					for (reshadefx::storage_info &storage_info : effect.module.storages)
+					for (reshadefx::storage &storage_info : effect.module.storages)
 						if (storage_info.texture_name == new_texture.unique_name)
 							storage_info.texture_name = existing_texture->unique_name;
 					// Overwrite referenced texture in render targets with the pooled one
-					for (reshadefx::technique_info &technique_info : effect.module.techniques)
+					for (reshadefx::technique &technique_info : effect.module.techniques)
 					{
-						for (reshadefx::pass_info &pass_info : technique_info.passes)
+						for (reshadefx::pass &pass_info : technique_info.passes)
 						{
 							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 								new_texture.unique_name, existing_texture->unique_name);
 
-							for (reshadefx::sampler_info &sampler_info : pass_info.samplers)
+							for (reshadefx::sampler &sampler_info : pass_info.samplers)
 								if (sampler_info.texture_name == new_texture.unique_name)
 									sampler_info.texture_name = existing_texture->unique_name;
-							for (reshadefx::storage_info &storage_info : pass_info.storages)
+							for (reshadefx::storage &storage_info : pass_info.storages)
 								if (storage_info.texture_name == new_texture.unique_name)
 									storage_info.texture_name = existing_texture->unique_name;
 						}
@@ -2240,7 +2240,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	// Build specialization constants
 	std::vector<uint32_t> spec_data;
 	std::vector<uint32_t> spec_constants;
-	for (const reshadefx::uniform_info &constant : effect.module.spec_constants)
+	for (const reshadefx::uniform &constant : effect.module.spec_constants)
 	{
 		uint32_t id = static_cast<uint32_t>(spec_constants.size());
 		spec_data.push_back(constant.initializer_value.as_uint[0]);
@@ -2355,7 +2355,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	// Initialize bindings
 	size_t total_pass_count = 0;
-	for (const reshadefx::technique_info &info : effect.module.techniques)
+	for (const reshadefx::technique &info : effect.module.techniques)
 		total_pass_count += info.passes.size();
 
 	std::vector<api::descriptor_table> texture_tables(total_pass_count);
@@ -2372,7 +2372,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 		if (!sampler_with_resource_view)
 		{
 			uint16_t sampler_list = 0;
-			for (const reshadefx::sampler_info &info : effect.module.samplers)
+			for (const reshadefx::sampler &info : effect.module.samplers)
 			{
 				// Only initialize sampler if it has not been created before
 				if (0 != (sampler_list & (1 << info.binding)))
@@ -2434,7 +2434,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 		for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index, ++total_pass_index)
 		{
-			reshadefx::pass_info &pass_info = tech.passes[pass_index];
+			reshadefx::pass &pass_info = tech.passes[pass_index];
 			technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 			std::vector<api::pipeline_subobject> subobjects;
@@ -2553,30 +2553,30 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				api::primitive_topology topology = static_cast<api::primitive_topology>(pass_info.topology);
 				subobjects.push_back({ api::pipeline_subobject_type::primitive_topology, 1, &topology });
 
-				const auto convert_blend_op = [](reshadefx::pass_blend_op value) {
+				const auto convert_blend_op = [](reshadefx::blend_op value) {
 					switch (value)
 					{
 					default:
-					case reshadefx::pass_blend_op::add: return api::blend_op::add;
-					case reshadefx::pass_blend_op::subtract: return api::blend_op::subtract;
-					case reshadefx::pass_blend_op::reverse_subtract: return api::blend_op::reverse_subtract;
-					case reshadefx::pass_blend_op::min: return api::blend_op::min;
-					case reshadefx::pass_blend_op::max: return api::blend_op::max;
+					case reshadefx::blend_op::add: return api::blend_op::add;
+					case reshadefx::blend_op::subtract: return api::blend_op::subtract;
+					case reshadefx::blend_op::reverse_subtract: return api::blend_op::reverse_subtract;
+					case reshadefx::blend_op::min: return api::blend_op::min;
+					case reshadefx::blend_op::max: return api::blend_op::max;
 					}
 				};
-				const auto convert_blend_factor = [](reshadefx::pass_blend_factor value) {
+				const auto convert_blend_factor = [](reshadefx::blend_factor value) {
 					switch (value) {
-					case reshadefx::pass_blend_factor::zero: return api::blend_factor::zero;
+					case reshadefx::blend_factor::zero: return api::blend_factor::zero;
 					default:
-					case reshadefx::pass_blend_factor::one: return api::blend_factor::one;
-					case reshadefx::pass_blend_factor::source_color: return api::blend_factor::source_color;
-					case reshadefx::pass_blend_factor::one_minus_source_color: return api::blend_factor::one_minus_source_color;
-					case reshadefx::pass_blend_factor::dest_color: return api::blend_factor::dest_color;
-					case reshadefx::pass_blend_factor::one_minus_dest_color: return api::blend_factor::one_minus_dest_color;
-					case reshadefx::pass_blend_factor::source_alpha: return api::blend_factor::source_alpha;
-					case reshadefx::pass_blend_factor::one_minus_source_alpha: return api::blend_factor::one_minus_source_alpha;
-					case reshadefx::pass_blend_factor::dest_alpha: return api::blend_factor::dest_alpha;
-					case reshadefx::pass_blend_factor::one_minus_dest_alpha: return api::blend_factor::one_minus_dest_alpha;
+					case reshadefx::blend_factor::one: return api::blend_factor::one;
+					case reshadefx::blend_factor::source_color: return api::blend_factor::source_color;
+					case reshadefx::blend_factor::one_minus_source_color: return api::blend_factor::one_minus_source_color;
+					case reshadefx::blend_factor::dest_color: return api::blend_factor::dest_color;
+					case reshadefx::blend_factor::one_minus_dest_color: return api::blend_factor::one_minus_dest_color;
+					case reshadefx::blend_factor::source_alpha: return api::blend_factor::source_alpha;
+					case reshadefx::blend_factor::one_minus_source_alpha: return api::blend_factor::one_minus_source_alpha;
+					case reshadefx::blend_factor::dest_alpha: return api::blend_factor::dest_alpha;
+					case reshadefx::blend_factor::one_minus_dest_alpha: return api::blend_factor::one_minus_dest_alpha;
 					}
 				};
 
@@ -2585,13 +2585,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				for (int i = 0; i < 8; ++i)
 				{
 					blend_state.blend_enable[i] = pass_info.blend_enable[i];
-					blend_state.source_color_blend_factor[i] = convert_blend_factor(pass_info.src_blend[i]);
-					blend_state.dest_color_blend_factor[i] = convert_blend_factor(pass_info.dest_blend[i]);
-					blend_state.color_blend_op[i] = convert_blend_op(pass_info.blend_op[i]);
-					blend_state.source_alpha_blend_factor[i] = convert_blend_factor(pass_info.src_blend_alpha[i]);
-					blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(pass_info.dest_blend_alpha[i]);
-					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.blend_op_alpha[i]);
-					blend_state.render_target_write_mask[i] = pass_info.color_write_mask[i];
+					blend_state.source_color_blend_factor[i] = convert_blend_factor(pass_info.source_color_blend_factor[i]);
+					blend_state.dest_color_blend_factor[i] = convert_blend_factor(pass_info.dest_color_blend_factor[i]);
+					blend_state.color_blend_op[i] = convert_blend_op(pass_info.color_blend_op[i]);
+					blend_state.source_alpha_blend_factor[i] = convert_blend_factor(pass_info.source_alpha_blend_factor[i]);
+					blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(pass_info.dest_alpha_blend_factor[i]);
+					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.alpha_blend_op[i]);
+					blend_state.render_target_write_mask[i] = pass_info.render_target_write_mask[i];
 				}
 
 				subobjects.push_back({ api::pipeline_subobject_type::blend_state, 1, &blend_state });
@@ -2601,31 +2601,31 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				subobjects.push_back({ api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_state });
 
-				const auto convert_stencil_op = [](reshadefx::pass_stencil_op value) {
+				const auto convert_stencil_op = [](reshadefx::stencil_op value) {
 					switch (value) {
-					case reshadefx::pass_stencil_op::zero: return api::stencil_op::zero;
+					case reshadefx::stencil_op::zero: return api::stencil_op::zero;
 					default:
-					case reshadefx::pass_stencil_op::keep: return api::stencil_op::keep;
-					case reshadefx::pass_stencil_op::replace: return api::stencil_op::replace;
-					case reshadefx::pass_stencil_op::increment_saturate: return api::stencil_op::increment_saturate;
-					case reshadefx::pass_stencil_op::decrement_saturate: return api::stencil_op::decrement_saturate;
-					case reshadefx::pass_stencil_op::invert: return api::stencil_op::invert;
-					case reshadefx::pass_stencil_op::increment: return api::stencil_op::increment;
-					case reshadefx::pass_stencil_op::decrement: return api::stencil_op::decrement;
+					case reshadefx::stencil_op::keep: return api::stencil_op::keep;
+					case reshadefx::stencil_op::replace: return api::stencil_op::replace;
+					case reshadefx::stencil_op::increment_saturate: return api::stencil_op::increment_saturate;
+					case reshadefx::stencil_op::decrement_saturate: return api::stencil_op::decrement_saturate;
+					case reshadefx::stencil_op::invert: return api::stencil_op::invert;
+					case reshadefx::stencil_op::increment: return api::stencil_op::increment;
+					case reshadefx::stencil_op::decrement: return api::stencil_op::decrement;
 					}
 				};
-				const auto convert_stencil_func = [](reshadefx::pass_stencil_func value) {
+				const auto convert_stencil_func = [](reshadefx::stencil_func value) {
 					switch (value)
 					{
-					case reshadefx::pass_stencil_func::never: return api::compare_op::never;
-					case reshadefx::pass_stencil_func::less: return api::compare_op::less;
-					case reshadefx::pass_stencil_func::equal: return api::compare_op::equal;
-					case reshadefx::pass_stencil_func::less_equal: return api::compare_op::less_equal;
-					case reshadefx::pass_stencil_func::greater: return api::compare_op::greater;
-					case reshadefx::pass_stencil_func::not_equal: return api::compare_op::not_equal;
-					case reshadefx::pass_stencil_func::greater_equal: return api::compare_op::greater_equal;
+					case reshadefx::stencil_func::never: return api::compare_op::never;
+					case reshadefx::stencil_func::less: return api::compare_op::less;
+					case reshadefx::stencil_func::equal: return api::compare_op::equal;
+					case reshadefx::stencil_func::less_equal: return api::compare_op::less_equal;
+					case reshadefx::stencil_func::greater: return api::compare_op::greater;
+					case reshadefx::stencil_func::not_equal: return api::compare_op::not_equal;
+					case reshadefx::stencil_func::greater_equal: return api::compare_op::greater_equal;
 					default:
-					case reshadefx::pass_stencil_func::always: return api::compare_op::always;
+					case reshadefx::stencil_func::always: return api::compare_op::always;
 					}
 				};
 
@@ -2637,9 +2637,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				depth_stencil_state.front_stencil_read_mask = pass_info.stencil_read_mask;
 				depth_stencil_state.front_stencil_write_mask = pass_info.stencil_write_mask;
 				depth_stencil_state.front_stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
-				depth_stencil_state.front_stencil_fail_op = convert_stencil_op(pass_info.stencil_op_fail);
-				depth_stencil_state.front_stencil_depth_fail_op = convert_stencil_op(pass_info.stencil_op_depth_fail);
-				depth_stencil_state.front_stencil_pass_op = convert_stencil_op(pass_info.stencil_op_pass);
+				depth_stencil_state.front_stencil_fail_op = convert_stencil_op(pass_info.stencil_fail_op);
+				depth_stencil_state.front_stencil_depth_fail_op = convert_stencil_op(pass_info.stencil_depth_fail_op);
+				depth_stencil_state.front_stencil_pass_op = convert_stencil_op(pass_info.stencil_pass_op);
 				depth_stencil_state.back_stencil_read_mask = depth_stencil_state.front_stencil_read_mask;
 				depth_stencil_state.back_stencil_write_mask = depth_stencil_state.front_stencil_write_mask;
 				depth_stencil_state.back_stencil_func = depth_stencil_state.front_stencil_func;
@@ -2663,7 +2663,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			{
 				pass_data.texture_table = texture_tables[total_pass_index];
 
-				for (const reshadefx::sampler_info &info : pass_info.samplers)
+				for (const reshadefx::sampler &info : pass_info.samplers)
 				{
 					const auto sampler_texture = std::find_if(_textures.cbegin(), _textures.cend(),
 						[&unique_name = info.texture_name](const texture &item) {
@@ -2725,7 +2725,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			{
 				pass_data.storage_table = storage_tables[total_pass_index];
 
-				for (const reshadefx::storage_info &info : pass_info.storages)
+				for (const reshadefx::storage &info : pass_info.storages)
 				{
 					const auto storage_texture = std::find_if(_textures.cbegin(), _textures.cend(),
 						[&unique_name = info.texture_name](const texture &item) {
@@ -2763,7 +2763,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 	return true;
 }
-bool reshade::runtime::create_effect_sampler_state(const reshadefx::sampler_info &info, api::sampler &sampler)
+bool reshade::runtime::create_effect_sampler_state(const reshadefx::sampler_desc &info, api::sampler &sampler)
 {
 	api::sampler_desc desc;
 	desc.filter = static_cast<api::filter_mode>(info.filter);
@@ -4132,7 +4132,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			cmd_list->barrier(2, resources, state_new, state_old);
 		}
 
-		const reshadefx::pass_info &pass_info = tech.passes[pass_index];
+		const reshadefx::pass &pass_info = tech.passes[pass_index];
 		const technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 #ifndef NDEBUG
@@ -4253,7 +4253,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 				// Set SEMANTIC_PIXEL_SIZE constants (see 'load_effect' above)
 				uint32_t semantic_index = 0;
-				for (const reshadefx::texture_info &tex : effect.module.textures)
+				for (const reshadefx::texture &tex : effect.module.textures)
 				{
 					if (tex.semantic.empty() || tex.semantic == "COLOR")
 						continue;

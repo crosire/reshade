@@ -2862,7 +2862,7 @@ void reshade::runtime::draw_gui_statistics()
 					pass_name = tech.name + ' ' + pass_name;
 
 					bool referenced = false;
-					for (const reshadefx::sampler_info &sampler : tech.passes[pass_index].samplers)
+					for (const reshadefx::sampler &sampler : tech.passes[pass_index].samplers)
 					{
 						if (sampler.texture_name == tex.unique_name)
 						{
@@ -2872,7 +2872,7 @@ void reshade::runtime::draw_gui_statistics()
 						}
 					}
 
-					for (const reshadefx::storage_info &storage : tech.passes[pass_index].storages)
+					for (const reshadefx::storage &storage : tech.passes[pass_index].storages)
 					{
 						if (storage.texture_name == tex.unique_name)
 						{

@@ -890,12 +890,12 @@ private:
 		_capabilities.insert(capability);
 	}
 
-	id   define_struct(const location &loc, struct_info &info) override
+	id   define_struct(const location &loc, struct_type &info) override
 	{
 		// First define all member types to make sure they are declared before the struct type references them
 		std::vector<spv::Id> member_types;
 		member_types.reserve(info.member_list.size());
-		for (const struct_member_info &member : info.member_list)
+		for (const member_type &member : info.member_list)
 			member_types.push_back(convert_type(member.type));
 
 		// Afterwards define the actual struct type
@@ -909,7 +909,7 @@ private:
 
 		for (uint32_t index = 0; index < info.member_list.size(); ++index)
 		{
-			const struct_member_info &member = info.member_list[index];
+			const member_type &member = info.member_list[index];
 
 			add_member_name(info.definition, index, member.name.c_str());
 
@@ -921,7 +921,7 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &, texture &info) override
 	{
 		info.id = make_id(); // Need to create an unique ID here too, so that the symbol lookup for textures works
 		info.binding = ~0u;
@@ -930,7 +930,7 @@ private:
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, const texture_info &, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture &, sampler &info) override
 	{
 		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant);
 		info.binding = _module.num_sampler_bindings++;
@@ -943,7 +943,7 @@ private:
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, const texture_info &tex_info, storage_info &info) override
+	id   define_storage(const location &loc, const texture &tex_info, storage &info) override
 	{
 		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(tex_info.format));
 		info.binding = _module.num_storage_bindings++;
@@ -955,7 +955,7 @@ private:
 
 		return info.id;
 	}
-	id   define_uniform(const location &, uniform_info &info) override
+	id   define_uniform(const location &, uniform &info) override
 	{
 		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
@@ -963,13 +963,13 @@ private:
 
 			add_name(res, info.name.c_str());
 
-			const auto add_spec_constant = [this](const spirv_instruction &inst, const uniform_info &info, const constant &initializer_value, size_t initializer_offset) {
+			const auto add_spec_constant = [this](const spirv_instruction &inst, const uniform &info, const constant &initializer_value, size_t initializer_offset) {
 				assert(inst.op == spv::OpSpecConstant || inst.op == spv::OpSpecConstantTrue || inst.op == spv::OpSpecConstantFalse);
 
 				const uint32_t spec_id = static_cast<uint32_t>(_module.spec_constants.size());
 				add_decoration(inst, spv::DecorationSpecId, { spec_id });
 
-				uniform_info scalar_info = info;
+				uniform scalar_info = info;
 				scalar_info.type.rows = 1;
 				scalar_info.type.cols = 1;
 				scalar_info.size = 4;
@@ -1150,43 +1150,43 @@ private:
 
 		return res;
 	}
-	id   define_function(const location &loc, function_info &info) override
+	id   define_function(const location &loc, function &info) override
 	{
 		assert(!is_in_function());
 
-		function_blocks &function = _functions_blocks.emplace_back();
-		function.return_type = info.return_type;
+		function_blocks &func = _functions_blocks.emplace_back();
+		func.return_type = info.return_type;
 
-		_current_function = &function;
+		_current_function = &func;
 
-		for (struct_member_info &param : info.parameter_list)
-			function.param_types.push_back(param.type);
+		for (member_type &param : info.parameter_list)
+			func.param_types.push_back(param.type);
 
-		add_location(loc, function.declaration);
+		add_location(loc, func.declaration);
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpFunction
-		add_instruction(spv::OpFunction, convert_type(info.return_type), function.declaration, info.definition)
+		add_instruction(spv::OpFunction, convert_type(info.return_type), func.declaration, info.definition)
 			.add(spv::FunctionControlMaskNone)
-			.add(convert_type(function));
+			.add(convert_type(func));
 
 		if (!info.name.empty())
 			add_name(info.definition, info.name.c_str());
 
-		for (struct_member_info &param : info.parameter_list)
+		for (member_type &param : info.parameter_list)
 		{
-			add_location(param.location, function.declaration);
+			add_location(param.location, func.declaration);
 
-			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type, true), function.declaration);
+			param.definition = add_instruction(spv::OpFunctionParameter, convert_type(param.type, true), func.declaration);
 
 			add_name(param.definition, param.name.c_str());
 		}
 
-		_functions.push_back(std::make_unique<function_info>(info));
+		_functions.push_back(std::make_unique<function>(info));
 
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func) override
+	void define_entry_point(function &func) override
 	{
 		assert(!func.unique_name.empty() && func.unique_name[0] == 'F');
 		func.unique_name[0] = 'E';
@@ -1212,7 +1212,7 @@ private:
 		std::vector<expression> call_params;
 
 		// Generate the glue entry point function
-		function_info entry_point = func;
+		function entry_point = func;
 		entry_point.referenced_functions.insert(func.definition);
 
 		// Change function signature to 'void main()'
@@ -1225,7 +1225,7 @@ private:
 
 		_current_function->is_entry_point = true;
 
-		const auto create_varying_param = [this, &call_params](const struct_member_info &param) {
+		const auto create_varying_param = [this, &call_params](const member_type &param) {
 			// Initialize all output variables with zero
 			const spv::Id variable = define_variable({}, param.type, nullptr, spv::StorageClassFunction, spv::ImageFormatUnknown, emit_constant(param.type, 0u));
 
@@ -1270,7 +1270,7 @@ private:
 		};
 
 		// Translate function parameters to input/output variables
-		for (const struct_member_info &param : func.parameter_list)
+		for (const member_type &param : func.parameter_list)
 		{
 			spv::Id param_var = create_varying_param(param);
 
@@ -1282,7 +1282,7 @@ private:
 				// Flatten structure parameters
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.struct_definition);
+					const struct_type &definition = get_struct(param.type.struct_definition);
 
 					type struct_type = param.type;
 					const unsigned int array_length = std::max(1u, param.type.array_length);
@@ -1295,7 +1295,7 @@ private:
 					{
 						std::vector<spv::Id> struct_element_ids;
 						struct_element_ids.reserve(definition.member_list.size());
-						for (const struct_member_info &member : definition.member_list)
+						for (const member_type &member : definition.member_list)
 						{
 							spv::Id input_var = create_varying_variable(member.type, member.semantic, spv::StorageClassInput, a);
 
@@ -1333,11 +1333,11 @@ private:
 			{
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.struct_definition);
+					const struct_type &definition = get_struct(param.type.struct_definition);
 
 					for (unsigned int a = 0, array_length = std::max(1u, param.type.array_length); a < array_length; a++)
 					{
-						for (const struct_member_info &member : definition.member_list)
+						for (const member_type &member : definition.member_list)
 						{
 							create_varying_variable(member.type, member.semantic, spv::StorageClassOutput, a);
 						}
@@ -1354,7 +1354,7 @@ private:
 
 		for (size_t i = 0, inputs_and_outputs_index = 0; i < func.parameter_list.size(); ++i)
 		{
-			const struct_member_info &param = func.parameter_list[i];
+			const member_type &param = func.parameter_list[i];
 
 			if (param.type.has(type::q_out))
 			{
@@ -1363,7 +1363,7 @@ private:
 
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.struct_definition);
+					const struct_type &definition = get_struct(param.type.struct_definition);
 
 					type struct_type = param.type;
 					const unsigned int array_length = std::max(1u, param.type.array_length);
@@ -1387,7 +1387,7 @@ private:
 						// Split out struct fields into separate output variables again
 						for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 						{
-							const struct_member_info &member = definition.member_list[member_index];
+							const member_type &member = definition.member_list[member_index];
 
 							const spv::Id member_value = add_instruction(spv::OpCompositeExtract, convert_type(member.type))
 								.add(element_value)
@@ -1415,7 +1415,7 @@ private:
 				// Input parameters do not need to store anything, but increase the input/output variable index
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.struct_definition);
+					const struct_type &definition = get_struct(param.type.struct_definition);
 					inputs_and_outputs_index += definition.member_list.size() * std::max(1u, param.type.array_length);
 				}
 				else
@@ -1427,11 +1427,11 @@ private:
 
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = get_struct(func.return_type.struct_definition);
+			const struct_type &definition = get_struct(func.return_type.struct_definition);
 
 			for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 			{
-				const struct_member_info &member = definition.member_list[member_index];
+				const member_type &member = definition.member_list[member_index];
 
 				const spv::Id result_var = create_varying_variable(member.type, member.semantic, spv::StorageClassOutput);
 

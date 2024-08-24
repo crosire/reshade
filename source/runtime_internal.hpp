@@ -32,9 +32,9 @@ namespace reshade
 	};
 
 #if RESHADE_FX
-	struct texture final : reshadefx::texture_info
+	struct texture final : reshadefx::texture
 	{
-		texture(const reshadefx::texture_info &init) : texture_info(init) {}
+		texture(const reshadefx::texture &init) : reshadefx::texture(init) {}
 
 		auto annotation_as_int(const std::string_view ann_name, size_t i = 0, int default_value = 0) const
 		{
@@ -64,7 +64,7 @@ namespace reshade
 			return it != annotations.cend() ? std::string_view(it->value.string_data) : default_value;
 		}
 
-		bool matches_description(const reshadefx::texture_info &desc) const
+		bool matches_description(const reshadefx::texture &desc) const
 		{
 			return type == desc.type && width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
 		}
@@ -80,9 +80,9 @@ namespace reshade
 		std::vector<api::resource_view> uav;
 	};
 
-	struct uniform final : reshadefx::uniform_info
+	struct uniform final : reshadefx::uniform
 	{
-		uniform(const reshadefx::uniform_info &init) : uniform_info(init) {}
+		uniform(const reshadefx::uniform &init) : reshadefx::uniform(init) {}
 
 		auto annotation_as_int(const std::string_view ann_name, size_t i = 0, int default_value = 0) const
 		{
@@ -129,9 +129,9 @@ namespace reshade
 		special_uniform special = special_uniform::none;
 	};
 
-	struct technique final : reshadefx::technique_info
+	struct technique final : reshadefx::technique
 	{
-		technique(const reshadefx::technique_info &init) : technique_info(init) {}
+		technique(const reshadefx::technique &init) : reshadefx::technique(init) {}
 
 		auto annotation_as_int(const std::string_view ann_name, size_t i = 0, int default_value = 0) const
 		{

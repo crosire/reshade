@@ -138,19 +138,19 @@ private:
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const sampler_info &info : _module.samplers)
+		for (const sampler &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const storage_info &info : _module.storages)
+		for (const storage &info : _module.storages)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const std::unique_ptr<function_info> &function : _functions)
+		for (const std::unique_ptr<function> &function : _functions)
 		{
 			const bool is_entry_point = function->unique_name[0] == 'E';
 
@@ -210,22 +210,22 @@ private:
 			code.insert(code.end(), main_block.begin(), main_block.end());
 		}
 
-		const function_info &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
-				[&unique_name = entry_point.first](const std::unique_ptr<function_info> &info) { return info->unique_name == unique_name; })->get();
+		const function &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
+				[&unique_name = entry_point.first](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
 
-		for (const sampler_info &info : _module.samplers)
+		for (const sampler &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const storage_info &info : _module.storages)
+		for (const storage &info : _module.storages)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const std::unique_ptr<function_info> &function : _functions)
+		for (const std::unique_ptr<function> &function : _functions)
 		{
 			// Skip any unreferenced functions
 			if (entry_point_func.referenced_functions.find(function->definition) == entry_point_func.referenced_functions.end() &&
@@ -704,7 +704,7 @@ private:
 		block.insert(block.begin(), '\t');
 	}
 
-	id   define_struct(const location &loc, struct_info &info) override
+	id   define_struct(const location &loc, struct_type &info) override
 	{
 		info.definition = make_id();
 		define_name<naming::unique>(info.definition, info.unique_name);
@@ -717,7 +717,7 @@ private:
 
 		code += "struct " + id_to_name(info.definition) + "\n{\n";
 
-		for (const struct_member_info &member : info.member_list)
+		for (const member_type &member : info.member_list)
 		{
 			code += '\t';
 			write_type(code, member.type); // GLSL does not allow interpolation attributes on struct members
@@ -735,7 +735,7 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &, texture_info &info) override
+	id   define_texture(const location &, texture &info) override
 	{
 		info.id = make_id();
 		info.binding = ~0u;
@@ -744,7 +744,7 @@ private:
 
 		return info.id;
 	}
-	id   define_sampler(const location &loc, const texture_info &, sampler_info &info) override
+	id   define_sampler(const location &loc, const texture &, sampler &info) override
 	{
 		info.id = create_block();
 		info.binding = _module.num_sampler_bindings++;
@@ -765,7 +765,7 @@ private:
 
 		return info.id;
 	}
-	id   define_storage(const location &loc, const texture_info &tex_info, storage_info &info) override
+	id   define_storage(const location &loc, const texture &tex_info, storage &info) override
 	{
 		info.id = create_block();
 		info.binding = _module.num_storage_bindings++;
@@ -786,7 +786,7 @@ private:
 
 		return info.id;
 	}
-	id   define_uniform(const location &loc, uniform_info &info) override
+	id   define_uniform(const location &loc, uniform &info) override
 	{
 		const id res = make_id();
 
@@ -901,7 +901,7 @@ private:
 
 		return res;
 	}
-	id   define_function(const location &loc, function_info &info) override
+	id   define_function(const location &loc, function &info) override
 	{
 		assert(!info.unique_name.empty() && (info.unique_name[0] == 'F' || info.unique_name[0] == 'E'));
 		const bool is_entry_point = info.unique_name[0] == 'E';
@@ -928,7 +928,7 @@ private:
 
 		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
 		{
-			struct_member_info &param = info.parameter_list[i];
+			member_type &param = info.parameter_list[i];
 
 			param.definition = make_id();
 			define_name<naming::unique>(param.definition, param.name);
@@ -948,12 +948,12 @@ private:
 
 		code += ")\n";
 
-		_functions.push_back(std::make_unique<function_info>(info));
+		_functions.push_back(std::make_unique<function>(info));
 
 		return info.definition;
 	}
 
-	void define_entry_point(function_info &func) override
+	void define_entry_point(function &func) override
 	{
 		assert(!func.unique_name.empty() && func.unique_name[0] == 'F');
 		func.unique_name[0] = 'E';
@@ -981,7 +981,7 @@ private:
 			         ", local_size_z = " + std::to_string(func.num_threads[2]) + ") in;\n";
 
 		// Generate the glue entry point function
-		function_info entry_point = func;
+		function entry_point = func;
 		entry_point.referenced_functions.insert(func.definition);
 
 		// Change function signature to 'void main()'
@@ -1023,9 +1023,9 @@ private:
 		// Translate return value to output variable
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = get_struct(func.return_type.struct_definition);
+			const struct_type &definition = get_struct(func.return_type.struct_definition);
 
-			for (const struct_member_info &member : definition.member_list)
+			for (const member_type &member : definition.member_list)
 				create_varying_variable(member.type, type::q_out, "_return_" + member.name, member.semantic);
 		}
 		else if (!func.return_type.is_void())
@@ -1046,11 +1046,11 @@ private:
 				// Flatten structure parameters
 				if (param_type.is_struct())
 				{
-					const struct_info &definition = get_struct(param_type.struct_definition);
+					const struct_type &definition = get_struct(param_type.struct_definition);
 
 					for (unsigned int a = 0, array_length = std::max(1u, param_type.array_length); a < array_length; a++)
 					{
-						for (const struct_member_info &member : definition.member_list)
+						for (const member_type &member : definition.member_list)
 							create_varying_variable(member.type, param_type.qualifiers | type::q_in, "_in_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic);
 					}
 				}
@@ -1064,11 +1064,11 @@ private:
 			{
 				if (param_type.is_struct())
 				{
-					const struct_info &definition = get_struct(param_type.struct_definition);
+					const struct_type &definition = get_struct(param_type.struct_definition);
 
 					for (unsigned int a = 0, array_length = std::max(1u, param_type.array_length); a < array_length; a++)
 					{
-						for (const struct_member_info &member : definition.member_list)
+						for (const member_type &member : definition.member_list)
 							create_varying_variable(member.type, param_type.qualifiers | type::q_out, "_out_param" + std::to_string(i) + '_' + std::to_string(a) + '_' + member.name, member.semantic);
 					}
 				}
@@ -1107,9 +1107,9 @@ private:
 						write_type<false, false>(code, param_type);
 						code += '(';
 
-						const struct_info &definition = get_struct(param_type.struct_definition);
+						const struct_type &definition = get_struct(param_type.struct_definition);
 
-						for (const struct_member_info &member : definition.member_list)
+						for (const member_type &member : definition.member_list)
 						{
 							std::string in_param_name;
 							if (const auto it = semantic_to_varying_variable.find(member.semantic);
@@ -1290,12 +1290,12 @@ private:
 
 			if (param_type.is_struct())
 			{
-				const struct_info &definition = get_struct(param_type.struct_definition);
+				const struct_type &definition = get_struct(param_type.struct_definition);
 
 				// Split out struct fields into separate output variables again
 				for (unsigned int a = 0, array_length = std::max(1u, param_type.array_length); a < array_length; a++)
 				{
-					for (const struct_member_info &member : definition.member_list)
+					for (const member_type &member : definition.member_list)
 					{
 						if (member.type.is_array())
 						{
@@ -1411,9 +1411,9 @@ private:
 		// Handle return struct output variables
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = get_struct(func.return_type.struct_definition);
+			const struct_type &definition = get_struct(func.return_type.struct_definition);
 
-			for (const struct_member_info &member : definition.member_list)
+			for (const member_type &member : definition.member_list)
 			{
 				code += '\t';
 				code += semantic_to_builtin("_return_" + member.name, member.semantic, func.type);

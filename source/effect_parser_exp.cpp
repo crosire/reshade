@@ -1320,11 +1320,11 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_struct())
 			{
-				const std::vector<struct_member_info> &member_list = _codegen->get_struct(exp.type.struct_definition).member_list;
+				const std::vector<member_type> &member_list = _codegen->get_struct(exp.type.struct_definition).member_list;
 
 				// Find member with matching name is structure definition
 				uint32_t member_index = 0;
-				for (const struct_member_info &member : member_list)
+				for (const member_type &member : member_list)
 				{
 					if (member.name == subscript)
 						break;
