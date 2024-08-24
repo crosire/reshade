@@ -136,7 +136,7 @@ unsigned int reshadefx::type::rank(const type &src, const type &dst)
 	if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.is_bounded_array() && dst.is_bounded_array()))
 		return 0; // Arrays of different sizes are not compatible
 	if (src.is_struct() || dst.is_struct())
-		return src.definition == dst.definition ? 32 : 0; // Structs are only compatible if they are the same type
+		return src.struct_definition == dst.struct_definition ? 32 : 0; // Structs are only compatible if they are the same type
 	if (!src.is_numeric() || !dst.is_numeric())
 		return src.base == dst.base && src.rows == dst.rows && src.cols == dst.cols ? 32 : 0; // Numeric values are not compatible with other types
 	if (src.is_matrix() && (!dst.is_matrix() || src.rows != dst.rows || src.cols != dst.cols))

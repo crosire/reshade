@@ -410,7 +410,7 @@ private:
 			s += "float";
 			break;
 		case type::t_struct:
-			s += id_to_name(type.definition);
+			s += id_to_name(type.struct_definition);
 			return;
 		case type::t_sampler1d_int:
 		case type::t_sampler2d_int:
@@ -522,7 +522,7 @@ private:
 			// The can only be zero initializer struct constants
 			assert(data.as_uint[0] == 0);
 
-			s += '(' + id_to_name(data_type.definition) + ")0";
+			s += '(' + id_to_name(data_type.struct_definition) + ")0";
 			return;
 		}
 
@@ -1151,7 +1151,7 @@ private:
 			if (func.type == shader_type::vertex && func.return_type.is_struct())
 			{
 				// If this function returns a struct which contains a position output, keep track of its member name
-				for (const struct_member_info &member : get_struct(func.return_type.definition).member_list)
+				for (const struct_member_info &member : get_struct(func.return_type.struct_definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(ret) + '.' + member.name;
 			}
@@ -1172,7 +1172,7 @@ private:
 		{
 			if (func.type == shader_type::vertex && param.type.is_struct())
 			{
-				for (const struct_member_info &member : get_struct(param.type.definition).member_list)
+				for (const struct_member_info &member : get_struct(param.type.struct_definition).member_list)
 					if (is_position_semantic(member.semantic))
 						position_variable_name = id_to_name(param.definition) + '.' + member.name;
 			}
@@ -1290,7 +1290,7 @@ private:
 				break;
 			case expression::operation::op_member:
 				expr_code += '.';
-				expr_code += get_struct(op.from.definition).member_list[op.index].name;
+				expr_code += get_struct(op.from.struct_definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
 				expr_code += '[' + id_to_name(op.index) + ']';
@@ -1351,7 +1351,7 @@ private:
 			{
 			case expression::operation::op_member:
 				code += '.';
-				code += get_struct(op.from.definition).member_list[op.index].name;
+				code += get_struct(op.from.struct_definition).member_list[op.index].name;
 				break;
 			case expression::operation::op_dynamic_index:
 				code += '[' + id_to_name(op.index) + ']';

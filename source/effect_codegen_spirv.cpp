@@ -608,8 +608,8 @@ private:
 					.add(32); // Width
 				break;
 			case type::t_struct:
-				assert(info.rows == 0 && info.cols == 0 && info.definition != 0);
-				type_id = info.definition;
+				assert(info.rows == 0 && info.cols == 0 && info.struct_definition != 0);
+				type_id = info.struct_definition;
 				break;
 			case type::t_sampler1d_int:
 			case type::t_sampler1d_uint:
@@ -695,7 +695,7 @@ private:
 		{
 			lookup.type = elem_info;
 			lookup.type.base = static_cast<type::datatype>(type::t_texture1d + info.texture_dimension() - 1);
-			lookup.type.definition = static_cast<uint32_t>(elem_info.base);
+			lookup.type.struct_definition = static_cast<uint32_t>(elem_info.base);
 		}
 
 		if (const auto lookup_it = std::find_if(_type_lookup.begin(), _type_lookup.end(),
@@ -1282,7 +1282,7 @@ private:
 				// Flatten structure parameters
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.struct_definition);
 
 					type struct_type = param.type;
 					const unsigned int array_length = std::max(1u, param.type.array_length);
@@ -1333,7 +1333,7 @@ private:
 			{
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.struct_definition);
 
 					for (unsigned int a = 0, array_length = std::max(1u, param.type.array_length); a < array_length; a++)
 					{
@@ -1363,7 +1363,7 @@ private:
 
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.struct_definition);
 
 					type struct_type = param.type;
 					const unsigned int array_length = std::max(1u, param.type.array_length);
@@ -1415,7 +1415,7 @@ private:
 				// Input parameters do not need to store anything, but increase the input/output variable index
 				if (param.type.is_struct())
 				{
-					const struct_info &definition = get_struct(param.type.definition);
+					const struct_info &definition = get_struct(param.type.struct_definition);
 					inputs_and_outputs_index += definition.member_list.size() * std::max(1u, param.type.array_length);
 				}
 				else
@@ -1427,7 +1427,7 @@ private:
 
 		if (func.return_type.is_struct())
 		{
-			const struct_info &definition = get_struct(func.return_type.definition);
+			const struct_info &definition = get_struct(func.return_type.struct_definition);
 
 			for (uint32_t member_index = 0; member_index < definition.member_list.size(); ++member_index)
 			{

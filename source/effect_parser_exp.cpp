@@ -128,7 +128,7 @@ bool reshadefx::parser::accept_type_class(type &type)
 		{
 			if (symbol.id && symbol.op == symbol_type::structure)
 			{
-				type.definition = symbol.id;
+				type.struct_definition = symbol.id;
 				return true;
 			}
 		}
@@ -738,7 +738,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				consume_until('}');
 				return false;
 			}
-			if (composite_type.base != type::t_void && element_exp.type.definition != composite_type.definition)
+			if (composite_type.base != type::t_void && element_exp.type.struct_definition != composite_type.struct_definition)
 			{
 				error(element_exp.location, 3017, "cannot convert these types (from " + element_exp.type.description() + " to " + composite_type.description() + ')');
 				consume_until('}');
@@ -1320,7 +1320,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			}
 			else if (exp.type.is_struct())
 			{
-				const std::vector<struct_member_info> &member_list = _codegen->get_struct(exp.type.definition).member_list;
+				const std::vector<struct_member_info> &member_list = _codegen->get_struct(exp.type.struct_definition).member_list;
 
 				// Find member with matching name is structure definition
 				uint32_t member_index = 0;
@@ -1479,7 +1479,7 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned i
 				is_bool_result = true;
 
 				// Cannot check equality between incompatible types
-				if (lhs_exp.type.is_array() || rhs_exp.type.is_array() || lhs_exp.type.definition != rhs_exp.type.definition)
+				if (lhs_exp.type.is_array() || rhs_exp.type.is_array() || lhs_exp.type.struct_definition != rhs_exp.type.struct_definition)
 				{
 					error(rhs_exp.location, 3020, "type mismatch");
 					return false;
@@ -1624,7 +1624,7 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned i
 			}
 
 			// Check that the two value expressions can be converted between each other
-			if (true_exp.type.array_length != false_exp.type.array_length || true_exp.type.definition != false_exp.type.definition)
+			if (true_exp.type.array_length != false_exp.type.array_length || true_exp.type.struct_definition != false_exp.type.struct_definition)
 			{
 				error(false_exp.location, 3020, "type mismatch between conditional values");
 				return false;

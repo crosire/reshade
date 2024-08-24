@@ -15,7 +15,7 @@ namespace reshadefx
 	/// </summary>
 	struct type
 	{
-		enum datatype : unsigned int
+		enum datatype : uint32_t
 		{
 			t_void,
 			t_bool,
@@ -50,7 +50,7 @@ namespace reshadefx
 			t_storage3d_float,
 			t_function,
 		};
-		enum qualifier : unsigned int
+		enum qualifier : uint32_t
 		{
 			q_extern = 1 << 0,
 			q_static = 1 << 1,
@@ -113,7 +113,7 @@ namespace reshadefx
 
 		friend bool operator==(const type &lhs, const type &rhs)
 		{
-			return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.definition == rhs.definition;
+			return lhs.base == rhs.base && lhs.rows == rhs.rows && lhs.cols == rhs.cols && lhs.array_length == rhs.array_length && lhs.struct_definition == rhs.struct_definition;
 		}
 		friend bool operator!=(const type &lhs, const type &rhs)
 		{
@@ -123,15 +123,15 @@ namespace reshadefx
 		// Underlying base type ('int', 'float', ...)
 		datatype base : 8;
 		// Number of rows if this is a vector type
-		unsigned int rows : 4;
+		uint32_t rows : 4;
 		// Number of columns if this is a matrix type
-		unsigned int cols : 4;
+		uint32_t cols : 4;
 		// Bit mask of all the qualifiers decorating the type
-		unsigned int qualifiers : 16;
+		uint32_t qualifiers : 16;
 		// Number of elements if this is an array type, UINT_MAX if it is an unsized array
-		unsigned int array_length;
+		uint32_t array_length;
 		// ID of the matching struct if this is a struct type
-		uint32_t definition;
+		uint32_t struct_definition;
 	};
 
 	/// <summary>

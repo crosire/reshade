@@ -40,8 +40,8 @@ reshadefx::type reshadefx::type::merge(const type &lhs, const type &rhs)
 	assert(lhs.array_length == 0 && rhs.array_length == 0);
 
 	// In case this is a structure, assume they are the same
-	result.definition = rhs.definition;
-	assert(lhs.definition == rhs.definition || lhs.definition == 0);
+	result.struct_definition = rhs.struct_definition;
+	assert(lhs.struct_definition == rhs.struct_definition || lhs.struct_definition == 0);
 
 	return result;
 }
