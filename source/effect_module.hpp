@@ -6,7 +6,6 @@
 #pragma once
 
 #include "effect_expression.hpp"
-#include <unordered_set>
 
 namespace reshadefx
 {
@@ -248,7 +247,7 @@ namespace reshadefx
 		int num_threads[3] = {};
 		std::vector<uint32_t> referenced_samplers;
 		std::vector<uint32_t> referenced_storages;
-		std::unordered_set<uint32_t> referenced_functions;
+		std::vector<uint32_t> referenced_functions;
 	};
 
 	/// <summary>

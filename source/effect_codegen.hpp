@@ -245,7 +245,7 @@ namespace reshadefx
 		/// <summary>
 		/// Returns <see langword="true"/> if code is currently added to a function.
 		/// </summary>
-		virtual bool is_in_function() const { return is_in_block(); }
+		bool is_in_function() const { return _current_function != nullptr; }
 
 		/// <summary>
 		/// Creates a new basic block.

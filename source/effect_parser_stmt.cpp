@@ -301,8 +301,6 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	// Most statements with the exception of declarations are only valid inside functions
 	if (_codegen->is_in_function())
 	{
-		assert(_codegen->_current_function != nullptr);
-
 		const location statement_location = _token_next.location;
 
 		if (accept(tokenid::if_))
@@ -1234,19 +1232,19 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 	info.num_threads[1] = num_threads[1];
 	info.num_threads[2] = num_threads[2];
 
+	_codegen->_current_function = &info;
+
 	bool parse_success = true;
 	bool expect_parenthesis = true;
 
 	// Enter function scope (and leave it again when parsing this function finished)
 	scope_guard _(
-		[this, &info]() {
-			_codegen->_current_function = &info;
+		[this]() {
 			enter_scope();
 		},
 		[this]() {
 			leave_scope();
 			_codegen->leave_function();
-			_codegen->_current_function = nullptr;
 		});
 
 	while (!peek(')'))
@@ -1442,7 +1440,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 
 	// Insert the function and parameter symbols into the symbol table and update current function pointer to the permanent one
 	symbol symbol = { symbol_type::function, id, { type::t_function } };
-	symbol.function = _codegen->_current_function = &_codegen->get_function(id);
+	symbol.function = &_codegen->get_function(id);
 
 	if (!insert_symbol(name, symbol, true))
 	{

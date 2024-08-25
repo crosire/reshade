@@ -2045,7 +2045,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
 							cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
 
-
 						save_effect_cache(cache_id, "asm", cso_text);
 					}
 				}

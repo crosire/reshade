@@ -1118,8 +1118,15 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					_codegen->_current_function->referenced_storages = std::move(referenced_storages);
 				}
 
-				_codegen->_current_function->referenced_functions.insert(symbol.id);
-				_codegen->_current_function->referenced_functions.insert(symbol.function->referenced_functions.begin(), symbol.function->referenced_functions.end());
+				// Add callee and all its function references to the callers function references
+				{
+					std::vector<codegen::id> referenced_functions;
+					std::set_union(_codegen->_current_function->referenced_functions.begin(), _codegen->_current_function->referenced_functions.end(), symbol.function->referenced_functions.begin(), symbol.function->referenced_functions.end(), std::back_inserter(referenced_functions));
+					const auto it = std::lower_bound(referenced_functions.begin(), referenced_functions.end(), symbol.id);
+					if (it == referenced_functions.end() || *it != symbol.id)
+						referenced_functions.insert(it, symbol.id);
+					_codegen->_current_function->referenced_functions = std::move(referenced_functions);
+				}
 			}
 		}
 		else if (symbol.op == symbol_type::invalid)

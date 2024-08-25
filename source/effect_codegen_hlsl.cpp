@@ -10,7 +10,7 @@
 #include <cassert>
 #include <cstring> // stricmp, std::memcmp
 #include <charconv> // std::from_chars, std::to_chars
-#include <algorithm> // std::equal, std::find_if, std::max
+#include <algorithm> // std::equal, std::find, std::find_if, std::max
 
 using namespace reshadefx;
 
@@ -50,15 +50,17 @@ private:
 		expression,
 	};
 
-	std::string _cbuffer_block;
-	std::string _current_location;
-	std::unordered_map<id, std::string> _names;
-	std::unordered_map<id, std::string> _blocks;
 	unsigned int _shader_model = 0;
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
-	std::string _remapped_semantics[15];
+
+	std::unordered_map<id, std::string> _names;
+	std::unordered_map<id, std::string> _blocks;
+	std::string _cbuffer_block;
+	std::string _current_location;
 	std::string _current_function_declaration;
+
+	std::string _remapped_semantics[15];
 	std::vector<std::tuple<type, constant, id>> _constant_lookup;
 	std::vector<sampler_binding> _sampler_lookup;
 
@@ -370,7 +372,7 @@ private:
 		for (const std::unique_ptr<function> &func : _functions)
 		{
 			if (func.get() != &entry_point &&
-				entry_point.referenced_functions.find(func->definition) == entry_point.referenced_functions.end())
+				std::find(entry_point.referenced_functions.begin(), entry_point.referenced_functions.end(), func->definition) == entry_point.referenced_functions.end())
 				continue;
 
 			const std::string &block_code = _blocks.at(func->definition);
@@ -1130,6 +1132,7 @@ private:
 		code += '\n';
 
 		_functions.push_back(std::make_unique<function>(info));
+		_current_function = _functions.back().get();
 
 		return info.definition;
 	}
@@ -1160,7 +1163,7 @@ private:
 			return;
 
 		function entry_point = func;
-		entry_point.referenced_functions.insert(func.definition);
+		entry_point.referenced_functions.push_back(func.definition);
 
 		const auto is_color_semantic = [](const std::string &semantic) {
 			return semantic.compare(0, 9, "SV_TARGET") == 0 || semantic.compare(0, 5, "COLOR") == 0; };
@@ -2070,7 +2073,7 @@ private:
 
 		code += "\tdiscard;\n";
 
-		const type &return_type = _functions.back()->return_type;
+		const type &return_type = _current_function->return_type;
 		if (!return_type.is_void())
 		{
 			// HLSL compiler doesn't handle discard like a shader kill
@@ -2089,7 +2092,7 @@ private:
 			return 0;
 
 		// Skip implicit return statement
-		if (!_functions.back()->return_type.is_void() && value == 0)
+		if (!_current_function->return_type.is_void() && value == 0)
 			return set_block(0);
 
 		std::string &code = _blocks.at(_current_block);
@@ -2140,9 +2143,11 @@ private:
 	{
 		assert(_last_block != 0);
 
-		const id current_function = _functions.back()->definition;
+		const id current_function = _current_function->definition;
 
 		_blocks.emplace(current_function, _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n");
+
+		_current_function = nullptr;
 		_current_function_declaration.clear();
 	}
 };

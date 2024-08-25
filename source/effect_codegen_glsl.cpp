@@ -9,7 +9,7 @@
 #include <cassert>
 #include <cstring> // std::memcmp
 #include <charconv> // std::from_chars, std::to_chars
-#include <algorithm> // std::find_if, std::max
+#include <algorithm> // std::find, std::find_if, std::max
 #include <unordered_set>
 
 using namespace reshadefx;
@@ -54,19 +54,20 @@ private:
 		expression,
 	};
 
-	std::string _ubo_block;
-	std::string _compute_block;
-	std::unordered_map<id, std::string> _names;
-	std::unordered_map<id, std::string> _blocks;
 	bool _debug_info = false;
 	bool _vulkan_semantics = false;
 	bool _uniforms_to_spec_constants = false;
 	bool _enable_16bit_types = false;
 	bool _flip_vert_y = false;
-	bool _enable_control_flow_attributes = false;
+
+	std::unordered_map<id, std::string> _names;
+	std::unordered_map<id, std::string> _blocks;
+	std::string _ubo_block;
+	std::string _compute_block;
+	std::string _current_function_declaration;
+
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
-	std::string _current_function_declaration;
 	std::vector<std::tuple<type, constant, id>> _constant_lookup;
 
 	// Only write compatibility intrinsics to result if they are actually in use
@@ -74,6 +75,7 @@ private:
 	bool _uses_componentwise_or = false;
 	bool _uses_componentwise_and = false;
 	bool _uses_componentwise_cond = false;
+	bool _uses_control_flow_attributes = false;
 
 	std::string finalize_preamble() const
 	{
@@ -82,7 +84,7 @@ private:
 		if (_enable_16bit_types)
 			// GL_NV_gpu_shader5, GL_AMD_gpu_shader_half_float or GL_EXT_shader_16bit_storage
 			preamble += "#extension GL_NV_gpu_shader5 : require\n";
-		if (_enable_control_flow_attributes)
+		if (_uses_control_flow_attributes)
 			preamble += "#extension GL_EXT_control_flow_attributes : enable\n";
 
 		if (_uses_fmod)
@@ -258,7 +260,7 @@ private:
 		for (const std::unique_ptr<function> &func : _functions)
 		{
 			if (func.get() != &entry_point &&
-				entry_point.referenced_functions.find(func->definition) == entry_point.referenced_functions.end())
+				std::find(entry_point.referenced_functions.begin(), entry_point.referenced_functions.end(), func->definition) == entry_point.referenced_functions.end())
 				continue;
 
 			const std::string &block_code = _blocks.at(func->definition);
@@ -937,14 +939,13 @@ private:
 	}
 	id   define_function(const location &loc, function &info) override
 	{
-		assert(!info.unique_name.empty() && (info.unique_name[0] == 'F' || info.unique_name[0] == 'E'));
-		const bool is_entry_point = info.unique_name[0] == 'E';
-
 		info.definition = make_id();
 
 		// Name is used in other places like the entry point defines, so escape it here
 		info.unique_name = escape_name(info.unique_name);
 
+		assert(!info.unique_name.empty() && (info.unique_name[0] == 'F' || info.unique_name[0] == 'E'));
+		const bool is_entry_point = info.unique_name[0] == 'E';
 		if (!is_entry_point)
 			define_name<naming::unique>(info.definition, info.unique_name);
 		else
@@ -984,6 +985,7 @@ private:
 		code += ")\n";
 
 		_functions.push_back(std::make_unique<function>(info));
+		_current_function = _functions.back().get();
 
 		return info.definition;
 	}
@@ -1017,7 +1019,7 @@ private:
 
 		// Generate the glue entry point function
 		function entry_point = func;
-		entry_point.referenced_functions.insert(func.definition);
+		entry_point.referenced_functions.push_back(func.definition);
 
 		// Change function signature to 'void main()'
 		entry_point.return_type = { type::t_void };
@@ -2009,7 +2011,7 @@ private:
 
 		if (flags != 0)
 		{
-			_enable_control_flow_attributes = true;
+			_uses_control_flow_attributes = true;
 
 			code += "#if GL_EXT_control_flow_attributes\n\t[[";
 			if ((flags & 0x1) == 0x1)
@@ -2093,7 +2095,7 @@ private:
 		std::string attributes;
 		if (flags != 0)
 		{
-			_enable_control_flow_attributes = true;
+			_uses_control_flow_attributes = true;
 
 			attributes += "#if GL_EXT_control_flow_attributes\n\t[[";
 			if ((flags & 0x1) == 0x1)
@@ -2282,7 +2284,7 @@ private:
 
 		code += "\tdiscard;\n";
 
-		const type &return_type = _functions.back()->return_type;
+		const type &return_type = _current_function->return_type;
 		if (!return_type.is_void())
 		{
 			// Add a return statement to exit functions in case discard is the last control flow statement
@@ -2299,7 +2301,7 @@ private:
 			return 0;
 
 		// Skip implicit return statement
-		if (!_functions.back()->return_type.is_void() && value == 0)
+		if (!_current_function->return_type.is_void() && value == 0)
 			return set_block(0);
 
 		std::string &code = _blocks.at(_current_block);
@@ -2350,9 +2352,11 @@ private:
 	{
 		assert(_last_block != 0);
 
-		const id current_function = _functions.back()->definition;
+		const id current_function = _current_function->definition;
 
 		_blocks.emplace(current_function, _current_function_declaration + "{\n" + _blocks.at(_last_block) + "}\n");
+
+		_current_function = nullptr;
 		_current_function_declaration.clear();
 	}
 };
