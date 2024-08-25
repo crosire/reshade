@@ -44,12 +44,19 @@ bool ini_file::load()
 	if (fgetc(file) != utf8::bom[0] || fgetc(file) != utf8::bom[1] || fgetc(file) != utf8::bom[2])
 		fseek(file, 0, SEEK_SET);
 
-	std::string section;
-
-	char line_data[2048];
-	while (fgets(line_data, sizeof(line_data), file))
+	std::string line_data, section;
+	line_data.resize(BUFSIZ);
+	while (fgets(line_data.data(), static_cast<int>(line_data.size() + 1), file))
 	{
-		const std::string_view line = trim(line_data, " \t\r\n");
+		size_t line_length;
+		while ((line_length = std::strlen(line_data.data())) == line_data.size())
+		{
+			line_data.resize(line_data.size() + BUFSIZ);
+			if (!fgets(line_data.data() + line_length, static_cast<int>(line_data.size() - line_length), file))
+				break;
+		}
+
+		const std::string_view line = trim(std::string_view(line_data.data(), line_length), " \t\r\n");
 
 		if (line.empty() || line[0] == ';' || line[0] == '/' || line[0] == '#')
 			continue;
