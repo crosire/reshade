@@ -362,21 +362,21 @@ private:
 			inst.write(spirv);
 
 		// All function definitions
-		for (const function_blocks &function : _functions_blocks)
+		for (const function_blocks &func : _functions_blocks)
 		{
-			if (function.definition.instructions.empty())
+			if (func.definition.instructions.empty())
 				continue;
 
-			for (const spirv_instruction &inst : function.declaration.instructions)
+			for (const spirv_instruction &inst : func.declaration.instructions)
 				inst.write(spirv);
 
 			// Grab first label and move it in front of variable declarations
-			function.definition.instructions.front().write(spirv);
-			assert(function.definition.instructions.front().op == spv::OpLabel);
+			func.definition.instructions.front().write(spirv);
+			assert(func.definition.instructions.front().op == spv::OpLabel);
 
-			for (const spirv_instruction &inst : function.variables.instructions)
+			for (const spirv_instruction &inst : func.variables.instructions)
 				inst.write(spirv);
-			for (auto inst_it = function.definition.instructions.begin() + 1; inst_it != function.definition.instructions.end(); ++inst_it)
+			for (auto inst_it = func.definition.instructions.begin() + 1; inst_it != func.definition.instructions.end(); ++inst_it)
 				inst_it->write(spirv);
 		}
 
@@ -442,26 +442,26 @@ private:
 		}
 
 		// All function definitions
-		for (const function_blocks &function : _functions_blocks)
+		for (const function_blocks &func : _functions_blocks)
 		{
-			if (function.definition.instructions.empty())
+			if (func.definition.instructions.empty())
 				continue;
 
 			// Remove all function definitions for non-matching entry points
-			assert(function.declaration.instructions[_debug_info ? 1 : 0].op == spv::OpFunction);
-			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), function.declaration.instructions[_debug_info ? 1 : 0].result) != functions_to_remove.end())
+			assert(func.declaration.instructions[_debug_info ? 1 : 0].op == spv::OpFunction);
+			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), func.declaration.instructions[_debug_info ? 1 : 0].result) != functions_to_remove.end())
 				continue;
 
-			for (const spirv_instruction &inst : function.declaration.instructions)
+			for (const spirv_instruction &inst : func.declaration.instructions)
 				inst.write(spirv);
 
 			// Grab first label and move it in front of variable declarations
-			function.definition.instructions.front().write(spirv);
-			assert(function.definition.instructions.front().op == spv::OpLabel);
+			func.definition.instructions.front().write(spirv);
+			assert(func.definition.instructions.front().op == spv::OpLabel);
 
-			for (const spirv_instruction &inst : function.variables.instructions)
+			for (const spirv_instruction &inst : func.variables.instructions)
 				inst.write(spirv);
-			for (auto inst_it = function.definition.instructions.begin() + 1; inst_it != function.definition.instructions.end(); ++inst_it)
+			for (auto inst_it = func.definition.instructions.begin() + 1; inst_it != func.definition.instructions.end(); ++inst_it)
 				inst_it->write(spirv);
 		}
 

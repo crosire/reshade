@@ -265,6 +265,7 @@ private:
 
 		std::vector<char> code;
 		code.assign(preamble.begin(), preamble.end());
+		preamble.clear();
 
 		{
 			const std::string &block_code = _blocks.at(0);
@@ -289,9 +290,9 @@ private:
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const std::unique_ptr<function> &function : _functions)
+		for (const std::unique_ptr<function> &func : _functions)
 		{
-			const std::string &block_code = _blocks.at(function->definition);
+			const std::string &block_code = _blocks.at(func->definition);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
@@ -307,6 +308,7 @@ private:
 
 		std::vector<char> code;
 		code.assign(preamble.begin(), preamble.end());
+		preamble.clear();
 
 		{
 			const std::string &block_code = _blocks.at(0);
@@ -314,7 +316,7 @@ private:
 		}
 
 		const function &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
-				[&unique_name = entry_point.first](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
+			[&unique_name = entry_point.first](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
 
 		for (const texture &info : _module.textures)
 		{
@@ -334,14 +336,14 @@ private:
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const std::unique_ptr<function> &function : _functions)
+		for (const std::unique_ptr<function> &func : _functions)
 		{
 			// Skip any unreferenced functions
-			if (entry_point_func.referenced_functions.find(function->definition) == entry_point_func.referenced_functions.end() &&
-				function->unique_name != entry_point.first)
+			if (entry_point_func.referenced_functions.find(func->definition) == entry_point_func.referenced_functions.end() &&
+				func->unique_name != entry_point.first)
 				continue;
 
-			const std::string &block_code = _blocks.at(function->definition);
+			const std::string &block_code = _blocks.at(func->definition);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
@@ -508,10 +510,11 @@ private:
 			for (unsigned int a = 0; a < data_type.array_length; ++a)
 			{
 				write_constant(s, elem_type, a < static_cast<unsigned int>(data.array_data.size()) ? data.array_data[a] : constant {});
-
-				if (a < data_type.array_length - 1)
-					s += ", ";
+				s += ", ";
 			}
+
+			// Remove trailing ", "
+			s.erase(s.size() - 2);
 
 			s += " }";
 			return;
@@ -532,7 +535,7 @@ private:
 		if (!data_type.is_scalar())
 			write_type<false, false>(s, data_type), s += '(';
 
-		for (unsigned int i = 0, components = data_type.components(); i < components; ++i)
+		for (unsigned int i = 0; i < data_type.components(); ++i)
 		{
 			switch (data_type.base)
 			{
@@ -568,9 +571,11 @@ private:
 				assert(false);
 			}
 
-			if (i < components - 1)
-				s += ", ";
+			s += ", ";
 		}
+
+		// Remove trailing ", "
+		s.erase(s.size() - 2);
 
 		if (!data_type.is_scalar())
 			s += ')';
@@ -1075,10 +1080,8 @@ private:
 		write_type(code, info.return_type);
 		code += ' ' + id_to_name(info.definition) + '(';
 
-		for (size_t i = 0, num_params = info.parameter_list.size(); i < num_params; ++i)
+		for (member_type &param : info.parameter_list)
 		{
-			member_type &param = info.parameter_list[i];
-
 			param.definition = make_id();
 			define_name<naming::unique>(param.definition, param.name);
 
@@ -1094,9 +1097,12 @@ private:
 			if (!param.semantic.empty())
 				code += " : " + convert_semantic(param.semantic, std::max(1u, param.type.cols / 4) * std::max(1u, param.type.array_length));
 
-			if (i < num_params - 1)
-				code += ',';
+			code += ',';
 		}
+
+		// Remove trailing comma
+		if (!info.parameter_list.empty())
+			code.pop_back();
 
 		code += ')';
 
@@ -1205,7 +1211,7 @@ private:
 		std::string &code = _blocks.at(_current_block);
 
 		// Clear all color output parameters so no component is left uninitialized
-		for (member_type &param : entry_point.parameter_list)
+		for (const member_type &param : entry_point.parameter_list)
 		{
 			if (is_color_semantic(param.semantic))
 				code += '\t' + id_to_name(param.definition) + " = float4(0.0, 0.0, 0.0, 0.0);\n";
@@ -1236,9 +1242,12 @@ private:
 					code += "xyzw"[c];
 			}
 
-			if (i < num_params - 1)
-				code += ", ";
+			code += ", ";
 		}
+
+		// Remove trailing ", "
+		if (!entry_point.parameter_list.empty())
+			code.erase(code.size() - 2);
 
 		code += ')';
 
@@ -1596,13 +1605,15 @@ private:
 
 		code += id_to_name(function) + '(';
 
-		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
+		for (const expression &arg : args)
 		{
-			code += id_to_name(args[i].base);
-
-			if (i < num_args - 1)
-				code += ", ";
+			code += id_to_name(arg.base);
+			code += ", ";
 		}
+
+		// Remove trailing ", "
+		if (!args.empty())
+			code.erase(code.size() - 2);
 
 		code += ");\n";
 
@@ -1674,13 +1685,15 @@ private:
 		else
 			write_type<false, false>(code, res_type), code += '(';
 
-		for (size_t i = 0, num_args = args.size(); i < num_args; ++i)
+		for (const expression &arg : args)
 		{
-			code += id_to_name(args[i].base);
-
-			if (i < num_args - 1)
-				code += ", ";
+			code += id_to_name(arg.base);
+			code += ", ";
 		}
+
+		// Remove trailing ", "
+		if (!args.empty())
+			code.erase(code.size() - 2);
 
 		if (res_type.is_array())
 			code += " }";
