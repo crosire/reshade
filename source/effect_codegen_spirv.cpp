@@ -77,7 +77,7 @@ struct spirv_instruction
 	/// Write this instruction to a SPIR-V module.
 	/// </summary>
 	/// <param name="output">The output stream to append this instruction to.</param>
-	void write(std::vector<char> &output) const
+	void write(std::basic_string<char> &output) const
 	{
 		// See https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html
 		// 0             | Opcode: The 16 high-order bits are the WordCount of the instruction. The 16 low-order bits are the opcode enumerant.
@@ -104,7 +104,7 @@ struct spirv_instruction
 			write_word(output, operand);
 	}
 
-	static void write_word(std::vector<char> &output, uint32_t word)
+	static void write_word(std::basic_string<char> &output, uint32_t word)
 	{
 		output.insert(output.end(), reinterpret_cast<const char *>(&word), reinterpret_cast<const char *>(&word + 1));
 	}
@@ -259,7 +259,7 @@ private:
 		return block.instructions.emplace_back(op);
 	}
 
-	void finalize_header_section(std::vector<char> &spirv) const
+	void finalize_header_section(std::basic_string<char> &spirv) const
 	{
 		// Write SPIRV header info
 		spirv_instruction::write_word(spirv, spv::MagicNumber);
@@ -289,7 +289,7 @@ private:
 			.add(spv::MemoryModelGLSL450)
 			.write(spirv);
 	}
-	void finalize_debug_info_section(std::vector<char> &spirv) const
+	void finalize_debug_info_section(std::basic_string<char> &spirv) const
 	{
 		spirv_instruction(spv::OpSource)
 			.add(spv::SourceLanguageUnknown) // ReShade FX is not a reserved token at the moment
@@ -305,7 +305,7 @@ private:
 				inst.write(spirv);
 		}
 	}
-	void finalize_type_and_constants_section(std::vector<char> &spirv) const
+	void finalize_type_and_constants_section(std::basic_string<char> &spirv) const
 	{
 		// All type declarations
 		for (const spirv_instruction &inst : _types_and_constants.instructions)
@@ -330,9 +330,9 @@ private:
 			.write(spirv);
 	}
 
-	std::vector<char> finalize_code() const override
+	std::basic_string<char> finalize_code() const override
 	{
-		std::vector<char> spirv;
+		std::basic_string<char> spirv;
 		finalize_header_section(spirv);
 
 		// All entry point declarations
@@ -375,7 +375,7 @@ private:
 
 		return spirv;
 	}
-	std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
+	std::basic_string<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
 		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
 			[&entry_point_name](const std::unique_ptr<function> &func) {
@@ -398,7 +398,7 @@ private:
 				variables_to_remove.push_back(info.id);
 #endif
 
-		std::vector<char> spirv;
+		std::basic_string<char> spirv;
 		finalize_header_section(spirv);
 
 		// The entry point and execution mode declaration

@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	std::vector<char> code = backend->finalize_code();
+	std::basic_string<char> code = backend->finalize_code();
 
 	if (print_glsl || print_hlsl)
 	{

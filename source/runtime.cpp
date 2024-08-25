@@ -1740,10 +1740,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		// Write result to effect module
 		effect.module = codegen->module();
 		if (_device->get_api() != api::device_api::vulkan)
-		{
-			std::vector<char> generated_code = codegen->finalize_code();
-			effect.generated_code.assign(generated_code.data(), generated_code.size());
-		}
+			effect.generated_code = codegen->finalize_code();
 
 		if (effect.compiled)
 		{
@@ -1910,8 +1907,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					}
 
 					hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point.first);
-					hlsl.append(code.data(), code.size());
+					hlsl += codegen->finalize_code_for_entry_point(entry_point.first);
 
 					std::string profile;
 					switch (entry_point.second)
@@ -2050,9 +2046,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 				else
 				{
-					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point.first);
-					cso.resize(code.size());
-					std::memcpy(cso.data(), code.data(), code.size());
+					cso = codegen->finalize_code_for_entry_point(entry_point.first);
 
 					if (_renderer_id < 0x20000)
 					{

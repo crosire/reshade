@@ -32,12 +32,12 @@ namespace reshadefx
 		/// <summary>
 		/// Finalizes and returns the generated code for the entire module (all entry points).
 		/// </summary>
-		virtual std::vector<char> finalize_code() const = 0;
+		virtual std::basic_string<char> finalize_code() const = 0;
 		/// <summary>
 		/// Finalizes and returns the generated code for the specified entry point (and no other entry points).
 		/// </summary>
 		/// <param name="entry_point_name">Name of the entry point function to generate code for.</param>
-		virtual std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const = 0;
+		virtual std::basic_string<char> finalize_code_for_entry_point(const std::string &entry_point_name) const = 0;
 
 	protected:
 		/// <summary>

@@ -128,58 +128,37 @@ private:
 		return preamble;
 	}
 
-	std::vector<char> finalize_code() const override
+	std::string finalize_code() const override
 	{
-		std::string preamble = finalize_preamble();
-
-		std::vector<char> code;
-		code.assign(preamble.begin(), preamble.end());
-		preamble.clear();
+		std::string code = finalize_preamble();
 
 		// Add sampler definitions
 		for (const sampler &info : _module.samplers)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+			code += _blocks.at(info.id);
 
 		// Add storage definitions
 		for (const storage &info : _module.storages)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+			code += _blocks.at(info.id);
 
 		// Add global definitions (struct types, global variables, ...)
-		{
-			const std::string &block_code = _blocks.at(0);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+		code += _blocks.at(0);
 
 		// Add function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
 			const bool is_entry_point = func->unique_name[0] == 'E';
+			if (is_entry_point)
+				code += "#ifdef " + func->unique_name + '\n';
+
+			code += _blocks.at(func->definition);
 
 			if (is_entry_point)
-			{
-				const std::string ifdef_code = "#ifdef " + func->unique_name + '\n';
-				code.insert(code.end(), ifdef_code.begin(), ifdef_code.end());
-			}
-
-			const std::string &block_code = _blocks.at(func->definition);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-
-			if (is_entry_point)
-			{
-				const std::string endif_code = "#endif\n";
-				code.insert(code.end(), endif_code.begin(), endif_code.end());
-			}
+				code += "#endif\n";
 		}
 
 		return code;
 	}
-	std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
+	std::string finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
 		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
 			[&entry_point_name](const std::unique_ptr<function> &func) {
@@ -189,10 +168,10 @@ private:
 			return {};
 		const function &entry_point = *entry_point_it->get();
 
-		std::string preamble = finalize_preamble();
+		std::string code = finalize_preamble();
 
 		if (entry_point.type != shader_type::pixel)
-			preamble +=
+			code +=
 				// OpenGL does not allow using 'discard' in the vertex shader profile
 				"#define discard\n"
 				// 'dFdx', 'dFdx' and 'fwidth' too are only available in fragment shaders
@@ -201,7 +180,7 @@ private:
 				"#define fwidth(p) p\n";
 
 		if (entry_point.type != shader_type::compute)
-			preamble +=
+			code +=
 				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
 				"#define shared\n"
 				"#define atomicAdd(a, b) a\n"
@@ -216,10 +195,6 @@ private:
 				"#define barrier()\n"
 				"#define memoryBarrier()\n"
 				"#define groupMemoryBarrier()\n";
-
-		std::vector<char> code;
-		code.assign(preamble.begin(), preamble.end());
-		preamble.clear();
 
 		const auto replace_binding =
 			[](std::string &code, uint32_t binding) {
@@ -236,7 +211,7 @@ private:
 
 			std::string block_code = _blocks.at(entry_point.referenced_samplers[binding]);
 			replace_binding(block_code, binding);
-			code.insert(code.end(), block_code.begin(), block_code.end());
+			code += block_code;
 		}
 
 		// Add referenced storage definitions
@@ -247,14 +222,11 @@ private:
 
 			std::string block_code = _blocks.at(entry_point.referenced_storages[binding]);
 			replace_binding(block_code, binding);
-			code.insert(code.end(), block_code.begin(), block_code.end());
+			code += block_code;
 		}
 
 		// Add global definitions (struct types, global variables, ...)
-		{
-			const std::string &main_block = _blocks.at(0);
-			code.insert(code.end(), main_block.begin(), main_block.end());
-		}
+		code += _blocks.at(0);
 
 		// Add referenced function definitions
 		for (const std::unique_ptr<function> &func : _functions)
@@ -263,8 +235,7 @@ private:
 				std::find(entry_point.referenced_functions.begin(), entry_point.referenced_functions.end(), func->definition) == entry_point.referenced_functions.end())
 				continue;
 
-			const std::string &block_code = _blocks.at(func->definition);
-			code.insert(code.end(), block_code.begin(), block_code.end());
+			code += _blocks.at(func->definition);
 		}
 
 		return code;

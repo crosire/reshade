@@ -276,44 +276,28 @@ private:
 		return preamble;
 	}
 
-	std::vector<char> finalize_code() const override
+	std::string finalize_code() const override
 	{
-		std::string preamble = finalize_preamble();
-
-		std::vector<char> code;
-		code.assign(preamble.begin(), preamble.end());
-		preamble.clear();
+		std::string code = finalize_preamble();
 
 		// Add global definitions (struct types, global variables, sampler state declarations, ...)
-		{
-			const std::string &block_code = _blocks.at(0);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+		code += _blocks.at(0);
 
 		// Add texture and sampler definitions
 		for (const sampler &info : _module.samplers)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+			code += _blocks.at(info.id);
 
 		// Add storage definitions
 		for (const storage &info : _module.storages)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+			code += _blocks.at(info.id);
 
 		// Add function definitions
 		for (const std::unique_ptr<function> &func : _functions)
-		{
-			const std::string &block_code = _blocks.at(func->definition);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+			code += _blocks.at(func->definition);
 
 		return code;
 	}
-	std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
+	std::string finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
 		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
 			[&entry_point_name](const std::unique_ptr<function> &func) {
@@ -323,21 +307,14 @@ private:
 			return {};
 		const function &entry_point = *entry_point_it->get();
 
-		std::string preamble = finalize_preamble();
+		std::string code = finalize_preamble();
 
 		if (_shader_model < 40 && entry_point.type == shader_type::pixel)
 			// Overwrite position semantic in pixel shaders
-			preamble += "#define POSITION VPOS\n";
-
-		std::vector<char> code;
-		code.assign(preamble.begin(), preamble.end());
-		preamble.clear();
+			code += "#define POSITION VPOS\n";
 
 		// Add global definitions (struct types, global variables, sampler state declarations, ...)
-		{
-			const std::string &block_code = _blocks.at(0);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
+		code += _blocks.at(0);
 
 		const auto replace_binding =
 			[](std::string &code, uint32_t binding) {
@@ -354,7 +331,7 @@ private:
 
 			std::string block_code = _blocks.at(entry_point.referenced_samplers[binding]);
 			replace_binding(block_code, binding);
-			code.insert(code.end(), block_code.begin(), block_code.end());
+			code += block_code;
 		}
 
 		// Add referenced storage definitions
@@ -365,7 +342,7 @@ private:
 
 			std::string block_code = _blocks.at(entry_point.referenced_storages[binding]);
 			replace_binding(block_code, binding);
-			code.insert(code.end(), block_code.begin(), block_code.end());
+			code += block_code;
 		}
 
 		// Add referenced function definitions
@@ -375,8 +352,7 @@ private:
 				std::find(entry_point.referenced_functions.begin(), entry_point.referenced_functions.end(), func->definition) == entry_point.referenced_functions.end())
 				continue;
 
-			const std::string &block_code = _blocks.at(func->definition);
-			code.insert(code.end(), block_code.begin(), block_code.end());
+			code += _blocks.at(func->definition);
 		}
 
 		return code;
