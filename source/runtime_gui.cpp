@@ -2862,9 +2862,9 @@ void reshade::runtime::draw_gui_statistics()
 					pass_name = tech.name + ' ' + pass_name;
 
 					bool referenced = false;
-					for (const reshadefx::sampler &sampler : tech.passes[pass_index].samplers)
+					for (const reshadefx::texture_binding &binding : tech.passes[pass_index].texture_bindings)
 					{
-						if (sampler.texture_name == tex.unique_name)
+						if (binding.texture_name == tex.unique_name)
 						{
 							referenced = true;
 							reference.second.emplace_back(pass_name + " (sampler)");
@@ -2872,9 +2872,9 @@ void reshade::runtime::draw_gui_statistics()
 						}
 					}
 
-					for (const reshadefx::storage &storage : tech.passes[pass_index].storages)
+					for (const reshadefx::storage_binding &binding : tech.passes[pass_index].storage_bindings)
 					{
-						if (storage.texture_name == tex.unique_name)
+						if (binding.texture_name == tex.unique_name)
 						{
 							referenced = true;
 							reference.second.emplace_back(pass_name + " (storage)");

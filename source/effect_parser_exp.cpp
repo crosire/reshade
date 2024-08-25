@@ -7,6 +7,8 @@
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
 #include <cassert>
+#include <iterator> // std::back_inserter
+#include <algorithm> // std::lower_bound, std::set_union
 
 #define RESHADEFX_SHORT_CIRCUIT 0
 
@@ -1098,14 +1100,26 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				}
 			}
 
-			if (_current_function != nullptr && symbol.op == symbol_type::function)
+			if (_codegen->_current_function != nullptr && symbol.op == symbol_type::function)
 			{
 				// Calling a function makes the caller inherit all sampler and storage object references from the callee
-				_current_function->referenced_samplers.insert(symbol.function->referenced_samplers.begin(), symbol.function->referenced_samplers.end());
-				_current_function->referenced_storages.insert(symbol.function->referenced_storages.begin(), symbol.function->referenced_storages.end());
+				if (!symbol.function->referenced_samplers.empty())
+				{
+					std::vector<codegen::id> referenced_samplers;
+					referenced_samplers.reserve(_codegen->_current_function->referenced_samplers.size() + symbol.function->referenced_samplers.size());
+					std::set_union(_codegen->_current_function->referenced_samplers.begin(), _codegen->_current_function->referenced_samplers.end(), symbol.function->referenced_samplers.begin(), symbol.function->referenced_samplers.end(), std::back_inserter(referenced_samplers));
+					_codegen->_current_function->referenced_samplers = std::move(referenced_samplers);
+				}
+				if (!symbol.function->referenced_storages.empty())
+				{
+					std::vector<codegen::id> referenced_storages;
+					referenced_storages.reserve(_codegen->_current_function->referenced_storages.size() + symbol.function->referenced_storages.size());
+					std::set_union(_codegen->_current_function->referenced_storages.begin(), _codegen->_current_function->referenced_storages.end(), symbol.function->referenced_storages.begin(), symbol.function->referenced_storages.end(), std::back_inserter(referenced_storages));
+					_codegen->_current_function->referenced_storages = std::move(referenced_storages);
+				}
 
-				_current_function->referenced_functions.insert(symbol.function->definition);
-				_current_function->referenced_functions.insert(symbol.function->referenced_functions.begin(), symbol.function->referenced_functions.end());
+				_codegen->_current_function->referenced_functions.insert(symbol.id);
+				_codegen->_current_function->referenced_functions.insert(symbol.function->referenced_functions.begin(), symbol.function->referenced_functions.end());
 			}
 		}
 		else if (symbol.op == symbol_type::invalid)
@@ -1120,16 +1134,24 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Simply return the pointer to the variable, dereferencing is done on site where necessary
 			exp.reset_to_lvalue(location, symbol.id, symbol.type);
 
-			if (_current_function != nullptr &&
+			if (_codegen->_current_function != nullptr &&
 				symbol.scope.level == symbol.scope.namespace_level &&
 				// Ignore invalid symbols that were added during error recovery
 				symbol.id != 0xFFFFFFFF)
 			{
 				// Keep track of any global sampler or storage objects referenced in the current function
 				if (symbol.type.is_sampler())
-					_current_function->referenced_samplers.insert(symbol.id);
+				{
+					const auto it = std::lower_bound(_codegen->_current_function->referenced_samplers.begin(), _codegen->_current_function->referenced_samplers.end(), symbol.id);
+					if (it == _codegen->_current_function->referenced_samplers.end() || *it != symbol.id)
+						_codegen->_current_function->referenced_samplers.insert(it, symbol.id);
+				}
 				if (symbol.type.is_storage())
-					_current_function->referenced_storages.insert(symbol.id);
+				{
+					const auto it = std::lower_bound(_codegen->_current_function->referenced_storages.begin(), _codegen->_current_function->referenced_storages.end(), symbol.id);
+					if (it == _codegen->_current_function->referenced_storages.end() || *it != symbol.id)
+						_codegen->_current_function->referenced_storages.insert(it, symbol.id);
+				}
 			}
 		}
 		else if (symbol.op == symbol_type::constant)

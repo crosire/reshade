@@ -43,6 +43,9 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 			parse_success = false;
 	}
 
+	if (parse_success)
+		backend->optimize_bindings();
+
 	return parse_success;
 }
 
@@ -298,7 +301,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 	// Most statements with the exception of declarations are only valid inside functions
 	if (_codegen->is_in_function())
 	{
-		assert(_current_function != nullptr);
+		assert(_codegen->_current_function != nullptr);
 
 		const location statement_location = _token_next.location;
 
@@ -787,7 +790,7 @@ bool reshadefx::parser::parse_statement(bool scoped)
 
 		if (accept(tokenid::return_))
 		{
-			const type &return_type = _current_function->return_type;
+			const type &return_type = _codegen->_current_function->return_type;
 
 			if (!peek(';'))
 			{
@@ -1230,20 +1233,20 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 	info.num_threads[0] = num_threads[0];
 	info.num_threads[1] = num_threads[1];
 	info.num_threads[2] = num_threads[2];
-	_current_function = &info;
 
 	bool parse_success = true;
 	bool expect_parenthesis = true;
 
 	// Enter function scope (and leave it again when parsing this function finished)
 	scope_guard _(
-		[this]() {
+		[this, &info]() {
+			_codegen->_current_function = &info;
 			enter_scope();
 		},
 		[this]() {
 			leave_scope();
 			_codegen->leave_function();
-			_current_function = nullptr;
+			_codegen->_current_function = nullptr;
 		});
 
 	while (!peek(')'))
@@ -1439,7 +1442,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 
 	// Insert the function and parameter symbols into the symbol table and update current function pointer to the permanent one
 	symbol symbol = { symbol_type::function, id, { type::t_function } };
-	symbol.function = _current_function = &_codegen->get_function(id);
+	symbol.function = _codegen->_current_function = &_codegen->get_function(id);
 
 	if (!insert_symbol(name, symbol, true))
 	{
@@ -1736,7 +1739,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 					if (type.is_sampler() || type.is_storage())
 					{
-						struct texture &target_info = _codegen->get_texture(property_exp.base);
+						texture &target_info = _codegen->get_texture(property_exp.base);
 						if (type.is_storage())
 							// Texture is used as storage
 							target_info.storage_access = true;
@@ -2209,7 +2212,7 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 					}
 					else
 					{
-						struct texture &target_info = _codegen->get_texture(symbol.id);
+						texture &target_info = _codegen->get_texture(symbol.id);
 
 						if (target_info.semantic.empty())
 						{
@@ -2404,11 +2407,6 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 				warning(pass_location, 3089, "pass is specifying both 'VertexShader' and 'ComputeShader' which cannot be used together");
 			if (!info.ps_entry_point.empty())
 				warning(pass_location, 3089, "pass is specifying both 'PixelShader' and 'ComputeShader' which cannot be used together");
-
-			for (codegen::id id : cs_info.referenced_samplers)
-				info.samplers.push_back(_codegen->get_sampler(id));
-			for (codegen::id id : cs_info.referenced_storages)
-				info.storages.push_back(_codegen->get_storage(id));
 		}
 		else
 		{
@@ -2489,15 +2487,17 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 				}
 			}
 
-			std::unordered_set<uint32_t> referenced_samplers = std::move(vs_info.referenced_samplers);
-			referenced_samplers.insert(ps_info.referenced_samplers.begin(), ps_info.referenced_samplers.end());
-			for (codegen::id id : referenced_samplers)
+			for (codegen::id id : vs_info.referenced_samplers)
 			{
 				const sampler &sampler = _codegen->get_sampler(id);
 				if (std::find(std::begin(info.render_target_names), std::end(info.render_target_names), sampler.texture_name) != std::end(info.render_target_names))
 					error(pass_location, 3020, '\'' + sampler.texture_name + "': cannot sample from texture that is also used as render target in the same pass");
-
-				info.samplers.push_back(sampler);
+			}
+			for (codegen::id id : ps_info.referenced_samplers)
+			{
+				const sampler &sampler = _codegen->get_sampler(id);
+				if (std::find(std::begin(info.render_target_names), std::end(info.render_target_names), sampler.texture_name) != std::end(info.render_target_names))
+					error(pass_location, 3020, '\'' + sampler.texture_name + "': cannot sample from texture that is also used as render target in the same pass");
 			}
 
 			if (!vs_info.referenced_storages.empty() || !ps_info.referenced_storages.empty())
@@ -2516,4 +2516,252 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 	}
 
 	return expect('}') && parse_success;
+}
+
+void reshadefx::codegen::optimize_bindings()
+{
+	struct sampler_group
+	{
+		std::vector<id> bindings;
+		function *grouped_entry_point = nullptr;
+	};
+	struct entry_point_info
+	{
+		std::vector<sampler_group> sampler_groups;
+
+		static void compare_and_update_bindings(std::unordered_map<function *, entry_point_info> &per_entry_point, sampler_group &a, sampler_group &b, size_t binding)
+		{
+			for (; binding < std::min(a.bindings.size(), b.bindings.size()); ++binding)
+			{
+				if (a.bindings[binding] != b.bindings[binding])
+				{
+					if (a.bindings[binding] == 0)
+					{
+						b.bindings.insert(b.bindings.begin() + binding, 0);
+
+						if (b.grouped_entry_point != nullptr)
+							for (sampler_group &c : per_entry_point.at(b.grouped_entry_point).sampler_groups)
+								compare_and_update_bindings(per_entry_point, b, c, binding);
+						continue;
+					}
+
+					if (b.bindings[binding] == 0)
+					{
+						a.bindings.insert(a.bindings.begin() + binding, 0);
+
+						if (a.grouped_entry_point != nullptr)
+							for (sampler_group &c : per_entry_point.at(a.grouped_entry_point).sampler_groups)
+								compare_and_update_bindings(per_entry_point, a, c, binding);
+						continue;
+					}
+				}
+			}
+		}
+	};
+
+	std::unordered_map<function *, entry_point_info> per_entry_point;
+	for (const auto &[name, type] : _module.entry_points)
+	{
+		per_entry_point.emplace(&get_function(name), entry_point_info {});
+	}
+
+	std::unordered_map<id, int> usage_count;
+	for (const auto &[entry_point, entry_point_info] : per_entry_point)
+	{
+		for (const id sampler_id : entry_point->referenced_samplers)
+			usage_count[sampler_id]++;
+		for (const id storage_id : entry_point->referenced_storages)
+			usage_count[storage_id]++;
+	}
+
+	// First sort bindings by usage and for each pass arrange them so that VS and PS use matching bindings for the objects they use (so that the same bindings can be used for both entry points).
+	// If the entry points VS1 and PS1 use the following objects A, B and C:
+	//   - VS1: A B
+	//   - PS1: B C
+	// Then this generates the following bindings:
+	//   - VS1: C A
+	//   - PS1: C 0 B
+
+	const auto usage_pred =
+		[&](const id lhs, const id rhs) {
+			return usage_count.at(lhs) > usage_count.at(rhs) || (usage_count.at(lhs) == usage_count.at(rhs) && lhs < rhs);
+		};
+
+	for (const auto &[entry_point, entry_point_info] : per_entry_point)
+	{
+		std::sort(entry_point->referenced_samplers.begin(), entry_point->referenced_samplers.end(), usage_pred);
+		std::sort(entry_point->referenced_storages.begin(), entry_point->referenced_storages.end(), usage_pred);
+	}
+
+	for (const technique &tech : _module.techniques)
+	{
+		for (const pass &pass : tech.passes)
+		{
+			if (!pass.cs_entry_point.empty())
+			{
+				function &cs = get_function(pass.cs_entry_point);
+
+				sampler_group cs_sampler_info;
+				cs_sampler_info.bindings = cs.referenced_samplers;
+				per_entry_point.at(&cs).sampler_groups.push_back(std::move(cs_sampler_info));
+			}
+			else
+			{
+				function &vs = get_function(pass.vs_entry_point);
+
+				sampler_group vs_sampler_info;
+				vs_sampler_info.bindings = vs.referenced_samplers;
+
+				if (!pass.ps_entry_point.empty())
+				{
+					function &ps = get_function(pass.ps_entry_point);
+
+					vs_sampler_info.grouped_entry_point = &ps;
+
+					sampler_group ps_sampler_info;
+					ps_sampler_info.bindings = ps.referenced_samplers;
+					ps_sampler_info.grouped_entry_point = &vs;
+
+					for (size_t binding = 0; binding < std::min(vs_sampler_info.bindings.size(), ps_sampler_info.bindings.size()); ++binding)
+					{
+						if (vs_sampler_info.bindings[binding] != ps_sampler_info.bindings[binding])
+						{
+							if (usage_pred(vs_sampler_info.bindings[binding], ps_sampler_info.bindings[binding]))
+								ps_sampler_info.bindings.insert(ps_sampler_info.bindings.begin() + binding, 0);
+							else
+								vs_sampler_info.bindings.insert(vs_sampler_info.bindings.begin() + binding, 0);
+						}
+					}
+
+					per_entry_point.at(&ps).sampler_groups.push_back(std::move(ps_sampler_info));
+				}
+
+				per_entry_point.at(&vs).sampler_groups.push_back(std::move(vs_sampler_info));
+			}
+		}
+	}
+
+	// Next walk through all entry point groups and shift bindings as needed so that there are no mismatches across passes.
+	// If the entry points VS1, PS1 and PS2 use the following bindings (notice the mismatches of VS1 between pass 0 and pass 1, as well as PS2 between pass 1 and pass 2):
+	//   - pass 0
+	//     - VS1: C A
+	//     - PS1: C 0 B
+	//   - pass 1
+	//     - VS1: C 0 A
+	//     - PS2: 0 D A
+	//   - pass 2
+	//     - VS2: D
+	//     - PS2: D A
+	// Then this generates the following final bindings:
+	//   - pass 0
+	//     - VS1: C 0 A
+	//     - PS1: C 0 B
+	//   - pass 1
+	//     - VS1: C 0 A
+	//     - PS2: 0 D A
+	//   - pass 2
+	//     - VS2: 0 D
+	//     - PS2: 0 D A
+
+	for (auto &[entry_point, entry_point_info] : per_entry_point)
+	{
+		while (entry_point_info.sampler_groups.size() > 1)
+		{
+			entry_point_info::compare_and_update_bindings(per_entry_point, entry_point_info.sampler_groups[0], entry_point_info.sampler_groups[1], 0);
+			entry_point_info.sampler_groups.erase(entry_point_info.sampler_groups.begin() + 1);
+		}
+	}
+
+	for (auto &[entry_point, entry_point_info] : per_entry_point)
+	{
+		if (entry_point_info.sampler_groups.empty())
+			continue;
+
+		entry_point->referenced_samplers = std::move(entry_point_info.sampler_groups[0].bindings);
+	}
+
+	// Finally apply the generated bindings to all passes
+
+	for (technique &tech : _module.techniques)
+	{
+		for (pass &pass : tech.passes)
+		{
+			std::vector<id> referenced_samplers;
+			std::vector<id> referenced_storages;
+
+			if (!pass.cs_entry_point.empty())
+			{
+				const function &cs = get_function(pass.cs_entry_point);
+
+				referenced_samplers = cs.referenced_samplers;
+				referenced_storages = cs.referenced_storages;
+			}
+			else
+			{
+				const function &vs = get_function(pass.vs_entry_point);
+
+				referenced_samplers = vs.referenced_samplers;
+
+				if (!pass.ps_entry_point.empty())
+				{
+					const function &ps = get_function(pass.ps_entry_point);
+
+					if (ps.referenced_samplers.size() > referenced_samplers.size())
+						referenced_samplers.resize(ps.referenced_samplers.size());
+
+					for (uint32_t binding = 0; binding < ps.referenced_samplers.size(); ++binding)
+						if (ps.referenced_samplers[binding] != 0)
+							referenced_samplers[binding] = ps.referenced_samplers[binding];
+				}
+			}
+
+			for (uint32_t binding = 0; binding < referenced_samplers.size(); ++binding)
+			{
+				if (referenced_samplers[binding] == 0)
+					continue;
+
+				const sampler &sampler = get_sampler(referenced_samplers[binding]);
+
+				texture_binding t;
+				t.texture_name = sampler.texture_name;
+				t.binding = binding;
+				t.srgb = sampler.srgb;
+				pass.texture_bindings.push_back(std::move(t));
+
+				if (binding >= _module.num_texture_bindings)
+					_module.num_texture_bindings = binding + 1;
+
+				sampler_binding s;
+				s.binding = binding;
+				s.filter = sampler.filter;
+				s.address_u = sampler.address_u;
+				s.address_v = sampler.address_v;
+				s.address_w = sampler.address_w;
+				s.min_lod = sampler.min_lod;
+				s.max_lod = sampler.max_lod;
+				s.lod_bias = sampler.lod_bias;
+				pass.sampler_bindings.push_back(std::move(s));
+
+				if (binding >= _module.num_sampler_bindings)
+					_module.num_sampler_bindings = binding + 1;
+			}
+
+			for (uint32_t binding = 0; binding < referenced_storages.size(); ++binding)
+			{
+				if (referenced_storages[binding] == 0)
+					continue;
+
+				const storage &storage = get_storage(referenced_storages[binding]);
+
+				storage_binding u;
+				u.texture_name = storage.texture_name;
+				u.binding = binding;
+				u.level = storage.level;
+				pass.storage_bindings.push_back(std::move(u));
+
+				if (binding >= _module.num_storage_bindings)
+					_module.num_storage_bindings = binding + 1;
+			}
+		}
+	}
 }

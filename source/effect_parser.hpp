@@ -83,6 +83,5 @@ namespace reshadefx
 
 		std::vector<uint32_t> _loop_break_target_stack;
 		std::vector<uint32_t> _loop_continue_target_stack;
-		reshadefx::function *_current_function = nullptr;
 	};
 }

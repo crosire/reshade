@@ -98,13 +98,22 @@ namespace reshadefx
 	struct texture : texture_desc
 	{
 		uint32_t id = 0;
-		uint32_t binding = 0;
 		std::string name;
 		std::string semantic;
 		std::string unique_name;
 		std::vector<annotation> annotations;
 		bool render_target = false;
 		bool storage_access = false;
+	};
+
+	/// <summary>
+	/// Describes the binding of a <see cref="texture"/> object.
+	/// </summary>
+	struct texture_binding
+	{
+		uint32_t binding = 0;
+		std::string texture_name;
+		bool srgb = false;
 	};
 
 	/// <summary>
@@ -154,14 +163,20 @@ namespace reshadefx
 	struct sampler : sampler_desc
 	{
 		uint32_t id = 0;
-		uint32_t binding = 0;
-		uint32_t texture_binding = 0;
 		reshadefx::type type = {};
 		std::string name;
 		std::string unique_name;
 		std::string texture_name;
 		std::vector<annotation> annotations;
 		bool srgb = false;
+	};
+
+	/// <summary>
+	/// Describes the binding of a <see cref="sampler"/> object.
+	/// </summary>
+	struct sampler_binding : sampler_desc
+	{
+		uint32_t binding = 0;
 	};
 
 	/// <summary>
@@ -178,10 +193,18 @@ namespace reshadefx
 	struct storage : storage_desc
 	{
 		uint32_t id = 0;
-		uint32_t binding = 0;
 		reshadefx::type type = {};
 		std::string name;
 		std::string unique_name;
+		std::string texture_name;
+	};
+
+	/// <summary>
+	/// Describes the binding of a <see cref="storage"/> object.
+	/// </summary>
+	struct storage_binding : storage_desc
+	{
+		uint32_t binding = 0;
 		std::string texture_name;
 	};
 
@@ -223,8 +246,8 @@ namespace reshadefx
 		std::vector<member_type> parameter_list;
 		shader_type type = shader_type::unknown;
 		int num_threads[3] = {};
-		std::unordered_set<uint32_t> referenced_samplers;
-		std::unordered_set<uint32_t> referenced_storages;
+		std::vector<uint32_t> referenced_samplers;
+		std::vector<uint32_t> referenced_storages;
 		std::unordered_set<uint32_t> referenced_functions;
 	};
 
@@ -333,8 +356,11 @@ namespace reshadefx
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;
 		uint32_t viewport_dispatch_z = 1;
-		std::vector<sampler> samplers;
-		std::vector<storage> storages;
+
+		// Bindings specific for the code generation target (in case of combined texture and sampler, 'texture_bindings' and 'sampler_bindings' will be the same size and point to the same bindings, otherwise they are independent)
+		std::vector<texture_binding> texture_bindings;
+		std::vector<sampler_binding> sampler_bindings;
+		std::vector<storage_binding> storage_bindings;
 	};
 
 	/// <summary>

@@ -1910,7 +1910,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					}
 
 					hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point);
+					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point.first);
 					hlsl.append(code.data(), code.size());
 
 					std::string profile;
@@ -2051,7 +2051,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 				else
 				{
-					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point);
+					std::vector<char> code = codegen->finalize_code_for_entry_point(entry_point.first);
 					cso.resize(code.size());
 					std::memcpy(cso.data(), code.data(), code.size());
 
@@ -2153,10 +2153,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 								new_texture.unique_name, existing_texture->unique_name);
 
-							for (reshadefx::sampler &sampler_info : pass_info.samplers)
-								if (sampler_info.texture_name == new_texture.unique_name)
-									sampler_info.texture_name = existing_texture->unique_name;
-							for (reshadefx::storage &storage_info : pass_info.storages)
+							for (reshadefx::texture_binding &texture_info : pass_info.texture_bindings)
+								if (texture_info.texture_name == new_texture.unique_name)
+									texture_info.texture_name = existing_texture->unique_name;
+							for (reshadefx::storage_binding &storage_info : pass_info.storage_bindings)
 								if (storage_info.texture_name == new_texture.unique_name)
 									storage_info.texture_name = existing_texture->unique_name;
 						}
@@ -2270,14 +2270,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	layout_ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
 	layout_ranges[1].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
-	layout_ranges[2].binding = 0;
-	layout_ranges[2].dx_register_index = 0; // t#
-	layout_ranges[2].dx_register_space = 0;
-	layout_ranges[2].count = effect.module.num_texture_bindings;
-	layout_ranges[2].array_size = 1;
-	layout_ranges[2].type = api::descriptor_type::shader_resource_view;
-	layout_ranges[2].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
-
 	layout_ranges[3].binding = 0;
 	layout_ranges[3].dx_register_index = 0; // u#
 	layout_ranges[3].dx_register_space = 0;
@@ -2303,6 +2295,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 	else
 	{
+		layout_ranges[2].binding = 0;
+		layout_ranges[2].dx_register_index = 0; // t#
+		layout_ranges[2].dx_register_space = 0;
+		layout_ranges[2].count = effect.module.num_texture_bindings;
+		layout_ranges[2].array_size = 1;
+		layout_ranges[2].type = api::descriptor_type::shader_resource_view;
+		layout_ranges[2].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
+
 		layout_params[2].type = api::pipeline_layout_param_type::descriptor_table;
 		layout_params[2].descriptor_table.count = 1;
 		layout_params[2].descriptor_table.ranges = &layout_ranges[2];
@@ -2321,8 +2321,6 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	api::buffer_range cb_range = {};
 	std::vector<api::descriptor_table_update> descriptor_writes;
 	descriptor_writes.reserve(effect.module.num_sampler_bindings + effect.module.num_texture_bindings + effect.module.num_storage_bindings + 1);
-	std::vector<api::sampler_with_resource_view> sampler_descriptors;
-	sampler_descriptors.resize(effect.module.num_sampler_bindings + effect.module.num_texture_bindings);
 
 	// Create global constant buffer (except in D3D9, which does not have constant buffers)
 	if (_renderer_id != 0x9000 && !effect.uniform_data_storage.empty())
@@ -2361,6 +2359,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	std::vector<api::descriptor_table> texture_tables(total_pass_count);
 	std::vector<api::descriptor_table> storage_tables(total_pass_count);
 
+	uint16_t sampler_list = 0;
+	std::vector<api::sampler_with_resource_view> sampler_descriptors;
+	sampler_descriptors.resize(std::max(effect.module.num_sampler_bindings, effect.module.num_texture_bindings) * total_pass_count);
+
 	if (effect.module.num_sampler_bindings != 0)
 	{
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_table))
@@ -2368,40 +2370,10 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			log::message(log::level::error, "Failed to create sampler descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
-
-		if (!sampler_with_resource_view)
-		{
-			uint16_t sampler_list = 0;
-			for (const reshadefx::sampler &info : effect.module.samplers)
-			{
-				// Only initialize sampler if it has not been created before
-				if (0 != (sampler_list & (1 << info.binding)))
-					continue;
-
-				assert(info.binding < 16);
-				sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
-
-				api::sampler &sampler_handle = sampler_descriptors[info.binding].sampler;
-				if (!create_effect_sampler_state(info, sampler_handle))
-				{
-					log::message(log::level::error, "Failed to create sampler object '%s' in '%s'!", info.unique_name.c_str(), effect.source_file.u8string().c_str());
-					return false;
-				}
-
-				api::descriptor_table_update &write = descriptor_writes.emplace_back();
-				write.table = effect.sampler_table;
-				write.binding = info.binding;
-				write.type = api::descriptor_type::sampler;
-				write.count = 1;
-				write.descriptors = &sampler_handle;
-			}
-		}
 	}
 
-	if (effect.module.num_texture_bindings != 0)
+	if (effect.module.num_texture_bindings != 0 && !sampler_with_resource_view)
 	{
-		assert(!sampler_with_resource_view);
-
 		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_tables.data()))
 		{
 			log::message(log::level::error, "Failed to create texture descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
@@ -2658,12 +2630,43 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 			}
 
-			if (effect.module.num_sampler_bindings != 0 ||
-				effect.module.num_texture_bindings != 0)
+			if (effect.module.num_sampler_bindings != 0)
 			{
 				pass_data.texture_table = texture_tables[total_pass_index];
 
-				for (const reshadefx::sampler &info : pass_info.samplers)
+				for (const reshadefx::sampler_binding &info : pass_info.sampler_bindings)
+				{
+					api::sampler &sampler_handle = sampler_descriptors[total_pass_index * effect.module.num_sampler_bindings + info.binding].sampler;
+
+					assert(info.binding < 16 || sampler_with_resource_view);
+
+					// Only initialize sampler if it has not been created before
+					if (sampler_with_resource_view || 0 == (sampler_list & (1 << info.binding)))
+					{
+						if (!sampler_with_resource_view)
+							sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
+
+						if (!create_effect_sampler_state(info, sampler_handle))
+						{
+							log::message(log::level::error, "Failed to create sampler object in '%s'!", effect.source_file.u8string().c_str());
+							return false;
+						}
+
+						api::descriptor_table_update &write = descriptor_writes.emplace_back();
+						write.table = sampler_with_resource_view ? pass_data.texture_table : effect.sampler_table;
+						write.count = 1;
+						write.binding = info.binding;
+						write.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
+						write.descriptors = &sampler_handle;
+					}
+				}
+			}
+
+			if (effect.module.num_texture_bindings != 0)
+			{
+				pass_data.texture_table = texture_tables[total_pass_index];
+
+				for (const reshadefx::texture_binding &info : pass_info.texture_bindings)
 				{
 					const auto sampler_texture = std::find_if(_textures.cbegin(), _textures.cend(),
 						[&unique_name = info.texture_name](const texture &item) {
@@ -2671,28 +2674,22 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						});
 					assert(sampler_texture != _textures.cend());
 
-					api::resource_view &srv = sampler_descriptors[sampler_with_resource_view ? info.binding : effect.module.num_sampler_bindings + info.texture_binding].view;
-
-					api::descriptor_table_update &write = descriptor_writes.emplace_back();
-					write.table = pass_data.texture_table;
-					write.count = 1;
+					api::resource_view &srv = sampler_descriptors[total_pass_index * effect.module.num_texture_bindings + info.binding].view;
 
 					if (sampler_with_resource_view)
 					{
-						write.binding = info.binding;
-						write.type = api::descriptor_type::sampler_with_resource_view;
-						write.descriptors = &sampler_descriptors[info.binding];
-
-						if (!create_effect_sampler_state(info, sampler_descriptors[info.binding].sampler))
-						{
-							log::message(log::level::error, "Failed to create sampler object '%s' in '%s'!", info.unique_name.c_str(), effect.source_file.u8string().c_str());
-							return false;
-						}
+						// The sampler and descriptor table update for this 'sampler_with_resource_view' descriptor were already initialized above
+						assert(
+							effect.module.num_texture_bindings == effect.module.num_sampler_bindings &&
+							sampler_descriptors[total_pass_index * effect.module.num_texture_bindings + info.binding].sampler != 0);
 					}
 					else
 					{
-						write.binding = info.texture_binding;
+						api::descriptor_table_update &write = descriptor_writes.emplace_back();
+						write.table = pass_data.texture_table;
+						write.binding = info.binding;
 						write.type = api::descriptor_type::shader_resource_view;
+						write.count = 1;
 						write.descriptors = &srv;
 					}
 
@@ -2706,9 +2703,9 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						// Keep track of the texture descriptor to simplify updating it
 						effect.texture_semantic_to_binding.push_back({
 							sampler_texture->semantic,
-							write.table,
-							write.binding,
-							sampler_with_resource_view ? sampler_descriptors[info.binding].sampler : api::sampler { 0 },
+							pass_data.texture_table,
+							info.binding,
+							sampler_with_resource_view ? sampler_descriptors[total_pass_index * effect.module.num_texture_bindings + info.binding].sampler : api::sampler { 0 },
 							info.srgb
 						});
 					}
@@ -2725,7 +2722,7 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			{
 				pass_data.storage_table = storage_tables[total_pass_index];
 
-				for (const reshadefx::storage &info : pass_info.storages)
+				for (const reshadefx::storage_binding &info : pass_info.storage_bindings)
 				{
 					const auto storage_texture = std::find_if(_textures.cbegin(), _textures.cend(),
 						[&unique_name = info.texture_name](const texture &item) {

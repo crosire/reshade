@@ -60,10 +60,25 @@ private:
 	std::string _remapped_semantics[15];
 	std::string _current_function_declaration;
 	std::vector<std::tuple<type, constant, id>> _constant_lookup;
+	std::vector<sampler_binding> _sampler_lookup;
 
 	// Only write compatibility intrinsics to result if they are actually in use
 	bool _uses_bitwise_cast = false;
 	bool _uses_bitwise_intrinsics = false;
+
+	void optimize_bindings() override
+	{
+		codegen::optimize_bindings();
+
+		if (_shader_model < 40)
+			return;
+
+		_module.num_sampler_bindings = static_cast<uint32_t>(_sampler_lookup.size());
+
+		for (technique &tech : _module.techniques)
+			for (pass &pass : tech.passes)
+				pass.sampler_bindings.assign(_sampler_lookup.begin(), _sampler_lookup.end());
+	}
 
 	std::string finalize_preamble() const
 	{
@@ -267,29 +282,27 @@ private:
 		code.assign(preamble.begin(), preamble.end());
 		preamble.clear();
 
+		// Add global definitions (struct types, global variables, sampler state declarations, ...)
 		{
 			const std::string &block_code = _blocks.at(0);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const texture &info : _module.textures)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
-
+		// Add texture and sampler definitions
 		for (const sampler &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
+		// Add storage definitions
 		for (const storage &info : _module.storages)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
+		// Add function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
 			const std::string &block_code = _blocks.at(func->definition);
@@ -298,11 +311,19 @@ private:
 
 		return code;
 	}
-	std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const override
+	std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
+		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
+			[&entry_point_name](const std::unique_ptr<function> &func) {
+				return func->unique_name == entry_point_name;
+			});
+		if (entry_point_it == _functions.end())
+			return {};
+		const function &entry_point = *entry_point_it->get();
+
 		std::string preamble = finalize_preamble();
 
-		if (_shader_model < 40 && entry_point.second == shader_type::pixel)
+		if (_shader_model < 40 && entry_point.type == shader_type::pixel)
 			// Overwrite position semantic in pixel shaders
 			preamble += "#define POSITION VPOS\n";
 
@@ -310,37 +331,46 @@ private:
 		code.assign(preamble.begin(), preamble.end());
 		preamble.clear();
 
+		// Add global definitions (struct types, global variables, sampler state declarations, ...)
 		{
 			const std::string &block_code = _blocks.at(0);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		const function &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
-			[&unique_name = entry_point.first](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
+		const auto replace_binding =
+			[](std::string &code, uint32_t binding) {
+				const size_t beg = code.find(": register(") + 12;
+				const size_t end = code.find(')', beg);
+				code.replace(beg, end - beg, std::to_string(binding));
+			};
 
-		for (const texture &info : _module.textures)
+		// Add referenced texture and sampler definitions
+		for (uint32_t binding = 0; binding < entry_point.referenced_samplers.size(); ++binding)
 		{
-			const std::string &block_code = _blocks.at(info.id);
+			if (entry_point.referenced_samplers[binding] == 0)
+				continue;
+
+			std::string block_code = _blocks.at(entry_point.referenced_samplers[binding]);
+			replace_binding(block_code, binding);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const sampler &info : _module.samplers)
+		// Add referenced storage definitions
+		for (uint32_t binding = 0; binding < entry_point.referenced_storages.size(); ++binding)
 		{
-			const std::string &block_code = _blocks.at(info.id);
+			if (entry_point.referenced_storages[binding] == 0)
+				continue;
+
+			std::string block_code = _blocks.at(entry_point.referenced_storages[binding]);
+			replace_binding(block_code, binding);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
-		for (const storage &info : _module.storages)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
-
+		// Add referenced function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
-			// Skip any unreferenced functions
-			if (entry_point_func.referenced_functions.find(func->definition) == entry_point_func.referenced_functions.end() &&
-				func->unique_name != entry_point.first)
+			if (func.get() != &entry_point &&
+				entry_point.referenced_functions.find(func->definition) == entry_point.referenced_functions.end())
 				continue;
 
 			const std::string &block_code = _blocks.at(func->definition);
@@ -796,40 +826,9 @@ private:
 
 		return info.definition;
 	}
-	id   define_texture(const location &loc, texture &info) override
+	id   define_texture(const location &, texture &info) override
 	{
-		info.id = create_block();
-		info.binding = ~0u;
-
-		define_name<naming::unique>(info.id, info.unique_name);
-
-		if (_shader_model >= 40)
-		{
-			info.binding = _module.num_texture_bindings;
-			_module.num_texture_bindings += 2;
-
-			std::string &code = _blocks.at(info.id);
-
-			write_location(code, loc);
-
-			if (_shader_model >= 60)
-				code += "[[vk::binding(" + std::to_string(info.binding + 0) + ", 2)]] "; // Descriptor set 2
-
-			code += "Texture";
-			code += to_digit(static_cast<unsigned int>(info.type));
-			code += "D<";
-			write_texture_format(code, info.format);
-			code += "> __"     + info.unique_name + " : register(t" + std::to_string(info.binding + 0) + "); \n";
-
-			if (_shader_model >= 60)
-				code += "[[vk::binding(" + std::to_string(info.binding + 1) + ", 2)]] "; // Descriptor set 2
-
-			code += "Texture";
-			code += to_digit(static_cast<unsigned int>(info.type));
-			code += "D<";
-			write_texture_format(code, info.format);
-			code += "> __srgb" + info.unique_name + " : register(t" + std::to_string(info.binding + 1) + "); \n";
-		}
+		info.id = make_id();
 
 		_module.textures.push_back(info);
 
@@ -843,10 +842,14 @@ private:
 
 		std::string &code = _blocks.at(info.id);
 
+		// Default to a register index equivalent to the entry in the sampler list (this is later overwritten in 'finalize_code_for_entry_point' to a more optimal placement)
+		const uint32_t default_binding = static_cast<uint32_t>(_module.samplers.size());
+		uint32_t sampler_state_binding = 0;
+
 		if (_shader_model >= 40)
 		{
 			// Try and reuse a sampler binding with the same sampler description
-			const auto existing_sampler_it = std::find_if(_module.samplers.begin(), _module.samplers.end(),
+			const auto existing_sampler_it = std::find_if(_sampler_lookup.begin(), _sampler_lookup.end(),
 				[&info](const sampler_desc &existing_info) {
 					return
 						existing_info.filter == info.filter &&
@@ -857,38 +860,53 @@ private:
 						existing_info.max_lod == info.max_lod &&
 						existing_info.lod_bias == info.lod_bias;
 				});
-			if (existing_sampler_it != _module.samplers.end())
+			if (existing_sampler_it != _sampler_lookup.end())
 			{
-				info.binding = existing_sampler_it->binding;
+				sampler_state_binding = existing_sampler_it->binding;
 			}
 			else
 			{
-				info.binding = _module.num_sampler_bindings++;
+				sampler_state_binding = static_cast<uint32_t>(_sampler_lookup.size());
+
+				sampler_binding s;
+				s.filter = info.filter;
+				s.address_u = info.address_u;
+				s.address_v = info.address_v;
+				s.address_w = info.address_w;
+				s.min_lod = info.min_lod;
+				s.max_lod = info.max_lod;
+				s.lod_bias = info.lod_bias;
+				s.binding = sampler_state_binding;
+				_sampler_lookup.push_back(std::move(s));
 
 				if (_shader_model >= 60)
-					code += "[[vk::binding(" + std::to_string(info.binding) + ", 1)]] "; // Descriptor set 1
+					_blocks.at(0) += "[[vk::binding(" + std::to_string(sampler_state_binding) + ", 1)]] "; // Descriptor set 1
 
-				code += "SamplerState __s" + std::to_string(info.binding) + " : register(s" + std::to_string(info.binding) + ");\n";
+				_blocks.at(0) += "SamplerState __s" + std::to_string(sampler_state_binding) + " : register(s" + std::to_string(sampler_state_binding) + ");\n";
 			}
 
-			info.texture_binding = tex_info.binding + (info.srgb ? 1 : 0); // Offset binding by one to choose the SRGB variant
+			if (_shader_model >= 60)
+				code += "[[vk::binding(" + std::to_string(default_binding) + ", 2)]] "; // Descriptor set 2
+
+			code += "Texture";
+			code += to_digit(static_cast<unsigned int>(tex_info.type));
+			code += "D<";
+			write_texture_format(code, tex_info.format);
+			code += "> __" + info.unique_name + "_t : register(t" + std::to_string(default_binding) + "); \n";
 
 			write_location(code, loc);
 
 			code += "static const ";
 			write_type(code, info.type);
-			code += ' ' + id_to_name(info.id) + " = { " + (info.srgb ? "__srgb" : "__") + info.texture_name + ", __s" + std::to_string(info.binding) + " };\n";
+			code += ' ' + id_to_name(info.id) + " = { __" + info.unique_name + "_t, __s" + std::to_string(sampler_state_binding) + " };\n";
 		}
 		else
 		{
-			info.binding = _module.num_sampler_bindings++;
-			info.texture_binding = ~0u; // Unset texture binding
-
 			const unsigned int texture_dimension = info.type.texture_dimension();
 
 			code += "sampler";
 			code += to_digit(texture_dimension);
-			code += "D __" + info.unique_name + "_s : register(s" + std::to_string(info.binding) + ");\n";
+			code += "D __" + info.unique_name + "_s : register(s" + std::to_string(default_binding) + ");\n";
 
 			write_location(code, loc);
 
@@ -920,23 +938,23 @@ private:
 	id   define_storage(const location &loc, const texture &, storage &info) override
 	{
 		info.id = create_block();
-		info.binding = ~0u;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
+		// Default to a register index equivalent to the entry in the storage list (this is later overwritten in 'finalize_code_for_entry_point' to a more optimal placement)
+		const uint32_t default_binding = static_cast<uint32_t>(_module.storages.size());
+
 		if (_shader_model >= 50)
 		{
-			info.binding = _module.num_storage_bindings++;
-
 			std::string &code = _blocks.at(info.id);
 
 			write_location(code, loc);
 
 			if (_shader_model >= 60)
-				code += "[[vk::binding(" + std::to_string(info.binding) + ", 3)]] "; // Descriptor set 3
+				code += "[[vk::binding(" + std::to_string(default_binding) + ", 3)]] "; // Descriptor set 3
 
 			write_type(code, info.type);
-			code += ' ' + info.unique_name + " : register(u" + std::to_string(info.binding) + ");\n";
+			code += ' ' + info.unique_name + " : register(u" + std::to_string(default_binding) + ");\n";
 		}
 
 		_module.storages.push_back(info);

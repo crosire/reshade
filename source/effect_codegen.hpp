@@ -36,8 +36,8 @@ namespace reshadefx
 		/// <summary>
 		/// Finalizes and returns the generated code for the specified entry point (and no other entry points).
 		/// </summary>
-		/// <param name="entry_point">Entry point to generate code for.</param>
-		virtual std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const = 0;
+		/// <param name="entry_point_name">Name of the entry point function to generate code for.</param>
+		virtual std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const = 0;
 
 	protected:
 		/// <summary>
@@ -295,10 +295,16 @@ namespace reshadefx
 		/// <param name="false_target">ID of the basic block to jump to when the condition is false.</param>
 		/// <returns>ID of the current basic block.</returns>
 		virtual id leave_block_and_branch_conditional(id condition, id true_target, id false_target) = 0;
+
 		/// <summary>
 		/// Leaves the current function. Any code added after this call is added in the global scope.
 		/// </summary>
 		virtual void leave_function() = 0;
+
+		/// <summary>
+		/// Recalculates sampler and storage bindings to take as little binding space as possible for each entry point.
+		/// </summary>
+		virtual void optimize_bindings();
 
 		/// <summary>
 		/// Looks up an existing struct type.
@@ -350,6 +356,11 @@ namespace reshadefx
 			return *std::find_if(_functions.begin(), _functions.end(),
 				[id](const std::unique_ptr<function> &info) { return info->definition == id; })->get();
 		}
+		function &get_function(const std::string &unique_name)
+		{
+			return *std::find_if(_functions.begin(), _functions.end(),
+				[&unique_name](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
+		}
 
 		id make_id() { return _next_id++; }
 
@@ -359,6 +370,7 @@ namespace reshadefx
 		id _next_id = 1;
 		id _last_block = 0;
 		id _current_block = 0;
+		function *_current_function = nullptr;
 	};
 
 	/// <summary>

@@ -134,23 +134,27 @@ private:
 		code.assign(preamble.begin(), preamble.end());
 		preamble.clear();
 
-		{
-			const std::string &block_code = _blocks.at(0);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
-
+		// Add sampler definitions
 		for (const sampler &info : _module.samplers)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
+		// Add storage definitions
 		for (const storage &info : _module.storages)
 		{
 			const std::string &block_code = _blocks.at(info.id);
 			code.insert(code.end(), block_code.begin(), block_code.end());
 		}
 
+		// Add global definitions (struct types, global variables, ...)
+		{
+			const std::string &block_code = _blocks.at(0);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		// Add function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
 			const bool is_entry_point = func->unique_name[0] == 'E';
@@ -173,11 +177,19 @@ private:
 
 		return code;
 	}
-	std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const override
+	std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
+		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
+			[&entry_point_name](const std::unique_ptr<function> &func) {
+				return func->unique_name == entry_point_name;
+			});
+		if (entry_point_it == _functions.end())
+			return {};
+		const function &entry_point = *entry_point_it->get();
+
 		std::string preamble = finalize_preamble();
 
-		if (entry_point.second != shader_type::pixel)
+		if (entry_point.type != shader_type::pixel)
 			preamble +=
 				// OpenGL does not allow using 'discard' in the vertex shader profile
 				"#define discard\n"
@@ -186,7 +198,7 @@ private:
 				"#define dFdy(y) y\n"
 				"#define fwidth(p) p\n";
 
-		if (entry_point.second != shader_type::compute)
+		if (entry_point.type != shader_type::compute)
 			preamble +=
 				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
 				"#define shared\n"
@@ -207,31 +219,46 @@ private:
 		code.assign(preamble.begin(), preamble.end());
 		preamble.clear();
 
+		const auto replace_binding =
+			[](std::string &code, uint32_t binding) {
+				const size_t beg = code.find("layout(binding = ") + 17;
+				const size_t end = code.find_first_of("),", beg);
+				code.replace(beg, end - beg, std::to_string(binding));
+			};
+
+		// Add referenced sampler definitions
+		for (uint32_t binding = 0; binding < entry_point.referenced_samplers.size(); ++binding)
+		{
+			if (entry_point.referenced_samplers[binding] == 0)
+				continue;
+
+			std::string block_code = _blocks.at(entry_point.referenced_samplers[binding]);
+			replace_binding(block_code, binding);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		// Add referenced storage definitions
+		for (uint32_t binding = 0; binding < entry_point.referenced_storages.size(); ++binding)
+		{
+			if (entry_point.referenced_storages[binding] == 0)
+				continue;
+
+			std::string block_code = _blocks.at(entry_point.referenced_storages[binding]);
+			replace_binding(block_code, binding);
+			code.insert(code.end(), block_code.begin(), block_code.end());
+		}
+
+		// Add global definitions (struct types, global variables, ...)
 		{
 			const std::string &main_block = _blocks.at(0);
 			code.insert(code.end(), main_block.begin(), main_block.end());
 		}
 
-		const function &entry_point_func = *std::find_if(_functions.begin(), _functions.end(),
-			[&unique_name = entry_point.first](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
-
-		for (const sampler &info : _module.samplers)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
-
-		for (const storage &info : _module.storages)
-		{
-			const std::string &block_code = _blocks.at(info.id);
-			code.insert(code.end(), block_code.begin(), block_code.end());
-		}
-
+		// Add referenced function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
-			// Skip any unreferenced functions
-			if (entry_point_func.referenced_functions.find(func->definition) == entry_point_func.referenced_functions.end() &&
-				func->unique_name != entry_point.first)
+			if (func.get() != &entry_point &&
+				entry_point.referenced_functions.find(func->definition) == entry_point.referenced_functions.end())
 				continue;
 
 			const std::string &block_code = _blocks.at(func->definition);
@@ -743,7 +770,6 @@ private:
 	id   define_texture(const location &, texture &info) override
 	{
 		info.id = make_id();
-		info.binding = ~0u;
 
 		_module.textures.push_back(info);
 
@@ -752,8 +778,6 @@ private:
 	id   define_sampler(const location &loc, const texture &, sampler &info) override
 	{
 		info.id = create_block();
-		info.binding = _module.num_sampler_bindings++;
-		info.texture_binding = ~0u; // Unset texture bindings
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
@@ -761,7 +785,10 @@ private:
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding);
+		// Default to a binding index equivalent to the entry in the sampler list (this is later overwritten in 'finalize_code_for_entry_point' to a more optimal placement)
+		const uint32_t default_binding = static_cast<uint32_t>(_module.samplers.size());
+
+		code += "layout(binding = " + std::to_string(default_binding);
 		code += ") uniform ";
 		write_type(code, info.type);
 		code += ' ' + id_to_name(info.id) + ";\n";
@@ -773,7 +800,6 @@ private:
 	id   define_storage(const location &loc, const texture &tex_info, storage &info) override
 	{
 		info.id = create_block();
-		info.binding = _module.num_storage_bindings++;
 
 		define_name<naming::unique>(info.id, info.unique_name);
 
@@ -781,7 +807,10 @@ private:
 
 		write_location(code, loc);
 
-		code += "layout(binding = " + std::to_string(info.binding) + ", ";
+		// Default to a binding index equivalent to the entry in the storage list (this is later overwritten in 'finalize_code_for_entry_point' to a more optimal placement)
+		const uint32_t default_binding = static_cast<uint32_t>(_module.storages.size());
+
+		code += "layout(binding = " + std::to_string(default_binding) + ", ";
 		write_texture_format(code, tex_info.format);
 		code += ") uniform ";
 		write_type(code, info.type);

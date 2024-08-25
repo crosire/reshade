@@ -382,50 +382,87 @@ private:
 
 		return spirv;
 	}
-	std::vector<char> finalize_code_for_entry_point(const std::pair<std::string, shader_type> &entry_point) const override
+	std::vector<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
+		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
+			[&entry_point_name](const std::unique_ptr<function> &func) {
+				return func->unique_name == entry_point_name;
+			});
+		if (entry_point_it == _functions.end())
+			return {};
+		const function &entry_point = *entry_point_it->get();
+
+		// Build list of IDs to remove
+		std::vector<spv::Id> variables_to_remove;
+#if 1
+		std::vector<spv::Id> functions_to_remove;
+#else
+		for (const sampler &info : _module.samplers)
+			if (std::find(entry_point.referenced_samplers.begin(), entry_point.referenced_samplers.end(), info.id) == entry_point.referenced_samplers.end())
+				variables_to_remove.push_back(info.id);
+		for (const storage &info : _module.storages)
+			if (std::find(entry_point.referenced_storages.begin(), entry_point.referenced_storages.end(), info.id) == entry_point.referenced_storages.end())
+				variables_to_remove.push_back(info.id);
+#endif
+
 		std::vector<char> spirv;
 		finalize_header_section(spirv);
 
-		std::vector<spv::Id> functions_to_remove, variables_to_remove;
-
-		// The entry point and execution modes declarations
+		// The entry point and execution mode declaration
 		for (const spirv_instruction &inst : _entries.instructions)
 		{
 			assert(inst.op == spv::OpEntryPoint);
 
-			// Look for any non-matching entry points
-			if (entry_point.first != reinterpret_cast<const char *>(&inst.operands[2]))
+			// Only add the matching entry point
+			if (inst.operands[1] == entry_point.definition)
 			{
+				inst.write(spirv);
+			}
+			else
+			{
+#if 1
 				functions_to_remove.push_back(inst.operands[1]);
-
-				// Get interface variables
+#endif
+				// Add interface variables to list of variables to remove
 				for (uint32_t k = 2 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&inst.operands[2])) + 4) / 4); k < inst.operands.size(); ++k)
 					variables_to_remove.push_back(inst.operands[k]);
-				continue;
 			}
-
-			inst.write(spirv);
 		}
 
 		for (const spirv_instruction &inst : _execution_modes.instructions)
 		{
 			assert(inst.op == spv::OpExecutionMode);
 
-			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), inst.operands[0]) != functions_to_remove.end())
-				continue;
-
-			inst.write(spirv);
+			// Only add execution mode for the matching entry point
+			if (inst.operands[0] == entry_point.definition)
+			{
+				inst.write(spirv);
+			}
 		}
 
 		finalize_debug_info_section(spirv);
 
 		// All annotation instructions
-		for (const spirv_instruction &inst : _annotations.instructions)
+		for (spirv_instruction inst : _annotations.instructions)
 		{
-			// Remove all decorations targeting any of the interface variables for non-matching entry points
-			if (inst.op == spv::OpDecorate && std::find(variables_to_remove.begin(), variables_to_remove.end(), inst.operands[0]) != variables_to_remove.end())
-				continue;
+			if (inst.op == spv::OpDecorate)
+			{
+				// Remove all decorations targeting any of the interface variables for non-matching entry points
+				if (std::find(variables_to_remove.begin(), variables_to_remove.end(), inst.operands[0]) != variables_to_remove.end())
+					continue;
+
+				// Replace bindings
+				if (inst.operands[1] == spv::DecorationBinding)
+				{
+					if (const auto referenced_sampler_it = std::find(entry_point.referenced_samplers.begin(), entry_point.referenced_samplers.end(), inst.operands[0]);
+						referenced_sampler_it != entry_point.referenced_samplers.end())
+						inst.operands[2] = static_cast<uint32_t>(std::distance(entry_point.referenced_samplers.begin(), referenced_sampler_it));
+					else
+					if (const auto referenced_storage_it = std::find(entry_point.referenced_storages.begin(), entry_point.referenced_storages.end(), inst.operands[0]);
+						referenced_storage_it != entry_point.referenced_storages.end())
+						inst.operands[2] = static_cast<uint32_t>(std::distance(entry_point.referenced_storages.begin(), referenced_storage_it));
+				}
+			}
 
 			inst.write(spirv);
 		}
@@ -441,15 +478,21 @@ private:
 			inst.write(spirv);
 		}
 
-		// All function definitions
+		// All referenced function definitions
 		for (const function_blocks &func : _functions_blocks)
 		{
 			if (func.definition.instructions.empty())
 				continue;
 
-			// Remove all function definitions for non-matching entry points
 			assert(func.declaration.instructions[_debug_info ? 1 : 0].op == spv::OpFunction);
-			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), func.declaration.instructions[_debug_info ? 1 : 0].result) != functions_to_remove.end())
+			const spv::Id definition = func.declaration.instructions[_debug_info ? 1 : 0].result;
+
+#if 1
+			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), definition) != functions_to_remove.end())
+#else
+			if (definition != entry_point.definition &&
+				entry_point.referenced_functions.find(definition) == entry_point.referenced_functions.end())
+#endif
 				continue;
 
 			for (const spirv_instruction &inst : func.declaration.instructions)
@@ -924,7 +967,6 @@ private:
 	id   define_texture(const location &, texture &info) override
 	{
 		info.id = make_id(); // Need to create an unique ID here too, so that the symbol lookup for textures works
-		info.binding = ~0u;
 
 		_module.textures.push_back(info);
 
@@ -933,10 +975,11 @@ private:
 	id   define_sampler(const location &loc, const texture &, sampler &info) override
 	{
 		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant);
-		info.binding = _module.num_sampler_bindings++;
-		info.texture_binding = ~0u;
 
-		add_decoration(info.id, spv::DecorationBinding, { info.binding });
+		// Default to a binding index equivalent to the entry in the sampler list (this is later overwritten in 'finalize_code_for_entry_point' to a more optimal placement)
+		const uint32_t default_binding = static_cast<uint32_t>(_module.samplers.size());
+
+		add_decoration(info.id, spv::DecorationBinding, { default_binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 1 });
 
 		_module.samplers.push_back(info);
@@ -946,9 +989,11 @@ private:
 	id   define_storage(const location &loc, const texture &tex_info, storage &info) override
 	{
 		info.id = define_variable(loc, info.type, info.unique_name.c_str(), spv::StorageClassUniformConstant, format_to_image_format(tex_info.format));
-		info.binding = _module.num_storage_bindings++;
 
-		add_decoration(info.id, spv::DecorationBinding, { info.binding });
+		// Default to a binding index equivalent to the entry in the storage list (this is later overwritten in 'finalize_code_for_entry_point' to a more optimal placement)
+		const uint32_t default_binding = static_cast<uint32_t>(_module.storages.size());
+
+		add_decoration(info.id, spv::DecorationBinding, { default_binding });
 		add_decoration(info.id, spv::DecorationDescriptorSet, { 2 });
 
 		_module.storages.push_back(info);
