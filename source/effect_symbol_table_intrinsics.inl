@@ -3575,17 +3575,17 @@ DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_uint, int, uint)
 DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_float, int, float)
 DEFINE_INTRINSIC(tex1Dstore, 0, void, storage1d_float4, int, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex1Dstore, 0, {
-	code += "imageStore(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ", " +
-		id_to_name(args[2].base);
+	code += "imageStore(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", ";
 	if (args[2].type.rows == 1)
-		code += ".xxxx"; // Expand last argument to a 4-component vector
+		code += '(';
+	code += id_to_name(args[2].base);
+	if (args[2].type.rows == 1)
+		code += ").xxxx"; // Expand last argument to a 4-component vector
 	code += ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex1Dstore, 0, {
-	if (_shader_model >= 50) {
+	if (_shader_model >= 50)
 		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
-	}
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex1Dstore, 0, {
 	spv::Id data = args[2].base;
@@ -3615,11 +3615,12 @@ DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_uint, int2, uint)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_float, int2, float)
 DEFINE_INTRINSIC(tex2Dstore, 0, void, storage2d_float4, int2, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex2Dstore, 0, {
-	code += "imageStore(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ", " +
-		id_to_name(args[2].base);
+	code += "imageStore(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", ";
 	if (args[2].type.rows == 1)
-		code += ".xxxx"; // Expand last argument to a 4-component vector
+		code += '(';
+	code += id_to_name(args[2].base);
+	if (args[2].type.rows == 1)
+		code += ").xxxx"; // Expand last argument to a 4-component vector
 	code += ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex2Dstore, 0, {
@@ -3654,15 +3655,17 @@ DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_uint, int3, uint)
 DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_float, int3, float)
 DEFINE_INTRINSIC(tex3Dstore, 0, void, storage3d_float4, int3, float4)
 IMPLEMENT_INTRINSIC_GLSL(tex3Dstore, 0, {
-	code += "imageStore(" + id_to_name(args[0].base) + ", " +
-		id_to_name(args[1].base) + ", " +
-		id_to_name(args[2].base);
+	code += "imageStore(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", ";
 	if (args[2].type.rows == 1)
-		code += ".xxxx"; // Expand last argument to a 4-component vector
+		code += '(';
+	code += id_to_name(args[2].base);
+	if (args[2].type.rows == 1)
+		code += ").xxxx"; // Expand last argument to a 4-component vector
 	code += ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(tex3Dstore, 0, {
-	code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
+	if (_shader_model >= 50)
+		code += id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + "] = " + id_to_name(args[2].base);
 	})
 IMPLEMENT_INTRINSIC_SPIRV(tex3Dstore, 0, {
 	spv::Id data = args[2].base;
