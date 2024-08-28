@@ -151,7 +151,7 @@ namespace reshade::d3d11
 		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;
 
-		com_ptr<ID3D11Buffer> _push_constants;
-		std::vector<uint32_t> _push_constants_data;
+		com_ptr<ID3D11Buffer> _push_constants[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		std::vector<uint32_t> _push_constants_data[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 	};
 }
