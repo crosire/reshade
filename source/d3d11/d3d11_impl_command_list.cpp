@@ -465,7 +465,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 {
 	if (count == 0)
 		return;
-		
+
 	uint32_t push_constants_slot = 0;
 	if (layout != 0)
 	{
@@ -476,10 +476,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 	}
 
 	if (push_constants_slot >= D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
-	{
-		log::message(log::level::error, "Unsupported constant buffer slot");
 		return;
-	}
 
 	count += first;
 
@@ -509,9 +506,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 
 	std::memcpy(_push_constants_data[push_constants_slot].data() + first, values, (count - first) * sizeof(uint32_t));
 
-	// The "ID3D11Buffer" data isn't always immediately sent to the GPU when calling the set cbuffers functions below,
-	// instead, the calls are "cached" and executed at some point later, so we need to make sure we have one buffer per slot,
-	// to avoid the same buffer cross polluting multiple slots.
+	// Manage separate constant buffer per slot, so that it is possible to use multiple push constants ranges with different slots simultaneously
 	ID3D11Buffer *const push_constants = _push_constants[push_constants_slot].get();
 
 	// Discard the buffer so driver can return a new memory region to avoid stalls
