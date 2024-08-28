@@ -15,8 +15,6 @@ reshade::opengl::device_context_impl::device_context_impl(device_impl *device, H
 	_default_fbo_width(device->_default_fbo_desc.texture.width),
 	_default_fbo_height(device->_default_fbo_desc.texture.height)
 {
-	// Generate push constants buffer name
-	gl.GenBuffers(1, &_push_constants);
 }
 reshade::opengl::device_context_impl::~device_context_impl()
 {
@@ -28,8 +26,8 @@ reshade::opengl::device_context_impl::~device_context_impl()
 	for (const auto &vao_data : _vao_lookup)
 		gl.DeleteVertexArrays(1, &vao_data.second);
 
-	// Destroy push constants buffer
-	gl.DeleteBuffers(1, &_push_constants);
+	// Destroy push constants buffers
+	gl.DeleteBuffers(static_cast<GLsizei>(_push_constants.size()), _push_constants.data());
 }
 
 reshade::api::device *reshade::opengl::device_context_impl::get_device()

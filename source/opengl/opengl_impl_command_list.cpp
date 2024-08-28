@@ -1037,21 +1037,34 @@ void reshade::opengl::device_context_impl::push_constants(api::shader_stage, api
 
 	assert(first == 0);
 
+	const GLuint binding = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding;
+	if (binding >= _push_constants.size())
+	{
+		_push_constants.resize(binding + 1);
+		_push_constants_size.resize(_push_constants.size());
+	}
+
+	// Generate push constants buffer name
+	if (_push_constants[binding] == 0)
+	{
+		gl.GenBuffers(1, &_push_constants[binding]);
+	}
+
 	const GLuint push_constants_size = (first + count) * sizeof(uint32_t);
 
 	// Binds the push constant buffer to the requested indexed binding point as well as the generic binding point
-	gl.BindBufferBase(GL_UNIFORM_BUFFER, reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param].binding, _push_constants);
+	gl.BindBufferBase(GL_UNIFORM_BUFFER, binding, _push_constants[binding]);
 
 	// Recreate the buffer data store in case it is no longer large enough
-	if (push_constants_size > _push_constants_size)
+	if (push_constants_size > _push_constants_size[binding])
 	{
 		gl.BufferData(GL_UNIFORM_BUFFER, push_constants_size, first == 0 ? values : nullptr, GL_DYNAMIC_DRAW);
 		if (first != 0)
 			gl.BufferSubData(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), values);
 
-		_device_impl->set_resource_name(make_resource_handle(GL_BUFFER, _push_constants), "Push constants");
+		_device_impl->set_resource_name(make_resource_handle(GL_BUFFER, _push_constants[binding]), "Push constants");
 
-		_push_constants_size = push_constants_size;
+		_push_constants_size[binding] = push_constants_size;
 	}
 	// Otherwise discard the previous range (so driver can return a new memory region to avoid stalls) and update it with the new constants
 	else if (void *const data = gl.MapBufferRange(GL_UNIFORM_BUFFER, first * sizeof(uint32_t), count * sizeof(uint32_t), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT))

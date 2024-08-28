@@ -107,8 +107,8 @@ namespace reshade::opengl
 	private:
 		device_impl *const _device_impl;
 
-		GLuint _push_constants = 0;
-		GLuint _push_constants_size = 0;
+		std::vector<GLuint> _push_constants;
+		std::vector<GLuint> _push_constants_size;
 
 		// Framebuffer and vertex array objects cannot be shared between render contexts, so have to create them for each one
 		uint64_t _last_fbo_lookup_version = 0;
