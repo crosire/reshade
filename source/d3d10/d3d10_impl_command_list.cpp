@@ -325,11 +325,23 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 	if (count == 0)
 		return;
 
+	uint32_t push_constants_slot = 0;
+	if (layout != 0)
+	{
+		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
+
+		push_constants_slot = range.dx_register_index;
+		stages &= range.visibility;
+	}
+
+	if (push_constants_slot >= D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT)
+		return;
+
 	count += first;
 
-	if (count > _push_constants_data.size())
+	if (count > _push_constants_data[push_constants_slot].size())
 	{
-		_push_constants_data.resize(count);
+		_push_constants_data[push_constants_slot].resize(count);
 
 		// Enlarge push constant buffer to fit new requirement
 		D3D10_BUFFER_DESC desc = {};
@@ -338,38 +350,30 @@ void reshade::d3d10::device_impl::push_constants(api::shader_stage stages, api::
 		desc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
 		desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-		_push_constants.reset();
+		_push_constants[push_constants_slot].reset();
 
-		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &_push_constants)))
+		if (FAILED(_orig->CreateBuffer(&desc, nullptr, &_push_constants[push_constants_slot])))
 		{
-			_push_constants_data.clear();
+			_push_constants_data[push_constants_slot].clear();
 
 			log::message(log::level::error, "Failed to create push constant buffer!");
 			return;
 		}
 
-		set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants.get()) }, "Push constants");
+		set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants[push_constants_slot].get()) }, "Push constants");
 	}
 
-	std::memcpy(_push_constants_data.data() + first, values, (count - first) * sizeof(uint32_t));
+	std::memcpy(_push_constants_data[push_constants_slot].data() + first, values, (count - first) * sizeof(uint32_t));
 
-	ID3D10Buffer *const push_constants = _push_constants.get();
+	// Manage separate constant buffer per slot, so that it is possible to use multiple push constants ranges with different slots simultaneously
+	ID3D10Buffer *const push_constants = _push_constants[push_constants_slot].get();
 
 	// Discard the buffer to so driver can return a new memory region to avoid stalls
 	if (uint32_t *mapped_data;
 		SUCCEEDED(ID3D10Buffer_Map(push_constants, D3D10_MAP_WRITE_DISCARD, 0, reinterpret_cast<void **>(&mapped_data))))
 	{
-		std::memcpy(mapped_data, _push_constants_data.data(), _push_constants_data.size() * sizeof(uint32_t));
+		std::memcpy(mapped_data, _push_constants_data[push_constants_slot].data(), _push_constants_data[push_constants_slot].size() * sizeof(uint32_t));
 		ID3D10Buffer_Unmap(push_constants);
-	}
-
-	uint32_t push_constants_slot = 0;
-	if (layout != 0)
-	{
-		const api::descriptor_range &range = reinterpret_cast<pipeline_layout_impl *>(layout.handle)->ranges[layout_param];
-
-		push_constants_slot = range.dx_register_index;
-		stages &= range.visibility;
 	}
 
 	if ((stages & api::shader_stage::vertex) == api::shader_stage::vertex)
