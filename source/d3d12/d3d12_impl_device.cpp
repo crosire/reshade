@@ -433,7 +433,22 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	reinterpret_cast<ID3D12Resource *>(resource.handle)->GetHeapProperties(&heap_props, &heap_flags);
 
-	return convert_resource_desc(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc(), heap_props, heap_flags);
+	D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	{
+		D3D12_SUBRESOURCE_FOOTPRINT footprint;
+		UINT extra_data_size = sizeof(footprint);
+		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &footprint)))
+		{
+			desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			desc.Width = footprint.Width;
+			desc.Height = footprint.Height;
+			desc.DepthOrArraySize = static_cast<UINT16>(footprint.Depth);
+			desc.Format = footprint.Format;
+		}
+	}
+
+	return convert_resource_desc(desc, heap_props, heap_flags);
 }
 
 bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_view)

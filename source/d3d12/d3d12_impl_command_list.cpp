@@ -702,6 +702,14 @@ void reshade::d3d12::command_list_impl::copy_resource(api::resource src, api::re
 
 	assert(src != 0 && dst != 0);
 
+	UINT extra_data_size = sizeof(D3D12_SUBRESOURCE_FOOTPRINT);
+	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(src.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr)) ||
+		SUCCEEDED(reinterpret_cast<ID3D12Resource *>(dst.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr)))
+	{
+		copy_texture_region(src, 0, nullptr, dst, 0, nullptr, api::filter_mode::min_mag_mip_point);
+		return;
+	}
+
 	_orig->CopyResource(reinterpret_cast<ID3D12Resource *>(dst.handle), reinterpret_cast<ID3D12Resource *>(src.handle));
 }
 void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, uint64_t src_offset, api::resource dst, uint64_t dst_offset, uint64_t size)

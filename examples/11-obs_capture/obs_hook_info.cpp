@@ -173,66 +173,56 @@ void hook_free()
 
 static DWORD CALLBACK copy_thread(LPVOID)
 {
-	uint32_t pitch = thread_data.pitch;
-	uint32_t cy = thread_data.cy;
-	HANDLE events[2] = { NULL, NULL };
+	const size_t pitch = thread_data.pitch, cy = thread_data.cy;
+	HANDLE events[2] = { nullptr, nullptr };
 	int shmem_id = 0;
 
-	if (!DuplicateHandle(GetCurrentProcess(), thread_data.copy_event, GetCurrentProcess(), &events[0], 0, false, DUPLICATE_SAME_ACCESS))
-		return 0;
-	if (!DuplicateHandle(GetCurrentProcess(), thread_data.stop_event, GetCurrentProcess(), &events[1], 0, false, DUPLICATE_SAME_ACCESS))
-		goto finish;
-
-	while (true)
+	if (DuplicateHandle(GetCurrentProcess(), thread_data.copy_event, GetCurrentProcess(), &events[0], 0, false, DUPLICATE_SAME_ACCESS) &&
+		DuplicateHandle(GetCurrentProcess(), thread_data.stop_event, GetCurrentProcess(), &events[1], 0, false, DUPLICATE_SAME_ACCESS))
 	{
-		int copy_tex;
-		void *cur_data;
+		while (WaitForMultipleObjects(2, events, false, INFINITE) == WAIT_OBJECT_0)
+		{
+			EnterCriticalSection(&thread_data.data_mutex);
+			const auto cur_tex = thread_data.cur_tex;
+			const auto cur_data = thread_data.cur_data;
+			LeaveCriticalSection(&thread_data.data_mutex);
 
-		DWORD ret = WaitForMultipleObjects(2, events, false, INFINITE);
-		if (ret != WAIT_OBJECT_0)
-			break;
+			if (cur_tex < NUM_BUFFERS && !!cur_data) {
+				EnterCriticalSection(&thread_data.mutexes[cur_tex]);
 
-		EnterCriticalSection(&thread_data.data_mutex);
-		copy_tex = thread_data.cur_tex;
-		cur_data = thread_data.cur_data;
-		LeaveCriticalSection(&thread_data.data_mutex);
+				int lock_id = -1;
+				const int next_id = shmem_id == 0 ? 1 : 0;
 
-		if (copy_tex < NUM_BUFFERS && !!cur_data) {
-			EnterCriticalSection(&thread_data.mutexes[copy_tex]);
-
-			int lock_id = -1;
-			const int next = shmem_id == 0 ? 1 : 0;
-
-			DWORD wait_result = wait_result = WaitForSingleObject(tex_mutexes[shmem_id], 0);
-			if (wait_result == WAIT_OBJECT_0 || wait_result == WAIT_ABANDONED)
-			{
-				lock_id = shmem_id;
-			}
-			else
-			{
-				wait_result = WaitForSingleObject(tex_mutexes[next], 0);
+				DWORD wait_result = wait_result = WaitForSingleObject(tex_mutexes[shmem_id], 0);
 				if (wait_result == WAIT_OBJECT_0 || wait_result == WAIT_ABANDONED)
 				{
-					lock_id = next;
+					lock_id = shmem_id;
 				}
+				else
+				{
+					wait_result = WaitForSingleObject(tex_mutexes[next_id], 0);
+					if (wait_result == WAIT_OBJECT_0 || wait_result == WAIT_ABANDONED)
+					{
+						lock_id = next_id;
+					}
+				}
+
+				if (lock_id != -1)
+				{
+					memcpy(thread_data.shmem_textures[lock_id], cur_data, pitch * cy);
+
+					ReleaseMutex(tex_mutexes[lock_id]);
+
+					static_cast<shmem_data *>(shmem_info)->last_tex = lock_id;
+
+					shmem_id = lock_id == 0 ? 1 : 0;
+				}
+
+				LeaveCriticalSection(&thread_data.mutexes[cur_tex]);
 			}
-
-			if (lock_id != -1)
-			{
-				memcpy(thread_data.shmem_textures[lock_id], cur_data, (size_t)pitch * (size_t)cy);
-
-				ReleaseMutex(tex_mutexes[lock_id]);
-
-				static_cast<shmem_data *>(shmem_info)->last_tex = lock_id;
-
-				shmem_id = lock_id == 0 ? 1 : 0;
-			}
-
-			LeaveCriticalSection(&thread_data.mutexes[copy_tex]);
 		}
 	}
 
-finish:
 	for (size_t i = 0; i < 2; i++)
 		if (events[i])
 			CloseHandle(events[i]);
@@ -243,7 +233,7 @@ finish:
 void shmem_copy_data(size_t idx, void *volatile data)
 {
 	EnterCriticalSection(&thread_data.data_mutex);
-	thread_data.cur_tex = (int)idx;
+	thread_data.cur_tex = static_cast<int>(idx);
 	thread_data.cur_data = data;
 	thread_data.locked_textures[idx] = true;
 	LeaveCriticalSection(&thread_data.data_mutex);
@@ -253,10 +243,8 @@ void shmem_copy_data(size_t idx, void *volatile data)
 
 bool shmem_texture_data_lock(int idx)
 {
-	bool locked;
-
 	EnterCriticalSection(&thread_data.data_mutex);
-	locked = thread_data.locked_textures[idx];
+	const bool locked = thread_data.locked_textures[idx];
 	LeaveCriticalSection(&thread_data.data_mutex);
 
 	if (locked)
