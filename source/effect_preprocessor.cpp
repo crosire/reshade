@@ -137,7 +137,8 @@ bool reshadefx::preprocessor::append_string(std::string source_code, const std::
 	// Enforce all input strings to end with a line feed
 	assert(!source_code.empty() && source_code.back() == '\n');
 
-	_success = true; // Clear success flag before parsing a new string
+	// Only consider new errors added below for the success of this call
+	const size_t errors_offset = _errors.length();
 
 	// Give this push a name, so that lexer location starts at a new line
 	// This is necessary in case this string starts with a preprocessor directive, since the lexer only reports those as such if they appear at the beginning of a new line
@@ -145,15 +146,15 @@ bool reshadefx::preprocessor::append_string(std::string source_code, const std::
 	push(std::move(source_code), path.empty() ? "unknown" : path.u8string());
 	parse();
 
-	return _success;
+	return _errors.find(": preprocessor error: ", errors_offset) == std::string::npos;
 }
 
 std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() const
 {
 	std::vector<std::filesystem::path> files;
 	files.reserve(_file_cache.size());
-	for (const auto &it : _file_cache)
-		files.push_back(std::filesystem::u8path(it.first));
+	for (const std::pair<std::string, std::string> &cache_entry : _file_cache)
+		files.push_back(std::filesystem::u8path(cache_entry.first));
 	return files;
 }
 std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_macro_definitions() const
@@ -170,12 +171,19 @@ std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_m
 
 void reshadefx::preprocessor::error(const location &location, const std::string &message)
 {
-	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": preprocessor error: " + message + '\n';
-	_success = false; // Unset success flag
+	_errors += location.source;
+	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')';
+	_errors += ": preprocessor error: ";
+	_errors += message;
+	_errors += '\n';
 }
 void reshadefx::preprocessor::warning(const location &location, const std::string &message)
 {
-	_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": preprocessor warning: " + message + '\n';
+	_errors += location.source;
+	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')';
+	_errors += ": preprocessor warning: ";
+	_errors += message;
+	_errors += '\n';
 }
 
 void reshadefx::preprocessor::push(std::string input, const std::string &name)

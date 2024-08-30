@@ -24,7 +24,7 @@ private:
 
 bool reshadefx::parser::parse(std::string input, codegen *backend)
 {
-	_lexer.reset(new lexer(std::move(input)));
+	_lexer = std::make_unique<lexer>(std::move(input));
 
 	// Set backend for subsequent code-generation
 	_codegen = backend;
@@ -963,7 +963,7 @@ bool reshadefx::parser::parse_array_length(type &type)
 		if (accept(']'))
 		{
 			// No length expression, so this is an unbounded array
-			type.array_length = UINT_MAX;
+			type.array_length = 0xFFFFFFFF;
 		}
 		else if (expression length_exp; parse_expression(length_exp) && expect(']'))
 		{
@@ -1450,7 +1450,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 
 	for (const member_type &param : info.parameter_list)
 	{
-		if (!insert_symbol(param.name, { symbol_type::variable, param.definition, param.type }))
+		if (!insert_symbol(param.name, { symbol_type::variable, param.id, param.type }))
 		{
 			error(param.location, 3003, "redefinition of '" + param.name + '\'');
 			return false;
@@ -1855,8 +1855,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		texture_info.annotations = std::move(sampler_info.annotations);
 
-		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_texture(variable_location, texture_info);
+		const codegen::id id = _codegen->define_texture(variable_location, texture_info);
+		symbol = { symbol_type::variable, id, type };
 	}
 	// Samplers are actually combined image samplers
 	else if (type.is_sampler())
@@ -1896,8 +1896,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		sampler_info.unique_name = 'V' + current_scope().name + name;
 		std::replace(sampler_info.unique_name.begin(), sampler_info.unique_name.end(), ':', '_');
 
-		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_sampler(variable_location, texture_info, sampler_info);
+		const codegen::id id = _codegen->define_sampler(variable_location, texture_info, sampler_info);
+		symbol = { symbol_type::variable, id, type };
 	}
 	else if (type.is_storage())
 	{
@@ -1934,8 +1934,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		if (storage_info.level > texture_info.levels - 1)
 			storage_info.level = texture_info.levels - 1;
 
-		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_storage(variable_location, texture_info, storage_info);
+		const codegen::id id = _codegen->define_storage(variable_location, texture_info, storage_info);
+		symbol = { symbol_type::variable, id, type };
 	}
 	// Uniform variables are put into a global uniform buffer structure
 	else if (type.has(type::q_uniform))
@@ -1951,8 +1951,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		uniform_info.initializer_value = std::move(initializer.constant);
 		uniform_info.has_initializer_value = initializer.is_constant;
 
-		symbol = { symbol_type::variable, 0, type };
-		symbol.id = _codegen->define_uniform(variable_location, uniform_info);
+		const codegen::id id = _codegen->define_uniform(variable_location, uniform_info);
+		symbol = { symbol_type::variable, id, type };
 	}
 	// All other variables are separate entities
 	else

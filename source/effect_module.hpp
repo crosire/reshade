@@ -10,31 +10,6 @@
 namespace reshadefx
 {
 	/// <summary>
-	/// Describes a struct member or parameter.
-	/// </summary>
-	struct member_type
-	{
-		reshadefx::type type = {};
-		uint32_t definition = 0;
-		std::string name;
-		std::string semantic;
-		reshadefx::location location;
-		bool has_default_value = false;
-		reshadefx::constant default_value;
-	};
-
-	/// <summary>
-	/// Describes a struct type defined in effect code.
-	/// </summary>
-	struct struct_type
-	{
-		uint32_t definition = 0;
-		std::string name;
-		std::string unique_name;
-		std::vector<member_type> member_list;
-	};
-
-	/// <summary>
 	/// Describes an annotation attached to a variable.
 	/// </summary>
 	struct annotation
@@ -42,6 +17,31 @@ namespace reshadefx
 		reshadefx::type type = {};
 		std::string name;
 		reshadefx::constant value = {};
+	};
+
+	/// <summary>
+	/// Describes a struct member or parameter.
+	/// </summary>
+	struct member_type
+	{
+		reshadefx::type type = {};
+		uint32_t id = 0;
+		std::string name;
+		std::string semantic;
+		reshadefx::location location;
+		bool has_default_value = false;
+		reshadefx::constant default_value = {};
+	};
+
+	/// <summary>
+	/// Describes a struct type defined in effect code.
+	/// </summary>
+	struct struct_type
+	{
+		uint32_t id = 0;
+		std::string name;
+		std::string unique_name;
+		std::vector<member_type> member_list;
 	};
 
 	/// <summary>
@@ -98,8 +98,8 @@ namespace reshadefx
 	{
 		uint32_t id = 0;
 		std::string name;
-		std::string semantic;
 		std::string unique_name;
+		std::string semantic;
 		std::vector<annotation> annotations;
 		bool render_target = false;
 		bool storage_access = false;
@@ -161,8 +161,8 @@ namespace reshadefx
 	/// </summary>
 	struct sampler : sampler_desc
 	{
-		uint32_t id = 0;
 		reshadefx::type type = {};
+		uint32_t id = 0;
 		std::string name;
 		std::string unique_name;
 		std::string texture_name;
@@ -191,8 +191,8 @@ namespace reshadefx
 	/// </summary>
 	struct storage : storage_desc
 	{
-		uint32_t id = 0;
 		reshadefx::type type = {};
+		uint32_t id = 0;
 		std::string name;
 		std::string unique_name;
 		std::string texture_name;
@@ -218,7 +218,7 @@ namespace reshadefx
 		uint32_t offset = 0;
 		std::vector<annotation> annotations;
 		bool has_initializer_value = false;
-		reshadefx::constant initializer_value;
+		reshadefx::constant initializer_value = {};
 	};
 
 	/// <summary>
@@ -237,8 +237,8 @@ namespace reshadefx
 	/// </summary>
 	struct function
 	{
-		uint32_t definition = 0;
 		reshadefx::type return_type = {};
+		uint32_t id = 0;
 		std::string name;
 		std::string unique_name;
 		std::string return_semantic;

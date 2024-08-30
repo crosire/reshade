@@ -6,7 +6,6 @@
 #pragma once
 
 #include "effect_token.hpp"
-#include <limits>
 
 namespace reshadefx
 {
@@ -101,8 +100,8 @@ namespace reshadefx
 		bool is_function() const { return base == t_function; }
 
 		bool is_array() const { return array_length != 0; }
-		bool is_bounded_array() const { return is_array() && array_length != UINT_MAX; }
-		bool is_unbounded_array() const { return array_length == UINT_MAX; }
+		bool is_bounded_array() const { return is_array() && array_length != 0xFFFFFFFF; }
+		bool is_unbounded_array() const { return array_length == 0xFFFFFFFF; }
 		bool is_scalar() const { return is_numeric() && !is_matrix() && !is_vector() && !is_array(); }
 		bool is_vector() const { return is_numeric() && rows > 1 && cols == 1; }
 		bool is_matrix() const { return is_numeric() && rows >= 1 && cols > 1; }
@@ -128,7 +127,7 @@ namespace reshadefx
 		uint32_t cols : 4;
 		// Bit mask of all the qualifiers decorating the type
 		uint32_t qualifiers : 16;
-		// Number of elements if this is an array type, UINT_MAX if it is an unsized array
+		// Number of elements if this is an array type, 0xFFFFFFFF if it is an unsized array
 		uint32_t array_length;
 		// ID of the matching struct if this is a struct type
 		uint32_t struct_definition;

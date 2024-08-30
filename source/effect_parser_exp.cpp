@@ -22,16 +22,22 @@ reshadefx::parser::~parser()
 void reshadefx::parser::error(const location &location, unsigned int code, const std::string &message)
 {
 	_errors += location.source;
-	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": error";
-	_errors += (code == 0) ? ": " : " X" + std::to_string(code) + ": ";
+	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')';
+	_errors += ": error";
+	if (code != 0)
+		_errors += " X" + std::to_string(code);
+	_errors += ": ";
 	_errors += message;
 	_errors += '\n';
 }
 void reshadefx::parser::warning(const location &location, unsigned int code, const std::string &message)
 {
 	_errors += location.source;
-	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": warning";
-	_errors += (code == 0) ? ": " : " X" + std::to_string(code) + ": ";
+	_errors += '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')';
+	_errors += ": warning";
+	if (code != 0)
+		_errors += " X" + std::to_string(code);
+	_errors += ": ";
 	_errors += message;
 	_errors += '\n';
 }
@@ -39,11 +45,10 @@ void reshadefx::parser::warning(const location &location, unsigned int code, con
 void reshadefx::parser::backup()
 {
 	_token_backup = _token_next;
-	_lexer_backup_offset = _lexer->input_offset();
 }
 void reshadefx::parser::restore()
 {
-	_lexer->reset_to_offset(_lexer_backup_offset);
+	_lexer->reset_to_offset(_token_backup.offset + _token_backup.length);
 	_token_next = _token_backup; // Copy instead of move here, since restore may be called twice (from 'accept_type_class' and then again from 'parse_expression_unary')
 }
 
@@ -602,7 +607,7 @@ bool reshadefx::parser::parse_expression(expression &exp)
 
 bool reshadefx::parser::parse_expression_unary(expression &exp)
 {
-	auto location = _token_next.location;
+	location location = _token_next.location;
 
 	// Check if a prefix operator exists
 	if (accept_unary_op())

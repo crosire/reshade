@@ -314,7 +314,7 @@ namespace reshadefx
 		const struct_type &get_struct(id id) const
 		{
 			return *std::find_if(_structs.begin(), _structs.end(),
-				[id](const struct_type &info) { return info.definition == id; });
+				[id](const struct_type &info) { return info.id == id; });
 		}
 		/// <summary>
 		/// Looks up an existing texture binding.
@@ -354,7 +354,7 @@ namespace reshadefx
 		function &get_function(id id)
 		{
 			return *std::find_if(_functions.begin(), _functions.end(),
-				[id](const std::unique_ptr<function> &info) { return info->definition == id; })->get();
+				[id](const std::unique_ptr<function> &info) { return info->id == id; })->get();
 		}
 		function &get_function(const std::string &unique_name)
 		{
@@ -367,6 +367,7 @@ namespace reshadefx
 		effect_module _module;
 		std::vector<struct_type> _structs;
 		std::vector<std::unique_ptr<function>> _functions;
+
 		id _next_id = 1;
 		id _last_block = 0;
 		id _current_block = 0;

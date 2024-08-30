@@ -74,12 +74,14 @@ namespace reshadefx
 		bool parse_statement(bool scoped);
 		bool parse_statement_block(bool scoped);
 
-		class codegen *_codegen = nullptr;
 		std::string _errors;
 
-		token _token, _token_next, _token_backup;
 		std::unique_ptr<class lexer> _lexer;
-		size_t _lexer_backup_offset = 0;
+		class codegen *_codegen = nullptr;
+
+		token _token;
+		token _token_next;
+		token _token_backup;
 
 		std::vector<uint32_t> _loop_break_target_stack;
 		std::vector<uint32_t> _loop_continue_target_stack;

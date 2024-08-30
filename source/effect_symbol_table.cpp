@@ -15,19 +15,17 @@ enum class intrinsic_id
 	#include "effect_symbol_table_intrinsics.inl"
 };
 
-struct intrinsic
+struct intrinsic : reshadefx::function
 {
-	intrinsic(const char *name, intrinsic_id id, const reshadefx::type &ret_type, std::initializer_list<reshadefx::type> arg_types) : id(id)
+	intrinsic(const char *name, intrinsic_id id, const reshadefx::type &ret_type, std::initializer_list<reshadefx::type> arg_types)
 	{
-		function.return_type = ret_type;
-		function.name = name;
-		function.parameter_list.reserve(arg_types.size());
+		function::return_type = ret_type;
+		function::id = static_cast<uint32_t>(id);
+		function::name = name;
+		function::parameter_list.reserve(arg_types.size());
 		for (const reshadefx::type &arg_type : arg_types)
-			function.parameter_list.push_back({ arg_type });
+			function::parameter_list.push_back({ arg_type });
 	}
-
-	intrinsic_id id;
-	reshadefx::function function;
 };
 
 #define void { reshadefx::type::t_void }
@@ -418,18 +416,18 @@ bool reshadefx::symbol_table::resolve_function_call(const std::string &name, con
 	{
 		for (const intrinsic &intrinsic : s_intrinsics)
 		{
-			if (intrinsic.function.name != name || intrinsic.function.parameter_list.size() != arguments.size())
+			if (intrinsic.name != name || intrinsic.parameter_list.size() != arguments.size())
 				continue;
 
 			// A new possibly-matching intrinsic function was found, compare it against the current result
-			const int comparison = compare_functions(arguments, &intrinsic.function, result);
+			const int comparison = compare_functions(arguments, &intrinsic, result);
 
 			if (comparison < 0) // The new function is a better match
 			{
 				out_data.op = symbol_type::intrinsic;
-				out_data.id = static_cast<uint32_t>(intrinsic.id);
-				out_data.type = intrinsic.function.return_type;
-				out_data.function = &intrinsic.function;
+				out_data.id = intrinsic.id;
+				out_data.type = intrinsic.return_type;
+				out_data.function = &intrinsic;
 				result = out_data.function;
 				num_overloads = 1;
 			}
