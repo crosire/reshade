@@ -998,7 +998,8 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	}
 	else
 	{
-		if (!_device_impl->_dynamic_rendering_ext || _is_in_render_pass)
+		if (!_device_impl->_dynamic_rendering_ext || _is_in_render_pass ||
+			src_data->default_view == VK_NULL_HANDLE || dst_data->default_view == VK_NULL_HANDLE)
 		{
 			assert(false);
 			return;
@@ -1028,7 +1029,6 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		}
 
 		assert(dst_x == rendering_info.renderArea.offset.x && dst_y == rendering_info.renderArea.offset.y && dst_z == 0);
-		assert(src_data->default_view != VK_NULL_HANDLE && dst_data->default_view != VK_NULL_HANDLE);
 
 		VkRenderingAttachmentInfo depth_attachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		depth_attachment.imageView = src_data->default_view;

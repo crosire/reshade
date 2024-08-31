@@ -1227,9 +1227,20 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkImage
 	desc.texture.samples = static_cast<uint16_t>(create_info.samples);
 
 	convert_image_usage_flags_to_usage(create_info.usage, desc.usage);
-	if (desc.type == api::resource_type::texture_2d && (
-		create_info.usage & (desc.texture.samples > 1 ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_TRANSFER_DST_BIT)) != 0)
-		desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
+	if (desc.type == api::resource_type::texture_2d)
+	{
+		if (desc.texture.samples > 1)
+		{
+			if ((create_info.usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0)
+				desc.usage |= api::resource_usage::resolve_source;
+		}
+		else
+		{
+			// Images can only be used as resolve destination when also having color attachment or depth-stencil attachment usage
+			if ((create_info.usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0 && (create_info.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) != 0)
+				desc.usage |= api::resource_usage::resolve_dest;
+		}
+	}
 
 	if ((create_info.flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) != 0)
 		desc.flags |= api::resource_flags::sparse_binding;

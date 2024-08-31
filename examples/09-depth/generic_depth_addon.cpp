@@ -241,7 +241,10 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 			assert(backup.references == 0 && backup.destroy_after_frame != std::numeric_limits<uint64_t>::max());
 
 			const resource_desc existing_desc = device->get_resource_desc(backup.backup_texture);
-			if (desc.texture.width == existing_desc.texture.width && desc.texture.height == existing_desc.texture.height && desc.texture.format == existing_desc.texture.format)
+			if (desc.texture.width == existing_desc.texture.width &&
+				desc.texture.height == existing_desc.texture.height &&
+				desc.texture.format == existing_desc.texture.format &&
+				desc.usage == existing_desc.usage)
 			{
 				backup.references++;
 				backup.depth_stencil_resource = resource;
@@ -1036,7 +1039,9 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 						assert(device->check_capability(device_caps::resolve_depth_stencil));
 
 						cmd_list->barrier(best_match, old_state, resource_usage::resolve_source);
+						cmd_list->barrier(backup_texture, resource_usage::copy_dest, resource_usage::resolve_dest);
 						cmd_list->resolve_texture_region(best_match, 0, nullptr, backup_texture, 0, 0, 0, 0, format_to_default_typed(best_match_desc.texture.format));
+						cmd_list->barrier(backup_texture, resource_usage::resolve_dest, resource_usage::copy_dest);
 						cmd_list->barrier(best_match, resource_usage::resolve_source, old_state);
 					}
 					else
