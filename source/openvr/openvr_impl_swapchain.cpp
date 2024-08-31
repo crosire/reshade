@@ -224,6 +224,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr
 	if (source_desc.texture.samples <= 1)
 	{
 		// In all but D3D12 the eye texture resource is already in copy source state at this point
+		// See https://github.com/ValveSoftware/openvr/wiki/Vulkan#image-layout
 		if (is_d3d12)
 			cmd_list->barrier(eye_texture, api::resource_usage::shader_resource_pixel, api::resource_usage::copy_source);
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::general, api::resource_usage::copy_dest);
