@@ -22,7 +22,7 @@ BEGIN
 16882 "Fehler beim Laden mancher Erweiterungen."
 2323 "Fehler beim Laden mancher Effekte."
 60730 "Bitte das Log überprüfen, um mehr Details zu erhalten."
-39634 "Fehler beim Speichern der Konfiguration und/oder des Presets. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Dateien und übergeordneten Ordnern zu ermöglichen:\n%s\n%s"
+55956 "Fehler beim Speichern der Konfiguration und/oder des Presets. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Dateien und übergeordneten Ordnern zu ermöglichen:\n%s\n%s"
 53844 "Fehler beim Speichern der Konfiguration. Bitte sicherstellen, dass die Dateiberechtigungen richtig konfiguriert sind, um das Schreiben der folgenden Datei zu ermöglichen: %s"
 12487 "Interner Fehler beim Speichern des Bildschirmfotos (das Pixelformat wird möglicherweise nicht unterstützt oder die Festplatte ist voll)."
 47148 "Fehler beim Speichern des Bildschirmfotos, da die Datei nicht erstellt werden konnte: %s"

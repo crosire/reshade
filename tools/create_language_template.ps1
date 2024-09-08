@@ -9,7 +9,7 @@ function compute_crc16 {
 
 	$size = $data.Length
 	$i = 0
-	$crc = 0;
+	$crc = 0
 	while ($size--)
 	{
 		$crc = $crc -bxor $data[$i++]
@@ -21,6 +21,17 @@ function compute_crc16 {
 }
 
 $strings = ""
+$lang_file = Get-Item -Path "..\res\lang_$locale.rc2"
+
+if ($lang_file.Exists)
+{
+	$lang_messages = @{}
+	foreach ($line in Get-Content $lang_file -Encoding UTF8) {
+		if ($line -match "([0-9]+) ([^\r\n]+)") {
+			$lang_messages[[int]$matches[1]] = $matches[2]
+		}
+	}
+}
 
 if (Get-Command "xgettext.exe" -ErrorAction SilentlyContinue)
 {
@@ -37,6 +48,11 @@ if (Get-Command "xgettext.exe" -ErrorAction SilentlyContinue)
 		}
 		if ($_.StartsWith("msgstr")) {
 			$hash = compute_crc16([System.Text.Encoding]::UTF8.GetBytes($message.Trim('"').Replace("\`"", "`"").Replace("\\", "\").Replace("\n", "`n")))
+
+			# Check if there is an existing message in the language file for this hash, which should be preserved
+			if ($lang_messages.Keys -contains $hash) {
+				$message = $lang_messages.$hash
+			}
 
 			$message = $message.Replace("\`"", "`"`"")
 			$strings += "$hash $message`r`n"
@@ -83,4 +99,6 @@ END
 
 #endif    // $locale_name resources
 /////////////////////////////////////////////////////////////////////////////
-"@ | Out-File -FilePath "..\res\lang_$locale.rc2" -Encoding ASCII
+"@ | Out-String | Set-Variable lang_data
+# Cannot use 'Out-File' directly, since it does not support in UTF8 without BOM in older Powershell versions
+[System.IO.File]::WriteAllText($lang_file, $lang_data, [System.Text.UTF8Encoding]::new($false))
