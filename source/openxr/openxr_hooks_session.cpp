@@ -129,6 +129,7 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 			{
 				VkQueue queue_handle = VK_NULL_HANDLE;
 				device->_dispatch_table.GetDeviceQueue(binding_vulkan->device, binding_vulkan->queueFamilyIndex, binding_vulkan->queueIndex, &queue_handle);
+				assert(queue_handle != VK_NULL_HANDLE);
 
 				reshade::vulkan::command_queue_impl *queue = nullptr;
 				if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),

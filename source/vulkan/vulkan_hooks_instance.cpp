@@ -26,8 +26,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerInstanceCreateInfo *const link_info = find_layer_info<VkLayerInstanceCreateInfo>(
-		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
+	VkLayerInstanceCreateInfo *const link_info = find_layer_info<VkLayerInstanceCreateInfo>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
 	PFN_vkCreateInstance trampoline = nullptr;
@@ -77,8 +76,9 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	}
 
 	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
-	auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(
-		GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
+	const auto vulkan_module = GetModuleHandleW(L"vulkan-1.dll");
+	assert(vulkan_module != nullptr);
+	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(vulkan_module, "vkEnumerateInstanceExtensionProperties"));
 	assert(enum_instance_extensions != nullptr);
 
 	std::vector<const char *> enabled_extensions;
@@ -121,7 +121,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 	VkInstanceCreateInfo create_info = *pCreateInfo;
 	create_info.pApplicationInfo = &app_info;
-	create_info.enabledExtensionCount = uint32_t(enabled_extensions.size());
+	create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
 	create_info.ppEnabledExtensionNames = enabled_extensions.data();
 
 	// Continue calling down the chain
@@ -214,7 +214,6 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 }
 
 #ifdef VK_EXT_tooling_info
-
 #include "version.h"
 
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
@@ -254,5 +253,4 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 
 	return VK_SUCCESS;
 }
-
 #endif

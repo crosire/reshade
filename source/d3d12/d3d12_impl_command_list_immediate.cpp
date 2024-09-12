@@ -6,7 +6,7 @@
 #include "d3d12_impl_device.hpp"
 #include "d3d12_impl_command_list_immediate.hpp"
 #include "d3d12_impl_type_convert.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, ID3D12CommandQueue *queue) :
 	command_list_impl(device, nullptr),

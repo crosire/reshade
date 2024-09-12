@@ -8,7 +8,7 @@
 #include "d3d9_swapchain.hpp"
 #include "d3d9on12_device.hpp"
 #include "d3d9_impl_type_convert.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"

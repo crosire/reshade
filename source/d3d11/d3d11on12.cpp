@@ -8,7 +8,7 @@
 #include "d3d11on12_device.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
 
 extern thread_local bool g_in_dxgi_runtime;

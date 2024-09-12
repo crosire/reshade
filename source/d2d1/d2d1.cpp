@@ -6,7 +6,7 @@
 #include <d2d1_3.h>
 #include "dxgi/dxgi_device.hpp"
 #include "com_ptr.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
 
 #define ID2D1Factory_CreateDevice_Impl(vtable_index, factory_interface_version, device_interface_version) \

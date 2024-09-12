@@ -6,9 +6,10 @@
 #include "hook_manager.hpp"
 #include <Windows.h>
 #include <Winsock2.h>
-#include <ws2ipdef.h>
 
 #if RESHADE_ADDON == 1
+#include <ws2ipdef.h>
+
 // Do not count network traffic for local sockets (localhost), so to avoid blocking occuring in games running local servers in single player too
 static bool is_local_socket(SOCKET s)
 {

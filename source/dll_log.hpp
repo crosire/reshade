@@ -97,11 +97,13 @@ namespace reshade::log
 	inline std::string iid_to_string(REFIID riid)
 	{
 		OLECHAR riid_string[40];
-		const int len = StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
+		const int len = StringFromGUID2(riid, riid_string, static_cast<int>(std::size(riid_string)));
 		if (len != 0)
 		{
 			char temp_string[40];
+			assert(len < static_cast<int>(std::size(temp_string)));
 			for (int i = 0; i < len; ++i)
+				// The GUID string contains only ANSI characters, so can just mask off the first few bits to convert
 				temp_string[i] = riid_string[i] & 0xFF;
 			return std::string(temp_string, len);
 		}

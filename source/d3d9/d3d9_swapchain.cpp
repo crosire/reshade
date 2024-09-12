@@ -5,7 +5,7 @@
 
 #include "d3d9_device.hpp"
 #include "d3d9_swapchain.hpp"
-#include "dll_log.hpp" // Include late to get HRESULT log overloads
+#include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
 #include <algorithm> // std::find
