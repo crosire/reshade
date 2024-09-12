@@ -482,8 +482,8 @@ private:
 			if (func.definition.instructions.empty())
 				continue;
 
-			assert(func.declaration.instructions[_debug_info ? 1 : 0].op == spv::OpFunction);
-			const spv::Id definition = func.declaration.instructions[_debug_info ? 1 : 0].result;
+			assert(func.declaration.instructions[func.declaration.instructions[0].op != spv::OpFunction ? 1 : 0].op == spv::OpFunction);
+			const spv::Id definition = func.declaration.instructions[func.declaration.instructions[0].op != spv::OpFunction ? 1 : 0].result;
 
 #if 1
 			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), definition) != functions_to_remove.end())
