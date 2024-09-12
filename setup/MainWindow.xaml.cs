@@ -1085,10 +1085,12 @@ In that event here are some steps you can try to resolve this:
 			var config = new IniFile(currentInfo.configPath);
 			if (compatibilityIni != null && !config.HasValue("GENERAL", "PreprocessorDefinitions"))
 			{
-				string depthReversed = compatibilityIni.GetString(currentInfo.targetName, "DepthReversed", "0");
-				string depthUpsideDown = compatibilityIni.GetString(currentInfo.targetName, "DepthUpsideDown", "0");
-				string depthLogarithmic = compatibilityIni.GetString(currentInfo.targetName, "DepthLogarithmic", "0");
-				if (!compatibilityIni.HasValue(currentInfo.targetName, "DepthReversed"))
+				string executableName = Path.GetFileName(currentInfo.targetPath);
+
+				string depthReversed = compatibilityIni.GetString(executableName, "DepthReversed", "0");
+				string depthUpsideDown = compatibilityIni.GetString(executableName, "DepthUpsideDown", "0");
+				string depthLogarithmic = compatibilityIni.GetString(executableName, "DepthLogarithmic", "0");
+				if (!compatibilityIni.HasValue(executableName, "DepthReversed"))
 				{
 					var info = FileVersionInfo.GetVersionInfo(currentInfo.targetPath);
 					if (info.LegalCopyright != null)
@@ -1108,16 +1110,16 @@ In that event here are some steps you can try to resolve this:
 					"RESHADE_DEPTH_INPUT_IS_REVERSED=" + depthReversed,
 					"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=" + depthLogarithmic);
 
-				if (compatibilityIni.HasValue(currentInfo.targetName, "DepthCopyBeforeClears") ||
-					compatibilityIni.HasValue(currentInfo.targetName, "DepthCopyAtClearIndex") ||
-					compatibilityIni.HasValue(currentInfo.targetName, "UseAspectRatioHeuristics"))
+				if (compatibilityIni.HasValue(executableName, "DepthCopyBeforeClears") ||
+					compatibilityIni.HasValue(executableName, "DepthCopyAtClearIndex") ||
+					compatibilityIni.HasValue(executableName, "UseAspectRatioHeuristics"))
 				{
 					config.SetValue("DEPTH", "DepthCopyBeforeClears",
-						compatibilityIni.GetString(currentInfo.targetName, "DepthCopyBeforeClears", "0"));
+						compatibilityIni.GetString(executableName, "DepthCopyBeforeClears", "0"));
 					config.SetValue("DEPTH", "DepthCopyAtClearIndex",
-						compatibilityIni.GetString(currentInfo.targetName, "DepthCopyAtClearIndex", "0"));
+						compatibilityIni.GetString(executableName, "DepthCopyAtClearIndex", "0"));
 					config.SetValue("DEPTH", "UseAspectRatioHeuristics",
-						compatibilityIni.GetString(currentInfo.targetName, "UseAspectRatioHeuristics", "1"));
+						compatibilityIni.GetString(executableName, "UseAspectRatioHeuristics", "1"));
 				}
 			}
 
