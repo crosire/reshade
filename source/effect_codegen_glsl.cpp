@@ -146,6 +146,7 @@ private:
 		// Add function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
+			assert(func->unique_name[0] == 'F' || func->unique_name[0] == 'E');
 			const bool is_entry_point = func->unique_name[0] == 'E';
 			if (is_entry_point)
 				code += "#ifdef " + func->unique_name + '\n';
@@ -160,17 +161,13 @@ private:
 	}
 	std::string finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
-		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
-			[&entry_point_name](const std::unique_ptr<function> &func) {
-				return func->unique_name == entry_point_name;
-			});
-		if (entry_point_it == _functions.end())
+		const function *const entry_point = find_function(entry_point_name);
+		if (entry_point == nullptr)
 			return {};
-		const function &entry_point = *entry_point_it->get();
 
 		std::string code = finalize_preamble();
 
-		if (entry_point.type != shader_type::pixel)
+		if (entry_point->type != shader_type::pixel)
 			code +=
 				// OpenGL does not allow using 'discard' in the vertex shader profile
 				"#define discard\n"
@@ -179,7 +176,7 @@ private:
 				"#define dFdy(y) y\n"
 				"#define fwidth(p) p\n";
 
-		if (entry_point.type != shader_type::compute)
+		if (entry_point->type != shader_type::compute)
 			code +=
 				// OpenGL does not allow using 'shared' in vertex/fragment shader profile
 				"#define shared\n"
@@ -204,23 +201,23 @@ private:
 			};
 
 		// Add referenced sampler definitions
-		for (uint32_t binding = 0; binding < entry_point.referenced_samplers.size(); ++binding)
+		for (uint32_t binding = 0; binding < entry_point->referenced_samplers.size(); ++binding)
 		{
-			if (entry_point.referenced_samplers[binding] == 0)
+			if (entry_point->referenced_samplers[binding] == 0)
 				continue;
 
-			std::string block_code = _blocks.at(entry_point.referenced_samplers[binding]);
+			std::string block_code = _blocks.at(entry_point->referenced_samplers[binding]);
 			replace_binding(block_code, binding);
 			code += block_code;
 		}
 
 		// Add referenced storage definitions
-		for (uint32_t binding = 0; binding < entry_point.referenced_storages.size(); ++binding)
+		for (uint32_t binding = 0; binding < entry_point->referenced_storages.size(); ++binding)
 		{
-			if (entry_point.referenced_storages[binding] == 0)
+			if (entry_point->referenced_storages[binding] == 0)
 				continue;
 
-			std::string block_code = _blocks.at(entry_point.referenced_storages[binding]);
+			std::string block_code = _blocks.at(entry_point->referenced_storages[binding]);
 			replace_binding(block_code, binding);
 			code += block_code;
 		}
@@ -231,8 +228,8 @@ private:
 		// Add referenced function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
-			if (func->id != entry_point.id &&
-				std::find(entry_point.referenced_functions.begin(), entry_point.referenced_functions.end(), func->id) == entry_point.referenced_functions.end())
+			if (func->id != entry_point->id &&
+				std::find(entry_point->referenced_functions.begin(), entry_point->referenced_functions.end(), func->id) == entry_point->referenced_functions.end())
 				continue;
 
 			code += _blocks.at(func->id);

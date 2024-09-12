@@ -2791,7 +2791,9 @@ void reshade::runtime::draw_gui_statistics()
 
 		for (const texture &tex : _textures)
 		{
-			if (tex.resource == 0 || !tex.semantic.empty() || !std::any_of(tex.shared.cbegin(), tex.shared.cend(), [this](size_t effect_index) { return _effects[effect_index].rendering; }))
+			if (tex.resource == 0 || !tex.semantic.empty() ||
+				!std::any_of(tex.shared.cbegin(), tex.shared.cend(),
+					[this](size_t effect_index) { return _effects[effect_index].rendering; }))
 				continue;
 
 			ImGui::PushID(texture_index);
@@ -2864,7 +2866,7 @@ void reshade::runtime::draw_gui_statistics()
 					bool referenced = false;
 					for (const reshadefx::texture_binding &binding : tech.passes[pass_index].texture_bindings)
 					{
-						if (binding.texture_name == tex.unique_name)
+						if (_effects[tech.effect_index].module.samplers[binding.index].texture_name == tex.unique_name)
 						{
 							referenced = true;
 							reference.second.emplace_back(pass_name + " (sampler)");
@@ -2874,7 +2876,7 @@ void reshade::runtime::draw_gui_statistics()
 
 					for (const reshadefx::storage_binding &binding : tech.passes[pass_index].storage_bindings)
 					{
-						if (binding.texture_name == tex.unique_name)
+						if (_effects[tech.effect_index].module.storages[binding.index].texture_name == tex.unique_name)
 						{
 							referenced = true;
 							reference.second.emplace_back(pass_name + " (storage)");

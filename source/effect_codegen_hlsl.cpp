@@ -75,8 +75,6 @@ private:
 		if (_shader_model < 40)
 			return;
 
-		_module.num_sampler_bindings = static_cast<uint32_t>(_sampler_lookup.size());
-
 		for (technique &tech : _module.techniques)
 			for (pass &pass : tech.passes)
 				pass.sampler_bindings.assign(_sampler_lookup.begin(), _sampler_lookup.end());
@@ -299,17 +297,13 @@ private:
 	}
 	std::string finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
-		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
-			[&entry_point_name](const std::unique_ptr<function> &func) {
-				return func->unique_name == entry_point_name;
-			});
-		if (entry_point_it == _functions.end())
+		const function *const entry_point = find_function(entry_point_name);
+		if (entry_point == nullptr)
 			return {};
-		const function &entry_point = *entry_point_it->get();
 
 		std::string code = finalize_preamble();
 
-		if (_shader_model < 40 && entry_point.type == shader_type::pixel)
+		if (_shader_model < 40 && entry_point->type == shader_type::pixel)
 			// Overwrite position semantic in pixel shaders
 			code += "#define POSITION VPOS\n";
 
@@ -324,23 +318,23 @@ private:
 			};
 
 		// Add referenced texture and sampler definitions
-		for (uint32_t binding = 0; binding < entry_point.referenced_samplers.size(); ++binding)
+		for (uint32_t binding = 0; binding < entry_point->referenced_samplers.size(); ++binding)
 		{
-			if (entry_point.referenced_samplers[binding] == 0)
+			if (entry_point->referenced_samplers[binding] == 0)
 				continue;
 
-			std::string block_code = _blocks.at(entry_point.referenced_samplers[binding]);
+			std::string block_code = _blocks.at(entry_point->referenced_samplers[binding]);
 			replace_binding(block_code, binding);
 			code += block_code;
 		}
 
 		// Add referenced storage definitions
-		for (uint32_t binding = 0; binding < entry_point.referenced_storages.size(); ++binding)
+		for (uint32_t binding = 0; binding < entry_point->referenced_storages.size(); ++binding)
 		{
-			if (entry_point.referenced_storages[binding] == 0)
+			if (entry_point->referenced_storages[binding] == 0)
 				continue;
 
-			std::string block_code = _blocks.at(entry_point.referenced_storages[binding]);
+			std::string block_code = _blocks.at(entry_point->referenced_storages[binding]);
 			replace_binding(block_code, binding);
 			code += block_code;
 		}
@@ -348,8 +342,8 @@ private:
 		// Add referenced function definitions
 		for (const std::unique_ptr<function> &func : _functions)
 		{
-			if (func->id != entry_point.id &&
-				std::find(entry_point.referenced_functions.begin(), entry_point.referenced_functions.end(), func->id) == entry_point.referenced_functions.end())
+			if (func->id != entry_point->id &&
+				std::find(entry_point->referenced_functions.begin(), entry_point->referenced_functions.end(), func->id) == entry_point->referenced_functions.end())
 				continue;
 
 			code += _blocks.at(func->id);
@@ -827,7 +821,8 @@ private:
 		{
 			// Try and reuse a sampler binding with the same sampler description
 			const auto existing_sampler_it = std::find_if(_sampler_lookup.begin(), _sampler_lookup.end(),
-				[&info](const sampler_desc &existing_info) {
+				[this, &info](const sampler_binding &existing_binding) {
+					const sampler_desc &existing_info = _module.samplers[existing_binding.index];
 					return
 						existing_info.filter == info.filter &&
 						existing_info.address_u == info.address_u &&
@@ -839,21 +834,15 @@ private:
 				});
 			if (existing_sampler_it != _sampler_lookup.end())
 			{
-				sampler_state_binding = existing_sampler_it->binding;
+				sampler_state_binding = existing_sampler_it->entry_point_binding;
 			}
 			else
 			{
 				sampler_state_binding = static_cast<uint32_t>(_sampler_lookup.size());
 
 				sampler_binding s;
-				s.filter = info.filter;
-				s.address_u = info.address_u;
-				s.address_v = info.address_v;
-				s.address_w = info.address_w;
-				s.min_lod = info.min_lod;
-				s.max_lod = info.max_lod;
-				s.lod_bias = info.lod_bias;
-				s.binding = sampler_state_binding;
+				s.index = default_binding;
+				s.entry_point_binding = sampler_state_binding;
 				_sampler_lookup.push_back(std::move(s));
 
 				if (_shader_model >= 60)

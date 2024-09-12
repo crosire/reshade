@@ -382,26 +382,13 @@ private:
 	}
 	std::basic_string<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
 	{
-		const auto entry_point_it = std::find_if(_functions.begin(), _functions.end(),
-			[&entry_point_name](const std::unique_ptr<function> &func) {
-				return func->unique_name == entry_point_name;
-			});
-		if (entry_point_it == _functions.end())
+		const function *const entry_point = find_function(entry_point_name);
+		if (entry_point == nullptr)
 			return {};
-		const function &entry_point = *entry_point_it->get();
 
 		// Build list of IDs to remove
 		std::vector<spv::Id> variables_to_remove;
-#if 1
 		std::vector<spv::Id> functions_to_remove;
-#else
-		for (const sampler &info : _module.samplers)
-			if (std::find(entry_point.referenced_samplers.begin(), entry_point.referenced_samplers.end(), info.id) == entry_point.referenced_samplers.end())
-				variables_to_remove.push_back(info.id);
-		for (const storage &info : _module.storages)
-			if (std::find(entry_point.referenced_storages.begin(), entry_point.referenced_storages.end(), info.id) == entry_point.referenced_storages.end())
-				variables_to_remove.push_back(info.id);
-#endif
 
 		std::basic_string<char> spirv;
 		finalize_header_section(spirv);
@@ -412,15 +399,14 @@ private:
 			assert(inst.op == spv::OpEntryPoint);
 
 			// Only add the matching entry point
-			if (inst.operands[1] == entry_point.id)
+			if (inst.operands[1] == entry_point->id)
 			{
 				inst.write(spirv);
 			}
 			else
 			{
-#if 1
 				functions_to_remove.push_back(inst.operands[1]);
-#endif
+
 				// Add interface variables to list of variables to remove
 				for (uint32_t k = 2 + static_cast<uint32_t>((std::strlen(reinterpret_cast<const char *>(&inst.operands[2])) + 4) / 4); k < inst.operands.size(); ++k)
 					variables_to_remove.push_back(inst.operands[k]);
@@ -432,7 +418,7 @@ private:
 			assert(inst.op == spv::OpExecutionMode);
 
 			// Only add execution mode for the matching entry point
-			if (inst.operands[0] == entry_point.id)
+			if (inst.operands[0] == entry_point->id)
 			{
 				inst.write(spirv);
 			}
@@ -452,13 +438,13 @@ private:
 				// Replace bindings
 				if (inst.operands[1] == spv::DecorationBinding)
 				{
-					if (const auto referenced_sampler_it = std::find(entry_point.referenced_samplers.begin(), entry_point.referenced_samplers.end(), inst.operands[0]);
-						referenced_sampler_it != entry_point.referenced_samplers.end())
-						inst.operands[2] = static_cast<uint32_t>(std::distance(entry_point.referenced_samplers.begin(), referenced_sampler_it));
+					if (const auto referenced_sampler_it = std::find(entry_point->referenced_samplers.begin(), entry_point->referenced_samplers.end(), inst.operands[0]);
+						referenced_sampler_it != entry_point->referenced_samplers.end())
+						inst.operands[2] = static_cast<uint32_t>(referenced_sampler_it - entry_point->referenced_samplers.begin());
 					else
-					if (const auto referenced_storage_it = std::find(entry_point.referenced_storages.begin(), entry_point.referenced_storages.end(), inst.operands[0]);
-						referenced_storage_it != entry_point.referenced_storages.end())
-						inst.operands[2] = static_cast<uint32_t>(std::distance(entry_point.referenced_storages.begin(), referenced_storage_it));
+					if (const auto referenced_storage_it = std::find(entry_point->referenced_storages.begin(), entry_point->referenced_storages.end(), inst.operands[0]);
+						referenced_storage_it != entry_point->referenced_storages.end())
+						inst.operands[2] = static_cast<uint32_t>(referenced_storage_it - entry_point->referenced_storages.begin());
 				}
 			}
 
@@ -477,32 +463,27 @@ private:
 		}
 
 		// All referenced function definitions
-		for (const function_blocks &func : _functions_blocks)
+		for (const function_blocks &function : _functions_blocks)
 		{
-			if (func.definition.instructions.empty())
+			if (function.definition.instructions.empty())
 				continue;
 
-			assert(func.declaration.instructions[func.declaration.instructions[0].op != spv::OpFunction ? 1 : 0].op == spv::OpFunction);
-			const spv::Id definition = func.declaration.instructions[func.declaration.instructions[0].op != spv::OpFunction ? 1 : 0].result;
+			assert(function.declaration.instructions[function.declaration.instructions[0].op != spv::OpFunction ? 1 : 0].op == spv::OpFunction);
+			const spv::Id definition = function.declaration.instructions[function.declaration.instructions[0].op != spv::OpFunction ? 1 : 0].result;
 
-#if 1
 			if (std::find(functions_to_remove.begin(), functions_to_remove.end(), definition) != functions_to_remove.end())
-#else
-			if (struct_definition != entry_point.struct_definition &&
-				entry_point.referenced_functions.find(struct_definition) == entry_point.referenced_functions.end())
-#endif
 				continue;
 
-			for (const spirv_instruction &inst : func.declaration.instructions)
+			for (const spirv_instruction &inst : function.declaration.instructions)
 				inst.write(spirv);
 
 			// Grab first label and move it in front of variable declarations
-			func.definition.instructions.front().write(spirv);
-			assert(func.definition.instructions.front().op == spv::OpLabel);
+			function.definition.instructions.front().write(spirv);
+			assert(function.definition.instructions.front().op == spv::OpLabel);
 
-			for (const spirv_instruction &inst : func.variables.instructions)
+			for (const spirv_instruction &inst : function.variables.instructions)
 				inst.write(spirv);
-			for (auto inst_it = func.definition.instructions.begin() + 1; inst_it != func.definition.instructions.end(); ++inst_it)
+			for (auto inst_it = function.definition.instructions.begin() + 1; inst_it != function.definition.instructions.end(); ++inst_it)
 				inst_it->write(spirv);
 		}
 

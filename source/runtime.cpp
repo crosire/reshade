@@ -2145,13 +2145,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						{
 							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
 								new_texture.unique_name, existing_texture->unique_name);
-
-							for (reshadefx::texture_binding &texture_info : pass_info.texture_bindings)
-								if (texture_info.texture_name == new_texture.unique_name)
-									texture_info.texture_name = existing_texture->unique_name;
-							for (reshadefx::storage_binding &storage_info : pass_info.storage_bindings)
-								if (storage_info.texture_name == new_texture.unique_name)
-									storage_info.texture_name = existing_texture->unique_name;
 						}
 					}
 
@@ -2213,8 +2206,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 }
 bool reshade::runtime::create_effect(size_t effect_index)
 {
-	assert(effect_index < _effects.size());
-
 	effect &effect = _effects[effect_index];
 
 	// Create textures now, since they are referenced when building samplers below
@@ -2233,89 +2224,124 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	// Build specialization constants
 	std::vector<uint32_t> spec_data;
 	std::vector<uint32_t> spec_constants;
-	for (const reshadefx::uniform &constant : effect.module.spec_constants)
+	for (const reshadefx::uniform &spec_constant : effect.module.spec_constants)
 	{
 		uint32_t id = static_cast<uint32_t>(spec_constants.size());
-		spec_data.push_back(constant.initializer_value.as_uint[0]);
+		spec_data.push_back(spec_constant.initializer_value.as_uint[0]);
 		spec_constants.push_back(id);
 	}
 
 	// Create optional query heap for time measurements
 	if (!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>(effect.module.techniques.size() * 2 * 4), &effect.query_heap))
+	{
 		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
+	}
 
+	// Initialize bindings
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
-	api::descriptor_range layout_ranges[4];
-	layout_ranges[0].binding = 0;
-	layout_ranges[0].dx_register_index = 0; // b0 (global constant buffer)
-	layout_ranges[0].dx_register_space = 0;
-	layout_ranges[0].count = 1;
-	layout_ranges[0].array_size = 1;
-	layout_ranges[0].type = api::descriptor_type::constant_buffer;
-	layout_ranges[0].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
+	api::descriptor_range cb_range;
+	cb_range.binding = 0;
+	cb_range.dx_register_index = 0; // b0 (global constant buffer)
+	cb_range.dx_register_space = 0;
+	cb_range.count = 1;
+	cb_range.array_size = 1;
+	cb_range.type = api::descriptor_type::constant_buffer;
+	cb_range.visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
-	layout_ranges[1].binding = 0;
-	layout_ranges[1].dx_register_index = 0; // s#
-	layout_ranges[1].dx_register_space = 0;
-	layout_ranges[1].count = effect.module.num_sampler_bindings;
-	layout_ranges[1].array_size = 1;
-	layout_ranges[1].type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
-	layout_ranges[1].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
+	api::descriptor_range sampler_range;
+	sampler_range.binding = 0;
+	sampler_range.dx_register_index = 0; // s#
+	sampler_range.dx_register_space = 0;
+	sampler_range.count = 0;
+	sampler_range.array_size = 1;
+	sampler_range.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
+	sampler_range.visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
-	layout_ranges[3].binding = 0;
-	layout_ranges[3].dx_register_index = 0; // u#
-	layout_ranges[3].dx_register_space = 0;
-	layout_ranges[3].count = effect.module.num_storage_bindings;
-	layout_ranges[3].array_size = 1;
-	layout_ranges[3].type = api::descriptor_type::unordered_access_view;
-	layout_ranges[3].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
+	api::descriptor_range srv_range;
+	srv_range.binding = 0;
+	srv_range.dx_register_index = 0; // t#
+	srv_range.dx_register_space = 0;
+	srv_range.count = 0;
+	srv_range.array_size = 1;
+	srv_range.type = api::descriptor_type::shader_resource_view;
+	srv_range.visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
-	api::pipeline_layout_param layout_params[4];
-	layout_params[0].type = api::pipeline_layout_param_type::descriptor_table;
-	layout_params[0].descriptor_table.count = 1;
-	layout_params[0].descriptor_table.ranges = &layout_ranges[0];
+	api::descriptor_range uav_range;
+	uav_range.binding = 0;
+	uav_range.dx_register_index = 0; // u#
+	uav_range.dx_register_space = 0;
+	uav_range.count = 0;
+	uav_range.array_size = 1;
+	uav_range.type = api::descriptor_type::unordered_access_view;
+	uav_range.visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
 
-	layout_params[1].type = api::pipeline_layout_param_type::descriptor_table;
-	layout_params[1].descriptor_table.count = 1;
-	layout_params[1].descriptor_table.ranges = &layout_ranges[1];
-
-	if (sampler_with_resource_view)
+	size_t total_pass_count = 0;
+	for (const reshadefx::technique &tech : effect.module.techniques)
 	{
-		layout_params[2].type = api::pipeline_layout_param_type::descriptor_table;
-		layout_params[2].descriptor_table.count = 1;
-		layout_params[2].descriptor_table.ranges = &layout_ranges[3];
-	}
-	else
-	{
-		layout_ranges[2].binding = 0;
-		layout_ranges[2].dx_register_index = 0; // t#
-		layout_ranges[2].dx_register_space = 0;
-		layout_ranges[2].count = effect.module.num_texture_bindings;
-		layout_ranges[2].array_size = 1;
-		layout_ranges[2].type = api::descriptor_type::shader_resource_view;
-		layout_ranges[2].visibility = api::shader_stage::vertex | api::shader_stage::pixel | api::shader_stage::compute;
+		total_pass_count += tech.passes.size();
 
-		layout_params[2].type = api::pipeline_layout_param_type::descriptor_table;
-		layout_params[2].descriptor_table.count = 1;
-		layout_params[2].descriptor_table.ranges = &layout_ranges[2];
-		layout_params[3].type = api::pipeline_layout_param_type::descriptor_table;
-		layout_params[3].descriptor_table.count = 1;
-		layout_params[3].descriptor_table.ranges = &layout_ranges[3];
+		for (const reshadefx::pass &pass : tech.passes)
+		{
+			for (const reshadefx::sampler_binding &binding : pass.sampler_bindings)
+				sampler_range.count = std::max(sampler_range.count, binding.entry_point_binding + 1);
+			for (const reshadefx::texture_binding &binding : pass.texture_bindings)
+				srv_range.count = std::max(srv_range.count, binding.entry_point_binding + 1);
+			for (const reshadefx::storage_binding &binding : pass.storage_bindings)
+				uav_range.count = std::max(uav_range.count, binding.entry_point_binding + 1);
+		}
 	}
+
+	std::vector<api::descriptor_table_update> descriptor_writes;
+	descriptor_writes.reserve(
+		static_cast<size_t>(cb_range.count) +
+		static_cast<size_t>(sampler_range.count) +
+		static_cast<size_t>(srv_range.count) +
+		static_cast<size_t>(uav_range.count));
+
+	std::vector<api::descriptor_table> shader_resource_view_tables(total_pass_count);
+	std::vector<api::descriptor_table> unordered_access_view_tables(total_pass_count);
+
+	uint16_t sampler_list = 0;
+	std::vector<api::sampler_with_resource_view> sampler_descriptors;
+	sampler_descriptors.resize(std::max(sampler_range.count, srv_range.count) * total_pass_count);
 
 	// Create pipeline layout for this effect
-	if (!_device->create_pipeline_layout(sampler_with_resource_view ? 3 : 4, layout_params, &effect.layout))
 	{
-		log::message(log::level::error, "Failed to create pipeline layout for effect file '%s'!", effect.source_file.u8string().c_str());
-		return false;
+		api::pipeline_layout_param layout_params[4];
+		layout_params[0].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[0].descriptor_table.count = 1;
+		layout_params[0].descriptor_table.ranges = &cb_range;
+
+		layout_params[1].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[1].descriptor_table.count = 1;
+		layout_params[1].descriptor_table.ranges = &sampler_range;
+
+		layout_params[2].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[2].descriptor_table.count = 1;
+
+		layout_params[3].type = api::pipeline_layout_param_type::descriptor_table;
+		layout_params[3].descriptor_table.count = 1;
+
+		if (sampler_with_resource_view)
+		{
+			layout_params[2].descriptor_table.ranges = &uav_range;
+		}
+		else
+		{
+			layout_params[2].descriptor_table.ranges = &srv_range;
+			layout_params[3].descriptor_table.ranges = &uav_range;
+		}
+
+		if (!_device->create_pipeline_layout(sampler_with_resource_view ? 3 : 4, layout_params, &effect.layout))
+		{
+			log::message(log::level::error, "Failed to create pipeline layout for effect file '%s'!", effect.source_file.u8string().c_str());
+			return false;
+		}
 	}
 
-	api::buffer_range cb_range = {};
-	std::vector<api::descriptor_table_update> descriptor_writes;
-	descriptor_writes.reserve(effect.module.num_sampler_bindings + effect.module.num_texture_bindings + effect.module.num_storage_bindings + 1);
-
 	// Create global constant buffer (except in D3D9, which does not have constant buffers)
+	api::buffer_range cb_buffer_range = {};
 	if (_renderer_id != 0x9000 && !effect.uniform_data_storage.empty())
 	{
 		if (!_device->create_resource(
@@ -2334,49 +2360,37 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			return false;
 		}
 
-		cb_range.buffer = effect.cb;
+		cb_buffer_range.buffer = effect.cb;
 
 		api::descriptor_table_update &write = descriptor_writes.emplace_back();
 		write.table = effect.cb_table;
 		write.binding = 0;
 		write.type = api::descriptor_type::constant_buffer;
 		write.count = 1;
-		write.descriptors = &cb_range;
+		write.descriptors = &cb_buffer_range;
 	}
 
-	// Initialize bindings
-	size_t total_pass_count = 0;
-	for (const reshadefx::technique &info : effect.module.techniques)
-		total_pass_count += info.passes.size();
-
-	std::vector<api::descriptor_table> texture_tables(total_pass_count);
-	std::vector<api::descriptor_table> storage_tables(total_pass_count);
-
-	uint16_t sampler_list = 0;
-	std::vector<api::sampler_with_resource_view> sampler_descriptors;
-	sampler_descriptors.resize(std::max(effect.module.num_sampler_bindings, effect.module.num_texture_bindings) * total_pass_count);
-
-	if (effect.module.num_sampler_bindings != 0)
+	if (sampler_range.count != 0)
 	{
-		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? texture_tables.data() : &effect.sampler_table))
+		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(sampler_with_resource_view ? total_pass_count : 1), effect.layout, 1, sampler_with_resource_view ? shader_resource_view_tables.data() : &effect.sampler_table))
 		{
 			log::message(log::level::error, "Failed to create sampler descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 	}
 
-	if (effect.module.num_texture_bindings != 0 && !sampler_with_resource_view)
+	if (srv_range.count != 0 && !sampler_with_resource_view)
 	{
-		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, 2, texture_tables.data()))
+		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, 2, shader_resource_view_tables.data()))
 		{
 			log::message(log::level::error, "Failed to create texture descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
 	}
 
-	if (effect.module.num_storage_bindings != 0)
+	if (uav_range.count != 0)
 	{
-		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, storage_tables.data()))
+		if (!_device->allocate_descriptor_tables(static_cast<uint32_t>(total_pass_count), effect.layout, sampler_with_resource_view ? 2 : 3, unordered_access_view_tables.data()))
 		{
 			log::message(log::level::error, "Failed to create storage descriptor table for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
@@ -2384,35 +2398,35 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	}
 
 	// Initialize techniques and passes
-	size_t total_pass_index = 0;
-	size_t technique_index_in_effect = 0;
-
-	for (technique &tech : _techniques)
+	for (size_t tech_index = 0, pass_index_in_effect = 0, tech_index_in_effect = 0; tech_index < _techniques.size(); ++tech_index)
 	{
+		technique &tech = _techniques[tech_index];
+
 		if (!tech.passes_data.empty() || tech.effect_index != effect_index)
 			continue;
 
 		tech.passes_data.resize(tech.passes.size());
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		tech.query_base_index = static_cast<uint32_t>(technique_index_in_effect++ * 2 * 4);
+		tech.query_base_index = static_cast<uint32_t>(tech_index_in_effect * 2 * 4);
+		++tech_index_in_effect;
 
-		for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index, ++total_pass_index)
+		for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index, ++pass_index_in_effect)
 		{
-			reshadefx::pass &pass_info = tech.passes[pass_index];
+			reshadefx::pass &pass = tech.passes[pass_index];
 			technique::pass_data &pass_data = tech.passes_data[pass_index];
 
 			std::vector<api::pipeline_subobject> subobjects;
 
-			if (!pass_info.cs_entry_point.empty())
+			if (!pass.cs_entry_point.empty())
 			{
 				api::shader_desc cs_desc = {};
-				const std::string &cs = effect.assembly.at(pass_info.cs_entry_point);
+				const std::string &cs = effect.assembly.at(pass.cs_entry_point);
 				cs_desc.code = cs.data();
 				cs_desc.code_size = cs.size();
 				if (_renderer_id & 0x20000)
 				{
-					cs_desc.entry_point = pass_info.cs_entry_point.c_str();
+					cs_desc.entry_point = pass.cs_entry_point.c_str();
 					cs_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
 					cs_desc.spec_constant_ids = spec_constants.data();
 					cs_desc.spec_constant_values = spec_data.data();
@@ -2431,14 +2445,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 			else
 			{
 				api::shader_desc vs_desc = {};
-				if (!pass_info.vs_entry_point.empty())
+				if (!pass.vs_entry_point.empty())
 				{
-					const std::string &vs = effect.assembly.at(pass_info.vs_entry_point);
+					const std::string &vs = effect.assembly.at(pass.vs_entry_point);
 					vs_desc.code = vs.data();
 					vs_desc.code_size = vs.size();
 					if (_renderer_id & 0x20000)
 					{
-						vs_desc.entry_point = pass_info.vs_entry_point.c_str();
+						vs_desc.entry_point = pass.vs_entry_point.c_str();
 						vs_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
 						vs_desc.spec_constant_ids = spec_constants.data();
 						vs_desc.spec_constant_values = spec_data.data();
@@ -2448,14 +2462,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 
 				api::shader_desc ps_desc = {};
-				if (!pass_info.ps_entry_point.empty())
+				if (!pass.ps_entry_point.empty())
 				{
-					const std::string &ps = effect.assembly.at(pass_info.ps_entry_point);
+					const std::string &ps = effect.assembly.at(pass.ps_entry_point);
 					ps_desc.code = ps.data();
 					ps_desc.code_size = ps.size();
 					if (_renderer_id & 0x20000)
 					{
-						ps_desc.entry_point = pass_info.ps_entry_point.c_str();
+						ps_desc.entry_point = pass.ps_entry_point.c_str();
 						ps_desc.spec_constants = static_cast<uint32_t>(effect.module.spec_constants.size());
 						ps_desc.spec_constant_ids = spec_constants.data();
 						ps_desc.spec_constant_values = spec_data.data();
@@ -2466,56 +2480,56 @@ bool reshade::runtime::create_effect(size_t effect_index)
 
 				api::format render_target_formats[8] = {};
 
-				if (pass_info.render_target_names[0].empty())
+				if (pass.render_target_names[0].empty())
 				{
-					pass_info.viewport_width = _effect_width;
-					pass_info.viewport_height = _effect_height;
+					pass.viewport_width = _effect_width;
+					pass.viewport_height = _effect_height;
 
-					render_target_formats[0] = api::format_to_default_typed(_effect_color_format, pass_info.srgb_write_enable);
+					render_target_formats[0] = api::format_to_default_typed(_effect_color_format, pass.srgb_write_enable);
 
 					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, 1, &render_target_formats[0] });
 				}
 				else
 				{
 					int render_target_count = 0;
-					for (; render_target_count < 8 && !pass_info.render_target_names[render_target_count].empty(); ++render_target_count)
+					for (; render_target_count < 8 && !pass.render_target_names[render_target_count].empty(); ++render_target_count)
 					{
 						const auto render_target_texture = std::find_if(_textures.cbegin(), _textures.cend(),
-							[&unique_name = pass_info.render_target_names[render_target_count]](const texture &item) {
+							[&unique_name = pass.render_target_names[render_target_count]](const texture &item) {
 								return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
 							});
 						assert(render_target_texture != _textures.cend());
-						assert(render_target_texture->semantic.empty() && render_target_texture->rtv[pass_info.srgb_write_enable] != 0);
+						assert(render_target_texture->semantic.empty() && render_target_texture->rtv[pass.srgb_write_enable] != 0);
 
 						if (std::find(pass_data.modified_resources.cbegin(), pass_data.modified_resources.cend(), render_target_texture->resource) == pass_data.modified_resources.cend())
 						{
 							pass_data.modified_resources.push_back(render_target_texture->resource);
 
-							if (pass_info.generate_mipmaps && render_target_texture->levels > 1)
+							if (pass.generate_mipmaps && render_target_texture->levels > 1)
 								pass_data.generate_mipmap_views.push_back(render_target_texture->srv[0]);
 						}
 
 						const api::resource_desc res_desc = _device->get_resource_desc(render_target_texture->resource);
 
-						render_target_formats[render_target_count] = api::format_to_default_typed(res_desc.texture.format, pass_info.srgb_write_enable);
+						render_target_formats[render_target_count] = api::format_to_default_typed(res_desc.texture.format, pass.srgb_write_enable);
 
-						pass_data.render_target_views[render_target_count] = render_target_texture->rtv[pass_info.srgb_write_enable];
+						pass_data.render_target_views[render_target_count] = render_target_texture->rtv[pass.srgb_write_enable];
 					}
 
 					subobjects.push_back({ api::pipeline_subobject_type::render_target_formats, static_cast<uint32_t>(render_target_count), render_target_formats });
 				}
 
 				// Only need to attach stencil if stencil is actually used in this pass
-				if (pass_info.stencil_enable &&
-					pass_info.viewport_width == _effect_width &&
-					pass_info.viewport_height == _effect_height)
+				if (pass.stencil_enable &&
+					pass.viewport_width == _effect_width &&
+					pass.viewport_height == _effect_height)
 				{
 					subobjects.push_back({ api::pipeline_subobject_type::depth_stencil_format, 1, &_effect_stencil_format });
 				}
 
-				subobjects.push_back({ api::pipeline_subobject_type::max_vertex_count, 1, &pass_info.num_vertices });
+				subobjects.push_back({ api::pipeline_subobject_type::max_vertex_count, 1, &pass.num_vertices });
 
-				api::primitive_topology topology = static_cast<api::primitive_topology>(pass_info.topology);
+				api::primitive_topology topology = static_cast<api::primitive_topology>(pass.topology);
 				subobjects.push_back({ api::pipeline_subobject_type::primitive_topology, 1, &topology });
 
 				const auto convert_blend_op = [](reshadefx::blend_op value) {
@@ -2549,14 +2563,14 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				api::blend_desc blend_state = {};
 				for (int i = 0; i < 8; ++i)
 				{
-					blend_state.blend_enable[i] = pass_info.blend_enable[i];
-					blend_state.source_color_blend_factor[i] = convert_blend_factor(pass_info.source_color_blend_factor[i]);
-					blend_state.dest_color_blend_factor[i] = convert_blend_factor(pass_info.dest_color_blend_factor[i]);
-					blend_state.color_blend_op[i] = convert_blend_op(pass_info.color_blend_op[i]);
-					blend_state.source_alpha_blend_factor[i] = convert_blend_factor(pass_info.source_alpha_blend_factor[i]);
-					blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(pass_info.dest_alpha_blend_factor[i]);
-					blend_state.alpha_blend_op[i] = convert_blend_op(pass_info.alpha_blend_op[i]);
-					blend_state.render_target_write_mask[i] = pass_info.render_target_write_mask[i];
+					blend_state.blend_enable[i] = pass.blend_enable[i];
+					blend_state.source_color_blend_factor[i] = convert_blend_factor(pass.source_color_blend_factor[i]);
+					blend_state.dest_color_blend_factor[i] = convert_blend_factor(pass.dest_color_blend_factor[i]);
+					blend_state.color_blend_op[i] = convert_blend_op(pass.color_blend_op[i]);
+					blend_state.source_alpha_blend_factor[i] = convert_blend_factor(pass.source_alpha_blend_factor[i]);
+					blend_state.dest_alpha_blend_factor[i] = convert_blend_factor(pass.dest_alpha_blend_factor[i]);
+					blend_state.alpha_blend_op[i] = convert_blend_op(pass.alpha_blend_op[i]);
+					blend_state.render_target_write_mask[i] = pass.render_target_write_mask[i];
 				}
 
 				subobjects.push_back({ api::pipeline_subobject_type::blend_state, 1, &blend_state });
@@ -2598,13 +2612,13 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				depth_stencil_state.depth_enable = false;
 				depth_stencil_state.depth_write_mask = false;
 				depth_stencil_state.depth_func = api::compare_op::always;
-				depth_stencil_state.stencil_enable = pass_info.stencil_enable;
-				depth_stencil_state.front_stencil_read_mask = pass_info.stencil_read_mask;
-				depth_stencil_state.front_stencil_write_mask = pass_info.stencil_write_mask;
-				depth_stencil_state.front_stencil_func = convert_stencil_func(pass_info.stencil_comparison_func);
-				depth_stencil_state.front_stencil_fail_op = convert_stencil_op(pass_info.stencil_fail_op);
-				depth_stencil_state.front_stencil_depth_fail_op = convert_stencil_op(pass_info.stencil_depth_fail_op);
-				depth_stencil_state.front_stencil_pass_op = convert_stencil_op(pass_info.stencil_pass_op);
+				depth_stencil_state.stencil_enable = pass.stencil_enable;
+				depth_stencil_state.front_stencil_read_mask = pass.stencil_read_mask;
+				depth_stencil_state.front_stencil_write_mask = pass.stencil_write_mask;
+				depth_stencil_state.front_stencil_func = convert_stencil_func(pass.stencil_comparison_func);
+				depth_stencil_state.front_stencil_fail_op = convert_stencil_op(pass.stencil_fail_op);
+				depth_stencil_state.front_stencil_depth_fail_op = convert_stencil_op(pass.stencil_depth_fail_op);
+				depth_stencil_state.front_stencil_pass_op = convert_stencil_op(pass.stencil_pass_op);
 				depth_stencil_state.back_stencil_read_mask = depth_stencil_state.front_stencil_read_mask;
 				depth_stencil_state.back_stencil_write_mask = depth_stencil_state.front_stencil_write_mask;
 				depth_stencil_state.back_stencil_func = depth_stencil_state.front_stencil_func;
@@ -2623,23 +2637,23 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 			}
 
-			if (effect.module.num_sampler_bindings != 0)
+			if (!pass.sampler_bindings.empty())
 			{
-				pass_data.texture_table = texture_tables[total_pass_index];
+				pass_data.texture_table = shader_resource_view_tables[pass_index_in_effect];
 
-				for (const reshadefx::sampler_binding &info : pass_info.sampler_bindings)
+				for (const reshadefx::sampler_binding &info : pass.sampler_bindings)
 				{
-					api::sampler &sampler_handle = sampler_descriptors[total_pass_index * effect.module.num_sampler_bindings + info.binding].sampler;
+					api::sampler &sampler_handle = sampler_descriptors[pass_index_in_effect * sampler_range.count + info.entry_point_binding].sampler;
 
-					assert(info.binding < 16 || sampler_with_resource_view);
+					assert(info.entry_point_binding < 16 || sampler_with_resource_view);
 
 					// Only initialize sampler if it has not been created before
-					if (sampler_with_resource_view || 0 == (sampler_list & (1 << info.binding)))
+					if (sampler_with_resource_view || 0 == (sampler_list & (1 << info.entry_point_binding)))
 					{
 						if (!sampler_with_resource_view)
-							sampler_list |= (1 << info.binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
+							sampler_list |= (1 << info.entry_point_binding); // Maximum sampler slot count is 16, so a 16-bit integer is enough to hold all bindings
 
-						if (!create_effect_sampler_state(info, sampler_handle))
+						if (!create_effect_sampler_state(effect.module.samplers[info.index], sampler_handle))
 						{
 							log::message(log::level::error, "Failed to create sampler object in '%s'!", effect.source_file.u8string().c_str());
 							return false;
@@ -2648,39 +2662,39 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						api::descriptor_table_update &write = descriptor_writes.emplace_back();
 						write.table = sampler_with_resource_view ? pass_data.texture_table : effect.sampler_table;
 						write.count = 1;
-						write.binding = info.binding;
+						write.binding = info.entry_point_binding;
 						write.type = sampler_with_resource_view ? api::descriptor_type::sampler_with_resource_view : api::descriptor_type::sampler;
 						write.descriptors = &sampler_handle;
 					}
 				}
 			}
 
-			if (effect.module.num_texture_bindings != 0)
+			if (!pass.texture_bindings.empty())
 			{
-				pass_data.texture_table = texture_tables[total_pass_index];
+				pass_data.texture_table = shader_resource_view_tables[pass_index_in_effect];
 
-				for (const reshadefx::texture_binding &info : pass_info.texture_bindings)
+				for (const reshadefx::texture_binding &info : pass.texture_bindings)
 				{
 					const auto sampler_texture = std::find_if(_textures.cbegin(), _textures.cend(),
-						[&unique_name = info.texture_name](const texture &item) {
+						[&unique_name = effect.module.samplers[info.index].texture_name](const texture &item) {
 							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
 						});
 					assert(sampler_texture != _textures.cend());
 
-					api::resource_view &srv = sampler_descriptors[total_pass_index * effect.module.num_texture_bindings + info.binding].view;
+					api::resource_view &srv = sampler_descriptors[pass_index_in_effect * srv_range.count + info.entry_point_binding].view;
 
 					if (sampler_with_resource_view)
 					{
 						// The sampler and descriptor table update for this 'sampler_with_resource_view' descriptor were already initialized above
 						assert(
-							effect.module.num_texture_bindings == effect.module.num_sampler_bindings &&
-							sampler_descriptors[total_pass_index * effect.module.num_texture_bindings + info.binding].sampler != 0);
+							srv_range.count == sampler_range.count &&
+							sampler_descriptors[pass_index_in_effect * srv_range.count + info.entry_point_binding].sampler != 0);
 					}
 					else
 					{
 						api::descriptor_table_update &write = descriptor_writes.emplace_back();
 						write.table = pass_data.texture_table;
-						write.binding = info.binding;
+						write.binding = info.entry_point_binding;
 						write.type = api::descriptor_type::shader_resource_view;
 						write.count = 1;
 						write.descriptors = &srv;
@@ -2697,8 +2711,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 						effect.texture_semantic_to_binding.push_back({
 							sampler_texture->semantic,
 							pass_data.texture_table,
-							info.binding,
-							sampler_with_resource_view ? sampler_descriptors[total_pass_index * effect.module.num_texture_bindings + info.binding].sampler : api::sampler { 0 },
+							info.entry_point_binding,
+							sampler_with_resource_view ? sampler_descriptors[pass_index_in_effect * srv_range.count + info.entry_point_binding].sampler : api::sampler { 0 },
 							info.srgb
 						});
 					}
@@ -2711,33 +2725,33 @@ bool reshade::runtime::create_effect(size_t effect_index)
 				}
 			}
 
-			if (effect.module.num_storage_bindings != 0)
+			if (!pass.storage_bindings.empty())
 			{
-				pass_data.storage_table = storage_tables[total_pass_index];
+				pass_data.storage_table = unordered_access_view_tables[pass_index_in_effect];
 
-				for (const reshadefx::storage_binding &info : pass_info.storage_bindings)
+				for (const reshadefx::storage_binding &info : pass.storage_bindings)
 				{
 					const auto storage_texture = std::find_if(_textures.cbegin(), _textures.cend(),
-						[&unique_name = info.texture_name](const texture &item) {
+						[&unique_name = effect.module.storages[info.index].texture_name](const texture &item) {
 							return item.unique_name == unique_name && (item.resource != 0 || !item.semantic.empty());
 						});
 					assert(storage_texture != _textures.cend());
-					assert(storage_texture->semantic.empty() && storage_texture->uav[info.level] != 0);
+					assert(storage_texture->semantic.empty() && storage_texture->uav[effect.module.storages[info.index].level] != 0);
 
 					if (std::find(pass_data.modified_resources.cbegin(), pass_data.modified_resources.cend(), storage_texture->resource) == pass_data.modified_resources.cend())
 					{
 						pass_data.modified_resources.push_back(storage_texture->resource);
 
-						if (pass_info.generate_mipmaps && storage_texture->levels > 1)
+						if (pass.generate_mipmaps && storage_texture->levels > 1)
 							pass_data.generate_mipmap_views.push_back(storage_texture->srv[0]);
 					}
 
 					api::descriptor_table_update &write = descriptor_writes.emplace_back();
 					write.table = pass_data.storage_table;
-					write.binding = info.binding;
+					write.binding = info.entry_point_binding;
 					write.type = api::descriptor_type::unordered_access_view;
 					write.count = 1;
-					write.descriptors = &storage_texture->uav[info.level];
+					write.descriptors = &storage_texture->uav[effect.module.storages[info.index].level];
 				}
 			}
 		}

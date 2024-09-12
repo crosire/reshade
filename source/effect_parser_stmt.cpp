@@ -2218,7 +2218,8 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 							target_info.render_target = true;
 
 							// Verify that all render targets in this pass have the same dimensions
-							if (info.viewport_width != 0 && info.viewport_height != 0 && (target_info.width != info.viewport_width || target_info.height != info.viewport_height))
+							if ((info.viewport_width != 0 && info.viewport_height != 0) &&
+								(target_info.width != info.viewport_width || target_info.height != info.viewport_height))
 							{
 								parse_success = false;
 								error(state_location, 4545, "cannot use multiple render targets with different texture dimensions (is " + std::to_string(target_info.width) + 'x' + std::to_string(target_info.height) + ", but expected " + std::to_string(info.viewport_width) + 'x' + std::to_string(info.viewport_height) + ')');
@@ -2337,47 +2338,47 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 				info.info_name[i] = (value); \
 	}
 
-			if (state_name == "SRGBWriteEnable")
-				info.srgb_write_enable = (value != 0);
-			SET_STATE_VALUE_INDEXED(BlendEnable, blend_enable, value != 0)
-			else if (state_name == "StencilEnable")
-				info.stencil_enable = (value != 0);
+			if (state_name == "GenerateMipmaps" || state_name == "GenerateMipMaps")
+				info.generate_mipmaps = (value != 0);
 			else if (state_name == "ClearRenderTargets")
 				info.clear_render_targets = (value != 0);
+			SET_STATE_VALUE_INDEXED(BlendEnable, blend_enable, value != 0)
+			SET_STATE_VALUE_INDEXED(SrcBlend, source_color_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, source_alpha_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(BlendOp, color_blend_op, static_cast<blend_op>(value))
+			SET_STATE_VALUE_INDEXED(DestBlend, dest_color_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_alpha_blend_factor, static_cast<blend_factor>(value))
+			SET_STATE_VALUE_INDEXED(BlendOpAlpha, alpha_blend_op, static_cast<blend_op>(value))
+			else if (state_name == "SRGBWriteEnable")
+				info.srgb_write_enable = (value != 0);
 			SET_STATE_VALUE_INDEXED(ColorWriteMask, render_target_write_mask, value & 0xFF)
 			SET_STATE_VALUE_INDEXED(RenderTargetWriteMask, render_target_write_mask, value & 0xFF)
+			else if (state_name == "StencilEnable")
+				info.stencil_enable = (value != 0);
 			else if (state_name == "StencilReadMask" || state_name == "StencilMask")
 				info.stencil_read_mask = value & 0xFF;
 			else if (state_name == "StencilWriteMask")
 				info.stencil_write_mask = value & 0xFF;
-			SET_STATE_VALUE_INDEXED(BlendOp, color_blend_op, static_cast<blend_op>(value))
-			SET_STATE_VALUE_INDEXED(BlendOpAlpha, alpha_blend_op, static_cast<blend_op>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlend, source_color_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, source_alpha_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(DestBlend, dest_color_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_alpha_blend_factor, static_cast<blend_factor>(value))
+			else if (state_name == "StencilRef")
+				info.stencil_reference_value = value & 0xFF;
 			else if (state_name == "StencilFunc")
 				info.stencil_comparison_func = static_cast<stencil_func>(value);
-			else if (state_name == "StencilRef")
-				info.stencil_reference_value = value;
 			else if (state_name == "StencilPass" || state_name == "StencilPassOp")
 				info.stencil_pass_op = static_cast<stencil_op>(value);
 			else if (state_name == "StencilFail" || state_name == "StencilFailOp")
 				info.stencil_fail_op = static_cast<stencil_op>(value);
 			else if (state_name == "StencilZFail" || state_name == "StencilDepthFail" || state_name == "StencilDepthFailOp")
 				info.stencil_depth_fail_op = static_cast<stencil_op>(value);
-			else if (state_name == "VertexCount")
-				info.num_vertices = value;
 			else if (state_name == "PrimitiveType" || state_name == "PrimitiveTopology")
 				info.topology = static_cast<primitive_topology>(value);
+			else if (state_name == "VertexCount")
+				info.num_vertices = value;
 			else if (state_name == "DispatchSizeX")
 				info.viewport_width = value;
 			else if (state_name == "DispatchSizeY")
 				info.viewport_height = value;
 			else if (state_name == "DispatchSizeZ")
 				info.viewport_dispatch_z = value;
-			else if (state_name == "GenerateMipmaps" || state_name == "GenerateMipMaps")
-				info.generate_mipmaps = (value != 0);
 			else
 				error(state_location, 3004, "unrecognized pass state '" + state_name + '\'');
 
@@ -2560,7 +2561,7 @@ void reshadefx::codegen::optimize_bindings()
 	std::unordered_map<function *, entry_point_info> per_entry_point;
 	for (const auto &[name, type] : _module.entry_points)
 	{
-		per_entry_point.emplace(&get_function(name), entry_point_info {});
+		per_entry_point.emplace(find_function(name), entry_point_info {});
 	}
 
 	std::unordered_map<id, int> usage_count;
@@ -2597,28 +2598,28 @@ void reshadefx::codegen::optimize_bindings()
 		{
 			if (!pass.cs_entry_point.empty())
 			{
-				function &cs = get_function(pass.cs_entry_point);
+				function *const cs = find_function(pass.cs_entry_point);
 
 				sampler_group cs_sampler_info;
-				cs_sampler_info.bindings = cs.referenced_samplers;
-				per_entry_point.at(&cs).sampler_groups.push_back(std::move(cs_sampler_info));
+				cs_sampler_info.bindings = cs->referenced_samplers;
+				per_entry_point.at(cs).sampler_groups.push_back(std::move(cs_sampler_info));
 			}
 			else
 			{
-				function &vs = get_function(pass.vs_entry_point);
+				function *const vs = find_function(pass.vs_entry_point);
 
 				sampler_group vs_sampler_info;
-				vs_sampler_info.bindings = vs.referenced_samplers;
+				vs_sampler_info.bindings = vs->referenced_samplers;
 
 				if (!pass.ps_entry_point.empty())
 				{
-					function &ps = get_function(pass.ps_entry_point);
+					function *const ps = find_function(pass.ps_entry_point);
 
-					vs_sampler_info.grouped_entry_point = &ps;
+					vs_sampler_info.grouped_entry_point = ps;
 
 					sampler_group ps_sampler_info;
-					ps_sampler_info.bindings = ps.referenced_samplers;
-					ps_sampler_info.grouped_entry_point = &vs;
+					ps_sampler_info.bindings = ps->referenced_samplers;
+					ps_sampler_info.grouped_entry_point = vs;
 
 					for (size_t binding = 0; binding < std::min(vs_sampler_info.bindings.size(), ps_sampler_info.bindings.size()); ++binding)
 					{
@@ -2631,10 +2632,10 @@ void reshadefx::codegen::optimize_bindings()
 						}
 					}
 
-					per_entry_point.at(&ps).sampler_groups.push_back(std::move(ps_sampler_info));
+					per_entry_point.at(ps).sampler_groups.push_back(std::move(ps_sampler_info));
 				}
 
-				per_entry_point.at(&vs).sampler_groups.push_back(std::move(vs_sampler_info));
+				per_entry_point.at(vs).sampler_groups.push_back(std::move(vs_sampler_info));
 			}
 		}
 	}
@@ -2689,27 +2690,27 @@ void reshadefx::codegen::optimize_bindings()
 
 			if (!pass.cs_entry_point.empty())
 			{
-				const function &cs = get_function(pass.cs_entry_point);
+				const function *const cs = find_function(pass.cs_entry_point);
 
-				referenced_samplers = cs.referenced_samplers;
-				referenced_storages = cs.referenced_storages;
+				referenced_samplers = cs->referenced_samplers;
+				referenced_storages = cs->referenced_storages;
 			}
 			else
 			{
-				const function &vs = get_function(pass.vs_entry_point);
+				const function *const vs = find_function(pass.vs_entry_point);
 
-				referenced_samplers = vs.referenced_samplers;
+				referenced_samplers = vs->referenced_samplers;
 
 				if (!pass.ps_entry_point.empty())
 				{
-					const function &ps = get_function(pass.ps_entry_point);
+					const function *const ps = find_function(pass.ps_entry_point);
 
-					if (ps.referenced_samplers.size() > referenced_samplers.size())
-						referenced_samplers.resize(ps.referenced_samplers.size());
+					if (ps->referenced_samplers.size() > referenced_samplers.size())
+						referenced_samplers.resize(ps->referenced_samplers.size());
 
-					for (uint32_t binding = 0; binding < ps.referenced_samplers.size(); ++binding)
-						if (ps.referenced_samplers[binding] != 0)
-							referenced_samplers[binding] = ps.referenced_samplers[binding];
+					for (uint32_t binding = 0; binding < ps->referenced_samplers.size(); ++binding)
+						if (ps->referenced_samplers[binding] != 0)
+							referenced_samplers[binding] = ps->referenced_samplers[binding];
 				}
 			}
 
@@ -2720,28 +2721,16 @@ void reshadefx::codegen::optimize_bindings()
 
 				const sampler &sampler = get_sampler(referenced_samplers[binding]);
 
-				texture_binding t;
-				t.texture_name = sampler.texture_name;
-				t.binding = binding;
-				t.srgb = sampler.srgb;
-				pass.texture_bindings.push_back(std::move(t));
-
-				if (binding >= _module.num_texture_bindings)
-					_module.num_texture_bindings = binding + 1;
-
 				sampler_binding s;
-				s.binding = binding;
-				s.filter = sampler.filter;
-				s.address_u = sampler.address_u;
-				s.address_v = sampler.address_v;
-				s.address_w = sampler.address_w;
-				s.min_lod = sampler.min_lod;
-				s.max_lod = sampler.max_lod;
-				s.lod_bias = sampler.lod_bias;
-				pass.sampler_bindings.push_back(std::move(s));
+				s.index = &sampler - _module.samplers.data();
+				s.entry_point_binding = binding;
+				pass.sampler_bindings.push_back(s);
 
-				if (binding >= _module.num_sampler_bindings)
-					_module.num_sampler_bindings = binding + 1;
+				texture_binding t;
+				t.index = s.index;
+				t.entry_point_binding = s.entry_point_binding;
+				t.srgb = sampler.srgb;
+				pass.texture_bindings.push_back(t);
 			}
 
 			for (uint32_t binding = 0; binding < referenced_storages.size(); ++binding)
@@ -2752,13 +2741,9 @@ void reshadefx::codegen::optimize_bindings()
 				const storage &storage = get_storage(referenced_storages[binding]);
 
 				storage_binding u;
-				u.texture_name = storage.texture_name;
-				u.binding = binding;
-				u.level = storage.level;
-				pass.storage_bindings.push_back(std::move(u));
-
-				if (binding >= _module.num_storage_bindings)
-					_module.num_storage_bindings = binding + 1;
+				u.index = &storage - _module.storages.data();
+				u.entry_point_binding = binding;
+				pass.storage_bindings.push_back(u);
 			}
 		}
 	}

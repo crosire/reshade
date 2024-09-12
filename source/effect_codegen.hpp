@@ -119,7 +119,7 @@ namespace reshadefx
 		/// <param name="chain">Access chain pointing to the variable to load from.</param>
 		/// <param name="force_new_id">Set to <see langword="true"/> to force this to return a new SSA ID for l-value loads.</param>
 		/// <returns>New SSA ID with the loaded value.</returns>
-		virtual id emit_load(const expression &chain, bool force_new_id = false) = 0;
+		virtual id   emit_load(const expression &chain, bool force_new_id = false) = 0;
 		/// <summary>
 		/// Resolves the access chain and add a store operation to the output.
 		/// </summary>
@@ -132,7 +132,7 @@ namespace reshadefx
 		/// <param name="chain">Access chain pointing to the variable to resolve.</param>
 		/// <param name="chain_index">Output value which is set to the index in the access chain up to which the access chain went.</param>
 		/// <returns>New SSA ID with a pointer to the value.</returns>
-		virtual id emit_access_chain(const expression &chain, size_t &chain_index) { chain_index = chain.chain.size(); return emit_load(chain); }
+		virtual id   emit_access_chain(const expression &chain, size_t &chain_index) { chain_index = chain.chain.size(); return emit_load(chain); }
 
 		/// <summary>
 		/// Creates a SSA constant value.
@@ -251,58 +251,57 @@ namespace reshadefx
 		/// Creates a new basic block.
 		/// </summary>
 		/// <returns>New ID of the basic block.</returns>
-		virtual id create_block() { return make_id(); }
+		virtual id   create_block() { return make_id(); }
 		/// <summary>
 		/// Overwrites the current block ID.
 		/// </summary>
 		/// <param name="id">ID of the block to make current.</param>
 		/// <returns>ID of the previous basic block.</returns>
-		virtual id set_block(id id) = 0;
+		virtual id   set_block(id id) = 0;
 		/// <summary>
-		/// Creates a new basic block and make it current.
+		/// Creates a new basic block and makes it current.
 		/// </summary>
 		/// <param name="id">ID of the basic block to create and make current.</param>
 		virtual void enter_block(id id) = 0;
 		/// <summary>
-		/// Returns from the current basic block and kill the shader invocation.
+		/// Returns from the current basic block and kills the shader invocation.
 		/// </summary>
 		/// <returns>ID of the current basic block.</returns>
-		virtual id leave_block_and_kill() = 0;
+		virtual id   leave_block_and_kill() = 0;
 		/// <summary>
-		/// Returns from the current basic block and hand control flow over to the function call side.
+		/// Returns from the current basic block and hands control flow over to the function call side.
 		/// </summary>
 		/// <param name="value">Optional SSA ID of a return value.</param>
 		/// <returns>ID of the current basic block.</returns>
-		virtual id leave_block_and_return(id value = 0) = 0;
+		virtual id   leave_block_and_return(id value = 0) = 0;
 		/// <summary>
-		/// Diverges the current control flow and enter a switch.
+		/// Diverges the current control flow and enters a switch.
 		/// </summary>
 		/// <param name="value">SSA ID of the selector value to decide the switch path.</param>
 		/// <returns>ID of the current basic block.</returns>
-		virtual id leave_block_and_switch(id value, id default_target) = 0;
+		virtual id   leave_block_and_switch(id value, id default_target) = 0;
 		/// <summary>
-		/// Diverges the current control flow and jump to the specified target block.
+		/// Diverges the current control flow and jumps to the specified target block.
 		/// </summary>
 		/// <param name="target">ID of the basic block to jump to.</param>
 		/// <param name="is_continue">Set to <see langword="true"/> if this corresponds to a loop continue statement.</param>
 		/// <returns>ID of the current basic block.</returns>
-		virtual id leave_block_and_branch(id target, unsigned int loop_flow = 0) = 0;
+		virtual id   leave_block_and_branch(id target, unsigned int loop_flow = 0) = 0;
 		/// <summary>
-		/// Diverges the current control flow and jump to one of the specified target blocks, depending on the condition.
+		/// Diverges the current control flow and jumps to one of the specified target blocks, depending on the condition.
 		/// </summary>
 		/// <param name="condition">SSA ID of a value used to choose which path to take.</param>
 		/// <param name="true_target">ID of the basic block to jump to when the condition is true.</param>
 		/// <param name="false_target">ID of the basic block to jump to when the condition is false.</param>
 		/// <returns>ID of the current basic block.</returns>
-		virtual id leave_block_and_branch_conditional(id condition, id true_target, id false_target) = 0;
-
+		virtual id   leave_block_and_branch_conditional(id condition, id true_target, id false_target) = 0;
 		/// <summary>
 		/// Leaves the current function. Any code added after this call is added in the global scope.
 		/// </summary>
 		virtual void leave_function() = 0;
 
 		/// <summary>
-		/// Recalculates sampler and storage bindings to take as little binding space as possible for each entry point.
+		/// Calculates sampler and storage bindings to take as little binding space as possible for each entry point.
 		/// </summary>
 		virtual void optimize_bindings();
 
@@ -313,38 +312,42 @@ namespace reshadefx
 		/// <returns>Reference to the struct description.</returns>
 		const struct_type &get_struct(id id) const
 		{
-			return *std::find_if(_structs.begin(), _structs.end(),
+			const auto it = std::find_if(_structs.begin(), _structs.end(),
 				[id](const struct_type &info) { return info.id == id; });
+			return *it;
 		}
 		/// <summary>
-		/// Looks up an existing texture binding.
+		/// Looks up an existing texture object.
 		/// </summary>
-		/// <param name="id">SSA ID of the texture binding to find.</param>
+		/// <param name="id">SSA ID of the texture object to find.</param>
 		/// <returns>Reference to the texture description.</returns>
 		texture &get_texture(id id)
 		{
-			return *std::find_if(_module.textures.begin(), _module.textures.end(),
+			const auto it = std::find_if(_module.textures.begin(), _module.textures.end(),
 				[id](const texture &info) { return info.id == id; });
+			return *it;
 		}
 		/// <summary>
-		/// Looks up an existing sampler binding.
+		/// Looks up an existing sampler object.
 		/// </summary>
-		/// <param name="id">SSA ID of the sampler binding to find.</param>
+		/// <param name="id">SSA ID of the sampler object to find.</param>
 		/// <returns>Reference to the sampler description.</returns>
-		const sampler &get_sampler(id id) const
+		sampler &get_sampler(id id)
 		{
-			return *std::find_if(_module.samplers.begin(), _module.samplers.end(),
+			const auto it = std::find_if(_module.samplers.begin(), _module.samplers.end(),
 				[id](const sampler &info) { return info.id == id; });
+			return *it;
 		}
 		/// <summary>
-		/// Looks up an existing storage binding.
+		/// Looks up an existing storage object.
 		/// </summary>
-		/// <param name="id">SSA ID of the storage binding to find.</param>
+		/// <param name="id">SSA ID of the storage object to find.</param>
 		/// <returns>Reference to the storage description.</returns>
-		const storage &get_storage(id id) const
+		storage &get_storage(id id)
 		{
-			return *std::find_if(_module.storages.begin(), _module.storages.end(),
+			const auto it = std::find_if(_module.storages.begin(), _module.storages.end(),
 				[id](const storage &info) { return info.id == id; });
+			return *it;
 		}
 		/// <summary>
 		/// Looks up an existing function definition.
@@ -353,13 +356,19 @@ namespace reshadefx
 		/// <returns>Reference to the function description.</returns>
 		function &get_function(id id)
 		{
-			return *std::find_if(_functions.begin(), _functions.end(),
-				[id](const std::unique_ptr<function> &info) { return info->id == id; })->get();
+			const auto it = std::find_if(_functions.begin(), _functions.end(),
+				[id](const std::unique_ptr<function> &info) { return info->id == id; });
+			return *it->get();
 		}
-		function &get_function(const std::string &unique_name)
+		function *find_function(const std::string &unique_name)
 		{
-			return *std::find_if(_functions.begin(), _functions.end(),
-				[&unique_name](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; })->get();
+			const auto it = std::find_if(_functions.begin(), _functions.end(),
+				[&unique_name](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; });
+			return it != _functions.end() ? it->get() : nullptr;
+		}
+		const function *find_function(const std::string &unique_name) const
+		{
+			return const_cast<codegen *>(this)->find_function(unique_name);
 		}
 
 		id make_id() { return _next_id++; }

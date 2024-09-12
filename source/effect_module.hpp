@@ -106,12 +106,19 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// Describes the binding of a <see cref="texture"/> object.
+	/// Describes the binding of the texture view portion of a <see cref="sampler"/> object.
 	/// </summary>
 	struct texture_binding
 	{
-		uint32_t binding = 0;
-		std::string texture_name;
+		/// <summary>
+		/// Index of the corresponding sampler object in <see cref="effect_module::samplers"/>.
+		/// </summary>
+		size_t index = 0;
+		/// <summary>
+		/// HLSL tX register index or GLSL/SPIR-V binding index.
+		/// This is only relevant when using the generated code specialized for each entry point, otherwise binding is the same as the <see cref="index"/>.
+		/// </summary>
+		uint32_t entry_point_binding = 0;
 		bool srgb = false;
 	};
 
@@ -171,11 +178,19 @@ namespace reshadefx
 	};
 
 	/// <summary>
-	/// Describes the binding of a <see cref="sampler"/> object.
+	/// Describes the binding of the sampler state portion of a <see cref="sampler"/> object.
 	/// </summary>
-	struct sampler_binding : sampler_desc
+	struct sampler_binding
 	{
-		uint32_t binding = 0;
+		/// <summary>
+		/// Index of the corresponding sampler object in <see cref="effect_module::samplers"/>.
+		/// </summary>
+		size_t index = 0;
+		/// <summary>
+		/// HLSL sX register index or GLSL/SPIR-V binding.
+		/// This is only relevant when using the generated code specialized for each entry point, otherwise binding is the same as the <see cref="index"/>.
+		/// </summary>
+		uint32_t entry_point_binding = 0;
 	};
 
 	/// <summary>
@@ -201,10 +216,17 @@ namespace reshadefx
 	/// <summary>
 	/// Describes the binding of a <see cref="storage"/> object.
 	/// </summary>
-	struct storage_binding : storage_desc
+	struct storage_binding
 	{
-		uint32_t binding = 0;
-		std::string texture_name;
+		/// <summary>
+		/// Index of the corresponding storage object in <see cref="effect_module::storages"/>.
+		/// </summary>
+		size_t index = 0;
+		/// <summary>
+		/// HLSL uX register index or GLSL/SPIR-V binding.
+		/// This is only relevant when using the generated code specialized for each entry point, otherwise binding is the same as the <see cref="index"/>.
+		/// </summary>
+		uint32_t entry_point_binding = 0;
 	};
 
 	/// <summary>
@@ -345,12 +367,12 @@ namespace reshadefx
 		bool stencil_enable = false;
 		uint8_t stencil_read_mask = 0xFF;
 		uint8_t stencil_write_mask = 0xFF;
+		uint8_t stencil_reference_value = 0;
 		stencil_func stencil_comparison_func = stencil_func::always;
 		stencil_op stencil_pass_op = stencil_op::keep;
 		stencil_op stencil_fail_op = stencil_op::keep;
 		stencil_op stencil_depth_fail_op = stencil_op::keep;
 		primitive_topology topology = primitive_topology::triangle_list;
-		uint32_t stencil_reference_value = 0;
 		uint32_t num_vertices = 3;
 		uint32_t viewport_width = 0;
 		uint32_t viewport_height = 0;
@@ -377,19 +399,15 @@ namespace reshadefx
 	/// </summary>
 	struct effect_module
 	{
-		std::vector<std::pair<std::string, shader_type>> entry_points;
-
 		std::vector<texture> textures;
 		std::vector<sampler> samplers;
 		std::vector<storage> storages;
 
 		std::vector<uniform> uniforms;
 		std::vector<uniform> spec_constants;
-		std::vector<technique> techniques;
-
 		uint32_t total_uniform_size = 0;
-		uint32_t num_texture_bindings = 0;
-		uint32_t num_sampler_bindings = 0;
-		uint32_t num_storage_bindings = 0;
+
+		std::vector<technique> techniques;
+		std::vector<std::pair<std::string, shader_type>> entry_points;
 	};
 }
