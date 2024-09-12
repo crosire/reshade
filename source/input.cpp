@@ -18,6 +18,8 @@ extern HANDLE g_exit_event;
 static std::shared_mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
+static RECT s_last_clip_cursor = {};
+static POINT s_last_cursor_position = {};
 
 reshade::input::input(window_handle window)
 	: _window(window)
@@ -459,7 +461,17 @@ void reshade::input::block_mouse_input(bool enable)
 
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 	if (enable)
+	{
+		// This will call into 'HookClipCursor' below, so back up and restore rectangle
+		const RECT last_clip_cursor = s_last_clip_cursor;
 		ClipCursor(nullptr);
+		s_last_clip_cursor = last_clip_cursor;
+	}
+	else if ((s_last_clip_cursor.right - s_last_clip_cursor.left) != 0 && (s_last_clip_cursor.bottom - s_last_clip_cursor.top) != 0)
+	{
+		// Restore previous clipping rectangle when not blocking mouse input
+		ClipCursor(&s_last_clip_cursor);
+	}
 }
 void reshade::input::block_keyboard_input(bool enable)
 {
@@ -688,10 +700,10 @@ extern "C" BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDev
 	return TRUE;
 }
 
-static POINT s_last_cursor_position = {};
-
 extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect)
 {
+	s_last_clip_cursor = (lpRect != nullptr) ? *lpRect : RECT {};
+
 	if (is_blocking_mouse_input())
 		// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
 		lpRect = nullptr;
