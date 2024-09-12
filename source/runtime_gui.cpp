@@ -1141,7 +1141,7 @@ void reshade::runtime::draw_gui()
 #if RESHADE_FX
 		if (show_spinner)
 		{
-			imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16, 10);
+			imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16.0f * _font_size / 13, 10.0f * _font_size / 13);
 		}
 		else
 #endif
@@ -1904,7 +1904,7 @@ void reshade::runtime::draw_gui_home()
 	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 	{
 		ImGui::SetCursorPos(ImGui::GetWindowSize() * 0.5f - ImVec2(21, 21));
-		imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16, 10);
+		imgui::spinner((_effects.size() - _reload_remaining_effects) / float(_effects.size()), 16.0f * _font_size / 13, 10.0f * _font_size / 13);
 		return; // Cannot show techniques and variables while effects are loading, since they are being modified in other threads during that time
 	}
 
