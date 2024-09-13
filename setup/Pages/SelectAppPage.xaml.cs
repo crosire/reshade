@@ -309,6 +309,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("console") ||
 								path.ContainsIgnoreCase("convert") ||
 								path.ContainsIgnoreCase("crash") ||
+								path.ContainsIgnoreCase("dotnetfx") ||
 								path.ContainsIgnoreCase("diagnostics") ||
 								path.ContainsIgnoreCase("download") ||
 								path.ContainsIgnoreCase("helper") ||
