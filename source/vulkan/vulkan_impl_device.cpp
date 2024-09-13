@@ -1021,6 +1021,10 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	assert(resource != 0);
 	assert(data.data != nullptr);
 
+	const auto immediate_command_list = get_first_immediate_command_list();
+	if (immediate_command_list == nullptr)
+		return; // No point in creating upload buffer when it cannot be uploaded
+
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 
 	VkExtent3D extent = resource_data->create_info.extent;
@@ -1076,13 +1080,10 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		vmaUnmapMemory(_alloc, intermediate_mem);
 
 		// Copy data from upload buffer into target texture using the first available immediate command list
-		if (const auto immediate_command_list = get_first_immediate_command_list())
-		{
-			immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
+		immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
 
-			// Wait for command to finish executing before destroying the upload buffer
-			immediate_command_list->flush_and_wait();
-		}
+		// Wait for command to finish executing before destroying the upload buffer
+		immediate_command_list->flush_and_wait();
 	}
 
 	vmaDestroyBuffer(_alloc, intermediate, intermediate_mem);
