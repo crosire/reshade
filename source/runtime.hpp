@@ -168,6 +168,8 @@ namespace reshade
 
 		void set_color_space(api::color_space color_space) final { _back_buffer_color_space = color_space; }
 
+		void reload_effect_next_frame(const char *effect_name) final;
+
 	private:
 		static void check_for_update();
 
@@ -198,7 +200,6 @@ namespace reshade
 		bool reload_effect(size_t effect_index);
 		void reload_effects(bool force_load_all = false);
 		void destroy_effects();
-		void reload_effect_next_frame(const char *effect_name);
 
 		bool load_effect_cache(const std::string &id, const std::string &type, std::string &data) const;
 		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const;

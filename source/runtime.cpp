@@ -3496,25 +3496,6 @@ void reshade::runtime::destroy_effects()
 	_textures_loaded = false;
 	_reload_required_effects.clear();
 }
-void reshade::runtime::reload_effect_next_frame(const char *effect_name)
-{
-#if RESHADE_FX
-	if (effect_name == nullptr || *effect_name == '\0')
-	{
-		_reload_required_effects = { _effects.size() };
-		return;
-	}
-
-	if (auto it = std::find_if(_effects.cbegin(), _effects.cend(), [effect_name = std::string_view(effect_name)](const effect &effect) { return effect.source_file.filename().u8string() == effect_name; });
-		it != _effects.cend())
-	{
-		if (const size_t effect_index = static_cast<size_t>(std::distance(_effects.cbegin(), it));
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), effect_index) == _reload_required_effects.cend())
-			_reload_required_effects.push_back(effect_index);
-	}
-#endif
-}
 
 bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &data) const
 {
