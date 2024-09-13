@@ -8,6 +8,8 @@
 #include "d3d12_impl_type_convert.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 
+thread_local reshade::d3d12::command_list_immediate_impl *reshade::d3d12::command_list_immediate_impl::s_last_immediate_command_list = nullptr;
+
 reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_impl *device, ID3D12CommandQueue *queue) :
 	command_list_impl(device, nullptr),
 	_parent_queue(queue)
@@ -34,9 +36,14 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 		_orig->SetName(L"ReShade immediate command list");
 		on_init();
 	}
+
+	s_last_immediate_command_list = this;
 }
 reshade::d3d12::command_list_immediate_impl::~command_list_immediate_impl()
 {
+	if (this == s_last_immediate_command_list)
+		s_last_immediate_command_list = nullptr;
+
 	if (_orig != nullptr)
 		_orig->Release();
 	if (_fence_event != nullptr)
@@ -65,6 +72,8 @@ void reshade::d3d12::command_list_immediate_impl::end_query(api::query_heap heap
 
 bool reshade::d3d12::command_list_immediate_impl::flush()
 {
+	s_last_immediate_command_list = this;
+
 	if (!_has_commands)
 		return true;
 	_has_commands = false;

@@ -96,7 +96,7 @@ namespace reshade::d3d12
 
 		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *out_handles) final;
 
-		command_list_immediate_impl *get_first_immediate_command_list();
+		command_list_immediate_impl *get_immediate_command_list();
 
 #if RESHADE_ADDON >= 2
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset, bool *out_acceleration_structure = nullptr) const;

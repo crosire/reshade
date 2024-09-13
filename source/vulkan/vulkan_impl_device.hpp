@@ -108,7 +108,7 @@ namespace reshade::vulkan
 
 		void advance_transient_descriptor_pool();
 
-		command_list_immediate_impl *get_first_immediate_command_list();
+		command_list_immediate_impl *get_immediate_command_list();
 
 		template <VkObjectType type>
 		object_data<type> *register_object(typename object_data<type>::Handle object, object_data<type> &&initial_data = object_data<type>())

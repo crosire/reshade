@@ -483,7 +483,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (initial_data != nullptr)
 				{
-					if (get_first_immediate_command_list())
+					if (get_immediate_command_list())
 					{
 						update_buffer_region(initial_data->data, *out_resource, 0, desc.buffer.size);
 					}
@@ -600,7 +600,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				if (initial_state != api::resource_usage::undefined)
 				{
 					// Transition resource into the initial state using the first available immediate command list
-					if (const auto immediate_command_list = get_first_immediate_command_list())
+					if (const auto immediate_command_list = get_immediate_command_list())
 					{
 						if (initial_data != nullptr)
 						{
@@ -1007,7 +1007,7 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 	assert(resource != 0);
 	assert(data != nullptr);
 
-	if (const auto immediate_command_list = get_first_immediate_command_list())
+	if (const auto immediate_command_list = get_immediate_command_list())
 	{
 		immediate_command_list->_has_commands = true;
 
@@ -1021,7 +1021,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	assert(resource != 0);
 	assert(data.data != nullptr);
 
-	const auto immediate_command_list = get_first_immediate_command_list();
+	const auto immediate_command_list = get_immediate_command_list();
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
@@ -2165,7 +2165,7 @@ bool reshade::vulkan::device_impl::create_query_heap(api::query_type type, uint3
 
 		// Reset all queries for initial use
 #if 1
-		if (const auto immediate_command_list = get_first_immediate_command_list())
+		if (const auto immediate_command_list = get_immediate_command_list())
 		{
 			vk.CmdResetQueryPool(immediate_command_list->_orig, pool, 0, count);
 
@@ -2403,10 +2403,15 @@ void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 	vk.ResetDescriptorPool(_orig, next_pool, 0);
 }
 
-reshade::vulkan::command_list_immediate_impl *reshade::vulkan::device_impl::get_first_immediate_command_list()
+reshade::vulkan::command_list_immediate_impl *reshade::vulkan::device_impl::get_immediate_command_list()
 {
+	// Choosing the right queue is a delicate situation, since it is possible to deadlock when choosing a queue (and using 'flush_and_wait') that is waiting on a fence yet to be signaled by the current thread
+	// Prefer the last immediate command list used on this thread, as that is less likely to wait on another thread to signal
+	const auto last_immediate_command_list = command_list_immediate_impl::s_last_immediate_command_list;
+	if (last_immediate_command_list != nullptr && last_immediate_command_list->get_device() == this)
+		return last_immediate_command_list;
+	// Otherwise fall back to the first immediate command list created
 	assert(!_queues.empty());
-
 	for (command_queue_impl *const queue : _queues)
 		if (const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
 			return immediate_command_list;

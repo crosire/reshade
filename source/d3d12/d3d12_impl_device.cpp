@@ -387,7 +387,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 			assert(initial_state != api::resource_usage::undefined);
 
 			// Transition resource into the initial state using the first available immediate command list
-			if (const auto immediate_command_list = get_first_immediate_command_list())
+			if (const auto immediate_command_list = get_immediate_command_list())
 			{
 				const api::resource_usage states_upload[2] = { initial_state, api::resource_usage::copy_dest };
 				immediate_command_list->barrier(1, out_resource, &states_upload[0], &states_upload[1]);
@@ -692,7 +692,7 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 	assert(resource != 0);
 	assert(data != nullptr);
 
-	const auto immediate_command_list = get_first_immediate_command_list();
+	const auto immediate_command_list = get_immediate_command_list();
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
@@ -745,7 +745,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 		return;
 	}
 
-	const auto immediate_command_list = get_first_immediate_command_list();
+	const auto immediate_command_list = get_immediate_command_list();
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
@@ -2088,10 +2088,16 @@ void reshade::d3d12::device_impl::register_resource_view(D3D12_CPU_DESCRIPTOR_HA
 		assert(false);
 }
 
-reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_first_immediate_command_list()
+reshade::d3d12::command_list_immediate_impl *reshade::d3d12::device_impl::get_immediate_command_list()
 {
+	// Choosing the right queue is a delicate situation, since it is possible to deadlock when choosing a queue (and using 'flush_and_wait') that is waiting on a fence yet to be signaled by the current thread
+	// Alternatively could create a dedicated queue just for ReShade ...
+	// For now, prefer the last immediate command list used on this thread, as that is less likely to wait on another thread to signal
+	const auto last_immediate_command_list = command_list_immediate_impl::s_last_immediate_command_list;
+	if (last_immediate_command_list != nullptr && last_immediate_command_list->get_device() == this)
+		return last_immediate_command_list;
+	// Otherwise fall back to the first immediate command list created
 	assert(!_queues.empty());
-
 	for (command_queue_impl *const queue : _queues)
 		if (const auto immediate_command_list = static_cast<command_list_immediate_impl *>(queue->get_immediate_command_list()))
 			return immediate_command_list;
