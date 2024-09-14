@@ -2129,16 +2129,19 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 						parse_success = false;
 						error(state_location, 3020, "type mismatch, expected function name");
 					}
+					else if (std::count_if(_codegen->_functions.begin(), _codegen->_functions.end(),
+						[&unique_name = symbol.function->unique_name](const std::unique_ptr<function> &info) { return info->unique_name == unique_name; }) > 1)
+					{
+						parse_success = false;
+						error(state_location, 3067, "ambiguous function '" + identifier + '\'');
+					}
 					else
 					{
-						// Look up the matching function info for this function definition
-						const function &function_info = _codegen->get_function(symbol.id);
-
 						// We potentially need to generate a special entry point function which translates between function parameters and input/output variables
 						switch (state_name[0])
 						{
 						case 'V':
-							vs_info = function_info;
+							vs_info = *symbol.function;
 							if (vs_info.type != shader_type::unknown && vs_info.type != shader_type::vertex)
 							{
 								parse_success = false;
@@ -2150,7 +2153,7 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 							info.vs_entry_point = vs_info.unique_name;
 							break;
 						case 'P':
-							ps_info = function_info;
+							ps_info = *symbol.function;
 							if (ps_info.type != shader_type::unknown && ps_info.type != shader_type::pixel)
 							{
 								parse_success = false;
@@ -2162,7 +2165,7 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 							info.ps_entry_point = ps_info.unique_name;
 							break;
 						case 'C':
-							cs_info = function_info;
+							cs_info = *symbol.function;
 							if (cs_info.type != shader_type::unknown && cs_info.type != shader_type::compute)
 							{
 								parse_success = false;
