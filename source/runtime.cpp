@@ -2922,9 +2922,7 @@ void reshade::runtime::load_textures()
 				char line_data[1024];
 				while (fgets(line_data, sizeof(line_data), file))
 				{
-					if (line_data[strlen(line_data) - 1] == '\n')
-						line_data[strlen(line_data) - 1] = '\0';
-					const std::string_view line(line_data);
+					const std::string_view line = trim(line_data, "\r\n");
 
 					if (line.empty() || line[0] == '#')
 						continue; // Skip lines with comments
@@ -2969,7 +2967,7 @@ void reshade::runtime::load_textures()
 					}
 
 					// Line has no known keyword, so assume this is where the table data starts and roll back a line to continue reading that below
-					fseek(file, -static_cast<long>(line.size() + 1), SEEK_CUR);
+					fseek(file, -static_cast<long>(std::strlen(line_data)), SEEK_CUR);
 					break;
 				}
 
@@ -2980,7 +2978,7 @@ void reshade::runtime::load_textures()
 
 					while (fgets(line_data, sizeof(line_data), file) && (index + 4) <= (static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4))
 					{
-						const std::string_view line(line_data);
+						const std::string_view line = trim(line_data, "\r\n");
 
 						if (line.empty() || line[0] == '#')
 							continue; // Skip lines with comments
