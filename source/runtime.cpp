@@ -2922,6 +2922,8 @@ void reshade::runtime::load_textures()
 				char line_data[1024];
 				while (fgets(line_data, sizeof(line_data), file))
 				{
+					if (line_data[strlen(line_data) - 1] == '\n')
+						line_data[strlen(line_data) - 1] = '\0';
 					const std::string_view line(line_data);
 
 					if (line.empty() || line[0] == '#')
