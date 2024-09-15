@@ -1707,9 +1707,8 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 				{
 					const uint32_t distance = range.binding - merged_range.binding;
 
-					if ((range.dx_register_index - merged_range.dx_register_index) != distance)
-						return false;
-					assert(merged_range.count <= distance);
+					if ((range.dx_register_index - merged_range.dx_register_index) != distance || merged_range.count > distance)
+						return false; // Overlapping ranges are not supported
 
 					merged_range.count = distance + range.count;
 					merged_range.visibility |= range.visibility;
@@ -1718,9 +1717,8 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 				{
 					const uint32_t distance = merged_range.binding - range.binding;
 
-					if ((merged_range.dx_register_index - range.dx_register_index) != distance)
+					if ((merged_range.dx_register_index - range.dx_register_index) != distance || range.count > distance)
 						return false;
-					assert(range.count <= distance);
 
 					merged_range.binding = range.binding;
 					merged_range.dx_register_index = range.dx_register_index;

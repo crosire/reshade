@@ -2110,7 +2110,8 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 				{
 					const uint32_t distance = range.binding - merged_range.binding;
 
-					assert(merged_range.count <= distance);
+					if (merged_range.count > distance)
+						return false; // Overlapping ranges are not supported
 
 					merged_range.count = distance + range.count;
 					merged_range.visibility |= range.visibility;
@@ -2119,7 +2120,8 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 				{
 					const uint32_t distance = merged_range.binding - range.binding;
 
-					assert(range.count <= distance);
+					if (range.count > distance)
+						return false;
 
 					merged_range.binding = range.binding;
 					merged_range.dx_register_index = range.dx_register_index;
