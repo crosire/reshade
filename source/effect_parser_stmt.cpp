@@ -8,6 +8,7 @@
 #include "effect_codegen.hpp"
 #include <cctype> // std::toupper
 #include <cassert>
+#include <iterator> // std::back_inserter
 #include <algorithm> // std::max, std::replace, std::transform
 #include <string_view>
 
@@ -2524,166 +2525,75 @@ void reshadefx::codegen::optimize_bindings()
 {
 	struct sampler_group
 	{
-		std::vector<id> bindings;
-		function *grouped_entry_point = nullptr;
-	};
-	struct entry_point_info
-	{
-		std::vector<sampler_group> sampler_groups;
-
-		static void compare_and_update_bindings(std::unordered_map<function *, entry_point_info> &per_entry_point, sampler_group &a, sampler_group &b, size_t binding)
-		{
-			for (; binding < std::min(a.bindings.size(), b.bindings.size()); ++binding)
-			{
-				if (a.bindings[binding] != b.bindings[binding])
-				{
-					if (a.bindings[binding] == 0)
-					{
-						b.bindings.insert(b.bindings.begin() + binding, 0);
-
-						if (b.grouped_entry_point != nullptr)
-							for (sampler_group &c : per_entry_point.at(b.grouped_entry_point).sampler_groups)
-								compare_and_update_bindings(per_entry_point, b, c, binding);
-						continue;
-					}
-
-					if (b.bindings[binding] == 0)
-					{
-						a.bindings.insert(a.bindings.begin() + binding, 0);
-
-						if (a.grouped_entry_point != nullptr)
-							for (sampler_group &c : per_entry_point.at(a.grouped_entry_point).sampler_groups)
-								compare_and_update_bindings(per_entry_point, a, c, binding);
-						continue;
-					}
-				}
-			}
-		}
+		std::vector<function *> vs_entry_points;
+		std::vector<function *> ps_entry_points;
+		std::vector<id> vs_referenced_samplers;
 	};
 
-	std::unordered_map<function *, entry_point_info> per_entry_point;
-	for (const auto &[name, type] : _module.entry_points)
-	{
-		per_entry_point.emplace(find_function(name), entry_point_info {});
-	}
+	std::vector<sampler_group> sampler_groups;
 
-	std::unordered_map<id, int> usage_count;
-	for (const auto &[entry_point, entry_point_info] : per_entry_point)
-	{
-		for (const id sampler_id : entry_point->referenced_samplers)
-			usage_count[sampler_id]++;
-		for (const id storage_id : entry_point->referenced_storages)
-			usage_count[storage_id]++;
-	}
-
-	// First sort bindings by usage and for each pass arrange them so that VS and PS use matching bindings for the objects they use (so that the same bindings can be used for both entry points).
-	// If the entry points VS1 and PS1 use the following objects A, B and C:
-	//   - VS1: A B
-	//   - PS1: B C
-	// Then this generates the following bindings:
-	//   - VS1: C A
-	//   - PS1: C 0 B
-
-	const auto usage_pred =
-		[&](const id lhs, const id rhs) {
-			return usage_count.at(lhs) > usage_count.at(rhs) || (usage_count.at(lhs) == usage_count.at(rhs) && lhs < rhs);
-		};
-
-	for (const auto &[entry_point, entry_point_info] : per_entry_point)
-	{
-		std::sort(entry_point->referenced_samplers.begin(), entry_point->referenced_samplers.end(), usage_pred);
-		std::sort(entry_point->referenced_storages.begin(), entry_point->referenced_storages.end(), usage_pred);
-	}
-
+	// Build a list of samplers referenced by all vertex and pixel shader combinations
 	for (const technique &tech : _module.techniques)
 	{
 		for (const pass &pass : tech.passes)
 		{
 			if (!pass.cs_entry_point.empty())
-			{
-				function *const cs = find_function(pass.cs_entry_point);
+				continue;
 
-				sampler_group cs_sampler_info;
-				cs_sampler_info.bindings = cs->referenced_samplers;
-				per_entry_point.at(cs).sampler_groups.push_back(std::move(cs_sampler_info));
-			}
-			else
-			{
-				function *const vs = find_function(pass.vs_entry_point);
+			function *const vs = find_function(pass.vs_entry_point);
+			function *const ps = !pass.ps_entry_point.empty() ? find_function(pass.ps_entry_point) : nullptr;
 
-				sampler_group vs_sampler_info;
-				vs_sampler_info.bindings = vs->referenced_samplers;
+			bool has_vs_entry_point = false;
+			bool has_ps_entry_point = false;
+			auto group_it = std::find_if(sampler_groups.begin(), sampler_groups.end(),
+				[vs, ps, &has_vs_entry_point, &has_ps_entry_point](const sampler_group &group) {
+					has_vs_entry_point = std::find(group.vs_entry_points.begin(), group.vs_entry_points.end(), vs) != group.vs_entry_points.end();
+					has_ps_entry_point = std::find(group.ps_entry_points.begin(), group.ps_entry_points.end(), ps) != group.ps_entry_points.end();
+					return has_vs_entry_point || has_ps_entry_point;
+				});
+			if (sampler_groups.end() == group_it)
+				group_it = sampler_groups.insert(sampler_groups.end(), sampler_group {});
 
-				if (!pass.ps_entry_point.empty())
-				{
-					function *const ps = find_function(pass.ps_entry_point);
+			if (!has_vs_entry_point)
+				group_it->vs_entry_points.push_back(vs);
+			if (!pass.ps_entry_point.empty() && !has_ps_entry_point)
+				group_it->ps_entry_points.push_back(ps);
 
-					vs_sampler_info.grouped_entry_point = ps;
-
-					sampler_group ps_sampler_info;
-					ps_sampler_info.bindings = ps->referenced_samplers;
-					ps_sampler_info.grouped_entry_point = vs;
-
-					for (size_t binding = 0; binding < std::min(vs_sampler_info.bindings.size(), ps_sampler_info.bindings.size()); ++binding)
-					{
-						if (vs_sampler_info.bindings[binding] != ps_sampler_info.bindings[binding])
-						{
-							if (usage_pred(vs_sampler_info.bindings[binding], ps_sampler_info.bindings[binding]))
-								ps_sampler_info.bindings.insert(ps_sampler_info.bindings.begin() + binding, 0);
-							else
-								vs_sampler_info.bindings.insert(vs_sampler_info.bindings.begin() + binding, 0);
-						}
-					}
-
-					per_entry_point.at(ps).sampler_groups.push_back(std::move(ps_sampler_info));
-				}
-
-				per_entry_point.at(vs).sampler_groups.push_back(std::move(vs_sampler_info));
-			}
+			std::vector<codegen::id> vs_referenced_samplers;
+			std::set_union(group_it->vs_referenced_samplers.begin(), group_it->vs_referenced_samplers.end(), vs->referenced_samplers.begin(), vs->referenced_samplers.end(), std::back_inserter(vs_referenced_samplers));
+			group_it->vs_referenced_samplers = std::move(vs_referenced_samplers);
 		}
 	}
 
-	// Next walk through all entry point groups and shift bindings as needed so that there are no mismatches across passes.
-	// If the entry points VS1, PS1 and PS2 use the following bindings (notice the mismatches of VS1 between pass 0 and pass 1, as well as PS2 between pass 1 and pass 2):
-	//   - pass 0
-	//     - VS1: C A
-	//     - PS1: C 0 B
-	//   - pass 1
-	//     - VS1: C 0 A
-	//     - PS2: 0 D A
-	//   - pass 2
-	//     - VS2: D
-	//     - PS2: D A
-	// Then this generates the following final bindings:
-	//   - pass 0
-	//     - VS1: C 0 A
-	//     - PS1: C 0 B
-	//   - pass 1
-	//     - VS1: C 0 A
-	//     - PS2: 0 D A
-	//   - pass 2
-	//     - VS2: 0 D
-	//     - PS2: 0 D A
-
-	for (auto &[entry_point, entry_point_info] : per_entry_point)
+	for (const sampler_group &group : sampler_groups)
 	{
-		while (entry_point_info.sampler_groups.size() > 1)
+		for (function *const vs_entry_point : group.vs_entry_points)
 		{
-			entry_point_info::compare_and_update_bindings(per_entry_point, entry_point_info.sampler_groups[0], entry_point_info.sampler_groups[1], 0);
-			entry_point_info.sampler_groups.erase(entry_point_info.sampler_groups.begin() + 1);
+			for (size_t binding = 0; binding < std::min(vs_entry_point->referenced_samplers.size(), group.vs_referenced_samplers.size()); ++binding)
+			{
+				if (vs_entry_point->referenced_samplers[binding] != group.vs_referenced_samplers[binding])
+					vs_entry_point->referenced_samplers.insert(vs_entry_point->referenced_samplers.begin() + binding, 0);
+			}
 		}
-	}
 
-	for (auto &[entry_point, entry_point_info] : per_entry_point)
-	{
-		if (entry_point_info.sampler_groups.empty())
-			continue;
-
-		entry_point->referenced_samplers = std::move(entry_point_info.sampler_groups[0].bindings);
+		for (function *const ps_entry_point : group.ps_entry_points)
+		{
+			// Add samplers referenced in vertex shader to all pixel shaders that are used with it, while keeping the vertex shader ones at the front to ensure binding compatibility
+			for (size_t binding = 0; binding < std::min(ps_entry_point->referenced_samplers.size(), group.vs_referenced_samplers.size()); ++binding)
+			{
+				if (ps_entry_point->referenced_samplers[binding] != group.vs_referenced_samplers[binding])
+				{
+					const auto it = std::find(ps_entry_point->referenced_samplers.begin(), ps_entry_point->referenced_samplers.end(), group.vs_referenced_samplers[binding]);
+					if (it != ps_entry_point->referenced_samplers.end())
+						std::swap(ps_entry_point->referenced_samplers[binding], *it);
+					else
+						ps_entry_point->referenced_samplers.insert(ps_entry_point->referenced_samplers.begin() + binding, 0);
+				}
+			}
+		}
 	}
 
 	// Finally apply the generated bindings to all passes
-
 	for (technique &tech : _module.techniques)
 	{
 		for (pass &pass : tech.passes)
@@ -2708,8 +2618,7 @@ void reshadefx::codegen::optimize_bindings()
 				{
 					const function *const ps = find_function(pass.ps_entry_point);
 
-					if (ps->referenced_samplers.size() > referenced_samplers.size())
-						referenced_samplers.resize(ps->referenced_samplers.size());
+					referenced_samplers.resize(std::max(referenced_samplers.size(), ps->referenced_samplers.size()));
 
 					for (uint32_t binding = 0; binding < ps->referenced_samplers.size(); ++binding)
 						if (ps->referenced_samplers[binding] != 0)
