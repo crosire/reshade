@@ -26,6 +26,8 @@ namespace reshade
 		std::string description;
 		std::string file;
 		std::string author;
+		std::string website_url;
+		std::string issues_url;
 		union version
 		{
 			struct number

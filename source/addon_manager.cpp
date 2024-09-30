@@ -423,6 +423,10 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		info.name = *name;
 	if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(module, "DESCRIPTION")))
 		info.description = *description;
+	if (const char *const *website_url = reinterpret_cast<const char *const *>(GetProcAddress(module, "WEBSITE")))
+		info.website_url = *website_url;
+	if (const char *const *issues_url = reinterpret_cast<const char *const *>(GetProcAddress(module, "ISSUES")))
+		info.issues_url = *issues_url;
 
 	if (std::find_if(reshade::addon_loaded_info.cbegin(), reshade::addon_loaded_info.cend(),
 			[&info](const reshade::addon_info &existing_info) {
