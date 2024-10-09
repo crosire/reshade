@@ -31,6 +31,6 @@ namespace reshade::d3d11
 
 	private:
 		device_impl *const _device_impl;
-		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_CUSTOM;
+		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 	};
 }

@@ -35,7 +35,7 @@ namespace reshade::d3d12
 
 	private:
 		device_impl *const _device_impl;
-		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_CUSTOM;
+		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 	};
 
 	class swapchain_d3d12on7_impl : public api::api_object_impl<ID3D12CommandQueueDownlevel *, api::swapchain>

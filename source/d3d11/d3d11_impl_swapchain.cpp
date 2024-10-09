@@ -11,12 +11,14 @@ reshade::d3d11::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	api_object_impl(swapchain),
 	_device_impl(device)
 {
-#ifndef NDEBUG
 	DXGI_SWAP_CHAIN_DESC swap_desc = {};
 	_orig->GetDesc(&swap_desc);
 
+	_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+	if (swap_desc.BufferDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+		_color_space = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+
 	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
-#endif
 }
 
 reshade::api::device *reshade::d3d11::swapchain_impl::get_device()
