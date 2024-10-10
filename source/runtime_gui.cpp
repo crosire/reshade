@@ -3312,6 +3312,10 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::Text(_("Version:"));
 				if (!info.description.empty())
 					ImGui::Text(_("Description:"));
+				if (!info.website_url.empty())
+					ImGui::Text(_("Website:"));
+				if (!info.issues_url.empty())
+					ImGui::Text(_("Issues:"));
 
 				ImGui::EndGroup();
 				ImGui::SameLine(ImGui::GetWindowWidth() * 0.25f);
@@ -3328,6 +3332,18 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::PushTextWrapPos();
 					ImGui::TextUnformatted(info.description.c_str(), info.description.c_str() + info.description.size());
 					ImGui::PopTextWrapPos();
+				}
+				if (!info.website_url.empty())
+				{
+					if (ImGui::TextUnformatted(info.website_url.c_str(), info.website_url.c_str() + info.website_url.size()); ImGui::SameLine(),
+						ImGui::SmallButton(ICON_FK_SEARCH))
+						utils::execute_command(info.website_url);
+				}
+				if (!info.issues_url.empty())
+				{
+					if (ImGui::TextUnformatted(info.issues_url.c_str(), info.issues_url.c_str() + info.issues_url.size()); ImGui::SameLine(),
+						ImGui::SmallButton(ICON_FK_SEARCH))
+						utils::execute_command(info.issues_url);
 				}
 
 				ImGui::EndGroup();
