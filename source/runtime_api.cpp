@@ -821,7 +821,7 @@ void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_
 	{
 		const technique &technique = _techniques[technique_index];
 
-		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename().u8string() != effect_name)
 			continue;
 
 		callback(this, { reinterpret_cast<uintptr_t>(&technique) }, user_data);
