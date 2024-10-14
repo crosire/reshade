@@ -71,7 +71,7 @@ void reshade::runtime::enumerate_uniform_variables([[maybe_unused]] const char *
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
+		if (effect_name != nullptr && effect.source_file.filename().u8string() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -91,7 +91,7 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable([[
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
+		if (effect_name != nullptr && effect.source_file.filename().u8string() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -497,7 +497,7 @@ void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *
 		if (effect_name != nullptr &&
 			std::find_if(variable.shared.cbegin(), variable.shared.cend(),
 				[this, effect_name = std::string_view(effect_name)](size_t effect_index) {
-					return _effects[effect_index].source_file.filename() == effect_name;
+					return _effects[effect_index].source_file.filename().u8string() == effect_name;
 				}) == variable.shared.cend())
 			continue;
 
@@ -519,7 +519,7 @@ reshade::api::effect_texture_variable reshade::runtime::find_texture_variable([[
 		if (effect_name != nullptr &&
 			std::find_if(variable.shared.cbegin(), variable.shared.cend(),
 				[this, effect_name = std::string_view(effect_name)](size_t effect_index) {
-					return _effects[effect_index].source_file.filename() == effect_name;
+					return _effects[effect_index].source_file.filename().u8string() == effect_name;
 				}) == variable.shared.cend())
 			continue;
 
@@ -837,7 +837,7 @@ reshade::api::effect_technique reshade::runtime::find_technique([[maybe_unused]]
 
 	for (const technique &technique : _techniques)
 	{
-		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename().u8string() != effect_name)
 			continue;
 
 		if (technique.name == technique_name)
