@@ -1497,6 +1497,9 @@ void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size
 }
 void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path)
 {
+	if (path == nullptr)
+		return;
+
 #if RESHADE_FX
 	std::error_code ec;
 	std::filesystem::path preset_path = std::filesystem::u8path(path);
