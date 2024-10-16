@@ -63,35 +63,40 @@ void reshade::runtime::block_input_next_frame()
 #endif
 }
 
-void reshade::runtime::enumerate_uniform_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), [[maybe_unused]] void *user_data)
+void reshade::runtime::enumerate_uniform_variables([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
 #if RESHADE_FX
 	if (is_loading())
 		return;
 
+	const std::filesystem::path effect_name = effect_name_in != nullptr ? std::filesystem::u8path(effect_name_in) : std::filesystem::path();
+
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
+		if (effect_name_in != nullptr && effect.source_file.filename() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
 			callback(this, { reinterpret_cast<uintptr_t>(&variable) }, user_data);
 
-		if (effect_name != nullptr)
+		if (effect_name_in != nullptr)
 			break;
 	}
 #endif
 }
 
-reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *variable_name) const
+reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] const char *variable_name_in) const
 {
 #if RESHADE_FX
-	if (is_loading())
+	if (is_loading() || variable_name_in == nullptr)
 		return { 0 };
+
+	const std::filesystem::path effect_name = effect_name_in != nullptr ? std::filesystem::u8path(effect_name_in) : std::filesystem::path();
+	const std::string_view variable_name(variable_name_in);
 
 	for (const effect &effect : _effects)
 	{
-		if (effect_name != nullptr && effect.source_file.filename() != effect_name)
+		if (effect_name_in != nullptr && effect.source_file.filename() != effect_name)
 			continue;
 
 		for (const uniform &variable : effect.uniforms)
@@ -100,7 +105,7 @@ reshade::api::effect_uniform_variable reshade::runtime::find_uniform_variable([[
 				return { reinterpret_cast<uintptr_t>(&variable) };
 		}
 
-		if (effect_name != nullptr)
+		if (effect_name_in != nullptr)
 			break;
 	}
 #endif
@@ -211,19 +216,20 @@ void reshade::runtime::get_uniform_variable_effect_name([[maybe_unused]] api::ef
 		*size = 0;
 }
 
-bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name_in, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const uniform &variable = *reinterpret_cast<const uniform *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_int(ann_name, i + array_index) != 0;
+				values[i] = variable.annotation_as_int(name, i + array_index) != 0;
 			return true;
 		}
 	}
@@ -233,19 +239,20 @@ bool reshade::runtime::get_annotation_bool_from_uniform_variable([[maybe_unused]
 		values[i] = false;
 	return false;
 }
-bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, float *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name_in, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const uniform &variable = *reinterpret_cast<const uniform *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_float(ann_name, i + array_index);
+				values[i] = variable.annotation_as_float(name, i + array_index);
 			return true;
 		}
 	}
@@ -255,19 +262,20 @@ bool reshade::runtime::get_annotation_float_from_uniform_variable([[maybe_unused
 		values[i] = 0.0f;
 	return false;
 }
-bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name_in, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const uniform &variable = *reinterpret_cast<const uniform *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_int(ann_name, array_index + i);
+				values[i] = variable.annotation_as_int(name, array_index + i);
 			return true;
 		}
 	}
@@ -277,19 +285,20 @@ bool reshade::runtime::get_annotation_int_from_uniform_variable([[maybe_unused]]
 		values[i] = 0;
 	return false;
 }
-bool reshade::runtime::get_annotation_uint_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_uint_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name_in, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const uniform *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const uniform &variable = *reinterpret_cast<const uniform *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_uint(ann_name, array_index + i);
+				values[i] = variable.annotation_as_uint(name, array_index + i);
 			return true;
 		}
 	}
@@ -299,19 +308,19 @@ bool reshade::runtime::get_annotation_uint_from_uniform_variable([[maybe_unused]
 		values[i] = 0;
 	return false;
 }
-bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name, [[maybe_unused]] char *value, size_t *size) const
+bool reshade::runtime::get_annotation_string_from_uniform_variable([[maybe_unused]] api::effect_uniform_variable handle, [[maybe_unused]] const char *name_in, [[maybe_unused]] char *value, size_t *size) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const uniform *>(handle.handle);
-	if (variable != nullptr)
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const uniform &variable = *reinterpret_cast<const uniform *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
-			const std::string_view annotation = variable->annotation_as_string(ann_name);
+			const std::string_view annotation = variable.annotation_as_string(name);
 
 			if (size != nullptr)
 			{
@@ -486,17 +495,19 @@ void reshade::runtime::set_uniform_value_uint([[maybe_unused]] api::effect_unifo
 #endif
 }
 
-void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), [[maybe_unused]] void *user_data)
+void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), [[maybe_unused]] void *user_data)
 {
 #if RESHADE_FX
 	if (is_loading())
 		return;
 
+	const std::filesystem::path effect_name = effect_name_in != nullptr ? std::filesystem::u8path(effect_name_in) : std::filesystem::path();
+
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr &&
+		if (effect_name_in != nullptr &&
 			std::find_if(variable.shared.cbegin(), variable.shared.cend(),
-				[this, effect_name = std::string_view(effect_name)](size_t effect_index) {
+				[&](size_t effect_index) {
 					return _effects[effect_index].source_file.filename() == effect_name;
 				}) == variable.shared.cend())
 			continue;
@@ -506,25 +517,28 @@ void reshade::runtime::enumerate_texture_variables([[maybe_unused]] const char *
 #endif
 }
 
-reshade::api::effect_texture_variable reshade::runtime::find_texture_variable([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *variable_name) const
+reshade::api::effect_texture_variable reshade::runtime::find_texture_variable([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] const char *variable_name_in) const
 {
 #if RESHADE_FX
-	if (is_loading())
+	if (is_loading() || variable_name_in == nullptr)
 		return { 0 };
 
-	const std::string_view name(variable_name);
+	const std::filesystem::path effect_name = effect_name_in != nullptr ? std::filesystem::u8path(effect_name_in) : std::filesystem::path();
+	const std::string_view variable_name(variable_name_in);
 
 	for (const texture &variable : _textures)
 	{
-		if (effect_name != nullptr &&
+		if (effect_name_in != nullptr &&
 			std::find_if(variable.shared.cbegin(), variable.shared.cend(),
-				[this, effect_name = std::string_view(effect_name)](size_t effect_index) {
+				[&](size_t effect_index) {
 					return _effects[effect_index].source_file.filename() == effect_name;
 				}) == variable.shared.cend())
 			continue;
 
-		if (variable.name == name || variable.unique_name == name)
-			return { reinterpret_cast<uintptr_t>(&variable) };
+		if (variable.name != variable_name && variable.unique_name != variable_name)
+			continue;
+
+		return { reinterpret_cast<uintptr_t>(&variable) };
 	}
 #endif
 
@@ -559,9 +573,10 @@ void reshade::runtime::get_texture_variable_effect_name([[maybe_unused]] api::ef
 		return;
 
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	if (handle.handle != 0)
 	{
-		const std::string effect_name = _effects[variable->effect_index].source_file.filename().u8string();
+		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
+		const std::string effect_name = _effects[variable.effect_index].source_file.filename().u8string();
 
 		if (value == nullptr)
 		{
@@ -578,19 +593,20 @@ void reshade::runtime::get_texture_variable_effect_name([[maybe_unused]] api::ef
 		*size = 0;
 }
 
-bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name_in, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_int(ann_name, array_index + i) != 0;
+				values[i] = variable.annotation_as_int(name, array_index + i) != 0;
 			return true;
 		}
 	}
@@ -600,19 +616,20 @@ bool reshade::runtime::get_annotation_bool_from_texture_variable([[maybe_unused]
 		values[i] = false;
 	return false;
 }
-bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, float *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name_in, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_float(ann_name, array_index + i);
+				values[i] = variable.annotation_as_float(name, array_index + i);
 			return true;
 		}
 	}
@@ -622,19 +639,20 @@ bool reshade::runtime::get_annotation_float_from_texture_variable([[maybe_unused
 		values[i] = 0.0f;
 	return false;
 }
-bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name_in, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_int(ann_name, array_index + i);
+				values[i] = variable.annotation_as_int(name, array_index + i);
 			return true;
 		}
 	}
@@ -644,19 +662,20 @@ bool reshade::runtime::get_annotation_int_from_texture_variable([[maybe_unused]]
 		values[i] = 0;
 	return false;
 }
-bool reshade::runtime::get_annotation_uint_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_uint_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name_in, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto variable = reinterpret_cast<const texture *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = variable->annotation_as_uint(ann_name, array_index + i);
+				values[i] = variable.annotation_as_uint(name, array_index + i);
 			return true;
 		}
 	}
@@ -666,19 +685,19 @@ bool reshade::runtime::get_annotation_uint_from_texture_variable([[maybe_unused]
 		values[i] = 0;
 	return false;
 }
-bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name, [[maybe_unused]] char *value, size_t *size) const
+bool reshade::runtime::get_annotation_string_from_texture_variable([[maybe_unused]] api::effect_texture_variable handle, [[maybe_unused]] const char *name_in, [[maybe_unused]] char *value, size_t *size) const
 {
 #if RESHADE_FX
-	const auto variable = reinterpret_cast<const texture *>(handle.handle);
-	if (variable != nullptr)
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(variable->annotations.cbegin(), variable->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != variable->annotations.cend())
+		if (const auto it = std::find_if(variable.annotations.cbegin(), variable.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != variable.annotations.cend())
 		{
-			const std::string_view annotation = variable->annotation_as_string(ann_name);
+			const std::string_view annotation = variable.annotation_as_string(name);
 
 			if (size != nullptr)
 			{
@@ -811,17 +830,19 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 #endif
 }
 
-void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_name, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), [[maybe_unused]] void *user_data)
+void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] void(*callback)(effect_runtime *runtime, api::effect_technique technique, void *user_data), [[maybe_unused]] void *user_data)
 {
 #if RESHADE_FX
 	if (is_loading())
 		return;
 
+	const std::filesystem::path effect_name = effect_name_in != nullptr ? std::filesystem::u8path(effect_name_in) : std::filesystem::path();
+
 	for (size_t technique_index : _technique_sorting)
 	{
 		const technique &technique = _techniques[technique_index];
 
-		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+		if (effect_name_in != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
 			continue;
 
 		callback(this, { reinterpret_cast<uintptr_t>(&technique) }, user_data);
@@ -829,19 +850,24 @@ void reshade::runtime::enumerate_techniques([[maybe_unused]] const char *effect_
 #endif
 }
 
-reshade::api::effect_technique reshade::runtime::find_technique([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *technique_name)
+reshade::api::effect_technique reshade::runtime::find_technique([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] const char *technique_name_in)
 {
 #if RESHADE_FX
-	if (is_loading())
+	if (is_loading() || technique_name_in == nullptr)
 		return { 0 };
+
+	const std::filesystem::path effect_name = effect_name_in != nullptr ? std::filesystem::u8path(effect_name_in) : std::filesystem::path();
+	const std::string_view technique_name(technique_name_in);
 
 	for (const technique &technique : _techniques)
 	{
-		if (effect_name != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
+		if (effect_name_in != nullptr && _effects[technique.effect_index].source_file.filename() != effect_name)
 			continue;
 
-		if (technique.name == technique_name)
-			return { reinterpret_cast<uintptr_t>(&technique) };
+		if (technique.name != technique_name)
+			continue;
+
+		return { reinterpret_cast<uintptr_t>(&technique) };
 	}
 #endif
 
@@ -895,19 +921,20 @@ void reshade::runtime::get_technique_effect_name([[maybe_unused]] api::effect_te
 		*size = 0;
 }
 
-bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name_in, bool *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const auto& tech = *reinterpret_cast<const technique *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(tech->annotations.cbegin(), tech->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != tech->annotations.cend())
+		if (const auto it = std::find_if(tech.annotations.cbegin(), tech.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != tech.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = tech->annotation_as_int(ann_name, array_index + i) != 0;
+				values[i] = tech.annotation_as_int(name, array_index + i) != 0;
 			return true;
 		}
 	}
@@ -917,19 +944,20 @@ bool reshade::runtime::get_annotation_bool_from_technique([[maybe_unused]] api::
 		values[i] = false;
 	return false;
 }
-bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, float *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name_in, float *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const auto &tech = *reinterpret_cast<const technique *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(tech->annotations.cbegin(), tech->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != tech->annotations.cend())
+		if (const auto it = std::find_if(tech.annotations.cbegin(), tech.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != tech.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = tech->annotation_as_float(ann_name, array_index + i);
+				values[i] = tech.annotation_as_float(name, array_index + i);
 			return true;
 		}
 	}
@@ -939,19 +967,20 @@ bool reshade::runtime::get_annotation_float_from_technique([[maybe_unused]] api:
 		values[i] = 0.0f;
 	return false;
 }
-bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name_in, int32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const auto &tech = *reinterpret_cast<const technique *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(tech->annotations.cbegin(), tech->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != tech->annotations.cend())
+		if (const auto it = std::find_if(tech.annotations.cbegin(), tech.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != tech.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = tech->annotation_as_int(ann_name, array_index + i);
+				values[i] = tech.annotation_as_int(name, array_index + i);
 			return true;
 		}
 	}
@@ -961,19 +990,20 @@ bool reshade::runtime::get_annotation_int_from_technique([[maybe_unused]] api::e
 		values[i] = 0;
 	return false;
 }
-bool reshade::runtime::get_annotation_uint_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
+bool reshade::runtime::get_annotation_uint_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name_in, uint32_t *values, size_t count, [[maybe_unused]] size_t array_index) const
 {
 #if RESHADE_FX
-	if (const auto tech = reinterpret_cast<const technique *>(handle.handle))
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const auto &tech = *reinterpret_cast<const technique *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(tech->annotations.cbegin(), tech->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != tech->annotations.cend())
+		if (const auto it = std::find_if(tech.annotations.cbegin(), tech.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != tech.annotations.cend())
 		{
 			for (size_t i = 0; i < count; ++i)
-				values[i] = tech->annotation_as_uint(ann_name, array_index + i);
+				values[i] = tech.annotation_as_uint(name, array_index + i);
 			return true;
 		}
 	}
@@ -983,19 +1013,19 @@ bool reshade::runtime::get_annotation_uint_from_technique([[maybe_unused]] api::
 		values[i] = 0;
 	return false;
 }
-bool reshade::runtime::get_annotation_string_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name, [[maybe_unused]] char *value, size_t *size) const
+bool reshade::runtime::get_annotation_string_from_technique([[maybe_unused]] api::effect_technique handle, [[maybe_unused]] const char *name_in, [[maybe_unused]] char *value, size_t *size) const
 {
 #if RESHADE_FX
-	const auto tech = reinterpret_cast<const technique *>(handle.handle);
-	if (tech != nullptr)
+	if (handle.handle != 0 && name_in != nullptr)
 	{
-		const std::string_view ann_name(name);
+		const auto &tech = *reinterpret_cast<const technique *>(handle.handle);
+		const std::string_view name(name_in);
 
-		if (const auto it = std::find_if(tech->annotations.cbegin(), tech->annotations.cend(),
-				[ann_name](const reshadefx::annotation &annotation) { return annotation.name == ann_name; });
-			it != tech->annotations.cend())
+		if (const auto it = std::find_if(tech.annotations.cbegin(), tech.annotations.cend(),
+				[&](const reshadefx::annotation &annotation) { return annotation.name == name; });
+			it != tech.annotations.cend())
 		{
-			const std::string_view annotation = tech->annotation_as_string(ann_name);
+			const std::string_view annotation = tech.annotation_as_string(name);
 
 			if (size != nullptr)
 			{
@@ -1063,20 +1093,20 @@ void reshade::runtime::set_preprocessor_definition(const char *name, const char 
 {
 	set_preprocessor_definition_for_effect(nullptr, name, value);
 }
-void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
+void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] const char *name, [[maybe_unused]] const char *value)
 {
 #if RESHADE_FX
 	if (name == nullptr)
 		return;
 
-	std::string effect_name_string;
-	if (effect_name != nullptr)
-		effect_name_string = effect_name;
+	std::string effect_name;
+	if (effect_name_in != nullptr)
+		effect_name = effect_name_in;
 
 	const int scope_mask =
-		effect_name_string.find('.') != std::string::npos ? EFFECT_SCOPE_FLAG :
-		effect_name_string.compare(0, 6, "PRESET") == 0 ? PRESET_SCOPE_FLAG :
-		effect_name_string.compare(0, 6, "GLOBAL") == 0 ? GLOBAL_SCOPE_FLAG :
+		effect_name.find('.') != std::string::npos ? EFFECT_SCOPE_FLAG :
+		effect_name.compare(0, 6, "PRESET") == 0 ? PRESET_SCOPE_FLAG :
+		effect_name.compare(0, 6, "GLOBAL") == 0 ? GLOBAL_SCOPE_FLAG :
 		EFFECT_SCOPE_FLAG | PRESET_SCOPE_FLAG | GLOBAL_SCOPE_FLAG;
 	int scope_mask_updated = 0;
 
@@ -1084,7 +1114,7 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 	{
 		if ((scope_mask & EFFECT_SCOPE_FLAG) != 0)
 		{
-			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name_string);
+			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name);
 				preset_it != _preset_preprocessor_definitions.end() && !preset_it->second.empty())
 			{
 				if (const auto it = std::remove_if(preset_it->second.begin(), preset_it->second.end(),
@@ -1125,7 +1155,7 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 	{
 		if (scope_mask == EFFECT_SCOPE_FLAG)
 		{
-			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name_string);
+			if (const auto preset_it = _preset_preprocessor_definitions.find(effect_name);
 				preset_it != _preset_preprocessor_definitions.end())
 			{
 				if (auto it = std::find_if(preset_it->second.begin(), preset_it->second.end(),
@@ -1192,11 +1222,11 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 			std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
 			std::vector<std::pair<std::string, std::string>>::iterator definition_it;
 
-			if (get_preprocessor_definition(effect_name_string, name, scope_mask, definition_scope, definition_it) &&
-				definition_scope != &_global_preprocessor_definitions && (effect_name_string.empty() || definition_scope != &_preset_preprocessor_definitions[{}]))
+			if (get_preprocessor_definition(effect_name, name, scope_mask, definition_scope, definition_it) &&
+				definition_scope != &_global_preprocessor_definitions && (effect_name.empty() || definition_scope != &_preset_preprocessor_definitions[{}]))
 				definition_it->second = value;
 			else
-				_preset_preprocessor_definitions[effect_name_string].emplace_back(name, value);
+				_preset_preprocessor_definitions[effect_name].emplace_back(name, value);
 
 			scope_mask_updated = PRESET_SCOPE_FLAG;
 		}
@@ -1216,7 +1246,7 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 		else
 		{
 			const size_t effect_index = std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
-				[effect_name = std::filesystem::u8path(effect_name_string)](const effect &effect) { return effect_name == effect.source_file.filename(); }));
+				[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect.source_file.filename() == effect_name; }));
 
 			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
 				std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), effect_index) == _reload_required_effects.cend())
@@ -1229,17 +1259,17 @@ bool reshade::runtime::get_preprocessor_definition(const char *name, char *value
 {
 	return get_preprocessor_definition_for_effect(nullptr, name, value, size);
 }
-bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name, [[maybe_unused]] const char *name, [[maybe_unused]] char *value, size_t *size) const
+bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] const char *effect_name_in, [[maybe_unused]] const char *name, [[maybe_unused]] char *value, size_t *size) const
 {
 #if RESHADE_FX
-	std::string effect_name_string;
-	if (effect_name != nullptr)
-		effect_name_string = effect_name;
+	std::string effect_name;
+	if (effect_name_in != nullptr)
+		effect_name = effect_name_in;
 
 	const int scope_mask =
-		effect_name_string.find('.') != std::string::npos ? EFFECT_SCOPE_FLAG :
-		effect_name_string.compare(0, 6, "PRESET") == 0 ? PRESET_SCOPE_FLAG :
-		effect_name_string.compare(0, 6, "GLOBAL") == 0 ? GLOBAL_SCOPE_FLAG :
+		effect_name.find('.') != std::string::npos ? EFFECT_SCOPE_FLAG :
+		effect_name.compare(0, 6, "PRESET") == 0 ? PRESET_SCOPE_FLAG :
+		effect_name.compare(0, 6, "GLOBAL") == 0 ? GLOBAL_SCOPE_FLAG :
 		EFFECT_SCOPE_FLAG | PRESET_SCOPE_FLAG | GLOBAL_SCOPE_FLAG;
 
 	if (name == nullptr) // Enumerate existing definitions when there is no name to query
@@ -1259,7 +1289,7 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 
 		if ((scope_mask & EFFECT_SCOPE_FLAG) != 0)
 		{
-			if (auto it = _preset_preprocessor_definitions.find(effect_name_string);
+			if (auto it = _preset_preprocessor_definitions.find(effect_name);
 				it != _preset_preprocessor_definitions.end())
 				std::for_each(it->second.begin(), it->second.end(), emplace_to_list);
 		}
@@ -1299,7 +1329,7 @@ bool reshade::runtime::get_preprocessor_definition_for_effect([[maybe_unused]] c
 		std::vector<std::pair<std::string, std::string>> *definition_scope = nullptr;
 		std::vector<std::pair<std::string, std::string>>::iterator definition_it;
 
-		if (get_preprocessor_definition(effect_name_string, name, scope_mask, definition_scope, definition_it))
+		if (get_preprocessor_definition(effect_name, name, scope_mask, definition_scope, definition_it))
 		{
 			if (size != nullptr)
 			{
@@ -1467,6 +1497,9 @@ void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size
 }
 void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path)
 {
+	if (path == nullptr)
+		return;
+
 #if RESHADE_FX
 	std::error_code ec;
 	std::filesystem::path preset_path = std::filesystem::u8path(path);
@@ -1546,13 +1579,14 @@ bool reshade::runtime::open_overlay(bool /*open*/, api::input_source /*source*/)
 void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *effect_name)
 {
 #if RESHADE_FX
-	if (effect_name == nullptr || *effect_name == '\0')
+	if (effect_name == nullptr)
 	{
 		_reload_required_effects = { _effects.size() };
 		return;
 	}
 
-	if (auto it = std::find_if(_effects.cbegin(), _effects.cend(), [effect_name = std::string_view(effect_name)](const effect &effect) { return effect.source_file.filename().u8string() == effect_name; });
+	if (auto it = std::find_if(_effects.cbegin(), _effects.cend(),
+			[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect.source_file.filename() == effect_name; });
 		it != _effects.cend())
 	{
 		if (const size_t effect_index = static_cast<size_t>(std::distance(_effects.cbegin(), it));
