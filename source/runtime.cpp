@@ -1554,11 +1554,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
 	}
-	else if (!effect.compiled)
-	{
-		// Clear any errors from a previous failed loading attempt (since it will now try again and append to the errors list)
-		effect.errors.clear();
-	}
 
 	if (_effect_load_skipping && !force_load)
 	{
@@ -1582,6 +1577,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	bool skip_optimization = false;
 	std::string code_preamble;
+	std::string errors;
 
 	bool source_cached = false;
 	std::string source;
@@ -1629,7 +1625,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.preprocessed = pp.append_file(source_file);
 
 		// Append preprocessor errors to the error list
-		effect.errors += pp.errors();
+		errors += pp.errors();
 
 		if (effect.preprocessed)
 		{
@@ -1735,7 +1731,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.compiled = parser.parse(std::move(source), codegen.get());
 
 		// Append parser errors to the error list
-		effect.errors  += parser.errors();
+		errors += parser.errors();
 
 		// Write result to effect module
 		effect.module = codegen->module();
@@ -1861,6 +1857,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			return load_effect(source_file, preset, effect_index, force_load, true);
 		}
 	}
+
+	if (!errors.empty())
+		effect.errors = std::move(errors);
 
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
