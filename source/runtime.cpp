@@ -2751,6 +2751,8 @@ bool reshade::runtime::create_effect(size_t effect_index)
 	effect.assembly.clear();
 #endif
 
+	load_textures(effect_index);
+
 	return true;
 }
 bool reshade::runtime::create_effect_sampler_state(const reshadefx::sampler_desc &info, api::sampler &sampler)
@@ -2875,12 +2877,14 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 	// Do not clear effect here, since it is common to be reused immediately
 }
 
-void reshade::runtime::load_textures()
+void reshade::runtime::load_textures(size_t effect_index)
 {
 	for (texture &tex : _textures)
 	{
 		if (tex.resource == 0 || !tex.semantic.empty())
 			continue; // Ignore textures that are not created yet and those that are handled in the runtime implementation
+		if (std::find(tex.shared.begin(), tex.shared.end(), effect_index) == tex.shared.end())
+			continue; // Ignore textures not being used with this effect
 
 		std::filesystem::path source_path = std::filesystem::u8path(tex.annotation_as_string("source"));
 		// Ignore textures that have no image file attached to them (e.g. plain render targets)
@@ -3054,8 +3058,6 @@ void reshade::runtime::load_textures()
 
 		tex.loaded = true;
 	}
-
-	_textures_loaded = true;
 }
 bool reshade::runtime::create_texture(texture &tex)
 {
@@ -3492,7 +3494,6 @@ void reshade::runtime::destroy_effects()
 	assert(_textures.empty());
 	assert(_techniques.empty() && _technique_sorting.empty());
 
-	_textures_loaded = false;
 	_reload_required_effects.clear();
 }
 
@@ -3725,7 +3726,13 @@ void reshade::runtime::update_effects()
 	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 		return;
 
-	if (!_reload_create_queue.empty())
+	if (_reload_create_queue.empty())
+	{
+#if RESHADE_ADDON
+		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
+	}
+	else
 	{
 		// Pop an effect from the queue
 		const size_t effect_index = _reload_create_queue.back();
@@ -3748,9 +3755,6 @@ void reshade::runtime::update_effects()
 			_last_reload_successful = false;
 		}
 
-		// An effect has changed, need to reload textures
-		_textures_loaded = false;
-
 #if RESHADE_GUI
 		const effect &effect = _effects[effect_index];
 
@@ -3765,16 +3769,6 @@ void reshade::runtime::update_effects()
 			if (effect.assembly_text.find(instance.entry_point_name) != effect.assembly_text.end())
 				open_code_editor(instance);
 		}
-#endif
-	}
-
-	if (!_textures_loaded && _reload_create_queue.empty())
-	{
-		// Now that all effects were created, load all textures
-		load_textures();
-
-#if RESHADE_ADDON
-		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
 #endif
 	}
 }

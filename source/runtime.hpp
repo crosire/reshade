@@ -61,7 +61,7 @@ namespace reshade
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
-		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty() || (!_textures_loaded && _is_initialized); }
+		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty(); }
 #endif
 
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
@@ -187,7 +187,7 @@ namespace reshade
 		bool create_effect_sampler_state(const reshadefx::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
 
-		void load_textures();
+		void load_textures(size_t effect_index);
 		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
@@ -302,7 +302,6 @@ namespace reshade
 		std::vector<std::filesystem::path> _texture_search_paths;
 
 		std::atomic<bool> _last_reload_successful = true;
-		bool _textures_loaded = false;
 		std::shared_mutex _reload_mutex;
 		std::vector<size_t> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = std::numeric_limits<size_t>::max();
