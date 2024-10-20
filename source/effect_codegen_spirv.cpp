@@ -306,8 +306,6 @@ private:
 			// All debug instructions
 			for (const spirv_instruction &inst : _debug_a.instructions)
 				inst.write(spirv);
-			for (const spirv_instruction &inst : _debug_b.instructions)
-				inst.write(spirv);
 		}
 	}
 	void finalize_type_and_constants_section(std::basic_string<char> &spirv) const
@@ -349,6 +347,9 @@ private:
 			inst.write(spirv);
 
 		finalize_debug_info_section(spirv);
+
+		for (const spirv_instruction &inst : _debug_b.instructions)
+			inst.write(spirv);
 
 		// All annotation instructions
 		for (const spirv_instruction &inst : _annotations.instructions)
@@ -425,6 +426,16 @@ private:
 		}
 
 		finalize_debug_info_section(spirv);
+
+		for (const spirv_instruction &inst : _debug_b.instructions)
+		{
+			// Remove all names of interface variables and functions for non-matching entry points
+			if (std::find(variables_to_remove.begin(), variables_to_remove.end(), inst.operands[0]) != variables_to_remove.end() ||
+				std::find(functions_to_remove.begin(), functions_to_remove.end(), inst.operands[0]) != functions_to_remove.end())
+				continue;
+
+			inst.write(spirv);
+		}
 
 		// All annotation instructions
 		for (spirv_instruction inst : _annotations.instructions)
