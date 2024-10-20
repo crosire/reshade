@@ -867,7 +867,7 @@ namespace ReShade.Setup
 				{
 					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
 					{
-						File.Delete(conflictingModulePath);
+						TrashFile(conflictingModulePath);
 					}
 				}
 				catch (SystemException)
@@ -1340,7 +1340,7 @@ In that event here are some steps you can try to resolve this:
 					{
 						try
 						{
-							Directory.Delete(commonPath, true);
+							TrashDirectory(commonPath, true);
 
 							using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"Software\Khronos\Vulkan\ImplicitLayers"))
 							{
@@ -1386,7 +1386,7 @@ In that event here are some steps you can try to resolve this:
 
 				if (currentInfo.targetApi != Api.Vulkan && !currentInfo.targetOpenXR)
 				{
-					File.Delete(currentInfo.modulePath);
+					TrashFile(currentInfo.modulePath);
 				}
 
 				// Read search paths from config file before deleting it
@@ -1394,12 +1394,12 @@ In that event here are some steps you can try to resolve this:
 
 				if (File.Exists(currentInfo.configPath))
 				{
-					File.Delete(currentInfo.configPath);
+					TrashFile(currentInfo.configPath);
 				}
 
 				if (File.Exists(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log")))
 				{
-					File.Delete(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"));
+					TrashFile(Path.Combine(Path.GetDirectoryName(currentInfo.targetPath), "ReShade.log"));
 				}
 
 				foreach (KeyValuePair<string, bool> searchPath in effectSearchPaths)
@@ -1410,14 +1410,14 @@ In that event here are some steps you can try to resolve this:
 
 						foreach (string effectFile in extensions.SelectMany(ext => Directory.EnumerateFiles(searchPath.Key, ext, searchPath.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)))
 						{
-							File.Delete(effectFile);
+							TrashFile(effectFile);
 						}
 
 						foreach (string parentPath in Directory.EnumerateDirectories(searchPath.Key, "*", searchPath.Value ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly).Union(new string[] { searchPath.Key }).OrderByDescending(path => path.Length))
 						{
 							if (Directory.EnumerateFiles(parentPath, "*", SearchOption.AllDirectories).Any() == false)
 							{
-								Directory.Delete(parentPath, false);
+								TrashDirectory(parentPath, false);
 							}
 						}
 					}
@@ -1426,7 +1426,7 @@ In that event here are some steps you can try to resolve this:
 				// Delete add-ons
 				foreach (string addonFile in Directory.EnumerateFiles(Path.GetDirectoryName(currentInfo.targetPath), currentInfo.is64Bit ? "*.addon64" : "*.addon32", SearchOption.TopDirectoryOnly))
 				{
-					File.Delete(addonFile);
+					TrashFile(addonFile);
 				}
 
 				// Delete all other existing ReShade installations too
@@ -1436,7 +1436,7 @@ In that event here are some steps you can try to resolve this:
 
 					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
 					{
-						File.Delete(conflictingModulePath);
+						TrashFile(conflictingModulePath);
 					}
 				}
 			}
@@ -1546,7 +1546,7 @@ In that event here are some steps you can try to resolve this:
 
 					foreach (string effectPath in denyEffectFiles)
 					{
-						File.Delete(effectPath);
+						TrashFile(effectPath);
 					}
 
 					effects = effects.Except(denyEffectFiles);
@@ -1559,7 +1559,7 @@ In that event here are some steps you can try to resolve this:
 
 					foreach (string effectPath in disabledEffectFiles)
 					{
-						File.Delete(effectPath);
+						TrashFile(effectPath);
 					}
 
 					effects = effects.Except(disabledEffectFiles);
@@ -1914,6 +1914,18 @@ In that event here are some steps you can try to resolve this:
 			{
 				NextButton.IsEnabled = isFinished || !(e.Content is StatusPage);
 			}
+		}
+
+		static void TrashFile(string path)
+		{
+			Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+		}
+		static void TrashDirectory(string path, bool recursive = false)
+		{
+			if (!recursive && Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories).Any())
+				Directory.Delete(path, false);
+
+			Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin, Microsoft.VisualBasic.FileIO.UICancelOption.ThrowException);
 		}
 	}
 }
