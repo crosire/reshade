@@ -272,6 +272,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	private_data_info.pNext = create_info.pNext;
 	private_data_info.privateDataSlotRequestCount = 1;
 
+	// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
+	if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
+	{
+		if (existing_memory_model_features->vulkanMemoryModel)
+			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
+	}
+
 	VkPhysicalDevicePrivateDataFeatures private_data_feature;
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature;
 	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_feature;
