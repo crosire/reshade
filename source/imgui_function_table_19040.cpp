@@ -9,8 +9,114 @@
 #include <new>
 #include "imgui_function_table_19040.hpp"
 
+namespace
+{
+	// Convert 'ImGuiIO' as well due to 'IMGUI_DISABLE_OBSOLETE_KEYIO' not being defined by default
+	void convert(const ImGuiIO &new_io, imgui_io_19040 &io)
+	{
+		io.ConfigFlags = new_io.ConfigFlags;
+		io.BackendFlags = new_io.BackendFlags;
+		io.DisplaySize = new_io.DisplaySize;
+		io.DeltaTime = new_io.DeltaTime;
+		io.IniSavingRate = new_io.IniSavingRate;
+		io.IniFilename = new_io.IniFilename;
+		io.LogFilename = new_io.LogFilename;
+		io.UserData = new_io.UserData;
+
+		// It's not safe to access the internal fields of 'FontAtlas'
+		io.Fonts = new_io.Fonts;
+		io.FontGlobalScale = new_io.FontGlobalScale;
+		io.FontAllowUserScaling = new_io.FontAllowUserScaling;
+		io.FontDefault = nullptr;
+		io.DisplayFramebufferScale = new_io.DisplayFramebufferScale;
+
+		io.ConfigDockingNoSplit = new_io.ConfigDockingNoSplit;
+		io.ConfigDockingWithShift = new_io.ConfigDockingWithShift;
+		io.ConfigDockingAlwaysTabBar = new_io.ConfigDockingAlwaysTabBar;
+		io.ConfigDockingTransparentPayload = new_io.ConfigDockingTransparentPayload;
+
+		io.ConfigViewportsNoAutoMerge = new_io.ConfigViewportsNoAutoMerge;
+		io.ConfigViewportsNoTaskBarIcon = new_io.ConfigViewportsNoTaskBarIcon;
+		io.ConfigViewportsNoDecoration = new_io.ConfigViewportsNoDecoration;
+		io.ConfigViewportsNoDefaultParent = new_io.ConfigViewportsNoDefaultParent;
+
+		io.MouseDrawCursor = new_io.MouseDrawCursor;
+		io.ConfigMacOSXBehaviors = new_io.ConfigMacOSXBehaviors;
+		io.ConfigInputTrickleEventQueue = new_io.ConfigInputTrickleEventQueue;
+		io.ConfigInputTextCursorBlink = new_io.ConfigInputTextCursorBlink;
+		io.ConfigInputTextEnterKeepActive = new_io.ConfigInputTextEnterKeepActive;
+		io.ConfigDragClickToInputText = new_io.ConfigDragClickToInputText;
+		io.ConfigWindowsResizeFromEdges = new_io.ConfigWindowsResizeFromEdges;
+		io.ConfigWindowsMoveFromTitleBarOnly = new_io.ConfigWindowsMoveFromTitleBarOnly;
+		io.ConfigMemoryCompactTimer = new_io.ConfigMemoryCompactTimer;
+
+		io.MouseDoubleClickTime = new_io.MouseDoubleClickTime;
+		io.MouseDoubleClickMaxDist = new_io.MouseDoubleClickMaxDist;
+		io.MouseDragThreshold = new_io.MouseDragThreshold;
+		io.KeyRepeatDelay = new_io.KeyRepeatDelay;
+		io.KeyRepeatRate = new_io.KeyRepeatRate;
+
+		io.ConfigDebugIsDebuggerPresent = new_io.ConfigDebugIsDebuggerPresent;
+		io.ConfigDebugBeginReturnValueOnce = new_io.ConfigDebugBeginReturnValueOnce;
+		io.ConfigDebugBeginReturnValueLoop = new_io.ConfigDebugBeginReturnValueLoop;
+		io.ConfigDebugIgnoreFocusLoss = new_io.ConfigDebugIgnoreFocusLoss;
+		io.ConfigDebugIniSettings = new_io.ConfigDebugIniSettings;
+
+		io.BackendPlatformName = new_io.BackendPlatformName;
+		io.BackendRendererName = new_io.BackendRendererName;
+		io.BackendPlatformUserData = new_io.BackendPlatformUserData;
+		io.BackendRendererUserData = new_io.BackendRendererUserData;
+		io.BackendLanguageUserData = new_io.BackendLanguageUserData;
+
+		io.GetClipboardTextFn = new_io.GetClipboardTextFn;
+		io.SetClipboardTextFn = new_io.SetClipboardTextFn;
+		io.ClipboardUserData = new_io.ClipboardUserData;
+		io.SetPlatformImeDataFn = new_io.SetPlatformImeDataFn;
+		io.PlatformLocaleDecimalPoint = new_io.PlatformLocaleDecimalPoint;
+
+		io.WantCaptureMouse = new_io.WantCaptureMouse;
+		io.WantCaptureKeyboard = new_io.WantCaptureKeyboard;
+		io.WantTextInput = new_io.WantTextInput;
+		io.WantSetMousePos = new_io.WantSetMousePos;
+		io.WantSaveIniSettings = new_io.WantSaveIniSettings;
+		io.NavActive = new_io.NavActive;
+		io.NavVisible = new_io.NavVisible;
+		io.Framerate = new_io.Framerate;
+		io.MetricsRenderVertices = new_io.MetricsRenderVertices;
+		io.MetricsRenderIndices = new_io.MetricsRenderIndices;
+		io.MetricsRenderWindows = new_io.MetricsRenderWindows;
+		io.MetricsActiveWindows = new_io.MetricsActiveWindows;
+		io.MouseDelta = new_io.MouseDelta;
+
+		for (int i = 0; i < 666; ++i)
+			io.KeyMap[i] = 0;
+		for (int i = 0; i < 666; ++i)
+			io.KeysDown[i] = false; // ImGui::IsKeyDown(i)
+		for (int i = 0; i < 16; ++i)
+			io.NavInputs[i] = 0.0f;
+
+		io.Ctx = new_io.Ctx;
+
+		io.MousePos = new_io.MousePos;
+		for (int i = 0; i < 5; ++i)
+			io.MouseDown[i] = new_io.MouseDown[i];
+		io.MouseWheel = new_io.MouseWheel;
+		io.MouseWheelH = new_io.MouseWheelH;
+		io.MouseSource = new_io.MouseSource;
+		io.MouseHoveredViewport = new_io.MouseHoveredViewport;
+		io.KeyCtrl = new_io.KeyCtrl;
+		io.KeyShift = new_io.KeyShift;
+		io.KeyAlt = new_io.KeyAlt;
+		io.KeySuper = new_io.KeySuper;
+	}
+}
+
 const imgui_function_table_19040 init_imgui_function_table_19040() { return {
-	ImGui::GetIO,
+	[]() -> imgui_io_19040 &{
+		static imgui_io_19040 io = {};
+		convert(ImGui::GetIO(), io);
+		return io;
+	},
 	ImGui::GetStyle,
 	ImGui::GetVersion,
 	ImGui::Begin,
