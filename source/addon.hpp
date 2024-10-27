@@ -39,6 +39,7 @@ namespace reshade
 			} number;
 			uint64_t value;
 		} version = {};
+		bool external = true;
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;
 #if RESHADE_GUI

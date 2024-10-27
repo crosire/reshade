@@ -143,14 +143,14 @@ void reshade::load_addons()
 
 	ini_file &config = global_config();
 
-#if RESHADE_VERBOSE_LOG
-	log::message(log::level::info, "Loading built-in add-ons ...");
-#endif
-
 	addon_all_loaded = true;
 
 	std::vector<std::string> disabled_addons;
 	config.get("ADDON", "DisabledAddons", disabled_addons);
+
+#if RESHADE_VERBOSE_LOG
+	log::message(log::level::info, "Loading built-in add-ons ...");
+#endif
 
 #if 1
 	{	addon_info &info = addon_loaded_info.emplace_back();
@@ -158,6 +158,7 @@ void reshade::load_addons()
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.file = g_reshade_dll_path.filename().u8string();
 		info.author = "crosire";
+		info.external = false;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
 		{
@@ -171,6 +172,7 @@ void reshade::load_addons()
 		info.description = "Adds preset synchronization between different effect runtime instances, e.g. to have changes in a desktop window reflect in VR.";
 		info.file = g_reshade_dll_path.filename().u8string();
 		info.author = "crosire";
+		info.external = false;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
 		{
@@ -180,6 +182,27 @@ void reshade::load_addons()
 		}
 	}
 #endif
+
+	// Initialize any add-ons that were registered externally
+	const std::vector<addon_info> loaded_info_copy = addon_loaded_info;
+	for (const addon_info &info : loaded_info_copy)
+	{
+		if (info.handle == nullptr || info.handle == g_module_handle)
+			continue; // Skip disabled and built-in add-ons
+
+		assert(info.external);
+
+		log::message(log::level::info, "Loading externally registered add-on \"%s\" ...", info.name.c_str());
+
+		auto module = static_cast<HMODULE>(info.handle);
+
+		const auto init_func = reinterpret_cast<bool(*)(HMODULE addon_module, HMODULE reshade_module)>(GetProcAddress(module, "AddonInit"));
+		if (init_func != nullptr && !init_func(module, g_module_handle))
+		{
+			addon_all_loaded = false;
+			log::message(log::level::error, "Failed to load add-on \"%s\" because initialization was not successful!", info.name.c_str());
+		}
+	}
 
 	// Get directory from where to load add-ons from
 	std::filesystem::path addon_search_path = g_reshade_base_path;
@@ -224,6 +247,7 @@ void reshade::load_addons()
 				}) != disabled_addons.cend())
 		{
 			info.handle = nullptr;
+			info.external = false;
 			addon_loaded_info.push_back(std::move(info));
 			continue;
 		}
@@ -271,7 +295,11 @@ void reshade::load_addons()
 			continue;
 		}
 
-		if (find_addon(module) == nullptr)
+		if (addon_info *const info = find_addon(module))
+		{
+			info->external = false;
+		}
+		else
 		{
 			addon_all_loaded = false;
 			log::message(log::level::warning, "No add-on was registered by '%s'. Unloading again ...", path.u8string().c_str());
@@ -309,6 +337,9 @@ void reshade::unload_addons()
 		if (uninit_func != nullptr)
 			uninit_func(module, g_module_handle);
 
+		if (info.external)
+			continue;
+
 		if (!FreeLibrary(module))
 			log::message(log::level::warning, "Failed to unload '%s' with error code %lu!", info.file.c_str(), GetLastError());
 	}
@@ -323,13 +354,11 @@ void reshade::unload_addons()
 	unregister_addon_effect_runtime_sync();
 #endif
 
-#ifndef NDEBUG
-	// All events should have been unregistered at this point
-	for (const std::vector<void *> &event_info : addon_event_list)
-		assert(event_info.empty());
-#endif
-
-	addon_loaded_info.clear();
+	// Remove all unloaded add-ons
+	addon_loaded_info.erase(
+		std::remove_if(addon_loaded_info.begin(), addon_loaded_info.end(),
+			[](const addon_info &info) { return info.handle != nullptr && !info.external; }),
+		addon_loaded_info.end());
 }
 
 bool reshade::has_loaded_addons()
