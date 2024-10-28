@@ -3723,54 +3723,50 @@ void reshade::runtime::update_effects()
 		return;
 	}
 
-	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max() || _reload_create_queue.empty())
 		return;
 
-	if (_reload_create_queue.empty())
+	// Pop an effect from the queue
+	const size_t effect_index = _reload_create_queue.back();
+	_reload_create_queue.pop_back();
+
+	if (!create_effect(effect_index))
 	{
-#if RESHADE_ADDON
-		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
-#endif
+		_graphics_queue->wait_idle();
+
+		// Destroy all textures belonging to this effect
+		for (texture &tex : _textures)
+			if (tex.effect_index == effect_index && tex.shared.size() <= 1)
+				destroy_texture(tex);
+		// Disable all techniques belonging to this effect
+		for (technique &tech : _techniques)
+			if (tech.effect_index == effect_index)
+				disable_technique(tech);
+
+		_effects[effect_index].compiled = false;
+		_last_reload_successful = false;
 	}
-	else
-	{
-		// Pop an effect from the queue
-		const size_t effect_index = _reload_create_queue.back();
-		_reload_create_queue.pop_back();
-
-		if (!create_effect(effect_index))
-		{
-			_graphics_queue->wait_idle();
-
-			// Destroy all textures belonging to this effect
-			for (texture &tex : _textures)
-				if (tex.effect_index == effect_index && tex.shared.size() <= 1)
-					destroy_texture(tex);
-			// Disable all techniques belonging to this effect
-			for (technique &tech : _techniques)
-				if (tech.effect_index == effect_index)
-					disable_technique(tech);
-
-			_effects[effect_index].compiled = false;
-			_last_reload_successful = false;
-		}
 
 #if RESHADE_GUI
-		const effect &effect = _effects[effect_index];
+	const effect &effect = _effects[effect_index];
 
-		// Update assembly in all code editors after a reload
-		for (editor_instance &instance : _editors)
-		{
-			if (!instance.generated || instance.entry_point_name.empty() || instance.file_path != effect.source_file)
-				continue;
+	// Update assembly in all code editors after a reload
+	for (editor_instance &instance : _editors)
+	{
+		if (!instance.generated || instance.entry_point_name.empty() || instance.file_path != effect.source_file)
+			continue;
 
-			assert(instance.effect_index == effect_index);
+		assert(instance.effect_index == effect_index);
 
-			if (effect.assembly_text.find(instance.entry_point_name) != effect.assembly_text.end())
-				open_code_editor(instance);
-		}
-#endif
+		if (effect.assembly_text.find(instance.entry_point_name) != effect.assembly_text.end())
+			open_code_editor(instance);
 	}
+#endif
+
+#if RESHADE_ADDON
+	if (_reload_create_queue.empty())
+		invoke_addon_event<addon_event::reshade_reloaded_effects>(this);
+#endif
 }
 void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb)
 {
