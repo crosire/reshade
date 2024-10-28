@@ -265,6 +265,8 @@ void reshade::load_addons()
 				// Avoid logging an error if loading failed because the add-on is disabled
 				assert(addon_loaded_info.back().handle == nullptr);
 
+				addon_loaded_info.back().external = false;
+
 				log::message(log::level::warning, "> Add-on failed to initialize or is disabled. Skipped.");
 			}
 			else
@@ -282,6 +284,8 @@ void reshade::load_addons()
 			if (!addon_loaded_info.empty() && path.filename().u8string() == addon_loaded_info.back().file)
 			{
 				assert(addon_loaded_info.back().handle == nullptr);
+
+				addon_loaded_info.back().external = false;
 
 				log::message(log::level::warning, "> Add-on failed to initialize or is disabled. Skipped.");
 			}
@@ -357,7 +361,11 @@ void reshade::unload_addons()
 	// Remove all unloaded add-ons
 	addon_loaded_info.erase(
 		std::remove_if(addon_loaded_info.begin(), addon_loaded_info.end(),
-			[](const addon_info &info) { return info.handle != nullptr && !info.external; }),
+			[](const addon_info &info) {
+				// There should only be external, disabled and built-in add-ons in the list at this point (any other well behaving add-ons should already have unregistered themselves during unloading)
+				assert(info.external || info.handle == nullptr || info.handle == g_module_handle);
+				return !info.external;
+			}),
 		addon_loaded_info.end());
 }
 
