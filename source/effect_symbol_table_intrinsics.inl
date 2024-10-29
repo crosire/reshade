@@ -1307,6 +1307,7 @@ DEFINE_INTRINSIC(ddx_coarse, 0, float2, float2)
 DEFINE_INTRINSIC(ddx_coarse, 0, float3, float3)
 DEFINE_INTRINSIC(ddx_coarse, 0, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(ddx_coarse, 0, {
+	_uses_derivative_control = true;
 	code += "dFdxCoarse(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(ddx_coarse, 0, {
@@ -1323,6 +1324,7 @@ DEFINE_INTRINSIC(ddx_fine, 0, float2, float2)
 DEFINE_INTRINSIC(ddx_fine, 0, float3, float3)
 DEFINE_INTRINSIC(ddx_fine, 0, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(ddx_fine, 0, {
+	_uses_derivative_control = true;
 	code += "dFdxFine(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(ddx_fine, 0, {
@@ -1356,6 +1358,7 @@ DEFINE_INTRINSIC(ddy_coarse, 0, float2, float2)
 DEFINE_INTRINSIC(ddy_coarse, 0, float3, float3)
 DEFINE_INTRINSIC(ddy_coarse, 0, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(ddy_coarse, 0, {
+	_uses_derivative_control = true;
 	code += "dFdyCoarse(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(ddy_coarse, 0, {
@@ -1372,6 +1375,7 @@ DEFINE_INTRINSIC(ddy_fine, 0, float2, float2)
 DEFINE_INTRINSIC(ddy_fine, 0, float3, float3)
 DEFINE_INTRINSIC(ddy_fine, 0, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(ddy_fine, 0, {
+	_uses_derivative_control = true;
 	code += "dFdyFine(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(ddy_fine, 0, {
