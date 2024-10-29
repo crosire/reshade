@@ -4943,7 +4943,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 		view_format != api::format::r10g10b10a2_unorm &&
 		view_format != api::format::b10g10r10a2_unorm)
 	{
-		log::message(log::level::error, "Screenshots are not supported for format %u!", static_cast<uint32_t>(desc.texture.format));
+		log::message(log::level::error, "Screenshots are not supported for format %u! HDR needs to be disabled for screenshots to work.", static_cast<uint32_t>(desc.texture.format));
 		return false;
 	}
 
