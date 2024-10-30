@@ -455,9 +455,11 @@ std::string reshade::input::key_name(const unsigned int key[4])
 	return (key[1] ? "Ctrl + " : std::string()) + (key[2] ? "Shift + " : std::string()) + (key[3] ? "Alt + " : std::string()) + key_name(key[0]);
 }
 
+extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint);
+
 void reshade::input::block_mouse_input(bool enable)
 {
-	_block_mouse = enable;
+	bool originally_blocked = std::exchange(_block_mouse, enable);
 
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 	if (enable)
@@ -466,6 +468,14 @@ void reshade::input::block_mouse_input(bool enable)
 		const RECT last_clip_cursor = s_last_clip_cursor;
 		ClipCursor(nullptr);
 		s_last_clip_cursor = last_clip_cursor;
+
+		// Update the initial cursor position as soon as blocking starts
+		static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
+		POINT cursor_pos;
+		if (!originally_blocked && trampoline(&cursor_pos)) {
+			s_last_cursor_position.x = cursor_pos.x;
+			s_last_cursor_position.y = cursor_pos.y;
+		}
 	}
 	else if ((s_last_clip_cursor.right - s_last_clip_cursor.left) != 0 && (s_last_clip_cursor.bottom - s_last_clip_cursor.top) != 0)
 	{
@@ -704,9 +714,33 @@ extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect)
 {
 	s_last_clip_cursor = (lpRect != nullptr) ? *lpRect : RECT {};
 
+	// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
 	if (is_blocking_mouse_input())
-		// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
-		lpRect = nullptr;
+	{
+		// Application tried to set a restrictive clip rect, expand it to the entire window if applicable
+		if (lpRect != nullptr)
+		{
+			lpRect = nullptr;
+
+			// Most of the time when the ReShade UI is open, users will want the mouse confined to the window.
+			// 
+			//   nb: Add a config parameter for this?
+			//     (Previous to this, ReShade was letting the cursor move to other monitors)
+			static bool s_allow_cursor_leaks = false;
+			if (!s_allow_cursor_leaks)
+			{
+				RECT window_clip_rect = {};
+				HWND active_window = GetActiveWindow();
+
+				// Thread has an active window, use that as the entire bounds
+				if (IsWindow(active_window))
+				{
+					GetWindowRect(active_window,&window_clip_rect);
+					lpRect = &window_clip_rect;
+				}
+			}
+		}
+	}
 
 	static const auto trampoline = reshade::hooks::call(HookClipCursor);
 	return trampoline(lpRect);
@@ -736,5 +770,339 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	}
 
 	static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
-	return trampoline(lpPoint);
+	BOOL bRet = trampoline(lpPoint);
+	if (bRet)
+	{
+		assert(lpPoint != nullptr);
+
+		s_last_cursor_position.x = lpPoint->x;
+		s_last_cursor_position.y = lpPoint->y;
+	}
+	return bRet;
+}
+
+extern "C" SHORT WINAPI HookGetAsyncKeyState(int vKey)
+{
+	static const auto trampoline = reshade::hooks::call(HookGetAsyncKeyState);
+	SHORT sKeyState = trampoline(vKey);
+
+	// Valid (Keyboard) Keys:  8 - 255
+	if ((vKey & 0xF8) != 0)
+	{
+		if (is_blocking_keyboard_input())
+		{
+			sKeyState = 0;
+		}
+	}
+
+	// 0-8 = Mouse + Unused Buttons
+	else if (vKey < 8)
+	{
+		// Some games use this API for mouse buttons
+		if (is_blocking_mouse_input())
+		{
+			sKeyState = 0;
+		}
+	}
+
+	return sKeyState;
+}
+
+extern "C" SHORT WINAPI HookGetKeyState(int vKey)
+{
+	static const auto trampoline = reshade::hooks::call(HookGetKeyState);
+	SHORT sKeyState = trampoline(vKey);
+
+	// Valid (Keyboard) Keys:  8 - 255
+	if ((vKey & 0xF8) != 0)
+	{
+		if (is_blocking_keyboard_input())
+		{
+			sKeyState = 0;
+		}
+	}
+
+	// 0-8 = Mouse + Unused Buttons
+	else if (vKey < 8)
+	{
+		// Some games use this API for mouse buttons
+		if (is_blocking_mouse_input())
+		{
+			sKeyState = 0;
+		}
+	}
+
+	return sKeyState;
+}
+
+extern "C" BOOL WINAPI HookGetKeyboardState(PBYTE lpKeyState)
+{
+	static const auto trampoline = reshade::hooks::call(HookGetKeyboardState);
+	BOOL bRet = trampoline(lpKeyState);
+
+	if (bRet)
+	{
+		bool capture_mouse    = is_blocking_mouse_input();
+		bool capture_keyboard = is_blocking_keyboard_input();
+
+		// All-at-once
+		if (capture_mouse && capture_keyboard)
+		{
+			std::memset(lpKeyState, 0, 255);
+		}
+
+		else
+		{
+			if (capture_keyboard)
+			{
+				std::memset(&lpKeyState[7], 0, 247);
+			}
+
+			// Some games use this API for mouse buttons
+			if (capture_mouse)
+			{
+				std::memset(lpKeyState, 0, 7);
+			}
+		}
+	}
+
+	return bRet;
+}
+
+// Adapted from Special K, but not needed since ReShade already processes WM_INPUT
+#if 0
+extern "C" UINT WINAPI HookGetRawInputData(_In_      HRAWINPUT hRawInput,
+                                           _In_      UINT      uiCommand,
+                                           _Out_opt_ LPVOID    pData,
+                                           _Inout_   PUINT     pcbSize,
+                                           _In_      UINT      cbSizeHeader)
+{
+	static const auto trampoline = reshade::hooks::call(HookGetRawInputData);
+
+	if (hRawInput == NULL)
+	{
+		SetLastError(ERROR_INVALID_HANDLE);
+		return ~0U;
+	}
+	
+	if (cbSizeHeader != sizeof(RAWINPUTHEADER) || pcbSize == nullptr)
+	{
+		SetLastError(ERROR_INVALID_PARAMETER);
+		return ~0U;
+	}
+
+	UINT size = trampoline(hRawInput, uiCommand, pData, pcbSize, cbSizeHeader);
+
+	if (pData == nullptr)
+	{
+	  return size;
+	}
+
+	// On error, simply return immediately...
+	if (size == ~0U)
+		return size;
+
+	bool filter   = false;
+	bool mouse    = false;
+	bool keyboard = false;
+
+	RAWINPUT *pRawData = static_cast<RAWINPUT*>(pData);
+
+	switch (pRawData->header.dwType)
+	{
+	case RIM_TYPEMOUSE:
+		mouse  = true;
+		filter = is_blocking_mouse_input();
+		break;
+
+	case RIM_TYPEKEYBOARD:
+	{
+		USHORT VKey = (pRawData->data.keyboard.VKey & 0xFF);
+
+		if (VKey & 0xF8) // Valid Keys:  8 - 255
+		{
+			keyboard = true;
+
+			if (is_blocking_keyboard_input())
+				filter = true;
+		}
+
+		else if (VKey < 7)
+		{
+			mouse = true;
+
+			if (pRawData->data.keyboard.Message == WM_KEYDOWN)    filter = is_blocking_mouse_input();
+			if (pRawData->data.keyboard.Message == WM_SYSKEYDOWN) filter = is_blocking_mouse_input();
+			if (pRawData->data.keyboard.Message == WM_KEYUP)      filter = is_blocking_mouse_input();
+			if (pRawData->data.keyboard.Message == WM_SYSKEYUP)   filter = is_blocking_mouse_input();
+		}
+	} break;
+
+	case RIM_TYPEHID: // Gamepads, ReShade does not use...
+		break;
+	}
+
+	if (filter)
+	{
+		// Tell the game this event happened in the background, most will
+		//   throw it out quick and easy.
+		pRawData->header.wParam = RIM_INPUTSINK;
+
+		// Supplying an invalid device will early-out SDL before it calls HID APIs to try
+		//   and get an input report that we don't want it to see...
+		pRawData->header.hDevice = nullptr;
+
+		assert (*pcbSize >= static_cast <UINT> (size) &&
+		        *pcbSize >= sizeof (RAWINPUTHEADER));
+
+		if (keyboard)
+		{
+			if (! (pRawData->data.keyboard.Flags & RI_KEY_BREAK))
+			       pRawData->data.keyboard.VKey  = 0;
+
+			// Fake key release
+			pRawData->data.keyboard.Flags |= RI_KEY_BREAK;
+		}
+
+		// Block mouse input in The Witness by zeroing-out the memory; most other 
+		//   games will see *pcbSize=0 and RIM_INPUTSINK and not process input...
+		else
+		{
+			if (mouse)
+				std::memset(&pRawData->data.mouse, 0, *pcbSize - sizeof (RAWINPUTHEADER));
+		}
+	}
+
+	return size;
+}
+#endif
+
+// This variety of RawInput does not use WM_INPUT, and a hook is necessary to block these inputs
+extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
+                                             _Inout_   PUINT     pcbSize,
+                                             _In_      UINT      cbSizeHeader)
+{
+	static const auto trampoline = reshade::hooks::call(HookGetRawInputBuffer);
+
+	bool block_keyboard = is_blocking_keyboard_input();
+	bool block_mouse    = is_blocking_mouse_input();
+	bool block_gamepad  = false;
+
+	// High throughput (i.e. 8 kHz mouse polling) API, we need a fast path to exit
+	if (!(block_keyboard || block_mouse || block_gamepad))
+	{
+		return trampoline(pData, pcbSize, cbSizeHeader);
+	}
+
+	// Game wants to know size to allocate, let it pass-through
+	if (pData == nullptr)
+	{
+		return trampoline(pData, pcbSize, cbSizeHeader);
+	}
+
+	using QWORD = uint64_t;
+
+	if (pData != nullptr)
+	{
+		std::vector <BYTE> temp_buf ((size_t)*pcbSize * 16);
+
+		const int max_items = (((size_t)*pcbSize * 16) / sizeof (RAWINPUT));
+		      int count     =                             0;
+		    auto *pTemp     =
+		      (RAWINPUT *)temp_buf.data ();
+		RAWINPUT *pInput    =                         pTemp;
+		RAWINPUT *pOutput   =                         pData;
+		UINT     cbSize     =                      *pcbSize;
+		          *pcbSize  =                             0;
+		int       temp_ret  = trampoline(pTemp, &cbSize, cbSizeHeader);
+		
+		// Common usage involves calling this with a wrong sized buffer, then calling it again...
+		//   early-out if it returns -1.
+		if (temp_ret < 0 || max_items == 0)
+			return temp_ret;
+
+		auto* pItem = pInput;
+
+		// Sanity check required array storage even though TLS will
+		//   allocate more than enough.
+		assert(temp_ret < max_items);
+		
+		for (int i = 0; i < temp_ret; i++)
+		{
+			bool remove = false;
+			
+			switch (pItem->header.dwType)
+			{
+				case RIM_TYPEKEYBOARD:
+					remove = block_keyboard;
+					break;
+				case RIM_TYPEMOUSE:
+					remove = block_mouse;
+					break;
+				// Gamepad, ReShade does not care about this...?
+				default:
+					remove = block_gamepad;
+					break;
+			}
+
+			// If item is not removed, append it to the buffer of RAWINPUT
+			//   packets we are allowing the game to see
+			if (remove == false)
+			{
+				memcpy (pOutput, pItem, pItem->header.dwSize);
+				        pOutput = NEXTRAWINPUTBLOCK (pOutput);
+
+				++count;
+			}
+
+			else
+			{
+				bool keyboard = pItem->header.dwType == RIM_TYPEKEYBOARD;
+				bool mouse    = pItem->header.dwType == RIM_TYPEMOUSE;
+
+				// Clearing all bytes above would have set the type to mouse, and some games
+				//   will actually read data coming from RawInput even when the size returned is 0!
+				pItem->header.dwType = keyboard ? RIM_TYPEKEYBOARD :
+				                          mouse ? RIM_TYPEMOUSE    :
+				                                  RIM_TYPEHID;
+
+				// Supplying an invalid device will early-out SDL before it calls HID APIs to try
+				//   and get an input report that we don't want it to see...
+				pItem->header.hDevice = nullptr;
+
+				// Most engines will honor the Input Sink state
+				pItem->header.wParam  = RIM_INPUTSINK;
+
+				if (keyboard)
+				{
+					if (! (pItem->data.keyboard.Flags & RI_KEY_BREAK))
+					       pItem->data.keyboard.VKey  = 0;
+
+					// Fake key release
+					pItem->data.keyboard.Flags |= RI_KEY_BREAK;
+				}
+
+				// Block mouse input by zeroing-out the memory; not all games will
+				//   see *pcbSize=0 and RIM_INPUTSINK and ignore input...
+				else
+				{
+					memset (&pItem->data.mouse, 0,
+					         pItem->header.dwSize - sizeof (RAWINPUTHEADER));
+				}
+
+				memcpy (pOutput, pItem, pItem->header.dwSize);
+				        pOutput = NEXTRAWINPUTBLOCK (pOutput);
+
+				++count;
+			}
+
+			pItem = NEXTRAWINPUTBLOCK (pItem);
+		}
+		
+		*pcbSize = (UINT)((uintptr_t)pOutput - (uintptr_t)pData);
+		
+		return count;
+	}
+
+	return trampoline(pData, pcbSize, cbSizeHeader);
 }
