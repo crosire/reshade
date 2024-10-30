@@ -457,9 +457,24 @@ std::string reshade::input::key_name(const unsigned int key[4])
 
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint);
 
+void reshade::input::immobilize_mouse(bool enable)
+{
+	bool originally_immobilized = std::exchange(_immobile_mouse, enable);
+	if (enable)
+	{
+		// Update the initial cursor position as soon as blocking starts
+		static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
+		POINT cursor_pos;
+		if (!originally_immobilized && trampoline(&cursor_pos)) {
+			s_last_cursor_position.x = cursor_pos.x;
+			s_last_cursor_position.y = cursor_pos.y;
+		}
+	}
+}
+
 void reshade::input::block_mouse_input(bool enable)
 {
-	bool originally_blocked = std::exchange(_block_mouse, enable);
+	_block_mouse = enable;
 
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 	if (enable)
@@ -468,14 +483,6 @@ void reshade::input::block_mouse_input(bool enable)
 		const RECT last_clip_cursor = s_last_clip_cursor;
 		ClipCursor(nullptr);
 		s_last_clip_cursor = last_clip_cursor;
-
-		// Update the initial cursor position as soon as blocking starts
-		static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
-		POINT cursor_pos;
-		if (!originally_blocked && trampoline(&cursor_pos)) {
-			s_last_cursor_position.x = cursor_pos.x;
-			s_last_cursor_position.y = cursor_pos.y;
-		}
 	}
 	else if ((s_last_clip_cursor.right - s_last_clip_cursor.left) != 0 && (s_last_clip_cursor.bottom - s_last_clip_cursor.top) != 0)
 	{
@@ -488,6 +495,15 @@ void reshade::input::block_keyboard_input(bool enable)
 	_block_keyboard = enable;
 }
 
+bool is_immobilizing_mouse()
+{
+	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
+
+	const auto predicate = [](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+		return !input_window.second.expired() && input_window.second.lock()->is_immobilizing_mouse();
+	};
+	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+}
 bool is_blocking_mouse_input()
 {
 	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
@@ -751,7 +767,7 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 	s_last_cursor_position.x = X;
 	s_last_cursor_position.y = Y;
 
-	if (is_blocking_mouse_input())
+	if (is_blocking_mouse_input() || is_immobilizing_mouse())
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookSetCursorPosition);
@@ -759,7 +775,7 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 }
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
-	if (is_blocking_mouse_input())
+	if (is_blocking_mouse_input() || is_immobilizing_mouse())
 	{
 		assert(lpPoint != nullptr);
 
@@ -770,15 +786,7 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	}
 
 	static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
-	BOOL bRet = trampoline(lpPoint);
-	if (bRet)
-	{
-		assert(lpPoint != nullptr);
-
-		s_last_cursor_position.x = lpPoint->x;
-		s_last_cursor_position.y = lpPoint->y;
-	}
-	return bRet;
+	return trampoline(lpPoint);
 }
 
 extern "C" SHORT WINAPI HookGetAsyncKeyState(int vKey)

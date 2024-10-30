@@ -81,6 +81,12 @@ namespace reshade
 		void block_mouse_input(bool enable);
 		bool is_blocking_mouse_input() const { return _block_mouse; }
 		/// <summary>
+		/// Set to <see langword="true"/> to prevent mouse GetCursorPos from returning the real pos; use last value of SetCursorPos.
+		/// This is separate from mouse blocking, it is intended to prevent games that use Set/GetCursorPos from warping the cursor.
+		/// </summary>
+		void immobilize_mouse(bool enable);
+		bool is_immobilizing_mouse() const { return _immobile_mouse; }
+		/// <summary>
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable);
@@ -119,6 +125,7 @@ namespace reshade
 	private:
 		std::recursive_mutex _mutex;
 		window_handle _window;
+		bool _immobile_mouse = false;
 		bool _block_mouse = false;
 		bool _block_keyboard = false;
 		uint8_t _keys[256] = {};
