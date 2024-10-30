@@ -462,6 +462,10 @@ EXPORTS
 	ClipCursor = HookClipCursor PRIVATE
 	GetCursorPos = HookGetCursorPosition PRIVATE
 	SetCursorPos = HookSetCursorPosition PRIVATE
+	GetAsyncKeyState = HookGetAsyncKeyState PRIVATE
+	GetKeyState = HookGetKeyState PRIVATE
+	GetKeyboardState = HookGetKeyboardState PRIVATE
+    GetRawInputBuffer = HookGetRawInputBuffer PRIVATE
 
 	; ws2_32.dll (Uses ordinals in ws2_32.lib for most exports)
 	send = HookSend PRIVATE
