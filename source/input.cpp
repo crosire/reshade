@@ -15,6 +15,9 @@
 extern bool is_uwp_app();
 
 extern HANDLE g_exit_event;
+static std::atomic_bool s_blocking_global_mouse_input = false;
+static std::atomic_bool s_blocking_global_keyboard_input = false;
+static std::atomic_bool s_immobilizing_global_cursor_move = false;
 static std::shared_mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
@@ -416,6 +419,23 @@ void reshade::input::next_frame()
 		(GetAsyncKeyState(VK_SNAPSHOT) & 0x8000) != 0)
 		(_keys[VK_SNAPSHOT] = 0x88),
 		(_keys_time[VK_SNAPSHOT] = time);
+
+	// Run through all forms of input blocking for all windows and establish whether any of them are blocking input
+	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
+
+	const auto mouse_predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
+	};
+	const auto keyboard_predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
+	};
+	const auto cursor_predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+		return !input_window.second.expired() && input_window.second.lock()->is_immobilizing_cursor();
+	};
+
+	s_blocking_global_mouse_input.store(std::any_of(s_windows.cbegin(), s_windows.cend(), mouse_predicate));
+	s_blocking_global_keyboard_input.store(std::any_of(s_windows.cbegin(), s_windows.cend(), keyboard_predicate));
+	s_immobilizing_global_cursor_move.store(std::any_of(s_windows.cbegin(), s_windows.cend(), cursor_predicate));
 }
 
 std::string reshade::input::key_name(unsigned int keycode)
@@ -457,9 +477,9 @@ std::string reshade::input::key_name(const unsigned int key[4])
 
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint);
 
-void reshade::input::immobilize_mouse(bool enable)
+void reshade::input::immobilize_cursor(bool enable)
 {
-	bool originally_immobilized = std::exchange(_immobile_mouse, enable);
+	bool originally_immobilized = std::exchange(_immobilize_cursor, enable);
 	if (enable)
 	{
 		// Update the initial cursor position as soon as blocking starts
@@ -495,32 +515,47 @@ void reshade::input::block_keyboard_input(bool enable)
 	_block_keyboard = enable;
 }
 
-bool is_immobilizing_mouse()
+bool is_immobilizing_cursor(reshade::input::window_handle window = reshade::input::GlobalQueue)
 {
-	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
+	if (window != reshade::input::GlobalQueue)
+	{
+		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
-	const auto predicate = [](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-		return !input_window.second.expired() && input_window.second.lock()->is_immobilizing_mouse();
-	};
-	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+			return !input_window.second.expired() && (window == reshade::input::AnyWindow || input_window.first == window) && input_window.second.lock()->is_immobilizing_cursor();
+		};
+		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+	}
+
+	return s_immobilizing_global_cursor_move.load();
 }
-bool is_blocking_mouse_input()
+bool is_blocking_mouse_input(reshade::input::window_handle window = reshade::input::GlobalQueue)
 {
-	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
+	if (window != reshade::input::GlobalQueue)
+	{
+		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
-	const auto predicate = [](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-		return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
-	};
-	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+			return !input_window.second.expired() && (window == reshade::input::AnyWindow || input_window.first == window) && input_window.second.lock()->is_blocking_mouse_input();
+		};
+		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+	}
+
+	return s_blocking_global_mouse_input.load();
 }
-bool is_blocking_keyboard_input()
+bool is_blocking_keyboard_input(reshade::input::window_handle window = reshade::input::GlobalQueue)
 {
-	const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
+	if (window != reshade::input::GlobalQueue)
+	{
+		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
-	const auto predicate = [](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-		return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
-	};
-	return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
+			return !input_window.second.expired() && (window == reshade::input::AnyWindow || input_window.first == window) && input_window.second.lock()->is_blocking_keyboard_input();
+		};
+		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
+	}
+
+	return s_blocking_global_keyboard_input.load();
 }
 
 extern "C" BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
@@ -670,7 +705,7 @@ extern "C" BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 extern "C" BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	// Do not allow mouse movement simulation while we block input
-	if (is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
+	if (is_blocking_mouse_input(hWnd) && Msg == WM_MOUSEMOVE)
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookPostMessageA);
@@ -678,7 +713,7 @@ extern "C" BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPAR
 }
 extern "C" BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
-	if (is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
+	if (is_blocking_mouse_input(hWnd) && Msg == WM_MOUSEMOVE)
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookPostMessageW);
@@ -767,7 +802,7 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 	s_last_cursor_position.x = X;
 	s_last_cursor_position.y = Y;
 
-	if (is_blocking_mouse_input() || is_immobilizing_mouse())
+	if (is_blocking_mouse_input() || is_immobilizing_cursor())
 		return TRUE;
 
 	static const auto trampoline = reshade::hooks::call(HookSetCursorPosition);
@@ -775,7 +810,7 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 }
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
-	if (is_blocking_mouse_input() || is_immobilizing_mouse())
+	if (is_blocking_mouse_input() || is_immobilizing_cursor())
 	{
 		assert(lpPoint != nullptr);
 
@@ -992,9 +1027,9 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 {
 	static const auto trampoline = reshade::hooks::call(HookGetRawInputBuffer);
 
-	bool block_keyboard = is_blocking_keyboard_input();
-	bool block_mouse    = is_blocking_mouse_input();
-	bool block_gamepad  = false;
+	const bool block_keyboard = is_blocking_keyboard_input(reshade::input::GlobalQueue);
+	const bool block_mouse    = is_blocking_mouse_input(reshade::input::GlobalQueue);
+	const bool block_gamepad  = false;
 
 	// High throughput (i.e. 8 kHz mouse polling) API, we need a fast path to exit
 	if (!(block_keyboard || block_mouse || block_gamepad))
@@ -1012,12 +1047,15 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 
 	if (pData != nullptr)
 	{
-		std::vector <BYTE> temp_buf ((size_t)*pcbSize * 16);
+		thread_local std::vector <BYTE> tls_buf ((size_t)*pcbSize * 16);
+
+		if (tls_buf.size () < ((size_t)*pcbSize * 16))
+			tls_buf.resize ((size_t)*pcbSize * 16 * 2);
 
 		const int max_items = (((size_t)*pcbSize * 16) / sizeof (RAWINPUT));
 		      int count     =                             0;
 		    auto *pTemp     =
-		      (RAWINPUT *)temp_buf.data ();
+		      (RAWINPUT *)tls_buf.data ();
 		RAWINPUT *pInput    =                         pTemp;
 		RAWINPUT *pOutput   =                         pData;
 		UINT     cbSize     =                      *pcbSize;
