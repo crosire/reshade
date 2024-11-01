@@ -10,7 +10,7 @@
 #include <dinput.h>
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
-#include <input.hpp>
+#include "input.hpp"
 
 // It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
 extern bool is_blocking_mouse_input(reshade::input::window_handle window = reshade::input::AnyWindow);
