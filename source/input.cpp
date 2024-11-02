@@ -24,6 +24,7 @@ static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
 static RECT s_last_clip_cursor = {};
 static POINT s_last_cursor_position = {};
+static std::chrono::high_resolution_clock::time_point s_last_cursor_warp = {};
 
 reshade::input::input(window_handle window)
 	: _window(window)
@@ -516,42 +517,42 @@ void reshade::input::block_keyboard_input(bool enable)
 	_block_keyboard = enable;
 }
 
-bool is_immobilizing_cursor(reshade::input::window_handle window = reshade::input::GlobalQueue)
+bool is_immobilizing_cursor(reshade::input::window_handle target = reshade::input::GlobalQueue)
 {
-	if (window != reshade::input::GlobalQueue)
+	if (target != reshade::input::GlobalQueue)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-			return !input_window.second.expired() && (window == reshade::input::AnyWindow || input_window.first == window) && input_window.second.lock()->is_immobilizing_cursor();
+			return !input_window.second.expired() && (target == reshade::input::AnyWindow || input_window.first == target) && input_window.second.lock()->is_immobilizing_cursor();
 		};
 		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 	}
 
 	return s_immobilizing_global_cursor_move.load();
 }
-bool is_blocking_mouse_input(reshade::input::window_handle window = reshade::input::GlobalQueue)
+bool is_blocking_mouse_input(reshade::input::window_handle target = reshade::input::GlobalQueue)
 {
-	if (window != reshade::input::GlobalQueue)
+	if (target != reshade::input::GlobalQueue)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-			return !input_window.second.expired() && (window == reshade::input::AnyWindow || input_window.first == window) && input_window.second.lock()->is_blocking_mouse_input();
+			return !input_window.second.expired() && (target == reshade::input::AnyWindow || input_window.first == target) && input_window.second.lock()->is_blocking_mouse_input();
 		};
 		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 	}
 
 	return s_blocking_global_mouse_input.load();
 }
-bool is_blocking_keyboard_input(reshade::input::window_handle window = reshade::input::GlobalQueue)
+bool is_blocking_keyboard_input(reshade::input::window_handle target = reshade::input::GlobalQueue)
 {
-	if (window != reshade::input::GlobalQueue)
+	if (target != reshade::input::GlobalQueue)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-			return !input_window.second.expired() && (window == reshade::input::AnyWindow || input_window.first == window) && input_window.second.lock()->is_blocking_keyboard_input();
+			return !input_window.second.expired() && (target == reshade::input::AnyWindow || input_window.first == target) && input_window.second.lock()->is_blocking_keyboard_input();
 		};
 		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 	}
@@ -803,6 +804,8 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 	s_last_cursor_position.x = X;
 	s_last_cursor_position.y = Y;
 
+	s_last_cursor_warp = std::chrono::high_resolution_clock::now();
+
 	if (is_blocking_mouse_input() || is_immobilizing_cursor())
 		return TRUE;
 
@@ -811,11 +814,15 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 }
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
-	if (is_blocking_mouse_input() || is_immobilizing_cursor())
+	// Allow the game to see the real cursor position if it's not busy using the wrong API for mouselook...
+	// (i.e. no calls to SetCursorPos in a certain period of time)
+	const auto now = std::chrono::high_resolution_clock::now();
+	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(s_last_cursor_warp - now).count() < 125);
+	if (is_blocking_mouse_input() || recently_warped)
 	{
 		assert(lpPoint != nullptr);
 
-		// Just return the last cursor position before we started to block mouse input, to stop it from moving
+		// Return the last cursor position before we started immobilizing the mouse cursor
 		*lpPoint = s_last_cursor_position;
 
 		return TRUE;
