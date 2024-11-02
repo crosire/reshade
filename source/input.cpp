@@ -817,7 +817,7 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	// Allow the game to see the real cursor position if it's not busy using the wrong API for mouselook...
 	// (i.e. no calls to SetCursorPos in a certain period of time)
 	const auto now = std::chrono::high_resolution_clock::now();
-	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(s_last_cursor_warp - now).count() < 125);
+	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(now - s_last_cursor_warp).count() < 125);
 	if (is_blocking_mouse_input() || recently_warped)
 	{
 		assert(lpPoint != nullptr);
