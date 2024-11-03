@@ -1208,7 +1208,7 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTAN
 	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExW);
 	HHOOK* real_hook = nullptr;
 
-	reshade::log::message(reshade::log::level::info, "Redirecting HookSetWindowsHookExW(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %d) ...", idHook, lpfn, hmod, dwThreadId);
+	reshade::log::message(reshade::log::level::info, "Redirecting SetWindowsHookExW(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %d) ...", idHook, lpfn, hmod, dwThreadId);
 
 	switch (idHook)
 	{
@@ -1296,7 +1296,7 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTAN
 	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExA);
 	HHOOK* real_hook = nullptr;
 
-	reshade::log::message(reshade::log::level::info, "Redirecting HookSetWindowsHookExA(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %d) ...", idHook, lpfn, hmod, dwThreadId);
+	reshade::log::message(reshade::log::level::info, "Redirecting SetWindowsHookExA(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %d) ...", idHook, lpfn, hmod, dwThreadId);
 
 	switch (idHook)
 	{
