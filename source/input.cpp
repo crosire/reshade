@@ -1037,7 +1037,7 @@ namespace reshade::hooks::win32 {
 	HHOOK real_mouse_hook = nullptr;
 
 	// Per-thread hooks
-	concurrency::concurrent_unordered_map<HHOOK, HOOKPROC> real_keyboard_procs;
+	concurrency::concurrent_unordered_map<DWORD, HOOKPROC> real_keyboard_procs;
 	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_keyboard_hooks;
 	concurrency::concurrent_unordered_map<DWORD, HOOKPROC> real_mouse_procs;
 	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_mouse_hooks;
