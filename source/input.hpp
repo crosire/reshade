@@ -30,6 +30,7 @@ namespace reshade
 
 		static constexpr window_handle AnyWindow   = 0;
 		static constexpr window_handle GlobalQueue = reinterpret_cast <window_handle> (~0);
+		static constexpr int InputGracePeriodMs = 125;
 
 		explicit input(window_handle window);
 
@@ -82,18 +83,18 @@ namespace reshade
 		/// Set to <see langword="true"/> to prevent mouse input window messages from reaching the application.
 		/// </summary>
 		void block_mouse_input(bool enable);
-		bool is_blocking_mouse_input() const { return _block_mouse; }
+		bool is_blocking_mouse_input() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_mouse_time).count() < InputGracePeriodMs; }
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent mouse GetCursorPos from returning the real pos; use last value of SetCursorPos.
 		/// This is separate from mouse blocking, it is intended to prevent games that use Set/GetCursorPos from warping the cursor.
 		/// </summary>
 		void immobilize_cursor(bool enable);
-		bool is_immobilizing_cursor() const { return _immobilize_cursor; }
+		bool is_immobilizing_cursor() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _immobilize_cursor_time).count() < InputGracePeriodMs; }
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable);
-		bool is_blocking_keyboard_input() const { return _block_keyboard; }
+		bool is_blocking_keyboard_input() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_keyboard_time).count() < InputGracePeriodMs; }
 
 		/// <summary>
 		/// Locks access to the input data so it cannot be modified in another thread.
@@ -128,9 +129,9 @@ namespace reshade
 	private:
 		std::recursive_mutex _mutex;
 		window_handle _window;
-		bool _block_mouse = false;
-		bool _block_keyboard = false;
-		bool _immobilize_cursor = false;
+		std::chrono::high_resolution_clock::time_point _block_mouse_time; // timestamp when mouse input was last blocked
+		std::chrono::high_resolution_clock::time_point _block_keyboard_time; // timestamp when keyboard input was last blocked
+		std::chrono::high_resolution_clock::time_point _immobilize_cursor_time; // timestamp when cursor movement was last blocked
 		uint8_t _keys[256] = {};
 		uint8_t _last_keys[256] = {};
 		unsigned int _keys_time[256] = {};

@@ -196,7 +196,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 
 			is_keyboard_message = true;
 			// Do not block key up messages if the key down one was not blocked previously
-			if (input->_block_keyboard && (raw_data.data.keyboard.Flags & RI_KEY_BREAK) != 0 && raw_data.data.keyboard.VKey < 0xFF && (input->_keys[raw_data.data.keyboard.VKey] & 0x04) == 0)
+			if (input->is_blocking_keyboard_input() && (raw_data.data.keyboard.Flags & RI_KEY_BREAK) != 0 && raw_data.data.keyboard.VKey < 0xFF && (input->_keys[raw_data.data.keyboard.VKey] & 0x04) == 0)
 				is_keyboard_message = false;
 
 			if (raw_input_window == s_raw_input_windows.end() || (raw_input_window->second & 0x1) == 0)
@@ -223,14 +223,14 @@ bool reshade::input::handle_window_message(const void *message_data)
 		assert(details.wParam > 0 && details.wParam < ARRAYSIZE(input->_keys));
 		input->_keys[details.wParam] = 0x88;
 		input->_keys_time[details.wParam] = details.time;
-		if (input->_block_keyboard)
+		if (input->is_blocking_keyboard_input())
 			input->_keys[details.wParam] |= 0x04;
 		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
 		assert(details.wParam > 0 && details.wParam < ARRAYSIZE(input->_keys));
 		// Do not block key up messages if the key down one was not blocked previously (so key does not get stuck for the application)
-		if (input->_block_keyboard && (input->_keys[details.wParam] & 0x04) == 0)
+		if (input->is_blocking_keyboard_input() && (input->_keys[details.wParam] & 0x04) == 0)
 			is_keyboard_message = false;
 		input->_keys[details.wParam] = 0x08;
 		input->_keys_time[details.wParam] = details.time;
@@ -269,7 +269,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		break;
 	}
 
-	return (is_mouse_message && input->_block_mouse) || (is_keyboard_message && input->_block_keyboard);
+	return (is_mouse_message && input->is_blocking_mouse_input()) || (is_keyboard_message && input->is_blocking_keyboard_input());
 }
 
 bool reshade::input::is_key_down(unsigned int keycode) const
@@ -481,9 +481,10 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint);
 
 void reshade::input::immobilize_cursor(bool enable)
 {
-	bool originally_immobilized = std::exchange(_immobilize_cursor, enable);
+	bool originally_immobilized = is_immobilizing_cursor();
 	if (enable)
 	{
+		_immobilize_cursor_time = std::chrono::high_resolution_clock::now();
 		// Update the initial cursor position as soon as blocking starts
 		static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
 		POINT cursor_pos;
@@ -496,11 +497,10 @@ void reshade::input::immobilize_cursor(bool enable)
 
 void reshade::input::block_mouse_input(bool enable)
 {
-	_block_mouse = enable;
-
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 	if (enable)
 	{
+		_block_mouse_time = std::chrono::high_resolution_clock::now();
 		// This will call into 'HookClipCursor' below, so back up and restore rectangle
 		const RECT last_clip_cursor = s_last_clip_cursor;
 		ClipCursor(nullptr);
@@ -514,7 +514,8 @@ void reshade::input::block_mouse_input(bool enable)
 }
 void reshade::input::block_keyboard_input(bool enable)
 {
-	_block_keyboard = enable;
+	if (enable)
+		_block_keyboard_time = std::chrono::high_resolution_clock::now();
 }
 
 bool is_immobilizing_cursor(reshade::input::window_handle target = reshade::input::GlobalQueue)
@@ -817,7 +818,7 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	// Allow the game to see the real cursor position if it's not busy using the wrong API for mouselook...
 	// (i.e. no calls to SetCursorPos in a certain period of time)
 	const auto now = std::chrono::high_resolution_clock::now();
-	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(now - s_last_cursor_warp).count() < 125);
+	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(now - s_last_cursor_warp).count() < reshade::input::InputGracePeriodMs);
 	if (is_blocking_mouse_input() || recently_warped)
 	{
 		assert(lpPoint != nullptr);
