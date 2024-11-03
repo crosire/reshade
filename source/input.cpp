@@ -1037,7 +1037,7 @@ namespace reshade::hooks::win32 {
 	HHOOK real_mouse_hook = nullptr;
 
 	// Per-thread hooks
-	concurrency::concurrent_unordered_map<DWORD, HOOKPROC> real_keyboard_procs;
+	concurrency::concurrent_unordered_map<HHOOK, HOOKPROC> real_keyboard_procs;
 	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_keyboard_hooks;
 	concurrency::concurrent_unordered_map<DWORD, HOOKPROC> real_mouse_procs;
 	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_mouse_hooks;
@@ -1060,7 +1060,9 @@ extern "C" LRESULT CALLBACK proxy_mouse_proc (int nCode, WPARAM wParam, LPARAM l
 		{
 			DWORD thread_id = GetCurrentThreadId();
 			HOOKPROC hook_fn = reshade::hooks::win32::real_mouse_procs.count(thread_id) && reshade::hooks::win32::real_mouse_procs.at(thread_id) != nullptr ? reshade::hooks::win32::real_mouse_procs.at(thread_id) : reshade::hooks::win32::real_mouse_proc;
-			return hook_fn(nCode, wParam, lParam);
+
+			if (hook_fn != nullptr)
+				return hook_fn(nCode, wParam, lParam);
 		}
 	}
 
@@ -1084,7 +1086,9 @@ extern "C" LRESULT CALLBACK proxy_low_level_mouse_proc (int nCode, WPARAM wParam
 		{
 			DWORD thread_id = GetCurrentThreadId();
 			HOOKPROC hook_fn = reshade::hooks::win32::real_mouse_procs.count(thread_id) && reshade::hooks::win32::real_mouse_procs.at(thread_id) != nullptr ? reshade::hooks::win32::real_mouse_procs.at(thread_id) : reshade::hooks::win32::real_mouse_proc;
-			return hook_fn(nCode, wParam, lParam);
+
+			if (hook_fn != nullptr)
+				return hook_fn(nCode, wParam, lParam);
 		}
 	}
 
@@ -1109,7 +1113,9 @@ extern "C" LRESULT CALLBACK proxy_keyboard_proc (int nCode, WPARAM wParam, LPARA
 		{
 			DWORD thread_id = GetCurrentThreadId();
 			HOOKPROC hook_fn = (reshade::hooks::win32::real_keyboard_procs.count(thread_id) && reshade::hooks::win32::real_keyboard_procs.at(thread_id) != nullptr) ? reshade::hooks::win32::real_keyboard_procs.at(thread_id) : reshade::hooks::win32::real_keyboard_proc;
-			return hook_fn(nCode, wParam, lParam);
+
+			if (hook_fn != nullptr)
+				return hook_fn(nCode, wParam, lParam);
 		}
 	}
 
@@ -1135,7 +1141,9 @@ extern "C" LRESULT CALLBACK proxy_low_level_keyboard_proc (int nCode, WPARAM wPa
 		{
 			DWORD thread_id = GetCurrentThreadId();
 			HOOKPROC hook_fn = (reshade::hooks::win32::real_keyboard_procs.count(thread_id) && reshade::hooks::win32::real_keyboard_procs.at(thread_id) != nullptr) ? reshade::hooks::win32::real_keyboard_procs.at(thread_id) : reshade::hooks::win32::real_keyboard_proc;
-			return hook_fn(nCode, wParam, lParam);
+
+			if (hook_fn != nullptr)
+				return hook_fn(nCode, wParam, lParam);
 		}
 	}
 	
