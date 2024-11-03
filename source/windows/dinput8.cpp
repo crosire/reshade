@@ -12,8 +12,8 @@
 #include "input.hpp"
 
 // It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
-extern bool is_blocking_mouse_input(reshade::input::window_handle window = reshade::input::AnyWindow);
-extern bool is_blocking_keyboard_input(reshade::input::window_handle window = reshade::input::AnyWindow);
+extern bool is_blocking_mouse_input(reshade::input::window_handle window = reshade::input::any_window);
+extern bool is_blocking_keyboard_input(reshade::input::window_handle window = reshade::input::any_window);
 
 #define IDirectInputDevice8_SetCooperativeLevel_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_SetCooperativeLevel(IDirectInputDevice8##encoding *pDevice, HWND hwnd, DWORD dwFlags) \

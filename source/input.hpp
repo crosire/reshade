@@ -28,9 +28,8 @@ namespace reshade
 		/// </summary>
 		using window_handle = void *;
 
-		static constexpr window_handle AnyWindow   = 0;
-		static constexpr window_handle GlobalQueue = reinterpret_cast <window_handle> (~0);
-		static constexpr int InputGracePeriodMs = 125;
+		static constexpr window_handle any_window = 0;
+		static constexpr int input_grace_period_ms = 125;
 
 		explicit input(window_handle window);
 
@@ -83,18 +82,18 @@ namespace reshade
 		/// Set to <see langword="true"/> to prevent mouse input window messages from reaching the application.
 		/// </summary>
 		void block_mouse_input(bool enable);
-		bool is_blocking_mouse_input() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_mouse_time).count() < InputGracePeriodMs; }
+		bool is_blocking_mouse_input() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_mouse_time).count() < input_grace_period_ms; }
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent mouse GetCursorPos from returning the real pos; use last value of SetCursorPos.
 		/// This is separate from mouse blocking, it is intended to prevent games that use Set/GetCursorPos from warping the cursor.
 		/// </summary>
 		void immobilize_cursor(bool enable);
-		bool is_immobilizing_cursor() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _immobilize_cursor_time).count() < InputGracePeriodMs; }
+		bool is_immobilizing_cursor() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _immobilize_cursor_time).count() < input_grace_period_ms; }
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable);
-		bool is_blocking_keyboard_input() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_keyboard_time).count() < InputGracePeriodMs; }
+		bool is_blocking_keyboard_input() const { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_keyboard_time).count() < input_grace_period_ms; }
 
 		/// <summary>
 		/// Locks access to the input data so it cannot be modified in another thread.

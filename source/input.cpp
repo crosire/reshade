@@ -11,20 +11,21 @@
 #include <cstring> // std::memset
 #include <algorithm> // std::any_of, std::copy_n, std::max_element
 
+#undef NOWH // Allow definitions from WinUser.h
 #include <Windows.h>
 
 extern bool is_uwp_app();
 
 extern HANDLE g_exit_event;
-static std::atomic_bool s_blocking_global_mouse_input = false;
-static std::atomic_bool s_blocking_global_keyboard_input = false;
-static std::atomic_bool s_immobilizing_global_cursor_move = false;
 static std::shared_mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
 static RECT s_last_clip_cursor = {};
 static POINT s_last_cursor_position = {};
 static std::chrono::high_resolution_clock::time_point s_last_cursor_warp = {};
+static std::atomic_bool s_blocking_global_mouse_input = false;
+static std::atomic_bool s_blocking_global_keyboard_input = false;
+static std::atomic_bool s_immobilizing_global_cursor_move = false;
 
 reshade::input::input(window_handle window)
 	: _window(window)
@@ -518,42 +519,42 @@ void reshade::input::block_keyboard_input(bool enable)
 		_block_keyboard_time = std::chrono::high_resolution_clock::now();
 }
 
-bool is_immobilizing_cursor(reshade::input::window_handle target = reshade::input::GlobalQueue)
+bool is_immobilizing_cursor(reshade::input::window_handle target = reshade::input::any_window)
 {
-	if (target != reshade::input::GlobalQueue)
+	if (target != reshade::input::any_window)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-			return !input_window.second.expired() && (target == reshade::input::AnyWindow || input_window.first == target) && input_window.second.lock()->is_immobilizing_cursor();
+			return !input_window.second.expired() && input_window.first == target && input_window.second.lock()->is_immobilizing_cursor();
 		};
 		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 	}
 
 	return s_immobilizing_global_cursor_move.load();
 }
-bool is_blocking_mouse_input(reshade::input::window_handle target = reshade::input::GlobalQueue)
+bool is_blocking_mouse_input(reshade::input::window_handle target = reshade::input::any_window)
 {
-	if (target != reshade::input::GlobalQueue)
+	if (target != reshade::input::any_window)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-			return !input_window.second.expired() && (target == reshade::input::AnyWindow || input_window.first == target) && input_window.second.lock()->is_blocking_mouse_input();
+			return !input_window.second.expired() && input_window.first == target && input_window.second.lock()->is_blocking_mouse_input();
 		};
 		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 	}
 
 	return s_blocking_global_mouse_input.load();
 }
-bool is_blocking_keyboard_input(reshade::input::window_handle target = reshade::input::GlobalQueue)
+bool is_blocking_keyboard_input(reshade::input::window_handle target = reshade::input::any_window)
 {
-	if (target != reshade::input::GlobalQueue)
+	if (target != reshade::input::any_window)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_windows_mutex);
 
 		const auto predicate = [&](const std::pair<HWND, std::weak_ptr<reshade::input>> &input_window) {
-			return !input_window.second.expired() && (target == reshade::input::AnyWindow || input_window.first == target) && input_window.second.lock()->is_blocking_keyboard_input();
+			return !input_window.second.expired() && input_window.first == target && input_window.second.lock()->is_blocking_keyboard_input();
 		};
 		return std::any_of(s_windows.cbegin(), s_windows.cend(), predicate);
 	}
@@ -769,31 +770,9 @@ extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect)
 	s_last_clip_cursor = (lpRect != nullptr) ? *lpRect : RECT {};
 
 	// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
-	if (is_blocking_mouse_input())
+	if (is_blocking_mouse_input() || is_immobilizing_cursor())
 	{
-		// Application tried to set a restrictive clip rect, expand it to the entire window if applicable
-		if (lpRect != nullptr)
-		{
-			lpRect = nullptr;
-
-			// Most of the time when the ReShade UI is open, users will want the mouse confined to the window.
-			// 
-			//   nb: Add a config parameter for this?
-			//     (Previous to this, ReShade was letting the cursor move to other monitors)
-			static bool s_allow_cursor_leaks = false;
-			if (!s_allow_cursor_leaks)
-			{
-				RECT window_clip_rect = {};
-				HWND active_window = GetActiveWindow();
-
-				// Thread has an active window, use that as the entire bounds
-				if (IsWindow(active_window))
-				{
-					GetWindowRect(active_window,&window_clip_rect);
-					lpRect = &window_clip_rect;
-				}
-			}
-		}
+		lpRect = nullptr;
 	}
 
 	static const auto trampoline = reshade::hooks::call(HookClipCursor);
@@ -818,7 +797,7 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	// Allow the game to see the real cursor position if it's not busy using the wrong API for mouselook...
 	// (i.e. no calls to SetCursorPos in a certain period of time)
 	const auto now = std::chrono::high_resolution_clock::now();
-	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(now - s_last_cursor_warp).count() < reshade::input::InputGracePeriodMs);
+	const bool recently_warped = (is_immobilizing_cursor() && std::chrono::duration_cast<std::chrono::milliseconds>(now - s_last_cursor_warp).count() < reshade::input::input_grace_period_ms);
 	if (is_blocking_mouse_input() || recently_warped)
 	{
 		assert(lpPoint != nullptr);
@@ -835,15 +814,12 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 
 extern "C" SHORT WINAPI HookGetAsyncKeyState(int vKey)
 {
-	static const auto trampoline = reshade::hooks::call(HookGetAsyncKeyState);
-	SHORT sKeyState = trampoline(vKey);
-
 	// Valid (Keyboard) Keys:  8 - 255
 	if ((vKey & 0xF8) != 0)
 	{
 		if (is_blocking_keyboard_input())
 		{
-			sKeyState = 0;
+			return 0;
 		}
 	}
 
@@ -853,24 +829,22 @@ extern "C" SHORT WINAPI HookGetAsyncKeyState(int vKey)
 		// Some games use this API for mouse buttons
 		if (is_blocking_mouse_input())
 		{
-			sKeyState = 0;
+			return 0;
 		}
 	}
 
-	return sKeyState;
+	static const auto trampoline = reshade::hooks::call(HookGetAsyncKeyState);
+	return trampoline(vKey);
 }
 
 extern "C" SHORT WINAPI HookGetKeyState(int vKey)
 {
-	static const auto trampoline = reshade::hooks::call(HookGetKeyState);
-	SHORT sKeyState = trampoline(vKey);
-
 	// Valid (Keyboard) Keys:  8 - 255
 	if ((vKey & 0xF8) != 0)
 	{
 		if (is_blocking_keyboard_input())
 		{
-			sKeyState = 0;
+			return 0;
 		}
 	}
 
@@ -880,11 +854,12 @@ extern "C" SHORT WINAPI HookGetKeyState(int vKey)
 		// Some games use this API for mouse buttons
 		if (is_blocking_mouse_input())
 		{
-			sKeyState = 0;
+			return 0;
 		}
 	}
 
-	return sKeyState;
+	static const auto trampoline = reshade::hooks::call(HookGetKeyState);
+	return trampoline(vKey);
 }
 
 extern "C" BOOL WINAPI HookGetKeyboardState(PBYTE lpKeyState)
@@ -894,7 +869,7 @@ extern "C" BOOL WINAPI HookGetKeyboardState(PBYTE lpKeyState)
 
 	if (bRet)
 	{
-		bool capture_mouse    = is_blocking_mouse_input();
+		bool capture_mouse = is_blocking_mouse_input();
 		bool capture_keyboard = is_blocking_keyboard_input();
 
 		// All-at-once
@@ -921,124 +896,15 @@ extern "C" BOOL WINAPI HookGetKeyboardState(PBYTE lpKeyState)
 	return bRet;
 }
 
-// Adapted from Special K, but not needed since ReShade already processes WM_INPUT
-#if 0
-extern "C" UINT WINAPI HookGetRawInputData(_In_      HRAWINPUT hRawInput,
-                                           _In_      UINT      uiCommand,
-                                           _Out_opt_ LPVOID    pData,
-                                           _Inout_   PUINT     pcbSize,
-                                           _In_      UINT      cbSizeHeader)
-{
-	static const auto trampoline = reshade::hooks::call(HookGetRawInputData);
-
-	if (hRawInput == NULL)
-	{
-		SetLastError(ERROR_INVALID_HANDLE);
-		return ~0U;
-	}
-	
-	if (cbSizeHeader != sizeof(RAWINPUTHEADER) || pcbSize == nullptr)
-	{
-		SetLastError(ERROR_INVALID_PARAMETER);
-		return ~0U;
-	}
-
-	UINT size = trampoline(hRawInput, uiCommand, pData, pcbSize, cbSizeHeader);
-
-	if (pData == nullptr)
-	{
-	  return size;
-	}
-
-	// On error, simply return immediately...
-	if (size == ~0U)
-		return size;
-
-	bool filter   = false;
-	bool mouse    = false;
-	bool keyboard = false;
-
-	RAWINPUT *pRawData = static_cast<RAWINPUT*>(pData);
-
-	switch (pRawData->header.dwType)
-	{
-	case RIM_TYPEMOUSE:
-		mouse  = true;
-		filter = is_blocking_mouse_input();
-		break;
-
-	case RIM_TYPEKEYBOARD:
-	{
-		USHORT VKey = (pRawData->data.keyboard.VKey & 0xFF);
-
-		if (VKey & 0xF8) // Valid Keys:  8 - 255
-		{
-			keyboard = true;
-
-			if (is_blocking_keyboard_input())
-				filter = true;
-		}
-
-		else if (VKey < 7)
-		{
-			mouse = true;
-
-			if (pRawData->data.keyboard.Message == WM_KEYDOWN)    filter = is_blocking_mouse_input();
-			if (pRawData->data.keyboard.Message == WM_SYSKEYDOWN) filter = is_blocking_mouse_input();
-			if (pRawData->data.keyboard.Message == WM_KEYUP)      filter = is_blocking_mouse_input();
-			if (pRawData->data.keyboard.Message == WM_SYSKEYUP)   filter = is_blocking_mouse_input();
-		}
-	} break;
-
-	case RIM_TYPEHID: // Gamepads, ReShade does not use...
-		break;
-	}
-
-	if (filter)
-	{
-		// Tell the game this event happened in the background, most will
-		//   throw it out quick and easy.
-		pRawData->header.wParam = RIM_INPUTSINK;
-
-		// Supplying an invalid device will early-out SDL before it calls HID APIs to try
-		//   and get an input report that we don't want it to see...
-		pRawData->header.hDevice = nullptr;
-
-		assert (*pcbSize >= static_cast <UINT> (size) &&
-		        *pcbSize >= sizeof (RAWINPUTHEADER));
-
-		if (keyboard)
-		{
-			if (! (pRawData->data.keyboard.Flags & RI_KEY_BREAK))
-			       pRawData->data.keyboard.VKey  = 0;
-
-			// Fake key release
-			pRawData->data.keyboard.Flags |= RI_KEY_BREAK;
-		}
-
-		// Block mouse input in The Witness by zeroing-out the memory; most other 
-		//   games will see *pcbSize=0 and RIM_INPUTSINK and not process input...
-		else
-		{
-			if (mouse)
-				std::memset(&pRawData->data.mouse, 0, *pcbSize - sizeof (RAWINPUTHEADER));
-		}
-	}
-
-	return size;
-}
-#endif
 
 // This variety of RawInput does not use WM_INPUT, and a hook is necessary to block these inputs
-extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
-                                             _Inout_   PUINT     pcbSize,
-                                             _In_      UINT      cbSizeHeader)
+extern "C" UINT WINAPI HookGetRawInputBuffer(PRAWINPUT pData, PUINT pcbSize, UINT cbSizeHeader)
 {
 	static const auto trampoline = reshade::hooks::call(HookGetRawInputBuffer);
 
-	const bool block_keyboard = is_blocking_keyboard_input(reshade::input::GlobalQueue);
-	const bool block_mouse    = is_blocking_mouse_input(reshade::input::GlobalQueue);
-	const bool block_gamepad  = false;
+	const bool block_keyboard = is_blocking_keyboard_input();
+	const bool block_mouse = is_blocking_mouse_input();
+	const bool block_gamepad = false;
 
 	// High throughput (i.e. 8 kHz mouse polling) API, we need a fast path to exit
 	if (!(block_keyboard || block_mouse || block_gamepad))
@@ -1056,20 +922,19 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 
 	if (pData != nullptr)
 	{
-		thread_local std::vector <BYTE> tls_buf ((size_t)*pcbSize * 16);
+		thread_local std::vector<BYTE> tls_buf ((size_t)*pcbSize * 16);
 
-		if (tls_buf.size () < ((size_t)*pcbSize * 16))
-			tls_buf.resize ((size_t)*pcbSize * 16 * 2);
+		if (tls_buf.size() < (static_cast<size_t>(*pcbSize) * 16))
+			tls_buf.resize (static_cast<size_t>(*pcbSize) * 16 * 2);
 
-		const int max_items = (((size_t)*pcbSize * 16) / sizeof (RAWINPUT));
-		      int count     =                             0;
-		    auto *pTemp     =
-		      (RAWINPUT *)tls_buf.data ();
-		RAWINPUT *pInput    =                         pTemp;
-		RAWINPUT *pOutput   =                         pData;
-		UINT     cbSize     =                      *pcbSize;
-		          *pcbSize  =                             0;
-		int       temp_ret  = trampoline(pTemp, &cbSize, cbSizeHeader);
+		const int max_items = ((static_cast<size_t>(*pcbSize) * 16) / sizeof(RAWINPUT));
+		int count = 0;
+		auto *pTemp = reinterpret_cast<RAWINPUT*>(tls_buf.data ());
+		RAWINPUT *pInput = pTemp;
+		RAWINPUT *pOutput = pData;
+		UINT cbSize = *pcbSize;
+		*pcbSize = 0;
+		int temp_ret = trampoline(pTemp, &cbSize, cbSizeHeader);
 		
 		// Common usage involves calling this with a wrong sized buffer, then calling it again...
 		//   early-out if it returns -1.
@@ -1104,8 +969,8 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 			//   packets we are allowing the game to see
 			if (remove == false)
 			{
-				memcpy (pOutput, pItem, pItem->header.dwSize);
-				        pOutput = NEXTRAWINPUTBLOCK (pOutput);
+				memcpy(pOutput, pItem, pItem->header.dwSize);
+				pOutput = NEXTRAWINPUTBLOCK(pOutput);
 
 				++count;
 			}
@@ -1117,21 +982,19 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 
 				// Clearing all bytes above would have set the type to mouse, and some games
 				//   will actually read data coming from RawInput even when the size returned is 0!
-				pItem->header.dwType = keyboard ? RIM_TYPEKEYBOARD :
-				                          mouse ? RIM_TYPEMOUSE    :
-				                                  RIM_TYPEHID;
+				pItem->header.dwType = keyboard ? RIM_TYPEKEYBOARD : mouse ? RIM_TYPEMOUSE : RIM_TYPEHID;
 
 				// Supplying an invalid device will early-out SDL before it calls HID APIs to try
 				//   and get an input report that we don't want it to see...
 				pItem->header.hDevice = nullptr;
 
 				// Most engines will honor the Input Sink state
-				pItem->header.wParam  = RIM_INPUTSINK;
+				pItem->header.wParam = RIM_INPUTSINK;
 
 				if (keyboard)
 				{
 					if (! (pItem->data.keyboard.Flags & RI_KEY_BREAK))
-					       pItem->data.keyboard.VKey  = 0;
+						pItem->data.keyboard.VKey = 0;
 
 					// Fake key release
 					pItem->data.keyboard.Flags |= RI_KEY_BREAK;
@@ -1141,20 +1004,20 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 				//   see *pcbSize=0 and RIM_INPUTSINK and ignore input...
 				else
 				{
-					memset (&pItem->data.mouse, 0,
-					         pItem->header.dwSize - sizeof (RAWINPUTHEADER));
+					memset(&pItem->data.mouse, 0,
+					pItem->header.dwSize - sizeof(RAWINPUTHEADER));
 				}
 
-				memcpy (pOutput, pItem, pItem->header.dwSize);
-				        pOutput = NEXTRAWINPUTBLOCK (pOutput);
+				memcpy(pOutput, pItem, pItem->header.dwSize);
+				pOutput = NEXTRAWINPUTBLOCK(pOutput);
 
 				++count;
 			}
 
-			pItem = NEXTRAWINPUTBLOCK (pItem);
+			pItem = NEXTRAWINPUTBLOCK(pItem);
 		}
 		
-		*pcbSize = (UINT)((uintptr_t)pOutput - (uintptr_t)pData);
+		*pcbSize = static_cast <UINT>(reinterpret_cast<uintptr_t>(pOutput) - reinterpret_cast<uintptr_t>(pData));
 		
 		return count;
 	}
@@ -1166,443 +1029,338 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(_Out_opt_ PRAWINPUT pData,
 
 #include <concurrent_unordered_map.h>
 
-class ReShade_Win32_WindowHookManager {
-public:
-  concurrency::concurrent_unordered_map <
-    DWORD, HOOKPROC > _RealMouseProcs;
-           HOOKPROC   _RealMouseProc    = nullptr;
-  concurrency::concurrent_unordered_map <
-    DWORD, HHOOK >    _RealMouseHooks;
-           HHOOK      _RealMouseHook    = nullptr;
+namespace reshade::hooks::win32 {
+	// Global hook
+	HOOKPROC real_keyboard_proc = nullptr;
+	HHOOK real_keyboard_hook = nullptr;
+	HOOKPROC real_mouse_proc = nullptr;
+	HHOOK real_mouse_hook = nullptr;
 
-  concurrency::concurrent_unordered_map <
-    DWORD, HOOKPROC > _RealKeyboardProcs;
-           HOOKPROC   _RealKeyboardProc = nullptr;
-  concurrency::concurrent_unordered_map <
-    DWORD, HHOOK >    _RealKeyboardHooks;
-           HHOOK      _RealKeyboardHook = nullptr;
-} __hooks;
-
-//
-// Some typedefs because I cannot figure out what the requirements to actually
-// get this to build are, WinUser.h seems gimped by something :)
-//
-//  * You don't want this code anyway, it is just a fully working example of
-//    how to block input to games that use (LowLevel) Mouse/Keyboard Hooks.
-//
-extern "C" WINUSERAPI BOOL    WINAPI UnhookWindowsHookEx(_In_ HHOOK hhk);
-extern "C" WINUSERAPI LRESULT WINAPI CallNextHookEx(_In_opt_ HHOOK hhk, _In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam);
-
-#define HC_ACTION           0
-#define HC_NOREMOVE         3
-
-#define WH_KEYBOARD         2
-#define WH_MOUSE            7
-#define WH_KEYBOARD_LL     13
-#define WH_MOUSE_LL        14
-
-typedef struct tagKBDLLHOOKSTRUCT {
-    DWORD   vkCode;
-    DWORD   scanCode;
-    DWORD   flags;
-    DWORD   time;
-    ULONG_PTR dwExtraInfo;
-} KBDLLHOOKSTRUCT, FAR *LPKBDLLHOOKSTRUCT, *PKBDLLHOOKSTRUCT;
-
-LRESULT
-CALLBACK
-ReShade_Proxy_MouseProc (
-  _In_ int    nCode,
-  _In_ WPARAM wParam,
-  _In_ LPARAM lParam )
-{
-  // The only documented codes
-  assert (ncode < 0 || ncode == HC_ACTION || ncode == HC_NOREMOVE);
-
-  if (nCode == HC_ACTION || nCode == HC_NOREMOVE)
-  {
-    if (is_blocking_mouse_input())
-    {
-      return
-        CallNextHookEx (
-            nullptr, nCode,
-             wParam, lParam );
-    }
-
-    else
-    {
-      DWORD dwTid =
-        GetCurrentThreadId ();
-
-      using MouseProc =
-        LRESULT (CALLBACK *)(int,WPARAM,LPARAM);
-
-      return
-        ((MouseProc)__hooks._RealMouseProcs.count (dwTid) &&
-                    __hooks._RealMouseProcs.at    (dwTid) != nullptr ?
-                    __hooks._RealMouseProcs.at    (dwTid)            :
-                    __hooks._RealMouseProc)( nCode, wParam,
-                                                    lParam );
-    }
-  }
-
-  return
-    CallNextHookEx (
-        nullptr, nCode,
-         wParam, lParam );
+	// Per-thread hooks
+	concurrency::concurrent_unordered_map<DWORD, HOOKPROC> real_keyboard_procs;
+	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_keyboard_hooks;
+	concurrency::concurrent_unordered_map<DWORD, HOOKPROC> real_mouse_procs;
+	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_mouse_hooks;
 }
 
-LRESULT
-CALLBACK
-ReShade_Proxy_LLMouseProc (
-  _In_ int    nCode,
-  _In_ WPARAM wParam,
-  _In_ LPARAM lParam )
+extern "C" LRESULT CALLBACK proxy_mouse_proc (int nCode, WPARAM wParam, LPARAM lParam)
 {
-  // The only documented codes
-  assert (ncode < 0 || ncode == HC_ACTION);
+	// The only documented codes
+	assert (ncode < 0 || ncode == HC_ACTION || ncode == HC_NOREMOVE);
 
-  if (nCode == HC_ACTION)
-  {
-    // Bypass the game's code and continue with the hook chain...
-    if (is_blocking_mouse_input ())
-    {
-      return
-        CallNextHookEx (
-            nullptr, nCode,
-             wParam, lParam );
-    }
+	if (nCode == HC_ACTION || nCode == HC_NOREMOVE)
+	{
+		// Bypass the game's code and continue with the hook chain...
+		if (is_blocking_mouse_input())
+		{
+			return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		}
+		
+		else
+		{
+			DWORD thread_id = GetCurrentThreadId();
+			HOOKPROC hook_fn = reshade::hooks::win32::real_mouse_procs.count(thread_id) && reshade::hooks::win32::real_mouse_procs.at(thread_id) != nullptr ? reshade::hooks::win32::real_mouse_procs.at(thread_id) : reshade::hooks::win32::real_mouse_proc;
+			return hook_fn(nCode, wParam, lParam);
+		}
+	}
 
-    else
-    {
-      DWORD dwTid =
-        GetCurrentThreadId ();
+	return CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
 
-      using MouseProc =
-        LRESULT (CALLBACK *)(int,WPARAM,LPARAM);
+extern "C" LRESULT CALLBACK proxy_low_level_mouse_proc (int nCode, WPARAM wParam, LPARAM lParam)
+{
+	// The only documented codes
+	assert(ncode < 0 || ncode == HC_ACTION);
 
-      return
-        ((MouseProc)__hooks._RealMouseProcs.count (dwTid) &&
-                    __hooks._RealMouseProcs.at    (dwTid) != nullptr ?
-                    __hooks._RealMouseProcs.at    (dwTid)            :
-                    __hooks._RealMouseProc)( nCode, wParam,
-                                                    lParam );
-    }
-  }
+	if (nCode == HC_ACTION)
+	{
+		// Bypass the game's code and continue with the hook chain...
+		if (is_blocking_mouse_input())
+		{
+			return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		}
+		
+		else
+		{
+			DWORD thread_id = GetCurrentThreadId();
+			HOOKPROC hook_fn = reshade::hooks::win32::real_mouse_procs.count(thread_id) && reshade::hooks::win32::real_mouse_procs.at(thread_id) != nullptr ? reshade::hooks::win32::real_mouse_procs.at(thread_id) : reshade::hooks::win32::real_mouse_proc;
+			return hook_fn(nCode, wParam, lParam);
+		}
+	}
 
-  return
-    CallNextHookEx (
-        nullptr, nCode,
-         wParam, lParam );
+	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
 
-LRESULT
-CALLBACK
-ReShade_Proxy_KeyboardProc (
-  _In_ int    nCode,
-  _In_ WPARAM wParam,
-  _In_ LPARAM lParam  )
+extern "C" LRESULT CALLBACK proxy_keyboard_proc (int nCode, WPARAM wParam, LPARAM lParam)
 {
-  // The only documented codes
-  assert (ncode < 0 || ncode == HC_ACTION || ncode == HC_NOREMOVE);
+	// The only documented codes
+	assert(ncode < 0 || ncode == HC_ACTION || ncode == HC_NOREMOVE);
 
-  if (nCode == HC_ACTION || nCode == HC_NOREMOVE)
-  {
-    using KeyboardProc =
-      LRESULT (CALLBACK *)(int,WPARAM,LPARAM);
+	if (nCode == HC_ACTION || nCode == HC_NOREMOVE)
+	{
+		// Bypass the game's code and continue with the hook chain...
+		if (is_blocking_keyboard_input())
+		{
+			return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		}
 
-    // Bypass the game's code and continue with the hook chain...
-    if (is_blocking_keyboard_input())
-    {
-      return
-        CallNextHookEx (
-            nullptr, nCode,
-             wParam, lParam );
-    }
+		else
+		{
+			DWORD thread_id = GetCurrentThreadId();
+			HOOKPROC hook_fn = (reshade::hooks::win32::real_keyboard_procs.count(thread_id) && reshade::hooks::win32::real_keyboard_procs.at(thread_id) != nullptr) ? reshade::hooks::win32::real_keyboard_procs.at(thread_id) : reshade::hooks::win32::real_keyboard_proc;
+			return hook_fn(nCode, wParam, lParam);
+		}
+	}
 
-    else
-    {
-      DWORD dwTid =
-        GetCurrentThreadId ();
-
-      return
-        ((KeyboardProc)__hooks._RealKeyboardProcs.count (dwTid) &&
-                       __hooks._RealKeyboardProcs.at    (dwTid) != nullptr ?
-                       __hooks._RealKeyboardProcs.at    (dwTid)            :
-                       __hooks._RealKeyboardProc)( nCode, wParam,
-                                                          lParam );
-    }
-  }
-
-  return
-    CallNextHookEx (
-        nullptr, nCode,
-         wParam, lParam );
+	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
-LRESULT
-CALLBACK
-ReShade_Proxy_LLKeyboardProc (
-  _In_ int    nCode,
-  _In_ WPARAM wParam,
-  _In_ LPARAM lParam  )
+extern "C" LRESULT CALLBACK proxy_low_level_keyboard_proc (int nCode, WPARAM wParam, LPARAM lParam)
 {
-  // The only documented codes
-  assert (ncode < 0 || ncode == HC_ACTION);
+	// The only documented codes
+	assert(ncode < 0 || ncode == HC_ACTION);
 
-  if (nCode == HC_ACTION)
-  {
-    using KeyboardProc =
-      LRESULT (CALLBACK *)(int,WPARAM,LPARAM);
+	if (nCode == HC_ACTION)
+	{
+		KBDLLHOOKSTRUCT *pHookData = (KBDLLHOOKSTRUCT *)lParam;
 
-    KBDLLHOOKSTRUCT *pHookData =
-      (KBDLLHOOKSTRUCT *)lParam;
+		// Bypass the game's code and continue with the hook chain...
+		if (is_blocking_keyboard_input())
+		{
+			return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		}
 
-    // Bypass the game's code and continue with the hook chain...
-    if (is_blocking_keyboard_input())
-    {
-      return
-        CallNextHookEx (
-            nullptr, nCode,
-             wParam, lParam );
-    }
-
-    else
-    {
-      DWORD dwTid =
-        GetCurrentThreadId ();
-
-      return
-        ((KeyboardProc)__hooks._RealKeyboardProcs.count (dwTid) &&
-                       __hooks._RealKeyboardProcs.at    (dwTid) != nullptr ?
-                       __hooks._RealKeyboardProcs.at    (dwTid)            :
-                       __hooks._RealKeyboardProc)( nCode, wParam,
-                                                          lParam );
-    }
-  }
-
-  return
-    CallNextHookEx (
-        nullptr, nCode,
-         wParam, lParam );
+		else
+		{
+			DWORD thread_id = GetCurrentThreadId();
+			HOOKPROC hook_fn = (reshade::hooks::win32::real_keyboard_procs.count(thread_id) && reshade::hooks::win32::real_keyboard_procs.at(thread_id) != nullptr) ? reshade::hooks::win32::real_keyboard_procs.at(thread_id) : reshade::hooks::win32::real_keyboard_proc;
+			return hook_fn(nCode, wParam, lParam);
+		}
+	}
+	
+	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
-BOOL
-WINAPI
-HookUnhookWindowsHookEx ( _In_ HHOOK hhk )
+extern "C" BOOL WINAPI HookUnhookWindowsHookEx(_In_ HHOOK hhk)
 {
-  static const auto trampoline = reshade::hooks::call(HookUnhookWindowsHookEx);
+	static const auto trampoline = reshade::hooks::call(HookUnhookWindowsHookEx);
 
-  for ( auto& hook : __hooks._RealMouseHooks )
-  {
-    if (hook.second == hhk)
-    {
-      __hooks._RealMouseHooks [hook.first] = nullptr;
-      __hooks._RealMouseProcs [hook.first] = nullptr;
+	reshade::log::message(reshade::log::level::info, "Redirecting UnhookWindowsHookEx(hhk = %p) ...", hhk);
 
-      return trampoline (hhk);
-    }
-  }
+	for (auto& hook : reshade::hooks::win32::real_mouse_hooks)
+	{
+		if (hook.second == hhk)
+		{
+			reshade::log::message(reshade::log::level::info, "Proxy mouse hook removed for thread %d", hook.first);
+			reshade::hooks::win32::real_mouse_hooks[hook.first] = nullptr;
+			reshade::hooks::win32::real_mouse_procs[hook.first] = nullptr;
+			return trampoline(hhk);
+		}
+	}
 
-  if (hhk == __hooks._RealMouseHook)
-  {
-    __hooks._RealMouseProc = nullptr;
-    __hooks._RealMouseHook = nullptr;
+	if (hhk == reshade::hooks::win32::real_mouse_hook)
+	{
+		reshade::log::message(reshade::log::level::info, "Proxy mouse hook removed");
+		reshade::hooks::win32::real_mouse_proc = nullptr;
+		reshade::hooks::win32::real_mouse_hook = nullptr;
+		return trampoline(hhk);
+	}
 
-    return trampoline (hhk);
-  }
+	for (auto& hook : reshade::hooks::win32::real_keyboard_hooks)
+	{
+		if (hook.second == hhk)
+		{
+			reshade::log::message(reshade::log::level::info, "Proxy keyboard hook removed for thread %d", hook.first);
+			reshade::hooks::win32::real_keyboard_hooks[hook.first] = nullptr;
+			reshade::hooks::win32::real_keyboard_procs[hook.first] = nullptr;
+			return trampoline(hhk);
+		}
+	}
 
-  for ( auto& hook : __hooks._RealKeyboardHooks )
-  {
-    if (hook.second == hhk)
-    {
-      __hooks._RealKeyboardHooks [hook.first] = nullptr;
-      __hooks._RealKeyboardProcs [hook.first] = nullptr;
+	if (hhk == reshade::hooks::win32::real_keyboard_hook)
+	{
+		reshade::log::message(reshade::log::level::info, "Proxy keyboard hook removed");
+		reshade::hooks::win32::real_keyboard_proc = nullptr;
+		reshade::hooks::win32::real_keyboard_hook = nullptr;
+		return trampoline(hhk);
+	}
 
-      return trampoline (hhk);
-    }
-  }
-
-  if (hhk == __hooks._RealKeyboardHook)
-  {
-    __hooks._RealKeyboardProc = nullptr;
-    __hooks._RealKeyboardHook = nullptr;
-
-    return trampoline (hhk);
-  }
-
-  for ( auto& hook : __hooks._RealKeyboardHooks )
-  {
-    if (hook.second == hhk)
-    {
-      __hooks._RealKeyboardProcs [hook.first] = nullptr;
-
-      return trampoline (hhk);
-    }
-  }
-
-  return trampoline (hhk);
+	return trampoline(hhk);
 }
 
-HHOOK
-WINAPI
-HookSetWindowsHookExW (
-  int       idHook,
-  HOOKPROC  lpfn,
-  HINSTANCE hmod,
-  DWORD     dwThreadId )
+extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTANCE hmod, DWORD dwThreadId)
 {
-  static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExW);
+	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExW);
+	HHOOK* real_hook = nullptr;
 
-  wchar_t                   wszHookMod [MAX_PATH] = { };
-  GetModuleFileNameW (hmod, wszHookMod, MAX_PATH);
+	reshade::log::message(reshade::log::level::info, "Redirecting HookSetWindowsHookExW(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %d) ...", idHook, lpfn, hmod, dwThreadId);
 
-  switch (idHook)
-  {
-    case WH_KEYBOARD:
-    case WH_KEYBOARD_LL:
-    {
-      // Game seems to be using keyboard hooks instead of a normal Window Proc;
-      //   that makes life more complicated for ReShade... but we got this!
-      if (idHook == WH_KEYBOARD || idHook == WH_KEYBOARD_LL)
-      {
-        bool install = false;
+	switch (idHook)
+	{
+		case WH_KEYBOARD:
+		case WH_KEYBOARD_LL:
+		{
+			if (idHook == WH_KEYBOARD || idHook == WH_KEYBOARD_LL)
+			{
+				bool install = false;
 
-        if (dwThreadId != 0)
-        {
-          if (! __hooks._RealKeyboardProcs.count (dwThreadId) ||
-                __hooks._RealKeyboardProcs       [dwThreadId] == nullptr)
-          {     __hooks._RealKeyboardProcs       [dwThreadId] = lpfn;
-                                                      install = true;
-          }
-        }
+				if (dwThreadId != 0)
+				{
+					if (!reshade::hooks::win32::real_keyboard_procs.count(dwThreadId) || reshade::hooks::win32::real_keyboard_procs[dwThreadId] == nullptr)
+					{
+						reshade::hooks::win32::real_keyboard_procs[dwThreadId] = lpfn;
+						real_hook = &reshade::hooks::win32::real_keyboard_hooks[dwThreadId];
+						install = true;
+					}
 
-        else if (__hooks._RealKeyboardProc == nullptr)
-        {        __hooks._RealKeyboardProc = lpfn;
-                                   install = true;
-        }
+					else
+						reshade::log::message(reshade::log::level::warning, "Keyboard proc already exists for thread %d", dwThreadId);
+				}
 
-        if (install)
-          lpfn = (idHook == WH_KEYBOARD ? ReShade_Proxy_KeyboardProc
-                                        : ReShade_Proxy_LLKeyboardProc);
-      }
-    } break;
+				else if (reshade::hooks::win32::real_keyboard_proc == nullptr)
+				{
+					reshade::hooks::win32::real_keyboard_proc = lpfn;
+					real_hook = &reshade::hooks::win32::real_keyboard_hook;
+					install = true;
+				}
 
-    case WH_MOUSE:
-    case WH_MOUSE_LL:
-    {
-      // Game seems to be using mouse hooks instead of a normal Window Proc;
-      //   that makes life more complicated for ReShade... but we got this!
-      if (idHook == WH_MOUSE || idHook == WH_MOUSE_LL)
-      {
-        bool install = false;
+				else
+					reshade::log::message(reshade::log::level::warning, "Global keyboard proc already exists");
 
-        if (dwThreadId != 0)
-        {
-          if (! __hooks._RealMouseProcs.count (dwThreadId) ||
-                __hooks._RealKeyboardProcs    [dwThreadId] == nullptr)
-          {     __hooks._RealMouseProcs       [dwThreadId] = lpfn;
-                                                   install = true;
-          }
-        }
+				if (install)
+				  lpfn = (idHook == WH_KEYBOARD ? proxy_keyboard_proc : proxy_low_level_keyboard_proc);
+			}
+		} break;
 
-        else if (__hooks._RealMouseProc == nullptr)
-        {        __hooks._RealMouseProc = lpfn;
-                                install = true;
-        }
+		case WH_MOUSE:
+		case WH_MOUSE_LL:
+		{
+			if (idHook == WH_MOUSE || idHook == WH_MOUSE_LL)
+			{
+				bool install = false;
 
-        if (install)
-          lpfn = (idHook == WH_MOUSE ? ReShade_Proxy_MouseProc
-                                     : ReShade_Proxy_LLMouseProc);
-      }
-    } break;
-  }
+				if (dwThreadId != 0)
+				{
+					if (!reshade::hooks::win32::real_mouse_procs.count(dwThreadId) || reshade::hooks::win32::real_mouse_procs[dwThreadId] == nullptr)
+					{
+						reshade::hooks::win32::real_mouse_procs[dwThreadId] = lpfn;
+						real_hook = &reshade::hooks::win32::real_mouse_hooks[dwThreadId];
+						install = true;
+					}
 
-  return
-    trampoline (
-      idHook, lpfn,
-              hmod, dwThreadId
-    );
+					else
+						reshade::log::message(reshade::log::level::warning, "Mouse proc already exists for thread %d", dwThreadId);
+				}
+
+				else if (reshade::hooks::win32::real_mouse_proc == nullptr)
+				{
+					reshade::hooks::win32::real_mouse_proc = lpfn;
+					real_hook = &reshade::hooks::win32::real_mouse_hook;
+					install = true;
+				}
+
+				else
+					reshade::log::message(reshade::log::level::warning, "Global mouse proc already exists");
+
+				if (install)
+				  lpfn = (idHook == WH_MOUSE ? proxy_mouse_proc : proxy_low_level_mouse_proc);
+			}
+		} break;
+	}
+
+	HHOOK ret = trampoline(idHook, lpfn, hmod, dwThreadId);
+
+	if (real_hook != nullptr)
+		*real_hook = ret;
+
+	return ret;
 }
 
-HHOOK
-WINAPI
-HookSetWindowsHookExA (
-  int       idHook,
-  HOOKPROC  lpfn,
-  HINSTANCE hmod,
-  DWORD     dwThreadId )
+extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTANCE hmod, DWORD dwThreadId)
 {
-  static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExA);
+	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExA);
+	HHOOK* real_hook = nullptr;
 
-  wchar_t                   wszHookMod [MAX_PATH] = { };
-  GetModuleFileNameW (hmod, wszHookMod, MAX_PATH);
+	reshade::log::message(reshade::log::level::info, "Redirecting HookSetWindowsHookExA(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %d) ...", idHook, lpfn, hmod, dwThreadId);
 
-  switch (idHook)
-  {
-    case WH_KEYBOARD:
-    case WH_KEYBOARD_LL:
-    {
-      // Game seems to be using keyboard hooks instead of a normal Window Proc;
-      //   that makes life more complicated for ReShade... but we got this!
-      if (idHook == WH_KEYBOARD || idHook == WH_KEYBOARD_LL)
-      {
-        bool install = false;
+	switch (idHook)
+	{
+		case WH_KEYBOARD:
+		case WH_KEYBOARD_LL:
+		{
+			if (idHook == WH_KEYBOARD || idHook == WH_KEYBOARD_LL)
+			{
+				bool install = false;
 
-        if (dwThreadId != 0)
-        {
-          if (! __hooks._RealKeyboardProcs.count (dwThreadId) ||
-                __hooks._RealKeyboardProcs       [dwThreadId] == nullptr)
-          {     __hooks._RealKeyboardProcs       [dwThreadId] = lpfn;
-                                                      install = true;
-          }
-        }
+				if (dwThreadId != 0)
+				{
+					if (!reshade::hooks::win32::real_keyboard_procs.count(dwThreadId) || reshade::hooks::win32::real_keyboard_procs[dwThreadId] == nullptr)
+					{
+						reshade::hooks::win32::real_keyboard_procs[dwThreadId] = lpfn;
+						real_hook = &reshade::hooks::win32::real_keyboard_hooks[dwThreadId];
+						install = true;
+					}
 
-        else if (__hooks._RealKeyboardProc == nullptr)
-        {        __hooks._RealKeyboardProc = lpfn;
-                                   install = true;
-        }
+					else
+						reshade::log::message(reshade::log::level::warning, "Keyboard proc already exists for thread %d", dwThreadId);
+				}
 
-        if (install)
-          lpfn = (idHook == WH_KEYBOARD ? ReShade_Proxy_KeyboardProc
-                                        : ReShade_Proxy_LLKeyboardProc);
-      }
-    } break;
+				else if (reshade::hooks::win32::real_keyboard_proc == nullptr)
+				{
+					reshade::hooks::win32::real_keyboard_proc = lpfn;
+					real_hook = &reshade::hooks::win32::real_keyboard_hook;
+					install = true;
+				}
 
-    case WH_MOUSE:
-    case WH_MOUSE_LL:
-    {
-      // Game seems to be using mouse hooks instead of a normal Window Proc;
-      //   that makes life more complicated for ReShade... but we got this!
-      if (idHook == WH_MOUSE || idHook == WH_MOUSE_LL)
-      {
-        bool install = false;
+				else
+					reshade::log::message(reshade::log::level::warning, "Global keyboard proc already exists");
 
-        if (dwThreadId != 0)
-        {
-          if (! __hooks._RealMouseProcs.count (dwThreadId) ||
-                __hooks._RealMouseProcs       [dwThreadId] == nullptr)
-          {     __hooks._RealMouseProcs       [dwThreadId] = lpfn;
-                                                   install = true;
-          }
-        }
+				if (install)
+				  lpfn = (idHook == WH_KEYBOARD ? proxy_keyboard_proc : proxy_low_level_keyboard_proc);
+			}
+		} break;
 
-        else if (__hooks._RealMouseProc == nullptr)
-        {        __hooks._RealMouseProc = lpfn;
-                                install = true;
-        }
+		case WH_MOUSE:
+		case WH_MOUSE_LL:
+		{
+			if (idHook == WH_MOUSE || idHook == WH_MOUSE_LL)
+			{
+				bool install = false;
 
-        if (install)
-          lpfn = (idHook == WH_MOUSE ? ReShade_Proxy_MouseProc
-                                     : ReShade_Proxy_LLMouseProc);
-      }
-    } break;
-  }
+				if (dwThreadId != 0)
+				{
+					if (!reshade::hooks::win32::real_mouse_procs.count(dwThreadId) || reshade::hooks::win32::real_mouse_procs[dwThreadId] == nullptr)
+					{
+						reshade::hooks::win32::real_mouse_procs[dwThreadId] = lpfn;
+						real_hook = &reshade::hooks::win32::real_mouse_hooks[dwThreadId];
+						install = true;
+					}
 
-  return
-    trampoline (
-      idHook, lpfn,
-              hmod, dwThreadId
-    );
+					else
+						reshade::log::message(reshade::log::level::warning, "Mouse proc already exists for thread %d", dwThreadId);
+				}
+
+				else if (reshade::hooks::win32::real_mouse_proc == nullptr)
+				{
+					reshade::hooks::win32::real_mouse_proc = lpfn;
+					real_hook = &reshade::hooks::win32::real_mouse_hook;
+					install = true;
+				}
+
+				else
+					reshade::log::message(reshade::log::level::warning, "Global mouse proc already exists");
+
+				if (install)
+				  lpfn = (idHook == WH_MOUSE ? proxy_mouse_proc : proxy_low_level_mouse_proc);
+			}
+		} break;
+	}
+
+	HHOOK ret = trampoline(idHook, lpfn, hmod, dwThreadId);
+
+	if (real_hook != nullptr)
+		*real_hook = ret;
+
+	return ret;
 }
