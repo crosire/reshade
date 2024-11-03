@@ -494,6 +494,8 @@ void reshade::input::immobilize_cursor(bool enable)
 			s_last_cursor_position.y = cursor_pos.y;
 		}
 	}
+
+	_immobilize_cursor = enable;
 }
 
 void reshade::input::block_mouse_input(bool enable)
@@ -512,11 +514,15 @@ void reshade::input::block_mouse_input(bool enable)
 		// Restore previous clipping rectangle when not blocking mouse input
 		ClipCursor(&s_last_clip_cursor);
 	}
+
+	_block_mouse = enable;
 }
 void reshade::input::block_keyboard_input(bool enable)
 {
 	if (enable)
 		_block_keyboard_time = std::chrono::high_resolution_clock::now();
+
+	_block_keyboard = enable;
 }
 
 bool is_immobilizing_cursor(reshade::input::window_handle target = reshade::input::any_window)
