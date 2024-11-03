@@ -82,13 +82,13 @@ namespace reshade
 		/// Set to <see langword="true"/> to prevent mouse input window messages from reaching the application.
 		/// </summary>
 		void block_mouse_input(bool enable);
-		bool is_blocking_mouse_input() const { return _block_mouse || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_mouse_time).count() < input_grace_period_ms; }
+		bool is_blocking_mouse_input() const { return _block_mouse; }
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent mouse GetCursorPos from returning the real pos; use last value of SetCursorPos.
 		/// This is separate from mouse blocking, it is intended to prevent games that use Set/GetCursorPos from warping the cursor.
 		/// </summary>
 		void immobilize_cursor(bool enable);
-		bool is_immobilizing_cursor() const { return _immobilize_cursor || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _immobilize_cursor_time).count() < input_grace_period_ms; }
+		bool is_immobilizing_cursor() const { return _immobilize_cursor; }
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
@@ -131,9 +131,7 @@ namespace reshade
 		bool _block_mouse;
 		bool _block_keyboard;
 		bool _immobilize_cursor;
-		std::chrono::high_resolution_clock::time_point _block_mouse_time; // timestamp when mouse input was last blocked
-		std::chrono::high_resolution_clock::time_point _block_keyboard_time; // timestamp when keyboard input was last blocked
-		std::chrono::high_resolution_clock::time_point _immobilize_cursor_time; // timestamp when cursor movement was last blocked
+		std::chrono::high_resolution_clock::time_point _block_keyboard_time; // timestamp when keyboard input was last blocked (prevent games from processing the keyboard combo to toggle ReShade's UI off)
 		uint8_t _keys[256] = {};
 		uint8_t _last_keys[256] = {};
 		unsigned int _keys_time[256] = {};

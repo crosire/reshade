@@ -485,7 +485,6 @@ void reshade::input::immobilize_cursor(bool enable)
 	bool originally_immobilized = is_immobilizing_cursor();
 	if (enable)
 	{
-		_immobilize_cursor_time = std::chrono::high_resolution_clock::now();
 		// Update the initial cursor position as soon as blocking starts
 		static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
 		POINT cursor_pos;
@@ -503,7 +502,6 @@ void reshade::input::block_mouse_input(bool enable)
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 	if (enable)
 	{
-		_block_mouse_time = std::chrono::high_resolution_clock::now();
 		// This will call into 'HookClipCursor' below, so back up and restore rectangle
 		const RECT last_clip_cursor = s_last_clip_cursor;
 		ClipCursor(nullptr);
