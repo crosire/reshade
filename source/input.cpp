@@ -776,10 +776,6 @@ extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect)
 	// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
 	if (is_blocking_mouse_input() || is_immobilizing_cursor())
 	{
-		// A non-zero clipping rect would move the cursor, and may be a component of a game's mouselook.
-		if (lpRect != nullptr)
-			s_last_cursor_warp = std::chrono::high_resolution_clock::now();
-
 		lpRect = nullptr;
 	}
 
