@@ -462,6 +462,13 @@ EXPORTS
 	ClipCursor = HookClipCursor PRIVATE
 	GetCursorPos = HookGetCursorPosition PRIVATE
 	SetCursorPos = HookSetCursorPosition PRIVATE
+	GetAsyncKeyState = HookGetAsyncKeyState PRIVATE
+	GetKeyState = HookGetKeyState PRIVATE
+	GetKeyboardState = HookGetKeyboardState PRIVATE
+	GetRawInputBuffer = HookGetRawInputBuffer PRIVATE
+	SetWindowsHookExA = HookSetWindowsHookExA PRIVATE
+	SetWindowsHookExW = HookSetWindowsHookExW PRIVATE
+	UnhookWindowsHookEx = HookUnhookWindowsHookEx PRIVATE
 
 	; ws2_32.dll (Uses ordinals in ws2_32.lib for most exports)
 	send = HookSend PRIVATE
@@ -479,5 +486,5 @@ EXPORTS
 	DirectInputCreateEx PRIVATE
 
 	; dinput8.dll
-	DirectInput8Create PRIVATE
+	DirectInput8Create = HookDirectInput8Create PRIVATE
 	GetdfDIJoystick PRIVATE

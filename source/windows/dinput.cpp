@@ -10,9 +10,11 @@
 #include <dinput.h>
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
+#include "input.hpp"
 
-extern bool is_blocking_mouse_input();
-extern bool is_blocking_keyboard_input();
+// It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
+extern bool is_blocking_mouse_input(reshade::input::window_handle window = reshade::input::any_window);
+extern bool is_blocking_keyboard_input(reshade::input::window_handle window = reshade::input::any_window);
 
 #define IDirectInputDevice_SetCooperativeLevel_Impl(vtable_index, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel(IDirectInputDevice##device_interface_version##encoding *pDevice, HWND hwnd, DWORD dwFlags) \
