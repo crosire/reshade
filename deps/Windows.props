@@ -4,7 +4,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\d3d12\include\directx;$(SolutionDir)deps\d3d911on12\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOGDICAPMASKS;NOMENUS;NOICONS;NOKEYSTATES;NOSYSCOMMANDS;NORASTEROPS;NOATOM;NOCOLOR;NODRAWTEXT;NOMEMMGR;NOMETAFILE;NOMINMAX;NOOPENFILE;NOSCROLL;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOWH;NOCOMM;NOKANJI;NOHELP;NOPROFILER;NODEFERWINDOWPOS;NOMCX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOGDICAPMASKS;NOMENUS;NOICONS;NOKEYSTATES;NOSYSCOMMANDS;NORASTEROPS;NOATOM;NOCOLOR;NODRAWTEXT;NOMEMMGR;NOMETAFILE;NOMINMAX;NOOPENFILE;NOSCROLL;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOHELP;NOPROFILER;NODEFERWINDOWPOS;NOMCX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <AdditionalDependencies>Dwmapi.lib;ShLwApi.lib;WinInet.lib;WS2_32.lib;Version.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>

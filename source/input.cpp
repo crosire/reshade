@@ -10,8 +10,6 @@
 #include <unordered_map>
 #include <cstring> // std::memset
 #include <algorithm> // std::any_of, std::copy_n, std::max_element
-
-#undef NOWH // Allow definitions from WinUser.h
 #include <Windows.h>
 
 extern bool is_uwp_app();
@@ -1047,10 +1045,10 @@ namespace reshade::hooks::win32 {
 	concurrency::concurrent_unordered_map<DWORD, HHOOK> real_mouse_hooks;
 }
 
-extern "C" LRESULT CALLBACK proxy_mouse_proc (int nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK proxy_mouse_proc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	// The only documented codes
-	assert (ncode < 0 || ncode == HC_ACTION || ncode == HC_NOREMOVE);
+	assert(nCode < 0 || nCode == HC_ACTION || nCode == HC_NOREMOVE);
 
 	if (nCode == HC_ACTION || nCode == HC_NOREMOVE)
 	{
@@ -1059,7 +1057,6 @@ extern "C" LRESULT CALLBACK proxy_mouse_proc (int nCode, WPARAM wParam, LPARAM l
 		{
 			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
-		
 		else
 		{
 			DWORD thread_id = GetCurrentThreadId();
@@ -1072,11 +1069,10 @@ extern "C" LRESULT CALLBACK proxy_mouse_proc (int nCode, WPARAM wParam, LPARAM l
 
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
-
-extern "C" LRESULT CALLBACK proxy_low_level_mouse_proc (int nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK proxy_low_level_mouse_proc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	// The only documented codes
-	assert(ncode < 0 || ncode == HC_ACTION);
+	assert(nCode < 0 || nCode == HC_ACTION);
 
 	if (nCode == HC_ACTION)
 	{
@@ -1085,7 +1081,6 @@ extern "C" LRESULT CALLBACK proxy_low_level_mouse_proc (int nCode, WPARAM wParam
 		{
 			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
-		
 		else
 		{
 			DWORD thread_id = GetCurrentThreadId();
@@ -1098,12 +1093,10 @@ extern "C" LRESULT CALLBACK proxy_low_level_mouse_proc (int nCode, WPARAM wParam
 
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
-
-
-extern "C" LRESULT CALLBACK proxy_keyboard_proc (int nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK proxy_keyboard_proc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	// The only documented codes
-	assert(ncode < 0 || ncode == HC_ACTION || ncode == HC_NOREMOVE);
+	assert(nCode < 0 || nCode == HC_ACTION || nCode == HC_NOREMOVE);
 
 	if (nCode == HC_ACTION || nCode == HC_NOREMOVE)
 	{
@@ -1112,7 +1105,6 @@ extern "C" LRESULT CALLBACK proxy_keyboard_proc (int nCode, WPARAM wParam, LPARA
 		{
 			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
-
 		else
 		{
 			DWORD thread_id = GetCurrentThreadId();
@@ -1125,16 +1117,13 @@ extern "C" LRESULT CALLBACK proxy_keyboard_proc (int nCode, WPARAM wParam, LPARA
 
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
-
-extern "C" LRESULT CALLBACK proxy_low_level_keyboard_proc (int nCode, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK proxy_low_level_keyboard_proc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	// The only documented codes
-	assert(ncode < 0 || ncode == HC_ACTION);
+	assert(nCode < 0 || nCode == HC_ACTION);
 
 	if (nCode == HC_ACTION)
 	{
-		KBDLLHOOKSTRUCT *pHookData = (KBDLLHOOKSTRUCT *)lParam;
-
 		// Bypass the game's code and continue with the hook chain...
 		if (is_blocking_keyboard_input())
 		{
@@ -1152,53 +1141,6 @@ extern "C" LRESULT CALLBACK proxy_low_level_keyboard_proc (int nCode, WPARAM wPa
 	}
 	
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
-}
-
-extern "C" BOOL WINAPI HookUnhookWindowsHookEx(_In_ HHOOK hhk)
-{
-	static const auto trampoline = reshade::hooks::call(HookUnhookWindowsHookEx);
-
-	reshade::log::message(reshade::log::level::info, "Redirecting UnhookWindowsHookEx(hhk = %p) ...", hhk);
-
-	for (auto& hook : reshade::hooks::win32::real_mouse_hooks)
-	{
-		if (hook.second == hhk)
-		{
-			reshade::log::message(reshade::log::level::info, "Proxy mouse hook removed for thread %d", hook.first);
-			reshade::hooks::win32::real_mouse_hooks[hook.first] = nullptr;
-			reshade::hooks::win32::real_mouse_procs[hook.first] = nullptr;
-			return trampoline(hhk);
-		}
-	}
-
-	if (hhk == reshade::hooks::win32::real_mouse_hook)
-	{
-		reshade::log::message(reshade::log::level::info, "Proxy mouse hook removed");
-		reshade::hooks::win32::real_mouse_proc = nullptr;
-		reshade::hooks::win32::real_mouse_hook = nullptr;
-		return trampoline(hhk);
-	}
-
-	for (auto& hook : reshade::hooks::win32::real_keyboard_hooks)
-	{
-		if (hook.second == hhk)
-		{
-			reshade::log::message(reshade::log::level::info, "Proxy keyboard hook removed for thread %d", hook.first);
-			reshade::hooks::win32::real_keyboard_hooks[hook.first] = nullptr;
-			reshade::hooks::win32::real_keyboard_procs[hook.first] = nullptr;
-			return trampoline(hhk);
-		}
-	}
-
-	if (hhk == reshade::hooks::win32::real_keyboard_hook)
-	{
-		reshade::log::message(reshade::log::level::info, "Proxy keyboard hook removed");
-		reshade::hooks::win32::real_keyboard_proc = nullptr;
-		reshade::hooks::win32::real_keyboard_hook = nullptr;
-		return trampoline(hhk);
-	}
-
-	return trampoline(hhk);
 }
 
 extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTANCE hmod, DWORD dwThreadId)
@@ -1288,7 +1230,6 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTAN
 
 	return ret;
 }
-
 extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTANCE hmod, DWORD dwThreadId)
 {
 	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExA);
@@ -1375,4 +1316,50 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTAN
 		*real_hook = ret;
 
 	return ret;
+}
+extern "C" BOOL  WINAPI HookUnhookWindowsHookEx(HHOOK hhk)
+{
+	static const auto trampoline = reshade::hooks::call(HookUnhookWindowsHookEx);
+
+	reshade::log::message(reshade::log::level::info, "Redirecting UnhookWindowsHookEx(hhk = %p) ...", hhk);
+
+	for (auto& hook : reshade::hooks::win32::real_mouse_hooks)
+	{
+		if (hook.second == hhk)
+		{
+			reshade::log::message(reshade::log::level::info, "Proxy mouse hook removed for thread %d", hook.first);
+			reshade::hooks::win32::real_mouse_hooks[hook.first] = nullptr;
+			reshade::hooks::win32::real_mouse_procs[hook.first] = nullptr;
+			return trampoline(hhk);
+		}
+	}
+
+	if (hhk == reshade::hooks::win32::real_mouse_hook)
+	{
+		reshade::log::message(reshade::log::level::info, "Proxy mouse hook removed");
+		reshade::hooks::win32::real_mouse_proc = nullptr;
+		reshade::hooks::win32::real_mouse_hook = nullptr;
+		return trampoline(hhk);
+	}
+
+	for (auto& hook : reshade::hooks::win32::real_keyboard_hooks)
+	{
+		if (hook.second == hhk)
+		{
+			reshade::log::message(reshade::log::level::info, "Proxy keyboard hook removed for thread %d", hook.first);
+			reshade::hooks::win32::real_keyboard_hooks[hook.first] = nullptr;
+			reshade::hooks::win32::real_keyboard_procs[hook.first] = nullptr;
+			return trampoline(hhk);
+		}
+	}
+
+	if (hhk == reshade::hooks::win32::real_keyboard_hook)
+	{
+		reshade::log::message(reshade::log::level::info, "Proxy keyboard hook removed");
+		reshade::hooks::win32::real_keyboard_proc = nullptr;
+		reshade::hooks::win32::real_keyboard_hook = nullptr;
+		return trampoline(hhk);
+	}
+
+	return trampoline(hhk);
 }
