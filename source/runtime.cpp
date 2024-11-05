@@ -1489,6 +1489,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	addon_definitions.reserve(addon_loaded_info.size());
 	for (const addon_info &info : addon_loaded_info)
 	{
+		if (info.handle == nullptr)
+			continue; // Skip disabled add-ons
+
 		std::string addon_definition;
 		addon_definition.reserve(6 + info.name.size());
 		addon_definition = "ADDON_";
