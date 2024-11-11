@@ -74,7 +74,7 @@
                 </ToolTip>
               </TextBlock.ToolTip>
             </TextBlock>
-            <ListBox Grid.Row="2" Grid.Column="1" Margin="0,8" BorderThickness="0" Background="Transparent" ItemsSource="{Binding EffectFiles}">
+            <ListBox Grid.Row="2" Grid.Column="1" Margin="0,8" BorderThickness="0" Background="Transparent" ItemsSource="{Binding EffectFiles}" PreviewMouseWheel="OnEffectFileListBoxPreviewMouseWheel">
               <ListBox.ItemTemplate>
                 <DataTemplate>
                   <CheckBox Content="{Binding FileName}" IsChecked="{Binding Selected}" />
