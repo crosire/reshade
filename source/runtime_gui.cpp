@@ -1468,12 +1468,12 @@ void reshade::runtime::draw_gui()
 				ImGui::SetNextWindowFocus();
 		}
 
-		for (const std::pair<std::string, void(runtime:: *)()> &widget : overlay_callbacks)
-		{
-			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
-				(this->*widget.second)();
-			ImGui::End();
-		}
+			for (const std::pair<std::string, void(runtime:: *)()> &widget : overlay_callbacks)
+			{
+				if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
+					(this->*widget.second)();
+				ImGui::End();
+			}
 
 #if RESHADE_FX
 		if (!_editors.empty())
@@ -2266,6 +2266,16 @@ void reshade::runtime::draw_gui_settings()
 		modified |= ImGui::Checkbox(_("Save before and after images"), &_screenshot_save_before);
 #endif
 		modified |= ImGui::Checkbox(_("Save separate image with the overlay visible"), &_screenshot_save_gui);
+		//
+		// TODO: Add string table entries for this stuff...
+		//
+		// Only show on possible HDR swap chains
+		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
+			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
+		{
+			modified |= ImGui::Checkbox("Copy image to clipboard", &_screenshot_clipboard_copy);
+			modified |= ImGui::SliderInt("HDR PNG quality", reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d-bit", ImGuiSliderFlags_AlwaysClamp);
+		}
 
 		modified |= imgui::file_input_box(_("Screenshot sound"), "sound.wav", _screenshot_sound_path, _file_selection_path, { L".wav" });
 		ImGui::SetItemTooltip(_("Audio file that is played when taking a screenshot."));

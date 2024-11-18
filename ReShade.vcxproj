@@ -90,6 +90,7 @@
     <Import Project="Common.props" />
     <Import Project="deps\D3D12On7.props" />
     <Import Project="deps\fpng.props" />
+    <Import Project="deps\sk_hdr_png.props" />
     <Import Project="deps\gl3w.props" />
     <Import Project="deps\ImGui.props" />
     <Import Project="deps\MinHook.props" />
