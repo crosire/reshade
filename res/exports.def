@@ -486,5 +486,5 @@ EXPORTS
 	DirectInputCreateEx PRIVATE
 
 	; dinput8.dll
-	DirectInput8Create = HookDirectInput8Create PRIVATE
+	DirectInput8Create PRIVATE
 	GetdfDIJoystick PRIVATE
