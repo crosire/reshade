@@ -4,10 +4,6 @@
 //
 #pragma once
 
-#ifdef RESHADE_DEFINE_HANDLE
-#define SK_HDR_PNG_RESHADE
-#endif
-
 #ifdef SK_HDR_PNG_RESHADE
 #include <com_ptr.hpp>
 #else
