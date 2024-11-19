@@ -1137,20 +1137,17 @@ bool reshade::d3d10::device_impl::get_query_heap_results(api::query_heap heap, u
 	return true;
 }
 
-// WKPDID_D3DDebugObjectName
-inline constexpr GUID s_debug_object_name_guid = { 0x429b8c22, 0x9188, 0x4b0c, { 0x87, 0x42, 0xac, 0xb0, 0xbf, 0x85, 0xc2, 0x00} };
-
 void reshade::d3d10::device_impl::set_resource_name(api::resource resource, const char *name)
 {
 	assert(resource != 0);
 
-	reinterpret_cast<ID3D10DeviceChild *>(resource.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
+	reinterpret_cast<ID3D10DeviceChild *>(resource.handle)->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(std::strlen(name)), name);
 }
 void reshade::d3d10::device_impl::set_resource_view_name(api::resource_view view, const char *name)
 {
 	assert(view != 0);
 
-	reinterpret_cast<ID3D10DeviceChild *>(view.handle)->SetPrivateData(s_debug_object_name_guid, static_cast<UINT>(std::strlen(name)), name);
+	reinterpret_cast<ID3D10DeviceChild *>(view.handle)->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(std::strlen(name)), name);
 }
 
 bool reshade::d3d10::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, HANDLE *shared_handle)

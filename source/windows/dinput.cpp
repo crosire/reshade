@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#define INITGUID
 // Set version to DirectInput 7
 #define DIRECTINPUT_VERSION 0x0700
 

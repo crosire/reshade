@@ -7,7 +7,7 @@
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOGDICAPMASKS;NOMENUS;NOICONS;NOKEYSTATES;NOSYSCOMMANDS;NORASTEROPS;NOATOM;NOCOLOR;NODRAWTEXT;NOMEMMGR;NOMETAFILE;NOMINMAX;NOOPENFILE;NOSCROLL;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOHELP;NOPROFILER;NODEFERWINDOWPOS;NOMCX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Dwmapi.lib;ShLwApi.lib;WinInet.lib;WS2_32.lib;Version.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Dwmapi.lib;dxguid.lib;ShLwApi.lib;WinInet.lib;WS2_32.lib;Version.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 </Project>

@@ -10,8 +10,7 @@
 #include <cstring> // std::strlen, std::strncpy
 #include <algorithm> // std::copy_n, std::fill, std::max, std::min
 
-// IID_ID3D12GraphicsCommandListExt
-constexpr GUID s_command_list_ex_guid = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
+constexpr GUID IID_ID3D12GraphicsCommandListExt = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
 
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
 {
@@ -44,7 +43,7 @@ void reshade::d3d12::command_list_impl::on_init()
 
 		// VKD3D does not implement 'ID3D12GraphicsCommandList4::BeginRenderPass' despite anouncing support for the 'ID3D12GraphicsCommandList4' interface as of VKD3D v2.6
 		// This means we cannot use the 'BeginRenderPass' code path if we are running VKD3D, which next line tries to detect by querying for 'IID_ID3D12GraphicsCommandListExt' support
-		if (_orig->QueryInterface(s_command_list_ex_guid, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
+		if (_orig->QueryInterface(IID_ID3D12GraphicsCommandListExt, reinterpret_cast<void **>(&cmd_list_ex)) != S_OK)
 			_supports_render_passes = true;
 	}
 }
