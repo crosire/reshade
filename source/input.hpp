@@ -28,6 +28,9 @@ namespace reshade
 		/// </summary>
 		using window_handle = void *;
 
+		static constexpr window_handle any_window = 0;
+		static constexpr int input_grace_period_ms = 125;
+
 		explicit input(window_handle window);
 
 		/// <summary>
@@ -68,6 +71,7 @@ namespace reshade
 		auto mouse_movement_delta_y() const { return static_cast<int>(_mouse_position[1] - _last_mouse_position[1]); }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
+		bool is_mouse_hovering_window() const { return _mouse_hovering; }
 		void max_mouse_position(unsigned int position[2]) const;
 
 		/// <summary>
@@ -81,10 +85,16 @@ namespace reshade
 		void block_mouse_input(bool enable);
 		bool is_blocking_mouse_input() const { return _block_mouse; }
 		/// <summary>
+		/// Set to <see langword="true"/> to prevent mouse GetCursorPos from returning the real pos; use last value of SetCursorPos.
+		/// This is separate from mouse blocking, it is intended to prevent games that use Set/GetCursorPos from warping the cursor.
+		/// </summary>
+		void immobilize_cursor(bool enable);
+		bool is_immobilizing_cursor() const { return _immobilize_cursor; }
+		/// <summary>
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable);
-		bool is_blocking_keyboard_input() const { return _block_keyboard; }
+		bool is_blocking_keyboard_input() const { return _block_keyboard || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_keyboard_time).count() < input_grace_period_ms; }
 
 		/// <summary>
 		/// Locks access to the input data so it cannot be modified in another thread.
@@ -121,10 +131,14 @@ namespace reshade
 		window_handle _window;
 		bool _block_mouse = false;
 		bool _block_keyboard = false;
+		bool _immobilize_cursor;
+		std::chrono::high_resolution_clock::time_point _block_keyboard_time; // timestamp when keyboard input was last blocked (prevent games from processing the keyboard combo to toggle ReShade's UI off)
 		uint8_t _keys[256] = {};
 		uint8_t _last_keys[256] = {};
 		unsigned int _keys_time[256] = {};
 		short _mouse_wheel_delta = 0;
+		bool _mouse_hovering = false;
+		bool _mouse_tracking = false;
 		unsigned int _mouse_position[2] = {};
 		unsigned int _last_mouse_position[2] = {};
 		uint64_t _frame_count = 0; // Keep track of frame count to identify windows with a lot of rendering

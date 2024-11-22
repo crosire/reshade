@@ -6,6 +6,7 @@
 #pragma once
 
 #include "reshade_api.hpp"
+#include "reshade_api_display.hpp"
 #include "state_block.hpp"
 #include "imgui_code_editor.hpp"
 #include <chrono>
@@ -23,6 +24,7 @@ namespace reshade
 	struct uniform;
 	struct texture;
 	struct technique;
+	struct display;
 
 	/// <summary>
 	/// The main ReShade post-processing effect runtime.
@@ -36,6 +38,7 @@ namespace reshade
 		bool on_init();
 		void on_reset();
 		void on_present(api::command_queue *present_queue);
+		void on_display_change();
 
 		uint64_t get_native() const final { return _swapchain->get_native(); }
 
@@ -170,6 +173,8 @@ namespace reshade
 
 		void reload_effect_next_frame(const char *effect_name) final;
 
+		api::display* get_active_display() const final { return _containing_output; }
+
 	private:
 		static void check_for_update();
 
@@ -252,6 +257,11 @@ namespace reshade
 		uint16_t _back_buffer_samples = 1;
 		api::format _back_buffer_format = api::format::unknown;
 		api::color_space _back_buffer_color_space = api::color_space::unknown;
+		api::display* _containing_output = nullptr; // The display that currently owns the swapchain
+		api::display_cache _displays; // Cached mapping of all monitors attached to the desktop and their display properties
+		uint32_t _last_desktop_change = 0; // Invalidate the display cache when necessary
+		int _last_desktop_x = 0;
+		int _last_desktop_y = 0;
 		bool _is_vr = false;
 
 #if RESHADE_ADDON
@@ -357,7 +367,7 @@ namespace reshade
 #if RESHADE_GUI
 		bool _screenshot_save_gui = false;
 #endif
-		bool _screenshot_clipboard_copy = true;
+		bool _screenshot_clipboard_copy = false;
 		unsigned int _screenshot_hdr_bits = 11;
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_count = 0;

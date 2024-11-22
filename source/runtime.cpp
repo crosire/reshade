@@ -35,6 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
+#include "dxgi/dxgi_impl_display.hpp"
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -474,6 +475,9 @@ bool reshade::runtime::on_init()
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
 
+	if (_containing_output == nullptr)
+		on_display_change();
+
 	log::message(log::level::info, "Recreated runtime environment on runtime %p ('%s').", this, _config_path.u8string().c_str());
 
 	return true;
@@ -585,6 +589,9 @@ void reshade::runtime::on_reset()
 
 	_width = _height = 0;
 
+	_containing_output = nullptr;
+	_displays.clear();
+
 #if RESHADE_GUI
 	if (_is_vr)
 		deinit_gui_vr();
@@ -598,6 +605,7 @@ void reshade::runtime::on_reset()
 
 	log::message(log::level::info, "Destroyed runtime environment on runtime %p ('%s').", this, _config_path.u8string().c_str());
 }
+
 void reshade::runtime::on_present(api::command_queue *present_queue)
 {
 	assert(present_queue != nullptr);
@@ -661,6 +669,37 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	std::unique_lock<std::recursive_mutex> input_lock;
 	if (_input != nullptr)
 		input_lock = _input->lock();
+
+	if (_input != nullptr)
+	{
+		extern bool is_desktop_current(uint32_t& timestamp);
+		if (!is_desktop_current(_last_desktop_change) || (_containing_output == nullptr || !_containing_output->is_current()))
+		{
+			// Flush the entire desktop display cache
+			on_display_change();
+		}
+
+		else
+		{
+			HWND window = static_cast<HWND>(_swapchain->get_hwnd());
+			RECT window_rect = {};
+			if (window != 0 && GetWindowRect(window,&window_rect) &&
+			    ((std::exchange(_last_desktop_x,window_rect.left) != window_rect.left) |
+			     (std::exchange(_last_desktop_y,window_rect.top) != window_rect.top)))
+			{
+				auto monitor = MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST);
+				if (monitor != nullptr && _displays.count(monitor))
+				{
+					if (_containing_output == nullptr || _containing_output->get_monitor() != monitor)
+					{
+						// The monitor the window is attached to changed, but the display cache is still valid
+						on_display_change();
+					}
+				}
+				
+			}
+		}
+	}
 
 #if RESHADE_FX
 	update_effects();
@@ -943,6 +982,42 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	if (std::numeric_limits<long>::max() != g_network_traffic)
 		g_network_traffic = 0;
 #endif
+}
+
+void reshade::runtime::on_display_change()
+{
+	bool flush = _displays.empty() || (_containing_output != nullptr && !_containing_output->is_current());
+
+	_containing_output = nullptr;
+
+	if (flush)
+	{
+		reshade::dxgi::display_impl::flush_cache(_displays);
+	}
+
+	api::display::monitor monitor {MonitorFromWindow(reinterpret_cast<HWND>(get_hwnd()),MONITOR_DEFAULTTONEAREST)};
+
+	if (_displays.count(monitor))
+	{
+		_containing_output = _displays[monitor].get();
+
+#if RESHADE_ADDON
+		invoke_addon_event<addon_event::display_change>(this, _containing_output);
+#endif
+
+#if RESHADE_VERBOSE_LOG
+		auto& luminance_caps = _containing_output->get_luminance_caps();
+
+		log::message(log::level::info, "Swap chain is displaying at %5.2f Hz on '%ws' (%ws) - MinNits = %3.1f, MaxNits = %3.1f, MaxAvgNits = %3.1f.",
+			_containing_output->get_refresh_rate().as_float(), _containing_output->get_display_name(), _containing_output->get_device_name(),
+				luminance_caps.min_nits, luminance_caps.max_nits, luminance_caps.max_avg_nits);
+#endif
+	}
+
+	else
+	{
+		log::message(log::level::warning, "Unable to map runtime %p's swap chain to a containing display output!", this);
+	}
 }
 
 void reshade::runtime::load_config()
@@ -4869,7 +4944,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 				// Implicit HDR PNG when running in HDR
 				case 3:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _back_buffer_format, _screenshot_hdr_bits, _screenshot_clipboard_copy);
+					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy, _containing_output);
 					break;
 				}
 
@@ -5053,15 +5128,14 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 				}
 				// HDR10: Keep the original data, do not convert to 8-bpc
 				else
+				{	// DXGI-based HDR only supports R10G10B10A2
+					assert(_back_buffer_format == api::format::r10g10b10a2_unorm);
 					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
+				}
 				break;
 			case api::format::r16g16b16a16_float:
 				// FP16 is implicitly always scRGB
-				if (_back_buffer_format == api::format::r16g16b16a16_float &&
-				    _back_buffer_color_space != api::color_space::extended_srgb_linear)
-				{
-					_back_buffer_color_space = api::color_space::extended_srgb_linear;
-				}
+				assert(_back_buffer_color_space == api::color_space::extended_srgb_linear);
 				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				break;
 			}

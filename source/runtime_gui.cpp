@@ -918,6 +918,7 @@ void reshade::runtime::draw_gui()
 		{
 			_input->block_mouse_input(false);
 			_input->block_keyboard_input(false);
+			_input->immobilize_cursor(false);
 		}
 		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
@@ -939,15 +940,23 @@ void reshade::runtime::draw_gui()
 	{
 		imgui_io.MouseDrawCursor = _show_overlay && (!_should_save_screenshot || !_screenshot_save_gui);
 
-		// Scale mouse position in case render resolution does not match the window size
-		unsigned int max_position[2];
-		_input->max_mouse_position(max_position);
-		imgui_io.AddMousePosEvent(
-			_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
-			_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
+		if (_input->is_mouse_hovering_window())
+		{
+			// Scale mouse position in case render resolution does not match the window size
+			unsigned int max_position[2];
+			_input->max_mouse_position(max_position);
+			imgui_io.AddMousePosEvent(
+				_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
+				_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
 
-		// Add wheel delta to the current absolute mouse wheel position
-		imgui_io.AddMouseWheelEvent(0.0f, _input->mouse_wheel_delta());
+			// Add wheel delta to the current absolute mouse wheel position
+			imgui_io.AddMouseWheelEvent(0.0f, _input->mouse_wheel_delta());
+		}
+
+		else
+		{
+			imgui_io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
+		}
 
 		// Update all the button states
 		constexpr std::pair<ImGuiKey, unsigned int> key_mappings[] = {
@@ -1062,10 +1071,11 @@ void reshade::runtime::draw_gui()
 
 		for (const std::pair<ImGuiKey, unsigned int> &mapping : key_mappings)
 			imgui_io.AddKeyEvent(mapping.first, _input->is_key_down(mapping.second));
-		for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
-			imgui_io.AddMouseButtonEvent(i, _input->is_mouse_button_down(i));
 		for (ImWchar16 c : _input->text_input())
 			imgui_io.AddInputCharacterUTF16(c);
+		if (_input->is_mouse_hovering_window())
+			for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
+				imgui_io.AddMouseButtonEvent(i, _input->is_mouse_button_down(i));
 	}
 
 	if (_input_gamepad != nullptr)
@@ -1468,12 +1478,12 @@ void reshade::runtime::draw_gui()
 				ImGui::SetNextWindowFocus();
 		}
 
-			for (const std::pair<std::string, void(runtime:: *)()> &widget : overlay_callbacks)
-			{
-				if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
-					(this->*widget.second)();
-				ImGui::End();
-			}
+		for (const std::pair<std::string, void(runtime:: *)()> &widget : overlay_callbacks)
+		{
+			if (ImGui::Begin(widget.first.c_str(), nullptr, ImGuiWindowFlags_NoFocusOnAppearing)) // No focus so that window state is preserved between opening/closing the GUI
+				(this->*widget.second)();
+			ImGui::End();
+		}
 
 #if RESHADE_FX
 		if (!_editors.empty())
@@ -1588,9 +1598,11 @@ void reshade::runtime::draw_gui()
 	if (_input != nullptr)
 	{
 		const bool block_input = _input_processing_mode != 0 && (_show_overlay || _block_input_next_frame);
+		const bool cursor_outside_window = imgui_io.MousePos.x == -FLT_MAX && imgui_io.MousePos.y == -FLT_MAX;
 
-		_input->block_mouse_input(block_input && (imgui_io.WantCaptureMouse || _input_processing_mode == 2));
+		_input->block_mouse_input(block_input && (imgui_io.WantCaptureMouse || cursor_outside_window || _input_processing_mode == 2));
 		_input->block_keyboard_input(block_input && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2));
+		_input->immobilize_cursor(_show_overlay || _block_input_next_frame || (block_input && (imgui_io.WantCaptureMouse || cursor_outside_window || _input_processing_mode == 2)));
 	}
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
@@ -2254,28 +2266,27 @@ void reshade::runtime::draw_gui_settings()
 				"HH-mm-ss");
 		}
 
-		modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
-
-		if (_screenshot_format == 2)
-			modified |= ImGui::SliderInt(_("JPEG quality"), reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
-		else
-			modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
-
-#if RESHADE_FX
-		modified |= ImGui::Checkbox(_("Save current preset file"), &_screenshot_include_preset);
-		modified |= ImGui::Checkbox(_("Save before and after images"), &_screenshot_save_before);
-#endif
-		modified |= ImGui::Checkbox(_("Save separate image with the overlay visible"), &_screenshot_save_gui);
-		//
-		// TODO: Add string table entries for this stuff...
-		//
-		// Only show on possible HDR swap chains
+		// HDR screenshots only support PNG, and have no alpha channel
 		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
 			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
 		{
 			modified |= ImGui::Checkbox("Copy image to clipboard", &_screenshot_clipboard_copy);
 			modified |= ImGui::SliderInt("HDR PNG quality", reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d-bit", ImGuiSliderFlags_AlwaysClamp);
 		}
+		else
+		{
+			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
+
+			if (_screenshot_format == 2)
+				modified |= ImGui::SliderInt(_("JPEG quality"), reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
+			else
+				modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
+		}
+#if RESHADE_FX
+		modified |= ImGui::Checkbox(_("Save current preset file"), &_screenshot_include_preset);
+		modified |= ImGui::Checkbox(_("Save before and after images"), &_screenshot_save_before);
+#endif
+		modified |= ImGui::Checkbox(_("Save separate image with the overlay visible"), &_screenshot_save_gui);
 
 		modified |= imgui::file_input_box(_("Screenshot sound"), "sound.wav", _screenshot_sound_path, _file_selection_path, { L".wav" });
 		ImGui::SetItemTooltip(_("Audio file that is played when taking a screenshot."));

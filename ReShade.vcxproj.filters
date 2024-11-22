@@ -79,6 +79,9 @@
     <Filter Include="resources\shaders">
       <UniqueIdentifier>{9232c43b-559d-4435-b309-c8bbf4e6477b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="api\dxgi">
+      <UniqueIdentifier>{c122b647-1957-45ee-9412-ada616b441c9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="examples\09-depth\generic_depth_addon.cpp">
@@ -423,6 +426,9 @@
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
+    <ClCompile Include="source\dxgi\dxgi_impl_display.cpp">
+      <Filter>api\dxgi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\reshade.hpp">
@@ -721,6 +727,12 @@
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_impl_type_convert.hpp">
       <Filter>api\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dxgi\dxgi_impl_display.hpp">
+      <Filter>api\dxgi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\reshade_api_display.hpp">
+      <Filter>api</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
