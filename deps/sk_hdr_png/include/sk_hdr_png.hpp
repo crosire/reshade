@@ -1,15 +1,32 @@
-// Insert whatever license here, I really do not care.
+// This is free and unencumbered software released into the public domain.
 //
-//  - Kaldaien
+// Anyone is free to copy, modify, publish, use, compile, sell, or
+// distribute this software, either in source code form or as a compiled
+// binary, for any purpose, commercial or non-commercial, and by any
+// means.
 //
+// In jurisdictions that recognize copyright laws, the author or authors
+// of this software dedicate any and all copyright interest in the
+// software to the public domain. We make this dedication for the benefit
+// of the public at large and to the detriment of our heirs and
+// successors. We intend this dedication to be an overt act of
+// relinquishment in perpetuity of all present and future rights to this
+// software under copyright law.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+// OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+// ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+//
+// For more information, please refer to <https://unlicense.org/>
 #pragma once
 
-#ifdef SK_HDR_PNG_RESHADE
+#include "reshade_api.hpp"
+#include "reshade_api_display.hpp"
 #include <com_ptr.hpp>
-#else
-#include <atlbase.h>
-using com_ptr = CComPtr;
-#endif
 
 #include <cmath>
 #include <cstdio>
@@ -19,39 +36,26 @@ using com_ptr = CComPtr;
 #include <memory>
 #include <io.h>
 
-#define _XM_F16C_INTRINSICS_
-#include <DirectXMath.h>
-#include <DirectXPackedVector.h>
-#include <DirectXPackedVector.inl>
-
 #include <shellapi.h>
 #include <ShlObj.h>
 #include <wincodec.h>
 
 #pragma comment (lib, "windowscodecs.lib")
 
+// Use AVX for SIMD fp16 to fp32 conversion
+#pragma push_macro("_XM_F16C_INTRINSICS_")
+#if (defined _M_IX86) || (defined _M_X64)
+#undef  _XM_F16C_INTRINSICS_
+#define _XM_F16C_INTRINSICS_
+#endif
+
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <DirectXPackedVector.inl>
+
 namespace sk_hdr_png
 {
-#ifndef SK_HDR_PNG_RESHADE
-  enum class format : uint32_t
-  {
-    unknown             = 0,
-    r8g8b8a8_unorm      = 28,
-    r8g8b8a8_unorm_srgb = 29,
-    r8g8b8x8_unorm      = 0x424757B9,
-    r8g8b8x8_unorm_srgb = 0x424757BA,
-    b8g8r8a8_unorm      = 87,
-    b8g8r8a8_unorm_srgb = 91,
-    b8g8r8x8_unorm      = 88,
-    b8g8r8x8_unorm_srgb = 93,
-    r10g10b10a2_unorm   = 24,
-    r10g10b10a2_xr_bias = 89,
-    b10g10r10a2_unorm   = 0x42475331,
-    r16g16b16a16_float  = 10
-  };
-#else
   using format = reshade::api::format;
-#endif
 
 #define DeclareUint32(x,y) uint32_t x = SetUint32((x),(y))
 #if (defined _M_IX86) || (defined _M_X64)
@@ -306,16 +310,188 @@ namespace sk_hdr_png
     };
   };
 
-  bool     write_image_to_disk (const wchar_t* image_path, UINT width, UINT height, void* pixels, format format, int scrgb_bits, bool copy_to_clipboard);
-  bool     remove_chunk        (const char* chunk_name, void* data, size_t& size);
-  uint32_t crc32               (const void* typeless_data, size_t offset, size_t len, uint32_t crc);
+  bool         write_image_to_disk          (const wchar_t* image_path, unsigned int width, unsigned int height, const void*  pixels,          int quantization_bits, format fmt, bool use_clipboard, reshade::api::display* display);
+  bool         write_hdr_chunks             (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance_array, int quantization_bits,                                 reshade::api::display* display);
+  cLLi_Payload calculate_content_light_info (const float*   luminance,  unsigned int width, unsigned int height);
+  bool         copy_to_clipboard            (const wchar_t* image_path);
+  bool         remove_chunk                 (const char*    chunk_name, void* data, size_t& size);
+  uint32_t     crc32                        (const void*    typeless_data, size_t offset, size_t len, uint32_t crc);
 
-  bool         CopyToClipboard (const wchar_t* image_path);
+  struct ParamsPQ
+  {
+    DirectX::XMVECTOR N,       M;
+    DirectX::XMVECTOR C1, C2, C3;
+    DirectX::XMVECTOR MaxPQ;
+    DirectX::XMVECTOR RcpN, RcpM;
+  };
 
-  cLLi_Payload CalculateContentLightInfo (const float* luminance_array, UINT width, UINT height);
-  bool         WriteHDRChunks            (const wchar_t* image_path, const float*  luminance_array, UINT width, UINT height, format format, int quantization_bits);
+  static const ParamsPQ PQ =
+  {
+    DirectX::XMVectorReplicate  (2610.0 / 4096.0 / 4.0),   // N
+    DirectX::XMVectorReplicate  (2523.0 / 4096.0 * 128.0), // M
+    DirectX::XMVectorReplicate  (3424.0 / 4096.0),         // C1
+    DirectX::XMVectorReplicate  (2413.0 / 4096.0 * 32.0),  // C2
+    DirectX::XMVectorReplicate  (2392.0 / 4096.0 * 32.0),  // C3
+    DirectX::XMVectorReplicate  (125.0f),                  // MaxPQ
+    DirectX::XMVectorReciprocal (DirectX::XMVectorReplicate (2610.0 / 4096.0 / 4.0)),
+    DirectX::XMVectorReciprocal (DirectX::XMVectorReplicate (2523.0 / 4096.0 * 128.0)),
+  };
+
+  constexpr DirectX::XMMATRIX c_from709to2020 =
+  {
+    { 0.627403914928436279296875f,     0.069097287952899932861328125f,    0.01639143936336040496826171875f, 0.0f },
+    { 0.3292830288410186767578125f,    0.9195404052734375f,               0.08801330626010894775390625f,    0.0f },
+    { 0.0433130674064159393310546875f, 0.011362315155565738677978515625f, 0.895595252513885498046875f,      0.0f },
+    { 0.0f,                            0.0f,                              0.0f,                             1.0f }
+  };
+
+  constexpr DirectX::XMMATRIX c_from709toXYZ =
+  {
+    { 0.4123907983303070068359375f,  0.2126390039920806884765625f,   0.0193308182060718536376953125f, 0.0f },
+    { 0.3575843274593353271484375f,  0.715168654918670654296875f,    0.119194783270359039306640625f,  0.0f },
+    { 0.18048079311847686767578125f, 0.072192318737506866455078125f, 0.950532138347625732421875f,     0.0f },
+    { 0.0f,                          0.0f,                           0.0f,                            1.0f }
+  };
+
+  constexpr DirectX::XMMATRIX c_from2020toXYZ =
+  {
+    { 0.636958062648773193359375f,  0.26270020008087158203125f,      0.0f,                           0.0f },
+    { 0.144616901874542236328125f,  0.677998065948486328125f,        0.028072692453861236572265625f, 0.0f },
+    { 0.1688809692859649658203125f, 0.0593017153441905975341796875f, 1.060985088348388671875f,       0.0f },
+    { 0.0f,                         0.0f,                            0.0f,                           1.0f }
+  };
+
+  static auto LinearToPQ = [](DirectX::XMVECTOR& N)
+  {
+    using namespace DirectX;
+
+    XMVECTOR ret =
+      XMVectorPow (XMVectorDivide (XMVectorMax (N, g_XMZero), PQ.MaxPQ), PQ.N);
+
+    XMVECTOR nd =
+      XMVectorDivide (
+        XMVectorMultiplyAdd (PQ.C2, ret, PQ.C1),
+        XMVectorMultiplyAdd (PQ.C3, ret, g_XMOne)
+      );
+
+    return
+      XMVectorPow (nd, PQ.M);
+  };
+
+  static auto PQToLinear = [](DirectX::XMVECTOR& N)
+  {
+    using namespace DirectX;
+
+    XMVECTOR ret =
+      XMVectorPow (XMVectorMax (N, g_XMZero), PQ.RcpM);
+
+    XMVECTOR nd =
+      XMVectorDivide (
+        XMVectorMax (XMVectorSubtract (ret, PQ.C1), g_XMZero),
+                     XMVectorSubtract (     PQ.C2,
+                          XMVectorMultiply (PQ.C3, ret)));
+
+    ret =
+      XMVectorMultiply (
+        XMVectorPow (nd, PQ.RcpN), PQ.MaxPQ
+      );
+
+    return ret;
+  };
 }
 
+static
+sk_hdr_png::cLLi_Payload
+sk_hdr_png::calculate_content_light_info (const float* luminance, unsigned int width, unsigned int height)
+{
+  using namespace DirectX;
+  using namespace DirectX::PackedVector;
+
+  cLLi_Payload clli = { };
+
+  if (luminance == nullptr || width == 0 || height == 0)
+    return clli;
+
+  float N         =       0.0f;
+  float fLumAccum =       0.0f;
+  float fMaxLum   =       0.0f;
+  float fMinLum   = 5240320.0f;
+
+  float fScanlineLum = 0.0f;
+
+  const float* pixel_luminance = luminance;
+
+  for (size_t y = 0; y < height; y++)
+  {
+    fScanlineLum = 0.0f;
+
+    for (size_t x = 0; x < width ; x++)
+    {
+      fMaxLum = std::max (fMaxLum, *pixel_luminance);
+      fMinLum = std::min (fMinLum, *pixel_luminance);
+
+      fScanlineLum += *pixel_luminance++;
+    }
+
+    fLumAccum +=
+      (fScanlineLum / static_cast <float> (width));
+    ++N;
+  }
+
+  if (N > 0.0)
+  {
+    pixel_luminance = luminance;
+
+    // 0 nits - 10k nits (appropriate for screencap, but not HDR photography)
+    fMinLum = std::clamp (fMinLum, 0.0f,    125.0f);
+    fMaxLum = std::clamp (fMaxLum, fMinLum, 125.0f);
+
+    const float fLumRange =
+            (fMaxLum - fMinLum);
+
+    auto        luminance_freq = std::make_unique <uint32_t []> (65536);
+    ZeroMemory (luminance_freq.get (),     sizeof (uint32_t)  *  65536);
+
+    for (size_t y = 0; y < height * width; y++)
+    {
+      luminance_freq [
+        std::clamp ( (int)
+          std::roundf (
+            (*pixel_luminance++ - fMinLum)     /
+                                    (fLumRange / 65536.0f) ),
+                                              0, 65535 ) ]++;
+    }
+
+          double percent  = 100.0;
+    const double img_size = (double)width *
+                            (double)height;
+
+    // Now that we have the frequency distribution, let's claim our prize...
+    //
+    //   * Calculate the 99.5th percentile luminance and use it as MaxCLL
+    //
+    for (auto i = 65535; i >= 0; --i)
+    {
+      percent -=
+        100.0 * ((double)luminance_freq [i] / img_size);
+
+      if (percent <= 99.5)
+      {
+        fMaxLum = fMinLum + (fLumRange * ((float)i / 65536.0f));
+        break;
+      }
+    }
+
+    SetUint32 (clli.max_cll,
+      static_cast <uint32_t> ((80.0f *  fMaxLum       ) / 0.0001f));
+    SetUint32 (clli.max_fall,
+      static_cast <uint32_t> ((80.0f * (fLumAccum / N)) / 0.0001f));
+  }
+
+  return clli;
+}
+
+static
 uint32_t
 sk_hdr_png::crc32 (const void* typeless_data, size_t offset, size_t len, uint32_t crc)
 {
@@ -370,6 +546,7 @@ sk_hdr_png::crc32 (const void* typeless_data, size_t offset, size_t len, uint32_
 //  (5) Add cLLi  [Unnecessary, but probably a good idea]
 //  (6) Add cHRM  [Unnecessary, but probably a good idea]
 //
+static
 bool
 sk_hdr_png::remove_chunk (const char* chunk_name, void* data, size_t& size)
 {
@@ -411,204 +588,17 @@ sk_hdr_png::remove_chunk (const char* chunk_name, void* data, size_t& size)
 	return true;
 }
 
-using namespace DirectX;
-using namespace DirectX::PackedVector;
-
-struct ParamsPQ
-{
-	XMVECTOR N,       M;
-	XMVECTOR C1, C2, C3;
-	XMVECTOR MaxPQ;
-	XMVECTOR RcpN, RcpM;
-};
-
-const ParamsPQ PQ =
-{
-	XMVectorReplicate (2610.0 / 4096.0 / 4.0),   // N
-	XMVectorReplicate (2523.0 / 4096.0 * 128.0), // M
-	XMVectorReplicate (3424.0 / 4096.0),         // C1
-	XMVectorReplicate (2413.0 / 4096.0 * 32.0),  // C2
-	XMVectorReplicate (2392.0 / 4096.0 * 32.0),  // C3
-	XMVectorReplicate (125.0f),                  // MaxPQ
-	XMVectorReciprocal (XMVectorReplicate (2610.0 / 4096.0 / 4.0)),
-	XMVectorReciprocal (XMVectorReplicate (2523.0 / 4096.0 * 128.0)),
-};
-
-constexpr XMMATRIX c_from709to2020 =
-{
-	{ 0.627403914928436279296875f,     0.069097287952899932861328125f,    0.01639143936336040496826171875f, 0.0f },
-	{ 0.3292830288410186767578125f,    0.9195404052734375f,               0.08801330626010894775390625f,    0.0f },
-	{ 0.0433130674064159393310546875f, 0.011362315155565738677978515625f, 0.895595252513885498046875f,      0.0f },
-	{ 0.0f,                            0.0f,                              0.0f,                             1.0f }
-};
-
-constexpr XMMATRIX c_from709toXYZ =
-{
-	{ 0.4123907983303070068359375f,  0.2126390039920806884765625f,   0.0193308182060718536376953125f, 0.0f },
-	{ 0.3575843274593353271484375f,  0.715168654918670654296875f,    0.119194783270359039306640625f,  0.0f },
-	{ 0.18048079311847686767578125f, 0.072192318737506866455078125f, 0.950532138347625732421875f,     0.0f },
-	{ 0.0f,                          0.0f,                           0.0f,                            1.0f }
-};
-
-constexpr DirectX::XMMATRIX c_from2020toXYZ =
-{
-	{ 0.636958062648773193359375f,  0.26270020008087158203125f,      0.0f,                           0.0f },
-	{ 0.144616901874542236328125f,  0.677998065948486328125f,        0.028072692453861236572265625f, 0.0f },
-	{ 0.1688809692859649658203125f, 0.0593017153441905975341796875f, 1.060985088348388671875f,       0.0f },
-	{ 0.0f,                         0.0f,                            0.0f,                           1.0f }
-};
-
-static auto LinearToPQ = [](XMVECTOR& N)
-{
-	XMVECTOR ret =
-		XMVectorPow (XMVectorDivide (XMVectorMax (N, g_XMZero), PQ.MaxPQ), PQ.N);
-
-	XMVECTOR nd =
-		XMVectorDivide (
-			XMVectorMultiplyAdd (PQ.C2, ret, PQ.C1),
-			XMVectorMultiplyAdd (PQ.C3, ret, g_XMOne)
-		);
-
-	return
-		XMVectorPow (nd, PQ.M);
-};
-
-static auto PQToLinear = [](XMVECTOR& N)
-{
-	XMVECTOR ret =
-		XMVectorPow (XMVectorMax (N, g_XMZero), PQ.RcpM);
-
-	XMVECTOR nd =
-		XMVectorDivide (
-		  XMVectorMax (XMVectorSubtract (ret, PQ.C1), g_XMZero),
-		               XMVectorSubtract (     PQ.C2,
-		        XMVectorMultiply (PQ.C3, ret)));
-
-	ret =
-		XMVectorMultiply (
-			XMVectorPow (nd, PQ.RcpN), PQ.MaxPQ
-		);
-
-  return ret;
-};
-
-sk_hdr_png::cLLi_Payload
-sk_hdr_png::CalculateContentLightInfo (const float* luminance_array, UINT width, UINT height)
-{
-  cLLi_Payload clli = { };
-
-  if (luminance_array == nullptr || width == 0 || height == 0)
-    return clli;
-
-  float N         =       0.0f;
-  float fLumAccum =       0.0f;
-  float fMaxLum   =       0.0f;
-  float fMinLum   = 5240320.0f;
-
-  float fScanlineLum = 0.0f;
-
-  XMFLOAT4* rgba32_scanline = (XMFLOAT4 *)_aligned_malloc (sizeof (float) * 4 * width, 16);
-
-  // Out of Memory
-  if (rgba32_scanline == nullptr)
-    return clli;
-
-  const float* luminance = luminance_array;
-
-  for (size_t y = 0; y < height; y++)
-  {
-    fScanlineLum = 0.0f;
-
-    for (size_t x = 0; x < width ; x++)
-    {
-      const float fLum = *luminance++;
-
-      fMaxLum = std::max (fMaxLum, fLum);
-      fMinLum = std::min (fMinLum, fLum);
-
-      fScanlineLum += fLum;
-    }
-
-    fLumAccum +=
-      (fScanlineLum / static_cast <float> (width));
-    ++N;
-  }
-
-  if (N > 0.0)
-  {
-    luminance = luminance_array;
-
-    // 0 nits - 10k nits (appropriate for screencap, but not HDR photography)
-    fMinLum = std::clamp (fMinLum, 0.0f,    125.0f);
-    fMaxLum = std::clamp (fMaxLum, fMinLum, 125.0f);
-
-    const float fLumRange =
-            (fMaxLum - fMinLum);
-
-    auto        luminance_freq = std::make_unique <uint32_t []> (65536);
-    ZeroMemory (luminance_freq.get (),     sizeof (uint32_t)  *  65536);
-
-    for (size_t y = 0; y < height * width; y++)
-    {
-      const float fLum =
-        *luminance++;
-
-      luminance_freq [
-        std::clamp ( (int)
-          std::roundf (
-            (fLum - fMinLum)     /
-                      (fLumRange / 65536.0f) ),
-                                0, 65535 ) ]++;
-    }
-
-          double percent  = 100.0;
-    const double img_size = (double)width *
-                            (double)height;
-
-    // Now that we have the frequency distribution, let's claim our prize...
-    //
-    //   * Calculate the 99.5th percentile luminance and use it as MaxCLL
-    //
-    for (auto i = 65535; i >= 0; --i)
-    {
-      percent -=
-        100.0 * ((double)luminance_freq [i] / img_size);
-
-      if (percent <= 99.5)
-      {
-        fMaxLum =
-          fMinLum + (fLumRange * ((float)i / 65536.0f));
-
-        break;
-      }
-    }
-
-    SetUint32 (clli.max_cll,
-      static_cast <uint32_t> ((80.0f *          fMaxLum) / 0.0001f));
-    SetUint32 (clli.max_fall,
-      static_cast <uint32_t> ((80.0f * (fLumAccum / N))  / 0.0001f));
-  }
-
-  _aligned_free (rgba32_scanline);
-
-  return clli;
-}
-
+static
 bool
-sk_hdr_png::WriteHDRChunks ( const wchar_t* image_path,
-                             const float*   luminance_array,
-                             UINT           width,
-                             UINT           height,
-                             format         format,
-                             int            quantization_bits)
+sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance, int quantization_bits, reshade::api::display* display)
 {
-	if (image_path == nullptr || width == 0 || height == 0 || format == format::unknown || quantization_bits < 6)
+	if (image_path == nullptr || width == 0 || height == 0 || quantization_bits < 6)
 	{
 		return false;
 	}
 
 	// 16-byte alignment is mandatory for SIMD processing
-	if ((reinterpret_cast<uintptr_t>(luminance_array) & 0xF) != 0)
+	if ((reinterpret_cast<uintptr_t>(luminance) & 0xF) != 0)
 	{
 		return false;
 	}
@@ -699,64 +689,64 @@ sk_hdr_png::WriteHDRChunks ( const wchar_t* image_path,
 		iCCP_Payload iccp_data;
 
 		cHRM_Payload chrm_data; // Rec 2020 chromaticity
-		sBIT_Payload sbit_data; // Bits in original source (max=12)
+		sBIT_Payload sbit_data; // Bits in original source (max=16)
 		mDCv_Payload mdcv_data; // Display capabilities
 		cLLi_Payload clli_data; // Content light info
 
-		clli_data = CalculateContentLightInfo(luminance_array, width, height);
+		clli_data = calculate_content_light_info(luminance, width, height);
 
 		unsigned char sBIT_quantized = static_cast<unsigned char>(quantization_bits);
 		sbit_data = { sBIT_quantized, sBIT_quantized, sBIT_quantized };
-
-		///
-		/// Mastering metadata can be added, provided you are able to read this info
-		/// from the user's EDID.
-		///
-
-		///auto& rb =
-		///  SK_GetCurrentRenderBackend ();
-		///
-		///auto& active_display =
-		///  rb.displays [rb.active_display];
-		///
-		///SetUint32 (mdcv_data.luminance.minimum,
-		///  static_cast <uint32_t> (round (active_display.gamut.minY / 0.0001f)));
-		///SetUint32 (mdcv_data.luminance.maximum,
-		///  static_cast <uint32_t> (round (active_display.gamut.maxY / 0.0001f)));
-		///
-		///SetUint32 (mdcv_data.primaries.red_x,
-		///  static_cast <uint32_t> (round (active_display.gamut.xr / 0.00002)));
-		///SetUint32 (mdcv_data.primaries.red_y,
-		///  static_cast <uint32_t> (round (active_display.gamut.yr / 0.00002)));
-		///
-		///SetUint32 (mdcv_data.primaries.green_x,
-		///  static_cast <uint32_t> (round (active_display.gamut.xg / 0.00002)));
-		///SetUint32 (mdcv_data.primaries.green_y,
-		///  static_cast <uint32_t> (round (active_display.gamut.yg / 0.00002)));
-		///
-		///SetUint32 (mdcv_data.primaries.blue_x,
-		///  static_cast <uint32_t> (round (active_display.gamut.xb / 0.00002)));
-		///SetUint32 (mdcv_data.primaries.blue_y,
-		///  static_cast <uint32_t> (round (active_display.gamut.yb / 0.00002)));
-		///
-		///SetUint32 (mdcv_data.white_point.x,
-		///  static_cast <uint32_t> (round (active_display.gamut.Xw / 0.00002)));
-		///SetUint32 (mdcv_data.white_point.y,
-		///  static_cast <uint32_t> (round (active_display.gamut.Yw / 0.00002)));
 
 		Chunk iccp_chunk = {sizeof(iCCP_Payload), {'i','C','C','P'}, &iccp_data};
 		Chunk cicp_chunk = {sizeof(cicp_data),    {'c','I','C','P'}, &cicp_data};
 		Chunk clli_chunk = {sizeof(clli_data),    {'c','L','L','i'}, &clli_data};
 		Chunk sbit_chunk = {sizeof(sbit_data),    {'s','B','I','T'}, &sbit_data};
 		Chunk chrm_chunk = {sizeof(chrm_data),    {'c','H','R','M'}, &chrm_data};
-	  //Chunk mdcv_chunk = {sizeof(mdcv_data),    {'m','D','C','v'}, &mdcv_data};
 
 		iccp_chunk.write(fPNG);
 		cicp_chunk.write(fPNG);
 		clli_chunk.write(fPNG);
 		sbit_chunk.write(fPNG);
 		chrm_chunk.write(fPNG);
-	  //mdcv_chunk.write(fPNG);
+
+		///
+		/// Mastering metadata can be added, provided you are able to read this info
+		/// from the user's EDID.
+		///
+		if (display != nullptr)
+		{
+			auto colorimetry = display->get_colorimetry();
+			auto luminance_caps = display->get_luminance_caps();
+
+			sk_hdr_png::SetUint32 (mdcv_data.luminance.minimum,
+			  static_cast <uint32_t> (round (luminance_caps.min_nits / 0.0001f)));
+			sk_hdr_png::SetUint32 (mdcv_data.luminance.maximum,
+			  static_cast <uint32_t> (round (luminance_caps.max_nits / 0.0001f)));
+
+			sk_hdr_png::SetUint32 (mdcv_data.primaries.red_x,
+			  static_cast <uint32_t> (round (colorimetry.red [0] / 0.00002)));
+			sk_hdr_png::SetUint32 (mdcv_data.primaries.red_y,
+			  static_cast <uint32_t> (round (colorimetry.red [1] / 0.00002)));
+
+			sk_hdr_png::SetUint32 (mdcv_data.primaries.green_x,
+			  static_cast <uint32_t> (round (colorimetry.green [0] / 0.00002)));
+			sk_hdr_png::SetUint32 (mdcv_data.primaries.green_y,
+			  static_cast <uint32_t> (round (colorimetry.green [1] / 0.00002)));
+
+			sk_hdr_png::SetUint32 (mdcv_data.primaries.blue_x,
+			  static_cast <uint32_t> (round (colorimetry.blue [0] / 0.00002)));
+			sk_hdr_png::SetUint32 (mdcv_data.primaries.blue_y,
+			  static_cast <uint32_t> (round (colorimetry.blue [1] / 0.00002)));
+
+			sk_hdr_png::SetUint32 (mdcv_data.white_point.x,
+			  static_cast <uint32_t> (round (colorimetry.white [0] / 0.00002)));
+			sk_hdr_png::SetUint32 (mdcv_data.white_point.y,
+			  static_cast <uint32_t> (round (colorimetry.white [1] / 0.00002)));
+
+			Chunk mdcv_chunk = {sizeof(mdcv_data),    {'m','D','C','v'}, &mdcv_data};
+			mdcv_chunk.write(fPNG);
+		}
 
 		// Write the remainder of the original file
 		fwrite(insert_ptr, size - insert_pos, 1, fPNG);
@@ -769,8 +759,9 @@ sk_hdr_png::WriteHDRChunks ( const wchar_t* image_path,
 	return false;
 }
 
+static
 bool
-sk_hdr_png::CopyToClipboard (const wchar_t* image_path)
+sk_hdr_png::copy_to_clipboard (const wchar_t* image_path)
 {
 	std::error_code ec;
 	if (image_path == nullptr || !std::filesystem::exists (image_path, ec))
@@ -825,9 +816,13 @@ sk_hdr_png::CopyToClipboard (const wchar_t* image_path)
 	return false;
 }
 
+static
 bool
-sk_hdr_png::write_image_to_disk (const wchar_t* image_path, UINT width, UINT height, void* pixels, format format, int quantization_bits, bool copy_to_clipboard)
+sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt, bool use_clipboard, reshade::api::display* display)
 {
+	using namespace DirectX;
+	using namespace DirectX::PackedVector;
+
 	// PNG only supports 8-bpc and 16-bpc pixels; the bpc refers to the size of the pixel during encode/decode.
 	//
 	//   * We have a 3-channel RGB image, thus 48-bpp when decoded.
@@ -835,7 +830,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, UINT width, UINT hei
 	// Space savings are possible by quantizing to alternate bit depths before encoding, 10-bpc is a sane minimum for HDR.
 	WICPixelFormatGUID wic_format = GUID_WICPixelFormat48bppRGB;
 
-	if (image_path == nullptr || width == 0 || height == 0 || format == format::unknown)
+	if (image_path == nullptr || width == 0 || height == 0 || (fmt != format::r16g16b16a16_float && fmt != format::r10g10b10a2_unorm))
 	{
 		return false;
 	}
@@ -857,18 +852,20 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, UINT width, UINT hei
 	com_ptr<IPropertyBag2> property_bag;
 	com_ptr<IWICStream> stream;
 
-	HRESULT hr =
-		CoCreateInstance(CLSID_WICImagingFactory,NULL,CLSCTX_INPROC_SERVER,IID_IWICImagingFactory,(LPVOID*)&factory);
+	HRESULT hr = E_OUTOFMEMORY;
 
 	UINT row_stride  = (width * 48 + 7)/8;
 	UINT buffer_size = height * row_stride;
 
 	BYTE*     png_buffer      =     (BYTE *)_aligned_malloc(sizeof (    BYTE) * buffer_size,    16);
 	XMFLOAT4* rgba32_scanline = (XMFLOAT4 *)_aligned_malloc(sizeof (XMFLOAT4) * width,          16);
-	float*    luminance_array =    (float *)_aligned_malloc(sizeof (   float) * width * height, 16);
+	float*    luminance       =    (float *)_aligned_malloc(sizeof (   float) * width * height, 16);
 
-	if (png_buffer != nullptr && rgba32_scanline != nullptr && luminance_array != nullptr)
+	if (png_buffer != nullptr && rgba32_scanline != nullptr && luminance != nullptr)
 	{
+		hr =
+			CoCreateInstance(CLSID_WICImagingFactory,NULL,CLSCTX_INPROC_SERVER,IID_IWICImagingFactory,(LPVOID*)&factory);
+
 		if (SUCCEEDED(hr)) hr = factory->CreateStream(&stream);
 		if (SUCCEEDED(hr)) hr = stream->InitializeFromFilename(image_path, GENERIC_WRITE);
 		if (SUCCEEDED(hr)) hr = factory->CreateEncoder(GUID_ContainerFormatPng, NULL, &encoder);
@@ -880,55 +877,62 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, UINT width, UINT hei
 		if (SUCCEEDED(hr)) hr = IsEqualGUID(wic_format, GUID_WICPixelFormat48bppRGB) ? S_OK : E_FAIL;
 		if (SUCCEEDED(hr))
 		{
-			if (format == format::r10g10b10a2_unorm)
+			auto QUANTIZE_FP32_TO_UNORM16 = [](XMVECTOR& rgb32,int bit_reduce,uint16_t*& output)
 			{
-				// nb: Technically fewer bits could be used at image quality expense...
-				quantization_bits = 10;
+				const int quant_postscale = 1UL << bit_reduce;
+				const float quant_prescale = static_cast<float>(quant_postscale);
 
+				*(output++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(std::roundf ((XMVectorGetX (rgb32) * quant_prescale)) * 65536.0f) / quant_postscale));
+				*(output++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(std::roundf ((XMVectorGetY (rgb32) * quant_prescale)) * 65536.0f) / quant_postscale));
+				*(output++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(std::roundf ((XMVectorGetZ (rgb32) * quant_prescale)) * 65536.0f) / quant_postscale));
+			};
+
+			if (fmt == format::r10g10b10a2_unorm)
+			{
 				uint16_t* png_pixels = (uint16_t *)png_buffer;
 				uint32_t* src_pixels = (uint32_t *)pixels;
 
-				auto luminance = luminance_array;
+				auto pixel_luminance = luminance;
 
 				for (size_t i = 0; i < width * height; i++)
 				{
 					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(src_pixels++);
 
-					// Multiply by 64 to get 10-bit range (0-1023) into safe 16-bit range (0-65535)
-					const uint16_t r = (((( rgba & 0x000003FF)        + 1) * 64) & 0xFFFF) - 1;
-					const uint16_t g = (((((rgba & 0x000FFC00) >> 10) + 1) * 64) & 0xFFFF) - 1;
-					const uint16_t b = (((((rgba & 0x3FF00000) >> 20) + 1) * 64) & 0xFFFF) - 1;
+					// Multiply by 64 and +/- 1 to get 10-bit range (0-1023) into 16-bit range (0-65535)
+					const uint16_t r = (((( rgba & 0x000003FFU)         + 1U) * 64U) & 0xFFFFU) - 1U;
+					const uint16_t g = (((((rgba & 0x000FFC00U) >> 10U) + 1U) * 64U) & 0xFFFFU) - 1U;
+					const uint16_t b = (((((rgba & 0x3FF00000U) >> 20U) + 1U) * 64U) & 0xFFFFU) - 1U;
 
-					*png_pixels++ = r;
-					*png_pixels++ = g;
-					*png_pixels++ = b;
+					XMVECTOR rgb =
+						XMVectorSet (static_cast<float>(r) / 65535.0f,
+						             static_cast<float>(g) / 65535.0f,
+						             static_cast<float>(b) / 65535.0f, 1.0f);
 
-					XMVECTOR v =
-					  XMVectorSet (static_cast <float>(r) / 65535.0f,
-					               static_cast <float>(g) / 65535.0f,
-					               static_cast <float>(b) / 65535.0f, 1.0f);
+					if (quantization_bits < 10) {
+						QUANTIZE_FP32_TO_UNORM16 (rgb, quantization_bits, png_pixels);
+					} else {
+						*(png_pixels++) = r;
+						*(png_pixels++) = g;
+						*(png_pixels++) = b;
+					}
 
-					v =
-					  XMVector3Transform (
-					    PQToLinear (XMVectorSaturate (v)), c_from2020toXYZ
-					  );
-
-					*luminance++ =
-					  XMVectorGetY (v);
+					*pixel_luminance++ =
+						XMVectorGetY (
+						  XMVector3Transform (
+						    PQToLinear (XMVectorSaturate (rgb)), c_from2020toXYZ
+						  )
+						);
 				}
 
 				hr = bitmap_frame->WritePixels(height, row_stride, buffer_size, png_buffer);
 			}
 
-			else if (format == format::r16g16b16a16_float)
+			else if (fmt == format::r16g16b16a16_float)
 			{
-				const int scrgb_postscale = 1UL << quantization_bits;
-				const float scrgb_prescale = static_cast<float>(scrgb_postscale);
-
 				uint16_t* png_pixels = (uint16_t *)png_buffer;
 				uint16_t* src_pixels = (uint16_t *)pixels;
 
-				auto luminance = luminance_array;
+				auto pixel_luminance = luminance;
 
 				for (size_t y = 0; y < height; y++)
 				{
@@ -944,20 +948,25 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, UINT width, UINT hei
 						XMVECTOR rgb =
 							XMLoadFloat4 (rgba32_pixels++);
 
-						*luminance++ =
-							XMVectorGetY (XMVector3Transform (rgb, c_from709toXYZ));
+						*pixel_luminance++ =
+							XMVectorGetY (
+								XMVector3Transform (rgb, c_from709toXYZ)
+							);
 
 						rgb =
-							LinearToPQ (XMVectorMax (XMVector3Transform (rgb, c_from709to2020), g_XMZero));
+							LinearToPQ (
+								XMVectorMax (
+									XMVector3Transform (rgb, c_from709to2020),
+									g_XMZero )
+							);
 
-						if (quantization_bits != 16) {
-							*(png_pixels++) = static_cast <uint16_t> (std::min (65535, static_cast <int> (std::roundf ((XMVectorGetX (rgb) * scrgb_prescale)) * 65536.0f) / scrgb_postscale));
-							*(png_pixels++) = static_cast <uint16_t> (std::min (65535, static_cast <int> (std::roundf ((XMVectorGetY (rgb) * scrgb_prescale)) * 65536.0f) / scrgb_postscale));
-							*(png_pixels++) = static_cast <uint16_t> (std::min (65535, static_cast <int> (std::roundf ((XMVectorGetZ (rgb) * scrgb_prescale)) * 65536.0f) / scrgb_postscale));
-						} else {
-							*(png_pixels++) = static_cast <uint16_t> (std::min (65535, static_cast <int> (XMVectorGetX (rgb) * 65536.0f)));
-							*(png_pixels++) = static_cast <uint16_t> (std::min (65535, static_cast <int> (XMVectorGetY (rgb) * 65536.0f)));
-							*(png_pixels++) = static_cast <uint16_t> (std::min (65535, static_cast <int> (XMVectorGetZ (rgb) * 65536.0f)));
+						if (quantization_bits < 16)
+							QUANTIZE_FP32_TO_UNORM16 (rgb, quantization_bits, png_pixels);
+						else
+						{
+							*(png_pixels++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(XMVectorGetX (rgb) * 65536.0f)));
+							*(png_pixels++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(XMVectorGetY (rgb) * 65536.0f)));
+							*(png_pixels++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(XMVectorGetZ (rgb) * 65536.0f)));
 						}
 
 						src_pixels += 4;
@@ -976,18 +985,22 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, UINT width, UINT hei
 
 	if (SUCCEEDED(hr)) hr = bitmap_frame->Commit();
 	if (SUCCEEDED(hr)) hr = encoder->Commit();
-
 	if (SUCCEEDED(hr))
 	{
-		WriteHDRChunks(image_path, luminance_array, width, height, format, quantization_bits);
+		hr = write_hdr_chunks(image_path, width, height, luminance, quantization_bits, display) ? S_OK : E_FAIL;
 
-		if (copy_to_clipboard)
-			CopyToClipboard(image_path);
+		if (SUCCEEDED(hr))
+		{
+			if (use_clipboard)
+				hr = copy_to_clipboard(image_path) ? S_OK : E_FAIL;
+		}
 	}
 
-	if (png_buffer      != nullptr) _aligned_free(png_buffer);
-	if (rgba32_scanline != nullptr) _aligned_free(rgba32_scanline);
-	if (luminance_array != nullptr) _aligned_free(luminance_array);
+	_aligned_free(png_buffer);
+	_aligned_free(rgba32_scanline);
+	_aligned_free(luminance);
 
 	return SUCCEEDED(hr);
 }
+
+#pragma pop_macro("_XM_F16C_INTRINSICS_")
