@@ -1707,7 +1707,7 @@ namespace reshade
 
 		/// <summary>
 		/// Called when the active display changes for the current runtime.
-		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::display display)</c></para>
+		/// <para>Callback function signature: <c>void (api::effect_runtime *runtime, api::display *display)</c></para>
 		/// </summary>
 		display_change = 95,
 
@@ -1855,5 +1855,5 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_uniform_variable, bool, api::effect_runtime *runtime, api::effect_uniform_variable variable);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_technique, bool, api::effect_runtime *runtime, api::effect_technique technique);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::display_change, void, api::effect_runtime *runtime, api::display* display);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::display_change, void, api::effect_runtime *runtime, api::display *display);
 }
