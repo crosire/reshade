@@ -291,16 +291,16 @@ void reshade::dxgi::display_impl::flush_cache(reshade::api::display_cache& displ
 					for (auto &path : paths)
 					{
 						DISPLAYCONFIG_SOURCE_DEVICE_NAME
-						sourceName                  = {};
-						sourceName.header.adapterId = path.sourceInfo.adapterId;
-						sourceName.header.id        = path.sourceInfo.id;
-						sourceName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-						sourceName.header.size      = sizeof  (DISPLAYCONFIG_SOURCE_DEVICE_NAME);
+						source_name                  = {};
+						source_name.header.adapterId = path.sourceInfo.adapterId;
+						source_name.header.id        = path.sourceInfo.id;
+						source_name.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+						source_name.header.size      = sizeof  (DISPLAYCONFIG_SOURCE_DEVICE_NAME);
 	
-						if (DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS)
+						if (DisplayConfigGetDeviceInfo(&source_name.header) != ERROR_SUCCESS)
 							continue;
 	
-						if (_wcsicmp(desc.DeviceName, sourceName.viewGdiDeviceName))
+						if (_wcsicmp(desc.DeviceName, source_name.viewGdiDeviceName))
 							continue;
 
 						displays.emplace(desc.Monitor,
