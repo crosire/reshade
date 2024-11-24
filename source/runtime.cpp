@@ -589,8 +589,11 @@ void reshade::runtime::on_reset()
 
 	_width = _height = 0;
 
-	_containing_output = nullptr;
-	_displays.clear();
+	if (_containing_output != nullptr && !_containing_output->is_current())
+	{
+		_containing_output = nullptr;
+		_displays.clear();
+	}
 
 #if RESHADE_GUI
 	if (_is_vr)
@@ -669,37 +672,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	std::unique_lock<std::recursive_mutex> input_lock;
 	if (_input != nullptr)
 		input_lock = _input->lock();
-
-	if (_input != nullptr)
-	{
-		extern bool is_desktop_current(uint32_t& timestamp);
-		if (!is_desktop_current(_last_desktop_change) || (_containing_output == nullptr || !_containing_output->is_current()))
-		{
-			// Flush the entire desktop display cache
-			on_display_change();
-		}
-
-		else
-		{
-			HWND window = static_cast<HWND>(_swapchain->get_hwnd());
-			RECT window_rect = {};
-			if (window != 0 && GetWindowRect(window,&window_rect) &&
-			    ((std::exchange(_last_desktop_x,window_rect.left) != window_rect.left) |
-			     (std::exchange(_last_desktop_y,window_rect.top) != window_rect.top)))
-			{
-				auto monitor = MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST);
-				if (monitor != nullptr && _displays.count(monitor))
-				{
-					if (_containing_output == nullptr || _containing_output->get_monitor() != monitor)
-					{
-						// The monitor the window is attached to changed, but the display cache is still valid
-						on_display_change();
-					}
-				}
-				
-			}
-		}
-	}
 
 #if RESHADE_FX
 	update_effects();
@@ -982,36 +954,76 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	if (std::numeric_limits<long>::max() != g_network_traffic)
 		g_network_traffic = 0;
 #endif
+
+	HWND window = static_cast<HWND>(_swapchain->get_hwnd());
+	if (window != 0)
+	{
+		extern bool is_desktop_current(std::atomic_uint32_t& timestamp);
+		if (!is_desktop_current(_last_desktop_change) || (_containing_output == nullptr || !_containing_output->is_current()))
+		{
+			// Flush the entire desktop display cache
+			on_display_change();
+		}
+
+		RECT window_rect = {};
+
+		if ((GetWindowRect(window,&window_rect) &&
+			((std::exchange(_last_desktop_x,window_rect.left) != window_rect.left) |
+			 (std::exchange(_last_desktop_y,window_rect.top)  != window_rect.top)))
+				|| _containing_output == nullptr)
+		{
+			const auto monitor = MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST);
+
+			if (monitor != nullptr && _displays.count(monitor))
+			{
+				if (_containing_output == nullptr || _containing_output->get_monitor() != monitor)
+				{
+					// The monitor the window is attached to has changed
+					on_display_change();
+				}
+			}
+		}
+	}
 }
 
 void reshade::runtime::on_display_change()
 {
-	bool flush = _displays.empty() || (_containing_output != nullptr && !_containing_output->is_current());
+	const bool flush = _displays.empty() || (_containing_output != nullptr && !_containing_output->is_current());
 
-	_containing_output = nullptr;
+	auto original_output = std::exchange(_containing_output, nullptr);
 
 	if (flush)
 	{
 		reshade::dxgi::display_impl::flush_cache(_displays);
 	}
 
-	api::display::monitor monitor {MonitorFromWindow(reinterpret_cast<HWND>(get_hwnd()),MONITOR_DEFAULTTONEAREST)};
-
-	if (_displays.count(monitor))
+	if (HWND window = reinterpret_cast<HWND>(get_hwnd()))
 	{
-		_containing_output = _displays[monitor].get();
+		api::display::monitor monitor {MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST)};
+		if (_displays.count(monitor))
+		{
+			RECT window_rect = {};
+			if (GetWindowRect(window,&window_rect))
+			{
+				_last_desktop_x = window_rect.left;
+				_last_desktop_y = window_rect.top;
+			}
 
+			if (std::exchange(_containing_output,_displays[monitor].get()) != original_output)
+			{
 #if RESHADE_ADDON
-		invoke_addon_event<addon_event::display_change>(this, _containing_output);
+				invoke_addon_event<addon_event::display_change>(this,_containing_output);
 #endif
 
 #if RESHADE_VERBOSE_LOG
-		auto& luminance_caps = _containing_output->get_luminance_caps();
+				auto& luminance_caps = _containing_output->get_luminance_caps();
 
-		log::message(log::level::info, "Swap chain is displaying at %5.2f Hz on '%ws' (%ws) - MinNits = %3.1f, MaxNits = %3.1f, MaxAvgNits = %3.1f.",
-			_containing_output->get_refresh_rate().as_float(), _containing_output->get_display_name(), _containing_output->get_device_name(),
-				luminance_caps.min_nits, luminance_caps.max_nits, luminance_caps.max_avg_nits);
+				log::message(log::level::info, "Swap chain is displaying at %5.2f Hz on '%ws' (%ws) - MinNits = %3.1f, MaxNits = %3.1f, MaxAvgNits = %3.1f.",
+					_containing_output->get_refresh_rate().as_float(), _containing_output->get_display_name(), _containing_output->get_device_name(),
+						luminance_caps.min_nits, luminance_caps.max_nits, luminance_caps.max_avg_nits);
 #endif
+			}
+		}
 	}
 
 	else

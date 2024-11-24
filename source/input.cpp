@@ -26,8 +26,8 @@ static std::chrono::high_resolution_clock::time_point s_last_cursor_warp = {};
 static std::atomic_bool s_blocking_global_mouse_input = false;
 static std::atomic_bool s_blocking_global_keyboard_input = false;
 static std::atomic_bool s_immobilizing_global_cursor_move = false;
-static uint32_t s_last_desktop_change = 0;
-bool is_desktop_current(uint32_t& timestamp) { return std::exchange(timestamp,s_last_desktop_change) == s_last_desktop_change; }
+static std::atomic_uint32_t s_last_desktop_change = 1; // All runtimes are initialized to 0, and will establish a desktop cache on the first frame drawn
+bool is_desktop_current(std::atomic_uint32_t& timestamp) { return std::atomic_exchange(&timestamp,s_last_desktop_change) >= s_last_desktop_change; }
 
 reshade::input::input(window_handle window)
 	: _window(window)
@@ -150,7 +150,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 	// The desktop display topology has changed, desktop runtimes should invalidate cached display properties
 	if (is_display_message)
 	{
-		s_last_desktop_change = std::max(s_last_desktop_change, static_cast<uint32_t>(details.time));
+		s_last_desktop_change = std::max(s_last_desktop_change.load(), static_cast<uint32_t>(details.time));
 		return false;
 	}
 

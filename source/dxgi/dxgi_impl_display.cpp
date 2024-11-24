@@ -228,13 +228,26 @@ bool reshade::dxgi::display_impl::enable_hdr(bool enable)
 
 void reshade::dxgi::display_impl::flush_cache(reshade::api::display_cache& displays)
 {
+	// Detect spurious cache flushes to eliminate sending false display change events to add-ons.
+	bool flush_required = displays.empty();
+	if (!flush_required)
+	{
+		for (const auto &display : displays)
+			if (flush_required = !display.second->is_current())
+				break;
+
+		// If nothing has actually changed, then we are done here...
+		if (!flush_required)
+			return;
+	}
+
 	displays.clear();
 
 	std::vector<DISPLAYCONFIG_PATH_INFO> paths;
 	std::vector<DISPLAYCONFIG_MODE_INFO> modes;
 	UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE | QDC_VIRTUAL_REFRESH_RATE_AWARE;
 	LONG result = ERROR_SUCCESS;
-	
+
 	do
 	{
 		UINT32 pathCount, modeCount;
@@ -272,34 +285,33 @@ void reshade::dxgi::display_impl::flush_cache(reshade::api::display_cache& displ
 				com_ptr<IDXGIOutput6> output6;
 				if (SUCCEEDED(output->QueryInterface<IDXGIOutput6>(&output6)))
 				{
-					DXGI_OUTPUT_DESC desc = {};
-					output6->GetDesc (&desc);
+					DXGI_OUTPUT_DESC1 desc = {};
+					output6->GetDesc1(&desc);
 	
-					for (auto& path : paths)
+					for (auto &path : paths)
 					{
-						DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName = {};
+						DISPLAYCONFIG_SOURCE_DEVICE_NAME
+						sourceName                  = {};
 						sourceName.header.adapterId = path.sourceInfo.adapterId;
-						sourceName.header.id = path.sourceInfo.id;
-						sourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-						sourceName.header.size = sizeof(sourceName);
+						sourceName.header.id        = path.sourceInfo.id;
+						sourceName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+						sourceName.header.size      = sizeof  (DISPLAYCONFIG_SOURCE_DEVICE_NAME);
 	
 						if (DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS)
-						{
 							continue;
-						}
 	
-						if (!_wcsicmp(desc.DeviceName, sourceName.viewGdiDeviceName))
-						{
-							displays[reshade::api::display::monitor{desc.Monitor}] = std::make_unique <reshade::dxgi::display_impl>(output6.get(), &path.targetInfo);
-							break;
-						}
+						if (_wcsicmp(desc.DeviceName, sourceName.viewGdiDeviceName))
+							continue;
+
+						displays.emplace(desc.Monitor,
+							std::make_unique<reshade::dxgi::display_impl>(output6.get(),&path.targetInfo));
+
+						break;
 					}
 				}
-	
-				output.reset ();
+				output.reset();
 			}
-	
-			adapter.reset ();
+			adapter.reset();
 		}
 	}
 }

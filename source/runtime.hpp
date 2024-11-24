@@ -259,7 +259,7 @@ namespace reshade
 		api::color_space _back_buffer_color_space = api::color_space::unknown;
 		api::display* _containing_output = nullptr; // The display that currently owns the swapchain
 		api::display_cache _displays; // Cached mapping of all monitors attached to the desktop and their display properties
-		uint32_t _last_desktop_change = 0; // Invalidate the display cache when necessary
+		std::atomic_uint32_t _last_desktop_change = 0; // Invalidate the display cache when necessary
 		int _last_desktop_x = 0;
 		int _last_desktop_y = 0;
 		bool _is_vr = false;
