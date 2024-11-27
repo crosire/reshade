@@ -4957,7 +4957,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 				// Implicit HDR PNG when running in HDR
 				case 3:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy, _containing_output);
+					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
 					break;
 				}
 

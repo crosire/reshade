@@ -25,7 +25,7 @@
 #pragma once
 
 #include "reshade_api.hpp"
-#include "reshade_api_display.hpp"
+//#include "reshade_api_display.hpp"
 #include <com_ptr.hpp>
 
 #include <cmath>
@@ -310,8 +310,8 @@ namespace sk_hdr_png
     };
   };
 
-  bool         write_image_to_disk          (const wchar_t* image_path, unsigned int width, unsigned int height, const void*  pixels,          int quantization_bits, format fmt, bool use_clipboard, reshade::api::display* display);
-  bool         write_hdr_chunks             (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance_array, int quantization_bits,                                 reshade::api::display* display);
+  bool         write_image_to_disk          (const wchar_t* image_path, unsigned int width, unsigned int height, const void*  pixels,          int quantization_bits, format fmt, bool use_clipboard);//, reshade::api::display* display);
+  bool         write_hdr_chunks             (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance_array, int quantization_bits);                                //, reshade::api::display* display);
   cLLi_Payload calculate_content_light_info (const float*   luminance,  unsigned int width, unsigned int height);
   bool         copy_to_clipboard            (const wchar_t* image_path);
   bool         remove_chunk                 (const char*    chunk_name, void* data, size_t& size);
@@ -590,7 +590,7 @@ sk_hdr_png::remove_chunk (const char* chunk_name, void* data, size_t& size)
 
 static
 bool
-sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance, int quantization_bits, reshade::api::display* display)
+sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance, int quantization_bits)//, reshade::api::display* display)
 {
 	if (image_path == nullptr || width == 0 || height == 0 || quantization_bits < 6)
 	{
@@ -710,6 +710,7 @@ sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, uns
 		sbit_chunk.write(fPNG);
 		chrm_chunk.write(fPNG);
 
+#if 0
 		///
 		/// Mastering metadata can be added, provided you are able to read this info
 		/// from the user's EDID.
@@ -747,6 +748,7 @@ sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, uns
 			Chunk mdcv_chunk = {sizeof(mdcv_data),    {'m','D','C','v'}, &mdcv_data};
 			mdcv_chunk.write(fPNG);
 		}
+#endif
 
 		// Write the remainder of the original file
 		fwrite(insert_ptr, size - insert_pos, 1, fPNG);
@@ -818,7 +820,7 @@ sk_hdr_png::copy_to_clipboard (const wchar_t* image_path)
 
 static
 bool
-sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt, bool use_clipboard, reshade::api::display* display)
+sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt, bool use_clipboard)//, reshade::api::display* display)
 {
 	using namespace DirectX;
 	using namespace DirectX::PackedVector;
@@ -992,7 +994,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 	if (SUCCEEDED(hr)) hr = encoder->Commit();
 	if (SUCCEEDED(hr))
 	{
-		hr = write_hdr_chunks(image_path, width, height, luminance, quantization_bits, display) ? S_OK : E_FAIL;
+		hr = write_hdr_chunks(image_path, width, height, luminance, quantization_bits/*, display*/) ? S_OK : E_FAIL;
 
 		if (SUCCEEDED(hr))
 		{
