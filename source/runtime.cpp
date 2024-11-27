@@ -34,7 +34,8 @@
 #include <stb_image_write.h>
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
-#include <sk_hdr_png.hpp>
+#include <dxgi/dxgi_impl_display.hpp>
+#include <../deps/sk_hdr_png/include/sk_hdr_png.hpp> // Something broke and now it has to be included this way
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -473,6 +474,9 @@ bool reshade::runtime::on_init()
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::init_effect_runtime>(this);
 #endif
+
+	if (_containing_output == nullptr)
+		on_display_change();
 
 	log::message(log::level::info, "Recreated runtime environment on runtime %p ('%s').", this, _config_path.u8string().c_str());
 
@@ -943,6 +947,82 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	if (std::numeric_limits<long>::max() != g_network_traffic)
 		g_network_traffic = 0;
 #endif
+
+	HWND window = static_cast<HWND>(_swapchain->get_hwnd());
+	if (window != 0)
+	{
+		extern bool is_desktop_current(std::atomic_uint32_t& timestamp);
+		if (!is_desktop_current(_last_desktop_change) || (_containing_output == nullptr || !_containing_output->is_current()))
+		{
+			// Flush the entire desktop display cache
+			on_display_change();
+		}
+
+		RECT window_rect = {};
+
+		if ((GetWindowRect(window,&window_rect) &&
+			((std::exchange(_last_desktop_x,window_rect.left) != window_rect.left) |
+			 (std::exchange(_last_desktop_y,window_rect.top)  != window_rect.top)))
+				|| _containing_output == nullptr)
+		{
+			const auto monitor = MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST);
+
+			if (monitor != nullptr && _displays.count(monitor))
+			{
+				if (_containing_output == nullptr || _containing_output->get_monitor() != monitor)
+				{
+					// The monitor the window is attached to has changed
+					on_display_change();
+				}
+			}
+		}
+	}
+}
+
+void reshade::runtime::on_display_change()
+{
+	const bool flush = _displays.empty() || (_containing_output != nullptr && !_containing_output->is_current());
+
+	auto original_output = std::exchange(_containing_output, nullptr);
+
+	if (flush)
+	{
+		reshade::dxgi::display_impl::flush_cache(_displays);
+	}
+
+	if (HWND window = reinterpret_cast<HWND>(get_hwnd()))
+	{
+		api::display::monitor monitor {MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST)};
+		if (_displays.count(monitor))
+		{
+			RECT window_rect = {};
+			if (GetWindowRect(window,&window_rect))
+			{
+				_last_desktop_x = window_rect.left;
+				_last_desktop_y = window_rect.top;
+			}
+
+			if (std::exchange(_containing_output,_displays[monitor].get()) != original_output)
+			{
+#if RESHADE_ADDON
+				invoke_addon_event<addon_event::display_change>(this,_containing_output);
+#endif
+
+#if RESHADE_VERBOSE_LOG
+				auto& luminance_caps = _containing_output->get_luminance_caps();
+
+				log::message(log::level::info, "Swap chain is displaying at %5.2f Hz on '%ws' (%ws) - MinNits = %3.1f, MaxNits = %3.1f, MaxAvgNits = %3.1f.",
+					_containing_output->get_refresh_rate().as_float(), _containing_output->get_display_name(), _containing_output->get_device_name(),
+						luminance_caps.min_nits, luminance_caps.max_nits, luminance_caps.max_avg_nits);
+#endif
+			}
+		}
+	}
+
+	else
+	{
+		log::message(log::level::warning, "Unable to map runtime %p's swap chain to a containing display output!", this);
+	}
 }
 
 void reshade::runtime::load_config()
@@ -4877,7 +4957,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 				// Implicit HDR PNG when running in HDR
 				case 3:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
+					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy, _containing_output);
 					break;
 				}
 

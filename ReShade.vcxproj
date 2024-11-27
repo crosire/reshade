@@ -100,7 +100,6 @@
     <Import Project="deps\utfcpp.props" />
     <Import Project="deps\Vulkan.props" />
     <Import Project="deps\Windows.props" />
-    <Import Project="deps\sk_hdr_png.props" />
   </ImportGroup>
   <PropertyGroup>
     <ExecutablePath>tools;$(ExecutablePath)</ExecutablePath>
@@ -600,6 +599,7 @@
     <ClCompile Include="source\dxgi\dxgi.cpp" />
     <ClCompile Include="source\dxgi\dxgi_d3d10.cpp" />
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
+    <ClCompile Include="source\dxgi\dxgi_impl_display.cpp" />
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
@@ -718,6 +718,7 @@
     <ClInclude Include="source\dll_log.hpp" />
     <ClInclude Include="source\dll_resources.hpp" />
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
+    <ClInclude Include="source\dxgi\dxgi_impl_display.hpp" />
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />
