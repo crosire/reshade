@@ -361,7 +361,7 @@ namespace sk_hdr_png
     { 0.0f,                         0.0f,                            0.0f,                           1.0f }
   };
 
-  static auto LinearToPQ = [](DirectX::XMVECTOR& N)
+  static auto LinearToPQ = [](DirectX::XMVECTOR N)
   {
     using namespace DirectX;
 
@@ -378,7 +378,7 @@ namespace sk_hdr_png
       XMVectorPow (nd, PQ.M);
   };
 
-  static auto PQToLinear = [](DirectX::XMVECTOR& N)
+  static auto PQToLinear = [](DirectX::XMVECTOR N)
   {
     using namespace DirectX;
 
@@ -400,7 +400,6 @@ namespace sk_hdr_png
   };
 }
 
-static
 sk_hdr_png::cLLi_Payload
 sk_hdr_png::calculate_content_light_info (const float* luminance, unsigned int width, unsigned int height)
 {
@@ -491,7 +490,6 @@ sk_hdr_png::calculate_content_light_info (const float* luminance, unsigned int w
   return clli;
 }
 
-static
 uint32_t
 sk_hdr_png::crc32 (const void* typeless_data, size_t offset, size_t len, uint32_t crc)
 {
@@ -546,7 +544,6 @@ sk_hdr_png::crc32 (const void* typeless_data, size_t offset, size_t len, uint32_
 //  (5) Add cLLi  [Unnecessary, but probably a good idea]
 //  (6) Add cHRM  [Unnecessary, but probably a good idea]
 //
-static
 bool
 sk_hdr_png::remove_chunk (const char* chunk_name, void* data, size_t& size)
 {
@@ -588,7 +585,6 @@ sk_hdr_png::remove_chunk (const char* chunk_name, void* data, size_t& size)
 	return true;
 }
 
-static
 bool
 sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance, int quantization_bits)//, reshade::api::display* display)
 {
@@ -761,7 +757,6 @@ sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, uns
 	return false;
 }
 
-static
 bool
 sk_hdr_png::copy_to_clipboard (const wchar_t* image_path)
 {
@@ -818,7 +813,6 @@ sk_hdr_png::copy_to_clipboard (const wchar_t* image_path)
 	return false;
 }
 
-static
 bool
 sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt, bool use_clipboard)//, reshade::api::display* display)
 {
