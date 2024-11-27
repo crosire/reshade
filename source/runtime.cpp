@@ -1842,7 +1842,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							break;
 						case reshadefx::type::t_float:
 							char temp[64];
-														const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), constant.initializer_value.as_float[i]
+							const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), constant.initializer_value.as_float[i]
 #if !defined(_HAS_COMPLETE_CHARCONV) || _HAS_COMPLETE_CHARCONV
 								, std::chars_format::scientific, 8
 #endif
