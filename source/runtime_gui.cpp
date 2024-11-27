@@ -943,9 +943,9 @@ void reshade::runtime::draw_gui()
 		// Scale mouse position in case render resolution does not match the window size
 		unsigned int max_position[2];
 		_input->max_mouse_position(max_position);
-			imgui_io.AddMousePosEvent(
-				_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
-				_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
+		imgui_io.AddMousePosEvent(
+			_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
+			_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
 
 		// Add wheel delta to the current absolute mouse wheel position
 		imgui_io.AddMouseWheelEvent(0.0f, _input->mouse_wheel_delta());
@@ -1063,7 +1063,7 @@ void reshade::runtime::draw_gui()
 
 		for (const std::pair<ImGuiKey, unsigned int> &mapping : key_mappings)
 			imgui_io.AddKeyEvent(mapping.first, _input->is_key_down(mapping.second));
-					for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
+		for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
 			imgui_io.AddMouseButtonEvent(i, _input->is_mouse_button_down(i));
 		for (ImWchar16 c : _input->text_input())
 			imgui_io.AddInputCharacterUTF16(c);
