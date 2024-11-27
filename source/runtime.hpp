@@ -358,6 +358,8 @@ namespace reshade
 		bool _screenshot_save_gui = false;
 #endif
 		bool _screenshot_clear_alpha = true;
+		bool _screenshot_clipboard_copy = false;
+		unsigned int _screenshot_hdr_bits = 11;
 		unsigned int _screenshot_count = 0;
 		unsigned int _screenshot_format = 1;
 		unsigned int _screenshot_jpeg_quality = 90;

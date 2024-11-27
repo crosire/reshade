@@ -943,9 +943,9 @@ void reshade::runtime::draw_gui()
 		// Scale mouse position in case render resolution does not match the window size
 		unsigned int max_position[2];
 		_input->max_mouse_position(max_position);
-		imgui_io.AddMousePosEvent(
-			_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
-			_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
+			imgui_io.AddMousePosEvent(
+				_input->mouse_position_x() * (imgui_io.DisplaySize.x / max_position[0]),
+				_input->mouse_position_y() * (imgui_io.DisplaySize.y / max_position[1]));
 
 		// Add wheel delta to the current absolute mouse wheel position
 		imgui_io.AddMouseWheelEvent(0.0f, _input->mouse_wheel_delta());
@@ -1063,7 +1063,7 @@ void reshade::runtime::draw_gui()
 
 		for (const std::pair<ImGuiKey, unsigned int> &mapping : key_mappings)
 			imgui_io.AddKeyEvent(mapping.first, _input->is_key_down(mapping.second));
-		for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
+					for (ImGuiMouseButton i = 0; i < ImGuiMouseButton_COUNT; i++)
 			imgui_io.AddMouseButtonEvent(i, _input->is_mouse_button_down(i));
 		for (ImWchar16 c : _input->text_input())
 			imgui_io.AddInputCharacterUTF16(c);
@@ -2256,13 +2256,22 @@ void reshade::runtime::draw_gui_settings()
 				"HH-mm-ss");
 		}
 
-		modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
-
-		if (_screenshot_format == 2)
-			modified |= ImGui::SliderInt(_("JPEG quality"), reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
+		// HDR screenshots only support PNG, and have no alpha channel
+		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
+			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
+		{
+			modified |= ImGui::Checkbox("Copy image to clipboard", &_screenshot_clipboard_copy);
+			modified |= ImGui::SliderInt("HDR PNG quality", reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d-bit", ImGuiSliderFlags_AlwaysClamp);
+		}
 		else
-			modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
+		{
+			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
 
+			if (_screenshot_format == 2)
+				modified |= ImGui::SliderInt(_("JPEG quality"), reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
+			else
+				modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
+		}
 #if RESHADE_FX
 		modified |= ImGui::Checkbox(_("Save current preset file"), &_screenshot_include_preset);
 		modified |= ImGui::Checkbox(_("Save before and after images"), &_screenshot_save_before);
