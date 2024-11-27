@@ -4907,8 +4907,9 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 			auto screenshot_format = _screenshot_format;
 
 			// Use PNG for HDR; no tonemapping is implemented, so this is the only way to capture a screenshot in HDR.
-			if ((_back_buffer_format == api::format::r10g10b10a2_unorm  && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
-				(_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
+			if (((_back_buffer_format == api::format::r10g10b10a2_unorm  ||
+			      _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
+				 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
 				screenshot_format = 3;
 
 			// Remove alpha channel
@@ -5140,8 +5141,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 				}
 				// HDR10: Keep the original data, do not convert to 8-bpc
 				else
-				{	// DXGI-based HDR only supports R10G10B10A2
-					assert(_back_buffer_format == api::format::r10g10b10a2_unorm);
+				{
 					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				}
 				break;

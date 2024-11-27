@@ -830,7 +830,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 	// Space savings are possible by quantizing to alternate bit depths before encoding, 10-bpc is a sane minimum for HDR.
 	WICPixelFormatGUID wic_format = GUID_WICPixelFormat48bppRGB;
 
-	if (image_path == nullptr || width == 0 || height == 0 || (fmt != format::r16g16b16a16_float && fmt != format::r10g10b10a2_unorm))
+	if (image_path == nullptr || width == 0 || height == 0 || (fmt != format::r16g16b16a16_float && fmt != format::r10g10b10a2_unorm && fmt != format::b10g10r10a2_unorm))
 	{
 		return false;
 	}
@@ -887,7 +887,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 				*(output++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(std::roundf ((XMVectorGetZ (rgb32) * quant_prescale)) * 65536.0f) / quant_postscale));
 			};
 
-			if (fmt == format::r10g10b10a2_unorm)
+			if (fmt == format::r10g10b10a2_unorm || fmt == format::b10g10r10a2_unorm)
 			{
 				uint16_t* png_pixels = (uint16_t *)png_buffer;
 				uint32_t* src_pixels = (uint32_t *)pixels;
@@ -896,24 +896,28 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 
 				for (size_t i = 0; i < width * height; i++)
 				{
-					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(src_pixels++);
+					const uint32_t color = *reinterpret_cast<const uint32_t *>(src_pixels++);
 
 					// Multiply by 64 and +/- 1 to get 10-bit range (0-1023) into 16-bit range (0-65535)
-					const uint16_t r = (((( rgba & 0x000003FFU)         + 1U) * 64U) & 0xFFFFU) - 1U;
-					const uint16_t g = (((((rgba & 0x000FFC00U) >> 10U) + 1U) * 64U) & 0xFFFFU) - 1U;
-					const uint16_t b = (((((rgba & 0x3FF00000U) >> 20U) + 1U) * 64U) & 0xFFFFU) - 1U;
+					const uint16_t c[] = { (((( color & 0x000003FFU)         + 1U) * 64U) & 0xFFFFU) - 1U,
+					                       (((((color & 0x000FFC00U) >> 10U) + 1U) * 64U) & 0xFFFFU) - 1U,
+					                       (((((color & 0x3FF00000U) >> 20U) + 1U) * 64U) & 0xFFFFU) - 1U };
+
+					const int r = fmt == format::b10g10r10a2_unorm ? 2 : 0;
+					const int g = 1;
+					const int b = fmt == format::b10g10r10a2_unorm ? 0 : 2;
 
 					XMVECTOR rgb =
-						XMVectorSet (static_cast<float>(r) / 65535.0f,
-						             static_cast<float>(g) / 65535.0f,
-						             static_cast<float>(b) / 65535.0f, 1.0f);
+						XMVectorSet (static_cast<float>(c [r]) / 65535.0f,
+						             static_cast<float>(c [g]) / 65535.0f,
+						             static_cast<float>(c [b]) / 65535.0f, 1.0f);
 
 					if (quantization_bits < 10) {
 						QUANTIZE_FP32_TO_UNORM16 (rgb, quantization_bits, png_pixels);
 					} else {
-						*(png_pixels++) = r;
-						*(png_pixels++) = g;
-						*(png_pixels++) = b;
+						*(png_pixels++) = c [r];
+						*(png_pixels++) = c [g];
+						*(png_pixels++) = c [b];
 					}
 
 					*pixel_luminance++ =
