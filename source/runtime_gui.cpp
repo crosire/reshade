@@ -2262,8 +2262,8 @@ void reshade::runtime::draw_gui_settings()
 		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
 			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
 		{
-			modified |= ImGui::Checkbox("Copy image to clipboard", &_screenshot_clipboard_copy);
-			modified |= ImGui::SliderInt("HDR PNG quality", reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d-bit", ImGuiSliderFlags_AlwaysClamp);
+			modified |= ImGui::Checkbox(_("Copy image to clipboard"), &_screenshot_clipboard_copy);
+			modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
 		}
 		else
 		{
@@ -2274,6 +2274,7 @@ void reshade::runtime::draw_gui_settings()
 			else
 				modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
 		}
+
 #if RESHADE_FX
 		modified |= ImGui::Checkbox(_("Save current preset file"), &_screenshot_include_preset);
 		modified |= ImGui::Checkbox(_("Save before and after images"), &_screenshot_save_before);
