@@ -35,7 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <dxgi/dxgi_impl_display.hpp>
-#include <../deps/sk_hdr_png/include/sk_hdr_png.hpp> // Something broke and now it has to be included this way
+#include <sk_hdr_png.hpp>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
