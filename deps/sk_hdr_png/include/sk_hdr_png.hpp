@@ -915,6 +915,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 					if (quantization_bits < 10) {
 						QUANTIZE_FP32_TO_UNORM16 (rgb, quantization_bits, png_pixels);
 					} else {
+						quantization_bits = 10; // Cap to 10-bpc
 						*(png_pixels++) = c [r];
 						*(png_pixels++) = c [g];
 						*(png_pixels++) = c [b];
