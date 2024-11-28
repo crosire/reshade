@@ -26,6 +26,7 @@
 
 #include "reshade_api.hpp"
 #include "reshade_api_display.hpp"
+#include <bitset>
 #include <com_ptr.hpp>
 
 #include <cmath>
@@ -814,6 +815,18 @@ sk_hdr_png::copy_to_clipboard (const wchar_t* image_path)
 bool
 sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt, bool use_clipboard, reshade::api::display* display)
 {
+	if (fmt == format::r16g16b16a16_float)
+	{
+		int cpu_info [4] = {  };
+
+		CpuIdEx(cpu_info, 1, 0);	
+		if (!std::bitset<32>(cpu_info[2])[29])
+		{
+			reshade::log::message(reshade::log::level::error, "CPU does not support AVX/F16C, required for scRGB screenshots!");
+			return false;
+		}
+	}
+
 	using namespace DirectX;
 	using namespace DirectX::PackedVector;
 
