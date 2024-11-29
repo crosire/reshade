@@ -1909,11 +1909,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 								continue;
 
 							semantic_index++;
-							assert((effect.uniform_data_storage.size() / 16) <= (255 - semantic_index));
+							assert((effect.uniform_data_storage.size() / 16) <= (224 - semantic_index));
 
 							// Avoid duplicate declarations if the semantic was used multiple times
 							if (hlsl.find(tex.semantic + "_PIXEL_SIZE") == std::string::npos)
-								hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(255 - semantic_index) + ");\n";
+								hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(224 - semantic_index) + ");\n";
 						}
 					}
 
@@ -4235,12 +4235,14 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
 					{
+						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
+
 						const float pixel_size[4] = {
-							1.0f / _effect_width,
-							1.0f / _effect_height
+							1.0f / desc.texture.width,
+							1.0f / desc.texture.height
 						};
 
-						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, effect.layout, 0, (255 - semantic_index) * 4, 4, pixel_size);
+						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, effect.layout, 0, (244 - semantic_index) * 4, 4, pixel_size);
 					}
 				}
 			}
