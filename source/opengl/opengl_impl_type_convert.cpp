@@ -1336,12 +1336,19 @@ auto reshade::opengl::convert_attrib_format(GLint size, GLenum type, GLboolean n
 	}
 }
 
-auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> GLenum
+auto reshade::opengl::convert_sized_internal_format(GLenum internal_format, GLenum format) -> GLenum
 {
 	// Convert base internal formats to sized internal formats
 	switch (internal_format)
 	{
 	case 1:
+		if (format == GL_ALPHA)
+			return 0x803C /* GL_ALPHA8 */;
+		if (format == 0x1909 /* GL_LUMINANCE */)
+			return 0x8040 /* GL_LUMINANCE8 */;
+		if (format == 0x8049 /* GL_INTENSITY */)
+			return 0x804B /* GL_INTENSITY8 */;
+		[[fallthrough]];
 	case GL_RED:
 		return GL_R8;
 	case GL_ALPHA:
@@ -1351,6 +1358,9 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format) -> G
 	case 0x8049 /* GL_INTENSITY */:
 		return 0x804B /* GL_INTENSITY8 */;
 	case 2:
+		if (format == 0x190A /* GL_LUMINANCE_ALPHA */) // Used by Penumbra: Overture
+			return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
+		[[fallthrough]];
 	case GL_RG:
 		return GL_RG8;
 	case 0x190A /* GL_LUMINANCE_ALPHA */:

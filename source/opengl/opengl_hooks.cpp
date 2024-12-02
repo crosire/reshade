@@ -762,7 +762,7 @@ extern "C" void APIENTRY glTexImage1D(GLenum target, GLint level, GLint internal
 	static const auto trampoline = reshade::hooks::call(glTexImage1D);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, format);
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_1D);
@@ -783,7 +783,7 @@ extern "C" void APIENTRY glTexImage2D(GLenum target, GLint level, GLint internal
 	static const auto trampoline = reshade::hooks::call(glTexImage2D);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, format);
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D || target == GL_PROXY_TEXTURE_1D_ARRAY || target == GL_PROXY_TEXTURE_RECTANGLE || target == GL_PROXY_TEXTURE_CUBE_MAP);
@@ -1427,7 +1427,7 @@ void APIENTRY glTexImage3D(GLenum target, GLint level, GLint internalformat, GLs
 	static const auto trampoline = reshade::hooks::call(glTexImage3D);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, format);
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_3D || target == GL_PROXY_TEXTURE_2D_ARRAY || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY);
@@ -2591,7 +2591,7 @@ void APIENTRY glRenderbufferStorage(GLenum target, GLenum internalformat, GLsize
 	static const auto trampoline = reshade::hooks::call(glRenderbufferStorage);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, GL_NONE);
 
 	if (g_opengl_context)
 	{
@@ -2609,7 +2609,7 @@ void APIENTRY glRenderbufferStorageMultisample(GLenum target, GLsizei samples, G
 	static const auto trampoline = reshade::hooks::call(glRenderbufferStorageMultisample);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, GL_NONE);
 
 	if (g_opengl_context)
 	{
@@ -3147,7 +3147,7 @@ void APIENTRY glTexImage2DMultisample(GLenum target, GLsizei samples, GLenum int
 	static const auto trampoline = reshade::hooks::call(glTexImage2DMultisample);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, GL_NONE);
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D_MULTISAMPLE);
@@ -3168,7 +3168,7 @@ void APIENTRY glTexImage3DMultisample(GLenum target, GLsizei samples, GLenum int
 	static const auto trampoline = reshade::hooks::call(glTexImage3DMultisample);
 
 #if RESHADE_ADDON
-	internalformat = reshade::opengl::convert_sized_internal_format(internalformat);
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, GL_NONE);
 
 	// Ignore proxy texture objects
 	const bool proxy_object = (target == GL_PROXY_TEXTURE_2D_MULTISAMPLE_ARRAY);
