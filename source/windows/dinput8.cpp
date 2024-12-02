@@ -11,10 +11,6 @@
 #include "hook_manager.hpp"
 #include "input.hpp"
 
-// It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
-extern bool is_blocking_mouse_input(reshade::input::window_handle window = nullptr);
-extern bool is_blocking_keyboard_input(reshade::input::window_handle window = nullptr);
-
 #define IDirectInputDevice8_SetCooperativeLevel_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_SetCooperativeLevel(IDirectInputDevice8##encoding *pDevice, HWND hwnd, DWORD dwFlags) \
 	{ \
@@ -40,6 +36,7 @@ extern bool is_blocking_keyboard_input(reshade::input::window_handle window = nu
 IDirectInputDevice8_SetCooperativeLevel_Impl(13, A)
 IDirectInputDevice8_SetCooperativeLevel_Impl(13, W)
 
+// It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
 #define IDirectInputDevice8_GetDeviceState_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceState(IDirectInputDevice8##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
 	{ \
@@ -48,14 +45,14 @@ IDirectInputDevice8_SetCooperativeLevel_Impl(13, W)
 		switch (LOBYTE(info.dwDevType)) \
 		{ \
 		case DI8DEVTYPE_MOUSE: \
-			if (is_blocking_mouse_input()) \
+			if (reshade::input::is_blocking_any_mouse_input()) \
 			{ \
 				std::memset(lpvData, 0, cbData); \
 				return DI_OK; \
 			} \
 			break; \
 		case DI8DEVTYPE_KEYBOARD: \
-			if (is_blocking_keyboard_input()) \
+			if (reshade::input::is_blocking_any_keyboard_input()) \
 			{ \
 				std::memset(lpvData, 0, cbData); \
 				return DI_OK; \
@@ -79,14 +76,14 @@ IDirectInputDevice8_GetDeviceState_Impl(9, W)
 			switch (LOBYTE(info.dwDevType)) \
 			{ \
 			case DI8DEVTYPE_MOUSE: \
-				if (is_blocking_mouse_input()) \
+				if (reshade::input::is_blocking_any_mouse_input()) \
 				{ \
 					*pdwInOut = 0; \
 					return DI_OK; \
 				} \
 				break; \
 			case DI8DEVTYPE_KEYBOARD: \
-				if (is_blocking_keyboard_input()) \
+				if (reshade::input::is_blocking_any_keyboard_input()) \
 				{ \
 					*pdwInOut = 0; \
 					return DI_OK; \

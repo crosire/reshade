@@ -83,17 +83,20 @@ namespace reshade
 		/// </summary>
 		void block_mouse_input(bool enable);
 		bool is_blocking_mouse_input() const { return _block_mouse; }
+		static bool is_blocking_any_mouse_input(window_handle window = nullptr);
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable);
 		bool is_blocking_keyboard_input() const { return _block_keyboard || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_keyboard_time) < block_grace_period; }
+		static bool is_blocking_any_keyboard_input(window_handle window = nullptr);
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent 'GetCursorPos' from returning the real mouse cursor position, instead returning the last value that was passed to 'SetCursorPos'.
 		/// This is separate from mouse input blocking and it is intended to prevent games using 'Set/GetCursorPos' from warping the cursor.
 		/// </summary>
 		void block_mouse_cursor_warping(bool enable);
 		bool is_blocking_mouse_cursor_warping() const { return _block_cursor_warping; }
+		static bool is_blocking_any_mouse_cursor_warping();
 
 		/// <summary>
 		/// Locks access to the input data so it cannot be modified in another thread.
