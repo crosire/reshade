@@ -49,7 +49,7 @@ bool ini_file::load()
 	while (fgets(line_data.data(), static_cast<int>(line_data.size() + 1), file))
 	{
 		size_t line_length;
-		while ((line_length = std::strlen(line_data.data())) == line_data.size())
+		while ((line_length = std::strlen(line_data.data())) == line_data.size() && line_data.back() != '\n')
 		{
 			line_data.resize(line_data.size() + BUFSIZ);
 			if (!fgets(line_data.data() + line_length, static_cast<int>(line_data.size() - line_length + 1), file))
