@@ -1558,6 +1558,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect = {};
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
+
+		effect.is_addonfx = source_file.extension() == L".addonfx";
 	}
 
 	if (_effect_load_skipping && !force_load)
@@ -3787,15 +3789,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Nothing to do here if effects are still loading or disabled globally
 	if (is_loading() || _techniques.empty())
 		return;
-	if (!_effects_enabled)
-	{
-		bool any_addon_effects_loaded = false;
-		for (effect &effect : _effects)
-			if (effect.source_file.extension() == L".addonfx")
-				any_addon_effects_loaded = true;
-		if (!any_addon_effects_loaded)
-			return;
-	}
+	if (!_effects_enabled && std::all_of(_effects.cbegin(), _effects.cend(), [](const effect &effect) { return !effect.is_addonfx; }))
+		return;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	std::unique_lock<std::recursive_mutex> input_lock;
@@ -3809,7 +3804,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Update special uniform variables
 	for (effect &effect : _effects)
 	{
-		if (!_effects_enabled && effect.source_file.extension() != L".addonfx")
+		if (!_effects_enabled && !effect.is_addonfx)
 			continue;
 		if (!effect.rendering)
 			continue;
@@ -4036,7 +4031,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	{
 		technique &tech = _techniques[technique_index];
 
-		if (!_effects_enabled && _effects[tech.effect_index].source_file.extension() != L".addonfx")
+		if (!_effects_enabled && !_effects[tech.effect_index].is_addonfx)
 			continue;
 		if (tech.passes_data.empty() || !tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot))
 			continue; // Ignore techniques that are not fully loaded or currently disabled
