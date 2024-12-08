@@ -196,6 +196,7 @@ namespace reshade
 
 		reshadefx::effect_module module;
 		size_t source_hash = 0;
+		bool is_addonfx = false;
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;
