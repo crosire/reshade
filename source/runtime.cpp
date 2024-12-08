@@ -665,21 +665,18 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 #if RESHADE_FX
 	update_effects();
 
-	if (_effects_enabled && !_effects_rendered_this_frame)
-	{
-		if (_should_save_screenshot && _screenshot_save_before)
-			save_screenshot(" original");
+	if (_should_save_screenshot && _screenshot_save_before && _effects_enabled && !_effects_rendered_this_frame)
+		save_screenshot(" original");
 
-		if (_back_buffer_resolved != 0)
-		{
-			runtime::render_effects(cmd_list, _back_buffer_targets[0], _back_buffer_targets[1]);
-		}
-		else
-		{
-			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-			runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index], _back_buffer_targets[back_buffer_index + 1]);
-			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
-		}
+	if (_back_buffer_resolved != 0)
+	{
+		runtime::render_effects(cmd_list, _back_buffer_targets[0], _back_buffer_targets[1]);
+	}
+	else
+	{
+		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
+		runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index], _back_buffer_targets[back_buffer_index + 1]);
+		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
 #endif
 
@@ -3788,8 +3785,17 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	_effects_rendered_this_frame = true;
 
 	// Nothing to do here if effects are still loading or disabled globally
-	if (is_loading() || !_effects_enabled || _techniques.empty())
+	if (is_loading() || _techniques.empty())
 		return;
+	if (!_effects_enabled)
+	{
+		bool any_addon_effects_loaded = false;
+		for (effect &effect : _effects)
+			if (effect.source_file.extension() == L".addonfx")
+				any_addon_effects_loaded = true;
+		if (!any_addon_effects_loaded)
+			return;
+	}
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	std::unique_lock<std::recursive_mutex> input_lock;
@@ -3803,6 +3809,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Update special uniform variables
 	for (effect &effect : _effects)
 	{
+		if (!_effects_enabled && effect.source_file.extension() != L".addonfx")
+			continue;
 		if (!effect.rendering)
 			continue;
 
@@ -4028,6 +4036,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	{
 		technique &tech = _techniques[technique_index];
 
+		if (!_effects_enabled && _effects[tech.effect_index].source_file.extension() != L".addonfx")
+			continue;
 		if (tech.passes_data.empty() || !tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot))
 			continue; // Ignore techniques that are not fully loaded or currently disabled
 
