@@ -16,7 +16,7 @@
 #include <cstring> // std::strcmp, std::strncmp
 #include <algorithm> // std::fill_n, std::find_if, std::min, std::sort, std::unique
 
-// Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel and Optimus
+// Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel, Optimus or layered DXGI swapchain
 extern thread_local bool g_in_dxgi_runtime;
 
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
