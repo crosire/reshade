@@ -43,6 +43,7 @@
     <IntDir>..\..\intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>ray_tracing</TargetName>
     <TargetExt>.addon</TargetExt>
+    <ExecutablePath>$(VK_SDK_PATH)\Bin;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
