@@ -624,6 +624,11 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 				// Wait on that before the immediate command list flush below
 				_graphics_queue->wait(_queue_sync_fence, _queue_sync_value);
 		}
+		else
+		{
+			// Unable to create a synchronization fence, fall back to excruciatingly slow CPU synchronization to at least prevent crashing
+			_graphics_queue->wait_idle();
+		}
 	}
 
 #if RESHADE_ADDON
