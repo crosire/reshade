@@ -482,7 +482,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 				const size_t at_pos = addon_name.find('@');
 				if (at_pos == std::string_view::npos)
 					return addon_name == info.name;
-				return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+				return (at_pos == 0 || addon_name.substr(0, at_pos) == info.name) && addon_name.substr(at_pos + 1) == info.file;
 			}) != disabled_addons.cend())
 	{
 		info.handle = nullptr;

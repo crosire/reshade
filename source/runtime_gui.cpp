@@ -3271,10 +3271,12 @@ void reshade::runtime::draw_gui_addons()
 
 		for (addon_info &info : addon_loaded_info)
 		{
-			if (!filter_text(info.name, _addons_filter))
+			const std::string name = !info.name.empty() ? info.name : std::filesystem::u8path(info.file).stem().u8string();
+
+			if (!filter_text(name, _addons_filter))
 				continue;
 
-			ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
+			ImGui::BeginChild(name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
 
 			const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
 
@@ -3291,11 +3293,11 @@ void reshade::runtime::draw_gui_addons()
 					const size_t at_pos = addon_name.find('@');
 					if (at_pos == std::string_view::npos)
 						return addon_name == info.name;
-					return addon_name.substr(0, at_pos) == info.name && addon_name.substr(at_pos + 1) == info.file;
+					return (at_pos == 0 || addon_name.substr(0, at_pos) == info.name) && addon_name.substr(at_pos + 1) == info.file;
 				});
 
 			bool enabled = (disabled_it == disabled_addons.end());
-			if (ImGui::Checkbox(info.name.c_str(), &enabled))
+			if (ImGui::Checkbox(name.c_str(), &enabled))
 			{
 				if (enabled)
 					disabled_addons.erase(disabled_it);
