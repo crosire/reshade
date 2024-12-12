@@ -252,11 +252,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -274,11 +281,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -1138,11 +1152,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -1376,11 +1397,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJEC
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppStateObject == nullptr ||
 		riid != __uuidof(ID3D12StateObject) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, nullptr, *reinterpret_cast<ID3D12StateObject **>(ppStateObject), hr))
 #endif
 		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(pDesc, riid, ppStateObject);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppStateObject != nullptr)
