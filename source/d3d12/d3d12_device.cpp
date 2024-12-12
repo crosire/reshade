@@ -2551,13 +2551,15 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPE
 		D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
 		D3D12_PIPELINE_STATE_STREAM_CS cs;
 		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
-		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		// D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
 		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
 	} stream_data = {
 		{ internal_desc.pRootSignature },
 		{ internal_desc.CS },
 		{ internal_desc.NodeMask != 0 ? internal_desc.NodeMask : 1 },
-		{ internal_desc.CachedPSO },
+		// Do not pass along cached PSO, since the data can mismatch if it was previously created without the redirection from 'CreateGraphicsPipelineState' to 'CreatePipelineState' and
+		// thus cause creation to fail with 'E_INVALIDARG' (makes Need for Speed: Unbound error out on startup)
+		//   { internal_desc.CachedPSO },
 		{ internal_desc.Flags }
 	};
 
@@ -2585,7 +2587,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIP
 		D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
 		D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
 		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
-		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		// D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
 		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
 	} stream_data = {
 		{ internal_desc.pRootSignature },
@@ -2606,7 +2608,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIP
 		{ internal_desc.DSVFormat },
 		{ internal_desc.SampleDesc },
 		{ internal_desc.NodeMask != 0 ? internal_desc.NodeMask : 1 }, // See https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_node_mask#remarks
-		{ internal_desc.CachedPSO },
+		// Do not pass along cached PSO, since the data can mismatch if it was previously created without the redirection from 'CreateComputePipelineState' to 'CreatePipelineState' and
+		// thus cause creation to fail with 'E_INVALIDARG'
+		//   { internal_desc.CachedPSO },
 		{ internal_desc.Flags }
 	};
 
