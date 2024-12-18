@@ -36,6 +36,7 @@
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
 
+
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
 	// First convert path to an absolute path
@@ -458,8 +459,10 @@ bool reshade::runtime::on_init()
 		_input.reset();
 
 	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
-	if (window != nullptr)
-		utils::set_window_transparency(window, false);
+        if (window != nullptr)
+        utils::set_window_transparency(window, false);
+          
+
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_frame_count = 0;
@@ -1020,6 +1023,7 @@ void reshade::runtime::load_config()
 #endif
 
 	config_get("SCREENSHOT", "SavePath", _screenshot_path);
+	config_get("SCREENSHOT", "ScreenShotPathSplitAppName", _screenshot_path_split_appname);
 	config_get("SCREENSHOT", "SoundPath", _screenshot_sound_path);
 	config_get("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
 	config_get("SCREENSHOT", "FileFormat", _screenshot_format);
@@ -1047,6 +1051,7 @@ void reshade::runtime::save_config() const
 {
 	ini_file &config = ini_file::load_cache(_config_path);
 
+	
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 #if RESHADE_FX
@@ -1087,8 +1092,7 @@ void reshade::runtime::save_config() const
 	}
 	config.set("GENERAL", "PresetShortcutKeys", preset_key_data);
 	config.set("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
-#endif
-
+#endif	
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 	config.set("SCREENSHOT", "SoundPath", _screenshot_sound_path);
 	config.set("SCREENSHOT", "ClearAlpha", _screenshot_clear_alpha);
@@ -1097,6 +1101,7 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 	config.set("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config.set("SCREENSHOT", "CopyToClipboard", _screenshot_clipboard_copy);
+    config.set("SCREENSHOT", "ScreenShotPathSplitAppName", _screenshot_path_split_appname);
 #if RESHADE_FX
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
@@ -1560,11 +1565,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (source_file != effect.source_file || source_hash != effect.source_hash)
 	{
 		// Source hash has changed, reset effect and load from scratch, rather than updating
+		effect.is_addonfx = source_file.extension() == L".addonfx";
 		effect = {};
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
-
-		effect.is_addonfx = source_file.extension() == L".addonfx";
 	}
 
 	if (_effect_load_skipping && !force_load)
@@ -3390,11 +3394,10 @@ void reshade::runtime::load_effects(bool force_load_all)
 	// Have to be initialized at this point or else the threads spawned below will immediately exit without reducing the remaining effects count
 	assert(_is_initialized);
 
-	// Ensure HLSL compiler is loaded before trying to compile effects in Direct3D
 	if (_d3d_compiler_module == nullptr && (_renderer_id & 0xF0000) == 0)
 	{
 		if ((_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
-			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
+		(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
 		{
 			log::message(log::level::error, "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!");
 			return;
@@ -4035,7 +4038,6 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	for (size_t technique_index : _technique_sorting)
 	{
 		technique &tech = _techniques[technique_index];
-
 		if (!_effects_enabled && !_effects[tech.effect_index].is_addonfx)
 			continue;
 		if (tech.passes_data.empty() || !tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot))
@@ -4245,8 +4247,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
 					{
-						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
-
+                        const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
 						const float pixel_size[4] = {
 							1.0f / desc.texture.width,
 							1.0f / desc.texture.height
@@ -4799,31 +4800,64 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	return result;
 }
 
-void reshade::runtime::save_screenshot(const std::string_view postfix)
-{
-	const unsigned int screenshot_count = _screenshot_count;
-
-	std::string screenshot_name = expand_macro_string(_screenshot_name, {
-		{ "AppName", g_target_executable_path.stem().u8string() },
+void reshade::runtime::save_screenshot(const std::string_view postfix) {
+  const unsigned int screenshot_count = _screenshot_count;
+  std::filesystem::path _current_screenshot_path;
+    if (_screenshot_path_split_appname) {
+    std::string _screenshot_name_split =
+        (_screenshot_name == "%AppName% %Date% %Time%_%TimeMS%" ||
+         _screenshot_name == "%AppName% %Date% %Time%")
+            ? "%Date% %Time%_%TimeMS%"
+            : _screenshot_name;
+	 // This will remove the appname and leading whitespace if people have not changed their target path but select this option. Also updates to new default
+        // if (_screenshot_name == "%AppName% %Date% %Time%_%TimeMS%" || _screenshot_name == "%AppName% %Date% %Time)  _screenshot_name = "%Date% %Time%_%TimeMS%";
+    std::string screenshot_name = expand_macro_string(
+        _screenshot_name_split,		
+         {{"AppName", g_target_executable_path.stem().u8string()},
 #if RESHADE_FX
-		{ "PresetName",  _current_preset_path.stem().u8string() },
-		{ "Count", std::to_string(screenshot_count) }
+        {"PresetName", _current_preset_path.stem().u8string()},
+         {"Count", std::to_string(screenshot_count)}
 #endif
-	});
+        });
 
-	screenshot_name += postfix;
-	screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
+    screenshot_name += postfix;
+    screenshot_name += (_screenshot_format == 0   ? ".bmp"
+                        : _screenshot_format == 1 ? ".png"
+                                                  : ".jpg");
 
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
+    if (!std::filesystem::exists(g_reshade_base_path / _screenshot_path /
+                                 g_target_executable_path.stem()))
+      std::filesystem::create_directories(g_reshade_base_path /
+                                          _screenshot_path /
+                                          g_target_executable_path.stem());
+    _current_screenshot_path = g_reshade_base_path / _screenshot_path /
+                               g_target_executable_path.stem() /
+                               std::filesystem::u8path(screenshot_name);
+  } else {
+    std::string screenshot_name = expand_macro_string(
+        _screenshot_name,
+        {{"AppName", g_target_executable_path.stem().u8string()},
+#if RESHADE_FX
+         {"PresetName", _current_preset_path.stem().u8string()},
+         {"Count", std::to_string(screenshot_count)}
+#endif
+        });
 
-	log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
+    screenshot_name += postfix;
+    screenshot_name += (_screenshot_format == 0   ? ".bmp"
+                        : _screenshot_format == 1 ? ".png"
+                                                  : ".jpg");
+
+    _current_screenshot_path = g_reshade_base_path / _screenshot_path /
+                               std::filesystem::u8path(screenshot_name);
+  }
+  const std::filesystem::path screenshot_path = _current_screenshot_path;
+  log::message(log::level::info, "Saving screenshot to '%s'.",
+               screenshot_path.u8string().c_str());
 
 	_last_screenshot_save_successful = true;
 
-	size_t bytes_per_pixel =
-		_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4;
-
-	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * bytes_per_pixel);
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
 		capture_screenshot(pixels.data()))
 	{
 #if RESHADE_FX
@@ -4843,7 +4877,6 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 			      _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
 				 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
 				screenshot_format = 3;
-
 			// Remove alpha channel
 			int comp = 4;
 			if (_screenshot_clear_alpha && screenshot_format != 3)
@@ -4886,7 +4919,6 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
-
 				// Implicit HDR PNG when running in HDR
 				case 3:
 					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
@@ -4935,10 +4967,16 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 }
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count)
 {
-	if (_screenshot_post_save_command.empty() || _screenshot_post_save_command.extension() != L".exe")
-		return false;
+  //allows for calling python scripts or other runnables
+  if (_screenshot_post_save_command.empty() || (std::set<std::wstring>{L".exe", L".py", L".pyx", L".pyw", L".bat", L".cmd", L".sh", L".ps1"}.count(_screenshot_post_save_command.extension().wstring()) == 0))
+      return false;
 
 	std::string command_line;
+	//technically not needed if they installed python correctly but if we're gonna handle it we may as well make sure its done right
+    if (_screenshot_post_save_command.extension() == L".py" || _screenshot_post_save_command.extension() == L".pyw") command_line = "python ";
+   else if (_screenshot_post_save_command.extension() != L".ps1") command_line = "Powershell -File  ";
+	//in truth you could just do this yourself prior to this change but this makes it a bit more user friendly
+    else if (_screenshot_post_save_command.extension() != L".exe") command_line = "cmd /C ";
 	command_line += '\"';
 	command_line += _screenshot_post_save_command.u8string();
 	command_line += '\"';

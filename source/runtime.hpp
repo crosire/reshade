@@ -352,11 +352,15 @@ namespace reshade
 		#pragma region Screenshot
 #if RESHADE_FX
 		bool _screenshot_save_before = false;
-		bool _screenshot_include_preset = false;
+		//default to true for future addon
+		bool _screenshot_include_preset = true;
 #endif
 #if RESHADE_GUI
 		bool _screenshot_save_gui = false;
+     
 #endif
+		// expand the AppName macro to subdirs
+        bool _screenshot_path_split_appname = true;
 		bool _screenshot_clear_alpha = true;
 		bool _screenshot_clipboard_copy = false;
 		unsigned int _screenshot_count = 0;
@@ -437,6 +441,7 @@ namespace reshade
 		#pragma region Overlay
 		ImGuiContext *_imgui_context = nullptr;
 
+     
 		bool _show_splash = true;
 		bool _show_overlay = false;
 		unsigned int _show_fps = 2;
@@ -458,6 +463,8 @@ namespace reshade
 		unsigned int _fps_pos = 1;
 		unsigned int _clock_format = 0;
 		unsigned int _input_processing_mode = 2;
+        bool _esc_closes_overlay = true;
+
 
 		api::resource _font_atlas_tex = {};
 		api::resource_view _font_atlas_srv = {};
@@ -497,6 +504,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Settings
+
 		std::string _selected_language, _current_language;
 		int _font_size = 0;
 		int _editor_font_size = 0;
