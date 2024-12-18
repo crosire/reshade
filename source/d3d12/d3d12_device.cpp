@@ -252,11 +252,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -274,11 +281,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -651,10 +665,10 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 				{
 					const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
 
-					copies[num_copies].dest_table = convert_to_descriptor_table(pDestDescriptorRangeStarts[dst_range]);
+					copies[num_copies].dest_table = convert_to_descriptor_table(offset_descriptor_handle(pDestDescriptorRangeStarts[dst_range], dst_offset, DescriptorHeapsType));
 					copies[num_copies].dest_binding = 0;
 					copies[num_copies].dest_array_offset = 0;
-					copies[num_copies].source_table = convert_to_descriptor_table(pSrcDescriptorRangeStarts[src_range]);
+					copies[num_copies].source_table = convert_to_descriptor_table(offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType));
 					copies[num_copies].source_binding = 0;
 					copies[num_copies].source_array_offset = 0;
 
@@ -1138,11 +1152,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -1376,11 +1397,18 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJEC
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
+	assert(!g_in_d3d12_pipeline_creation);
+	g_in_d3d12_pipeline_creation = true;
+
 	if (ppStateObject == nullptr ||
 		riid != __uuidof(ID3D12StateObject) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, nullptr, *reinterpret_cast<ID3D12StateObject **>(ppStateObject), hr))
 #endif
 		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(pDesc, riid, ppStateObject);
+
+#if RESHADE_ADDON >= 2
+	g_in_d3d12_pipeline_creation = false;
+#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppStateObject != nullptr)
@@ -2551,13 +2579,15 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_COMPUTE_PIPE
 		D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
 		D3D12_PIPELINE_STATE_STREAM_CS cs;
 		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
-		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		// D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
 		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
 	} stream_data = {
 		{ internal_desc.pRootSignature },
 		{ internal_desc.CS },
 		{ internal_desc.NodeMask != 0 ? internal_desc.NodeMask : 1 },
-		{ internal_desc.CachedPSO },
+		// Do not pass along cached PSO, since the data can mismatch if it was previously created without the redirection from 'CreateGraphicsPipelineState' to 'CreatePipelineState' and
+		// thus cause creation to fail with 'E_INVALIDARG' (makes Need for Speed: Unbound error out on startup)
+		//   { internal_desc.CachedPSO },
 		{ internal_desc.Flags }
 	};
 
@@ -2585,7 +2615,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIP
 		D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
 		D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
 		D3D12_PIPELINE_STATE_STREAM_NODE_MASK node_mask;
-		D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
+		// D3D12_PIPELINE_STATE_STREAM_CACHED_PSO cached_pso;
 		D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
 	} stream_data = {
 		{ internal_desc.pRootSignature },
@@ -2606,7 +2636,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_GRAPHICS_PIP
 		{ internal_desc.DSVFormat },
 		{ internal_desc.SampleDesc },
 		{ internal_desc.NodeMask != 0 ? internal_desc.NodeMask : 1 }, // See https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_node_mask#remarks
-		{ internal_desc.CachedPSO },
+		// Do not pass along cached PSO, since the data can mismatch if it was previously created without the redirection from 'CreateComputePipelineState' to 'CreatePipelineState' and
+		// thus cause creation to fail with 'E_INVALIDARG'
+		//   { internal_desc.CachedPSO },
 		{ internal_desc.Flags }
 	};
 

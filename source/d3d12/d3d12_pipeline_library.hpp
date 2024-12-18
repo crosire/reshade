@@ -7,6 +7,8 @@
 
 #if RESHADE_ADDON >= 2
 
+extern thread_local bool g_in_d3d12_pipeline_creation;
+
 HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadGraphicsPipeline(ID3D12PipelineLibrary *pPipelineLibrary, LPCWSTR pName, const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState);
 HRESULT STDMETHODCALLTYPE ID3D12PipelineLibrary_LoadComputePipeline(ID3D12PipelineLibrary *pPipelineLibrary, LPCWSTR pName, const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState);
 

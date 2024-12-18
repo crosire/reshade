@@ -380,11 +380,8 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 		reshade::log::message(reshade::log::level::warning, "Single buffered OpenGL contexts are not supported.");
 	}
 
-	assert(!g_in_dxgi_runtime);
-	g_in_dxgi_runtime = true;
 	// Note: Windows calls into 'wglDescribePixelFormat' repeatedly from this, so make sure it reports correct results
 	const int format = reshade::hooks::call(wglChoosePixelFormat)(hdc, ppfd);
-	g_in_dxgi_runtime = false;
 	if (format != 0)
 		reshade::log::message(reshade::log::level::info, "Returning pixel format: %d", format);
 	else
