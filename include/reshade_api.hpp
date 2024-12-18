@@ -31,6 +31,8 @@ namespace reshade { namespace api
 	/// </remarks>
 	RESHADE_DEFINE_HANDLE(effect_uniform_variable);
 
+	struct display;
+
 	/// <summary>
 	/// Input source for events triggered by user input.
 	/// </summary>
@@ -806,5 +808,10 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="effect_name">File name of the effect file that should be reloaded.</param>
 		virtual void reload_effect_next_frame(const char *effect_name) = 0;
+
+		/// <summary>
+		/// Gets the active display, which may change between frames or return nullptr if the swapchain is offscreen.
+		/// </summary>
+		virtual display* get_active_display() const = 0;
 	};
 } }
