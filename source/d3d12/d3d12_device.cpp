@@ -665,10 +665,10 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 				{
 					const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
 
-					copies[num_copies].dest_table = convert_to_descriptor_table(pDestDescriptorRangeStarts[dst_range]);
+					copies[num_copies].dest_table = convert_to_descriptor_table(offset_descriptor_handle(pDestDescriptorRangeStarts[dst_range], dst_offset, DescriptorHeapsType));
 					copies[num_copies].dest_binding = 0;
 					copies[num_copies].dest_array_offset = 0;
-					copies[num_copies].source_table = convert_to_descriptor_table(pSrcDescriptorRangeStarts[src_range]);
+					copies[num_copies].source_table = convert_to_descriptor_table(offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType));
 					copies[num_copies].source_binding = 0;
 					copies[num_copies].source_array_offset = 0;
 
