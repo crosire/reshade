@@ -551,6 +551,8 @@ private:
 			case type::t_min16uint:
 			case type::t_uint:
 				s += std::to_string(data.as_uint[i]);
+				if (_shader_model >= 40)
+					s += 'u';
 				break;
 			case type::t_min16float:
 			case type::t_float:
