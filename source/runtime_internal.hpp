@@ -170,8 +170,10 @@ namespace reshade
 		bool enabled_in_screenshot = true;
 		int64_t time_left = 0;
 
-		struct pass_data
+		struct pass_data : public reshadefx::pass
 		{
+			pass_data(const reshadefx::pass &init) : reshadefx::pass(init) {}
+
 			api::resource_view render_target_views[8] = {};
 			api::pipeline pipeline = {};
 			api::descriptor_table texture_table = {};
@@ -180,7 +182,14 @@ namespace reshade
 			std::vector<api::resource_view> generate_mipmap_views;
 		};
 
-		std::vector<pass_data> passes_data;
+		struct permutation
+		{
+			std::vector<pass_data> passes;
+			bool created = false;
+		};
+
+		std::vector<permutation> permutations;
+
 		uint32_t query_base_index = 0;
 		moving_average<uint64_t, 60> average_cpu_duration;
 		moving_average<uint64_t, 60> average_gpu_duration;
@@ -200,9 +209,6 @@ namespace reshade
 		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;
-		std::string generated_code;
-		std::unordered_map<std::string, std::string> assembly;
-		std::unordered_map<std::string, std::string> assembly_text;
 
 		std::vector<uniform> uniforms;
 		std::vector<uint8_t> uniform_data_storage;
@@ -222,7 +228,17 @@ namespace reshade
 			api::sampler sampler;
 			bool srgb;
 		};
-		std::vector<binding_data> texture_semantic_to_binding;
+
+		struct permutation
+		{
+			std::string generated_code;
+			std::unordered_map<std::string, std::string> assembly;
+			std::unordered_map<std::string, std::string> assembly_text;
+
+			std::vector<binding_data> texture_semantic_to_binding;
+		};
+
+		std::vector<permutation> permutations;
 	};
 #endif
 }

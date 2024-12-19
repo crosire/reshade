@@ -784,7 +784,8 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 	// Update texture bindings
 	size_t num_bindings = 0;
 	for (const effect &effect_data : _effects)
-		num_bindings += effect_data.texture_semantic_to_binding.size();
+		num_bindings += effect_data.permutations[0].texture_semantic_to_binding.size();
+	num_bindings *= _effect_permutations.size();
 
 	std::vector<api::descriptor_table_update> descriptor_writes;
 	descriptor_writes.reserve(num_bindings);
@@ -792,30 +793,36 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 
 	for (const effect &effect_data : _effects)
 	{
-		for (const effect::binding_data &binding : effect_data.texture_semantic_to_binding)
+		for (size_t permnutation_index = 0; permnutation_index < _effect_permutations.size(); ++permnutation_index)
 		{
-			if (binding.semantic != semantic)
-				continue;
+			if (permnutation_index >= effect_data.permutations.size())
+				break;
 
-			api::descriptor_table_update &write = descriptor_writes.emplace_back();
-			write.table = binding.table;
-			write.binding = binding.index;
-			write.count = 1;
-
-			if (binding.sampler != 0)
+			for (const effect::binding_data &binding : effect_data.permutations[permnutation_index].texture_semantic_to_binding)
 			{
-				write.type = api::descriptor_type::sampler_with_resource_view;
-				write.descriptors = &sampler_descriptors[--num_bindings];
+				if (binding.semantic != semantic)
+					continue;
 
-				sampler_descriptors[num_bindings].sampler = binding.sampler;
-			}
-			else
-			{
-				write.type = api::descriptor_type::shader_resource_view;
-				write.descriptors = &sampler_descriptors[--num_bindings].view;
-			}
+				api::descriptor_table_update &write = descriptor_writes.emplace_back();
+				write.table = binding.table;
+				write.binding = binding.index;
+				write.count = 1;
 
-			sampler_descriptors[num_bindings].view = binding.srgb ? srv_srgb : srv;
+				if (binding.sampler != 0)
+				{
+					write.type = api::descriptor_type::sampler_with_resource_view;
+					write.descriptors = &sampler_descriptors[--num_bindings];
+
+					sampler_descriptors[num_bindings].sampler = binding.sampler;
+				}
+				else
+				{
+					write.type = api::descriptor_type::shader_resource_view;
+					write.descriptors = &sampler_descriptors[--num_bindings].view;
+				}
+
+				sampler_descriptors[num_bindings].view = binding.srgb ? srv_srgb : srv;
+			}
 		}
 	}
 
@@ -1241,16 +1248,16 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 
 		if ((scope_mask_updated & (GLOBAL_SCOPE_FLAG | PRESET_SCOPE_FLAG)) != 0)
 		{
-			_reload_required_effects = { _effects.size() };
+			_reload_required_effects = { std::make_pair(_effects.size(), std::numeric_limits<size_t>::max()) };
 		}
 		else
 		{
 			const size_t effect_index = std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
 				[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect.source_file.filename() == effect_name; }));
 
-			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
-				std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), effect_index) == _reload_required_effects.cend())
-				_reload_required_effects.push_back(effect_index);
+			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(_effects.size(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
+				std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, std::numeric_limits<size_t>::max())) == _reload_required_effects.cend())
+				_reload_required_effects.push_back(std::make_pair(effect_index, std::numeric_limits<size_t>::max()));
 		}
 	}
 #endif
@@ -1402,18 +1409,14 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	if (tech == nullptr)
 		return;
 
-	// Queue effect file for initialization if it was not fully loaded yet
-	if (tech->passes_data.empty() &&
-		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), tech->effect_index) == _reload_create_queue.cend())
-		_reload_create_queue.push_back(tech->effect_index);
-
-	if (rtv == 0 || is_loading())
+	if (rtv == 0)
 		return;
 	if (rtv_srgb == 0)
 		rtv_srgb = rtv;
 
 	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
 
+	size_t permutation_index = 0;
 #if RESHADE_ADDON
 	{
 		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
@@ -1426,9 +1429,28 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Never perform an immediate reload here, as the list of techniques must not be modified in case this was called from within 'enumerate_techniques'!
-		if (!update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_stencil_format))
+		permutation_index = update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format);
+		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}
+
+	if (permutation_index >= tech->permutations.size() || permutation_index >= _effects[tech->effect_index].permutations.size() || _effects[tech->effect_index].permutations[permutation_index].assembly.empty())
+	{
+		if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech->effect_index, permutation_index)) == _reload_required_effects.end())
+			_reload_required_effects.push_back(std::make_pair(tech->effect_index, permutation_index));
+		return;
+	}
+
+	// Queue effect file for initialization if it was not fully loaded yet
+	if (!tech->permutations[permutation_index].created)
+	{
+		if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech->effect_index, permutation_index)) == _reload_create_queue.cend())
+			_reload_create_queue.push_back(std::make_pair(tech->effect_index, permutation_index));
+		return;
+	}
+
+	if (is_loading())
+		return;
 
 	if (!_is_in_present_call)
 		capture_state(cmd_list, _app_state);
@@ -1439,7 +1461,7 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	_is_in_api_call = true;
 #endif
 
-	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb);
+	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb, permutation_index);
 
 #if RESHADE_ADDON
 	_is_in_api_call = was_is_in_api_call;
@@ -1581,7 +1603,7 @@ void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *eff
 #if RESHADE_FX
 	if (effect_name == nullptr)
 	{
-		_reload_required_effects = { _effects.size() };
+		_reload_required_effects = { std::make_pair(_effects.size(), std::numeric_limits<size_t>::max()) };
 		return;
 	}
 
@@ -1590,9 +1612,9 @@ void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *eff
 		it != _effects.cend())
 	{
 		if (const size_t effect_index = static_cast<size_t>(std::distance(_effects.cbegin(), it));
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), _effects.size()) == _reload_required_effects.cend() &&
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), effect_index) == _reload_required_effects.cend())
-			_reload_required_effects.push_back(effect_index);
+			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(_effects.size(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
+			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, std::numeric_limits<size_t>::max())) == _reload_required_effects.cend())
+			_reload_required_effects.push_back(std::make_pair(effect_index, std::numeric_limits<size_t>::max()));
 	}
 #endif
 }

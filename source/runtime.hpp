@@ -182,8 +182,8 @@ namespace reshade
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, bool force_load = false, bool preprocess_required = false);
-		bool create_effect(size_t effect_index);
+		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, size_t permutation_index, bool force_load = false, bool preprocess_required = false);
+		bool create_effect(size_t effect_index, size_t permutation_index);
 		bool create_effect_sampler_state(const reshadefx::sampler_desc &desc, api::sampler &sampler);
 		void destroy_effect(size_t effect_index);
 
@@ -191,7 +191,7 @@ namespace reshade
 		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
-		void enable_technique(technique &technique);
+		void enable_technique(technique &technique, size_t permutation_index = 0);
 		void disable_technique(technique &technique);
 
 		void reorder_techniques(std::vector<size_t> &&technique_indices);
@@ -205,10 +205,10 @@ namespace reshade
 		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const;
 		void clear_effect_cache();
 
-		bool update_effect_color_and_stencil_tex(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format);
+		size_t update_effect_color_and_stencil_tex(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format);
 
 		void update_effects();
-		void render_technique(technique &technique, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb);
+		void render_technique(technique &technique, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb, size_t permutation_index);
 
 		void save_texture(const texture &texture);
 		void update_texture(texture &texture, uint32_t width, uint32_t height, uint32_t depth, const void *pixels);
@@ -294,8 +294,7 @@ namespace reshade
 
 		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
 		std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> _preset_preprocessor_definitions;
-		std::vector<size_t> _reload_required_effects;
-		bool _block_effect_reload_this_frame = false;
+		std::vector<std::pair<size_t, size_t>> _reload_required_effects;
 
 		std::filesystem::path _effect_cache_path;
 		std::vector<std::filesystem::path> _effect_search_paths;
@@ -303,7 +302,7 @@ namespace reshade
 
 		std::atomic<bool> _last_reload_successful = true;
 		std::shared_mutex _reload_mutex;
-		std::vector<size_t> _reload_create_queue;
+		std::vector<std::pair<size_t, size_t>> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = std::numeric_limits<size_t>::max();
 		void *_d3d_compiler_module = nullptr;
 
@@ -318,16 +317,22 @@ namespace reshade
 
 		#pragma region Effect Rendering
 #if RESHADE_FX
-		unsigned int _effect_width = 0;
-		unsigned int _effect_height = 0;
+		struct effect_permutation
+		{
+			unsigned int width = 0;
+			unsigned int height = 0;
+			api::color_space color_space = api::color_space::unknown;
+			api::format color_format = api::format::unknown;
+			api::resource color_tex = {};
+			api::resource_view color_srv[2] = {};
+			api::format stencil_format = api::format::unknown;
+			api::resource stencil_tex = {};
+			api::resource_view stencil_dsv = {};
+		};
+		std::vector<effect_permutation> _effect_permutations;
+
 		api::resource _empty_tex = {};
 		api::resource_view _empty_srv = {};
-		api::format _effect_color_format = api::format::unknown;
-		api::resource _effect_color_tex = {};
-		api::resource_view _effect_color_srv[2] = {};
-		api::format _effect_stencil_format = api::format::unknown;
-		api::resource _effect_stencil_tex = {};
-		api::resource_view _effect_stencil_dsv = {};
 
 		std::unordered_map<size_t, api::sampler> _effect_sampler_states;
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _texture_semantic_bindings;
@@ -537,6 +542,7 @@ namespace reshade
 		struct editor_instance
 		{
 			size_t effect_index;
+			size_t permutation_index;
 			std::filesystem::path file_path;
 			std::string entry_point_name;
 			bool selected = false;
@@ -544,7 +550,7 @@ namespace reshade
 			imgui::code_editor editor;
 		};
 
-		void open_code_editor(size_t effect_index, const std::string &entry_point);
+		void open_code_editor(size_t effect_index, size_t permutation_index, const std::string &entry_point);
 		void open_code_editor(size_t effect_index, const std::filesystem::path &path);
 		void open_code_editor(editor_instance &instance) const;
 		void draw_code_editor(editor_instance &instance);
