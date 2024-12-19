@@ -1248,16 +1248,19 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 
 		if ((scope_mask_updated & (GLOBAL_SCOPE_FLAG | PRESET_SCOPE_FLAG)) != 0)
 		{
-			_reload_required_effects = { std::make_pair(_effects.size(), std::numeric_limits<size_t>::max()) };
+			_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()) };
 		}
-		else
+		else if (const auto it = std::find_if(_effects.cbegin(), _effects.cend(),
+					[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) {
+						return effect.source_file.filename() == effect_name;
+					});
+			it != _effects.cend())
 		{
-			const size_t effect_index = std::distance(_effects.cbegin(), std::find_if(_effects.cbegin(), _effects.cend(),
-				[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect.source_file.filename() == effect_name; }));
+			const size_t effect_index = std::distance(_effects.cbegin(), it);
 
-			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(_effects.size(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
+			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
 				std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, std::numeric_limits<size_t>::max())) == _reload_required_effects.cend())
-				_reload_required_effects.push_back(std::make_pair(effect_index, std::numeric_limits<size_t>::max()));
+				_reload_required_effects.emplace_back(effect_index, std::numeric_limits<size_t>::max());
 		}
 	}
 #endif
@@ -1429,15 +1432,15 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Never perform an immediate reload here, as the list of techniques must not be modified in case this was called from within 'enumerate_techniques'!
-		permutation_index = update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format);
+		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format);
 		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}
 
-	if (permutation_index >= tech->permutations.size() || permutation_index >= _effects[tech->effect_index].permutations.size() || _effects[tech->effect_index].permutations[permutation_index].assembly.empty())
+	if (permutation_index >= tech->permutations.size() || _effects[tech->effect_index].permutations[permutation_index].assembly.empty())
 	{
 		if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech->effect_index, permutation_index)) == _reload_required_effects.end())
-			_reload_required_effects.push_back(std::make_pair(tech->effect_index, permutation_index));
+			_reload_required_effects.emplace_back(tech->effect_index, permutation_index);
 		return;
 	}
 
@@ -1445,7 +1448,7 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	if (!tech->permutations[permutation_index].created)
 	{
 		if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech->effect_index, permutation_index)) == _reload_create_queue.cend())
-			_reload_create_queue.push_back(std::make_pair(tech->effect_index, permutation_index));
+			_reload_create_queue.emplace_back(tech->effect_index, permutation_index);
 		return;
 	}
 
@@ -1603,18 +1606,21 @@ void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *eff
 #if RESHADE_FX
 	if (effect_name == nullptr)
 	{
-		_reload_required_effects = { std::make_pair(_effects.size(), std::numeric_limits<size_t>::max()) };
+		_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()) };
 		return;
 	}
 
 	if (auto it = std::find_if(_effects.cbegin(), _effects.cend(),
-			[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) { return effect.source_file.filename() == effect_name; });
+			[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) {
+				return effect.source_file.filename() == effect_name;
+			});
 		it != _effects.cend())
 	{
-		if (const size_t effect_index = static_cast<size_t>(std::distance(_effects.cbegin(), it));
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(_effects.size(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
+		const size_t effect_index = std::distance(_effects.cbegin(), it);
+
+		if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
 			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, std::numeric_limits<size_t>::max())) == _reload_required_effects.cend())
-			_reload_required_effects.push_back(std::make_pair(effect_index, std::numeric_limits<size_t>::max()));
+			_reload_required_effects.emplace_back(effect_index, std::numeric_limits<size_t>::max());
 	}
 #endif
 }

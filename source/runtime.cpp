@@ -412,7 +412,7 @@ bool reshade::runtime::on_init()
 		}
 	}
 
-	if (update_effect_color_and_stencil_tex(_width, _height, _back_buffer_format, stencil_format) != 0)
+	if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format) != 0)
 		goto exit_failure;
 	_effect_permutations[0].color_space = _back_buffer_color_space;
 #endif
@@ -452,7 +452,7 @@ bool reshade::runtime::on_init()
 		goto exit_failure;
 #endif
 
-	const input::window_handle window = _swapchain->get_hwnd();
+	const input::window_handle window = get_hwnd();
 	if (window != nullptr && !_is_vr)
 		_input = input::register_window(window);
 	else
@@ -3333,7 +3333,7 @@ void reshade::runtime::enable_technique(technique &tech, size_t permutation_inde
 	if (!tech.permutations[permutation_index].created &&
 		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
 		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech.effect_index, permutation_index)) == _reload_create_queue.cend())
-		_reload_create_queue.push_back(std::make_pair(tech.effect_index, permutation_index));
+		_reload_create_queue.emplace_back(tech.effect_index, permutation_index);
 
 	if (status_changed) // Increase rendering reference count
 		_effects[tech.effect_index].rendering++;
@@ -3508,6 +3508,7 @@ void reshade::runtime::destroy_effects()
 
 	// Reset the effect creation queue
 	_reload_create_queue.clear();
+	_reload_required_effects.clear();
 
 	// Make sure no effect resources are currently in use (do this even when the effect list is empty, since it is dependent upon by 'on_reset')
 	_graphics_queue->wait_idle();
@@ -3533,8 +3534,6 @@ void reshade::runtime::destroy_effects()
 	// Textures and techniques should have been cleaned up by the calls to 'destroy_effect' above
 	assert(_textures.empty());
 	assert(_techniques.empty() && _technique_sorting.empty());
-
-	_reload_required_effects.clear();
 }
 
 bool reshade::runtime::load_effect_cache(const std::string &id, const std::string &type, std::string &data) const
@@ -3596,7 +3595,7 @@ void reshade::runtime::clear_effect_cache()
 		log::message(log::level::error, "Failed to clear effect cache directory with error code %d!", ec.value());
 }
 
-size_t reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format)
+auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format) -> size_t
 {
 	assert(width != 0 && height != 0);
 	assert(color_format != api::format::unknown && stencil_format != api::format::unknown);
@@ -3619,6 +3618,7 @@ size_t reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uin
 			nullptr, api::resource_usage::shader_resource, &permutation.color_tex))
 	{
 		log::message(log::level::error, "Failed to create effect color resource (width = %u, height = %u, format = %u)!", width, height, static_cast<uint32_t>(color_format_typeless));
+
 		return std::numeric_limits<size_t>::max();
 	}
 
@@ -3634,20 +3634,19 @@ size_t reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uin
 		_device->destroy_resource(permutation.color_tex);
 
 		log::message(log::level::error, "Failed to create effect color resource view (format = %u)!", static_cast<uint32_t>(color_format));
+
 		return std::numeric_limits<size_t>::max();
 	}
-
-	const size_t permutation_index = _effect_permutations.size();
 
 	if (stencil_format == api::format::unknown ||
 		!_device->create_resource(
 			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &permutation.stencil_tex))
 	{
-		_effect_permutations.push_back(permutation);
-
 		log::message(log::level::error, "Failed to create effect stencil resource (width = %u, height = %u, format = %u)!", width, height, static_cast<uint32_t>(stencil_format));
-		return permutation_index; // Ignore this error, since most effects can still be rendered without stencil
+
+		_effect_permutations.push_back(permutation);
+		return _effect_permutations.size() - 1; // Ignore this error, since most effects can still be rendered without stencil
 	}
 
 	permutation.stencil_format = stencil_format;
@@ -3662,12 +3661,12 @@ size_t reshade::runtime::update_effect_color_and_stencil_tex(uint32_t width, uin
 		_device->destroy_resource(permutation.stencil_tex);
 
 		log::message(log::level::error, "Failed to create effect stencil resource view (format = %u)!", static_cast<uint32_t>(stencil_format));
+
 		return std::numeric_limits<size_t>::max();
 	}
 
 	_effect_permutations.push_back(permutation);
-
-	return permutation_index;
+	return _effect_permutations.size() - 1;
 }
 
 void reshade::runtime::update_effects()
@@ -3676,27 +3675,43 @@ void reshade::runtime::update_effects()
 	if (_frame_count == 0 && !_no_reload_on_init)
 		reload_effects();
 
-	if (!_reload_required_effects.empty() && !is_loading())
+	if (!is_loading() && !_reload_required_effects.empty())
 	{
 		save_current_preset(); // Save preset preprocessor definitions
 
-		assert(_reload_required_effects.back().first <= _effects.size());
+		_reload_remaining_effects = 0;
 
-		if (_reload_required_effects.back().first < _effects.size())
+		for (size_t i = 0; i < _reload_required_effects.size(); ++i)
 		{
-			const auto [effect_index, permutation_index] = _reload_required_effects.back();
-			_reload_required_effects.pop_back();
-			if (permutation_index != std::numeric_limits<size_t>::max() && permutation_index >= _effects[effect_index].permutations.size())
-				load_effect(_effects[effect_index].source_file, ini_file::load_cache(_current_preset_path), effect_index, permutation_index, true);
+			const auto [effect_index, permutation_index] = _reload_required_effects[i];
+
+			if (effect_index >= _effects.size())
+			{
+				reload_effects();
+				assert(_reload_required_effects.empty());
+				break;
+			}
+
+			if (permutation_index == 0 || permutation_index == std::numeric_limits<size_t>::max())
+			{
+				if (!reload_effect(effect_index))
+					continue;
+			}
 			else
-				reload_effect(effect_index);
+			{
+				_reload_remaining_effects += 1;
+
+				_worker_threads.emplace_back([this, effect_index, permutation_index]() {
+						load_effect(_effects[effect_index].source_file, ini_file::load_cache(_current_preset_path), effect_index, permutation_index, true);
+					});
+			}
+
+			// Force immediate effect initialization of this permutation after reloading
+			if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), _reload_required_effects[i]) == _reload_create_queue.cend())
+				_reload_create_queue.push_back(_reload_required_effects[i]);
 		}
-		else
-		{
-			assert(_reload_required_effects.back().second == std::numeric_limits<size_t>::max());
-			reload_effects();
-			assert(_reload_required_effects.empty());
-		}
+
+		_reload_required_effects.clear();
 	}
 
 	if (_reload_remaining_effects == 0)
@@ -3811,9 +3826,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Update special uniform variables
 	for (effect &effect : _effects)
 	{
-		if (!_effects_enabled && !effect.is_addonfx)
-			continue;
-		if (!effect.rendering)
+		if (!effect.rendering || (!_effects_enabled && !effect.is_addonfx))
 			continue;
 
 		for (uniform &variable : effect.uniforms)
@@ -4020,7 +4033,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Changing dimensions or format can cause effects to be reloaded, in which case need to wait for that to finish before rendering
-		permutation_index = update_effect_color_and_stencil_tex(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format);
+		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format);
 		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}
@@ -4040,22 +4053,13 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	{
 		technique &tech = _techniques[technique_index];
 
-		if (!_effects_enabled && !_effects[tech.effect_index].is_addonfx)
+		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot) || (!_effects_enabled && !_effects[tech.effect_index].is_addonfx))
 			continue;
-		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot))
-			continue; // Ignore techniques that are disabled
 
-		if (permutation_index >= tech.permutations.size() || permutation_index >= _effects[tech.effect_index].permutations.size() || _effects[tech.effect_index].permutations[permutation_index].assembly.empty())
+		if (permutation_index >= tech.permutations.size() || _effects[tech.effect_index].permutations[permutation_index].assembly.empty())
 		{
 			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech.effect_index, permutation_index)) == _reload_required_effects.end())
-				_reload_required_effects.push_back(std::make_pair(tech.effect_index, permutation_index));
-			continue;
-		}
-
-		if (!tech.permutations[permutation_index].created)
-		{
-			if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech.effect_index, permutation_index)) == _reload_create_queue.cend())
-				_reload_create_queue.push_back(std::make_pair(tech.effect_index, permutation_index));
+				_reload_required_effects.emplace_back(tech.effect_index, permutation_index);
 			continue;
 		}
 
