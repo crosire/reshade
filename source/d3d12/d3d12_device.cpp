@@ -653,6 +653,12 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 			uint32_t num_copies = 0;
 			for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
 				num_copies += (pDestDescriptorRangeSizes != nullptr ? pDestDescriptorRangeSizes[i] : 1);
+#ifndef NDEBUG
+			uint32_t num_copies_source = 0;
+			for (UINT i = 0; i < NumSrcDescriptorRanges; ++i)
+				num_copies_source += (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[i]: 1);
+			assert(num_copies == num_copies_source);
+#endif
 			temp_mem<reshade::api::descriptor_table_copy, 32> copies(num_copies);
 
 			num_copies = 0;
@@ -703,12 +709,12 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 		}
 
 		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, 32> descriptor_range_starts(NumDestDescriptorRanges + NumSrcDescriptorRanges);
-		for (UINT i = 0; i < NumSrcDescriptorRanges; ++i)
-			descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pSrcDescriptorRangeStarts[i]));
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-			descriptor_range_starts[NumSrcDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pDestDescriptorRangeStarts[i]));
+			descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pDestDescriptorRangeStarts[i]));
+		for (UINT i = 0; i < NumSrcDescriptorRanges; ++i)
+			descriptor_range_starts[NumDestDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pSrcDescriptorRangeStarts[i]));
 
-		_orig->CopyDescriptors(NumDestDescriptorRanges, descriptor_range_starts.p + NumSrcDescriptorRanges, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, descriptor_range_starts.p, pSrcDescriptorRangeSizes, DescriptorHeapsType);
+		_orig->CopyDescriptors(NumDestDescriptorRanges, descriptor_range_starts.p, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, descriptor_range_starts.p + NumDestDescriptorRanges, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 		return;
 	}
 	else
@@ -724,7 +730,9 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 			{
 				const UINT src_count = (pSrcDescriptorRangeSizes != nullptr ? pSrcDescriptorRangeSizes[src_range] : 1);
 
-				register_resource_view(offset_descriptor_handle(pDestDescriptorRangeStarts[dst_range], dst_offset, DescriptorHeapsType), offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType));
+				register_resource_view(
+					offset_descriptor_handle(pDestDescriptorRangeStarts[dst_range], dst_offset, DescriptorHeapsType),
+					offset_descriptor_handle(pSrcDescriptorRangeStarts[src_range], src_offset, DescriptorHeapsType));
 
 				src_offset += 1;
 				dst_offset += 1;
