@@ -74,13 +74,9 @@ IDR_IMGUI_PS_3_0        RCDATA                  "shaders\\imgui_ps_3_0.cso"
 
 IDR_IMGUI_PS_4_0        RCDATA                  "shaders\\imgui_ps_4_0.cso"
 
-IDR_IMGUI_PS_4_0_HDR    RCDATA                  "shaders\\imgui_ps_4_0_hdr.cso"
-
 IDR_IMGUI_PS_GLSL       RCDATA                  "shaders\\imgui_ps_430.glsl"
 
 IDR_IMGUI_PS_SPIRV      RCDATA                  "shaders\\imgui_ps_450.spv"
-
-IDR_IMGUI_PS_SPIRV_HDR  RCDATA                  "shaders\\imgui_ps_450_hdr.spv"
 
 IDR_IMGUI_VS_3_0        RCDATA                  "shaders\\imgui_vs_3_0.cso"
 

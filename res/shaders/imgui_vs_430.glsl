@@ -7,11 +7,14 @@ layout(location = 2) in vec4 col;
 out vec4 frag_col;
 out vec2 frag_tex;
 
-layout(binding = 0) uniform Buf { mat4 proj; };
+layout(binding = 0) uniform PushConstants
+{
+	mat4 ortho_projection;
+};
 
 void main()
 {
 	frag_col = col;
 	frag_tex = tex;
-	gl_Position = proj * vec4(pos.xy, 0, 1);
+	gl_Position = ortho_projection * vec4(pos.xy, 0, 1);
 }

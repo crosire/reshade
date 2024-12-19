@@ -458,6 +458,9 @@
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
+    <ClInclude Include="res\shaders\imgui_hdr.h">
+      <Filter>resources\shaders</Filter>
+    </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
     </ClInclude>
@@ -764,9 +767,6 @@
     <FxCompile Include="res\shaders\imgui_ps_4_0.hlsl">
       <Filter>resources\shaders</Filter>
     </FxCompile>
-    <FxCompile Include="res\shaders\imgui_ps_4_0_hdr.hlsl">
-      <Filter>resources\shaders</Filter>
-    </FxCompile>
     <FxCompile Include="res\shaders\imgui_vs_3_0.hlsl">
       <Filter>resources\shaders</Filter>
     </FxCompile>
@@ -779,9 +779,6 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps_450.glsl">
-      <Filter>resources\shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="res\shaders\imgui_ps_450_hdr.glsl">
       <Filter>resources\shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs_450.glsl">
