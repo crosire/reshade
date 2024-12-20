@@ -1689,6 +1689,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	{
 		if (!source.empty())
 		{
+			effect.definitions.clear();
+
 			// Read used preprocessor definitions and pragmas from the cached source
 			for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
 			{
@@ -1715,7 +1717,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	std::unique_ptr<reshadefx::codegen> codegen;
-	if (!effect.compiled && !source.empty())
+	if (!effect.compiled && !source.empty() || permutation.assembly.empty())
 	{
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)
@@ -4091,7 +4093,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot) || (!_effects_enabled && !_effects[tech.effect_index].is_addonfx))
 			continue;
 
-		if (permutation_index >= tech.permutations.size() || _effects[tech.effect_index].permutations[permutation_index].assembly.empty())
+		if (permutation_index >= tech.permutations.size() || (!tech.permutations[permutation_index].created && _effects[tech.effect_index].permutations[permutation_index].assembly.empty()))
 		{
 			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech.effect_index, permutation_index)) == _reload_required_effects.end())
 				_reload_required_effects.emplace_back(tech.effect_index, permutation_index);

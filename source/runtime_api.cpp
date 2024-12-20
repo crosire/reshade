@@ -1446,7 +1446,7 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 			return;
 	}
 
-	if (permutation_index >= tech->permutations.size() || _effects[tech->effect_index].permutations[permutation_index].assembly.empty())
+	if (permutation_index >= tech->permutations.size() || (!tech->permutations[permutation_index].created && _effects[tech->effect_index].permutations[permutation_index].assembly.empty()))
 	{
 		if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech->effect_index, permutation_index)) == _reload_required_effects.end())
 			_reload_required_effects.emplace_back(tech->effect_index, permutation_index);
