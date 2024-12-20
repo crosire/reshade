@@ -612,23 +612,18 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		if (_queue_sync_fence == 0)
 		{
 			if (!_device->create_fence(_queue_sync_value, api::fence_flags::none, &_queue_sync_fence))
+			{
 				log::message(log::level::error, "Failed to create queue synchronization fence!");
+				return;
+			}
 		}
 
-		if (_queue_sync_fence != 0)
-		{
-			_queue_sync_value++;
+		_queue_sync_value++;
 
-			// Signal from the queue the application is presenting with
-			if (present_queue->signal(_queue_sync_fence, _queue_sync_value))
-				// Wait on that before the immediate command list flush below
-				_graphics_queue->wait(_queue_sync_fence, _queue_sync_value);
-		}
-		else
-		{
-			// Unable to create a synchronization fence, fall back to excruciatingly slow CPU synchronization to at least prevent crashing
-			_graphics_queue->wait_idle();
-		}
+		// Signal from the queue the application is presenting with
+		if (present_queue->signal(_queue_sync_fence, _queue_sync_value))
+			// Wait on that before the immediate command list flush below
+			_graphics_queue->wait(_queue_sync_fence, _queue_sync_value);
 	}
 
 #if RESHADE_ADDON
@@ -891,7 +886,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	// Apply previous state from application
 	apply_state(cmd_list, _app_state);
 
-	if (present_queue != _graphics_queue && _queue_sync_fence != 0)
+	if (present_queue != _graphics_queue)
 	{
 		_queue_sync_value++;
 
