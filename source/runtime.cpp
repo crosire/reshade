@@ -1546,13 +1546,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	effect &effect = _effects[effect_index];
 
 	const size_t source_hash = std::hash<std::string>()(attributes);
-	if (permutation_index != 0)
-	{
-		// Force compilation of additional permutations
-		effect.compiled = false;
-		effect.preprocessed = false;
-	}
-	else if (source_file != effect.source_file || source_hash != effect.source_hash)
+	if (permutation_index == 0 && (source_file != effect.source_file || source_hash != effect.source_hash))
 	{
 		// Source hash has changed, reset effect and load from scratch, rather than updating
 		effect = {};
@@ -1592,7 +1586,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	bool source_cached = false;
 	std::string source;
-	if (!effect.preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
+	if ((!effect.preprocessed || permutation_index != 0) &&
+		(preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -1717,7 +1712,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	std::unique_ptr<reshadefx::codegen> codegen;
-	if (!effect.compiled && !source.empty() || permutation.assembly.empty())
+	if ((!effect.compiled || permutation_index != 0) && !source.empty() || permutation.assembly.empty())
 	{
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)
@@ -1890,7 +1885,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (!errors.empty())
 		effect.errors = std::move(errors);
 
-	if ( effect.compiled && (effect.preprocessed || source_cached))
+	if (effect.compiled && (effect.preprocessed || source_cached))
 	{
 		if (permutation.assembly.empty())
 		{
@@ -2197,12 +2192,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 		for (reshadefx::technique &tech : permutation.module.techniques)
 		{
-			technique new_technique;
-			new_technique.name = tech.name;
-			new_technique.effect_index = effect_index;
-
-			new_technique.annotations = std::move(tech.annotations);
-
 			if (const auto existing_technique = std::find_if(_techniques.begin(), _techniques.end(),
 					[effect_index, &tech](const technique &item) {
 						return item.effect_index == effect_index && item.name == tech.name;
@@ -2214,12 +2203,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				existing_technique->permutations[permutation_index].passes.assign(tech.passes.begin(), tech.passes.end());
 
 				// Merge annotations
-				existing_technique->annotations.insert(existing_technique->annotations.end(), new_technique.annotations.begin(), new_technique.annotations.end());
-
-				if (new_technique.annotation_as_int("enabled"))
-					enable_technique(*existing_technique, permutation_index);
+				existing_technique->annotations.insert(existing_technique->annotations.end(), tech.annotations.begin(), tech.annotations.end());
 				continue;
 			}
+
+			technique new_technique;
+			new_technique.name = tech.name;
+			new_technique.effect_index = effect_index;
+
+			new_technique.annotations = std::move(tech.annotations);
 
 			new_technique.hidden = new_technique.annotation_as_int("hidden") != 0;
 			new_technique.enabled_in_screenshot = new_technique.annotation_as_int("enabled_in_screenshot", 0, true) != 0;
@@ -2265,6 +2257,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_index)
 {
 	effect &effect = _effects[effect_index];
+	if (!effect.compiled)
+		return false;
+
 	effect::permutation &permutation = effect.permutations[permutation_index];
 
 	// Create textures now, since they are referenced when building samplers below
@@ -3344,7 +3339,7 @@ void reshade::runtime::destroy_texture(texture &tex)
 	tex.uav.clear();
 }
 
-void reshade::runtime::enable_technique(technique &tech, size_t permutation_index)
+void reshade::runtime::enable_technique(technique &tech)
 {
 	assert(tech.effect_index < _effects.size());
 
@@ -3367,10 +3362,10 @@ void reshade::runtime::enable_technique(technique &tech, size_t permutation_inde
 	tech.time_left = tech.annotation_as_int("timeout");
 
 	// Queue effect file for initialization if it was not fully loaded yet
-	if (!tech.permutations[permutation_index].created &&
+	if (!tech.permutations[0].created &&
 		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
-		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech.effect_index, permutation_index)) == _reload_create_queue.cend())
-		_reload_create_queue.emplace_back(tech.effect_index, permutation_index);
+		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech.effect_index, 0u)) == _reload_create_queue.cend())
+		_reload_create_queue.emplace_back(tech.effect_index, 0u);
 
 	if (status_changed) // Increase rendering reference count
 		_effects[tech.effect_index].rendering++;
@@ -3492,6 +3487,8 @@ void reshade::runtime::load_effects(bool force_load_all)
 }
 bool reshade::runtime::reload_effect(size_t effect_index)
 {
+	assert(!is_loading());
+
 #if RESHADE_GUI
 	_show_splash = false; // Hide splash bar when reloading a single effect file
 #endif
@@ -3546,6 +3543,7 @@ void reshade::runtime::destroy_effects()
 	// Reset the effect creation queue
 	_reload_create_queue.clear();
 	_reload_required_effects.clear();
+	_reload_remaining_effects = std::numeric_limits<size_t>::max();
 
 	// Make sure no effect resources are currently in use (do this even when the effect list is empty, since it is dependent upon by 'on_reset')
 	_graphics_queue->wait_idle();
@@ -3744,6 +3742,7 @@ void reshade::runtime::update_effects()
 			}
 
 			// Force immediate effect initialization of this permutation after reloading
+			// This can cause attempts to create an effect that failed to compile, so need to handle that case in 'create_effect' below
 			if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), _reload_required_effects[i]) == _reload_create_queue.cend())
 				_reload_create_queue.push_back(_reload_required_effects[i]);
 		}

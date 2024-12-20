@@ -191,7 +191,7 @@ namespace reshade
 		bool create_texture(texture &texture);
 		void destroy_texture(texture &texture);
 
-		void enable_technique(technique &technique, size_t permutation_index = 0);
+		void enable_technique(technique &technique);
 		void disable_technique(technique &technique);
 
 		void reorder_techniques(std::vector<size_t> &&technique_indices);
