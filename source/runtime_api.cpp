@@ -798,7 +798,7 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 			if (permnutation_index >= effect_data.permutations.size())
 				break;
 
-			for (const effect::binding_data &binding : effect_data.permutations[permnutation_index].texture_semantic_to_binding)
+			for (const effect::binding &binding : effect_data.permutations[permnutation_index].texture_semantic_to_binding)
 			{
 				if (binding.semantic != semantic)
 					continue;

@@ -2726,8 +2726,8 @@ void reshade::runtime::draw_gui_statistics()
 			if (!tech.enabled)
 				continue;
 
-			if (tech.passes.size() > 1)
-				ImGui::Text("%s (%zu passes)", tech.name.c_str(), tech.passes.size());
+			if (tech.permutations[0].passes.size() > 1)
+				ImGui::Text("%s (%zu passes)", tech.name.c_str(), tech.permutations[0].passes.size());
 			else
 				ImGui::TextUnformatted(tech.name.c_str(), tech.name.c_str() + tech.name.size());
 
@@ -2870,17 +2870,17 @@ void reshade::runtime::draw_gui_statistics()
 				std::pair<size_t, std::vector<std::string>> &reference = references.emplace_back();
 				reference.first = tech.effect_index;
 
-				for (size_t pass_index = 0; pass_index < tech.passes.size(); ++pass_index)
+				for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
 				{
-					std::string pass_name = tech.passes[pass_index].name;
+					std::string pass_name = tech.permutations[0].passes[pass_index].name;
 					if (pass_name.empty())
 						pass_name = "pass " + std::to_string(pass_index);
 					pass_name = tech.name + ' ' + pass_name;
 
 					bool referenced = false;
-					for (const reshadefx::texture_binding &binding : tech.passes[pass_index].texture_bindings)
+					for (const reshadefx::texture_binding &binding : tech.permutations[0].passes[pass_index].texture_bindings)
 					{
-						if (_effects[tech.effect_index].module.samplers[binding.index].texture_name == tex.unique_name)
+						if (_effects[tech.effect_index].permutations[0].module.samplers[binding.index].texture_name == tex.unique_name)
 						{
 							referenced = true;
 							reference.second.emplace_back(pass_name + " (sampler)");
@@ -2888,9 +2888,9 @@ void reshade::runtime::draw_gui_statistics()
 						}
 					}
 
-					for (const reshadefx::storage_binding &binding : tech.passes[pass_index].storage_bindings)
+					for (const reshadefx::storage_binding &binding : tech.permutations[0].passes[pass_index].storage_bindings)
 					{
-						if (_effects[tech.effect_index].module.storages[binding.index].texture_name == tex.unique_name)
+						if (_effects[tech.effect_index].permutations[0].module.storages[binding.index].texture_name == tex.unique_name)
 						{
 							referenced = true;
 							reference.second.emplace_back(pass_name + " (storage)");
@@ -2898,7 +2898,7 @@ void reshade::runtime::draw_gui_statistics()
 						}
 					}
 
-					for (const std::string &render_target : tech.passes[pass_index].render_target_names)
+					for (const std::string &render_target : tech.permutations[0].passes[pass_index].render_target_names)
 					{
 						if (render_target == tex.unique_name)
 						{
@@ -4380,7 +4380,7 @@ void reshade::runtime::draw_technique_editor()
 						ImGui::Separator();
 
 						std::string entry_point_name;
-						for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.module.entry_points)
+						for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.permutations[permutation_index].module.entry_points)
 							if (const auto assembly_it = effect.permutations[permutation_index].assembly_text.find(entry_point.first);
 								assembly_it != effect.permutations[permutation_index].assembly_text.end() && ImGui::MenuItem(entry_point.first.c_str()))
 								entry_point_name = entry_point.first;
