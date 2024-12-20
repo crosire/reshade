@@ -609,13 +609,11 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	// This ensures that it has finished rendering before ReShade applies its own rendering
 	if (present_queue != _graphics_queue)
 	{
-		if (_queue_sync_fence == 0)
+		if (_queue_sync_fence == 0 &&
+			!_device->create_fence(_queue_sync_value, api::fence_flags::none, &_queue_sync_fence))
 		{
-			if (!_device->create_fence(_queue_sync_value, api::fence_flags::none, &_queue_sync_fence))
-			{
-				log::message(log::level::error, "Failed to create queue synchronization fence!");
-				return;
-			}
+			log::message(log::level::error, "Failed to create queue synchronization fence!");
+			return;
 		}
 
 		_queue_sync_value++;

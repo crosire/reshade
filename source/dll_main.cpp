@@ -233,12 +233,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					// Create dump with exception information for the first 100 occurrences
 					if (static unsigned int dump_index = 0; dump_index < 100)
 					{
-						const auto dbghelp = GetModuleHandleW(L"dbghelp.dll");
-						if (dbghelp == nullptr)
+						const auto dbghelp_module = GetModuleHandleW(L"dbghelp.dll");
+						if (dbghelp_module == nullptr)
 							goto continue_search;
 
 						const auto dbghelp_write_dump = reinterpret_cast<BOOL(WINAPI *)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION)>(
-							GetProcAddress(dbghelp, "MiniDumpWriteDump"));
+							GetProcAddress(dbghelp_module, "MiniDumpWriteDump"));
 						if (dbghelp_write_dump == nullptr)
 							goto continue_search;
 

@@ -18,12 +18,47 @@
 
 extern bool is_windows7();
 
-#ifdef _WIN64
-constexpr size_t heap_index_start = 28;
-#else
+#ifndef _WIN64
 // Make a bit more space for the heap index in descriptor handles, at the cost of less space for the descriptor index, due to overall limit of only 32-bit being available
 constexpr size_t heap_index_start = 24;
+#else
+constexpr size_t heap_index_start = 28;
 #endif
+
+static auto adapter_from_device(ID3D12Device *device, DXGI_ADAPTER_DESC *adapter_desc) -> const com_ptr<IDXGIAdapter>
+{
+	const auto dxgi_module = GetModuleHandleW(L"dxgi.dll");
+	assert(dxgi_module != nullptr);
+	const auto CreateDXGIFactory1 = reinterpret_cast<HRESULT(WINAPI *)(REFIID riid, void **ppFactory)>(GetProcAddress(dxgi_module, "CreateDXGIFactory1"));
+	assert(CreateDXGIFactory1 != nullptr);
+	const auto CreateDXGIFactory2 = reinterpret_cast<HRESULT(WINAPI *)(UINT Flags, REFIID riid, void **ppFactory)>(GetProcAddress(dxgi_module, "CreateDXGIFactory2"));
+	assert(CreateDXGIFactory2 != nullptr || is_windows7());
+
+	const LUID luid = device->GetAdapterLuid();
+
+	com_ptr<IDXGIAdapter> dxgi_adapter;
+
+	if (com_ptr<IDXGIFactory4> factory4;
+		CreateDXGIFactory2 != nullptr && SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
+	{
+		if (SUCCEEDED(factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
+		{
+			dxgi_adapter->GetDesc(adapter_desc);
+		}
+	}
+	else
+	if (com_ptr<IDXGIFactory1> factory1;
+		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
+	{
+		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
+		{
+			if (SUCCEEDED(dxgi_adapter->GetDesc(adapter_desc)) && std::memcmp(&adapter_desc->AdapterLuid, &luid, sizeof(luid)) == 0)
+				break;
+		}
+	}
+
+	return dxgi_adapter;
+}
 
 reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	api_object_impl(device),
@@ -87,52 +122,16 @@ reshade::d3d12::device_impl::~device_impl()
 #endif
 }
 
-static const com_ptr<IDXGIAdapter> get_adapter_for_device(ID3D12Device *device, DXGI_ADAPTER_DESC &adapter_desc)
-{
-	const LUID luid = device->GetAdapterLuid();
-
-	com_ptr<IDXGIAdapter> dxgi_adapter;
-
-	const auto CreateDXGIFactory1 = reinterpret_cast<HRESULT(WINAPI *)(REFIID riid, void **ppFactory)>(
-		GetProcAddress(GetModuleHandleW(L"dxgi.dll"), "CreateDXGIFactory1"));
-	assert(CreateDXGIFactory1 != nullptr);
-	const auto CreateDXGIFactory2 = reinterpret_cast<HRESULT(WINAPI *)(UINT Flags, REFIID riid, void **ppFactory)>(
-		GetProcAddress(GetModuleHandleW(L"dxgi.dll"), "CreateDXGIFactory2"));
-	assert(CreateDXGIFactory2 != nullptr || is_windows7());
-
-	if (com_ptr<IDXGIFactory4> factory4;
-		CreateDXGIFactory2 != nullptr && SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
-	{
-		if (SUCCEEDED(factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
-		{
-			dxgi_adapter->GetDesc(&adapter_desc);
-		}
-	}
-	else
-	if (com_ptr<IDXGIFactory1> factory1;
-		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
-	{
-		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
-		{
-			if (SUCCEEDED(dxgi_adapter->GetDesc(&adapter_desc)) && std::memcmp(&adapter_desc.AdapterLuid, &luid, sizeof(luid)) == 0)
-				break;
-		}
-	}
-
-	return dxgi_adapter;
-}
-
 bool reshade::d3d12::device_impl::get_property(api::device_properties property, void *data) const
 {
-	DXGI_ADAPTER_DESC adapter_desc;
-
 	switch (property)
 	{
 	case api::device_properties::api_version:
 		*static_cast<uint32_t *>(data) = D3D_FEATURE_LEVEL_12_0;
 		return true;
 	case api::device_properties::driver_version:
-		if (const auto dxgi_adapter = get_adapter_for_device(_orig, adapter_desc))
+		DXGI_ADAPTER_DESC temp_adapter_desc;
+		if (const auto dxgi_adapter = adapter_from_device(_orig, &temp_adapter_desc))
 		{
 			LARGE_INTEGER umd_version = {};
 			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
@@ -141,21 +140,24 @@ bool reshade::d3d12::device_impl::get_property(api::device_properties property, 
 		}
 		return false;
 	case api::device_properties::vendor_id:
-		if (get_adapter_for_device(_orig, adapter_desc))
+		if (DXGI_ADAPTER_DESC adapter_desc;
+			adapter_from_device(_orig, &adapter_desc))
 		{
 			*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
 			return true;
 		}
 		return false;
 	case api::device_properties::device_id:
-		if (get_adapter_for_device(_orig, adapter_desc))
+		if (DXGI_ADAPTER_DESC adapter_desc;
+			adapter_from_device(_orig, &adapter_desc))
 		{
 			*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
 			return true;
 		}
 		return false;
 	case api::device_properties::description:
-		if (get_adapter_for_device(_orig, adapter_desc))
+		if (DXGI_ADAPTER_DESC adapter_desc;
+			adapter_from_device(_orig, &adapter_desc))
 		{
 			static_assert(std::size(adapter_desc.Description) <= 256);
 			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));
@@ -1449,8 +1451,9 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		}
 	}
 
-	const auto D3D12SerializeRootSignature = reinterpret_cast<HRESULT(WINAPI *)(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)>(
-		GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeRootSignature"));
+	const auto d3d12_module = GetModuleHandleW(L"d3d12.dll");
+	assert(d3d12_module != nullptr);
+	const auto D3D12SerializeRootSignature = reinterpret_cast<HRESULT(WINAPI *)(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)>(GetProcAddress(d3d12_module, "D3D12SerializeRootSignature"));
 	assert(D3D12SerializeRootSignature != nullptr);
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
@@ -2190,13 +2193,13 @@ void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)
 	assert(heap_desc.Flags <= 0x1);
 	_internal_base_cpu_handle.ptr |= static_cast<SIZE_T>(heap_desc.Flags) << 2;
 
-#ifdef _WIN64
-	static_assert((D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 * 32) < (1 << heap_index_start));
-#else
+#ifndef _WIN64
 	if (heap_index >= (1ull << std::min(sizeof(SIZE_T) * 8 - heap_index_start, heap_index_start)))
 	{
 		reshade::log::message(reshade::log::level::error, "Descriptor heap index is too big to fit into handle!");
 	}
+#else
+	static_assert((D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_2 * 32) < (1 << heap_index_start));
 #endif
 	if (_device->GetDescriptorHandleIncrementSize(heap_desc.Type) < (1 << 3))
 	{
