@@ -1562,10 +1562,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.is_addonfx = source_file.extension() == L".addonfx";
 	}
 
-	if (permutation_index >= effect.permutations.size())
-		effect.permutations.resize(permutation_index + 1);
-	effect::permutation &permutation = effect.permutations[permutation_index];
-
 	if (_effect_load_skipping && !force_load)
 	{
 		if (std::vector<std::string> techniques;
@@ -1585,6 +1581,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 		}
 	}
+
+	if (permutation_index >= effect.permutations.size())
+		effect.permutations.resize(permutation_index + 1);
+	effect::permutation &permutation = effect.permutations[permutation_index];
 
 	bool skip_optimization = false;
 	std::string code_preamble;

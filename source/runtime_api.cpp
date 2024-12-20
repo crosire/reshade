@@ -784,7 +784,13 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 	// Update texture bindings
 	size_t num_bindings = 0;
 	for (const effect &effect_data : _effects)
+	{
+		if (!effect_data.compiled)
+			continue;
+
 		num_bindings += effect_data.permutations[0].texture_semantic_to_binding.size();
+	}
+
 	num_bindings *= _effect_permutations.size();
 
 	std::vector<api::descriptor_table_update> descriptor_writes;
@@ -793,6 +799,9 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 
 	for (const effect &effect_data : _effects)
 	{
+		if (!effect_data.compiled)
+			continue;
+
 		for (size_t permnutation_index = 0; permnutation_index < _effect_permutations.size(); ++permnutation_index)
 		{
 			if (permnutation_index >= effect_data.permutations.size())
