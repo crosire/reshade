@@ -4170,7 +4170,7 @@ void reshade::runtime::draw_technique_editor()
 				for (size_t permutation_index = 0; permutation_index < effect.permutations.size(); ++permutation_index)
 				{
 					std::string label = _("Show compiled results");
-					if (permutation_index != 0)
+					if (effect.permutations.size() > 1)
 						label += " (" + std::to_string(permutation_index) + ")";
 
 					if (!effect.permutations[permutation_index].generated_code.empty() &&
@@ -4369,7 +4369,7 @@ void reshade::runtime::draw_technique_editor()
 				for (size_t permutation_index = 0; permutation_index < effect.permutations.size(); ++permutation_index)
 				{
 					std::string label = _("Show compiled results");
-					if (permutation_index != 0)
+					if (effect.permutations.size() > 1)
 						label += " (" + std::to_string(permutation_index) + ")";
 
 					if (!effect.permutations[permutation_index].generated_code.empty() &&

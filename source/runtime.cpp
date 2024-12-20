@@ -2246,9 +2246,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if ( effect.compiled && (effect.preprocessed || source_cached))
 	{
 		if (effect.errors.empty())
-			log::message(log::level::info, "Successfully compiled '%s' in %f s.", source_file.u8string().c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f);
+			log::message(log::level::info, "Successfully compiled '%s'%s in %f s.", source_file.u8string().c_str(), permutation_index == 0 ? "" : " permutation", std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f);
 		else
-			log::message(log::level::warning, "Successfully compiled '%s' in %f s with warnings:\n%s", source_file.u8string().c_str(), std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f, effect.errors.c_str());
+			log::message(log::level::warning, "Successfully compiled '%s'%s in %f s with warnings:\n%s", source_file.u8string().c_str(), permutation_index == 0 ? "" : " permutation", std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f, effect.errors.c_str());
 		return true;
 	}
 	else
@@ -2256,9 +2256,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		_last_reload_successful = false;
 
 		if (effect.errors.empty())
-			log::message(log::level::error, "Failed to compile '%s'!", source_file.u8string().c_str());
+			log::message(log::level::error, "Failed to compile '%s'%s!", source_file.u8string().c_str(), permutation_index == 0 ? "" : " permutation");
 		else
-			log::message(log::level::error, "Failed to compile '%s':\n%s", source_file.u8string().c_str(), effect.errors.c_str());
+			log::message(log::level::error, "Failed to compile '%s'%s:\n%s", source_file.u8string().c_str(), permutation_index == 0 ? "" : " permutation", effect.errors.c_str());
 		return false;
 	}
 }
