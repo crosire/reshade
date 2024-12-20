@@ -1453,8 +1453,16 @@ In that event here are some steps you can try to resolve this:
 		{
 			if (!string.IsNullOrEmpty(currentInfo.presetPath) && File.Exists(currentInfo.presetPath))
 			{
+				string basePath = Path.GetDirectoryName(currentInfo.configPath);
+				string presetPath = currentInfo.presetPath;
+				if (presetPath.StartsWith(basePath))
+				{
+					// Try and make preset path relative
+					presetPath = "." + presetPath.Substring(basePath.Length);
+				}
+
 				var config = new IniFile(currentInfo.configPath);
-				config.SetValue("GENERAL", "PresetPath", currentInfo.presetPath);
+				config.SetValue("GENERAL", "PresetPath", presetPath);
 				config.SaveFile();
 
 				MakeWritable(currentInfo.presetPath);
