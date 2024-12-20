@@ -3729,7 +3729,7 @@ void reshade::runtime::update_effects()
 				break;
 			}
 
-			if (permutation_index == 0 || permutation_index == std::numeric_limits<size_t>::max())
+			if (permutation_index == 0)
 			{
 				if (!reload_effect(effect_index))
 					continue;

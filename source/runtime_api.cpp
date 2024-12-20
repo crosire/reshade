@@ -1255,22 +1255,7 @@ void reshade::runtime::set_preprocessor_definition_for_effect([[maybe_unused]] c
 			ini_file::load_cache(_config_path).set("GENERAL", "PreprocessorDefinitions", _global_preprocessor_definitions);
 		}
 
-		if ((scope_mask_updated & (GLOBAL_SCOPE_FLAG | PRESET_SCOPE_FLAG)) != 0)
-		{
-			_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()) };
-		}
-		else if (const auto it = std::find_if(_effects.cbegin(), _effects.cend(),
-					[effect_name = std::filesystem::u8path(effect_name)](const effect &effect) {
-						return effect.source_file.filename() == effect_name;
-					});
-			it != _effects.cend())
-		{
-			const size_t effect_index = std::distance(_effects.cbegin(), it);
-
-			if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
-				std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, std::numeric_limits<size_t>::max())) == _reload_required_effects.cend())
-				_reload_required_effects.emplace_back(effect_index, std::numeric_limits<size_t>::max());
-		}
+		reload_effect_next_frame((scope_mask_updated &(GLOBAL_SCOPE_FLAG | PRESET_SCOPE_FLAG)) != 0 ? nullptr : effect_name.c_str());
 	}
 #endif
 }
@@ -1615,7 +1600,7 @@ void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *eff
 #if RESHADE_FX
 	if (effect_name == nullptr)
 	{
-		_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()) };
+		_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), 0u) };
 		return;
 	}
 
@@ -1627,9 +1612,9 @@ void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *eff
 	{
 		const size_t effect_index = std::distance(_effects.cbegin(), it);
 
-		if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max())) == _reload_required_effects.cend() &&
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, std::numeric_limits<size_t>::max())) == _reload_required_effects.cend())
-			_reload_required_effects.emplace_back(effect_index, std::numeric_limits<size_t>::max());
+		if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), 0u)) == _reload_required_effects.cend() &&
+			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, 0u)) == _reload_required_effects.cend())
+			_reload_required_effects.emplace_back(effect_index, 0u);
 	}
 #endif
 }
