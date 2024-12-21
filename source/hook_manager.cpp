@@ -83,7 +83,7 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 		return false;
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Installing hook for %s at 0x%p with 0x%p using method %d ...", name, hook.target, hook.replacement, static_cast<int>(method));
+	reshade::log::message(reshade::log::level::debug, "Installing hook for %s at %p with %p using method %d ...", name, hook.target, hook.replacement, static_cast<int>(method));
 #endif
 	auto status = reshade::hook::status::unknown;
 
@@ -152,9 +152,9 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "> Dumping matches in export table:");
-	reshade::log::message(reshade::log::level::debug, "  +--------------------+---------+----------------------------------------------------+");
-	reshade::log::message(reshade::log::level::debug, "  | Address            | Ordinal | Name                                               |");
-	reshade::log::message(reshade::log::level::debug, "  +--------------------+---------+----------------------------------------------------+");
+	reshade::log::message(reshade::log::level::debug, "  +------------------+---------+----------------------------------------------------+");
+	reshade::log::message(reshade::log::level::debug, "  | Address          | Ordinal | Name                                               |");
+	reshade::log::message(reshade::log::level::debug, "  +------------------+---------+----------------------------------------------------+");
 #endif
 
 	// Analyze export tables and find entries that exist in both modules
@@ -187,14 +187,14 @@ static bool install_internal(HMODULE target_module, HMODULE replacement_module, 
 			std::strcmp(symbol.name, "Direct3D9EnableMaximizedWindowedModeShim") != 0)
 		{
 #if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::debug, "  | 0x%016p | %-7hu | %-50s |", symbol.address, symbol.ordinal, symbol.name);
+			reshade::log::message(reshade::log::level::debug, "  | %-016p | %-7hu | %-50s |", reinterpret_cast<uintptr_t>(symbol.address), symbol.ordinal, symbol.name);
 #endif
 			matches.push_back(std::make_tuple(symbol.name, symbol.address, it->address));
 		}
 	}
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "  +--------------------+---------+----------------------------------------------------+");
+	reshade::log::message(reshade::log::level::debug, "  +------------------+---------+----------------------------------------------------+");
 #endif
 	reshade::log::message(reshade::log::level::info, "> Found %zu match(es). Installing ...", matches.size());
 
@@ -592,7 +592,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement, hook::add
 			ensure_export_module_loaded();
 	}
 
-	log::message(log::level::error, "Unable to resolve hook for 0x%p!", replacement);
+	log::message(log::level::error, "Unable to resolve hook for %p!", replacement);
 
 	return nullptr;
 }
