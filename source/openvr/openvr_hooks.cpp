@@ -134,7 +134,7 @@ static vr::EVRCompositorError on_vr_submit_d3d12(vr::IVRCompositor *compositor, 
 		return vr::VRCompositorError_InvalidTexture;
 
 	// Synchronize access to the command queue while events are invoked and the immediate command list may be accessed
-	std::unique_lock<std::shared_mutex> lock(command_queue_proxy->_mutex);
+	std::unique_lock<std::recursive_mutex> lock(command_queue_proxy->_mutex);
 
 	// Resource should be in D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE state at this point
 	if (!s_vr_swapchain->on_vr_submit(command_queue_proxy.get(), eye, { reinterpret_cast<uintptr_t>(texture->m_pResource) }, color_space, bounds, layer))

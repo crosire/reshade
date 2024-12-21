@@ -659,10 +659,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE T
 #endif
 }
 
-class unique_direct3d_device_lock : std::unique_lock<std::shared_mutex>
+class unique_direct3d_device_lock : std::unique_lock<std::recursive_mutex>
 {
 public:
-	unique_direct3d_device_lock(IUnknown *direct3d_device, unsigned int direct3d_version, std::shared_mutex &mutex) : unique_lock(mutex)
+	unique_direct3d_device_lock(IUnknown *direct3d_device, unsigned int direct3d_version, std::recursive_mutex &mutex) : unique_lock(mutex)
 	{
 		switch (direct3d_version)
 		{

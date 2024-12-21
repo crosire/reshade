@@ -6,7 +6,7 @@
 #pragma once
 
 #include <dxgi1_5.h>
-#include <shared_mutex>
+#include <mutex>
 
 struct D3D10Device;
 struct D3D11Device;
@@ -103,7 +103,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	IUnknown *const _direct3d_command_queue, *_direct3d_command_queue_per_back_buffer[DXGI_MAX_SWAP_CHAIN_BUFFERS] = {};
 	const unsigned int _direct3d_version;
 
-	std::shared_mutex _impl_mutex;
+	std::recursive_mutex _impl_mutex;
 	reshade::api::swapchain *const _impl;
 	bool _is_initialized = false;
 	bool _was_still_drawing_last_frame = false;

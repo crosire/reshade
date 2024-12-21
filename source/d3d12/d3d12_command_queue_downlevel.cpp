@@ -64,7 +64,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	assert(pSourceTex2D != nullptr);
 
 	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
-	std::unique_lock<std::shared_mutex> lock(_parent_queue->_mutex);
+	std::unique_lock<std::recursive_mutex> lock(_parent_queue->_mutex);
 
 	_hwnd = hWindow;
 	_swap_index = (_swap_index + 1) % static_cast<UINT>(_back_buffers.size());
