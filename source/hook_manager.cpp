@@ -315,6 +315,10 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 	{
 		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 			[&loaded_path](const std::filesystem::path &path) {
+				// Skip export module if it was loaded somehow before/outside of 'ensure_export_module_loaded' below
+				if (path == s_export_hook_path)
+					return false;
+
 				// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
 				HMODULE delayed_handle = nullptr;
 				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
