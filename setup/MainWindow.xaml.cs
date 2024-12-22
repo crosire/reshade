@@ -559,6 +559,12 @@ namespace ReShade.Setup
 			DownloadCompatibilityIni();
 
 			string executableName = Path.GetFileName(currentInfo.targetPath);
+			if (compatibilityIni?.GetString(executableName, "Banned") == "1")
+			{
+				UpdateStatusAndFinish(false, "The target application is known to have blocked or banned the usage of ReShade. Cannot continue installation.");
+				return;
+			}
+
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
 				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
