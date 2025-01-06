@@ -7,6 +7,7 @@
 	EXPAND_AND_STRINGIZE(major.minor.revision)
 
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("ReShade Setup")]
 [assembly: AssemblyVersion(BUILD_VERSION(VERSION_MAJOR, VERSION_MINOR, VERSION_REVISION))]
@@ -19,3 +20,5 @@ using System.Reflection;
 #ifdef BUILD_CONFIGURATION
 [assembly: AssemblyConfiguration(EXPAND_AND_STRINGIZE(BUILD_CONFIGURATION))]
 #endif
+
+[assembly: DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
