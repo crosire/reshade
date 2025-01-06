@@ -3745,7 +3745,21 @@ void reshade::runtime::draw_variable_editor()
 				{
 					case reshadefx::type::t_bool:
 					{
-						if (ui_type == "combo")
+						if (ui_type == "button")
+						{
+							if (ImGui::Button(label.data(), ImVec2(ImGui::CalcItemWidth(), 0)))
+							{
+								value.as_uint[0] = 1;
+								modified = true;
+							}
+							else if (value.as_uint[0] != 0)
+							{
+								// Reset value again next frame after button was pressed
+								value.as_uint[0] = 0;
+								modified = true;
+							}
+						}
+						else if (ui_type == "combo")
 							modified = imgui::combo_with_buttons(label.data(), reinterpret_cast<bool *>(&value.as_uint[0]));
 						else
 							modified = imgui::checkbox_list(label.data(), get_localized_annotation(variable, "ui_items", _current_language), value.as_uint, variable.type.components());
