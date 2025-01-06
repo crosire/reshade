@@ -254,7 +254,8 @@ namespace ReShade.Setup.Pages
 						searchPath.Contains("\\System Volume Information") ||
 						searchPath.ContainsIgnoreCase("java") ||
 						searchPath.ContainsIgnoreCase("steamvr") ||
-						searchPath.Contains("\\Portal\\bin"))
+						searchPath.Contains("\\Portal\\bin") ||
+						searchPath.Contains("DotNet"))
 					{
 						continue;
 					}
@@ -312,6 +313,8 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("dotnetfx") ||
 								path.ContainsIgnoreCase("diagnostics") ||
 								path.ContainsIgnoreCase("download") ||
+								path.ContainsIgnoreCase("error") ||
+								path.ContainsIgnoreCase("handler") ||
 								path.ContainsIgnoreCase("helper") ||
 								path.ContainsIgnoreCase("inject") ||
 								path.ContainsIgnoreCase("install") ||
@@ -324,6 +327,7 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("register") ||
 								path.ContainsIgnoreCase("report") ||
 								path.ContainsIgnoreCase("server") ||
+								path.ContainsIgnoreCase("service") ||
 								path.ContainsIgnoreCase("setup") ||
 								path.ContainsIgnoreCase("steamvr") ||
 								path.ContainsIgnoreCase("subprocess") ||
