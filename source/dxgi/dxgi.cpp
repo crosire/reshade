@@ -552,6 +552,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	//   IDXGIFactory4 {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
 	//   IDXGIFactory5 {7632E1f5-EE65-4DCA-87FD-84CD75F8838D}
 	//   IDXGIFactory6 {C1B6694F-FF09-44A9-B03C-77900A0A1D17}
+	//   IDXGIFactory7 {A4966EED-76DB-44DA-84C1-EE9A7AFB20A8}
 
 	reshade::log::message(
 		reshade::log::level::info,
@@ -571,7 +572,30 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 
 	// It is crucial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
 	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
-	const HRESULT hr = trampoline(Flags, riid, ppFactory);
+
+	// Upgrade factory interface to the highest available at creation, to ensure the virtual function table cannot be replaced afterwards during 'QueryInterface'
+	static constexpr IID iid_lookup[] = {
+		__uuidof(IDXGIFactory),
+		__uuidof(IDXGIFactory1),
+		__uuidof(IDXGIFactory2),
+		__uuidof(IDXGIFactory3),
+		__uuidof(IDXGIFactory4),
+		__uuidof(IDXGIFactory5),
+		__uuidof(IDXGIFactory6),
+		__uuidof(IDXGIFactory7),
+	};
+	HRESULT hr = E_NOINTERFACE;
+	if (std::find(std::begin(iid_lookup), std::end(iid_lookup), riid) == std::end(iid_lookup))
+	{
+		hr = trampoline(Flags, riid, ppFactory); // Fall back in case of unknown interface version
+	}
+	else
+	{
+		for (auto it = std::rbegin(iid_lookup); it != std::rend(iid_lookup); ++it)
+			if (SUCCEEDED(hr = trampoline(Flags, *it, ppFactory)) || *it == riid)
+				break;
+	}
+
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());

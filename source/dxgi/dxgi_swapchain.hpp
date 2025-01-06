@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <dxgi1_5.h>
+#include <dxgi1_6.h>
 #include <mutex>
 
 struct D3D10Device;
