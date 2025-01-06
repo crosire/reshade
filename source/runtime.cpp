@@ -3486,7 +3486,7 @@ void reshade::runtime::load_effects(bool force_load_all)
 }
 bool reshade::runtime::reload_effect(size_t effect_index)
 {
-	assert(!is_loading());
+	assert(!is_loading() || _reload_remaining_effects == 0);
 
 #if RESHADE_GUI
 	_show_splash = false; // Hide splash bar when reloading a single effect file
