@@ -205,7 +205,7 @@ namespace reshade
 		bool save_effect_cache(const std::string &id, const std::string &type, const std::string &data) const;
 		void clear_effect_cache();
 
-		auto add_effect_permutation(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format) -> size_t;
+		auto add_effect_permutation(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format, api::color_space color_space) -> size_t;
 
 		void update_effects();
 		void render_technique(technique &technique, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb, size_t permutation_index);

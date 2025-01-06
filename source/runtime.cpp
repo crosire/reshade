@@ -412,9 +412,8 @@ bool reshade::runtime::on_init()
 		}
 	}
 
-	if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format) != 0)
+	if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
 		goto exit_failure;
-	_effect_permutations[0].color_space = _back_buffer_color_space;
 #endif
 
 	// Create render targets for the back buffer resources
@@ -3630,7 +3629,7 @@ void reshade::runtime::clear_effect_cache()
 		log::message(log::level::error, "Failed to clear effect cache directory with error code %d!", ec.value());
 }
 
-auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format) -> size_t
+auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, api::format color_format, api::format stencil_format, api::color_space color_space) -> size_t
 {
 	assert(width != 0 && height != 0);
 	assert(color_format != api::format::unknown && stencil_format != api::format::unknown);
@@ -3638,8 +3637,8 @@ auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, a
 	const api::format color_format_typeless = api::format_to_typeless(color_format);
 
 	if (const auto it = std::find_if(_effect_permutations.begin(), _effect_permutations.end(),
-			[width, height, color_format_typeless, stencil_format](const effect_permutation &permutation) {
-				return permutation.width == width && permutation.height == height && permutation.color_format == color_format_typeless && permutation.stencil_format == stencil_format;
+			[width, height, color_space, color_format_typeless, stencil_format](const effect_permutation &permutation) {
+				return permutation.width == width && permutation.height == height && permutation.color_space == color_space && permutation.color_format == color_format_typeless && permutation.stencil_format == stencil_format;
 			});
 		it != _effect_permutations.end())
 		return std::distance(_effect_permutations.begin(), it);
@@ -3647,6 +3646,8 @@ auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, a
 	effect_permutation permutation;
 	permutation.width = width;
 	permutation.height = height;
+	permutation.color_space = color_space;
+	permutation.color_format = color_format_typeless;
 
 	if (!_device->create_resource(
 			api::resource_desc(width, height, 1, 1, color_format_typeless, 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
@@ -3656,8 +3657,6 @@ auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, a
 
 		return std::numeric_limits<size_t>::max();
 	}
-
-	permutation.color_format = color_format_typeless;
 
 	_device->set_resource_name(permutation.color_tex, "ReShade back buffer");
 
@@ -3673,31 +3672,32 @@ auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, a
 		return std::numeric_limits<size_t>::max();
 	}
 
-	if (stencil_format == api::format::unknown ||
-		!_device->create_resource(
-			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
-			nullptr, api::resource_usage::depth_stencil_write, &permutation.stencil_tex))
+	if (stencil_format != api::format::unknown &&
+		_device->create_resource(
+		api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+		nullptr, api::resource_usage::depth_stencil_write, &permutation.stencil_tex))
+	{
+		permutation.stencil_format = stencil_format;
+
+		_device->set_resource_name(permutation.stencil_tex, "ReShade effect stencil");
+
+		if (!_device->create_resource_view(permutation.stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(stencil_format), &permutation.stencil_dsv))
+		{
+			_device->destroy_resource_view(permutation.color_srv[1]);
+			_device->destroy_resource_view(permutation.color_srv[0]);
+			_device->destroy_resource(permutation.color_tex);
+			_device->destroy_resource(permutation.stencil_tex);
+
+			log::message(log::level::error, "Failed to create effect stencil resource view (format = %u)!", static_cast<uint32_t>(stencil_format));
+
+			return std::numeric_limits<size_t>::max();
+		}
+	}
+	else
 	{
 		log::message(log::level::error, "Failed to create effect stencil resource (width = %u, height = %u, format = %u)!", width, height, static_cast<uint32_t>(stencil_format));
 
-		_effect_permutations.push_back(permutation);
-		return _effect_permutations.size() - 1; // Ignore this error, since most effects can still be rendered without stencil
-	}
-
-	permutation.stencil_format = stencil_format;
-
-	_device->set_resource_name(permutation.stencil_tex, "ReShade effect stencil");
-
-	if (!_device->create_resource_view(permutation.stencil_tex, api::resource_usage::depth_stencil, api::resource_view_desc(stencil_format), &permutation.stencil_dsv))
-	{
-		_device->destroy_resource_view(permutation.color_srv[1]);
-		_device->destroy_resource_view(permutation.color_srv[0]);
-		_device->destroy_resource(permutation.color_tex);
-		_device->destroy_resource(permutation.stencil_tex);
-
-		log::message(log::level::error, "Failed to create effect stencil resource view (format = %u)!", static_cast<uint32_t>(stencil_format));
-
-		return std::numeric_limits<size_t>::max();
+		// Ignore this error, since most effects can still be rendered without stencil
 	}
 
 	_effect_permutations.push_back(permutation);
@@ -4069,7 +4069,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Changing dimensions or format can cause effects to be reloaded, in which case need to wait for that to finish before rendering
-		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format);
+		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, api::color_space::unknown);
 		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}
