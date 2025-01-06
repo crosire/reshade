@@ -4057,7 +4057,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 #if RESHADE_ADDON
 	size_t permutation_index = 0;
-	if (!_is_in_present_call)
+	if (!_is_in_present_call ||
+		// Also use effect permutation in case color space was changed via 'effect_runtime::set_color_space'
+		_back_buffer_color_space != _effect_permutations[0].color_space)
 	{
 		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
 		if (back_buffer_desc.texture.samples > 1)
@@ -4069,7 +4071,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Changing dimensions or format can cause effects to be reloaded, in which case need to wait for that to finish before rendering
-		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, api::color_space::unknown);
+		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, _back_buffer_color_space);
 		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}
