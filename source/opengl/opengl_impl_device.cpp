@@ -1479,12 +1479,12 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 
 	_map_lookup.emplace(hash, map_info {
 		*out_data, {
-			static_cast<int32_t>(xoffset),
-			static_cast<int32_t>(yoffset),
-			static_cast<int32_t>(zoffset),
-			static_cast<int32_t>(xoffset + width),
-			static_cast<int32_t>(yoffset + height),
-			static_cast<int32_t>(zoffset + depth)
+			xoffset,
+			yoffset,
+			zoffset,
+			xoffset + width,
+			yoffset + height,
+			zoffset + depth
 		}, access });
 
 	if (access == api::map_access::write_only || access == api::map_access::write_discard)

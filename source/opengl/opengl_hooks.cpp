@@ -524,8 +524,24 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		dst = device->get_resource_from_view(device->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
 	}
 
-	const reshade::api::subresource_box src_box = { x, y, z, x + width, y + height, z + depth };
-	const reshade::api::subresource_box dst_box = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
+	assert(x >= 0 && y >= 0 && z >= 0 && xoffset >= 0 && yoffset >= 0 && zoffset >= 0 && width >= 0 && height >= 0 && depth >= 0);
+
+	const reshade::api::subresource_box src_box = {
+		static_cast<uint32_t>(x),
+		static_cast<uint32_t>(y),
+		static_cast<uint32_t>(z),
+		static_cast<uint32_t>(x + width),
+		static_cast<uint32_t>(y + height),
+		static_cast<uint32_t>(z + depth)
+	};
+	const reshade::api::subresource_box dst_box = {
+		static_cast<uint32_t>(xoffset),
+		static_cast<uint32_t>(yoffset),
+		static_cast<uint32_t>(zoffset),
+		static_cast<uint32_t>(xoffset + width),
+		static_cast<uint32_t>(yoffset + height),
+		static_cast<uint32_t>(zoffset + depth)
+	};
 
 	return reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_opengl_context, src, src_level, &src_box, dst, dst_level, &dst_box,
 		(filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear);
@@ -572,7 +588,16 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
 		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * desc.texture.levels;
 
-	const reshade::api::subresource_box dst_box = { xoffset, yoffset, zoffset, xoffset + width, yoffset + height, zoffset + depth };
+	assert(xoffset >= 0 && yoffset >= 0 && zoffset >= 0 && width >= 0 && height >= 0 && depth >= 0);
+
+	const reshade::api::subresource_box dst_box = {
+		static_cast<uint32_t>(xoffset),
+		static_cast<uint32_t>(yoffset),
+		static_cast<uint32_t>(zoffset),
+		static_cast<uint32_t>(xoffset + width),
+		static_cast<uint32_t>(yoffset + height),
+		static_cast<uint32_t>(zoffset + depth)
+	};
 
 	GLint unpack = 0;
 	gl.GetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
@@ -2772,6 +2797,25 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 		GLint dst_fbo = 0;
 		gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &dst_fbo);
 
+		assert(srcX0 >= 0 && srcY0 >= 0 && srcX1 >= 0 && srcY1 >= 0 && dstX0 >= 0 && dstY0 >= 0 && dstX1 >= 0 && dstY1 >= 0);
+
+		const reshade::api::subresource_box src_box = {
+			static_cast<uint32_t>(srcX0),
+			static_cast<uint32_t>(srcY0),
+			0,
+			static_cast<uint32_t>(srcX1),
+			static_cast<uint32_t>(srcY1),
+			1
+		};
+		const reshade::api::subresource_box dst_box = {
+			static_cast<uint32_t>(dstX0),
+			static_cast<uint32_t>(dstY0),
+			0,
+			static_cast<uint32_t>(dstX1),
+			static_cast<uint32_t>(dstY1),
+			1
+		};
+
 		constexpr GLbitfield flags[3] = { GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT };
 		for (GLbitfield flag : flags)
 		{
@@ -2783,8 +2827,6 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 
 			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
-				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 }, dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
-
 				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_opengl_context, src, 0, &src_box, dst, 0, &dst_box, (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 					mask ^= flag;
 			}
@@ -2792,9 +2834,7 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			{
 				assert((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0));
 
-				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-
-				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_opengl_context, src, 0, &src_box, dst, 0, dstX0, dstY0, 0, reshade::api::format::unknown))
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_opengl_context, src, 0, &src_box, dst, 0, static_cast<uint32_t>(dstX0), static_cast<uint32_t>(dstY0), 0, reshade::api::format::unknown))
 					mask ^= flag;
 			}
 		}
@@ -4612,6 +4652,25 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
+		assert(srcX0 >= 0 && srcY0 >= 0 && srcX1 >= 0 && srcY1 >= 0 && dstX0 >= 0 && dstY0 >= 0 && dstX1 >= 0 && dstY1 >= 0);
+
+		const reshade::api::subresource_box src_box = {
+			static_cast<uint32_t>(srcX0),
+			static_cast<uint32_t>(srcY0),
+			0,
+			static_cast<uint32_t>(srcX1),
+			static_cast<uint32_t>(srcY1),
+			1
+		};
+		const reshade::api::subresource_box dst_box = {
+			static_cast<uint32_t>(dstX0),
+			static_cast<uint32_t>(dstY0),
+			0,
+			static_cast<uint32_t>(dstX1),
+			static_cast<uint32_t>(dstY1),
+			1
+		};
+
 		constexpr GLbitfield flags[3] = { GL_COLOR_BUFFER_BIT, GL_DEPTH_BUFFER_BIT, GL_STENCIL_BUFFER_BIT };
 		for (GLbitfield flag : flags)
 		{
@@ -4623,8 +4682,6 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 
 			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
-				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 }, dst_box = { dstX0, dstY0, 0, dstX1, dstY1, 1 };
-
 				if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_opengl_context, src, 0, &src_box, dst, 0, &dst_box, (filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 					mask ^= flag;
 			}
@@ -4632,9 +4689,7 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 			{
 				assert((srcX1 - srcX0) == (dstX1 - dstX0) && (srcY1 - srcY0) == (dstY1 - dstY0));
 
-				const reshade::api::subresource_box src_box = { srcX0, srcY0, 0, srcX1, srcY1, 1 };
-
-				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_opengl_context, src, 0, &src_box, dst, 0, dstX0, dstY0, 0, reshade::api::format::unknown))
+				if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(g_opengl_context, src, 0, &src_box, dst, 0, static_cast<uint32_t>(dstX0), static_cast<uint32_t>(dstY0), 0, reshade::api::format::unknown))
 					mask ^= flag;
 			}
 		}

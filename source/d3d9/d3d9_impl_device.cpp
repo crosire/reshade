@@ -15,11 +15,11 @@ const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &
 	if (box == nullptr)
 		return nullptr;
 
-	rect.left = box->left;
-	rect.top = box->top;
+	rect.left = static_cast<LONG>(box->left);
+	rect.top = static_cast<LONG>(box->top);
 	assert(box->front == 0);
-	rect.right = box->right;
-	rect.bottom = box->bottom;
+	rect.right = static_cast<LONG>(box->right);
+	rect.bottom = static_cast<LONG>(box->bottom);
 	assert(box->back == 1);
 
 	return &rect;

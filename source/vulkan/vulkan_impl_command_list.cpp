@@ -781,13 +781,13 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 	convert_subresource(dst_subresource, dst_data->create_info, region.imageSubresource);
 	if (dst_box != nullptr)
 	{
-		region.imageOffset.x = dst_box->left;
-		region.imageOffset.y = dst_box->top;
-		region.imageOffset.z = dst_box->front;
+		region.imageOffset.x = static_cast<int32_t>(dst_box->left);
+		region.imageOffset.y = static_cast<int32_t>(dst_box->top);
+		region.imageOffset.z = static_cast<int32_t>(dst_box->front);
 
-		region.imageExtent.width = dst_box->right - dst_box->left;
-		region.imageExtent.height = dst_box->bottom - dst_box->top;
-		region.imageExtent.depth = dst_box->back - dst_box->front;
+		region.imageExtent.width = dst_box->width();
+		region.imageExtent.height = dst_box->height();
+		region.imageExtent.depth = dst_box->depth();
 
 		if (dst_data->create_info.imageType != VK_IMAGE_TYPE_3D)
 		{
@@ -799,9 +799,9 @@ void reshade::vulkan::command_list_impl::copy_buffer_to_texture(api::resource sr
 	{
 		region.imageOffset = { 0, 0, 0 };
 
-		region.imageExtent.width = std::max(1u, dst_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
+		region.imageExtent.width = std::max(1u, dst_data->create_info.extent.width >> region.imageSubresource.mipLevel);
 		region.imageExtent.height = std::max(1u, dst_data->create_info.extent.height >> region.imageSubresource.mipLevel);
-		region.imageExtent.depth = std::max(1u, dst_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
+		region.imageExtent.depth = std::max(1u, dst_data->create_info.extent.depth >> region.imageSubresource.mipLevel);
 	}
 
 	vk.CmdCopyBufferToImage(_orig, (VkBuffer)src.handle, (VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
@@ -921,9 +921,9 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 
 	if (src_box != nullptr)
 	{
-		region.imageOffset.x = src_box->left;
-		region.imageOffset.y = src_box->top;
-		region.imageOffset.z = src_box->front;
+		region.imageOffset.x = static_cast<int32_t>(src_box->left);
+		region.imageOffset.y = static_cast<int32_t>(src_box->top);
+		region.imageOffset.z = static_cast<int32_t>(src_box->front);
 
 		region.imageExtent.width = src_box->width();
 		region.imageExtent.height = src_box->height();
@@ -939,14 +939,14 @@ void reshade::vulkan::command_list_impl::copy_texture_to_buffer(api::resource sr
 	{
 		region.imageOffset = { 0, 0, 0 };
 
-		region.imageExtent.width = std::max(1u, src_data->create_info.extent.width  >> region.imageSubresource.mipLevel);
+		region.imageExtent.width = std::max(1u, src_data->create_info.extent.width >> region.imageSubresource.mipLevel);
 		region.imageExtent.height = std::max(1u, src_data->create_info.extent.height >> region.imageSubresource.mipLevel);
-		region.imageExtent.depth = std::max(1u, src_data->create_info.extent.depth  >> region.imageSubresource.mipLevel);
+		region.imageExtent.depth = std::max(1u, src_data->create_info.extent.depth >> region.imageSubresource.mipLevel);
 	}
 
 	vk.CmdCopyImageToBuffer(_orig, (VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, (VkBuffer)dst.handle, 1, &region);
 }
-void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
+void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, uint32_t dst_x, uint32_t dst_y, uint32_t dst_z, api::format format)
 {
 	_has_commands = true;
 
@@ -965,9 +965,9 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 
 		if (src_box != nullptr)
 		{
-			region.srcOffset.x = src_box->left;
-			region.srcOffset.y = src_box->top;
-			region.srcOffset.z = src_box->front;
+			region.srcOffset.x = static_cast<int32_t>(src_box->left);
+			region.srcOffset.y = static_cast<int32_t>(src_box->top);
+			region.srcOffset.z = static_cast<int32_t>(src_box->front);
 
 			region.extent.width = src_box->width();
 			region.extent.height = src_box->height();
@@ -989,7 +989,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 			region.extent.depth = std::max(1u, src_data->create_info.extent.depth >> region.srcSubresource.mipLevel);
 		}
 
-		region.dstOffset = { dst_x, dst_y, dst_z };
+		region.dstOffset = { static_cast<int32_t>(dst_x), static_cast<int32_t>(dst_y), static_cast<int32_t>(dst_z) };
 
 		vk.CmdResolveImage(_orig,
 			(VkImage)src.handle, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -1011,8 +1011,8 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 
 		if (src_box != nullptr)
 		{
-			rendering_info.renderArea.offset.x = src_box->left;
-			rendering_info.renderArea.offset.y = src_box->top;
+			rendering_info.renderArea.offset.x = static_cast<int32_t>(src_box->left);
+			rendering_info.renderArea.offset.y = static_cast<int32_t>(src_box->top);
 			assert(src_box->front == 0);
 
 			rendering_info.renderArea.extent.width = src_box->width();
@@ -1028,7 +1028,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 			rendering_info.layerCount = src_data->create_info.arrayLayers;
 		}
 
-		assert(dst_x == rendering_info.renderArea.offset.x && dst_y == rendering_info.renderArea.offset.y && dst_z == 0);
+		assert(dst_x == static_cast<uint32_t>(rendering_info.renderArea.offset.x) && dst_y == static_cast<uint32_t>(rendering_info.renderArea.offset.y) && dst_z == 0);
 
 		VkRenderingAttachmentInfo depth_attachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
 		depth_attachment.imageView = src_data->default_view;

@@ -676,20 +676,20 @@ void VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcImage, 
 			const VkImageCopy &region = pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.srcOffset.x,
-				region.srcOffset.y,
-				region.srcOffset.z,
-				region.srcOffset.x + static_cast<int32_t>(region.extent.width),
-				region.srcOffset.y + static_cast<int32_t>(region.extent.height),
-				region.srcOffset.z + static_cast<int32_t>(region.extent.depth + region.srcSubresource.layerCount)
+				static_cast<uint32_t>(region.srcOffset.x),
+				static_cast<uint32_t>(region.srcOffset.y),
+				static_cast<uint32_t>(region.srcOffset.z),
+				static_cast<uint32_t>(region.srcOffset.x + region.extent.width),
+				static_cast<uint32_t>(region.srcOffset.y + region.extent.height),
+				static_cast<uint32_t>(region.srcOffset.z + region.extent.depth) + region.srcSubresource.layerCount
 			};
 			const reshade::api::subresource_box dst_box = {
-				region.dstOffset.x,
-				region.dstOffset.y,
-				region.dstOffset.z,
-				region.dstOffset.x + static_cast<int32_t>(region.extent.width),
-				region.dstOffset.y + static_cast<int32_t>(region.extent.height),
-				region.dstOffset.z + static_cast<int32_t>(region.extent.depth + region.dstSubresource.layerCount)
+				static_cast<uint32_t>(region.dstOffset.x),
+				static_cast<uint32_t>(region.dstOffset.y),
+				static_cast<uint32_t>(region.dstOffset.z),
+				static_cast<uint32_t>(region.dstOffset.x + region.extent.width),
+				static_cast<uint32_t>(region.dstOffset.y + region.extent.height),
+				static_cast<uint32_t>(region.dstOffset.z + region.extent.depth) + region.dstSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -722,20 +722,20 @@ void VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcImage, 
 			const VkImageBlit &region = pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.srcOffsets[0].x,
-				region.srcOffsets[0].y,
-				region.srcOffsets[0].z,
-				region.srcOffsets[1].x,
-				region.srcOffsets[1].y,
-				region.srcOffsets[1].z + static_cast<int32_t>(region.srcSubresource.layerCount),
+				static_cast<uint32_t>(region.srcOffsets[0].x),
+				static_cast<uint32_t>(region.srcOffsets[0].y),
+				static_cast<uint32_t>(region.srcOffsets[0].z),
+				static_cast<uint32_t>(region.srcOffsets[1].x),
+				static_cast<uint32_t>(region.srcOffsets[1].y),
+				static_cast<uint32_t>(region.srcOffsets[1].z) + region.srcSubresource.layerCount,
 			};
 			const reshade::api::subresource_box dst_box = {
-				region.srcOffsets[0].x,
-				region.srcOffsets[0].y,
-				region.srcOffsets[0].z,
-				region.srcOffsets[1].x,
-				region.srcOffsets[1].y,
-				region.srcOffsets[1].z + static_cast<int32_t>(region.srcSubresource.layerCount),
+				static_cast<uint32_t>(region.srcOffsets[0].x),
+				static_cast<uint32_t>(region.srcOffsets[0].y),
+				static_cast<uint32_t>(region.srcOffsets[0].z),
+				static_cast<uint32_t>(region.srcOffsets[1].x),
+				static_cast<uint32_t>(region.srcOffsets[1].y),
+				static_cast<uint32_t>(region.srcOffsets[1].z) + region.srcSubresource.layerCount,
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -767,12 +767,12 @@ void VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer s
 			const VkBufferImageCopy &region = pRegions[i];
 
 			const reshade::api::subresource_box dst_box = {
-				region.imageOffset.x,
-				region.imageOffset.y,
-				region.imageOffset.z,
-				region.imageOffset.x + static_cast<int32_t>(region.imageExtent.width),
-				region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height),
-				region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth + region.imageSubresource.layerCount)
+				static_cast<uint32_t>(region.imageOffset.x),
+				static_cast<uint32_t>(region.imageOffset.y),
+				static_cast<uint32_t>(region.imageOffset.z),
+				static_cast<uint32_t>(region.imageOffset.x + region.imageExtent.width),
+				static_cast<uint32_t>(region.imageOffset.y + region.imageExtent.height),
+				static_cast<uint32_t>(region.imageOffset.z + region.imageExtent.depth) + region.imageSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(
@@ -803,12 +803,12 @@ void VKAPI_CALL vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer, VkImage sr
 			const VkBufferImageCopy &region = pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.imageOffset.x,
-				region.imageOffset.y,
-				region.imageOffset.z,
-				region.imageOffset.x + static_cast<int32_t>(region.imageExtent.width),
-				region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height),
-				region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth + region.imageSubresource.layerCount)
+				static_cast<uint32_t>(region.imageOffset.x),
+				static_cast<uint32_t>(region.imageOffset.y),
+				static_cast<uint32_t>(region.imageOffset.z),
+				static_cast<uint32_t>(region.imageOffset.x + region.imageExtent.width),
+				static_cast<uint32_t>(region.imageOffset.y + region.imageExtent.height),
+				static_cast<uint32_t>(region.imageOffset.z + region.imageExtent.depth) + region.imageSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(
@@ -997,18 +997,25 @@ void VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImag
 			const VkImageResolve &region = pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.srcOffset.x,
-				region.srcOffset.y,
-				region.srcOffset.z,
-				region.srcOffset.x + static_cast<int32_t>(region.extent.width),
-				region.srcOffset.y + static_cast<int32_t>(region.extent.height),
-				region.srcOffset.z + static_cast<int32_t>(region.extent.depth + region.srcSubresource.layerCount)
+				static_cast<uint32_t>(region.srcOffset.x),
+				static_cast<uint32_t>(region.srcOffset.y),
+				static_cast<uint32_t>(region.srcOffset.z),
+				static_cast<uint32_t>(region.srcOffset.x + region.extent.width),
+				static_cast<uint32_t>(region.srcOffset.y + region.extent.height),
+				static_cast<uint32_t>(region.srcOffset.z + region.extent.depth) + region.srcSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 					cmd_impl,
-					reshade::api::resource { (uint64_t)srcImage }, calc_subresource_index(device_impl, srcImage, region.srcSubresource), &src_box,
-					reshade::api::resource { (uint64_t)dstImage }, calc_subresource_index(device_impl, dstImage, region.dstSubresource), region.dstOffset.x, region.dstOffset.y, region.dstOffset.z, reshade::api::format::unknown))
+					reshade::api::resource { (uint64_t)srcImage },
+					calc_subresource_index(device_impl, srcImage, region.srcSubresource),
+					&src_box,
+					reshade::api::resource { (uint64_t)dstImage },
+					calc_subresource_index(device_impl, dstImage, region.dstSubresource),
+					static_cast<uint32_t>(region.dstOffset.x),
+					static_cast<uint32_t>(region.dstOffset.y),
+					static_cast<uint32_t>(region.dstOffset.z),
+					reshade::api::format::unknown))
 				continue;
 
 			trampoline(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, 1, &region);
@@ -1473,20 +1480,20 @@ void VKAPI_CALL vkCmdCopyImage2(VkCommandBuffer commandBuffer, const VkCopyImage
 			const VkImageCopy2 &region = pCopyImageInfo->pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.srcOffset.x,
-				region.srcOffset.y,
-				region.srcOffset.z,
-				region.srcOffset.x + static_cast<int32_t>(region.extent.width),
-				region.srcOffset.y + static_cast<int32_t>(region.extent.height),
-				region.srcOffset.z + static_cast<int32_t>(region.extent.depth + region.srcSubresource.layerCount)
+				static_cast<uint32_t>(region.srcOffset.x),
+				static_cast<uint32_t>(region.srcOffset.y),
+				static_cast<uint32_t>(region.srcOffset.z),
+				static_cast<uint32_t>(region.srcOffset.x + region.extent.width),
+				static_cast<uint32_t>(region.srcOffset.y + region.extent.height),
+				static_cast<uint32_t>(region.srcOffset.z + region.extent.depth) + region.srcSubresource.layerCount
 			};
 			const reshade::api::subresource_box dst_box = {
-				region.dstOffset.x,
-				region.dstOffset.y,
-				region.dstOffset.z,
-				region.dstOffset.x + static_cast<int32_t>(region.extent.width),
-				region.dstOffset.y + static_cast<int32_t>(region.extent.height),
-				region.dstOffset.z + static_cast<int32_t>(region.extent.depth + region.dstSubresource.layerCount)
+				static_cast<uint32_t>(region.dstOffset.x),
+				static_cast<uint32_t>(region.dstOffset.y),
+				static_cast<uint32_t>(region.dstOffset.z),
+				static_cast<uint32_t>(region.dstOffset.x + region.extent.width),
+				static_cast<uint32_t>(region.dstOffset.y + region.extent.height),
+				static_cast<uint32_t>(region.dstOffset.z + region.extent.depth) + region.dstSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -1523,12 +1530,12 @@ void VKAPI_CALL vkCmdCopyBufferToImage2(VkCommandBuffer commandBuffer, const VkC
 			const VkBufferImageCopy2 &region = pCopyBufferToImageInfo->pRegions[i];
 
 			const reshade::api::subresource_box dst_box = {
-				region.imageOffset.x,
-				region.imageOffset.y,
-				region.imageOffset.z,
-				region.imageOffset.x + static_cast<int32_t>(region.imageExtent.width),
-				region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height),
-				region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth + region.imageSubresource.layerCount)
+				static_cast<uint32_t>(region.imageOffset.x),
+				static_cast<uint32_t>(region.imageOffset.y),
+				static_cast<uint32_t>(region.imageOffset.z),
+				static_cast<uint32_t>(region.imageOffset.x + region.imageExtent.width),
+				static_cast<uint32_t>(region.imageOffset.y + region.imageExtent.height),
+				static_cast<uint32_t>(region.imageOffset.z + region.imageExtent.depth) + region.imageSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(
@@ -1563,12 +1570,12 @@ void VKAPI_CALL vkCmdCopyImageToBuffer2(VkCommandBuffer commandBuffer, const VkC
 			const VkBufferImageCopy2 &region = pCopyImageToBufferInfo->pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.imageOffset.x,
-				region.imageOffset.y,
-				region.imageOffset.z,
-				region.imageOffset.x + static_cast<int32_t>(region.imageExtent.width),
-				region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height),
-				region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth + region.imageSubresource.layerCount)
+				static_cast<uint32_t>(region.imageOffset.x),
+				static_cast<uint32_t>(region.imageOffset.y),
+				static_cast<uint32_t>(region.imageOffset.z),
+				static_cast<uint32_t>(region.imageOffset.x + region.imageExtent.width),
+				static_cast<uint32_t>(region.imageOffset.y + region.imageExtent.height),
+				static_cast<uint32_t>(region.imageOffset.z + region.imageExtent.depth) + region.imageSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_to_buffer>(
@@ -1603,20 +1610,20 @@ void VKAPI_CALL vkCmdBlitImage2(VkCommandBuffer commandBuffer, const VkBlitImage
 			const VkImageBlit2 &region = pBlitImageInfo->pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.srcOffsets[0].x,
-				region.srcOffsets[0].y,
-				region.srcOffsets[0].z,
-				region.srcOffsets[1].x,
-				region.srcOffsets[1].y,
-				region.srcOffsets[1].z + static_cast<int32_t>(region.srcSubresource.layerCount)
+				static_cast<uint32_t>(region.srcOffsets[0].x),
+				static_cast<uint32_t>(region.srcOffsets[0].y),
+				static_cast<uint32_t>(region.srcOffsets[0].z),
+				static_cast<uint32_t>(region.srcOffsets[1].x),
+				static_cast<uint32_t>(region.srcOffsets[1].y),
+				static_cast<uint32_t>(region.srcOffsets[1].z) + region.srcSubresource.layerCount
 			};
 			const reshade::api::subresource_box dst_box = {
-				region.dstOffsets[0].x,
-				region.dstOffsets[0].y,
-				region.dstOffsets[0].z,
-				region.dstOffsets[1].x,
-				region.dstOffsets[1].y,
-				region.dstOffsets[1].z + static_cast<int32_t>(region.dstSubresource.layerCount)
+				static_cast<uint32_t>(region.dstOffsets[0].x),
+				static_cast<uint32_t>(region.dstOffsets[0].y),
+				static_cast<uint32_t>(region.dstOffsets[0].z),
+				static_cast<uint32_t>(region.dstOffsets[1].x),
+				static_cast<uint32_t>(region.dstOffsets[1].y),
+				static_cast<uint32_t>(region.dstOffsets[1].z) + region.dstSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
@@ -1652,18 +1659,25 @@ void VKAPI_CALL vkCmdResolveImage2(VkCommandBuffer commandBuffer, const VkResolv
 			const VkImageResolve2 &region = pResolveImageInfo->pRegions[i];
 
 			const reshade::api::subresource_box src_box = {
-				region.srcOffset.x,
-				region.srcOffset.y,
-				region.srcOffset.z,
-				region.srcOffset.x + static_cast<int32_t>(region.extent.width),
-				region.srcOffset.y + static_cast<int32_t>(region.extent.height),
-				region.srcOffset.z + static_cast<int32_t>(region.extent.depth + region.srcSubresource.layerCount)
+				static_cast<uint32_t>(region.srcOffset.x),
+				static_cast<uint32_t>(region.srcOffset.y),
+				static_cast<uint32_t>(region.srcOffset.z),
+				static_cast<uint32_t>(region.srcOffset.x + region.extent.width),
+				static_cast<uint32_t>(region.srcOffset.y + region.extent.height),
+				static_cast<uint32_t>(region.srcOffset.z + region.extent.depth) + region.srcSubresource.layerCount
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(
 					cmd_impl,
-					reshade::api::resource { (uint64_t)pResolveImageInfo->srcImage }, calc_subresource_index(device_impl, pResolveImageInfo->srcImage, region.srcSubresource), &src_box,
-					reshade::api::resource { (uint64_t)pResolveImageInfo->dstImage }, calc_subresource_index(device_impl, pResolveImageInfo->dstImage, region.dstSubresource), region.dstOffset.x, region.dstOffset.y, region.dstOffset.z, reshade::api::format::unknown))
+					reshade::api::resource { (uint64_t)pResolveImageInfo->srcImage },
+					calc_subresource_index(device_impl, pResolveImageInfo->srcImage, region.srcSubresource),
+					&src_box,
+					reshade::api::resource { (uint64_t)pResolveImageInfo->dstImage },
+					calc_subresource_index(device_impl, pResolveImageInfo->dstImage, region.dstSubresource),
+					static_cast<uint32_t>(region.dstOffset.x),
+					static_cast<uint32_t>(region.dstOffset.y),
+					static_cast<uint32_t>(region.dstOffset.z),
+					reshade::api::format::unknown))
 				continue;
 
 			VkResolveImageInfo2 region_info = *pResolveImageInfo;

@@ -847,7 +847,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 		&dst_copy_location, 0, 0, 0,
 		&src_copy_location, reinterpret_cast<const D3D12_BOX *>(src_box));
 }
-void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
+void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, uint32_t dst_x, uint32_t dst_y, uint32_t dst_z, api::format format)
 {
 	_has_commands = true;
 

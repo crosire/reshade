@@ -261,9 +261,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 
 		if (use_dst_box)
 		{
-			dst_box.left = static_cast<int32_t>(DstX);
-			dst_box.top = static_cast<int32_t>(DstY);
-			dst_box.front = static_cast<int32_t>(DstZ);
+			dst_box.left = DstX;
+			dst_box.top = DstY;
+			dst_box.front = DstZ;
 
 			if (pSrcBox != nullptr)
 			{
@@ -297,9 +297,9 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 		reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>())
 	{
 		reshade::api::subresource_box dst_box;
-		dst_box.left = static_cast<int32_t>(DstX);
-		dst_box.top = static_cast<int32_t>(DstY);
-		dst_box.front = static_cast<int32_t>(DstZ);
+		dst_box.left = DstX;
+		dst_box.top = DstY;
+		dst_box.front = DstZ;
 
 		if (pSrcBox != nullptr)
 		{
@@ -941,11 +941,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveSubresourceRegion(ID3D12
 
 	if (use_src_box)
 	{
-		src_box.left = pSrcRect->left;
-		src_box.top = pSrcRect->top;
+		src_box.left = static_cast<uint32_t>(pSrcRect->left);
+		src_box.top = static_cast<uint32_t>(pSrcRect->top);
 		src_box.front = 0;
-		src_box.right = pSrcRect->right;
-		src_box.bottom = pSrcRect->bottom;
+		src_box.right = static_cast<uint32_t>(pSrcRect->right);
+		src_box.bottom = static_cast<uint32_t>(pSrcRect->bottom);
 		src_box.back = 1;
 	}
 

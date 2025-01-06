@@ -944,7 +944,7 @@ namespace reshade { namespace api
 		/// <param name="dest_y">Optional Y offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to.</param>
 		/// <param name="dest_z">Optional Z offset (in texels) that defines the region in the <paramref name="dest"/>ination texture to resolve to.</param>
 		/// <param name="format">Format of the resource data.</param>
-		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, int32_t dest_x, int32_t dest_y, int32_t dest_z, format format) = 0;
+		virtual void resolve_texture_region(resource source, uint32_t source_subresource, const subresource_box *source_box, resource dest, uint32_t dest_subresource, uint32_t dest_x, uint32_t dest_y, uint32_t dest_z, format format) = 0;
 
 		/// <summary>
 		/// Clears the resource referenced by the depth-stencil view.

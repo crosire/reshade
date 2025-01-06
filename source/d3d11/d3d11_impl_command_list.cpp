@@ -713,7 +713,7 @@ void reshade::d3d11::device_context_impl::copy_texture_to_buffer(api::resource, 
 {
 	assert(false);
 }
-void reshade::d3d11::device_context_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, int32_t dst_x, int32_t dst_y, int32_t dst_z, api::format format)
+void reshade::d3d11::device_context_impl::resolve_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, uint32_t dst_x, uint32_t dst_y, uint32_t dst_z, api::format format)
 {
 	assert(src != 0 && dst != 0);
 	assert(src_box == nullptr && dst_x == 0 && dst_y == 0 && dst_z == 0);

@@ -613,9 +613,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resour
 
 			if (use_dst_box)
 			{
-				dst_box.left = static_cast<int32_t>(DstX);
-				dst_box.top = static_cast<int32_t>(DstY);
-				dst_box.front = static_cast<int32_t>(DstZ);
+				dst_box.left = DstX;
+				dst_box.top = DstY;
+				dst_box.front = DstZ;
 
 				if (pSrcBox != nullptr)
 				{
@@ -1164,9 +1164,9 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resou
 
 			if (use_dst_box)
 			{
-				dst_box.left = static_cast<int32_t>(DstX);
-				dst_box.top = static_cast<int32_t>(DstY);
-				dst_box.front = static_cast<int32_t>(DstZ);
+				dst_box.left = DstX;
+				dst_box.top = DstY;
+				dst_box.front = DstZ;
 
 				if (pSrcBox != nullptr)
 				{

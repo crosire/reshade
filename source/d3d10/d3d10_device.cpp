@@ -458,9 +458,9 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 
 			if (use_dst_box)
 			{
-				dst_box.left = static_cast<int32_t>(DstX);
-				dst_box.top = static_cast<int32_t>(DstY);
-				dst_box.front = static_cast<int32_t>(DstZ);
+				dst_box.left = DstX;
+				dst_box.top = DstY;
+				dst_box.front = DstZ;
 
 				if (pSrcBox != nullptr)
 				{

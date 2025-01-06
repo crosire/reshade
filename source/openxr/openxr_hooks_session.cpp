@@ -325,12 +325,14 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 
 					view_textures[view_count] = swapchain_data.surface_images[swapchain_data.last_released_index];
 
+					assert(sub_image.imageRect.offset.x >= 0 && sub_image.imageRect.offset.y >= 0 && sub_image.imageRect.extent.width >= 0 && sub_image.imageRect.extent.height >= 0);
+
 					reshade::api::subresource_box &view_box = view_boxes[view_count];
-					view_box.left = sub_image.imageRect.offset.x;
-					view_box.top = sub_image.imageRect.offset.y;
+					view_box.left = static_cast<uint32_t>(sub_image.imageRect.offset.x);
+					view_box.top = static_cast<uint32_t>(sub_image.imageRect.offset.y);
 					view_box.front = 0;
-					view_box.right = sub_image.imageRect.offset.x + sub_image.imageRect.extent.width;
-					view_box.bottom = sub_image.imageRect.offset.y + sub_image.imageRect.extent.height;
+					view_box.right = static_cast<uint32_t>(sub_image.imageRect.offset.x + sub_image.imageRect.extent.width);
+					view_box.bottom = static_cast<uint32_t>(sub_image.imageRect.offset.y + sub_image.imageRect.extent.height);
 					view_box.back = 1;
 
 					view_layers[view_count] = sub_image.imageArrayIndex;

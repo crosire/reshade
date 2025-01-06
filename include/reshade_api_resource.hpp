@@ -436,12 +436,12 @@ namespace reshade { namespace api
 	/// </summary>
 	struct subresource_box
 	{
-		int32_t left = 0;
-		int32_t top = 0;
-		int32_t front = 0;
-		int32_t right = 0;
-		int32_t bottom = 0;
-		int32_t back = 0;
+		uint32_t left = 0;
+		uint32_t top = 0;
+		uint32_t front = 0;
+		uint32_t right = 0;
+		uint32_t bottom = 0;
+		uint32_t back = 0;
 
 		constexpr uint32_t width() const { return right - left; }
 		constexpr uint32_t height() const { return bottom - top; }
