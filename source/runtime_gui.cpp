@@ -3281,25 +3281,27 @@ void reshade::runtime::draw_gui_addons()
 			ImGui::BeginChild(name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
 
 			const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
-			const auto fullname = builtin ? info.name : info.name + '@' + info.file;
-			const auto collapsed_it = std::find(collapsed_addons.cbegin(), collapsed_addons.cend(), fullname);
-			const bool collapsed = collapsed_it != collapsed_addons.cend() ? false : !builtin;
+			const std::string unique_name = builtin ? info.name : info.name + '@' + info.file;
 
-			bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), collapsed ? false : builtin);
+			const auto collapsed_it = std::find(collapsed_addons.begin(), collapsed_addons.end(), unique_name);
+
+			bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), builtin ? collapsed_it == collapsed_addons.end() : collapsed_it != collapsed_addons.end());
 			if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
 			{
-				if (open = !open)
+				ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
+
+				if (builtin ? open : !open)
 				{
-					if (collapsed_it == collapsed_addons.cend())
-						collapsed_addons.push_back(fullname);
+					if (collapsed_it != collapsed_addons.end())
+						collapsed_addons.erase(collapsed_it);
 				}
 				else
 				{
-					if (collapsed_it != collapsed_addons.cend())
-						collapsed_addons.erase(collapsed_it);
+					if (collapsed_it == collapsed_addons.end())
+						collapsed_addons.push_back(unique_name);
 				}
+
 				config.set("ADDON", "CollapsedAddons", collapsed_addons);
-				ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open);
 			}
 
 			ImGui::SameLine();
@@ -3320,7 +3322,7 @@ void reshade::runtime::draw_gui_addons()
 				if (enabled)
 					disabled_addons.erase(disabled_it);
 				else
-					disabled_addons.push_back(fullname);
+					disabled_addons.push_back(unique_name);
 
 				config.set("ADDON", "DisabledAddons", disabled_addons);
 			}
