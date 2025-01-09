@@ -1579,14 +1579,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect.permutations.resize(permutation_index + 1);
 	effect::permutation &permutation = effect.permutations[permutation_index];
 
+	bool preprocessed = effect.preprocessed && permutation_index == 0;
+	bool compiled = effect.compiled && permutation_index == 0;
 	bool skip_optimization = false;
 	std::string code_preamble;
 	std::string errors;
 
 	bool source_cached = false;
 	std::string source;
-	if ((!effect.preprocessed || permutation_index != 0) &&
-		(preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
+	if (!preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
@@ -1627,12 +1628,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			"#define tex2Dgather3 tex2DgatherA\n");
 
 		// Load and preprocess the source file
-		effect.preprocessed = pp.append_file(source_file);
+		preprocessed = pp.append_file(source_file);
 
 		// Append preprocessor errors to the error list
 		errors += pp.errors();
 
-		if (effect.preprocessed)
+		if (preprocessed)
 		{
 			source = pp.output();
 
@@ -1651,67 +1652,76 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				source = "// " + pragma_directive + source;
 			}
 
-			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
-			effect.definitions.clear();
-			for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
-			{
-				if (definition.first.size() < 8 ||
-					definition.first[0] == '_' ||
-					definition.first.compare(0, 7, "BUFFER_") == 0 ||
-					definition.first.compare(0, 8, "RESHADE_") == 0 ||
-					definition.first.find("INCLUDE_") != std::string::npos)
-					continue;
-
-				effect.definitions.emplace_back(definition.first, trim(definition.second));
-
-				// Write used preprocessor definitions to the cached source
-				source = "// " + definition.first + '=' + definition.second + '\n' + source;
-			}
-
-			std::sort(effect.definitions.begin(), effect.definitions.end());
-
 			// Do not cache if any special pragma directives were used, to ensure they are read again next time
 			if (!skip_optimization)
 				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 
-		// Keep track of included files
-		effect.included_files = pp.included_files();
-		std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
+		if (permutation_index == 0)
+		{
+			if (preprocessed)
+			{
+				// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
+				effect.definitions.clear();
+				for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
+				{
+					if (definition.first.size() < 8 ||
+						definition.first[0] == '_' ||
+						definition.first.compare(0, 7, "BUFFER_") == 0 ||
+						definition.first.compare(0, 8, "RESHADE_") == 0 ||
+						definition.first.find("INCLUDE_") != std::string::npos)
+						continue;
+
+					effect.definitions.emplace_back(definition.first, trim(definition.second));
+
+					// Write used preprocessor definitions to the cached source
+					source = "// " + definition.first + '=' + definition.second + '\n' + source;
+				}
+
+				std::sort(effect.definitions.begin(), effect.definitions.end());
+			}
+
+			// Keep track of included files
+			effect.included_files = pp.included_files();
+			std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
+		}
 	}
 	else
 	{
-		if (!source.empty())
+		if (permutation_index == 0)
 		{
-			effect.definitions.clear();
-
-			// Read used preprocessor definitions and pragmas from the cached source
-			for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
+			if (!source.empty())
 			{
-				offset += 3;
-				next = source.find('\n', offset);
-				if (next == std::string::npos)
-					break;
+				effect.definitions.clear();
 
-				if (source.compare(offset, 7, "#pragma") == 0)
+				// Read used preprocessor definitions and pragmas from the cached source
+				for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
 				{
-					code_preamble += source.substr(offset, (next + 1) - offset);
+					offset += 3;
+					next = source.find('\n', offset);
+					if (next == std::string::npos)
+						break;
+
+					if (source.compare(offset, 7, "#pragma") == 0)
+					{
+						code_preamble += source.substr(offset, (next + 1) - offset);
+					}
+					else if (const size_t equals_index = source.find('=', offset);
+						equals_index != std::string::npos)
+					{
+						effect.definitions.emplace_back(
+							source.substr(offset, equals_index - offset),
+							source.substr(equals_index + 1, next - (equals_index + 1)));
+					}
 				}
-				else if (const size_t equals_index = source.find('=', offset);
-					equals_index != std::string::npos)
-				{
-					effect.definitions.emplace_back(
-						source.substr(offset, equals_index - offset),
-						source.substr(equals_index + 1, next - (equals_index + 1)));
-				}
+
+				std::sort(effect.definitions.begin(), effect.definitions.end());
 			}
-
-			std::sort(effect.definitions.begin(), effect.definitions.end());
 		}
 	}
 
 	std::unique_ptr<reshadefx::codegen> codegen;
-	if ((!effect.compiled || permutation_index != 0) && !source.empty() || permutation.assembly.empty())
+	if (!compiled && !source.empty())
 	{
 		unsigned shader_model;
 		if (_renderer_id == 0x9000)
@@ -1735,7 +1745,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		reshadefx::parser parser;
 
 		// Compile the pre-processed source code (try the compile even if the preprocessor step failed to get additional error information)
-		effect.compiled = parser.parse(std::move(source), codegen.get());
+		compiled = parser.parse(std::move(source), codegen.get());
 
 		// Append parser errors to the error list
 		errors += parser.errors();
@@ -1745,7 +1755,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		if (_device->get_api() != api::device_api::vulkan)
 			permutation.generated_code = codegen->finalize_code();
 
-		if (effect.compiled)
+		if (compiled)
 		{
 			if (permutation_index == 0)
 			{
@@ -1806,7 +1816,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					permutation.module.total_uniform_size != effect.permutations[0].module.total_uniform_size)
 				{
 					errors += "error: effect permutation defines different uniform variables\n";
-					effect.compiled = false;
+					compiled = false;
 				}
 			}
 
@@ -1873,7 +1883,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 			}
 		}
-		else if (!effect.preprocessed)
+		else if (!preprocessed)
 		{
 			assert(!preprocess_required);
 
@@ -1881,10 +1891,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if (!errors.empty())
-		effect.errors = std::move(errors);
-
-	if (effect.compiled && (effect.preprocessed || source_cached))
+	if (compiled && (preprocessed || source_cached))
 	{
 		if (permutation.assembly.empty())
 		{
@@ -1893,8 +1900,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				if (entry_point.second == reshadefx::shader_type::compute && !_device->check_capability(api::device_caps::compute_shader))
 				{
-					effect.errors += "error: " + entry_point.first + ": compute shaders are not supported in D3D9/D3D10\n";
-					effect.compiled = false;
+					errors += "error: " + entry_point.first + ": compute shaders are not supported in D3D9/D3D10\n";
+					compiled = false;
 					break;
 				}
 
@@ -2036,16 +2043,16 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						{
 							// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
 							if (d3d_errors_string.find("error") == std::string::npos)
-								effect.errors += "error: " + entry_point.first + ": ";
+								errors += "error: " + entry_point.first + ": ";
 
-							effect.errors += d3d_errors_string;
-							effect.compiled = false;
+							errors += d3d_errors_string;
+							compiled = false;
 							break;
 						}
 						else
 						{
 							// Append warnings
-							effect.errors += d3d_errors_string;
+							errors += d3d_errors_string;
 						}
 
 						cso.resize(d3d_compiled->GetBufferSize());
@@ -2088,8 +2095,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if (!new_texture.semantic.empty() && (new_texture.render_target || new_texture.storage_access))
 			{
-				effect.errors += "error: " + new_texture.unique_name + ": texture with a semantic used as a render target or storage\n";
-				effect.compiled = false;
+				errors += "error: " + new_texture.unique_name + ": texture with a semantic used as a render target or storage\n";
+				compiled = false;
 				break;
 			}
 
@@ -2103,24 +2110,24 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (new_texture.semantic != existing_texture->semantic)
 				{
-					effect.errors += "error: " + new_texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with the same name but different semantic\n";
-					effect.compiled = false;
+					errors += "error: " + new_texture.unique_name + ": another effect (";
+					errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					errors += ") already created a texture with the same name but different semantic\n";
+					compiled = false;
 					break;
 				}
 
 				if (new_texture.semantic.empty() && !existing_texture->matches_description(new_texture))
 				{
-					effect.errors += "warning: " + new_texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with the same name but different dimensions\n";
+					errors += "warning: " + new_texture.unique_name + ": another effect (";
+					errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					errors += ") already created a texture with the same name but different dimensions\n";
 				}
 				if (new_texture.semantic.empty() && (existing_texture->annotation_as_string("source") != new_texture.annotation_as_string("source")))
 				{
-					effect.errors += "warning: " + new_texture.unique_name + ": another effect (";
-					effect.errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					effect.errors += ") already created a texture with a different image file\n";
+					errors += "warning: " + new_texture.unique_name + ": another effect (";
+					errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
+					errors += ") already created a texture with a different image file\n";
 				}
 
 				if (existing_texture->semantic == "COLOR" && api::format_bit_depth(_effect_permutations[permutation_index].color_format) != 8)
@@ -2129,7 +2136,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					{
 						if (sampler_info.srgb && sampler_info.texture_name == new_texture.unique_name)
 						{
-							effect.errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)\n";
+							errors += "warning: " + sampler_info.unique_name + ": texture does not support sRGB sampling (back buffer format is not RGBA8)\n";
 						}
 					}
 				}
@@ -2227,6 +2234,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
+	effect.compiled = compiled;
+	effect.preprocessed = preprocessed;
+
+	if (!errors.empty())
+		effect.errors = std::move(errors);
+
 	const std::chrono::high_resolution_clock::time_point time_load_finished = std::chrono::high_resolution_clock::now();
 
 	if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
@@ -2234,7 +2247,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	else
 		_reload_remaining_effects = 0; // Force effect initialization in 'update_effects'
 
-	if ( effect.compiled && (effect.preprocessed || source_cached))
+	if ( compiled && (preprocessed || source_cached))
 	{
 		if (effect.errors.empty())
 			log::message(log::level::info, "Successfully compiled '%s'%s in %f s.", source_file.u8string().c_str(), permutation_index == 0 ? "" : " permutation", std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f);
