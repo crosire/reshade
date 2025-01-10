@@ -2482,7 +2482,8 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		assert(!tech.permutations[permutation_index].created);
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
-		tech.query_base_index = static_cast<uint32_t>(tech_index_in_effect * 2 * 4);
+		if (permutation_index == 0)
+			tech.query_base_index = static_cast<uint32_t>(tech_index_in_effect * 2 * 4);
 		++tech_index_in_effect;
 
 		for (size_t pass_index = 0; pass_index < tech.permutations[permutation_index].passes.size(); ++pass_index, ++pass_index_in_effect)
@@ -4141,7 +4142,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	const effect::permutation &permutation = effect.permutations[permutation_index];
 
 #if RESHADE_GUI
-	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0)
+	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0 && permutation_index == 0)
 	{
 		// Evaluate queries from oldest frame in queue
 		if (uint64_t timestamps[2];
@@ -4357,7 +4358,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0)
+	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0 && permutation_index == 0)
 		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2 + 1);
 #endif
 
