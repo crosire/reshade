@@ -2222,9 +2222,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			new_technique.hidden = new_technique.annotation_as_int("hidden") != 0;
 			new_technique.enabled_in_screenshot = new_technique.annotation_as_int("enabled_in_screenshot", 0, true) != 0;
 
-			assert(permutation_index == 0);
-			new_technique.permutations.resize(1);
-			new_technique.permutations[0].passes.assign(tech.passes.begin(), tech.passes.end());
+			// Make space for all permutations in case this technique only exists in a specific one
+			new_technique.permutations.resize(permutation_index + 1);
+			new_technique.permutations[permutation_index].passes.assign(tech.passes.begin(), tech.passes.end());
 
 			if (new_technique.annotation_as_int("enabled"))
 				enable_technique(new_technique);
@@ -2476,7 +2476,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	{
 		technique &tech = _techniques[tech_index];
 
-		if (tech.effect_index != effect_index)
+		if (tech.effect_index != effect_index || permutation_index >= tech.permutations.size())
 			continue;
 
 		assert(!tech.permutations[permutation_index].created);
