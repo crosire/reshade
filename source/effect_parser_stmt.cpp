@@ -1651,6 +1651,11 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				return false;
 			}
 
+			// Default texture format to RGBA8 in case it is not specified
+			texture_info.format = texture_format::rgba8;
+			// Integral texture formats cannot use linear filtering, so default to point filtering for them
+			sampler_info.filter = type.is_integral() ? filter_mode::min_mag_mip_point : filter_mode::min_mag_mip_linear;
+
 			while (!peek('}'))
 			{
 				if (!expect(tokenid::identifier))
@@ -1874,20 +1879,29 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			error(variable_location, 3521, '\'' + name + "': type mismatch between texture and sampler type");
 			return false;
 		}
-		if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
-		{
-			error(variable_location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)");
-			return false;
-		}
 
-		if (texture_info.format == texture_format::r32i ?
-				!type.is_integral() || !type.is_signed() :
-			texture_info.format == texture_format::r32u ?
-				!type.is_integral() || !type.is_unsigned() :
-				!type.is_floating_point())
+		if (texture_info.format != texture_format::unknown)
 		{
-			error(variable_location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type");
-			return false;
+			if (sampler_info.srgb && texture_info.format != texture_format::rgba8)
+			{
+				error(variable_location, 4582, '\'' + name + "': texture does not support sRGB sampling (only textures with RGBA8 format do)");
+				return false;
+			}
+
+			if (texture_info.format == texture_format::r32i ?
+					!type.is_integral() || !type.is_signed() :
+				texture_info.format == texture_format::r32u ?
+					!type.is_integral() || !type.is_unsigned() :
+					!type.is_floating_point())
+			{
+				error(variable_location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type");
+				return false;
+			}
+		}
+		else if (type.is_integral())
+		{
+			// Set appropriate texture format so that code generation can choose correct texture type
+			texture_info.format = type.is_signed() ? texture_format::r32i : texture_format::r32u;
 		}
 
 		sampler_info.name = name;
@@ -1915,14 +1929,22 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 			return false;
 		}
 
-		if (texture_info.format == texture_format::r32i ?
-				!type.is_integral() || !type.is_signed() :
-			texture_info.format == texture_format::r32u ?
-				!type.is_integral() || !type.is_unsigned() :
-				!type.is_floating_point())
+		if (texture_info.format != texture_format::unknown)
 		{
-			error(variable_location, 4582, '\'' + name + "': type mismatch between texture format and storage element type");
-			return false;
+			if (texture_info.format == texture_format::r32i ?
+					!type.is_integral() || !type.is_signed() :
+				texture_info.format == texture_format::r32u ?
+					!type.is_integral() || !type.is_unsigned() :
+					!type.is_floating_point())
+			{
+				error(variable_location, 4582, '\'' + name + "': type mismatch between texture format and storage element type");
+				return false;
+			}
+		}
+		else if (type.is_integral())
+		{
+			// Set appropriate texture format so that code generation can choose correct texture type
+			texture_info.format = type.is_signed() ? texture_format::r32i : texture_format::r32u;
 		}
 
 		storage_info.name = name;

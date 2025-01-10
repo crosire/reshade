@@ -88,7 +88,7 @@ namespace reshadefx
 		uint16_t depth = 1;
 		uint16_t levels = 1;
 		texture_type type = texture_type::texture_2d;
-		texture_format format = texture_format::rgba8;
+		texture_format format = texture_format::unknown;
 	};
 
 	/// <summary>
