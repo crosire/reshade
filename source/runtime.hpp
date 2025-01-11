@@ -166,7 +166,7 @@ namespace reshade
 
 		bool open_overlay(bool open, api::input_source source) final;
 
-		void set_color_space(api::color_space color_space) final { _back_buffer_color_space = color_space; }
+		void set_color_space(api::color_space color_space) final;
 
 		void reload_effect_next_frame(const char *effect_name) final;
 
