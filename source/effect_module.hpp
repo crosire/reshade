@@ -74,6 +74,8 @@ namespace reshadefx
 		rgba8,
 		rgba16,
 		rgba16f,
+		rgba32i,
+		rgba32u,
 		rgba32f,
 		rgb10a2
 	};

@@ -1706,6 +1706,8 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						{ "RGBA8", uint32_t(texture_format::rgba8) }, { "R8G8B8A8", uint32_t(texture_format::rgba8) },
 						{ "RGBA16", uint32_t(texture_format::rgba16) }, { "R16G16B16A16", uint32_t(texture_format::rgba16) },
 						{ "RGBA16F", uint32_t(texture_format::rgba16f) }, { "R16G16B16A16F", uint32_t(texture_format::rgba16f) },
+						{ "RGBA32I", uint32_t(texture_format::rgba32i) }, { "R32G32B32A32I", uint32_t(texture_format::rgba32i) },
+						{ "RGBA32U", uint32_t(texture_format::rgba32u) }, { "R32G32B32A32U", uint32_t(texture_format::rgba32u) },
 						{ "RGBA32F", uint32_t(texture_format::rgba32f) }, { "R32G32B32A32F", uint32_t(texture_format::rgba32f) },
 						{ "RGB10A2", uint32_t(texture_format::rgb10a2) }, { "R10G10B10A2", uint32_t(texture_format::rgb10a2) },
 					};
@@ -1888,11 +1890,27 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 				return false;
 			}
 
-			if (texture_info.format == texture_format::r32i ?
-					!type.is_integral() || !type.is_signed() :
-				texture_info.format == texture_format::r32u ?
-					!type.is_integral() || !type.is_unsigned() :
-					!type.is_floating_point())
+			bool matching_type = false;
+			switch (texture_info.format)
+			{
+			case texture_format::r32i:
+				matching_type = type.is_integral() && type.is_signed() && type.rows == 1 && type.cols == 1;
+				break;
+			case texture_format::r32u:
+				matching_type = type.is_integral() && type.is_unsigned() && type.rows == 1 && type.cols == 1;
+				break;
+			case texture_format::rgba32i:
+				matching_type = type.is_integral() && type.is_signed() && type.rows == 4 && type.cols == 1;
+				break;
+			case texture_format::rgba32u:
+				matching_type = type.is_integral() && type.is_unsigned() && type.rows == 4 && type.cols == 1;
+				break;
+			default:
+				matching_type = type.is_floating_point();
+				break;
+			}
+
+			if (!matching_type)
 			{
 				error(variable_location, 4582, '\'' + name + "': type mismatch between texture format and sampler element type");
 				return false;
@@ -1901,7 +1919,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (type.is_integral())
 		{
 			// Set appropriate texture format so that code generation can choose correct texture type
-			texture_info.format = type.is_signed() ? texture_format::r32i : texture_format::r32u;
+			texture_info.format = type.is_signed() ?
+				(type.rows > 1 ? texture_format::rgba32i : texture_format::r32i) :
+				(type.rows > 1 ? texture_format::rgba32u : texture_format::r32u);
 		}
 
 		sampler_info.name = name;
@@ -1931,11 +1951,27 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 
 		if (texture_info.format != texture_format::unknown)
 		{
-			if (texture_info.format == texture_format::r32i ?
-					!type.is_integral() || !type.is_signed() :
-				texture_info.format == texture_format::r32u ?
-					!type.is_integral() || !type.is_unsigned() :
-					!type.is_floating_point())
+			bool matching_type = false;
+			switch (texture_info.format)
+			{
+			case texture_format::r32i:
+				matching_type = type.is_integral() && type.is_signed() && type.rows == 1 && type.cols == 1;
+				break;
+			case texture_format::r32u:
+				matching_type = type.is_integral() && type.is_unsigned() && type.rows == 1 && type.cols == 1;
+				break;
+			case texture_format::rgba32i:
+				matching_type = type.is_integral() && type.is_signed() && type.rows == 4 && type.cols == 1;
+				break;
+			case texture_format::rgba32u:
+				matching_type = type.is_integral() && type.is_unsigned() && type.rows == 4 && type.cols == 1;
+				break;
+			default:
+				matching_type = type.is_floating_point();
+				break;
+			}
+
+			if (!matching_type)
 			{
 				error(variable_location, 4582, '\'' + name + "': type mismatch between texture format and storage element type");
 				return false;
@@ -1944,7 +1980,9 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		else if (type.is_integral())
 		{
 			// Set appropriate texture format so that code generation can choose correct texture type
-			texture_info.format = type.is_signed() ? texture_format::r32i : texture_format::r32u;
+			texture_info.format = type.is_signed() ?
+				(type.rows > 1 ? texture_format::rgba32i : texture_format::r32i) :
+				(type.rows > 1 ? texture_format::rgba32u : texture_format::r32u);
 		}
 
 		storage_info.name = name;

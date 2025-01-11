@@ -178,9 +178,15 @@ private:
 				"struct __sampler1D_int { Texture1D<int> t; SamplerState s; };\n"
 				"struct __sampler2D_int { Texture2D<int> t; SamplerState s; };\n"
 				"struct __sampler3D_int { Texture3D<int> t; SamplerState s; };\n"
+				"struct __sampler1D_int4 { Texture1D<int4> t; SamplerState s; };\n"
+				"struct __sampler2D_int4 { Texture2D<int4> t; SamplerState s; };\n"
+				"struct __sampler3D_int4 { Texture3D<int4> t; SamplerState s; };\n"
 				"struct __sampler1D_uint { Texture1D<uint> t; SamplerState s; };\n"
 				"struct __sampler2D_uint { Texture2D<uint> t; SamplerState s; };\n"
 				"struct __sampler3D_uint { Texture3D<uint> t; SamplerState s; };\n"
+				"struct __sampler1D_uint4 { Texture1D<uint4> t; SamplerState s; };\n"
+				"struct __sampler2D_uint4 { Texture2D<uint4> t; SamplerState s; };\n"
+				"struct __sampler3D_uint4 { Texture3D<uint4> t; SamplerState s; };\n"
 				"struct __sampler1D_float { Texture1D<float> t; SamplerState s; };\n"
 				"struct __sampler2D_float { Texture2D<float> t; SamplerState s; };\n"
 				"struct __sampler3D_float { Texture3D<float> t; SamplerState s; };\n"
@@ -628,6 +634,12 @@ private:
 			break;
 		case texture_format::r32u:
 			s += "uint";
+			break;
+		case texture_format::rgba32i:
+			s += "int4";
+			break;
+		case texture_format::rgba32u:
+			s += "uint4";
 			break;
 		default:
 			assert(false);

@@ -561,6 +561,12 @@ private:
 		case texture_format::rgba16f:
 			s += "rgba16f";
 			break;
+		case texture_format::rgba32i:
+			s += "rgba32i";
+			break;
+		case texture_format::rgba32u:
+			s += "rgba32ui";
+			break;
 		case texture_format::rgba32f:
 			s += "rgba32f";
 			break;

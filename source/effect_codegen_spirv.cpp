@@ -864,6 +864,10 @@ private:
 			return spv::ImageFormatRgba16;
 		case texture_format::rgba16f:
 			return spv::ImageFormatRgba16f;
+		case texture_format::rgba32i:
+			return spv::ImageFormatRgba32i;
+		case texture_format::rgba32u:
+			return spv::ImageFormatRgba32ui;
 		case texture_format::rgba32f:
 			return spv::ImageFormatRgba32f;
 		case texture_format::rgb10a2:
