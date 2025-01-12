@@ -2219,7 +2219,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			new_technique.name = tech.name;
 			new_technique.effect_index = effect_index;
 
-			new_technique.annotations = std::move(tech.annotations);
+			new_technique.annotations = tech.annotations; // Do not 'std::move', since technique may be recreated on a reload that only preprocesses and copy this again
 
 			new_technique.hidden = new_technique.annotation_as_int("hidden") != 0;
 			new_technique.enabled_in_screenshot = new_technique.annotation_as_int("enabled_in_screenshot", 0, true) != 0;
