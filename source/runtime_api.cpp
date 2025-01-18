@@ -1406,6 +1406,9 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 	if (tech == nullptr)
 		return;
 
+	if (is_loading())
+		return; // Skip reload enqueue below when effects are already loading, to avoid enqueing an effect for creation that is already in the process of being created
+
 	if (rtv == 0)
 		return;
 	if (rtv_srgb == 0)
@@ -1445,9 +1448,6 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 			_reload_create_queue.emplace_back(tech->effect_index, permutation_index);
 		return;
 	}
-
-	if (is_loading())
-		return;
 
 	if (!_is_in_present_call)
 		capture_state(cmd_list, _app_state);
