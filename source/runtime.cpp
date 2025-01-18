@@ -1584,12 +1584,12 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 	bool preprocessed = effect.preprocessed && permutation_index == 0;
 	bool compiled = effect.compiled && permutation_index == 0;
+	bool source_cached = false;
 	bool skip_optimization = false;
 	std::string code_preamble;
+	std::string source;
 	std::string errors;
 
-	bool source_cached = false;
-	std::string source;
 	if (!preprocessed && (preprocess_required || (source_cached = load_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source)) == false))
 	{
 		reshadefx::preprocessor pp;
@@ -1615,6 +1615,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			pp.add_macro_definition(definition.first, definition.second.empty() ? "1" : definition.second);
 		}
+		preprocessor_definitions.clear(); // Clear before reusing for used preprocessor definitions below
 
 		for (const std::filesystem::path &include_path : include_paths)
 			pp.add_include_path(include_path);
@@ -1655,6 +1656,24 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				source = "// " + pragma_directive + source;
 			}
 
+			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
+			for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
+			{
+				if (definition.first.size() < 8 ||
+					definition.first[0] == '_' ||
+					definition.first.compare(0, 7, "BUFFER_") == 0 ||
+					definition.first.compare(0, 8, "RESHADE_") == 0 ||
+					definition.first.find("INCLUDE_") != std::string::npos)
+					continue;
+
+				preprocessor_definitions.emplace_back(definition.first, trim(definition.second));
+
+				// Write used preprocessor definitions to the cached source
+				source = "// " + definition.first + '=' + definition.second + '\n' + source;
+			}
+
+			std::sort(effect.definitions.begin(), effect.definitions.end());
+
 			// Do not cache if any special pragma directives were used, to ensure they are read again next time
 			if (!skip_optimization)
 				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
@@ -1662,27 +1681,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 		if (permutation_index == 0)
 		{
-			if (preprocessed)
-			{
-				// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
-				effect.definitions.clear();
-				for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
-				{
-					if (definition.first.size() < 8 ||
-						definition.first[0] == '_' ||
-						definition.first.compare(0, 7, "BUFFER_") == 0 ||
-						definition.first.compare(0, 8, "RESHADE_") == 0 ||
-						definition.first.find("INCLUDE_") != std::string::npos)
-						continue;
-
-					effect.definitions.emplace_back(definition.first, trim(definition.second));
-
-					// Write used preprocessor definitions to the cached source
-					source = "// " + definition.first + '=' + definition.second + '\n' + source;
-				}
-
-				std::sort(effect.definitions.begin(), effect.definitions.end());
-			}
+			effect.definitions = std::move(preprocessor_definitions);
 
 			// Keep track of included files
 			effect.included_files = pp.included_files();
@@ -1691,35 +1690,32 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 	else
 	{
-		if (permutation_index == 0)
+		if (permutation_index == 0 && !source.empty())
 		{
-			if (!source.empty())
+			effect.definitions.clear();
+
+			// Read used preprocessor definitions and pragmas from the cached source
+			for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
 			{
-				effect.definitions.clear();
+				offset += 3;
+				next = source.find('\n', offset);
+				if (next == std::string::npos)
+					break;
 
-				// Read used preprocessor definitions and pragmas from the cached source
-				for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
+				if (source.compare(offset, 7, "#pragma") == 0)
 				{
-					offset += 3;
-					next = source.find('\n', offset);
-					if (next == std::string::npos)
-						break;
-
-					if (source.compare(offset, 7, "#pragma") == 0)
-					{
-						code_preamble += source.substr(offset, (next + 1) - offset);
-					}
-					else if (const size_t equals_index = source.find('=', offset);
-						equals_index != std::string::npos)
-					{
-						effect.definitions.emplace_back(
-							source.substr(offset, equals_index - offset),
-							source.substr(equals_index + 1, next - (equals_index + 1)));
-					}
+					code_preamble += source.substr(offset, (next + 1) - offset);
 				}
-
-				std::sort(effect.definitions.begin(), effect.definitions.end());
+				else if (const size_t equals_index = source.find('=', offset);
+					equals_index != std::string::npos)
+				{
+					effect.definitions.emplace_back(
+						source.substr(offset, equals_index - offset),
+						source.substr(equals_index + 1, next - (equals_index + 1)));
+				}
 			}
+
+			std::sort(effect.definitions.begin(), effect.definitions.end());
 		}
 	}
 
