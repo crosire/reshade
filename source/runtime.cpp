@@ -1890,7 +1890,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if (compiled && (preprocessed || source_cached))
+	if ( compiled && (preprocessed || source_cached))
 	{
 		if (permutation.assembly.empty())
 		{
@@ -2225,7 +2225,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			new_technique.permutations.resize(permutation_index + 1);
 			new_technique.permutations[permutation_index].passes.assign(tech.passes.begin(), tech.passes.end());
 
-			if (new_technique.annotation_as_int("enabled"))
+			if (permutation_index == 0 && new_technique.annotation_as_int("enabled"))
 				enable_technique(new_technique);
 
 			_techniques.push_back(std::move(new_technique));
