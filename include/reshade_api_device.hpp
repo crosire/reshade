@@ -250,6 +250,7 @@ namespace reshade { namespace api
 		/// For <see cref="command_list"/> this will be a pointer to a 'ID3D11DeviceContext' (when recording), 'ID3D11CommandList' (when executing) or 'ID3D12GraphicsCommandList' object or a 'VkCommandBuffer' handle.<br/>
 		/// For <see cref="command_queue"/> this will be a pointer to a 'ID3D11DeviceContext' or 'ID3D12CommandQueue' object or a 'VkQueue' handle.<br/>
 		/// For <see cref="swapchain"/> this will be a pointer to a 'IDirect3DSwapChain9' or 'IDXGISwapChain' object or a 'HDC' or 'VkSwapchainKHR' handle.
+		/// For <see cref="display"/> this will be a pointer to a 'IDXGIOutput'; DXGI is used even for runtimes that do not have a DXGI-based swapchain.
 		/// </remarks>
 		virtual uint64_t get_native() const = 0;
 
