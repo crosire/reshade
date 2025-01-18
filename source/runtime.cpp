@@ -5019,10 +5019,21 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 }
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count)
 {
-	if (_screenshot_post_save_command.empty() || _screenshot_post_save_command.extension() != L".exe")
+	if (_screenshot_post_save_command.empty())
 		return false;
 
+	const std::wstring ext = _screenshot_post_save_command.extension().native();
+
 	std::string command_line;
+	if (ext == L".bat" || ext == L".cmd")
+		command_line = "cmd /C call ";
+	else if (ext == L".ps1")
+		command_line = "powershell -File ";
+	else if (ext == L".py")
+		command_line = "python ";
+	else if (ext != L".exe")
+		return false;
+
 	command_line += '\"';
 	command_line += _screenshot_post_save_command.u8string();
 	command_line += '\"';

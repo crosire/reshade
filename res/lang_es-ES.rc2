@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Spanish (Spain) resources
+// Spanish (Spain, International Sort) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ESN)
 LANGUAGE 10, 3
@@ -93,8 +93,8 @@ BEGIN
 39477 "Capturas"
 34032 "Tecla para las capturas"
 8134 "Carpeta para las capturas"
-25098 "Nombre de las capturas"
 40143 "Macros que se pueden añadir:\n  %%AppName%%         Nombre de la aplicación (%s)\n  %%PresetName%%      Nombre del archivo del preset (%s)\n  %%Date%%            Fecha con el formato '%s'\n  %%DateYear%%        Año\n  %%DateMonth%%       Mes\n  %%DateDay%%         Día\n  %%Time%%            Tiempo con el formato '%s'\n  %%TimeHour%%        Horas\n  %%TimeMinute%%      Minutos\n  %%TimeSecond%%      Segundos\n  %%TimeMS%%          Milisegundos\n  %%Count%%           Número de capturas tomadas en ésta sesión\n"
+25098 "Nombre de las capturas"
 20188 "Copiar imagen al portapapeles"
 4289 "Calidad del HDR PNG"
 24896 "Formato de las capturas"
@@ -106,7 +106,7 @@ BEGIN
 12682 "Sonido de captura"
 31901 "Archivo de sonido que se reproduce cuando se saca una captura."
 8229 "Comando post guardado"
-7221 "Ejecutable para después de tomar una captura.\nEsto se puede usar para hacer algún procesado adicional en la imagen (por ejemplo, comprimirla con un optimizador de imagen)."
+60010 "Ejecutable para después de tomar una captura.\nEsto se puede usar para hacer algún procesado adicional en la imagen (por ejemplo, comprimirla con un optimizador de imagen)."
 8195 "Argumentos de comando post guardado"
 6238 "Macros que se pueden añadir:\n  %%AppName%%         Nombre de la aplicación (%s)\n  %%PresetName%%      Nombre del archivo del preset (%s)\n  %%Date%%            Fecha con el formato '%s'\n  %%DateYear%%        Año\n  %%DateMonth%%       Mes\n  %%DateDay%%         Día\n  %%Time%%            Tiempo con el formato '%s'\n  %%TimeHour%%        Horas\n  %%TimeMinute%%      Minutos\n  %%TimeSecond%%      Segundos\n  %%TimeMS%%          Milisegundos\n  %%TargetPath%%      Ruta de la captura (%s)\n  %%TargetDir%%       Ruta de la carpeta de capturas (%s)\n  %%TargetFileName%%  Nombre de la captura (%s)\n  %%TargetExt%%       Extensión del archivo de la captura (%s)\n  %%TargetName%%      Nombre de la captura sin extensión (%s)\n  %%Count%%           Número de capturas tomadas en ésta sesión\n"
 19318 "Directorio de trabajo para el comando post guardado"
@@ -201,5 +201,5 @@ BEGIN
 
 END
 
-#endif    // Spanish (Spain) resources
+#endif    // Spanish (Spain, International Sort) resources
 /////////////////////////////////////////////////////////////////////////////
