@@ -274,8 +274,7 @@ bool reshade::runtime::on_init()
 	_height = back_buffer_desc.texture.height;
 	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
 	_back_buffer_samples = back_buffer_desc.texture.samples;
-	if (api::color_space::unknown == _back_buffer_color_space)
-		_back_buffer_color_space = _swapchain->get_color_space();
+	_back_buffer_color_space = _swapchain->get_color_space();
 
 	// Create resolve texture and copy pipeline (do this before creating effect resources, to ensure correct back buffer format is set up)
 	if (back_buffer_desc.texture.samples > 1
@@ -583,6 +582,8 @@ void reshade::runtime::on_reset()
 	_queue_sync_fence = {};
 
 	_width = _height = 0;
+	_back_buffer_format = api::format::unknown;
+	_back_buffer_samples = 1;
 	_back_buffer_color_space = api::color_space::unknown;
 
 #if RESHADE_GUI

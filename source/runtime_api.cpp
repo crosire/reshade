@@ -1597,13 +1597,12 @@ bool reshade::runtime::open_overlay(bool /*open*/, api::input_source /*source*/)
 
 void reshade::runtime::set_color_space(api::color_space color_space)
 {
-	if (color_space == _back_buffer_color_space || color_space == api::color_space::unknown)
+	if (color_space == _back_buffer_color_space || color_space == api::color_space::unknown || !_is_initialized)
 		return;
 
-	// Force reinitialization with the updated color space
-	on_reset();
 	_back_buffer_color_space = color_space;
-	on_init();
+	_effect_permutations[0].color_space = color_space;
+	reload_effects();
 }
 
 void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *effect_name)
