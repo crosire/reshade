@@ -4389,7 +4389,10 @@ void reshade::runtime::save_texture(const texture &tex)
 	std::string filename = tex.unique_name;
 	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
+	const std::filesystem::path screenshot_path =
+		_screenshot_path.native().find(L'%') != std::wstring::npos ?
+		g_reshade_base_path / std::filesystem::u8path(filename) :
+		g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
 	_last_screenshot_save_successful = true;
 
@@ -4883,18 +4886,19 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 {
 	const unsigned int screenshot_count = _screenshot_count;
 
-	std::string screenshot_name = expand_macro_string(_screenshot_name, {
-		{ "AppName", g_target_executable_path.stem().u8string() },
-#if RESHADE_FX
-		{ "PresetName",  _current_preset_path.stem().u8string() },
-		{ "Count", std::to_string(screenshot_count) }
-#endif
-	});
-
+	std::string screenshot_name = _screenshot_name;
 	screenshot_name += postfix;
 	screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
+	const std::filesystem::path screenshot_path =
+		g_reshade_base_path / std::filesystem::u8path(
+			expand_macro_string((_screenshot_path / std::filesystem::u8path(screenshot_name)).u8string(), {
+				{ "AppName", g_target_executable_path.stem().u8string() },
+#if RESHADE_FX
+				{ "PresetName",  _current_preset_path.stem().u8string() },
+#endif
+				{ "Count", std::to_string(screenshot_count) }
+			}));
 
 	log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
 

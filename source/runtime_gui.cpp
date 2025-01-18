@@ -2224,6 +2224,32 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::directory_input_box(_("Screenshot path"), _screenshot_path, _file_selection_path);
 
+		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+		{
+			ImGui::SetTooltip(_(
+				"Macros you can add that are resolved during saving:\n"
+				"  %%AppName%%         Name of the application (%s)\n"
+				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
+				"  %%Date%%            Current date in format '%s'\n"
+				"  %%DateYear%%        Year component of current date\n"
+				"  %%DateMonth%%       Month component of current date\n"
+				"  %%DateDay%%         Day component of current date\n"
+				"  %%Time%%            Current time in format '%s'\n"
+				"  %%TimeHour%%        Hour component of current time\n"
+				"  %%TimeMinute%%      Minute component of current time\n"
+				"  %%TimeSecond%%      Second component of current time\n"
+				"  %%TimeMS%%          Milliseconds fraction of current time\n"
+				"  %%Count%%           Number of screenshots taken this session\n"),
+				g_target_executable_path.stem().u8string().c_str(),
+#if RESHADE_FX
+				_current_preset_path.stem().u8string().c_str(),
+#else
+				"..."
+#endif
+				"yyyy-MM-dd",
+				"HH-mm-ss");
+		}
+
 		char name[260];
 		name[_screenshot_name.copy(name, sizeof(name) - 1)] = '\0';
 		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_name))
