@@ -4031,13 +4031,16 @@ void reshade::runtime::draw_variable_editor()
 
 					if (definition_scope == &effect_definitions)
 					{
+						ImGui::PushID(definition_it->first.c_str());
+
 						ImGui::SameLine();
-						const std::string definition_undo_label = ICON_FK_UNDO"##" + definition_it->first;
-						if (ImGui::SmallButton(definition_undo_label.c_str()))
+						if (ImGui::SmallButton(ICON_FK_UNDO))
 						{
 							force_reload_effect = true;
 							definition_scope->erase(definition_it);
 						}
+
+						ImGui::PopID();
 					}
 				}
 			}

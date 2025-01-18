@@ -4320,7 +4320,8 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 					semantic_index++;
 
-					if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
+					if (const auto it = _texture_semantic_bindings.find(tex.semantic);
+						it != _texture_semantic_bindings.end())
 					{
 						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
 
@@ -4967,10 +4968,9 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
-
 				// Implicit HDR PNG when running in HDR
 				case 3:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
+					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
 					break;
 				}
 

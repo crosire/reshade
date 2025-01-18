@@ -804,7 +804,7 @@ namespace reshade { namespace api
 		/// Queues up the specified effect for reloading in the next frame.
 		/// This can be called multiple times with different effects to append to the queue.
 		/// </summary>
-		/// <param name="effect_name">File name of the effect file that should be reloaded.</param>
+		/// <param name="effect_name">File name of the effect file that should be reloaded, or <see langword="nullptr"/> to reload all effects.</param>
 		virtual void reload_effect_next_frame(const char *effect_name) = 0;
 	};
 } }
