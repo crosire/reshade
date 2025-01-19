@@ -1602,7 +1602,9 @@ void reshade::runtime::set_color_space(api::color_space color_space)
 
 	_back_buffer_color_space = color_space;
 	_effect_permutations[0].color_space = color_space;
-	reload_effects();
+
+	if (_frame_count != 0) // Do not need to reload effects here if they are already getting reloaded on next present anyway
+		reload_effects();
 }
 
 void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *effect_name)
