@@ -1175,7 +1175,31 @@ namespace reshade { namespace api
 		stream_output_statistics_0 = 4,
 		stream_output_statistics_1,
 		stream_output_statistics_2,
-		stream_output_statistics_3
+		stream_output_statistics_3,
+		/// <summary>
+		/// Current size of the acceleration structure.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
+		/// <seealso cref="command_list::query_acceleration_structures"/>
+		acceleration_structure_size = 100,
+		/// <summary>
+		/// Size of the acceleration structure after compaction.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
+		/// <seealso cref="command_list::query_acceleration_structures"/>
+		acceleration_structure_compacted_size,
+		/// <summary>
+		/// Size of the serialization data of the acceleration structure.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
+		/// <seealso cref="command_list::query_acceleration_structures"/>
+		acceleration_structure_serialization_size,
+		/// <summary>
+		/// Number of bottom-level acceleration structure pointers in the acceleration structure.
+		/// Data is a 64-bit unsigned integer value.
+		/// </summary>
+		/// <seealso cref="command_list::query_acceleration_structures"/>
+		acceleration_structure_bottom_level_acceleration_structure_pointers
 	};
 
 	/// <summary>

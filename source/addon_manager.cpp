@@ -100,6 +100,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 		CASE(copy_query_heap_results);
 		CASE(copy_acceleration_structure);
 		CASE(build_acceleration_structure);
+		CASE(query_acceleration_structures);
 		CASE(reset_command_list);
 		CASE(close_command_list);
 		CASE(execute_command_list);

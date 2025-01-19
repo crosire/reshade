@@ -2006,6 +2006,10 @@ void reshade::opengl::device_context_impl::build_acceleration_structure(api::acc
 {
 	assert(false);
 }
+void reshade::opengl::device_context_impl::query_acceleration_structures(uint32_t, const api::resource_view *, api::query_heap, api::query_type, uint32_t)
+{
+	assert(false);
+}
 
 void reshade::opengl::device_context_impl::begin_debug_event(const char *label, const float[4])
 {

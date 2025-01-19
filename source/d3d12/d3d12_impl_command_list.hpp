@@ -59,12 +59,13 @@ namespace reshade::d3d12
 
 		void generate_mipmaps(api::resource_view srv) final;
 
-		void begin_query(api::query_heap heap, api::query_type type, uint32_t index);
-		void end_query(api::query_heap heap, api::query_type type, uint32_t index);
+		void begin_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+		void end_query(api::query_heap heap, api::query_type type, uint32_t index) override;
 		void copy_query_heap_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, api::resource dest, uint64_t dest_offset, uint32_t stride) final;
 
 		void copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode) final;
 		void build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode) final;
+		void query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first) override;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;

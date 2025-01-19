@@ -1252,6 +1252,12 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::
 		if (vk.CmdBeginQueryIndexedEXT != nullptr)
 			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)heap.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
 		break;
+	case api::query_type::acceleration_structure_size:
+	case api::query_type::acceleration_structure_compacted_size:
+	case api::query_type::acceleration_structure_serialization_size:
+	case api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers:
+		assert(false);
+		break;
 	}
 }
 void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::query_type type, uint32_t index)
@@ -1276,6 +1282,12 @@ void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::qu
 	case api::query_type::stream_output_statistics_3:
 		if (vk.CmdEndQueryIndexedEXT != nullptr)
 			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)heap.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+		break;
+	case api::query_type::acceleration_structure_size:
+	case api::query_type::acceleration_structure_compacted_size:
+	case api::query_type::acceleration_structure_serialization_size:
+	case api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers:
+		assert(false);
 		break;
 	}
 }
@@ -1373,6 +1385,20 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 	const VkAccelerationStructureBuildRangeInfoKHR *const range_infos_ptr = range_infos.data();
 
 	vk.CmdBuildAccelerationStructuresKHR(_orig, 1, &info, &range_infos_ptr);
+}
+void reshade::vulkan::command_list_impl::query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first)
+{
+	_has_commands = true;
+
+	assert(heap != 0);
+	assert(_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>((VkQueryPool)heap.handle)->type == convert_query_type(type));
+	assert(
+		type == api::query_type::acceleration_structure_size ||
+		type == api::query_type::acceleration_structure_compacted_size ||
+		type == api::query_type::acceleration_structure_serialization_size ||
+		type == api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers);
+
+	vk.CmdWriteAccelerationStructuresPropertiesKHR(_orig, count, reinterpret_cast<const VkAccelerationStructureKHR *>(acceleration_structures), convert_query_type(type), (VkQueryPool)heap.handle, first);
 }
 
 void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])

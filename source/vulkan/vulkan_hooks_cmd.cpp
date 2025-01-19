@@ -1962,6 +1962,26 @@ void VKAPI_CALL vkCmdCopyAccelerationStructureKHR(VkCommandBuffer commandBuffer,
 	GET_DISPATCH_PTR_FROM(CmdCopyAccelerationStructureKHR, device_impl);
 	trampoline(commandBuffer, pInfo);
 }
+void VKAPI_CALL vkCmdWriteAccelerationStructuresPropertiesKHR(VkCommandBuffer commandBuffer, uint32_t accelerationStructureCount, const VkAccelerationStructureKHR *pAccelerationStructures, VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON >= 2
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::query_acceleration_structures>(
+			cmd_impl,
+			accelerationStructureCount,
+			reinterpret_cast<const reshade::api::resource_view *>(pAccelerationStructures),
+			reshade::api::query_heap { (uint64_t)queryPool },
+			reshade::vulkan::convert_query_type(queryType),
+			firstQuery))
+		return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdWriteAccelerationStructuresPropertiesKHR, device_impl);
+	trampoline(commandBuffer, accelerationStructureCount, pAccelerationStructures, queryType, queryPool, firstQuery);
+}
 
 void VKAPI_CALL vkCmdTraceRaysKHR(VkCommandBuffer commandBuffer, const VkStridedDeviceAddressRegionKHR *pRaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pMissShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pHitShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pCallableShaderBindingTable, uint32_t width, uint32_t height, uint32_t depth)
 {

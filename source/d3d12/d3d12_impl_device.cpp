@@ -1741,68 +1741,85 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 	}
 }
 
-bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_heap)
+bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out_heap)
 {
-	com_ptr<ID3D12Resource> readback_resource;
-	std::vector<com_ptr<ID3D12Fence>> fences(size);
+	*out_heap = { 0 };
+
+	query_heap_extra_data extra_data;
+	extra_data.type = type;
+	extra_data.count = count;
 
 	D3D12_RESOURCE_DESC readback_desc = {};
 	readback_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	readback_desc.Width = size * sizeof(uint64_t);
+	readback_desc.Width = static_cast<UINT64>(count) * get_query_size(type).first;
 	readback_desc.Height = 1;
 	readback_desc.DepthOrArraySize = 1;
 	readback_desc.MipLevels = 1;
 	readback_desc.SampleDesc = { 1, 0 };
 	readback_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_READBACK };
+	const D3D12_HEAP_PROPERTIES readback_heap_props = { D3D12_HEAP_TYPE_READBACK };
 
-	if (FAILED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
-	{
-		*out_heap = { 0 };
+	com_ptr<ID3D12Resource> readback_resource;
+	if (FAILED(_orig->CreateCommittedResource(&readback_heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback_resource))))
 		return false;
-	}
 
-	for (uint32_t i = 0; i < size; i++)
-	{
+	std::vector<com_ptr<ID3D12Fence>> fences(count);
+	for (uint32_t i = 0; i < count; i++)
 		if (FAILED(_orig->CreateFence(0ull, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fences[i]))))
-		{
-			*out_heap = { 0 };
 			return false;
-		}
-	}
 
-	D3D12_QUERY_HEAP_DESC internal_desc = {};
-	internal_desc.Type = convert_query_type_to_heap_type(type);
-	internal_desc.Count = size;
-
-	if (com_ptr<ID3D12QueryHeap> object;
-		SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
+	if (type == api::query_type::acceleration_structure_size ||
+		type == api::query_type::acceleration_structure_compacted_size ||
+		type == api::query_type::acceleration_structure_serialization_size ||
+		type == api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers)
 	{
-		query_heap_extra_data extra_data;
-		extra_data.size = size;
-		extra_data.readback_resource = readback_resource.release();
-		extra_data.fences = new std::pair<ID3D12Fence *, UINT64>[size];
-		for (uint32_t i = 0; i < extra_data.size; ++i)
-			// Start with fence value above the initial value, so that 'get_query_heap_results' will return false for the first frame as well
-			extra_data.fences[i] = std::make_pair(fences[i].release(), 1ull);
+		readback_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		const D3D12_HEAP_PROPERTIES heap_props = { D3D12_HEAP_TYPE_DEFAULT };
 
-		object->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+		if (com_ptr<ID3D12Resource> object;
+			SUCCEEDED(_orig->CreateCommittedResource(&heap_props, D3D12_HEAP_FLAG_NONE, &readback_desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&object))))
+		{
+			extra_data.readback_resource = readback_resource.release();
+			extra_data.fences = new std::pair<ID3D12Fence *, UINT64>[count];
+			for (uint32_t i = 0; i < extra_data.count; ++i)
+				extra_data.fences[i] = std::make_pair(fences[i].release(), 1ull);
 
-		*out_heap = { reinterpret_cast<uintptr_t>(object.release()) };
-		return true;
+			object->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+			*out_heap = { reinterpret_cast<uintptr_t>(object.release()) };
+			return true;
+		}
 	}
 	else
 	{
-		*out_heap = { 0 };
-		return false;
+		D3D12_QUERY_HEAP_DESC internal_desc = {};
+		internal_desc.Type = convert_query_type_to_heap_type(type);
+		internal_desc.Count = count;
+
+		if (com_ptr<ID3D12QueryHeap> object;
+			SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
+		{
+			extra_data.readback_resource = readback_resource.release();
+			extra_data.fences = new std::pair<ID3D12Fence *, UINT64>[count];
+			for (uint32_t i = 0; i < extra_data.count; ++i)
+				// Start with fence value above the initial value, so that 'get_query_heap_results' will return false for the first frame as well
+				extra_data.fences[i] = std::make_pair(fences[i].release(), 1ull);
+
+			object->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+
+			*out_heap = { reinterpret_cast<uintptr_t>(object.release()) };
+			return true;
+		}
 	}
+
+	return false;
 }
 void reshade::d3d12::device_impl::destroy_query_heap(api::query_heap heap)
 {
 	if (heap == 0)
 		return;
 
-	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
+	const auto heap_object = reinterpret_cast<ID3D12Object *>(heap.handle);
 
 	query_heap_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
@@ -1810,7 +1827,7 @@ void reshade::d3d12::device_impl::destroy_query_heap(api::query_heap heap)
 	{
 		extra_data.readback_resource->Release();
 
-		for (uint32_t i = 0; i < extra_data.size; ++i)
+		for (uint32_t i = 0; i < extra_data.count; ++i)
 			extra_data.fences[i].first->Release();
 		delete[] extra_data.fences;
 	}
@@ -1823,7 +1840,7 @@ bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, u
 	assert(heap != 0);
 	assert(stride >= sizeof(uint64_t));
 
-	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
+	const auto heap_object = reinterpret_cast<ID3D12Object *>(heap.handle);
 
 	query_heap_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
@@ -1838,14 +1855,16 @@ bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, u
 				return false;
 		}
 
-		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * sizeof(uint64_t), (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * sizeof(uint64_t) };
+		const std::pair<uint32_t, uint32_t> query_size_and_offset = get_query_size(extra_data.type);
+
+		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * query_size_and_offset.first, (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * query_size_and_offset.first };
 		const D3D12_RANGE write_range = { 0, 0 };
 
 		void *mapped_data = nullptr;
 		if (SUCCEEDED(ID3D12Resource_Map(extra_data.readback_resource, 0, &read_range, &mapped_data)))
 		{
 			for (size_t i = 0; i < count; ++i)
-				*reinterpret_cast<uint64_t *>(reinterpret_cast<uint8_t *>(results) + i * stride) = static_cast<uint64_t *>(mapped_data)[first + i];
+				std::memcpy(static_cast<uint8_t *>(results) + i * stride, static_cast<uint8_t *>(mapped_data) + query_size_and_offset.second + static_cast<size_t>(first + i) * query_size_and_offset.first, std::min(stride, query_size_and_offset.first - query_size_and_offset.second));
 
 			ID3D12Resource_Unmap(extra_data.readback_resource, 0, &write_range);
 

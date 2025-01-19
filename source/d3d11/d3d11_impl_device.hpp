@@ -72,7 +72,7 @@ namespace reshade::d3d11
 		void copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies) final;
 		void update_descriptor_tables(uint32_t count, const api::descriptor_table_update *updates) final;
 
-		bool create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_heap) final;
+		bool create_query_heap(api::query_type type, uint32_t count, api::query_heap *out_heap) final;
 		void destroy_query_heap(api::query_heap heap) final;
 
 		bool get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) final;

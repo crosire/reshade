@@ -1061,9 +1061,9 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	D3D12_RESOURCE_BARRIER barriers[2];
 	barriers[0] = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
 	barriers[0].Transition.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
+	barriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-	barriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	barriers[1] = { D3D12_RESOURCE_BARRIER_TYPE_UAV };
 	barriers[1].UAV.pResource = reinterpret_cast<ID3D12Resource *>(resource.handle);
 	_orig->ResourceBarrier(1, &barriers[0]);
@@ -1115,9 +1115,24 @@ void reshade::d3d12::command_list_impl::copy_query_heap_results(api::query_heap 
 	_has_commands = true;
 
 	assert(heap != 0);
-	assert(stride == sizeof(uint64_t));
 
-	_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), first, count, reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset);
+	if (com_ptr<ID3D12QueryHeap> heap_object;
+		SUCCEEDED(reinterpret_cast<IUnknown *>(heap.handle)->QueryInterface(&heap_object)))
+	{
+		assert(stride == sizeof(uint64_t));
+
+		_orig->ResolveQueryData(reinterpret_cast<ID3D12QueryHeap *>(heap.handle), convert_query_type(type), first, count, reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset);
+	}
+	else
+	{
+		const std::pair<uint32_t, uint32_t> query_size_and_offset = get_query_size(type);
+
+		if (stride == query_size_and_offset.first)
+			_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(heap.handle), query_size_and_offset.second + static_cast<UINT64>(first) * query_size_and_offset.first, static_cast<UINT64>(count) * query_size_and_offset.first);
+		else
+			for (uint32_t i = 0; i < count; ++i)
+				_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset + static_cast<UINT64>(i) * stride, reinterpret_cast<ID3D12Resource *>(heap.handle), query_size_and_offset.second + static_cast<UINT64>(i + first) * query_size_and_offset.first, std::min(stride, query_size_and_offset.first - query_size_and_offset.second));
+	}
 }
 
 void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode)
@@ -1163,6 +1178,25 @@ void reshade::d3d12::command_list_impl::build_acceleration_structure(api::accele
 		}
 
 		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
+	}
+	else
+	{
+		assert(false);
+	}
+}
+void reshade::d3d12::command_list_impl::query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first)
+{
+	_has_commands = true;
+
+	if (_supports_ray_tracing)
+	{
+		assert(heap != 0);
+
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC desc = {};
+		desc.DestBuffer = reinterpret_cast<ID3D12Resource *>(heap.handle)->GetGPUVirtualAddress() + static_cast<UINT64>(first) * get_query_size(type).first;
+		desc.InfoType = convert_acceleration_structure_post_build_info_type(type);
+
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EmitRaytracingAccelerationStructurePostbuildInfo(&desc, count, reinterpret_cast<const D3D12_GPU_VIRTUAL_ADDRESS *>(acceleration_structures));
 	}
 	else
 	{

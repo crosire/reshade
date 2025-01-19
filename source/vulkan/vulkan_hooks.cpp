@@ -242,6 +242,7 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresKHR,);
 	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresIndirectKHR,);
 	HOOK_PROC_OPTIONAL(CmdCopyAccelerationStructureKHR,);
+	HOOK_PROC_OPTIONAL(CmdWriteAccelerationStructuresPropertiesKHR,);
 
 	// VK_KHR_ray_tracing_pipeline
 	HOOK_PROC_OPTIONAL(CmdTraceRaysKHR,);

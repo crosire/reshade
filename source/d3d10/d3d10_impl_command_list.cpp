@@ -608,3 +608,7 @@ void reshade::d3d10::device_impl::build_acceleration_structure(api::acceleration
 {
 	assert(false);
 }
+void reshade::d3d10::device_impl::query_acceleration_structures(uint32_t, const api::resource_view *, api::query_heap, api::query_type, uint32_t)
+{
+	assert(false);
+}

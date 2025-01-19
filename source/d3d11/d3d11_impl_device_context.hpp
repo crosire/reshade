@@ -62,6 +62,7 @@ namespace reshade::d3d11
 
 		void copy_acceleration_structure(api::resource_view, api::resource_view, api::acceleration_structure_copy_mode) final { assert(false); }
 		void build_acceleration_structure(api::acceleration_structure_type, api::acceleration_structure_build_flags, uint32_t, const api::acceleration_structure_build_input *, api::resource, uint64_t, api::resource_view, api::resource_view, api::acceleration_structure_build_mode) final { assert(false); }
+		void query_acceleration_structures(uint32_t, const api::resource_view *, api::query_heap, api::query_type, uint32_t) final { assert(false); }
 
 		void begin_debug_event(const char *, const float[4]) final { assert(false); }
 		void end_debug_event() final { assert(false); }
@@ -137,6 +138,7 @@ namespace reshade::d3d11
 
 		void copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode) final;
 		void build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode) final;
+		void query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first) final;
 
 		void begin_debug_event(const char *label, const float color[4]) final;
 		void end_debug_event() final;

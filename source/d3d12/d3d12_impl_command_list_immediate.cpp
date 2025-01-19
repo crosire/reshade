@@ -63,10 +63,45 @@ void reshade::d3d12::command_list_immediate_impl::end_query(api::query_heap heap
 	UINT extra_data_size = sizeof(extra_data);
 	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
-		_orig->ResolveQueryData(heap_object, convert_query_type(type), index, 1, extra_data.readback_resource, index * sizeof(uint64_t));
+		assert(extra_data.type == type);
+
+		_orig->ResolveQueryData(heap_object, convert_query_type(type), index, 1, extra_data.readback_resource, static_cast<UINT64>(index) * get_query_size(type).first);
 
 		extra_data.fences[index].second++;
 		_current_query_fences.push_back(extra_data.fences[index]);
+	}
+}
+void reshade::d3d12::command_list_immediate_impl::query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first)
+{
+	command_list_impl::query_acceleration_structures(count, acceleration_structures, heap, type, first);
+
+	const auto heap_object = reinterpret_cast<ID3D12Resource *>(heap.handle);
+
+	query_heap_extra_data extra_data;
+	UINT extra_data_size = sizeof(extra_data);
+	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
+	{
+		assert(extra_data.type == type);
+
+		const uint32_t query_size = get_query_size(type).first;
+
+		for (uint32_t i = 0; i < std::min(count, extra_data.count); ++i)
+		{
+			D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+			barrier.Transition.pResource = heap_object;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+			_orig->ResourceBarrier(1, &barrier);
+
+			_orig->CopyBufferRegion(extra_data.readback_resource, static_cast<UINT64>(first) * query_size, heap_object, static_cast<UINT64>(first) * query_size, query_size);
+
+			std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
+			_orig->ResourceBarrier(1, &barrier);
+
+			extra_data.fences[first + i].second++;
+			_current_query_fences.push_back(extra_data.fences[first + i]);
+		}
 	}
 }
 

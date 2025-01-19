@@ -1874,21 +1874,26 @@ void reshade::d3d9::device_impl::update_descriptor_tables(uint32_t count, const 
 	}
 }
 
-bool reshade::d3d9::device_impl::create_query_heap(api::query_type type, uint32_t size, api::query_heap *out_heap)
+bool reshade::d3d9::device_impl::create_query_heap(api::query_type type, uint32_t count, api::query_heap *out_heap)
 {
+	*out_heap = { 0 };
+
+	if (type != api::query_type::occlusion &&
+		type != api::query_type::timestamp)
+		return false;
+
 	const auto impl = new query_heap_impl();
 	impl->type = type;
-	impl->queries.resize(size);
+	impl->queries.resize(count);
 
 	const D3DQUERYTYPE internal_type = convert_query_type(type);
 
-	for (uint32_t i = 0; i < size; ++i)
+	for (uint32_t i = 0; i < count; ++i)
 	{
 		if (FAILED(_orig->CreateQuery(internal_type, &impl->queries[i])))
 		{
 			delete impl;
 
-			*out_heap = { 0 };
 			return false;
 		}
 	}

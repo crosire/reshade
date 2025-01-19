@@ -183,7 +183,7 @@ namespace reshade { namespace api
 		amplification_and_mesh_shader,
 		/// <summary>
 		/// Specifies whether ray tracing is supported.
-		/// If this feature is not present, <see cref="resource_view_type::acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/> and <see cref="command_list::build_acceleration_structure"/> must not be used.
+		/// If this feature is not present, <see cref="resource_view_type::acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/>, <see cref="command_list::build_acceleration_structure"/> and <see cref="command_list::query_acceleration_structures"/> must not be used.
 		/// </summary>
 		ray_tracing,
 	};
@@ -519,10 +519,10 @@ namespace reshade { namespace api
 		/// Creates a new query heap.
 		/// </summary>
 		/// <param name="type">Type of queries that will be used with this query heap.</param>
-		/// <param name="size">Number of queries to allocate in the query heap.</param>
+		/// <param name="count">Number of queries to allocate in the query heap.</param>
 		/// <param name="out_heap">Pointer to a variable that is set to the handle of the created query heap.</param>
 		/// <returns><see langword="true"/> if the query heap was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_heap"/> is set to zero).</returns>
-		virtual bool create_query_heap(query_type type, uint32_t size, query_heap *out_heap) = 0;
+		virtual bool create_query_heap(query_type type, uint32_t count, query_heap *out_heap) = 0;
 		/// <summary>
 		/// Instantly destroys a query heap that was previously created via <see cref="create_query_heap"/>.
 		/// </summary>
@@ -1106,6 +1106,17 @@ namespace reshade { namespace api
 		/// <param name="dest">Acceleration structure to write data to.</param>
 		/// <param name="mode">Choose between building a new or updating an existing acceleration structure.</param>
 		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, resource_view source, resource_view dest, acceleration_structure_build_mode mode) = 0;
+
+		/// <summary>
+		/// Queries acceleration structure size parameters.
+		/// This can be used to figure out destination resource requirements for <see cref="copy_acceleration_structure"/>.
+		/// </summary>
+		/// <param name="count">Number of acceleration structures to query.</param>
+		/// <param name="acceleration_structures">Pointer to the first element of an array of acceleration structures.</param>
+		/// <param name="heap">Query heap that will manage the results of the query.</param>
+		/// <param name="type">Type of the acceleration structure query.</param>
+		/// <param name="first">Index of the first query in the query heap to write the result to.</param>
+		virtual void query_acceleration_structures(uint32_t count, const resource_view *acceleration_structures, query_heap heap, query_type type, uint32_t first) = 0;
 	};
 
 	/// <summary>

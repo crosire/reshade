@@ -20,6 +20,7 @@ namespace reshade::d3d12
 		~command_list_immediate_impl();
 
 		void end_query(api::query_heap heap, api::query_type type, uint32_t index) final;
+		void query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first) final;
 
 		bool flush();
 		bool flush_and_wait();

@@ -252,7 +252,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, false) &&
 			add_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, false) &&
 			add_extension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, false) &&
-			add_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, false);
+			add_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, false) &&
+			add_extension(VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME, false);
 #endif
 	}
 
@@ -679,6 +680,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
 	INIT_DISPATCH_PTR(CmdCopyAccelerationStructureKHR);
 	INIT_DISPATCH_PTR(GetAccelerationStructureDeviceAddressKHR);
+	INIT_DISPATCH_PTR(CmdWriteAccelerationStructuresPropertiesKHR);
 	INIT_DISPATCH_PTR(GetAccelerationStructureBuildSizesKHR);
 
 	// VK_KHR_ray_tracing_pipeline

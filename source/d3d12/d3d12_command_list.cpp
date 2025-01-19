@@ -881,7 +881,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndQuery(ID3D12QueryHeap *pQuer
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ResolveQueryData(ID3D12QueryHeap *pQueryHeap, D3D12_QUERY_TYPE Type, UINT StartIndex, UINT NumQueries, ID3D12Resource *pDestinationBuffer, UINT64 AlignedDestinationBufferOffset)
 {
 #if RESHADE_ADDON >= 2
-	if (reshade::invoke_addon_event<reshade::addon_event::copy_query_heap_results>(this, to_handle(pQueryHeap), reshade::d3d12::convert_query_type(Type), StartIndex, NumQueries, to_handle(pDestinationBuffer), AlignedDestinationBufferOffset, static_cast<uint32_t>(sizeof(uint64_t))))
+	if (const reshade::api::query_type query_type = reshade::d3d12::convert_query_type(Type);
+		reshade::invoke_addon_event<reshade::addon_event::copy_query_heap_results>(this, to_handle(pQueryHeap), query_type, StartIndex, NumQueries, to_handle(pDestinationBuffer), AlignedDestinationBufferOffset, reshade::d3d12::get_query_size(query_type).first))
 		return;
 #endif
 	_orig->ResolveQueryData(pQueryHeap, Type, StartIndex, NumQueries, pDestinationBuffer, AlignedDestinationBufferOffset);
@@ -1062,6 +1063,28 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BuildRaytracingAccelerationStru
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EmitRaytracingAccelerationStructurePostbuildInfo(const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *pDesc, UINT NumSourceAccelerationStructures, const D3D12_GPU_VIRTUAL_ADDRESS *pSourceAccelerationStructureData)
 {
+	assert(pDesc != nullptr);
+
+#if RESHADE_ADDON >= 2
+	if (reshade::has_addon_event<reshade::addon_event::query_acceleration_structures>())
+	{
+		reshade::api::resource buffer = {};
+		uint64_t offset = 0;
+		if (_device_impl->resolve_gpu_address(pDesc->DestBuffer, &buffer, &offset))
+		{
+			if (const reshade::api::query_type query_type = reshade::d3d12::convert_acceleration_structure_post_build_info_type(pDesc->InfoType);
+				reshade::invoke_addon_event<reshade::addon_event::query_acceleration_structures>(
+					this,
+					NumSourceAccelerationStructures,
+					reinterpret_cast<const reshade::api::resource_view *>(pSourceAccelerationStructureData),
+					reshade::api::query_heap { buffer.handle },
+					query_type,
+					static_cast<uint32_t>(offset / reshade::d3d12::get_query_size(query_type).first)))
+				return;
+		}
+	}
+#endif
+
 	assert(_interface_version >= 4);
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EmitRaytracingAccelerationStructurePostbuildInfo(pDesc, NumSourceAccelerationStructures, pSourceAccelerationStructureData);
 }
