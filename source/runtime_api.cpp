@@ -1516,10 +1516,10 @@ void reshade::runtime::get_current_preset_path([[maybe_unused]] char *path, size
 }
 void reshade::runtime::set_current_preset_path([[maybe_unused]] const char *path)
 {
+#if RESHADE_FX
 	if (path == nullptr)
 		return;
 
-#if RESHADE_FX
 	std::error_code ec;
 	std::filesystem::path preset_path = std::filesystem::u8path(path);
 
@@ -1601,10 +1601,12 @@ void reshade::runtime::set_color_space(api::color_space color_space)
 		return;
 
 	_back_buffer_color_space = color_space;
+#if RESHADE_FX
 	_effect_permutations[0].color_space = color_space;
 
 	if (_frame_count != 0) // Do not need to reload effects here if they are already getting reloaded on next present anyway
 		reload_effects();
+#endif
 }
 
 void reshade::runtime::reload_effect_next_frame([[maybe_unused]] const char *effect_name)

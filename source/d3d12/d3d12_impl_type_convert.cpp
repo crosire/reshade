@@ -1631,22 +1631,22 @@ auto reshade::d3d12::get_query_size(api::query_type type) -> std::pair<uint32_t,
 	case api::query_type::occlusion:
 	case api::query_type::binary_occlusion:
 	case api::query_type::timestamp:
-		return std::make_pair(sizeof(UINT64), 0u);
+		return std::make_pair<uint32_t, uint32_t>(sizeof(UINT64), 0u);
 	case api::query_type::pipeline_statistics:
-		return std::make_pair(sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS), 0u);
+		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS), 0u);
 	case api::query_type::stream_output_statistics_0:
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
-		return std::make_pair(sizeof(D3D12_QUERY_DATA_SO_STATISTICS), 0u);
+		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_QUERY_DATA_SO_STATISTICS), 0u);
 	case api::query_type::acceleration_structure_size:
-		return std::make_pair(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE_DESC), 0u);
+		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE_DESC), 0u);
 	case api::query_type::acceleration_structure_compacted_size:
-		return std::make_pair(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC), 0u);
+		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_COMPACTED_SIZE_DESC), 0u);
 	case api::query_type::acceleration_structure_serialization_size:
-		return std::make_pair(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC), offsetof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC, SerializedSizeInBytes));
+		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC), offsetof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC, SerializedSizeInBytes));
 	case api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers:
-		return std::make_pair(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC), offsetof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC, NumBottomLevelAccelerationStructurePointers));
+		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC), offsetof(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_SERIALIZATION_DESC, NumBottomLevelAccelerationStructurePointers));
 	}
 }
 auto reshade::d3d12::convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE

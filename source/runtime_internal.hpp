@@ -5,6 +5,8 @@
 
 #pragma once
 
+#if RESHADE_FX
+
 #include "effect_module.hpp"
 #include "moving_average.hpp"
 
@@ -31,7 +33,6 @@ namespace reshade
 		unknown
 	};
 
-#if RESHADE_FX
 	struct texture : reshadefx::texture
 	{
 		texture(const reshadefx::texture &init) : reshadefx::texture(init) {}
@@ -199,15 +200,16 @@ namespace reshade
 
 	struct effect
 	{
+		std::filesystem::path source_file;
+		size_t source_hash = 0;
+		bool addon = false;
+
 		unsigned int rendering = 0;
 		bool skipped = false;
 		bool compiled = false;
 		bool preprocessed = false;
 		std::string errors;
 
-		size_t source_hash = 0;
-		bool is_addonfx = false;
-		std::filesystem::path source_file;
 		std::vector<std::filesystem::path> included_files;
 		std::vector<std::pair<std::string, std::string>> definitions;
 
@@ -242,5 +244,6 @@ namespace reshade
 
 		api::query_heap query_heap = {};
 	};
-#endif
 }
+
+#endif

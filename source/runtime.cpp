@@ -1554,8 +1554,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		effect = {};
 		effect.source_file = source_file;
 		effect.source_hash = source_hash;
-
-		effect.is_addonfx = source_file.extension() == L".addonfx";
+		effect.addon = source_file.extension() == L".addonfx";
 	}
 
 	if (_effect_load_skipping && !force_load)
@@ -2268,6 +2267,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_index)
 {
 	effect &effect = _effects[effect_index];
+
 	if (!effect.compiled)
 		return false;
 
@@ -2895,8 +2895,8 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 		tech.permutations.clear();
 	}
 
-	{	effect &effect = _effects[effect_index];
-
+	effect &effect = _effects[effect_index];
+	{
 		_device->destroy_resource(effect.cb);
 		effect.cb = {};
 
@@ -2921,7 +2921,7 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 	const std::unique_lock<std::shared_mutex> lock(_reload_mutex);
 
 	// No techniques from this effect are rendering anymore
-	_effects[effect_index].rendering = 0;
+	effect.rendering = 0;
 
 	// Destroy textures belonging to this effect
 	_textures.erase(std::remove_if(_textures.begin(), _textures.end(),
@@ -3817,6 +3817,7 @@ void reshade::runtime::update_effects()
 	// Pop an effect from the queue
 	const auto [effect_index, permutation_index] = _reload_create_queue.back();
 	_reload_create_queue.pop_back();
+	effect &effect = _effects[effect_index];
 
 	if (!create_effect(effect_index, permutation_index))
 	{
@@ -3831,13 +3832,11 @@ void reshade::runtime::update_effects()
 			if (tech.effect_index == effect_index)
 				disable_technique(tech);
 
-		_effects[effect_index].compiled = false;
+		effect.compiled = false;
 		_last_reload_successful = false;
 	}
 
 #if RESHADE_GUI
-	const effect &effect = _effects[effect_index];
-
 	// Update assembly in all code editors after a reload
 	for (editor_instance &instance : _editors)
 	{
@@ -3866,7 +3865,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Nothing to do here if effects are still loading or disabled globally
 	if (is_loading() || _techniques.empty())
 		return;
-	if (!_effects_enabled && std::all_of(_effects.cbegin(), _effects.cend(), [](const effect &effect) { return !effect.is_addonfx; }))
+	if (!_effects_enabled && std::all_of(_effects.cbegin(), _effects.cend(), [](const effect &effect) { return !effect.addon; }))
 		return;
 
 	// Lock input so it cannot be modified by other threads while we are reading it here
@@ -3881,7 +3880,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	// Update special uniform variables
 	for (effect &effect : _effects)
 	{
-		if (!effect.rendering || (!_effects_enabled && !effect.is_addonfx))
+		if (!effect.rendering || (!_effects_enabled && !effect.addon))
 			continue;
 
 		for (uniform &variable : effect.uniforms)
@@ -4074,8 +4073,8 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 	const api::resource back_buffer_resource = _device->get_resource_from_view(rtv);
 
-#if RESHADE_ADDON
 	size_t permutation_index = 0;
+#if RESHADE_ADDON
 	if (!_is_in_present_call)
 	{
 		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
@@ -4107,11 +4106,12 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	for (size_t technique_index : _technique_sorting)
 	{
 		technique &tech = _techniques[technique_index];
+		const effect &effect = _effects[tech.effect_index];
 
-		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot) || (!_effects_enabled && !_effects[tech.effect_index].is_addonfx))
+		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot) || (!_effects_enabled && !effect.addon))
 			continue;
 
-		if (permutation_index >= tech.permutations.size() || (!tech.permutations[permutation_index].created && _effects[tech.effect_index].permutations[permutation_index].assembly.empty()))
+		if (permutation_index >= tech.permutations.size() || (!tech.permutations[permutation_index].created && effect.permutations[permutation_index].assembly.empty()))
 		{
 			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech.effect_index, permutation_index)) == _reload_required_effects.end())
 				_reload_required_effects.emplace_back(tech.effect_index, permutation_index);

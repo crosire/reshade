@@ -2968,9 +2968,9 @@ void reshade::runtime::draw_gui_statistics()
 
 				for (const std::pair<size_t, std::vector<std::string>> &reference : references)
 				{
-					if (effect_index != reference.first)
+					if (reference.first != effect_index)
 					{
-						effect_index  = reference.first;
+						effect_index = reference.first;
 						is_open = ImGui::TreeNodeEx(_effects[effect_index].source_file.filename().u8string().c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 					}
 
@@ -4116,7 +4116,7 @@ void reshade::runtime::draw_technique_editor()
 		// Add fake items at the top for effects that failed to compile
 		for (size_t effect_index = 0; effect_index < _effects.size(); ++effect_index)
 		{
-			const reshade::effect &effect = _effects[effect_index];
+			const effect &effect = _effects[effect_index];
 
 			if (effect.compiled || effect.skipped)
 				continue;
@@ -4266,18 +4266,16 @@ void reshade::runtime::draw_technique_editor()
 	{
 		const size_t technique_index = _technique_sorting[index];
 		{
-			reshade::technique &tech = _techniques[technique_index];
+			technique &tech = _techniques[technique_index];
+			const effect &effect = _effects[tech.effect_index];
 
 			// Skip hidden techniques
-			if (tech.hidden || !_effects[tech.effect_index].compiled)
+			if (tech.hidden || !effect.compiled)
 				continue;
 
 			bool modified = false;
 
 			ImGui::PushID(static_cast<int>(index));
-
-			// Look up effect that contains this technique
-			const reshade::effect &effect = _effects[tech.effect_index];
 
 			// Draw border around the item if it is selected
 			const bool draw_border = _selected_technique == index;

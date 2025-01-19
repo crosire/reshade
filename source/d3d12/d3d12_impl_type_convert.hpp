@@ -130,7 +130,7 @@ namespace reshade::d3d12
 	auto convert_primitive_topology_type(api::primitive_topology value) -> D3D12_PRIMITIVE_TOPOLOGY_TYPE;
 	auto convert_primitive_topology_type(D3D12_PRIMITIVE_TOPOLOGY_TYPE value) -> api::primitive_topology;
 
-	auto get_query_size(api::query_type type) -> std::pair<uint32_t, uint32_t>;
+	auto get_query_size(api::query_type type) -> std::pair<uint32_t, uint32_t>; // { struct size, offset in struct }
 	auto convert_query_type(api::query_type type) -> D3D12_QUERY_TYPE;
 	auto convert_query_type(D3D12_QUERY_TYPE type) -> api::query_type;
 	auto convert_query_type_to_heap_type(api::query_type type) -> D3D12_QUERY_HEAP_TYPE;
