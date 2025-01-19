@@ -3292,8 +3292,8 @@ void reshade::runtime::draw_gui_addons()
 	{
 		std::vector<std::string> disabled_addons;
 		config.get("ADDON", "DisabledAddons", disabled_addons);
-		std::vector<std::string> collapsed_addons;
-		config.get("ADDON", "CollapsedAddons", collapsed_addons);
+		std::vector<std::string> collapsed_or_expanded_addons;
+		config.get("ADDON", "OverlayCollapsed", collapsed_or_expanded_addons);
 
 		const float child_window_width = ImGui::GetContentRegionAvail().x;
 
@@ -3309,25 +3309,25 @@ void reshade::runtime::draw_gui_addons()
 			const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
 			const std::string unique_name = builtin ? info.name : info.name + '@' + info.file;
 
-			const auto collapsed_it = std::find(collapsed_addons.begin(), collapsed_addons.end(), unique_name);
+			const auto collapsed_it = std::find(collapsed_or_expanded_addons.begin(), collapsed_or_expanded_addons.end(), unique_name);
 
-			bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), builtin ? collapsed_it == collapsed_addons.end() : collapsed_it != collapsed_addons.end());
+			bool open = ImGui::GetStateStorage()->GetBool(ImGui::GetID("##addon_open"), builtin ? collapsed_it == collapsed_or_expanded_addons.end() : collapsed_it != collapsed_or_expanded_addons.end());
 			if (ImGui::ArrowButton("##addon_open", open ? ImGuiDir_Down : ImGuiDir_Right))
 			{
 				ImGui::GetStateStorage()->SetBool(ImGui::GetID("##addon_open"), open = !open);
 
 				if (builtin ? open : !open)
 				{
-					if (collapsed_it != collapsed_addons.end())
-						collapsed_addons.erase(collapsed_it);
+					if (collapsed_it != collapsed_or_expanded_addons.end())
+						collapsed_or_expanded_addons.erase(collapsed_it);
 				}
 				else
 				{
-					if (collapsed_it == collapsed_addons.end())
-						collapsed_addons.push_back(unique_name);
+					if (collapsed_it == collapsed_or_expanded_addons.end())
+						collapsed_or_expanded_addons.push_back(unique_name);
 				}
 
-				config.set("ADDON", "CollapsedAddons", collapsed_addons);
+				config.set("ADDON", "OverlayCollapsed", collapsed_or_expanded_addons);
 			}
 
 			ImGui::SameLine();
