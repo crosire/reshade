@@ -189,7 +189,10 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 #endif
 	_config_path(config_path),
 	_screenshot_path(L".\\"),
-	_screenshot_name("%AppName% %Date% %Time%_%TimeMS%"), // Use a timestamp down to the millisecond because users may request more than one screenshot per-second
+	// this is what I've been rocking but probably too drastic a change for a default setting
+	// _screenshot_name("%AppName%\\%DateMonth%\\%BeforeAfter%\\%Count%_%PresetName%_%Time%_%TimeMS%")
+	// so here's a less drastic change that would be useful for most people to introduce new feature if desired. note that beforeafter gets ignored if they have the save_before setting off
+	_screenshot_name("%AppName%\\%BeforeAfter%\\%Date% %Time%_%TimeMS%"), // Use a timestamp down to the millisecond because users may request more than one screenshot per-second
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
@@ -662,7 +665,8 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	update_effects();
 
 	if (_should_save_screenshot && _screenshot_save_before && _effects_enabled && !_effects_rendered_this_frame)
-		save_screenshot(" original");
+		// Change naming scheme to match existing GUI diction and fit with new BeforeAfter macro
+		save_screenshot("Before");
 
 	if (_back_buffer_resolved != 0)
 	{
@@ -677,7 +681,8 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 #endif
 
 	if (_should_save_screenshot)
-		save_screenshot();
+		// Clearer naming scheme when the option is chosen otherwise default
+		 save_screenshot(_screenshot_save_before ? "After" : "");
 
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -695,7 +700,12 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		|| (_preview_texture != 0 && _effects_enabled)
 #endif
 		))
-		save_screenshot(" overlay");
+		// remove whitespace and match case with other postfixes
+		// should note, BeforeAfter will always take the postfix even if save_before is not checked, 
+		// as its essentially a %Postfix% macro but I think BeforeAfter is much clearer and will cover the main use case
+		// and I highly doubt anyone is using save overlay without also using save before
+		// so small oversight that could be fixed if we care enough
+		save_screenshot("Overlay");
 #endif
 
 	// All screenshots were created at this point, so reset request
@@ -4882,21 +4892,49 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 
 void reshade::runtime::save_screenshot(const std::string_view postfix)
 {
-	const unsigned int screenshot_count = _screenshot_count;
-
-	std::string screenshot_name = _screenshot_name;
-	screenshot_name += postfix;
-	screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
-
-	const std::filesystem::path screenshot_path =
-		g_reshade_base_path / std::filesystem::u8path(
-			expand_macro_string((_screenshot_path / std::filesystem::u8path(screenshot_name)).u8string(), {
-				{ "AppName", g_target_executable_path.stem().u8string() },
+/* previous implementation with both path and name being expanded benefitted from a local vector to avoid
+    redundancy. I also had it instantiate without Count which was emplaced back after expanding the path string
+	to prevent the possibility of adding Count to your path, thus creating a new directory per screenshot
+    Technically possible again. Should we add a check to ignore Count if there are any directory separators following it?
+	Or do we trust that the user is smart enough not to do that? Probably we just don't care
+ 	So this can be eliminated along with some of the other local variables in all likelihood
+*/
+  std::vector<std::pair<std::string, std::string>> macros = {
+      {"BeforeAfter", std::string(postfix)},
+      {"AppName", g_target_executable_path.stem().u8string()},
 #if RESHADE_FX
-				{ "PresetName",  _current_preset_path.stem().u8string() },
+      {"PresetName", _current_preset_path.stem().u8string()},
+      {"Count", std::to_string(screenshot_count)}
 #endif
-				{ "Count", std::to_string(screenshot_count) }
-			}));
+  };
+
+ // Could likely consolidate this with some inlining
+ std::string expanded_screenshot_name = expand_macro_string(_screenshot_name, macros);
+	
+ // Trim leading and trailing whitespaces from the name.
+ // Was more of an issue with old split implementation so this could stay or go
+ expanded_screenshot_name.erase(0, expanded_screenshot_name.find_first_not_of(" \t\n\r\f\v"));
+ expanded_screenshot_name.erase(expanded_screenshot_name.find_last_not_of(" \t\n\r\f\v") + 1);
+
+
+  // If save before/after option is checked but not used as a macro, append it to the filename (old behavior)
+  bool before_after_used = (expanded_screenshot_name.find(std::string(postfix)) != std::string::npos);
+  // If we want to fix tiny issue of overlay being included we'd do another check here I suppose
+  if (_screenshot_save_before && !before_after_used) {
+    expanded_screenshot_name += "_" + std::string(postfix);
+  }
+
+  expanded_screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
+
+  // Normalize path by removing duplicate slashes, handling mixed slashes, again likely unnecessary use of local var
+  std::string normalized_name = expanded_screenshot_name;
+  std::replace(normalized_name.begin(), normalized_name.end(), '/', '\\');
+  while (normalized_name.find("\\\\") != std::string::npos) {
+    normalized_name.replace(normalized_name.find("\\\\"), 2, "\\");
+  }
+
+
+const std::filesystem::path screenshot_path = g_reshade_base_path /  std::filesystem::u8path(normalized_name);
 
 	log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
 
@@ -4909,7 +4947,10 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		capture_screenshot(pixels.data()))
 	{
 #if RESHADE_FX
-		const bool include_preset = _screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path);
+	// Save the preset alongside the After screenshot to preserve expected behavior
+	// If a user can't find it that's probably their own fault for writing some weird path...
+		const bool include_preset = _screenshot_include_preset && postfix != "Before" && postfix != "Overlay" &&
+              ini_file::flush_cache(_current_preset_path);
 #else
 		const bool include_preset = false;
 #endif
@@ -4917,7 +4958,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		if (!_screenshot_sound_path.empty())
 			utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
 
-		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
+		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, postfix,  pixels = std::move(pixels), include_preset]() mutable {
 			auto screenshot_format = _screenshot_format;
 
 			// Use PNG for HDR; no tonemapping is implemented, so this is the only way to capture a screenshot in HDR.
@@ -4982,11 +5023,15 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 			if (save_success)
 			{
-				execute_screenshot_post_save_command(screenshot_path, screenshot_count);
+				// couldn't think of another way to get the postfix to the post save command that doesn't involve some nasty parsing
+ 				execute_screenshot_post_save_command(screenshot_path, screenshot_count, std::string(postfix));
 
 #if RESHADE_FX
 				if (include_preset)
 				{
+					// unchanged behavior only altered when its called
+					// It might be nice to also add the name of the preset here but that might make my life a bit harder
+					// with wip addon so I'll hold off on making that PR until after I have the addon built
 					std::filesystem::path screenshot_preset_path = screenshot_path;
 					screenshot_preset_path.replace_extension(L".ini");
 
@@ -5014,7 +5059,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		});
 	}
 }
-bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count)
+bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string postfix)
 {
 	if (_screenshot_post_save_command.empty())
 		return false;
@@ -5026,7 +5071,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		command_line = "cmd /C call ";
 	else if (ext == L".ps1")
 		command_line = "powershell -File ";
-	else if (ext == L".py")
+	else if (ext == L".py" || ext ==  L".pyw")
 		command_line = "python ";
 	else if (ext != L".exe")
 		return false;
@@ -5042,6 +5087,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			{ "AppName", g_target_executable_path.stem().u8string() },
 #if RESHADE_FX
 			{ "PresetName",  _current_preset_path.stem().u8string() },
+			{"BeforeAfter", postfix},
 #endif
 			{ "TargetPath", screenshot_path.u8string() },
 			{ "TargetDir", screenshot_path.parent_path().u8string() },
