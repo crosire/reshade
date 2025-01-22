@@ -52,6 +52,9 @@
     <Filter Include="hooks\d3d12">
       <UniqueIdentifier>{e905e357-66ed-4246-a0a9-d3b4c84c2d7f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks\ddraw">
+      <UniqueIdentifier>{b580fbd7-3c1f-46e8-b144-5d668bec6454}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks\dxgi">
       <UniqueIdentifier>{4d42777e-6ba3-4965-b0dc-88186095f1a9}</UniqueIdentifier>
     </Filter>
@@ -251,6 +254,9 @@
     </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp">
       <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ddraw\ddraw.cpp">
+      <Filter>hooks\ddraw</Filter>
     </ClCompile>
     <ClCompile Include="source\dll_log.cpp">
       <Filter>core</Filter>

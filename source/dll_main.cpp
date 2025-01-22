@@ -306,6 +306,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					// Only register D3D hooks when module is not called opengl32.dll
 					if (!is_opengl)
 					{
+						// Register DirectDraw module in case it was used to load ReShade (but ignore otherwise)
+						if (_wcsicmp(module_name.c_str(), L"ddraw") == 0)
+							reshade::hooks::register_module(get_system_path() / L"ddraw.dll");
+
 						reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
 						reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
 						reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
