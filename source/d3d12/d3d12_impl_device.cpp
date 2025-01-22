@@ -1324,6 +1324,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	std::vector<D3D12_STATIC_SAMPLER_DESC> internal_static_samplers;
 	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
 	const auto set_ranges = new std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>[param_count];
+	api::shader_stage global_visibility_mask = static_cast<api::shader_stage>(0);
 
 	const auto add_internal_param = [&internal_params](uint32_t index) -> D3D12_ROOT_PARAMETER & {
 		const uint32_t prev_size = static_cast<uint32_t>(internal_params.size());
@@ -1387,6 +1388,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				internal_param.Descriptor.ShaderRegister = range->dx_register_index;
 				internal_param.Descriptor.RegisterSpace = range->dx_register_space;
 				internal_param.ShaderVisibility = convert_shader_visibility(range->visibility);
+
+				global_visibility_mask |= range->visibility;
 			}
 			else
 			{
@@ -1440,6 +1443,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				internal_param.DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
 				internal_param.DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
 				internal_param.ShaderVisibility = convert_shader_visibility(visibility_mask);
+
+				global_visibility_mask |= visibility_mask;
 			}
 		}
 		else
@@ -1450,6 +1455,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			internal_param.Constants.RegisterSpace = params[i].push_constants.dx_register_space;
 			internal_param.Constants.Num32BitValues = params[i].push_constants.count;
 			internal_param.ShaderVisibility = convert_shader_visibility(params[i].push_constants.visibility);
+
+			global_visibility_mask |= params[i].push_constants.visibility;
 		}
 	}
 
@@ -1464,6 +1471,21 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	internal_desc.NumStaticSamplers = static_cast<uint32_t>(internal_static_samplers.size());
 	internal_desc.pStaticSamplers = internal_static_samplers.data();
 	internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	if ((global_visibility_mask & api::shader_stage::vertex) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS;
+	if ((global_visibility_mask & api::shader_stage::hull) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
+	if ((global_visibility_mask & api::shader_stage::domain) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+	if ((global_visibility_mask & api::shader_stage::geometry) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+	if ((global_visibility_mask & api::shader_stage::pixel) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+	if ((global_visibility_mask & api::shader_stage::amplification) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+	if ((global_visibility_mask & api::shader_stage::mesh) == 0)
+		internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
 	if (std::pair<D3D12_FEATURE_DATA_SHADER_MODEL, D3D12_FEATURE_DATA_D3D12_OPTIONS> options = { { D3D_SHADER_MODEL_6_6 }, {} };
 		SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &options.first, sizeof(options.first))) &&
