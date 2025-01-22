@@ -914,12 +914,22 @@ static LRESULT CALLBACK handle_windows_hook(int nCode, WPARAM wParam, LPARAM lPa
 		// Look up original hook function for the current thread and hook type
 		if (const auto it = s_windows_hooks.find(thread_lookup_key);
 			it != s_windows_hooks.end())
-			return it->second.second(nCode, wParam, lParam);
+		{
+			const HOOKPROC orig_hook_proc = it->second.second;
+			// A non-zero result value prevents the system from passing the message to the target window procedure
+			// In that case our 'GetMessage' and 'PeekMessage' hooks will not receive them, so ignore that result and continue with the hook chain instead below
+			if (orig_hook_proc(nCode, wParam, lParam) == 0)
+				return 0;
+		}
 
 		// Alternatively look up global hook function for this hook type (registered for thread ID zero)
 		if (const auto it = s_windows_hooks.find(global_lookup_key);
 			it != s_windows_hooks.end())
-			return it->second.second(nCode, wParam, lParam);
+		{
+			const HOOKPROC orig_hook_proc = it->second.second;
+			if (orig_hook_proc(nCode, wParam, lParam) == 0)
+				return 0;
+		}
 	}
 
 	// Bypass the original hook function and continue with the hook chain
