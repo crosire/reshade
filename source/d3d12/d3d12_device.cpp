@@ -2073,7 +2073,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 								std::find_if(desc.pExports, desc.pExports + desc.NumExports,
 									[record_name = string_table + function_info->unmangled_name](const D3D12_EXPORT_DESC &e) {
 										std::string name;
-										utf8::unchecked::utf16to8(e.Name, e.Name + std::wcslen(e.Name), std::back_inserter(name));
+										// If the 'ExportToRename' field is non-null, 'Name' refers to the new name to use for it when exported
+										const LPCWSTR name_wide = (e.ExportToRename != nullptr) ? e.ExportToRename : e.Name;
+										utf8::unchecked::utf16to8(name_wide, name_wide + std::wcslen(name_wide), std::back_inserter(name));
 										return name == record_name;
 									}) == desc.pExports + desc.NumExports)
 								continue;

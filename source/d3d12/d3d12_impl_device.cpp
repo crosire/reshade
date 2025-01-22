@@ -1053,6 +1053,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 				D3D12_DXIL_LIBRARY_DESC &desc = library_descs[i++];
 				desc.DXILLibrary.pShaderBytecode = shader_bytecode.first;
 				desc.DXILLibrary.BytecodeLength = shader_bytecode.second;
+				desc.NumExports = 0;
+				desc.pExports = nullptr;
 
 				internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY, &desc });
 			}
