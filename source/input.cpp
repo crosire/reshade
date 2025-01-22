@@ -942,13 +942,12 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTAN
 	reshade::log::message(reshade::log::level::info, "Redirecting SetWindowsHookExA(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %lu) ...", idHook, lpfn, hmod, dwThreadId);
 #endif
 
-	HHOOK *hook = nullptr;
+	HOOKPROC orig_hook_proc = lpfn;
 	const UINT64 thread_lookup_key = dwThreadId | (static_cast<UINT64>(idHook) << 32);
 
 	if (const auto it = s_windows_hooks.find(thread_lookup_key);
 		it == s_windows_hooks.end() || it->second.first == nullptr)
 	{
-		HOOKPROC orig_hook_proc = lpfn;
 		switch (idHook)
 		{
 		case WH_MOUSE:
@@ -963,12 +962,6 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTAN
 		case WH_KEYBOARD_LL:
 			lpfn = &handle_windows_hook<WH_KEYBOARD_LL, reshade::input::is_blocking_any_keyboard_input>;
 			break;
-		}
-
-		if (orig_hook_proc != lpfn)
-		{
-			s_windows_hooks[thread_lookup_key] = std::make_pair(nullptr, orig_hook_proc);
-			hook = &s_windows_hooks[thread_lookup_key].first;
 		}
 	}
 	else
@@ -981,13 +974,13 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExA(int idHook, HOOKPROC lpfn, HINSTAN
 	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExA);
 	const HHOOK result = trampoline(idHook, lpfn, hmod, dwThreadId);
 
-	if (hook != nullptr)
+	if (result != nullptr && lpfn != orig_hook_proc)
 	{
 #if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::info, "Windows hook function of type %d registered for thread %lu.", idHook, dwThreadId);
 #endif
 
-		*hook = result;
+		s_windows_hooks[thread_lookup_key] = std::make_pair(result, orig_hook_proc);
 	}
 
 	return result;
@@ -998,13 +991,12 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTAN
 	reshade::log::message(reshade::log::level::info, "Redirecting SetWindowsHookExW(idHook = %d, lpfn = %p, hmod = %p, dwThreadId = %lu) ...", idHook, lpfn, hmod, dwThreadId);
 #endif
 
-	HHOOK *hook = nullptr;
+	HOOKPROC orig_hook_proc = lpfn;
 	const UINT64 thread_lookup_key = dwThreadId | (static_cast<UINT64>(idHook) << 32);
 
 	if (const auto it = s_windows_hooks.find(thread_lookup_key);
 		it == s_windows_hooks.end() || it->second.first == nullptr)
 	{
-		HOOKPROC orig_hook_proc = lpfn;
 		switch (idHook)
 		{
 		case WH_MOUSE:
@@ -1020,12 +1012,6 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTAN
 			lpfn = &handle_windows_hook<WH_KEYBOARD_LL, reshade::input::is_blocking_any_keyboard_input>;
 			break;
 		}
-
-		if (orig_hook_proc != lpfn)
-		{
-			s_windows_hooks[thread_lookup_key] = std::make_pair(nullptr, orig_hook_proc);
-			hook = &s_windows_hooks[thread_lookup_key].first;
-		}
 	}
 	else
 	{
@@ -1037,13 +1023,13 @@ extern "C" HHOOK WINAPI HookSetWindowsHookExW(int idHook, HOOKPROC lpfn, HINSTAN
 	static const auto trampoline = reshade::hooks::call(HookSetWindowsHookExW);
 	const HHOOK result = trampoline(idHook, lpfn, hmod, dwThreadId);
 
-	if (hook != nullptr)
+	if (result != nullptr && lpfn != orig_hook_proc)
 	{
 #if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::info, "Windows hook function of type %d registered for thread %lu.", idHook, dwThreadId);
 #endif
 
-		*hook = result;
+		s_windows_hooks[thread_lookup_key] = std::make_pair(result, orig_hook_proc);
 	}
 
 	return result;
