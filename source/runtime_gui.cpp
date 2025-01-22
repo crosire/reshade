@@ -39,6 +39,16 @@ static auto filter_name(ImGuiInputTextCallbackData *data) -> int
 	return data->EventChar == L'\"' || data->EventChar == L'*' || data->EventChar == L'/' || data->EventChar == L':' || data->EventChar == L'<' || data->EventChar == L'>' || data->EventChar == L'?' || data->EventChar == L'\\' || data->EventChar == L'|';
 }
 
+static auto filter_path_name(ImGuiInputTextCallbackData *data) -> int
+{
+    // Allow slashes in string. Special case for screenshot path/name combined input field.
+ // Avoids messiness of changing UI text by just handling cases of duplicates when we process the string
+    return data->EventChar == L'\"' || data->EventChar == L'*' ||
+           data->EventChar == L':' || data->EventChar == L'<' || 
+           data->EventChar == L'>' || data->EventChar == L'?' ||
+           data->EventChar == L'|';
+}
+
 template <typename F>
 static void parse_errors(const std::string_view errors, F &&callback)
 {
@@ -834,12 +844,17 @@ void reshade::runtime::draw_gui()
 	bool show_overlay = _show_overlay;
 	api::input_source show_overlay_source = api::input_source::keyboard;
 
-	if (_input != nullptr)
-	{
-		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
-			show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
-		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
-			show_overlay = !_show_overlay;
+   if (_input != nullptr)
+   {
+   if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */) &&
+		  ((_input_processing_mode == 2 || (_input_processing_mode == 1  &&  (_input->is_blocking_any_mouse_input() || _input->is_blocking_any_keyboard_input())))))
+		  show_overlay = false;
+   // Close when pressing the escape button and not currently navigating with the keyboard. Now respects options to pass through inputs to the game
+   // If set to pass all input to the game you must use the reshade overlay key (REST users with stockholm syndrome might like this)
+   // Conveniently if using input mode 1, you can double press escape and close the overlay as the first press will pass through to the game but also focuses the active ImGui window
+   // Since that works perfectly as a panic option I think this is a totally okay change to make without needing additional config, just a small note in the changelogs should suffice
+   else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
+		  show_overlay = !_show_overlay;
 
 		if (!_ignore_shortcuts)
 		{
@@ -2223,57 +2238,62 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 		modified |= imgui::directory_input_box(_("Screenshot path"), _screenshot_path, _file_selection_path);
+// not needed if we take my change 
+// 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+// 		{
+// 			ImGui::SetTooltip(_(
+// 				"Macros you can add that are resolved during saving:\n"
+// 				"  %%AppName%%         Name of the application (%s)\n"
+// 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
+// 				"  %%Date%%            Current date in format '%s'\n"
+// 				"  %%DateYear%%        Year component of current date\n"
+// 				"  %%DateMonth%%       Month component of current date\n"
+// 				"  %%DateDay%%         Day component of current date\n"
+// 				"  %%Time%%            Current time in format '%s'\n"
+// 				"  %%TimeHour%%        Hour component of current time\n"
+// 				"  %%TimeMinute%%      Minute component of current time\n"
+// 				"  %%TimeSecond%%      Second component of current time\n"
+// 				"  %%TimeMS%%          Milliseconds fraction of current time\n"
+// 				"  %%Count%%           Number of screenshots taken this session\n"),
+// 				g_target_executable_path.stem().u8string().c_str(),
+// #if RESHADE_FX
+// 				_current_preset_path.stem().u8string().c_str(),
+// #else
+// 				"..."
+// #endif
+// 				"yyyy-MM-dd",
+// 				"HH-mm-ss");
+// 		}
 
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-		{
-			ImGui::SetTooltip(_(
-				"Macros you can add that are resolved during saving:\n"
-				"  %%AppName%%         Name of the application (%s)\n"
-				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
-				"  %%Date%%            Current date in format '%s'\n"
-				"  %%DateYear%%        Year component of current date\n"
-				"  %%DateMonth%%       Month component of current date\n"
-				"  %%DateDay%%         Day component of current date\n"
-				"  %%Time%%            Current time in format '%s'\n"
-				"  %%TimeHour%%        Hour component of current time\n"
-				"  %%TimeMinute%%      Minute component of current time\n"
-				"  %%TimeSecond%%      Second component of current time\n"
-				"  %%TimeMS%%          Milliseconds fraction of current time\n"
-				"  %%Count%%           Number of screenshots taken this session\n"),
-				g_target_executable_path.stem().u8string().c_str(),
-#if RESHADE_FX
-				_current_preset_path.stem().u8string().c_str(),
-#else
-				"..."
-#endif
-				"yyyy-MM-dd",
-				"HH-mm-ss");
-		}
-
-		char name[260];
+// literally just doubled it, I'm sure it can be lower than this but left myself room while testing
+		char name[520];
 		name[_screenshot_name.copy(name, sizeof(name) - 1)] = '\0';
-		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_name))
+		// change to new specific callback  filter allowing slashes
+		// TODO: add implementations for ImGuiInputTextFlags_CallbackCompletion, ImGuiInputTextFlags_CallbackHistory     
+		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_path_name))
 		{
 			modified = true;
 			_screenshot_name = name;
 		}
 
+// add BeforeAfter macro
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
 			ImGui::SetTooltip(_(
-				"Macros you can add that are resolved during saving:\n"
-				"  %%AppName%%         Name of the application (%s)\n"
-				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
-				"  %%Date%%            Current date in format '%s'\n"
-				"  %%DateYear%%        Year component of current date\n"
-				"  %%DateMonth%%       Month component of current date\n"
-				"  %%DateDay%%         Day component of current date\n"
-				"  %%Time%%            Current time in format '%s'\n"
-				"  %%TimeHour%%        Hour component of current time\n"
-				"  %%TimeMinute%%      Minute component of current time\n"
-				"  %%TimeSecond%%      Second component of current time\n"
-				"  %%TimeMS%%          Milliseconds fraction of current time\n"
-				"  %%Count%%           Number of screenshots taken this session\n"),
+                "Macros you can add that are resolved during saving:\n"
+                "  %%AppName%%         Name of the application (%s)\n"
+                "  %%BeforeAfter%%     Before and after rendering effects\n"
+                "  %%PresetName%%      File name without extension of the current preset file (%s)\n"
+                "  %%Date%%            Current date in format '%s'\n"
+                "  %%DateYear%%        Year component of current date\n"
+                "  %%DateMonth%%       Month component of current date\n"
+                "  %%DateDay%%         Day component of current date\n"
+                "  %%Time%%            Current time in format '%s'\n"
+                "  %%TimeHour%%        Hour component of current time\n"
+                "  %%TimeMinute%%      Minute component of current time\n"
+                "  %%TimeSecond%%      Second component of current time\n"
+                "  %%TimeMS%%          Milliseconds fraction of current time\n"
+                "  %%Count%%           Number of screenshots taken this session\n"),
 				g_target_executable_path.stem().u8string().c_str(),
 #if RESHADE_FX
 				_current_preset_path.stem().u8string().c_str(),
@@ -2309,8 +2329,8 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::file_input_box(_("Screenshot sound"), "sound.wav", _screenshot_sound_path, _file_selection_path, { L".wav" });
 		ImGui::SetItemTooltip(_("Audio file that is played when taking a screenshot."));
-
-		modified |= imgui::file_input_box(_("Post-save command"), "command.bat", _screenshot_post_save_command, _file_selection_path, { L".exe", L".bat", L".cmd", L".ps1", L".py" });
+		// forgot pyw on original pull request, that is a big one since its commonly used for windowless scripts
+		modified |= imgui::file_input_box(_("Post-save command"), "command.bat", _screenshot_post_save_command, _file_selection_path, { L".exe", L".bat", L".cmd", L".ps1", L".py", L".pyw"});
 		ImGui::SetItemTooltip(_(
 			"Executable or script that is called after saving a screenshot.\n"
 			"This can be used to perform additional processing on the image (e.g. compressing it with an image optimizer)."));
@@ -2327,9 +2347,11 @@ void reshade::runtime::draw_gui_settings()
 		{
 			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg";
 
+			// add beforeafter macro here as well in case different behavior is needed although they could resolve it from path anyway
 			ImGui::SetTooltip(_(
 				"Macros you can add that are resolved during command execution:\n"
 				"  %%AppName%%         Name of the application (%s)\n"
+                "  %%BeforeAfter%%     Before and after rendering effects\n"
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
 				"  %%Date%%            Current date in format '%s'\n"
 				"  %%DateYear%%        Year component of current date\n"
