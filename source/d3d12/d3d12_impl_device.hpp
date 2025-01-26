@@ -58,6 +58,7 @@ namespace reshade::d3d12
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline) final;
 		void destroy_pipeline(api::pipeline pipeline) final;
 
+		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout, D3D12_ROOT_SIGNATURE_FLAGS flags);
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout) final;
 		void destroy_pipeline_layout(api::pipeline_layout layout) final;
 

@@ -2672,6 +2672,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 	std::vector<std::vector<reshade::api::descriptor_range>> ranges;
 	std::vector<reshade::api::descriptor_range_with_static_samplers> ranges_with_static_samplers;
 	std::vector<reshade::api::sampler_desc> static_samplers;
+	D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 
 	if (const auto part = static_cast<uint32_t *>(const_cast<void *>(
 			find_dxbc_part(
@@ -2682,6 +2683,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		const bool has_pipeline_layout_event = reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>();
 
 		const uint32_t version = part[0];
+		flags = static_cast<D3D12_ROOT_SIGNATURE_FLAGS>(part[5]);
 
 		if (has_pipeline_layout_event &&
 			(version == D3D_ROOT_SIGNATURE_VERSION_1_0 || version == D3D_ROOT_SIGNATURE_VERSION_1_1 || version == D3D_ROOT_SIGNATURE_VERSION_1_2))
@@ -2864,7 +2866,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, param_count, param_data) || modified))
 	{
 		reshade::api::pipeline_layout layout;
-		hr = device_impl::create_pipeline_layout(param_count, param_data, &layout) ? S_OK : E_FAIL;
+		hr = device_impl::create_pipeline_layout(param_count, param_data, &layout, flags) ? S_OK : E_FAIL;
 		root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 	}
 	else
