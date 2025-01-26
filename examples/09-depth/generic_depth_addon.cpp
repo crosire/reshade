@@ -1163,25 +1163,25 @@ static void draw_settings_overlay(effect_runtime *runtime)
 {
 	bool force_reset = false;
 
-	const char *const draw_stats_heuristics_items[] = {
+	const char *const draw_stats_heuristic_items[] = {
 		"Default",
 		"Higher vertices",
 		"Higher draw calls"
 	};
-	if (ImGui::Combo("Draw stats heuristic", reinterpret_cast<int *>(&s_draw_stats_heuristic), draw_stats_heuristics_items, static_cast<int>(std::size(draw_stats_heuristics_items))))
+	if (ImGui::Combo("Draw stats heuristic", reinterpret_cast<int *>(&s_draw_stats_heuristic), draw_stats_heuristic_items, static_cast<int>(std::size(draw_stats_heuristic_items))))
 	{
 		reshade::set_config_value(nullptr, "DEPTH", "DrawStatsHeuristic", static_cast<unsigned int>(s_draw_stats_heuristic));
 		force_reset = true;
 	}
 
-	const char *const aspect_ratio_heuristics_items[] = {
+	const char *const aspect_ratio_heuristic_items[] = {
 		"None",
 		"Similar aspect ratio",
 		"Multiples of resolution (for DLSS or resolution scaling)",
 		"Match resolution exactly",
 		"Match custom width and height exactly"
 	};
-	if (ImGui::Combo("Aspect ratio heuristic", reinterpret_cast<int *>(&s_aspect_ratio_heuristic), aspect_ratio_heuristics_items, static_cast<int>(std::size(aspect_ratio_heuristics_items))))
+	if (ImGui::Combo("Aspect ratio heuristic", reinterpret_cast<int *>(&s_aspect_ratio_heuristic), aspect_ratio_heuristic_items, static_cast<int>(std::size(aspect_ratio_heuristic_items))))
 	{
 		reshade::set_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", static_cast<unsigned int>(s_aspect_ratio_heuristic));
 		force_reset = true;

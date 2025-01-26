@@ -17,6 +17,7 @@ namespace ReShade.Setup.Pages
 		D3D11,
 		D3D12,
 		DXGI,
+		DDraw,
 		OpenGL,
 		Vulkan
 	}

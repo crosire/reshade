@@ -591,6 +591,7 @@
       <DisableSpecificWarnings Condition="'$(Configuration)'=='Debug App'">4458;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
+    <ClCompile Include="source\ddraw\ddraw.cpp" />
     <ClCompile Include="source\dll_log.cpp" />
     <ClCompile Include="source\dll_main.cpp" />
     <ClCompile Include="source\dll_main_test_app.cpp">
