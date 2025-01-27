@@ -189,10 +189,7 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 #endif
 	_config_path(config_path),
 	_screenshot_path(L".\\"),
-	// this is what I've been rocking but probably too drastic a change for a default setting
-	// _screenshot_name("%AppName%\\%DateMonth%\\%BeforeAfter%\\%Count%_%PresetName%_%Time%_%TimeMS%")
-	// so here's a less drastic change that would be useful for most people to introduce new feature if desired. note that beforeafter gets ignored if they have the save_before setting off
-	_screenshot_name("%AppName%\\%BeforeAfter%\\%Date% %Time%_%TimeMS%"), // Use a timestamp down to the millisecond because users may request more than one screenshot per-second
+	_screenshot_name("%AppName% %Date% %Time%_%TimeMS%"), // Use a timestamp down to the millisecond because users may request more than one screenshot per-second
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
@@ -700,11 +697,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		|| (_preview_texture != 0 && _effects_enabled)
 #endif
 		))
-		// remove whitespace and match case with other postfixes
-		// should note, BeforeAfter will always take the postfix even if save_before is not checked, 
-		// as its essentially a %Postfix% macro but I think BeforeAfter is much clearer and will cover the main use case
-		// and I highly doubt anyone is using save overlay without also using save before
-		// so small oversight that could be fixed if we care enough
 		save_screenshot("Overlay");
 #endif
 
@@ -4890,175 +4882,183 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	return result;
 }
 
-void reshade::runtime::save_screenshot(const std::string_view postfix)
-{
-/* previous implementation with both path and name being expanded benefitted from a local vector to avoid
-    redundancy. I also had it instantiate without Count which was emplaced back after expanding the path string
-	to prevent the possibility of adding Count to your path, thus creating a new directory per screenshot
-    Technically possible again. Should we add a check to ignore Count if there are any directory separators following it?
-	Or do we trust that the user is smart enough not to do that? Probably we just don't care
- 	So this can be eliminated along with some of the other local variables in all likelihood
-*/
-  std::vector<std::pair<std::string, std::string>> macros = {
-      {"BeforeAfter", std::string(postfix)},
+inline void strip_leading_slashes(std::string &input) {
+	const size_t  _offset = input.find_first_not_of("\\");
+   input = input.substr(_offset, input.size() - _offset);
+}
+
+
+void reshade::runtime::save_screenshot(const std::string_view postfix) {
+  const unsigned int screenshot_count = _screenshot_count;
+//Otherwise we get thrown into root of drive or some nonexistent rootless path
+// This will update the UI value as well 
+if (_screenshot_name._Starts_with("\\")) 
+ strip_leading_slashes(_screenshot_name);
+
+// remaining things that haven't been idiot proofed:
+// can still expand Count to a path
+// no limit on reusing macros
+// using ../.. etc. does work but won't reflect the resolved path so 
+std::string expanded_screenshot_name = expand_macro_string(
+    _screenshot_name, {
+      {"Postfix", std::string(postfix)}, // keeping this as a top secret dev option so I don't have to type %before%%after%%overlay%
+      {std::string(postfix), std::string(postfix)},
       {"AppName", g_target_executable_path.stem().u8string()},
 #if RESHADE_FX
       {"PresetName", _current_preset_path.stem().u8string()},
       {"Count", std::to_string(screenshot_count)}
 #endif
-  };
+  });
 
- // Could likely consolidate this with some inlining
- std::string expanded_screenshot_name = expand_macro_string(_screenshot_name, macros);
-	
- // Trim leading and trailing whitespaces from the name.
- // Was more of an issue with old split implementation so this could stay or go
- expanded_screenshot_name.erase(0, expanded_screenshot_name.find_first_not_of(" \t\n\r\f\v"));
- expanded_screenshot_name.erase(expanded_screenshot_name.find_last_not_of(" \t\n\r\f\v") + 1);
+// And now we call it again to handle cases such as \\%Overlay%\\%After% which would be handled
+// by the previous call for the overlay shot but fail for the after shot
+// Maybe there's a path function that can do this a bit easier. I tried using
+// make_relative_path but that strips the base path from the log and notification
+// and setting to g_reshade_base_path / make_relative_path gives us the /./
+// between the base path and our actual path which isn't a huge problem but can be confusing
+if (expanded_screenshot_name._Starts_with("\\")) 
+ strip_leading_slashes(expanded_screenshot_name);
+  // Trim leading and trailing whitespaces from the name.
+ expanded_screenshot_name =  trim(expanded_screenshot_name);
 
-
-  // If save before/after option is checked but not used as a macro, append it to the filename (old behavior)
-  bool before_after_used = (expanded_screenshot_name.find(std::string(postfix)) != std::string::npos);
-  // If we want to fix tiny issue of overlay being included we'd do another check here I suppose
-  if (_screenshot_save_before && !before_after_used) {
-    expanded_screenshot_name += "_" + std::string(postfix);
+  // If save before option is checked but not used as a macro, append it to the filename for before shots to mimic old behavior
+  bool postfix_macro_used = (expanded_screenshot_name.find(std::string(postfix)) != std::string::npos);
+  if (_screenshot_save_before && !postfix_macro_used && postfix == "Before") {
+    expanded_screenshot_name += " " + std::string(postfix); // have your icky whitespace back  
   }
-
+#if RESHADE_GUI
+  if (_screenshot_save_gui && !postfix_macro_used && postfix == "Overlay") {
+    expanded_screenshot_name += " " + std::string(postfix);
+  }
+#endif
   expanded_screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-  // Normalize path by removing duplicate slashes, handling mixed slashes, again likely unnecessary use of local var
-  std::string normalized_name = expanded_screenshot_name;
-  std::replace(normalized_name.begin(), normalized_name.end(), '/', '\\');
-  while (normalized_name.find("\\\\") != std::string::npos) {
-    normalized_name.replace(normalized_name.find("\\\\"), 2, "\\");
-  }
 
 
-const std::filesystem::path screenshot_path = g_reshade_base_path /  std::filesystem::u8path(normalized_name);
+const std::filesystem::path screenshot_path = g_reshade_base_path /std::filesystem::u8path(expanded_screenshot_name).lexically_normal();
 
-	log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
+log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
 
-	_last_screenshot_save_successful = true;
+_last_screenshot_save_successful = true;
 
-	size_t bytes_per_pixel =
-		_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4;
-
-	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * bytes_per_pixel);
-		capture_screenshot(pixels.data()))
-	{
+if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 4);
+    capture_screenshot(pixels.data()))
+{
 #if RESHADE_FX
-	// Save the preset alongside the After screenshot to preserve expected behavior
-	// If a user can't find it that's probably their own fault for writing some weird path...
-		const bool include_preset = _screenshot_include_preset && postfix != "Before" && postfix != "Overlay" &&
+// Save the preset alongside the After screenshot to preserve expected behavior
+// I guess we could now do it as postfix == "After" || postfix == "", same difference right
+  const bool include_preset =
+      _screenshot_include_preset && postfix != "Before" && postfix != "Overlay" &&
               ini_file::flush_cache(_current_preset_path);
 #else
-		const bool include_preset = false;
+        const bool include_preset = false;
 #endif
-		// Play screenshot sound
-		if (!_screenshot_sound_path.empty())
-			utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
+        // Play screenshot sound
+        if (!_screenshot_sound_path.empty() )
+            utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
 
-		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, postfix,  pixels = std::move(pixels), include_preset]() mutable {
-			auto screenshot_format = _screenshot_format;
+        _worker_threads.emplace_back([this, screenshot_count, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
+            auto screenshot_format = _screenshot_format;
 
-			// Use PNG for HDR; no tonemapping is implemented, so this is the only way to capture a screenshot in HDR.
-			if (((_back_buffer_format == api::format::r10g10b10a2_unorm  ||
-			      _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
-				 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
-				screenshot_format = 3;
+            // Use PNG for HDR; no tonemapping is implemented, so this is the only way to capture a screenshot in HDR.
+            if (((_back_buffer_format == api::format::r10g10b10a2_unorm  ||
+                  _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
+                 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
+                screenshot_format = 3;
+            // Remove alpha channel
+            int comp = 4;
+            if (_screenshot_clear_alpha && screenshot_format != 3)
+            {
+                comp = 3;
+                for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
+                    *reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
+            }
 
-			// Remove alpha channel
-			int comp = 4;
-			if (_screenshot_clear_alpha && screenshot_format != 3)
-			{
-				comp = 3;
-				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
-					*reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
-			}
+            // Create screenshot directory if it does not exist
+            std::error_code ec;
+            _screenshot_directory_creation_successful = true;
+            if (!std::filesystem::exists(screenshot_path.parent_path(), ec))
+                if (!(_screenshot_directory_creation_successful = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
+                    log::message(log::level::error, "Failed to create screenshot directory '%s' with error code %d!", screenshot_path.parent_path().u8string().c_str(), ec.value());
 
-			// Create screenshot directory if it does not exist
-			std::error_code ec;
-			_screenshot_directory_creation_successful = true;
-			if (!std::filesystem::exists(screenshot_path.parent_path(), ec))
-				if (!(_screenshot_directory_creation_successful = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
-					log::message(log::level::error, "Failed to create screenshot directory '%s' with error code %d!", screenshot_path.parent_path().u8string().c_str(), ec.value());
 
-			// Default to a save failure unless it is reported to succeed below
-			bool save_success = false;
+            // Default to a save failure unless it is reported to succeed below
+            bool save_success = false;
 
-			if (FILE *const file = _wfsopen(screenshot_path.c_str(), L"wb", SH_DENYNO))
-			{
-				const auto write_callback = [](void *context, void *data, int size) {
-					fwrite(data, 1, size, static_cast<FILE *>(context));
-				};
+            if (FILE *const file = _wfsopen(screenshot_path.c_str(), L"wb", SH_DENYNO))
+            {
+                const auto write_callback = [](void *context, void *data, int size) {
+                    fwrite(data, 1, size, static_cast<FILE *>(context));
+                };
 
-				switch (screenshot_format)
-				{
-				case 0:
-					save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, pixels.data()) != 0;
-					break;
-				case 1:
+                switch (screenshot_format)
+                {
+                case 0:
+                    save_success = stbi_write_bmp_to_func(write_callback, file, _width, _height, comp, pixels.data()) != 0;
+                    break;
+                case 1:
 #if 1
-					if (std::vector<uint8_t> encoded_data;
-						fpng::fpng_encode_image_to_memory(pixels.data(), _width, _height, comp, encoded_data))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+                    if (std::vector<uint8_t> encoded_data;
+                        fpng::fpng_encode_image_to_memory(pixels.data(), _width, _height, comp, encoded_data))
+                        save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
 #else
-					save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, pixels.data(), 0) != 0;
+                    save_success = stbi_write_png_to_func(write_callback, file, _width, _height, comp, pixels.data(), 0) != 0;
 #endif
-					break;
-				case 2:
-					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
-					break;
-				// Implicit HDR PNG when running in HDR
-				case 3:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
-					break;
-				}
+                    break;
+                case 2:
+                    save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
+                    break;
+                // Implicit HDR PNG when running in HDR
+                case 3:
+                    save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str (), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format, _screenshot_clipboard_copy);
+                    break;
+                }
 
-				if (ferror(file))
-					save_success = false;
+                if (ferror(file))
+                    save_success = false;
 
-				fclose(file);
-			}
+                fclose(file);
+            }
 
-			if (save_success)
-			{
-				// couldn't think of another way to get the postfix to the post save command that doesn't involve some nasty parsing
- 				execute_screenshot_post_save_command(screenshot_path, screenshot_count, std::string(postfix));
+            if (save_success)
+            {
+                // couldn't think of another way to get the postfix to the post save command that doesn't involve some nasty parsing
+                execute_screenshot_post_save_command(screenshot_path, screenshot_count, std::string(postfix));
 
 #if RESHADE_FX
-				if (include_preset)
-				{
-					// unchanged behavior only altered when its called
-					// It might be nice to also add the name of the preset here but that might make my life a bit harder
-					// with wip addon so I'll hold off on making that PR until after I have the addon built
-					std::filesystem::path screenshot_preset_path = screenshot_path;
-					screenshot_preset_path.replace_extension(L".ini");
+                if (include_preset)
+                {
+                    // This behavior is unchanged, we just disabled calling it for the before/overlay cases
+					// added log entry to help users find the preset just in case
+                    std::filesystem::path screenshot_preset_path = screenshot_path;
+                    screenshot_preset_path.replace_extension(L".ini");
+					log::message(log::level::info, "Saving preset to '%s'.", screenshot_preset_path.u8string().c_str());
 
-					// Preset was flushed to disk, so can just copy it over to the new location
-					if (!std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
-						log::message(log::level::error, "Failed to copy preset file for screenshot to '%s' with error code %d!", screenshot_preset_path.u8string().c_str(), ec.value());
-				}
+                    // Preset was flushed to disk, so can just copy it over to the new location
+                    if (!std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
+                        log::message(log::level::error, "Failed to copy preset file for screenshot to '%s' with error code %d!", screenshot_preset_path.u8string().c_str(), ec.value());
+                }
 #endif
 
 #if RESHADE_ADDON
-				invoke_addon_event<addon_event::reshade_screenshot>(this, screenshot_path.u8string().c_str());
+                invoke_addon_event<addon_event::reshade_screenshot>(this, screenshot_path.u8string().c_str());
 #endif
-			}
-			else
-			{
-				log::message(log::level::error, "Failed to write screenshot to '%s'!", screenshot_path.u8string().c_str());
-			}
+            }
+            else
+            {
+                log::message(log::level::error, "Failed to write screenshot to '%s'!", screenshot_path.u8string().c_str());
+            }
 
-			if (_last_screenshot_save_successful)
-			{
-				_last_screenshot_time = std::chrono::high_resolution_clock::now();
-				_last_screenshot_file = screenshot_path;
-				_last_screenshot_save_successful = save_success;
-			}
-		});
-	}
+            if (_last_screenshot_save_successful)
+            {
+                _last_screenshot_time = std::chrono::high_resolution_clock::now();
+                _last_screenshot_file = screenshot_path;
+                _last_screenshot_save_successful = save_success;
+            }
+        });
+    }
 }
+
 bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string postfix)
 {
 	if (_screenshot_post_save_command.empty())
@@ -5087,7 +5087,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			{ "AppName", g_target_executable_path.stem().u8string() },
 #if RESHADE_FX
 			{ "PresetName",  _current_preset_path.stem().u8string() },
-			{"BeforeAfter", postfix},
+			{postfix, postfix},
 #endif
 			{ "TargetPath", screenshot_path.u8string() },
 			{ "TargetDir", screenshot_path.parent_path().u8string() },
