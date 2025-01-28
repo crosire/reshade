@@ -1281,8 +1281,19 @@ void reshade::runtime::load_current_preset()
 }
 void reshade::runtime::save_current_preset() const
 {
-	ini_file &preset = ini_file::load_cache(_current_preset_path);
+	if (ini_file *preset = ini_file::find_cache(_current_preset_path); preset)
+		save_current_preset(*preset);
+}
+void reshade::runtime::save_current_preset(const char *path) const
+{
+	if (path == nullptr)
+		return;
 
+	if (ini_file *preset = ini_file::find_cache(std::filesystem::u8path(path)); preset)
+		save_current_preset(*preset);
+}
+void reshade::runtime::save_current_preset(ini_file &preset) const
+{
 	// Build list of active techniques and effects
 	std::set<size_t> effect_list;
 	std::vector<std::string> technique_list;

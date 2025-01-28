@@ -268,6 +268,13 @@ public:
 	static void clear_cache(std::filesystem::path path);
 
 	/// <summary>
+	/// Gets the specified INI file from cache.
+	/// </summary>
+	/// <param name="path">Path to the INI file to access.</param>
+	/// <returns>Reference to the cached data.</returns>
+	static ini_file *ini_file::find_cache(std::filesystem::path path);
+
+	/// <summary>
 	/// Gets the specified INI file from cache or opens it when it was not cached yet.
 	/// </summary>
 	/// <param name="path">Path to the INI file to access.</param>
