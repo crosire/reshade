@@ -1,4 +1,4 @@
-/*
+1/*
  * Copyright (C) 2014 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -2264,9 +2264,8 @@ void reshade::runtime::draw_gui_settings()
 // 				"yyyy-MM-dd",
 // 				"HH-mm-ss");
 // 		}
-
-// literally just doubled it, I'm sure it can be lower than this but left myself room while testing
-		char name[520];
+ 
+		char name[260];
 		name[_screenshot_name.copy(name, sizeof(name) - 1)] = '\0';
 		// change to new specific callback  filter allowing slashes
 		// TODO: add implementations for ImGuiInputTextFlags_CallbackCompletion, ImGuiInputTextFlags_CallbackHistory     
