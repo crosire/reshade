@@ -510,7 +510,7 @@ namespace reshade { namespace api
 		/// Binds new shader resource views to all texture variables that use the specified <paramref name="semantic"/>.
 		/// </summary>
 		/// <remarks>
-		/// The resource the shader resource views point to has to be in the <see cref="resource_usage::shader_resource"/> state at the time <see cref="render_effects"/> is executed.
+		/// The resource the shader resource views point to has to be in the <see cref="resource_usage::shader_resource"/> state at the time <see cref="render_effects"/> or <see cref="render_technique"/> is executed.
 		/// </remarks>
 		/// <param name="semantic">ReShade FX semantic to filter textures to update by (<c>texture name : SEMANTIC</c>).</param>
 		/// <param name="srv">Shader resource view to use for samplers with <c>SRGBTexture</c> state set to <see langword="false"/> (this should be a shader resource view of the target resource, created with a non-sRGB format variant).</param>
