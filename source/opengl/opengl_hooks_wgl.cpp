@@ -598,6 +598,13 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 
 	desc.present_flags = pfd.dwFlags;
 
+	const auto wglSwapIntervalEXT = reinterpret_cast<BOOL(WINAPI *)(int interval)>(reshade::hooks::call(wglGetProcAddress)("wglSwapIntervalEXT"));
+	const auto wglGetSwapIntervalEXT = reinterpret_cast<int(WINAPI *)()>(reshade::hooks::call(wglGetProcAddress)("wglGetSwapIntervalEXT"));
+	if (wglGetSwapIntervalEXT != nullptr)
+	{
+		desc.sync_interval = wglGetSwapIntervalEXT();
+	}
+
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, hwnd))
 	{
 		reshade::opengl::convert_pixel_format(desc.back_buffer.texture.format, pfd);
@@ -685,6 +692,11 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 		reshade::log::message(reshade::log::level::warning, "Application mistakenly called wglSetPixelFormat directly. Passing on to SetPixelFormat ...");
 
 		SetPixelFormat(hdc, iPixelFormat, ppfd);
+	}
+
+	if (wglSwapIntervalEXT != nullptr && desc.sync_interval != UINT32_MAX)
+	{
+		wglSwapIntervalEXT(static_cast<int>(desc.sync_interval));
 	}
 
 	return TRUE;

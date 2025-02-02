@@ -1239,6 +1239,16 @@ namespace reshade { namespace api
 		/// Set to zero to use the default.
 		/// </summary>
 		float fullscreen_refresh_rate = 0;
+
+		/// <summary>
+		/// Defines how to synchronize presentation of a frame with the vertical blank.
+		/// <list type="bullet">
+		/// <item>0: Disable synchronization, presentation occurs immediately.</item>
+		/// <item>1-4: Synchronize for at least n vertical blanks.</item>
+		/// <item>UINT32_MAX: Use the default set by the application.</item>
+		/// </list>
+		/// </summary>
+		uint32_t sync_interval = UINT32_MAX;
 	};
 
 	/// <summary>

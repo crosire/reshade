@@ -17,8 +17,8 @@
 #include "runtime_manager.hpp"
 
 #if RESHADE_ADDON
-extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc);
-extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
+extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
+extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
 #endif
 
 extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
@@ -245,6 +245,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	on_present(Flags);
 
+	if (_sync_interval != UINT_MAX)
+		SyncInterval = _sync_interval;
+
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
@@ -341,7 +344,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			desc.BufferDesc.Format = NewFormat;
 		desc.Flags = SwapChainFlags;
 
-		if (modify_swapchain_desc(desc))
+		if (modify_swapchain_desc(desc, _sync_interval))
 		{
 			BufferCount = desc.BufferCount;
 			Width = desc.BufferDesc.Width;
@@ -419,6 +422,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
 	on_present(PresentFlags, pPresentParameters);
+
+	if (_sync_interval != UINT_MAX)
+		SyncInterval = _sync_interval;
 
 	assert(_interface_version >= 1);
 	assert(!g_in_dxgi_runtime);
@@ -604,7 +610,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 		fullscreen_desc.Windowed = !fullscreen;
 
-		if (modify_swapchain_desc(desc, &fullscreen_desc, hwnd))
+		if (modify_swapchain_desc(desc, _sync_interval, &fullscreen_desc, hwnd))
 		{
 			BufferCount = desc.BufferCount;
 			Width = desc.Width;

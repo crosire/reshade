@@ -101,6 +101,22 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 	desc.fullscreen_state = pp.Windowed == FALSE;
 	desc.fullscreen_refresh_rate = static_cast<float>(pp.FullScreen_RefreshRateInHz);
 
+	if ((pp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE) != 0)
+		desc.sync_interval = 0;
+	else if ((pp.PresentationInterval & D3DPRESENT_INTERVAL_ONE) != 0)
+		desc.sync_interval = 1;
+	else if ((pp.PresentationInterval & D3DPRESENT_INTERVAL_TWO) != 0)
+		desc.sync_interval = 2;
+	else if ((pp.PresentationInterval & D3DPRESENT_INTERVAL_THREE) != 0)
+		desc.sync_interval = 3;
+	else if ((pp.PresentationInterval & D3DPRESENT_INTERVAL_FOUR) != 0)
+		desc.sync_interval = 4;
+	else
+	{
+		assert(pp.PresentationInterval == D3DPRESENT_INTERVAL_DEFAULT);
+		desc.sync_interval = UINT32_MAX;
+	}
+
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
 	{
 		pp.BackBufferWidth = desc.back_buffer.texture.width;
@@ -152,6 +168,28 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 				if (desc.fullscreen_refresh_rate == 0)
 					pp.FullScreen_RefreshRateInHz = current_mode.RefreshRate;
 			}
+		}
+
+		switch (desc.sync_interval)
+		{
+		case 0:
+			pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+			break;
+		case 1:
+			pp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+			break;
+		case 2:
+			pp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
+			break;
+		case 3:
+			pp.PresentationInterval = D3DPRESENT_INTERVAL_THREE;
+			break;
+		case 4:
+			pp.PresentationInterval = D3DPRESENT_INTERVAL_FOUR;
+			break;
+		case UINT32_MAX:
+			pp.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+			break;
 		}
 	}
 #endif

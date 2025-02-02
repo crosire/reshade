@@ -985,6 +985,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	desc.back_buffer_count = create_info.minImageCount;
 	desc.present_mode = static_cast<uint32_t>(create_info.presentMode);
 	desc.present_flags = create_info.flags;
+	desc.sync_interval = create_info.presentMode == VK_PRESENT_MODE_IMMEDIATE_KHR ? 0 : UINT32_MAX;
 
 	// Optionally change fullscreen state
 	VkSurfaceFullScreenExclusiveInfoEXT fullscreen_info;
@@ -1032,6 +1033,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 				create_info.pNext = &fullscreen_info;
 			}
 		}
+
+		if (desc.sync_interval == 0)
+			create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	}
 #endif
 
