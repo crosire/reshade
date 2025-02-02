@@ -239,7 +239,7 @@ namespace reshade
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
 
-		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count);
+		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string_view postfix);
 
 		api::swapchain *const _swapchain;
 		api::device *const _device;

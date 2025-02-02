@@ -662,7 +662,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	update_effects();
 
 	if (_should_save_screenshot && _screenshot_save_before && _effects_enabled && !_effects_rendered_this_frame)
-		save_screenshot(" original");
+		save_screenshot("Before");
 
 	if (_back_buffer_resolved != 0)
 	{
@@ -677,7 +677,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 #endif
 
 	if (_should_save_screenshot)
-		save_screenshot();
+		save_screenshot(_screenshot_save_before ? "After" : std::string_view());
 
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -695,7 +695,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		|| (_preview_texture != 0 && _effects_enabled)
 #endif
 		))
-		save_screenshot(" overlay");
+		save_screenshot("Overlay");
 #endif
 
 	// All screenshots were created at this point, so reset request
@@ -4387,10 +4387,7 @@ void reshade::runtime::save_texture(const texture &tex)
 	std::string filename = tex.unique_name;
 	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-	const std::filesystem::path screenshot_path =
-		_screenshot_path.native().find(L'%') != std::wstring::npos ?
-		g_reshade_base_path / std::filesystem::u8path(filename) :
-		g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
 	_last_screenshot_save_successful = true;
 
@@ -4884,19 +4881,24 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 {
 	const unsigned int screenshot_count = _screenshot_count;
 
-	std::string screenshot_name = _screenshot_name;
-	screenshot_name += postfix;
+	std::string screenshot_name = expand_macro_string(_screenshot_name, {
+		{ "AppName", g_target_executable_path.stem().u8string() },
+#if RESHADE_FX
+		{ "PresetName",  _current_preset_path.stem().u8string() },
+#endif
+		{ "BeforeAfter", std::string(postfix) },
+		{ "Count", std::to_string(screenshot_count) }
+	});
+
+	if (!postfix.empty() && _screenshot_name.find("%BeforeAfter%") == std::string::npos)
+	{
+		screenshot_name += ' ';
+		screenshot_name += postfix;
+	}
+
 	screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
 
-	const std::filesystem::path screenshot_path =
-		g_reshade_base_path / std::filesystem::u8path(
-			expand_macro_string((_screenshot_path / std::filesystem::u8path(screenshot_name)).u8string(), {
-				{ "AppName", g_target_executable_path.stem().u8string() },
-#if RESHADE_FX
-				{ "PresetName",  _current_preset_path.stem().u8string() },
-#endif
-				{ "Count", std::to_string(screenshot_count) }
-			}));
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name).lexically_normal();
 
 	log::message(log::level::info, "Saving screenshot to '%s'.", screenshot_path.u8string().c_str());
 
@@ -4909,7 +4911,10 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		capture_screenshot(pixels.data()))
 	{
 #if RESHADE_FX
-		const bool include_preset = _screenshot_include_preset && postfix.empty() && ini_file::flush_cache(_current_preset_path);
+		const bool include_preset =
+			_screenshot_include_preset &&
+			postfix != "Before" && postfix != "Overlay" &&
+			ini_file::flush_cache(_current_preset_path);
 #else
 		const bool include_preset = false;
 #endif
@@ -4917,7 +4922,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		if (!_screenshot_sound_path.empty())
 			utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
 
-		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, pixels = std::move(pixels), include_preset]() mutable {
+		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
 			auto screenshot_format = _screenshot_format;
 
 			// Use PNG for HDR; no tonemapping is implemented, so this is the only way to capture a screenshot in HDR.
@@ -4982,7 +4987,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 			if (save_success)
 			{
-				execute_screenshot_post_save_command(screenshot_path, screenshot_count);
+				execute_screenshot_post_save_command(screenshot_path, screenshot_count, postfix);
 
 #if RESHADE_FX
 				if (include_preset)
@@ -5014,7 +5019,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		});
 	}
 }
-bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count)
+bool reshade::runtime::execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string_view postfix)
 {
 	if (_screenshot_post_save_command.empty())
 		return false;
@@ -5043,6 +5048,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 #if RESHADE_FX
 			{ "PresetName",  _current_preset_path.stem().u8string() },
 #endif
+			{ "BeforeAfter", std::string(postfix) },
 			{ "TargetPath", screenshot_path.u8string() },
 			{ "TargetDir", screenshot_path.parent_path().u8string() },
 			{ "TargetFileName", screenshot_path.filename().u8string() },

@@ -38,6 +38,10 @@ static auto filter_name(ImGuiInputTextCallbackData *data) -> int
 	// A file name cannot contain any of the following characters
 	return data->EventChar == L'\"' || data->EventChar == L'*' || data->EventChar == L'/' || data->EventChar == L':' || data->EventChar == L'<' || data->EventChar == L'>' || data->EventChar == L'?' || data->EventChar == L'\\' || data->EventChar == L'|';
 }
+static auto filter_path_name(ImGuiInputTextCallbackData *data) -> int
+{
+	return data->EventChar == L'\"' || data->EventChar == L'*' || data->EventChar == L':' || data->EventChar == L'<' || data->EventChar == L'>' || data->EventChar == L'?' || data->EventChar == L'|';
+}
 
 template <typename F>
 static void parse_errors(const std::string_view errors, F &&callback)
@@ -836,7 +840,8 @@ void reshade::runtime::draw_gui()
 
 	if (_input != nullptr)
 	{
-		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */))
+		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */) &&
+			((_input_processing_mode == 2 || (_input_processing_mode == 1 && (_input->is_blocking_any_mouse_input() || _input->is_blocking_any_keyboard_input())))))
 			show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
 		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
 			show_overlay = !_show_overlay;
@@ -2224,38 +2229,15 @@ void reshade::runtime::draw_gui_settings()
 
 		modified |= imgui::directory_input_box(_("Screenshot path"), _screenshot_path, _file_selection_path);
 
-		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-		{
-			ImGui::SetTooltip(_(
-				"Macros you can add that are resolved during saving:\n"
-				"  %%AppName%%         Name of the application (%s)\n"
-				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
-				"  %%Date%%            Current date in format '%s'\n"
-				"  %%DateYear%%        Year component of current date\n"
-				"  %%DateMonth%%       Month component of current date\n"
-				"  %%DateDay%%         Day component of current date\n"
-				"  %%Time%%            Current time in format '%s'\n"
-				"  %%TimeHour%%        Hour component of current time\n"
-				"  %%TimeMinute%%      Minute component of current time\n"
-				"  %%TimeSecond%%      Second component of current time\n"
-				"  %%TimeMS%%          Milliseconds fraction of current time\n"
-				"  %%Count%%           Number of screenshots taken this session\n"),
-				g_target_executable_path.stem().u8string().c_str(),
-#if RESHADE_FX
-				_current_preset_path.stem().u8string().c_str(),
-#else
-				"..."
-#endif
-				"yyyy-MM-dd",
-				"HH-mm-ss");
-		}
-
 		char name[260];
 		name[_screenshot_name.copy(name, sizeof(name) - 1)] = '\0';
-		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_name))
+		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_path_name))
 		{
 			modified = true;
 			_screenshot_name = name;
+
+			// Strip any leading slashes, to avoid starting at drive root, rather than the screenshot path
+			_screenshot_name = trim(_screenshot_name, " \t\\");
 		}
 
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
@@ -2264,6 +2246,7 @@ void reshade::runtime::draw_gui_settings()
 				"Macros you can add that are resolved during saving:\n"
 				"  %%AppName%%         Name of the application (%s)\n"
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
+				"  %%BeforeAfter%%     Term describing the moment the screenshot was taken ('Before', 'After' or 'Overlay')\n"
 				"  %%Date%%            Current date in format '%s'\n"
 				"  %%DateYear%%        Year component of current date\n"
 				"  %%DateMonth%%       Month component of current date\n"
@@ -2331,6 +2314,7 @@ void reshade::runtime::draw_gui_settings()
 				"Macros you can add that are resolved during command execution:\n"
 				"  %%AppName%%         Name of the application (%s)\n"
 				"  %%PresetName%%      File name without extension of the current preset file (%s)\n"
+				"  %%BeforeAfter%%     Term describing the moment the screenshot was taken ('Before', 'After' or 'Overlay')\n"
 				"  %%Date%%            Current date in format '%s'\n"
 				"  %%DateYear%%        Year component of current date\n"
 				"  %%DateMonth%%       Month component of current date\n"
