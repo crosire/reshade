@@ -238,8 +238,8 @@ namespace reshade
 #endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
-		// added param to facilitate use of BeforeAfter macro. pretty sure its only called from one place but either way shouldn't break anything due to default empty value 
-		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string postfix = "");
+
+		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string_view postfix);
 
 		api::swapchain *const _swapchain;
 		api::device *const _device;
@@ -356,12 +356,8 @@ namespace reshade
 
 		#pragma region Screenshot
 #if RESHADE_FX
-	bool _screenshot_save_before = false;
-	// I'm writing an addon that allows for a simple scrolling gallery view of screenshots that have associated presets
-	// with the ability to preview/apply the preset, making it easier to interact with and choose a preset
-	// plan is to support preset authors bundling images with their presets as well as display your own
-	// so it would be nice to have this default to on as otherwise many users won't have data to use with the addon!
-	bool _screenshot_include_preset = true;
+		bool _screenshot_save_before = false;
+		bool _screenshot_include_preset = false;
 #endif
 #if RESHADE_GUI
 		bool _screenshot_save_gui = false;
