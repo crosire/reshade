@@ -3,11 +3,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <stdio.h>
+
 #include <Windows.h>
 #include <sddl.h>
 #include <AclAPI.h>
 #include <TlHelp32.h>
+
+#include <filesystem>
+#include <iostream>
 
 #define RESHADE_LOADING_THREAD_FUNC 1
 
@@ -92,15 +95,35 @@ static DWORD WINAPI loading_thread_func(loading_data *arg)
 }
 #endif
 
+
+  
+
 int wmain(int argc, wchar_t *argv[])
 {
-	if (argc != 2)
-	{
-		wprintf(L"usage: %s <exe name>\n", argv[0]);
-		return 0;
-	}
-
-	wprintf(L"Waiting for a '%s' process to spawn ...\n", argv[1]);
+	std::filesystem::path procName;
+    wchar_t* processName = nullptr;
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (argc < 2)
+    {
+		wprintf(L"Enter exe name: ");
+      	std::wstring proc;
+        std::getline(std::wcin, proc);
+		// cast to path to automatically handle directory separators and quotes
+      	procName = std::filesystem::path(proc);
+		// allocate mem for wstring to wchar array and copy into it
+     	processName = new wchar_t[procName.stem().string().size() + 1];
+		// only take stem 
+		wcscpy_s(processName, procName.stem().string().size() + 1, procName.stem().c_str());
+        std::wcout << L"Start your game now..." << std::endl;
+    }
+    else
+    {
+	  	procName = std::filesystem::path(argv[1]);
+     	processName = new wchar_t[procName.stem().string().size() + 1];
+		wcscpy_s(processName, procName.stem().string().size() + 1, procName.stem().c_str());
+    }
+	
+	wprintf(L"Waiting for a '%s' process to spawn ...\n", processName );
 
 	DWORD pid = 0;
 
@@ -112,8 +135,9 @@ int wmain(int argc, wchar_t *argv[])
 		PROCESSENTRY32W process = { sizeof(process) };
 		for (BOOL next = Process32FirstW(snapshot, &process); next; next = Process32NextW(snapshot, &process))
 		{
-			if (wcscmp(process.szExeFile, argv[1]) == 0)
-			{
+			// case insensitive comparison leaving out '.exe'
+			if (wcsnicmp(process.szExeFile, processName, wcslen(processName)) == 0)
+			 {
 				pid = process.th32ProcessID;
 				break;
 			}
@@ -149,9 +173,11 @@ int wmain(int argc, wchar_t *argv[])
 	}
 
 	loading_data arg;
+	
 	GetCurrentDirectoryW(MAX_PATH, arg.load_path);
 	wcscat_s(arg.load_path, L"\\");
 	wcscat_s(arg.load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
+
 
 	if (GetFileAttributesW(arg.load_path) == INVALID_FILE_ATTRIBUTES)
 	{
