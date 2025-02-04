@@ -808,9 +808,9 @@ namespace reshade { namespace api
 		virtual void reload_effect_next_frame(const char *effect_name) = 0;
 
 		/// <summary>
-		/// Saves the current preset with the current state of the loaded techniques and uniform variables.
+		/// Export the current preset with the current state of the loaded techniques and uniform variables.
 		/// </summary>
 		/// <param name="path">File path to the preset to save to.</param>
-		virtual void save_current_preset(const char *path) const = 0;
+		virtual void export_current_preset(const char *path) const = 0;
 	};
 } }

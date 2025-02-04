@@ -179,8 +179,8 @@ namespace reshade
 #if RESHADE_FX
 		void load_current_preset();
 		void save_current_preset() const final;
-		void save_current_preset(const char *path) const final;
 		void save_current_preset(ini_file &preset) const;
+		void export_current_preset(const char *path) const final;
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
@@ -236,8 +236,8 @@ namespace reshade
 
 		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, int scope_mask, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
 #else
-		void save_current_preset(const char *path) const final {}
 		void save_current_preset() const final {}
+		void export_current_preset(const char *path) const final {}
 #endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);

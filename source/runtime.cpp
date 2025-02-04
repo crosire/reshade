@@ -1285,13 +1285,6 @@ void reshade::runtime::save_current_preset() const
 		save_current_preset(*preset);
 }
 void reshade::runtime::save_current_preset(const char *path) const
-{
-	if (path == nullptr)
-		return;
-
-	if (ini_file *preset = ini_file::find_cache(std::filesystem::u8path(path)); preset)
-		save_current_preset(*preset);
-}
 void reshade::runtime::save_current_preset(ini_file &preset) const
 {
 	// Build list of active techniques and effects
@@ -1386,6 +1379,23 @@ void reshade::runtime::save_current_preset(ini_file &preset) const
 				break;
 			}
 		}
+	}
+}
+void reshade::runtime::export_current_preset(const char *path_in) const
+{
+	if (path_in == nullptr)
+		return;
+
+	std::filesystem::path path = std::filesystem::u8path(path_in);
+	if (ini_file *found = ini_file::find_cache(path); found == nullptr)
+	{
+		ini_file preset(path);
+		save_current_preset(preset);
+		preset.save();
+	}
+	else
+	{
+		save_current_preset(*found);
 	}
 }
 
@@ -1900,7 +1910,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if ( compiled && (preprocessed || source_cached))
+	if (compiled && (preprocessed || source_cached))
 	{
 		if (permutation.assembly.empty())
 		{
@@ -2256,7 +2266,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	else
 		_reload_remaining_effects = 0; // Force effect initialization in 'update_effects'
 
-	if ( compiled && (preprocessed || source_cached))
+	if (compiled && (preprocessed || source_cached))
 	{
 		if (effect.errors.empty())
 			log::message(log::level::info, "Successfully compiled '%s'%s in %f s.", source_file.u8string().c_str(), permutation_index == 0 ? "" : " permutation", std::chrono::duration_cast<std::chrono::milliseconds>(time_load_finished - time_load_started).count() * 1e-3f);
