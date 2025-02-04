@@ -120,7 +120,7 @@ void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const
 	config.set(section_string, key_string, elements);
 }
 
-void ReShadeFlushConfigFile(HMODULE module, const char *path)
+void ReShadeFlushConfigFile(HMODULE, const char *path)
 {
 	if (path == nullptr)
 	{
