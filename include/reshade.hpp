@@ -31,8 +31,6 @@ RESHADE_API_LIBRARY_DECL bool ReShadeGetConfigValue(HMODULE module, reshade::api
 RESHADE_API_LIBRARY_DECL void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value);
 RESHADE_API_LIBRARY_DECL void ReShadeSetConfigArray(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t value_size);
 
-RESHADE_API_LIBRARY_DECL void ReShadeFlushConfigFile(HMODULE module, const char *path);
-
 RESHADE_API_LIBRARY_DECL bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version);
 RESHADE_API_LIBRARY_DECL void ReShadeUnregisterAddon(HMODULE module);
 
@@ -239,17 +237,6 @@ namespace reshade
 		static const auto func = reinterpret_cast<void(*)(HMODULE, api::effect_runtime *, const char *, const char *, const char *, size_t)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeSetConfigArray"));
 		func(internal::get_current_module_handle(), runtime, section, key, value, value_size);
-#endif
-	}
-
-	inline void flush_config_file(const char *path = nullptr)
-	{
-#if defined(RESHADE_API_LIBRARY)
-		ReShadeFlushConfigFile(nullptr, path);
-#else
-		static const auto func = reinterpret_cast<void(*)(HMODULE, const char *)>(
-			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeFlushConfigFile"));
-		func(internal::get_current_module_handle(), path);
 #endif
 	}
 

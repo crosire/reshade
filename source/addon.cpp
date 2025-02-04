@@ -120,18 +120,6 @@ void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const
 	config.set(section_string, key_string, elements);
 }
 
-void ReShadeFlushConfigFile(HMODULE, const char *path)
-{
-	if (path == nullptr)
-	{
-		ini_file::flush_cache();
-	}
-	else
-	{
-		ini_file::flush_cache(std::filesystem::u8path(path));
-	}
-}
-
 #if RESHADE_ADDON && RESHADE_FX
 
 #include "d3d9/d3d9_impl_device.hpp"
