@@ -558,6 +558,11 @@ namespace ReShade.Setup
 			currentInfo.targetOpenXR = false;
 
 			string basePath = Path.GetDirectoryName(currentInfo.targetPath);
+			if (basePath.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.Windows)))
+			{
+				UpdateStatusAndFinish(false, "Installation to the Windows directory is prohibited.");
+				return;
+			}
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
 			DownloadCompatibilityIni();
