@@ -806,5 +806,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="effect_name">File name of the effect file that should be reloaded, or <see langword="nullptr"/> to reload all effects.</param>
 		virtual void reload_effect_next_frame(const char *effect_name) = 0;
+
+		/// <summary>
+		/// Export the current preset with the current state of the loaded techniques and uniform variables.
+		/// </summary>
+		/// <param name="path">File path to the preset to save to.</param>
+		virtual void export_current_preset(const char *path) const = 0;
 	};
 } }

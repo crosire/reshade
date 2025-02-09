@@ -262,6 +262,21 @@ void ini_file::clear_cache(std::filesystem::path path)
 	s_ini_cache.erase(path);
 }
 
+ini_file *ini_file::find_cache(std::filesystem::path path)
+{
+	assert(!path.empty());
+
+	std::error_code ec;
+	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
+		path = std::move(resolved);
+
+	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+
+	if (auto it = s_ini_cache.find(path); it == s_ini_cache.end())
+		return nullptr;
+	else
+		return &*it->second;
+}
 ini_file &ini_file::load_cache(std::filesystem::path path)
 {
 	assert(!path.empty());
