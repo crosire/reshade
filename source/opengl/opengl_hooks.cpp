@@ -3115,12 +3115,28 @@ void APIENTRY glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsi
 #ifdef GL_VERSION_3_1
 void APIENTRY glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer)
 {
-#if RESHADE_ADDON
-	glTexBufferRange(target, internalformat, buffer, 0, -1);
-#else
 	static const auto trampoline = reshade::hooks::call(glTexBuffer);
-	trampoline(target, internalformat, buffer);
+
+#if RESHADE_ADDON
+	if (g_opengl_context)
+	{
+		GLintptr offset = 0, size = -1;
+		init_resource_view resource_view(target, 0, buffer, internalformat, offset, size);
+		resource_view.invoke_create_event(&internalformat, &offset, &size);
+		if (size > 0)
+		{
+			static const auto trampoline_range = reshade::hooks::call(glTexBufferRange);
+			trampoline_range(target, internalformat, buffer, offset, size);
+		}
+		else
+		{
+			trampoline(target, internalformat, buffer);
+		}
+		resource_view.invoke_initialize_event();
+	}
+	else
 #endif
+		trampoline(target, internalformat, buffer);
 }
 
 void APIENTRY glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size)
@@ -3706,30 +3722,6 @@ void APIENTRY glTexBufferRange(GLenum target, GLenum internalformat, GLuint buff
 	static const auto trampoline = reshade::hooks::call(glTexBufferRange);
 
 #if RESHADE_ADDON
-	if (size == -1)
-	{
-		if (gl.GetNamedBufferParameteri64v != nullptr)
-		{
-#ifndef _WIN64
-			gl.GetNamedBufferParameteriv(buffer, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
-#else
-			gl.GetNamedBufferParameteri64v(buffer, GL_BUFFER_SIZE, &size);
-#endif
-		}
-		else
-		{
-			GLint prev_binding = 0;
-			gl.GetIntegerv(GL_COPY_READ_BUFFER_BINDING, &prev_binding);
-			gl.BindBuffer(GL_COPY_READ_BUFFER, buffer);
-#ifndef _WIN64
-			gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
-#else
-			gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &size);
-#endif
-			gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
-		}
-	}
-
 	if (g_opengl_context)
 	{
 		init_resource_view resource_view(target, 0, buffer, internalformat, offset, size);
@@ -4184,29 +4176,34 @@ void APIENTRY glBindVertexBuffers(GLuint first, GLsizei count, const GLuint *buf
 #ifdef GL_VERSION_4_5
 void APIENTRY glTextureBuffer(GLuint texture, GLenum internalformat, GLuint buffer)
 {
-#if RESHADE_ADDON
-	glTextureBufferRange(texture, internalformat, buffer, 0, -1);
-#else
 	static const auto trampoline = reshade::hooks::call(glTextureBuffer);
-	trampoline(texture, internalformat, buffer);
+
+#if RESHADE_ADDON
+	if (g_opengl_context)
+	{
+		GLintptr offset = 0, size = -1;
+		init_resource_view resource_view(GL_TEXTURE_BUFFER, texture, buffer, internalformat, offset, size);
+		resource_view.invoke_create_event(&internalformat, &offset, &size);
+		if (size > 0)
+		{
+			static const auto trampoline_range = reshade::hooks::call(glTextureBufferRange);
+			trampoline_range(texture, internalformat, buffer, offset, size);
+		}
+		else
+		{
+			trampoline(texture, internalformat, buffer);
+		}
+		resource_view.invoke_initialize_event();
+	}
+	else
 #endif
+		trampoline(texture, internalformat, buffer);
 }
 void APIENTRY glTextureBufferRange(GLuint texture, GLenum internalformat, GLuint buffer, GLintptr offset, GLsizeiptr size)
 {
 	static const auto trampoline = reshade::hooks::call(glTextureBufferRange);
 
 #if RESHADE_ADDON
-	if (size == -1)
-	{
-#ifndef _WIN64
-		assert(gl.GetNamedBufferParameteriv != nullptr);
-		gl.GetNamedBufferParameteriv(buffer, GL_BUFFER_SIZE, reinterpret_cast<GLint *>(&size));
-#else
-		assert(gl.GetNamedBufferParameteri64v != nullptr);
-		gl.GetNamedBufferParameteri64v(buffer, GL_BUFFER_SIZE, &size);
-#endif
-	}
-
 	if (g_opengl_context)
 	{
 		init_resource_view resource_view(GL_TEXTURE_BUFFER, texture, buffer, internalformat, offset, size);
