@@ -16,8 +16,10 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 		break;
 	case api::format::unknown:
 		return shader_usage ? D3DFMT_UNKNOWN : static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
+
 	case api::format::r1_unorm:
 		return D3DFMT_A1; // Not a perfect fit for R1, but what can you do ...
+
 	case api::format::l8_unorm:
 		return D3DFMT_L8;
 	case api::format::a8_unorm:
@@ -28,6 +30,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::r8_sint:
 	case api::format::r8_snorm:
 		return D3DFMT_L8; // Not a perfect fit for R8, so is overridden in 'convert_format_internal'
+
 	case api::format::l8a8_unorm:
 		return D3DFMT_A8L8;
 	case api::format::r8g8_typeless:
@@ -36,6 +39,12 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::r8g8_snorm:
 	case api::format::r8g8_sint:
 		break; // Unsupported
+
+	case api::format::b8g8r8_typeless:
+	case api::format::b8g8r8_unorm:
+	case api::format::b8g8r8_unorm_srgb:
+		return D3DFMT_R8G8B8;
+
 	case api::format::r8g8b8a8_typeless:
 	case api::format::r8g8b8a8_unorm:
 	case api::format::r8g8b8a8_unorm_srgb:
@@ -47,6 +56,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::r8g8b8x8_unorm:
 	case api::format::r8g8b8x8_unorm_srgb:
 		return D3DFMT_X8B8G8R8;
+
 	case api::format::b8g8r8a8_typeless:
 	case api::format::b8g8r8a8_unorm:
 	case api::format::b8g8r8a8_unorm_srgb:
@@ -55,16 +65,19 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::b8g8r8x8_unorm:
 	case api::format::b8g8r8x8_unorm_srgb:
 		return D3DFMT_X8R8G8B8;
+
 	case api::format::r10g10b10a2_typeless:
 	case api::format::r10g10b10a2_uint:
 	case api::format::r10g10b10a2_unorm:
 		return D3DFMT_A2B10G10R10;
 	case api::format::r10g10b10a2_xr_bias:
 		return D3DFMT_A2B10G10R10_XR_BIAS;
+
 	case api::format::b10g10r10a2_typeless:
 	case api::format::b10g10r10a2_uint:
 	case api::format::b10g10r10a2_unorm:
 		return D3DFMT_A2R10G10B10;
+
 	case api::format::l16_unorm:
 	case api::format::r16_uint:
 	case api::format::r16_sint:
@@ -74,6 +87,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::r16_typeless:
 	case api::format::r16_float:
 		return D3DFMT_R16F;
+
 	case api::format::l16a16_unorm:
 		break; // Unsupported
 	case api::format::r16g16_uint:
@@ -84,6 +98,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::r16g16_typeless:
 	case api::format::r16g16_float:
 		return D3DFMT_G16R16F;
+
 	case api::format::r16g16b16a16_uint:
 	case api::format::r16g16b16a16_sint:
 	case api::format::r16g16b16a16_unorm:
@@ -92,24 +107,28 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::r16g16b16a16_typeless: // Do the same thing as 'format_to_default_typed' and interpret typeless as floating-point
 	case api::format::r16g16b16a16_float:
 		return D3DFMT_A16B16G16R16F;
+
 	case api::format::r32_uint:
 	case api::format::r32_sint:
 		break; // Unsupported
 	case api::format::r32_typeless:
 	case api::format::r32_float:
 		return D3DFMT_R32F;
+
 	case api::format::r32g32_uint:
 	case api::format::r32g32_sint:
 		break; // Unsupported
 	case api::format::r32g32_typeless:
 	case api::format::r32g32_float:
 		return D3DFMT_G32R32F;
+
 	case api::format::r32g32b32a32_uint:
 	case api::format::r32g32b32a32_sint:
 		break; // Unsupported
 	case api::format::r32g32b32a32_typeless:
 	case api::format::r32g32b32a32_float:
 		return D3DFMT_A32B32G32R32F;
+
 	case api::format::r9g9b9e5:
 	case api::format::r11g11b10_float:
 		break; // Unsupported
@@ -123,6 +142,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 		return D3DFMT_A4R4G4B4;
 	case api::format::a4b4g4r4_unorm:
 		break; // Unsupported
+
 	case api::format::s8_uint:
 		return lockable ? D3DFMT_S8_LOCKABLE : D3DFMT_UNKNOWN;
 	case api::format::d16_unorm:
@@ -144,6 +164,7 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::x32_float_g8_uint:
 	case api::format::d32_float_s8_uint:
 		break; // Unsupported
+
 	case api::format::bc1_typeless:
 	case api::format::bc1_unorm:
 	case api::format::bc1_unorm_srgb:
@@ -164,10 +185,12 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 	case api::format::bc5_unorm:
 	case api::format::bc5_snorm:
 		return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
+
 	case api::format::r8g8_b8g8_unorm:
 		return D3DFMT_G8R8_G8B8;
 	case api::format::g8r8_g8b8_unorm:
 		return D3DFMT_R8G8_B8G8;
+
 	case api::format::intz:
 		return static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 	}
@@ -185,44 +208,60 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 	case MAKEFOURCC('N', 'U', 'L', 'L'):
 	case MAKEFOURCC('N', 'V', 'C', 'S'): // Internal resource created by NVAPI
 		return api::format::unknown;
+
 	case D3DFMT_A1:
 		return api::format::r1_unorm;
+
 	case D3DFMT_L8:
 		return api::format::l8_unorm;
 	case D3DFMT_A8:
 		return api::format::a8_unorm;
+
+	case D3DFMT_R8G8B8:
+		return api::format::b8g8r8_unorm;
+
 	case D3DFMT_A8B8G8R8:
 		return api::format::r8g8b8a8_unorm;
 	case D3DFMT_X8B8G8R8:
 		return api::format::r8g8b8x8_unorm;
+
 	case D3DFMT_A8R8G8B8:
 		return api::format::b8g8r8a8_unorm;
 	case D3DFMT_X8R8G8B8:
 		return api::format::b8g8r8x8_unorm;
+
 	case D3DFMT_A2B10G10R10:
 		return api::format::r10g10b10a2_unorm;
 	case D3DFMT_A2B10G10R10_XR_BIAS:
 		return api::format::r10g10b10a2_xr_bias;
+
 	case D3DFMT_A2R10G10B10:
 		return api::format::b10g10r10a2_unorm;
+
 	case D3DFMT_L16:
 		return api::format::l16_unorm;
 	case D3DFMT_R16F:
 		return api::format::r16_float;
+
 	case D3DFMT_G16R16:
 		return api::format::r16g16_unorm;
 	case D3DFMT_G16R16F:
 		return api::format::r16g16_float;
+
 	case D3DFMT_A16B16G16R16:
 		return api::format::r16g16b16a16_unorm;
 	case D3DFMT_A16B16G16R16F:
 		return api::format::r16g16b16a16_float;
+
 	case D3DFMT_R32F:
 		return api::format::r32_float;
+
 	case D3DFMT_G32R32F:
 		return api::format::r32g32_float;
+
 	case D3DFMT_A32B32G32R32F:
 		return api::format::r32g32b32a32_float;
+
 	case D3DFMT_R5G6B5:
 		return api::format::b5g6r5_unorm;
 	case D3DFMT_A1R5G5B5:
@@ -231,6 +270,7 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 		return api::format::b5g5r5x1_unorm;
 	case D3DFMT_A4R4G4B4:
 		return api::format::b4g4r4a4_unorm;
+
 	case D3DFMT_S8_LOCKABLE:
 		if (lockable != nullptr)
 			*lockable = TRUE;
@@ -253,6 +293,7 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 		[[fallthrough]];
 	case D3DFMT_D32:
 		return api::format::d32_float;
+
 	case D3DFMT_DXT1:
 		return api::format::bc1_unorm;
 	case D3DFMT_DXT2:
@@ -265,14 +306,17 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 		return api::format::bc4_unorm;
 	case MAKEFOURCC('A', 'T', 'I', '2'):
 		return api::format::bc5_unorm;
+
 	case D3DFMT_R8G8_B8G8:
 		return api::format::g8r8_g8b8_unorm;
 	case D3DFMT_G8R8_G8B8:
 		return api::format::r8g8_b8g8_unorm;
+
 	case D3DFMT_INDEX16:
 		return api::format::r16_uint;
 	case D3DFMT_INDEX32:
 		return api::format::r32_uint;
+
 	case MAKEFOURCC('I', 'N', 'T', 'Z'):
 		return api::format::intz;
 	}

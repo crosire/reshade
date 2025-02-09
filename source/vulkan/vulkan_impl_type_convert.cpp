@@ -17,8 +17,10 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		[[fallthrough]];
 	case api::format::unknown:
 		break;
+
 	case api::format::r1_unorm:
 		break; // Unsupported
+
 	case api::format::l8_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE };
@@ -36,6 +38,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_R8_UNORM;
 	case api::format::r8_snorm:
 		return VK_FORMAT_R8_SNORM;
+
 	case api::format::l8a8_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
@@ -49,6 +52,25 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_R8G8_UNORM;
 	case api::format::r8g8_snorm:
 		return VK_FORMAT_R8G8_SNORM;
+
+	case api::format::r8g8b8_uint:
+		return VK_FORMAT_R8G8B8_UINT;
+	case api::format::r8g8b8_sint:
+		return VK_FORMAT_R8G8B8_SINT;
+	case api::format::r8g8b8_typeless:
+	case api::format::r8g8b8_unorm:
+		return VK_FORMAT_R8G8B8_UNORM;
+	case api::format::r8g8b8_unorm_srgb:
+		return VK_FORMAT_R8G8B8_SRGB;
+	case api::format::r8g8b8_snorm:
+		return VK_FORMAT_R8G8B8_SNORM;
+
+	case api::format::b8g8r8_typeless:
+	case api::format::b8g8r8_unorm:
+		return VK_FORMAT_B8G8R8_UNORM;
+	case api::format::b8g8r8_unorm_srgb:
+		return VK_FORMAT_B8G8R8_SRGB;
+
 	case api::format::r8g8b8a8_uint:
 		return VK_FORMAT_R8G8B8A8_UINT;
 	case api::format::r8g8b8a8_sint:
@@ -68,6 +90,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_R8G8B8A8_SRGB;
 	case api::format::r8g8b8a8_snorm:
 		return VK_FORMAT_R8G8B8A8_SNORM;
+
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
 		if (components != nullptr)
@@ -82,6 +105,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		[[fallthrough]];
 	case api::format::b8g8r8a8_unorm_srgb:
 		return VK_FORMAT_B8G8R8A8_SRGB;
+
 	case api::format::r10g10b10a2_uint:
 		return VK_FORMAT_A2B10G10R10_UINT_PACK32;
 	case api::format::r10g10b10a2_typeless:
@@ -89,11 +113,13 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
 	case api::format::r10g10b10a2_xr_bias:
 		break; // Unsupported
+
 	case api::format::b10g10r10a2_uint:
 		return VK_FORMAT_A2R10G10B10_UINT_PACK32;
 	case api::format::b10g10r10a2_typeless:
 	case api::format::b10g10r10a2_unorm:
 		return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+
 	case api::format::l16_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ONE };
@@ -109,6 +135,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r16_typeless:
 	case api::format::r16_float:
 		return VK_FORMAT_R16_SFLOAT;
+
 	case api::format::l16a16_unorm:
 		if (components != nullptr)
 			*components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G };
@@ -124,6 +151,19 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r16g16_typeless:
 	case api::format::r16g16_float:
 		return VK_FORMAT_R16G16_SFLOAT;
+
+	case api::format::r16g16b16_uint:
+		return VK_FORMAT_R16G16B16_UINT;
+	case api::format::r16g16b16_sint:
+		return VK_FORMAT_R16G16B16_SINT;
+	case api::format::r16g16b16_unorm:
+		return VK_FORMAT_R16G16B16_UNORM;
+	case api::format::r16g16b16_snorm:
+		return VK_FORMAT_R16G16B16_SNORM;
+	case api::format::r16g16b16_typeless:
+	case api::format::r16g16b16_float:
+		return VK_FORMAT_R16G16B16_SFLOAT;
+
 	case api::format::r16g16b16a16_uint:
 		return VK_FORMAT_R16G16B16A16_UINT;
 	case api::format::r16g16b16a16_sint:
@@ -135,6 +175,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r16g16b16a16_typeless:
 	case api::format::r16g16b16a16_float:
 		return VK_FORMAT_R16G16B16A16_SFLOAT;
+
 	case api::format::r32_uint:
 		return VK_FORMAT_R32_UINT;
 	case api::format::r32_sint:
@@ -142,6 +183,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r32_typeless:
 	case api::format::r32_float:
 		return VK_FORMAT_R32_SFLOAT;
+
 	case api::format::r32g32_uint:
 		return VK_FORMAT_R32G32_UINT;
 	case api::format::r32g32_sint:
@@ -149,6 +191,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r32g32_typeless:
 	case api::format::r32g32_float:
 		return VK_FORMAT_R32G32_SFLOAT;
+
 	case api::format::r32g32b32_uint:
 		return VK_FORMAT_R32G32B32_UINT;
 	case api::format::r32g32b32_sint:
@@ -156,6 +199,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r32g32b32_typeless:
 	case api::format::r32g32b32_float:
 		return VK_FORMAT_R32G32B32_SFLOAT;
+
 	case api::format::r32g32b32a32_uint:
 		return VK_FORMAT_R32G32B32A32_UINT;
 	case api::format::r32g32b32a32_sint:
@@ -163,6 +207,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r32g32b32a32_typeless:
 	case api::format::r32g32b32a32_float:
 		return VK_FORMAT_R32G32B32A32_SFLOAT;
+
 	case api::format::r9g9b9e5:
 		return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
 	case api::format::r11g11b10_float:
@@ -179,6 +224,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_A4R4G4B4_UNORM_PACK16;
 	case api::format::a4b4g4r4_unorm:
 		return VK_FORMAT_A4B4G4R4_UNORM_PACK16;
+
 	case api::format::s8_uint:
 		return VK_FORMAT_S8_UINT;
 	case api::format::d16_unorm:
@@ -199,6 +245,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::x32_float_g8_uint:
 	case api::format::d32_float_s8_uint:
 		return VK_FORMAT_D32_SFLOAT_S8_UINT;
+
 	case api::format::bc1_typeless:
 	case api::format::bc1_unorm:
 		return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
@@ -234,6 +281,7 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		return VK_FORMAT_BC7_UNORM_BLOCK;
 	case api::format::bc7_unorm_srgb:
 		return VK_FORMAT_BC7_SRGB_BLOCK;
+
 	case api::format::r8g8_b8g8_unorm:
 		return VK_FORMAT_B8G8R8G8_422_UNORM;
 	case api::format::g8r8_g8b8_unorm:
@@ -249,6 +297,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 	default:
 	case VK_FORMAT_UNDEFINED:
 		return api::format::unknown;
+
 	case VK_FORMAT_R8_UINT:
 		return api::format::r8_uint;
 	case VK_FORMAT_R8_SINT:
@@ -269,6 +318,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r8_unorm;
 	case VK_FORMAT_R8_SNORM:
 		return api::format::r8_snorm;
+
 	case VK_FORMAT_R8G8_UINT:
 		return api::format::r8g8_uint;
 	case VK_FORMAT_R8G8_SINT:
@@ -283,6 +333,23 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r8g8_unorm;
 	case VK_FORMAT_R8G8_SNORM:
 		return api::format::r8g8_snorm;
+
+	case VK_FORMAT_R8G8B8_UINT:
+		return api::format::r8g8b8_uint;
+	case VK_FORMAT_R8G8B8_SINT:
+		return api::format::r8g8b8_sint;
+	case VK_FORMAT_R8G8B8_UNORM:
+		return api::format::r8g8b8_unorm;
+	case VK_FORMAT_R8G8B8_SRGB:
+		return api::format::r8g8b8_unorm_srgb;
+	case VK_FORMAT_R8G8B8_SNORM:
+		return api::format::r8g8b8_snorm;
+
+	case VK_FORMAT_B8G8R8_UNORM:
+		return api::format::b8g8r8_unorm;
+	case VK_FORMAT_B8G8R8_SRGB:
+		return api::format::b8g8r8_unorm_srgb;
+
 	case VK_FORMAT_R8G8B8A8_UINT:
 	case VK_FORMAT_A8B8G8R8_UINT_PACK32:
 		return api::format::r8g8b8a8_uint;
@@ -310,6 +377,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 	case VK_FORMAT_R8G8B8A8_SNORM:
 	case VK_FORMAT_A8B8G8R8_SNORM_PACK32:
 		return api::format::r8g8b8a8_snorm;
+
 	case VK_FORMAT_B8G8R8A8_UNORM:
 		if (components != nullptr &&
 			components->r == VK_COMPONENT_SWIZZLE_R &&
@@ -326,14 +394,17 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 			components->a == VK_COMPONENT_SWIZZLE_ONE)
 			return api::format::b8g8r8x8_unorm_srgb;
 		return api::format::b8g8r8a8_unorm_srgb;
+
 	case VK_FORMAT_A2B10G10R10_UINT_PACK32:
 		return api::format::r10g10b10a2_uint;
 	case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
 		return api::format::r10g10b10a2_unorm;
+
 	case VK_FORMAT_A2R10G10B10_UINT_PACK32:
 		return api::format::b10g10r10a2_uint;
 	case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
 		return api::format::b10g10r10a2_unorm;
+
 	case VK_FORMAT_R16_UINT:
 		return api::format::r16_uint;
 	case VK_FORMAT_R16_SINT:
@@ -350,6 +421,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r16_snorm;
 	case VK_FORMAT_R16_SFLOAT:
 		return api::format::r16_float;
+
 	case VK_FORMAT_R16G16_UINT:
 		return api::format::r16g16_uint;
 	case VK_FORMAT_R16G16_SINT:
@@ -366,6 +438,18 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r16g16_snorm;
 	case VK_FORMAT_R16G16_SFLOAT:
 		return api::format::r16g16_float;
+
+	case VK_FORMAT_R16G16B16_UINT:
+		return api::format::r16g16b16_uint;
+	case VK_FORMAT_R16G16B16_SINT:
+		return api::format::r16g16b16_sint;
+	case VK_FORMAT_R16G16B16_UNORM:
+		return api::format::r16g16b16_unorm;
+	case VK_FORMAT_R16G16B16_SNORM:
+		return api::format::r16g16b16_snorm;
+	case VK_FORMAT_R16G16B16_SFLOAT:
+		return api::format::r16g16b16_float;
+
 	case VK_FORMAT_R16G16B16A16_UINT:
 		return api::format::r16g16b16a16_uint;
 	case VK_FORMAT_R16G16B16A16_SINT:
@@ -376,30 +460,35 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::r16g16b16a16_snorm;
 	case VK_FORMAT_R16G16B16A16_SFLOAT:
 		return api::format::r16g16b16a16_float;
+
 	case VK_FORMAT_R32_UINT:
 		return api::format::r32_uint;
 	case VK_FORMAT_R32_SINT:
 		return api::format::r32_sint;
 	case VK_FORMAT_R32_SFLOAT:
 		return api::format::r32_float;
+
 	case VK_FORMAT_R32G32_UINT:
 		return api::format::r32g32_uint;
 	case VK_FORMAT_R32G32_SINT:
 		return api::format::r32g32_sint;
 	case VK_FORMAT_R32G32_SFLOAT:
 		return api::format::r32g32_float;
+
 	case VK_FORMAT_R32G32B32_UINT:
 		return api::format::r32g32b32_uint;
 	case VK_FORMAT_R32G32B32_SINT:
 		return api::format::r32g32b32_sint;
 	case VK_FORMAT_R32G32B32_SFLOAT:
 		return api::format::r32g32b32_float;
+
 	case VK_FORMAT_R32G32B32A32_UINT:
 		return api::format::r32g32b32a32_uint;
 	case VK_FORMAT_R32G32B32A32_SINT:
 		return api::format::r32g32b32a32_sint;
 	case VK_FORMAT_R32G32B32A32_SFLOAT:
 		return api::format::r32g32b32a32_float;
+
 	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
 		return api::format::r9g9b9e5;
 	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
@@ -418,6 +507,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::b4g4r4a4_unorm;
 	case VK_FORMAT_A4B4G4R4_UNORM_PACK16:
 		return api::format::a4b4g4r4_unorm;
+
 	case VK_FORMAT_D16_UNORM:
 		return api::format::d16_unorm;
 	case VK_FORMAT_X8_D24_UNORM_PACK32:
@@ -432,6 +522,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::d32_float;
 	case VK_FORMAT_D32_SFLOAT_S8_UINT:
 		return api::format::d32_float_s8_uint;
+
 	case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
 		return api::format::bc1_unorm;
 	case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
@@ -460,6 +551,7 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 		return api::format::bc7_unorm;
 	case VK_FORMAT_BC7_SRGB_BLOCK:
 		return api::format::bc7_unorm_srgb;
+
 	case VK_FORMAT_G8B8G8R8_422_UNORM:
 		return api::format::g8r8_g8b8_unorm;
 	case VK_FORMAT_B8G8R8G8_422_UNORM:

@@ -177,7 +177,7 @@ public:
 		}
 	}
 
-	reshade::api::subresource_data *convert_mapped_subresource(GLenum format, GLenum type, const void *pixels, GLuint width, GLuint height = 1, GLuint depth = 1)
+	reshade::api::subresource_data *convert_mapped_subresource(GLenum format, GLenum type, const void *pixels, GLuint width, GLuint height = 1, GLuint /* depth */ = 1)
 	{
 		if (pixels == nullptr)
 			return nullptr; // Likely a 'GL_PIXEL_UNPACK_BUFFER' currently bound, or this is called while a texture is being created without initial data to upload
@@ -194,72 +194,9 @@ public:
 		if (0 != slice_height)
 			height = slice_height;
 
-		// Convert RGB to RGBA format (GL_RGB -> GL_RGBA, GL_BGR -> GL_BRGA, etc.)
-		const bool convert_rgb_to_rgba = (format == GL_RGB || format == GL_RGB_INTEGER || format == GL_BGR || format == GL_BGR_INTEGER) && type == GL_UNSIGNED_BYTE;
-		if (convert_rgb_to_rgba)
-		{
-			format += 1;
-
-			_temp_data.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4);
-			for (size_t z = 0; z < static_cast<size_t>(depth); ++z)
-			{
-				for (size_t y = 0; y < static_cast<size_t>(height); ++y)
-				{
-					for (size_t x = 0; x < static_cast<size_t>(width); ++x)
-					{
-						const size_t in_index = (z * width * height + y * width + x) * 3;
-						const size_t out_index = (z * width * height + y * width + x) * 4;
-
-						for (size_t c = 0; c < 3; ++c)
-							_temp_data[out_index + c] = static_cast<const uint8_t *>(pixels)[in_index + c];
-						_temp_data[out_index + 3] = 0xFF;
-					}
-				}
-			}
-
-			pixels = _temp_data.data();
-		}
-
-		// Convert BGRA to RGBA format (GL_BGRA -> GLRGBA)
-		const bool convert_bgra_to_rgba = (format == GL_BGRA || format == GL_BGRA_INTEGER) && type == GL_UNSIGNED_BYTE;
-		if (convert_bgra_to_rgba)
-		{
-			switch (format)
-			{
-			case GL_BGRA:
-				format = GL_RGBA;
-				break;
-			case GL_BGRA_INTEGER:
-				format = GL_RGBA_INTEGER;
-				break;
-			}
-
-			_temp_data.resize(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * 4);
-			for (size_t z = 0; z < static_cast<size_t>(depth); ++z)
-			{
-				for (size_t y = 0; y < static_cast<size_t>(height); ++y)
-				{
-					for (size_t x = 0; x < static_cast<size_t>(width); ++x)
-					{
-						const size_t in_index = (z * width * height + y * width + x) * 4;
-						const size_t out_index = (z * width * height + y * width + x) * 4;
-
-						uint8_t b = static_cast<const uint8_t *>(pixels)[in_index + 0];
-						uint8_t r = static_cast<const uint8_t *>(pixels)[in_index + 2];
-						_temp_data[out_index + 0] = r;
-						_temp_data[out_index + 1] = static_cast<const uint8_t *>(pixels)[in_index + 1];
-						_temp_data[out_index + 2] = b;
-						_temp_data[out_index + 3] = static_cast<const uint8_t *>(pixels)[in_index + 3];;
-					}
-				}
-			}
-
-			pixels = _temp_data.data();
-		}
-
 		const auto pixels_format = reshade::opengl::convert_upload_format(format, type);
 
-		if (reshade::api::format_to_typeless(pixels_format) != reshade::api::format_to_typeless(_desc.texture.format) && !convert_rgb_to_rgba)
+		if (reshade::api::format_to_typeless(pixels_format) != reshade::api::format_to_typeless(_desc.texture.format))
 			return nullptr;
 
 		_initial_data.row_pitch = reshade::api::format_row_pitch(pixels_format, width);
@@ -292,7 +229,6 @@ private:
 	GLenum _target;
 	GLuint _object;
 	reshade::api::resource_desc _desc;
-	std::vector<uint8_t> _temp_data;
 	reshade::api::subresource_data _initial_data = {};
 	bool _update_texture = false;
 };
