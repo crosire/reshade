@@ -218,12 +218,19 @@ void reshade::opengl::device_context_impl::bind_render_targets_and_depth_stencil
 		temp_mem<GLenum, 8> draw_buffers(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+			if (rtvs[i].handle == 0)
+			{
+				draw_buffers[i] = GL_NONE;
+			}
+			else
+			{
+				draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
-			const api::format format = _device_impl->get_resource_format(rtvs[i].handle >> 40, rtvs[i].handle & 0xFFFFFFFF);
-			if (format != api::format_to_default_typed(format, 0) &&
-				format == api::format_to_default_typed(format, 1))
-				has_srgb_attachment = true;
+				const api::format format = _device_impl->get_resource_format(rtvs[i].handle >> 40, rtvs[i].handle & 0xFFFFFFFF);
+				if (format != api::format_to_default_typed(format, 0) &&
+					format == api::format_to_default_typed(format, 1))
+					has_srgb_attachment = true;
+			}
 		}
 
 		gl.DrawBuffers(count, draw_buffers.p);
@@ -299,7 +306,8 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource(GLenum
 }
 void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(GLenum target, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)
 {
-	if ((count == 1 && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT) || (count == 0 && (dsv == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)))
+	if ((count == 1 && (rtvs[0].handle >> 40) == GL_FRAMEBUFFER_DEFAULT) ||
+		(count == 0 && (dsv == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)))
 	{
 		assert(dsv == 0 || (dsv.handle >> 40) == GL_FRAMEBUFFER_DEFAULT);
 
@@ -335,6 +343,9 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		if (rtvs[i].handle == 0)
+			continue;
+
 		switch (rtvs[i].handle >> 40)
 		{
 		case GL_TEXTURE_BUFFER:
