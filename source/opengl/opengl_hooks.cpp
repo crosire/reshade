@@ -1803,7 +1803,8 @@ void APIENTRY glLinkProgram(GLuint program)
 	trampoline(program);
 
 #if RESHADE_ADDON
-	if (g_opengl_context && program != 0)
+	if (g_opengl_context && program != 0 &&
+		reshade::has_addon_event<reshade::addon_event::init_pipeline>())
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
@@ -1884,7 +1885,9 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 	const GLchar *combined_source_ptr = nullptr;
 	GLint combined_source_length = -1;
 
-	if (g_opengl_context)
+	if (g_opengl_context && (
+		reshade::has_addon_event<reshade::addon_event::init_pipeline>() ||
+		reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
@@ -4721,7 +4724,9 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 	static const auto trampoline = reshade::hooks::call(glProgramStringARB);
 
 #if RESHADE_ADDON
-	if (g_opengl_context)
+	if (g_opengl_context && (
+		reshade::has_addon_event<reshade::addon_event::init_pipeline>() ||
+		reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
