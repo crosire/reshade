@@ -1931,7 +1931,46 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 		GLenum internal_format = GL_NONE;
 		gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_INTERNAL_FORMAT, reinterpret_cast<GLint *>(&internal_format));
 
-		if (internal_format != GL_SRGB8 && internal_format != GL_SRGB8_ALPHA8)
+		// See supported internal image formats at https://registry.khronos.org/OpenGL-Refpages/gl4/html/glBindImageTexture.xhtml
+		if (internal_format == GL_RGBA16 ||
+			internal_format == GL_RGB10_A2 ||
+			internal_format == GL_RGBA8 ||
+			internal_format == GL_RG16 ||
+			internal_format == GL_RG8 ||
+			internal_format == GL_R16 ||
+			internal_format == GL_R8 ||
+			internal_format == GL_RGBA32F ||
+			internal_format == GL_RGBA16F ||
+			internal_format == GL_RG32F ||
+			internal_format == GL_RG16F ||
+			internal_format == GL_R11F_G11F_B10F ||
+			internal_format == GL_R32F ||
+			internal_format == GL_R16F ||
+			internal_format == GL_RGBA32UI ||
+			internal_format == GL_RGBA16UI ||
+			internal_format == GL_RGB10_A2UI ||
+			internal_format == GL_RGBA8UI ||
+			internal_format == GL_RG32UI ||
+			internal_format == GL_RG16UI ||
+			internal_format == GL_RG8UI ||
+			internal_format == GL_R32UI ||
+			internal_format == GL_R16UI ||
+			internal_format == GL_R8UI ||
+			internal_format == GL_RGBA32I ||
+			internal_format == GL_RGBA16I ||
+			internal_format == GL_RGBA8I ||
+			internal_format == GL_RG32I ||
+			internal_format == GL_RG16I ||
+			internal_format == GL_RG8I ||
+			internal_format == GL_R32I ||
+			internal_format == GL_R16I ||
+			internal_format == GL_R8I ||
+			internal_format == GL_RGBA16_SNORM ||
+			internal_format == GL_RGBA8_SNORM ||
+			internal_format == GL_RG16_SNORM ||
+			internal_format == GL_RG8_SNORM ||
+			internal_format == GL_R16_SNORM ||
+			internal_format == GL_R8_SNORM)
 		{
 			GLuint level_count = 0;
 			gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&level_count));
