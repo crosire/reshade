@@ -1615,8 +1615,10 @@ void reshade::opengl::device_impl::unmap_texture_region(api::resource resource, 
 void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource != 0 && (resource.handle >> 40) == GL_BUFFER);
-	assert(data != nullptr);
 	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+
+	if (data == nullptr)
+		return;
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
@@ -1639,7 +1641,9 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource != 0);
-	assert(data.data != nullptr);
+
+	if (data.data == nullptr)
+		return;
 
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;

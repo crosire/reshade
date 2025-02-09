@@ -1005,7 +1005,9 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource != 0);
-	assert(data != nullptr);
+
+	if (data == nullptr)
+		return;
 
 	if (const auto immediate_command_list = get_immediate_command_list())
 	{
@@ -1019,7 +1021,9 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {
 	assert(resource != 0);
-	assert(data.data != nullptr);
+
+	if (data.data == nullptr)
+		return;
 
 	const auto immediate_command_list = get_immediate_command_list();
 	if (immediate_command_list == nullptr)
