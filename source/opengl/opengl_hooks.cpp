@@ -875,8 +875,8 @@ extern "C" void APIENTRY glClear(GLbitfield mask)
 			gl.GetFloatv(GL_COLOR_CLEAR_VALUE, color_value);
 
 			const reshade::api::resource_view view = device->get_framebuffer_attachment(dst_fbo, current_mask, 0);
-
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_opengl_context, view, color_value, 0, nullptr))
+			if (view != 0 &&
+				reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(g_opengl_context, view, color_value, 0, nullptr))
 				mask ^= current_mask;
 		}
 		if (const GLbitfield current_mask = mask & (GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT))
@@ -887,8 +887,8 @@ extern "C" void APIENTRY glClear(GLbitfield mask)
 			gl.GetIntegerv(GL_STENCIL_CLEAR_VALUE, &stencil_value);
 
 			const reshade::api::resource_view view = device->get_framebuffer_attachment(dst_fbo, current_mask, 0);
-
-			if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_opengl_context, view, mask & GL_DEPTH_BUFFER_BIT ? &depth_value : nullptr, mask & GL_STENCIL_BUFFER_BIT ? reinterpret_cast<const uint8_t *>(&stencil_value) : nullptr, 0, nullptr))
+			if (view != 0 &&
+				reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(g_opengl_context, view, mask & GL_DEPTH_BUFFER_BIT ? &depth_value : nullptr, mask & GL_STENCIL_BUFFER_BIT ? reinterpret_cast<const uint8_t *>(&stencil_value) : nullptr, 0, nullptr))
 				mask ^= current_mask;
 		}
 
