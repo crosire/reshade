@@ -559,7 +559,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	}
 }
 
-static void update_current_input_layout()
+static void update_current_input_layout(GLuint vertex_array_binding = 0)
 {
 	if (g_opengl_context->_current_vao_dirty &&
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
@@ -569,13 +569,25 @@ static void update_current_input_layout()
 		g_opengl_context->_current_ibo_dirty = true;
 		g_opengl_context->_current_vao_dirty = false;
 
-		GLint count = 0;
-		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &count);
+		if (vertex_array_binding == 0)
+			gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&vertex_array_binding));
+
+		if (vertex_array_binding == 0)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
+				g_opengl_context,
+				reshade::api::pipeline_stage::input_assembler,
+				reshade::api::pipeline {});
+			return;
+		}
+
+		GLint max_elements = 0;
+		gl.GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_elements);
 
 		std::vector<reshade::api::input_element> elements;
-		elements.reserve(count);
+		elements.reserve(max_elements);
 
-		for (GLsizei i = 0; i < count; ++i)
+		for (GLsizei i = 0; i < max_elements; ++i)
 		{
 			GLint enabled = GL_FALSE;
 			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &enabled);
@@ -598,9 +610,6 @@ static void update_current_input_layout()
 			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_BINDING, reinterpret_cast<GLint *>(&element.buffer_binding));
 			gl.GetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_DIVISOR, reinterpret_cast<GLint *>(&element.instance_step_rate));
 		}
-
-		GLint vertex_array_binding = 0;
-		gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, &vertex_array_binding);
 
 		reshade::api::pipeline_subobject subobject;
 		subobject.type = reshade::api::pipeline_subobject_type::input_layout;
@@ -2894,7 +2903,7 @@ void APIENTRY glBindVertexArray(GLuint array)
 	{
 		g_opengl_context->_current_vao_dirty = true;
 
-		update_current_input_layout();
+		update_current_input_layout(array);
 	}
 #endif
 }

@@ -490,7 +490,13 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage stages, api::pipeline pipeline)
 {
 	if (pipeline == 0)
+	{
+		if ((stages & api::pipeline_stage::all_shader_stages) != 0)
+			gl.UseProgram(0);
+		if ((stages & api::pipeline_stage::input_assembler) != 0)
+			gl.BindVertexArray(0);
 		return;
+	}
 
 	// Special case for application handles
 	if ((pipeline.handle >> 40) == GL_PROGRAM)
