@@ -180,7 +180,7 @@ public:
 	reshade::api::subresource_data *convert_mapped_subresource(GLenum format, GLenum type, const void *pixels, GLuint width, GLuint height = 1, GLuint depth = 1)
 	{
 		if (pixels == nullptr)
-			return nullptr; // Likely a 'GL_PIXEL_UNPACK_BUFFER' currently bound ...
+			return nullptr; // Likely a 'GL_PIXEL_UNPACK_BUFFER' currently bound, or this is called while a texture is being created without initial data to upload
 		if (_target != GL_NONE && ((_desc.type != reshade::api::resource_type::texture_3d && _desc.texture.depth_or_layers != 1) || _desc.texture.levels > 1))
 			return nullptr; // Currently only a single subresource data element is passed to 'create_resource' and 'init_resource' (see '_initial_data'), so cannot handle textures with multiple subresources
 
@@ -603,8 +603,6 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	gl.GetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack);
 	if (0 == unpack)
 	{
-		assert(pixels != nullptr);
-
 		init_resource resource(desc);
 		reshade::api::subresource_data *const data = resource.convert_mapped_subresource(format, type, pixels, width, height, depth);
 		if (!data)
