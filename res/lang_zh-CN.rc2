@@ -95,7 +95,6 @@ BEGIN
 8134 "截图保存路径"
 25098 "截图命名"
 30328 "可用的宏，保存截图时它们将被自动解析展开：\n  %%AppName%%         应用程序名 (%s)\n  %%PresetName%%      当前预设的文件名，不含扩展名后缀 (%s)\n  %%BeforeAfter%%     描述截图拍摄时刻的术语 ('Before', 'After', 'Overlay')\n  %%Date%%            完整当前日期，形如 '%s'\n  %%DateYear%%        当前日期的年份\n  %%DateMonth%%       当前日期的月份\n  %%DateDay%%         当前日期的日数\n  %%Time%%            完整当前时间，形如 '%s'\n  %%TimeHour%%        当前时间的小时部分\n  %%TimeMinute%%      当前时间的分钟部分\n  %%TimeSecond%%      当前时间的秒数部分\n  %%TimeMS%%          当前时间的毫秒部分\n  %%Count%%           本次会话的第几次截图\n"
-20188 "将图像复制到剪贴板"
 4289 "HDR PNG质量"
 24896 "截图格式"
 3555 "JPEG质量"

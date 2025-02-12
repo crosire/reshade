@@ -36,8 +36,6 @@
 #include <memory>
 #include <io.h>
 
-#include <shellapi.h>
-#include <ShlObj.h>
 #include <wincodec.h>
 
 #pragma comment (lib, "windowscodecs.lib")
@@ -310,7 +308,7 @@ namespace sk_hdr_png
     };
   };
 
-  bool         write_image_to_disk          (const wchar_t* image_path, unsigned int width, unsigned int height, const void*  pixels,          int quantization_bits, format fmt, bool use_clipboard);//, reshade::api::display* display);
+  bool         write_image_to_disk          (const wchar_t* image_path, unsigned int width, unsigned int height, const void*  pixels,          int quantization_bits, format fmt);//, reshade::api::display* display);
   bool         write_hdr_chunks             (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance_array, int quantization_bits);//,                                 reshade::api::display* display);
   cLLi_Payload calculate_content_light_info (const float*   luminance,  unsigned int width, unsigned int height);
   bool         copy_to_clipboard            (const wchar_t* image_path);
@@ -758,63 +756,7 @@ sk_hdr_png::write_hdr_chunks (const wchar_t* image_path, unsigned int width, uns
 }
 
 bool
-sk_hdr_png::copy_to_clipboard (const wchar_t* image_path)
-{
-	std::error_code ec;
-	if (image_path == nullptr || !std::filesystem::exists (image_path, ec))
-	{
-		return false;
-	}
-
-	int clpSize = sizeof (DROPFILES);
-
-	clpSize += sizeof(wchar_t) * static_cast<int>(wcslen(image_path) + 1); // + 1 => '\0'
-	clpSize += sizeof(wchar_t);                                            // two \0 needed at the end
-
-	HDROP   hdrop = static_cast <HDROP>(GlobalAlloc(GHND, clpSize));
-	DROPFILES* df = static_cast <DROPFILES*>(GlobalLock(hdrop));
-
-	if (df != nullptr)
-	{
-		df->pFiles = sizeof(DROPFILES);
-		df->fWide  = TRUE;
-
-		wcscpy((wchar_t*)&df[1], image_path);
-
-		bool clipboard_open = false;
-
-		for (auto attempts = 0; attempts < 8; ++attempts)
-		{
-			if (attempts > 0)
-			{
-				Sleep(1 << (attempts-1));
-			}
-
-			if (OpenClipboard(GetForegroundWindow()))
-			{
-				clipboard_open = true;
-				break;
-			}
-		}
-
-		if (clipboard_open)
-		{
-			EmptyClipboard(                 );
-			SetClipboardData(CF_HDROP, hdrop);
-			CloseClipboard(                 );
-			GlobalUnlock(              hdrop);
-
-			return true;
-		}
-
-		GlobalUnlock(hdrop);
-	}
-
-	return false;
-}
-
-bool
-sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt, bool use_clipboard)//, reshade::api::display* display)
+sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, unsigned int height, const void* pixels, int quantization_bits, format fmt)//, reshade::api::display* display)
 {
 	using namespace DirectX;
 	using namespace DirectX::PackedVector;
@@ -989,12 +931,6 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 	if (SUCCEEDED(hr))
 	{
 		hr = write_hdr_chunks(image_path, width, height, luminance, quantization_bits/*, display*/) ? S_OK : E_FAIL;
-
-		if (SUCCEEDED(hr))
-		{
-			if (use_clipboard)
-				hr = copy_to_clipboard(image_path) ? S_OK : E_FAIL;
-		}
 	}
 
 	_aligned_free(png_buffer);

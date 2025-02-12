@@ -95,7 +95,6 @@ BEGIN
 8134 "Chemin des captures d'écran"
 25098 "Nom des captures d'écran"
 30328 "Macros disponibles durant l'enregistrement :\n  %%AppName%%         Nom de l'application (%s)\n  %%PresetName%%      Nom du fichier de Configuration sans l'extension (%s)\n  %%BeforeAfter%%     Terme décrivant le moment où la capture d'écran a été réalisée ('Before', 'After' ou 'Overlay')\n  %%Date%%            Date actuelle au format '%s'\n  %%DateYear%%        Année de la date actuelle\n  %%DateMonth%%       Mois de la date actuelle\n  %%DateDay%%         Jour de la date actuelle\n  %%Time%%            Horaire actuel au format '%s'\n  %%TimeHour%%        Heures de l'horaire actuel\n  %%TimeMinute%%      Minutes de l'horaire actuel\n  %%TimeSecond%%      Secondes de l'horaire actuel\n  %%TimeMS%%          Millisecondes de l'horaire actuel\n  %%Count%%           Nombre de captures d'écran prises durant cette session\n"
-20188 "Copier l'image dans le presse-papiers"
 4289 "Qualité HDR PNG"
 24896 "Format des captures d'écran"
 3555 "Qualité JPEG"

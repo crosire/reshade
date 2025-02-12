@@ -95,7 +95,6 @@ BEGIN
 8134 "Bildschirmfoto-Pfad"
 25098 "Bildschirmfoto-Name"
 30328 "Makros, die beim Speichern aufgelöst werden:\n  %%AppName%%         Name der Applikation (%s)\n  %%PresetName%%      Dateiname ohne Erweiterung der aktuellen Preset-Datei (%s)\n  %%BeforeAfter%%     Ausdruck, der der den Zeitpunkt der Bildschirmfoto-Erstellung beschreibt ('Before', 'After' oder 'Overlay')\n  %%Date%%            Aktuelles Datum im Format '%s'\n  %%DateYear%%        Jahreskomponente des aktuellen Datums\n  %%DateMonth%%       Monatskomponente des aktuellen Datums\n  %%DateDay%%         Tageskomponente des aktuellen Datums\n  %%Time%%            Aktuelle Zeit im Format '%s'\n  %%TimeHour%%        Stundenkomponente der aktuellen Zeit\n  %%TimeMinute%%      Minutenkomponente der aktuellen Zeit\n  %%TimeSecond%%      Sekundenkomponente der aktuellen Zeit\n  %%TimeMS%%          Millisekundenkomponente der aktuellen Zeit\n  %%Count%%           Anzahl der in der aktuellen Sitzung aufgenommenen Bildschirmfotos\n"
-20188 "Kopiere Bild in die Zwischenablage"
 4289 "HDR PNG Qualität"
 24896 "Bildschirmfoto-Format"
 3555 "JPEG Qualität"

@@ -2271,7 +2271,6 @@ void reshade::runtime::draw_gui_settings()
 		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
 			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
 		{
-			modified |= ImGui::Checkbox(_("Copy image to clipboard"), &_screenshot_clipboard_copy);
 			modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
 		}
 		else

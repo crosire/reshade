@@ -95,7 +95,6 @@ BEGIN
 8134 "Carpeta para las capturas"
 25098 "Nombre de las capturas"
 30328 "Macros que se pueden añadir:\n  %%AppName%%         Nombre de la aplicación (%s)\n  %%PresetName%%      Nombre del archivo del preset (%s)\n  %%BeforeAfter%%     Término que describe el momento en que se tomó la captura ('Before', 'After' o 'Overlay')\n  %%Date%%            Fecha con el formato '%s'\n  %%DateYear%%        Año\n  %%DateMonth%%       Mes\n  %%DateDay%%         Día\n  %%Time%%            Tiempo con el formato '%s'\n  %%TimeHour%%        Horas\n  %%TimeMinute%%      Minutos\n  %%TimeSecond%%      Segundos\n  %%TimeMS%%          Milisegundos\n  %%Count%%           Número de capturas tomadas en ésta sesión\n"
-20188 "Copiar imagen al portapapeles"
 4289 "Calidad del HDR PNG"
 24896 "Formato de las capturas"
 3555 "Calidad del JPEG"

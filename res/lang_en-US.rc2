@@ -95,7 +95,6 @@ BEGIN
 8134 "Screenshot path"
 25098 "Screenshot name"
 30328 "Macros you can add that are resolved during saving:\n  %%AppName%%         Name of the application (%s)\n  %%PresetName%%      File name without extension of the current preset file (%s)\n  %%BeforeAfter%%     Term describing the moment the screenshot was taken ('Before', 'After' or 'Overlay')\n  %%Date%%            Current date in format '%s'\n  %%DateYear%%        Year component of current date\n  %%DateMonth%%       Month component of current date\n  %%DateDay%%         Day component of current date\n  %%Time%%            Current time in format '%s'\n  %%TimeHour%%        Hour component of current time\n  %%TimeMinute%%      Minute component of current time\n  %%TimeSecond%%      Second component of current time\n  %%TimeMS%%          Milliseconds fraction of current time\n  %%Count%%           Number of screenshots taken this session\n"
-20188 "Copy image to clipboard"
 4289 "HDR PNG quality"
 24896 "Screenshot format"
 3555 "JPEG quality"

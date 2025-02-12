@@ -95,7 +95,6 @@ BEGIN
 8134 "스크린샷 경로"
 25098 "스크린샷 이름"
 30328 "저장 중 결정되는 매크로를 추가할 수 있습니다:\n  %%AppName%%         응용 프로그램 이름(%s)\n  %%PresetName%%      현재 사전 설정 파일의 확장자를 제외한 파일 이름(%s)\n  %%BeforeAfter%%     스크린샷이 촬영된 순간을 설명하는 용어('Before', 'After', 'Overlay')\n  %%Date%%            현재 날짜를 '%s' 형식으로 표시\n  %%DateYear%%        현재 날짜의 연도\n  %%DateMonth%%       현재 날짜의 월\n  %%DateDay%%         현재 날짜의 날\n  %%Time%%            현재 시간을 '%s' 형식으로 표시\n  %%TimeHour%%        현재 시간의 시\n  %%TimeMinute%%      현재 시간의 분\n  %%TimeSecond%%      현재 시간의 초\n  %%TimeMS%%          현재 시간의 밀리초\n  %%Count%%           이 세션에서 찍은 스크린샷 수\n"
-20188 "이미지를 클립보드에 복사"
 4289 "HDR PNG 품질"
 24896 "스크린샷 포맷"
 3555 "JPEG 품질"
