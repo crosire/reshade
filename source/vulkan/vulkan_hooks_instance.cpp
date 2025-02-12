@@ -154,6 +154,9 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
 	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
 
+	// Core 1_3
+	INIT_DISPATCH_PTR(GetPhysicalDeviceToolProperties);
+
 	// VK_KHR_surface
 	INIT_DISPATCH_PTR(DestroySurfaceKHR);
 
@@ -213,10 +216,8 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 #include "version.h"
 
-VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
+static VkResult get_physical_device_tool_properties(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolProperties *pToolProperties, VkResult(VKAPI_CALL *trampoline)(VkPhysicalDevice, uint32_t *, VkPhysicalDeviceToolProperties *))
 {
-	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
-
 	assert(pToolCount != nullptr);
 
 	VkResult result = VK_SUCCESS;
@@ -235,8 +236,10 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 		return result;
 	}
 
-	if (result != VK_SUCCESS || available_tool_count < *pToolCount + 1)
-		return VK_INCOMPLETE;
+	if (available_tool_count < *pToolCount + 1 && result >= VK_SUCCESS)
+		result = VK_INCOMPLETE;
+	if (VK_SUCCESS != result)
+		return result;
 
 	VkPhysicalDeviceToolPropertiesEXT &tool_props = pToolProperties[(*pToolCount)++];
 	std::strncpy(tool_props.name, "ReShade", VK_MAX_EXTENSION_NAME_SIZE);
@@ -246,4 +249,17 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physic
 	std::strncpy(tool_props.layer, "VK_LAYER_reshade", VK_MAX_EXTENSION_NAME_SIZE);
 
 	return VK_SUCCESS;
+}
+
+VkResult VKAPI_CALL vkGetPhysicalDeviceToolProperties(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolProperties *pToolProperties)
+{
+	GET_DISPATCH_PTR(GetPhysicalDeviceToolProperties, physicalDevice);
+
+	return get_physical_device_tool_properties(physicalDevice, pToolCount, pToolProperties, trampoline);
+}
+VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
+{
+	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
+
+	return get_physical_device_tool_properties(physicalDevice, pToolCount, pToolProperties, trampoline);
 }
