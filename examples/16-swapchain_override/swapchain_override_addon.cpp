@@ -10,6 +10,20 @@ static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *)
 {
 	bool modified = false;
 
+	if (bool force_vsync;
+		reshade::get_config_value(nullptr, "APP", "ForceVsync", force_vsync))
+	{
+		if (force_vsync)
+		{
+			desc.sync_interval = 1;
+			modified = true;
+		}
+	}
+	else
+	{
+		reshade::set_config_value(nullptr, "APP", "ForceVsync", "0");
+	}
+
 	if (bool force_windowed;
 		reshade::get_config_value(nullptr, "APP", "ForceWindowed", force_windowed))
 	{
@@ -114,6 +128,7 @@ extern "C" __declspec(dllexport) const char *NAME = "Swap chain override";
 extern "C" __declspec(dllexport) const char *DESCRIPTION = "Adds options to force the application into windowed or fullscreen mode, or force a specific resolution or the default refresh rate.\n\n"
 	"These are controlled via ReShade.ini:\n"
 	"[APP]\n"
+	"ForceVsync=<0/1>\n"
 	"ForceWindowed=<0/1>\n"
 	"ForceFullscreen=<0/1>\n"
 	"Force10BitFormat=<0/1>\n"
