@@ -339,7 +339,7 @@ namespace
 	}
 }
 
-static void on_init_swapchain(swapchain *swapchain)
+static void on_init_swapchain(swapchain *swapchain, bool)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
@@ -354,7 +354,7 @@ static void on_init_swapchain(swapchain *swapchain)
 			s_resource_views.emplace(buffer.handle);
 	}
 }
-static void on_destroy_swapchain(swapchain *swapchain)
+static void on_destroy_swapchain(swapchain *swapchain, bool)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 

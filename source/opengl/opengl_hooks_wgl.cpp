@@ -225,7 +225,7 @@ public:
 	}
 	~wgl_swapchain()
 	{
-		on_reset();
+		on_reset(false);
 
 		reshade::destroy_effect_runtime(this);
 	}
@@ -239,8 +239,9 @@ public:
 
 		if (_last_width == width && _last_height == height)
 			return;
-		else
-			on_reset();
+
+		const bool resize = !(_last_width == 0 && _last_height == 0);
+		on_reset(resize);
 
 		_last_width = width;
 		_last_height = height;
@@ -249,7 +250,7 @@ public:
 #if RESHADE_ADDON
 		const auto device = static_cast<wgl_device *>(get_device());
 
-		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this, resize);
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{
@@ -274,7 +275,7 @@ public:
 			device->_default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
 #endif
 	}
-	void on_reset()
+	void on_reset(bool resize)
 	{
 		if (_last_width == 0 && _last_height == 0)
 			return;
@@ -293,7 +294,9 @@ public:
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device, default_ds);
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
+#else
+		UNREFERENCED_PARAMETER(resize);
 #endif
 	}
 	void on_present(reshade::opengl::device_context_impl *context)
@@ -306,7 +309,7 @@ public:
 
 		if (width == 0 || height == 0)
 		{
-			on_reset();
+			on_reset(false);
 			return;
 		}
 

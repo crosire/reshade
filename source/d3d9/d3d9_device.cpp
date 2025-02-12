@@ -302,7 +302,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	dump_and_modify_present_parameters(pp, _d3d.get(), _cp.AdapterOrdinal, _cp.hFocusWindow);
 
 	// Release all resources before performing reset
-	_implicit_swapchain->on_reset();
+	_implicit_swapchain->on_reset(true);
 	on_reset();
 
 	assert(!g_in_d3d9_runtime && !g_in_dxgi_runtime);
@@ -319,7 +319,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (SUCCEEDED(hr))
 	{
 		on_init();
-		_implicit_swapchain->on_init();
+		_implicit_swapchain->on_init(true);
 	}
 	else
 	{
@@ -2522,7 +2522,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	dump_and_modify_present_parameters(pp, fullscreen_mode, _d3d.get(), _cp.AdapterOrdinal, _cp.hFocusWindow);
 
 	// Release all resources before performing reset
-	_implicit_swapchain->on_reset();
+	_implicit_swapchain->on_reset(true);
 	on_reset();
 
 	assert(!g_in_d3d9_runtime && !g_in_dxgi_runtime);
@@ -2539,7 +2539,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (SUCCEEDED(hr))
 	{
 		on_init();
-		_implicit_swapchain->on_init();
+		_implicit_swapchain->on_init(true);
 	}
 	else
 	{

@@ -101,7 +101,7 @@ namespace reshade
 		destroy_command_queue,
 
 		/// <summary>
-		/// Called after successful swap chain creation, from:
+		/// Called after successful swap chain creation (with the resize argument set to <see langword="false"/>), from:
 		/// <list type="bullet">
 		/// <item><description>IDirect3D9::CreateDevice (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3D9Ex::CreateDeviceEx (for the implicit swap chain)</description></item>
@@ -109,18 +109,18 @@ namespace reshade
 		/// <item><description>IDXGIFactory::CreateSwapChain</description></item>
 		/// <item><description>IDXGIFactory2::CreateSwapChain(...)</description></item>
 		/// <item><description>wglMakeCurrent</description></item>
-		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkCreateSwapchainKHR</description></item>
 		/// <item><description>xrCreateSession</description></item>
 		/// </list>
-		/// In addition, called when swap chain is resized, after:
+		/// In addition, called when swap chain is resized (with the resize argument set to <see langword="true"/>, in which case the object is reused), after:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::Reset (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3DDevice9Ex::ResetEx (for the implicit swap chain)</description></item>
 		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
 		/// <item><description>IDXGISwapChain3::ResizeBuffers1</description></item>
+		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
+		/// <para>Callback function signature: <c>void (api::swapchain *swapchain, bool resize)</c></para>
 		/// </summary>
 		init_swapchain,
 
@@ -147,24 +147,24 @@ namespace reshade
 		create_swapchain,
 
 		/// <summary>
-		/// Called on swap chain destruction, before:
+		/// Called on swap chain destruction (with the resize argument set to <see langword="false"/>), before:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::Release (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3DSwapChain9::Release</description></item>
 		/// <item><description>IDXGISwapChain::Release</description></item>
 		/// <item><description>wglDeleteContext</description></item>
-		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// <item><description>vkDestroySwapchainKHR</description></item>
 		/// <item><description>xrDestroySession</description></item>
 		/// </list>
-		/// In addition, called when swap chain is resized, before:
+		/// In addition, called when swap chain is resized (with the resize argument set to <see langword="true"/>, in which case the object will be reused), before:
 		/// <list type="bullet">
 		/// <item><description>IDirect3DDevice9::Reset (for the implicit swap chain)</description></item>
 		/// <item><description>IDirect3DDevice9Ex::ResetEx (for the implicit swap chain)</description></item>
 		/// <item><description>IDXGISwapChain::ResizeBuffers</description></item>
 		/// <item><description>IDXGISwapChain1::ResizeBuffers1</description></item>
+		/// <item><description>wglSwapBuffers (after window was resized)</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::swapchain *swapchain)</c></para>
+		/// <para>Callback function signature: <c>void (api::swapchain *swapchain, bool resize)</c></para>
 		/// </summary>
 		destroy_swapchain,
 
@@ -1739,9 +1739,9 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_command_queue, void, api::command_queue *queue);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_command_queue, void, api::command_queue *queue);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_swapchain, void, api::swapchain *swapchain);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_swapchain, void, api::swapchain *swapchain, bool resize);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_swapchain, bool, api::swapchain_desc &desc, void *hwnd);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_swapchain, void, api::swapchain *swapchain);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_swapchain, void, api::swapchain *swapchain, bool resize);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::init_effect_runtime, void, api::effect_runtime *runtime);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_effect_runtime, void, api::effect_runtime *runtime);

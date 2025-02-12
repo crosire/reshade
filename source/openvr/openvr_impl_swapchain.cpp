@@ -121,7 +121,7 @@ bool reshade::openvr::swapchain_impl::on_init()
 	assert(_side_by_side_texture != 0);
 
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::init_swapchain>(this);
+	invoke_addon_event<addon_event::init_swapchain>(this, false);
 #endif
 
 	init_effect_runtime(this);
@@ -136,7 +136,7 @@ void reshade::openvr::swapchain_impl::on_reset()
 	reset_effect_runtime(this);
 
 #if RESHADE_ADDON
-	invoke_addon_event<addon_event::destroy_swapchain>(this);
+	invoke_addon_event<addon_event::destroy_swapchain>(this, false);
 #endif
 
 	_device->destroy_resource(_side_by_side_texture);

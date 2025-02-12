@@ -29,7 +29,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 	assert(_orig != nullptr && _device != nullptr);
 
 	reshade::create_effect_runtime(this, device);
-	on_init();
+	on_init(false);
 }
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
 	Direct3DSwapChain9(device, static_cast<IDirect3DSwapChain9 *>(original))
@@ -38,7 +38,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 }
 Direct3DSwapChain9::~Direct3DSwapChain9()
 {
-	on_reset();
+	on_reset(false);
 	reshade::destroy_effect_runtime(this);
 }
 
@@ -183,23 +183,25 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX 
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetDisplayModeEx(pMode, pRotation);
 }
 
-void Direct3DSwapChain9::on_init()
+void Direct3DSwapChain9::on_init(bool resize)
 {
 	assert(!_is_initialized);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this);
+	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this, resize);
 
 	D3DPRESENT_PARAMETERS pp = {};
 	_orig->GetPresentParameters(&pp);
 	reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(this, pp.Windowed == FALSE, nullptr);
+#else
+	UNREFERENCED_PARAMETER(resize);
 #endif
 
 	reshade::init_effect_runtime(this);
 
 	_is_initialized = true;
 }
-void Direct3DSwapChain9::on_reset()
+void Direct3DSwapChain9::on_reset(bool resize)
 {
 	// May be called without a previous call to 'on_init' if a device reset had failed
 	if (!_is_initialized)
@@ -208,7 +210,9 @@ void Direct3DSwapChain9::on_reset()
 	reshade::reset_effect_runtime(this);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this);
+	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
+#else
+	UNREFERENCED_PARAMETER(resize);
 #endif
 
 	_back_buffer.reset();
