@@ -152,7 +152,7 @@ Buffers and textures are referenced via `reshade::api::resource` handles. Depth-
 ## Overlays
 
 It is also supported to add an overlay, which can e.g. be used to display debug information or interact with the user in-application.
-Overlays are created with the use of the docking branch of [Dear ImGui](https://github.com/ocornut/imgui/tree/v1.90-docking). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.90-docking/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
+Overlays are created with the use of the docking branch of [Dear ImGui](https://github.com/ocornut/imgui/tree/v1.91.8-docking). Including `reshade.hpp` after [`imgui.h`](https://github.com/ocornut/imgui/blob/v1.91.8-docking/imgui.h) will automatically overwrite all Dear ImGui functions to use the instance created and managed by ReShade. This means all you have to do is include these two headers and use Dear ImGui as usual (without having to build its source code files):
 
 ```cpp
 #define IMGUI_DISABLE_INCLUDE_IMCONFIG_H

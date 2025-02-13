@@ -11,6 +11,50 @@
 
 namespace
 {
+	auto convert_key(ImGuiKey old_value) -> ImGuiKey
+	{
+		if (old_value <= ImGuiKey_F12)
+			return old_value;
+		if (old_value <= (ImGuiKey_KeypadEqual - (ImGuiKey_F24 - ImGuiKey_F12)))
+			return static_cast<ImGuiKey>(old_value - (ImGuiKey_F24 - ImGuiKey_F12));
+		else
+			return static_cast<ImGuiKey>(old_value - (ImGuiKey_F24 - ImGuiKey_F12) - (ImGuiKey_AppForward - ImGuiKey_KeypadEqual));
+	}
+	auto convert_style_var(ImGuiStyleVar old_value) -> ImGuiStyleVar
+	{
+		if (old_value <= 22) // ImGuiStyleVar_TabRounding
+			return old_value;
+		else
+			return old_value + 1;
+	}
+
+	auto convert_window_flags(ImGuiWindowFlags old_flags) -> ImGuiWindowFlags
+	{
+		ImGuiWindowFlags new_flags = old_flags & 0xFFC0FFFF;
+		if (old_flags & (1 << 18)) // ImGuiWindowFlags_NoNavInputs
+			new_flags |= 1 << 16;
+		if (old_flags & (1 << 19)) // ImGuiWindowFlags_NoNavFocus
+			new_flags |= 1 << 17;
+		if (old_flags & (1 << 20)) // ImGuiWindowFlags_UnsavedDocument
+			new_flags |= 1 << 18;
+		if (old_flags & (1 << 21)) // ImGuiWindowFlags_NoDocking
+			new_flags |= 1 << 19;
+		return new_flags;
+	}
+	auto convert_hovered_flags(ImGuiHoveredFlags old_flags) -> ImGuiHoveredFlags
+	{
+		ImGuiHoveredFlags new_flags = old_flags & 0x7FFF;
+		new_flags |= (old_flags & 0x1F800) << 1;
+		return new_flags;
+	}
+	auto convert_tree_node_flags(ImGuiTreeNodeFlags old_flags) -> ImGuiTreeNodeFlags
+	{
+		ImGuiTreeNodeFlags new_flags = old_flags & 0xFFFF9FFF;
+		if (old_flags & (1 << 13)) // ImGuiTreeNodeFlags_NavLeftJumpsBackHere
+			new_flags |= 1 << 14;
+		return new_flags;
+	}
+
 	void convert(const imgui_io_19000 &new_io, imgui_io_18971 &io)
 	{
 		io.ConfigFlags = new_io.ConfigFlags;
@@ -162,56 +206,6 @@ namespace
 		style.HoverFlagsForTooltipMouse = new_style.HoverFlagsForTooltipMouse;
 		style.HoverFlagsForTooltipNav = new_style.HoverFlagsForTooltipNav;
 	}
-
-	auto convert_window_flags(ImGuiWindowFlags old_flags) -> ImGuiWindowFlags
-	{
-		int new_flags = 0;
-		if (old_flags & (1 << 18))
-			new_flags |= ImGuiWindowFlags_NoNavInputs;
-		if (old_flags & (1 << 19))
-			new_flags |= ImGuiWindowFlags_NoNavFocus;
-		if (old_flags & (1 << 20))
-			new_flags |= ImGuiWindowFlags_UnsavedDocument;
-		if (old_flags & (1 << 21))
-			new_flags |= ImGuiWindowFlags_NoDocking;
-
-		return (old_flags & 0xFFC0FFFF) | new_flags;
-	}
-	auto convert_hovered_flags(ImGuiHoveredFlags old_flags) -> ImGuiHoveredFlags
-	{
-		int new_flags = 0;
-		if (old_flags & (1 << 11))
-			new_flags |= ImGuiHoveredFlags_ForTooltip;
-		if (old_flags & (1 << 12))
-			new_flags |= ImGuiHoveredFlags_Stationary;
-		if (old_flags & (1 << 13))
-			new_flags |= ImGuiHoveredFlags_DelayNone;
-		if (old_flags & (1 << 14))
-			new_flags |= ImGuiHoveredFlags_DelayShort;
-		if (old_flags & (1 << 15))
-			new_flags |= ImGuiHoveredFlags_DelayNormal;
-		if (old_flags & (1 << 16))
-			new_flags |= ImGuiHoveredFlags_NoSharedDelay;
-
-		return (old_flags & 0x00FFFFFF) | new_flags;
-	}
-	auto convert_tree_node_flags(ImGuiTreeNodeFlags old_flags) -> ImGuiTreeNodeFlags
-	{
-		int new_flags = 0;
-		if (old_flags & (1 << 13))
-			new_flags |= ImGuiTreeNodeFlags_NavLeftJumpsBackHere;
-
-		return (old_flags & 0xFFFF9FFF) | new_flags;
-	}
-
-	auto convert_key(ImGuiKey old_value) -> ImGuiKey
-	{
-		return old_value <= ImGuiKey_F12 ? old_value : old_value <= (ImGuiKey_KeypadEqual - (ImGuiKey_F24 - ImGuiKey_F12)) ? static_cast<ImGuiKey>(old_value - (ImGuiKey_F24 - ImGuiKey_F12)) : static_cast<ImGuiKey>(old_value - (ImGuiKey_F24 - ImGuiKey_F12) - (ImGuiKey_AppForward - ImGuiKey_KeypadEqual));
-	}
-	auto convert_style_var(ImGuiStyleVar old_value) -> ImGuiStyleVar
-	{
-		return old_value <= ImGuiStyleVar_TabRounding ? old_value : old_value + 1;
-	}
 }
 
 const imgui_function_table_18971 init_imgui_function_table_18971() { return {
@@ -229,14 +223,16 @@ const imgui_function_table_18971 init_imgui_function_table_18971() { return {
 	[](const char *name, bool *p_open, ImGuiWindowFlags flags) -> bool { return g_imgui_function_table_19000.Begin(name, p_open, convert_window_flags(flags)); },
 	g_imgui_function_table_19000.End,
 	[](const char *str_id, const ImVec2 &size, bool border, ImGuiWindowFlags flags) -> bool {
-		ImGuiChildFlags child_flags = border ? ImGuiChildFlags_Border : ImGuiChildFlags_None;
+		ImGuiChildFlags child_flags = 0;
+		if (border)
+			child_flags |= 1 << 0; // ImGuiChildFlags_Border
 		if (flags & (1 << 16))
-			child_flags |= ImGuiChildFlags_AlwaysUseWindowPadding;
+			child_flags |= 1 << 1; // ImGuiChildFlags_AlwaysUseWindowPadding
 		ImVec2 full_size = size;
-		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		if (flags & (1 <<  6)) // ImGuiWindowFlags_AlwaysAutoResize
 		{
-			flags ^= ImGuiWindowFlags_AlwaysAutoResize;
-			child_flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize;
+			flags ^= 1 <<  6;
+			child_flags |= (1 << 4) | (1 << 5) | (1 << 6); // ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize
 			if (size.x == 0.0f)
 				full_size.x = g_imgui_function_table_19000.GetContentRegionAvail().x;
 			if (size.y == 0.0f)
@@ -245,14 +241,16 @@ const imgui_function_table_18971 init_imgui_function_table_18971() { return {
 		return g_imgui_function_table_19000.BeginChild(str_id, full_size, child_flags, convert_window_flags(flags));
 	},
 	[](ImGuiID id, const ImVec2 &size, bool border, ImGuiWindowFlags flags) -> bool {
-		ImGuiChildFlags child_flags = border ? ImGuiChildFlags_Border : ImGuiChildFlags_None;
+		ImGuiChildFlags child_flags = 0;
+		if (border)
+			child_flags |= 1 << 0; // ImGuiChildFlags_Border
 		if (flags & (1 << 16))
-			child_flags |= ImGuiChildFlags_AlwaysUseWindowPadding;
+			child_flags |= 1 << 1; // ImGuiChildFlags_AlwaysUseWindowPadding
 		ImVec2 full_size = size;
-		if (flags & ImGuiWindowFlags_AlwaysAutoResize)
+		if (flags & (1 <<  6)) // ImGuiWindowFlags_AlwaysAutoResize
 		{
-			flags ^= ImGuiWindowFlags_AlwaysAutoResize;
-			child_flags |= ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize;
+			flags ^= 1 <<  6;
+			child_flags |= (1 << 4) | (1 << 5) | (1 << 6); // ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize
 			if (size.x == 0.0f)
 				full_size.x = g_imgui_function_table_19000.GetContentRegionAvail().x;
 			if (size.y == 0.0f)
@@ -388,7 +386,7 @@ const imgui_function_table_18971 init_imgui_function_table_18971() { return {
 		return g_imgui_function_table_19000.Combo3(
 			label,
 			current_item,
-			[](void *user_data, int idx) -> const char *{
+			[](void *user_data, int idx) -> const char * {
 				const char *element = nullptr;
 				static_cast<old_to_new_data_type *>(user_data)->old_callback(static_cast<old_to_new_data_type *>(user_data)->user_data, idx, &element);
 				return element;
@@ -462,7 +460,6 @@ const imgui_function_table_18971 init_imgui_function_table_18971() { return {
 	g_imgui_function_table_19000.EndListBox,
 	g_imgui_function_table_19000.ListBox,
 	[](const char *label, int *current_item, bool (*callback)(void *user_data, int idx, const char **out_text), void *user_data, int items_count, int height_in_items) -> bool {
-
 		struct old_to_new_data_type { void *user_data; bool (*old_callback)(void *, int, const char **); } old_to_new_data = { user_data, callback };
 		return g_imgui_function_table_19000.ListBox2(
 			label,

@@ -590,10 +590,12 @@ void reshade::runtime::load_custom_style()
 		colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
 		colors[ImGuiCol_ResizeGripActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
 		colors[ImGuiCol_Tab] = colors[ImGuiCol_Button];
-		colors[ImGuiCol_TabActive] = colors[ImGuiCol_ButtonActive];
+		colors[ImGuiCol_TabSelected] = colors[ImGuiCol_ButtonActive];
+		colors[ImGuiCol_TabSelectedOverline] = colors[ImGuiCol_ButtonActive];
 		colors[ImGuiCol_TabHovered] = colors[ImGuiCol_ButtonHovered];
-		colors[ImGuiCol_TabUnfocused] = ImLerp(colors[ImGuiCol_Tab], colors[ImGuiCol_TitleBg], 0.80f);
-		colors[ImGuiCol_TabUnfocusedActive] = ImLerp(colors[ImGuiCol_TabActive], colors[ImGuiCol_TitleBg], 0.40f);
+		colors[ImGuiCol_TabDimmed] = ImLerp(colors[ImGuiCol_Tab], colors[ImGuiCol_TitleBg], 0.80f);
+		colors[ImGuiCol_TabDimmedSelected] = ImLerp(colors[ImGuiCol_TabSelected], colors[ImGuiCol_TitleBg], 0.40f);
+		colors[ImGuiCol_TabDimmedSelectedOverline] = colors[ImGuiCol_TabDimmedSelected];
 		colors[ImGuiCol_DockingPreview] = colors[ImGuiCol_Header] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
 		colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
 		colors[ImGuiCol_PlotLines] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.63f);
@@ -638,9 +640,11 @@ void reshade::runtime::load_custom_style()
 		colors[ImGuiCol_ResizeGripActive] = ImColor(0xff756e58);
 		colors[ImGuiCol_Tab] = ImColor(0xff362b00);
 		colors[ImGuiCol_TabHovered] = ImColor(0xff423607);
-		colors[ImGuiCol_TabActive] = ImColor(0xff423607);
-		colors[ImGuiCol_TabUnfocused] = ImColor(0xff362b00);
-		colors[ImGuiCol_TabUnfocusedActive] = ImColor(0xff423607);
+		colors[ImGuiCol_TabSelected] = ImColor(0xff423607);
+		colors[ImGuiCol_TabSelectedOverline] = ImColor(0xff423607);
+		colors[ImGuiCol_TabDimmed] = ImColor(0xff362b00);
+		colors[ImGuiCol_TabDimmedSelected] = ImColor(0xff423607);
+		colors[ImGuiCol_TabDimmedSelectedOverline] = ImColor(0xff423607);
 		colors[ImGuiCol_DockingPreview] = ImColor(0xee837b65); // Customized
 		colors[ImGuiCol_DockingEmptyBg] = ImColor();
 		colors[ImGuiCol_PlotLines] = ImColor(0xff756e58);
@@ -649,7 +653,7 @@ void reshade::runtime::load_custom_style()
 		colors[ImGuiCol_PlotHistogramHovered] = ImColor(0xff756e58);
 		colors[ImGuiCol_TextSelectedBg] = ImColor(0xff756e58);
 		colors[ImGuiCol_DragDropTarget] = ImColor(0xff756e58);
-		colors[ImGuiCol_NavHighlight] = ImColor();
+		colors[ImGuiCol_NavCursor] = ImColor();
 		colors[ImGuiCol_NavWindowingHighlight] = ImColor(0xee969483); // Customized
 		colors[ImGuiCol_NavWindowingDimBg] = ImColor(0x20e3f6fd); // Customized
 		colors[ImGuiCol_ModalWindowDimBg] = ImColor(0x20e3f6fd); // Customized
@@ -690,9 +694,11 @@ void reshade::runtime::load_custom_style()
 		colors[ImGuiCol_ResizeGripActive] = ImColor(0xffa1a193);
 		colors[ImGuiCol_Tab] = ImColor(0xffe3f6fd);
 		colors[ImGuiCol_TabHovered] = ImColor(0xffd5e8ee);
-		colors[ImGuiCol_TabActive] = ImColor(0xffd5e8ee);
-		colors[ImGuiCol_TabUnfocused] = ImColor(0xffe3f6fd);
-		colors[ImGuiCol_TabUnfocusedActive] = ImColor(0xffd5e8ee);
+		colors[ImGuiCol_TabSelected] = ImColor(0xffd5e8ee);
+		colors[ImGuiCol_TabSelectedOverline] = ImColor(0xffd5e8ee);
+		colors[ImGuiCol_TabDimmed] = ImColor(0xffe3f6fd);
+		colors[ImGuiCol_TabDimmedSelected] = ImColor(0xffd5e8ee);
+		colors[ImGuiCol_TabDimmedSelectedOverline] = ImColor(0xffd5e8ee);
 		colors[ImGuiCol_DockingPreview] = ImColor(0xeea1a193); // Customized
 		colors[ImGuiCol_DockingEmptyBg] = ImColor();
 		colors[ImGuiCol_PlotLines] = ImColor(0xffa1a193);
@@ -701,7 +707,7 @@ void reshade::runtime::load_custom_style()
 		colors[ImGuiCol_PlotHistogramHovered] = ImColor(0xffa1a193);
 		colors[ImGuiCol_TextSelectedBg] = ImColor(0xffa1a193);
 		colors[ImGuiCol_DragDropTarget] = ImColor(0xffa1a193);
-		colors[ImGuiCol_NavHighlight] = ImColor();
+		colors[ImGuiCol_NavCursor] = ImColor();
 		colors[ImGuiCol_NavWindowingHighlight] = ImColor(0xee837b65); // Customized
 		colors[ImGuiCol_NavWindowingDimBg] = ImColor(0x20362b00); // Customized
 		colors[ImGuiCol_ModalWindowDimBg] = ImColor(0x20362b00); // Customized
@@ -2005,7 +2011,7 @@ void reshade::runtime::draw_gui_home()
 			_performance_mode ? 0 : (17 /* splitter */ + (bottom_height + (_tutorial_index == 3 ? 175 : 0))));
 		bottom_height = std::min(bottom_height, ImGui::GetContentRegionAvail().y - 20.0f);
 
-		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), ImGuiChildFlags_Border))
+		if (ImGui::BeginChild("##techniques", ImVec2(0, -bottom_height), ImGuiChildFlags_Borders))
 		{
 			if (_effect_load_skipping && _show_force_load_effects_button)
 			{
@@ -2068,7 +2074,7 @@ void reshade::runtime::draw_gui_home()
 
 		const float bottom_height = ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y + (_tutorial_index == 3 ? 175 : 0);
 
-		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), ImGuiChildFlags_Border))
+		if (ImGui::BeginChild("##variables", ImVec2(0, -bottom_height), ImGuiChildFlags_Borders))
 		{
 			ImGui::BeginDisabled(_is_in_preset_transition);
 			draw_variable_editor();
@@ -2407,7 +2413,7 @@ void reshade::runtime::draw_gui_settings()
 		{
 			ImVec4 *const colors = _imgui_context->Style.Colors;
 
-			if (ImGui::BeginChild("##colors", ImVec2(0, 105), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
+			if (ImGui::BeginChild("##colors", ImVec2(0, 105), ImGuiChildFlags_Borders | ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 			{
 				ImGui::PushItemWidth(-160);
 				modified_custom_style |= ImGui::ColorEdit3("Background", &colors[ImGuiCol_WindowBg].x);
@@ -2459,23 +2465,25 @@ void reshade::runtime::draw_gui_settings()
 				colors[ImGuiCol_TextSelectedBg] = colors[ImGuiCol_ButtonActive]; colors[ImGuiCol_TextSelectedBg].w = 0.43f;
 
 				colors[ImGuiCol_Tab] = colors[ImGuiCol_Button];
-				colors[ImGuiCol_TabActive] = colors[ImGuiCol_ButtonActive];
+				colors[ImGuiCol_TabSelected] = colors[ImGuiCol_ButtonActive];
+				colors[ImGuiCol_TabSelectedOverline] = colors[ImGuiCol_TabSelected];
 				colors[ImGuiCol_TabHovered] = colors[ImGuiCol_ButtonHovered];
-				colors[ImGuiCol_TabUnfocused] = ImLerp(colors[ImGuiCol_Tab], colors[ImGuiCol_TitleBg], 0.80f);
-				colors[ImGuiCol_TabUnfocusedActive] = ImLerp(colors[ImGuiCol_TabActive], colors[ImGuiCol_TitleBg], 0.40f);
+				colors[ImGuiCol_TabDimmed] = ImLerp(colors[ImGuiCol_Tab], colors[ImGuiCol_TitleBg], 0.80f);
+				colors[ImGuiCol_TabDimmedSelected] = ImLerp(colors[ImGuiCol_TabSelected], colors[ImGuiCol_TitleBg], 0.40f);
+				colors[ImGuiCol_TabDimmedSelectedOverline] = colors[ImGuiCol_TabDimmedSelected];
 				colors[ImGuiCol_DockingPreview] = colors[ImGuiCol_Header] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
 				colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
 			}
 		}
 		if (_style_index == 4) // Custom Advanced
 		{
-			if (ImGui::BeginChild("##colors", ImVec2(0, 300), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
+			if (ImGui::BeginChild("##colors", ImVec2(0, 300), ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 			{
 				ImGui::PushItemWidth(-160);
 				for (ImGuiCol i = 0; i < ImGuiCol_COUNT; i++)
 				{
 					ImGui::PushID(i);
-					modified_custom_style |= ImGui::ColorEdit4("##color", &_imgui_context->Style.Colors[i].x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
+					modified_custom_style |= ImGui::ColorEdit4("##color", &_imgui_context->Style.Colors[i].x, ImGuiColorEditFlags_AlphaBar);
 					ImGui::SameLine();
 					ImGui::TextUnformatted(ImGui::GetStyleColorName(i));
 					ImGui::PopID();
@@ -2495,14 +2503,14 @@ void reshade::runtime::draw_gui_settings()
 
 		if (_editor_style_index == 2)
 		{
-			if (ImGui::BeginChild("##editor_colors", ImVec2(0, 300), ImGuiChildFlags_Border, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_NavFlattened))
+			if (ImGui::BeginChild("##editor_colors", ImVec2(0, 300), ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 			{
 				ImGui::PushItemWidth(-160);
 				for (ImGuiCol i = 0; i < imgui::code_editor::color_palette_max; i++)
 				{
 					ImVec4 color = ImGui::ColorConvertU32ToFloat4(_editor_palette[i]);
 					ImGui::PushID(i);
-					modified_custom_style |= ImGui::ColorEdit4("##editor_color", &color.x, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
+					modified_custom_style |= ImGui::ColorEdit4("##editor_color", &color.x, ImGuiColorEditFlags_AlphaBar);
 					ImGui::SameLine();
 					ImGui::TextUnformatted(imgui::code_editor::get_palette_color_name(i));
 					ImGui::PopID();
@@ -2589,7 +2597,7 @@ void reshade::runtime::draw_gui_settings()
 				modified |= ImGui::Combo(_("Clock format"), reinterpret_cast<int *>(&_clock_format), "HH:mm\0HH:mm:ss\0yyyy-MM-dd HH:mm:ss\0");
 
 			modified |= ImGui::SliderFloat(_("OSD text size"), &_fps_scale, 0.2f, 2.5f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
-			modified |= ImGui::ColorEdit4(_("OSD text color"), _fps_col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreview);
+			modified |= ImGui::ColorEdit4(_("OSD text color"), _fps_col, ImGuiColorEditFlags_AlphaBar);
 
 			std::string fps_pos_items = _("Top left\nTop right\nBottom left\nBottom right\n");
 			std::replace(fps_pos_items.begin(), fps_pos_items.end(), '\n', '\0');
@@ -3066,7 +3074,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	if (ImGui::BeginChild("##log", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_Border, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
+	if (ImGui::BeginChild("##log", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_Borders, _log_wordwrap ? 0 : ImGuiWindowFlags_AlwaysHorizontalScrollbar))
 	{
 		const uintmax_t file_size = std::filesystem::file_size(log_path, ec);
 		if (filter_changed || _last_log_size != file_size)
@@ -3271,7 +3279,7 @@ void reshade::runtime::draw_gui_addons()
 		ImGui::Spacing();
 	}
 
-	if (ImGui::BeginChild("##addons", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened))
+	if (ImGui::BeginChild("##addons", ImVec2(0, -(ImGui::GetFrameHeightWithSpacing() + _imgui_context->Style.ItemSpacing.y)), ImGuiChildFlags_NavFlattened))
 	{
 		std::vector<std::string> disabled_addons;
 		config.get("ADDON", "DisabledAddons", disabled_addons);
@@ -3287,7 +3295,7 @@ void reshade::runtime::draw_gui_addons()
 			if (!filter_text(name, _addons_filter))
 				continue;
 
-			ImGui::BeginChild(name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Border | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
+			ImGui::BeginChild(name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
 
 			const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
 			const std::string unique_name = builtin ? info.name : info.name + '@' + info.file;
@@ -3418,7 +3426,7 @@ void reshade::runtime::draw_gui_addons()
 #if RESHADE_FX
 void reshade::runtime::draw_variable_editor()
 {
-	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, (ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
+	const ImVec2 popup_pos = ImGui::GetCursorScreenPos() + ImVec2(std::max(0.f, ImGui::GetContentRegionAvail().x * 0.5f - 200.0f), ImGui::GetFrameHeightWithSpacing());
 
 	if (imgui::popup_button(_("Edit global preprocessor definitions"), ImGui::GetContentRegionAvail().x, ImGuiWindowFlags_NoMove))
 	{
@@ -3519,7 +3527,7 @@ void reshade::runtime::draw_variable_editor()
 		_was_preprocessor_popup_edited = false;
 	}
 
-	ImGui::BeginChild("##variables", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NavFlattened);
+	ImGui::BeginChild("##variables", ImVec2(0, 0), ImGuiChildFlags_NavFlattened);
 	if (_variable_editor_tabs)
 		ImGui::BeginTabBar("##variables", ImGuiTabBarFlags_TabListPopupButton | ImGuiTabBarFlags_FittingPolicyScroll);
 
@@ -3855,7 +3863,7 @@ void reshade::runtime::draw_variable_editor()
 						else if (ui_type == "color" && variable.type.rows == 3)
 							modified = ImGui::ColorEdit3(label.data(), value.as_float, ImGuiColorEditFlags_NoOptions);
 						else if (ui_type == "color" && variable.type.rows == 4)
-							modified = ImGui::ColorEdit4(label.data(), value.as_float, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_AlphaBar);
+							modified = ImGui::ColorEdit4(label.data(), value.as_float, ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_AlphaBar);
 						else if (variable.type.is_matrix())
 							for (unsigned int row = 0; row < variable.type.rows; ++row)
 								modified |= ImGui::InputScalarN((std::string(label) + " [row " + std::to_string(row) + ']').c_str(), ImGuiDataType_Float, &value.as_float[variable.type.cols * row], variable.type.cols) || modified;

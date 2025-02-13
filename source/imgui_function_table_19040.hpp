@@ -6,15 +6,47 @@
 
 #pragma once
 
-#include <imgui.h>
+#include "imgui_function_table_19180.hpp"
 
-using imgui_font_19040 = ImFont;
+struct imgui_font_19040
+{
+	ImVector<float> IndexAdvanceX;
+	float FallbackAdvanceX;
+	float FontSize;
+	ImVector<ImWchar> IndexLookup;
+	ImVector<ImFontGlyph> Glyphs;
+	const ImFontGlyph *FallbackGlyph;
+	ImFontAtlas *ContainerAtlas;
+	const void *ConfigData;
+	short ConfigDataCount;
+	ImWchar FallbackChar;
+	ImWchar EllipsisChar;
+	short EllipsisCharCount;
+	float EllipsisWidth;
+	float EllipsisCharStep;
+	bool DirtyLookupTables;
+	float Scale;
+	float Ascent;
+	float Descent;
+	int MetricsTotalSurface;
+	ImU8 Used4kPagesMap[(IM_UNICODE_CODEPOINT_MAX + 1) / 4096 / 8];
+};
 
-using imgui_storage_19040 = ImGuiStorage;
+using imgui_storage_19040 = imgui_storage_19180;
 
-using imgui_list_clipper_19040 = ImGuiListClipper;
+struct imgui_list_clipper_19040
+{
+	ImGuiContext *Ctx;
+	int DisplayStart;
+	int DisplayEnd;
+	int ItemsCount;
+	float ItemsHeight;
+	float StartPosY;
+	void *TempData;
+};
 
-using imgui_draw_list_19040 = ImDrawList;
+// Data layout technically changed, but should not generally be accessed by add-ons
+using imgui_draw_list_19040 = imgui_draw_list_19180;
 
 struct imgui_io_19040
 {
@@ -133,7 +165,62 @@ struct imgui_io_19040
 	ImVector<ImWchar> InputQueueCharacters;
 };
 
-using imgui_style_19040 = ImGuiStyle;
+struct imgui_style_19040
+{
+	float Alpha;
+	float DisabledAlpha;
+	ImVec2 WindowPadding;
+	float WindowRounding;
+	float WindowBorderSize;
+	ImVec2 WindowMinSize;
+	ImVec2 WindowTitleAlign;
+	ImGuiDir WindowMenuButtonPosition;
+	float ChildRounding;
+	float ChildBorderSize;
+	float PopupRounding;
+	float PopupBorderSize;
+	ImVec2 FramePadding;
+	float FrameRounding;
+	float FrameBorderSize;
+	ImVec2 ItemSpacing;
+	ImVec2 ItemInnerSpacing;
+	ImVec2 CellPadding;
+	ImVec2 TouchExtraPadding;
+	float IndentSpacing;
+	float ColumnsMinSpacing;
+	float ScrollbarSize;
+	float ScrollbarRounding;
+	float GrabMinSize;
+	float GrabRounding;
+	float LogSliderDeadzone;
+	float TabRounding;
+	float TabBorderSize;
+	float TabMinWidthForCloseButton;
+	float TabBarBorderSize;
+	float TableAngledHeadersAngle;
+	ImGuiDir ColorButtonPosition;
+	ImVec2 ButtonTextAlign;
+	ImVec2 SelectableTextAlign;
+	float SeparatorTextBorderSize;
+	ImVec2 SeparatorTextAlign;
+	ImVec2 SeparatorTextPadding;
+	ImVec2 DisplayWindowPadding;
+	ImVec2 DisplaySafeAreaPadding;
+	float DockingSeparatorSize;
+	float MouseCursorScale;
+	bool AntiAliasedLines;
+	bool AntiAliasedLinesUseTex;
+	bool AntiAliasedFill;
+	float CurveTessellationTol;
+	float CircleTessellationMaxError;
+	ImVec4 Colors[55];
+
+	float HoverStationaryDelay;
+	float HoverDelayShort;
+	float HoverDelayNormal;
+	ImGuiHoveredFlags HoverFlagsForTooltipMouse;
+	ImGuiHoveredFlags HoverFlagsForTooltipNav;
+};
 
 struct imgui_function_table_19040
 {

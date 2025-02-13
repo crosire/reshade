@@ -131,8 +131,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		ImGui::SetNextWindowFocus();
 	}
 
-	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border ? ImGuiChildFlags_Border : ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
-	ImGui::PushTabStop(true);
+	ImGui::BeginChild(title, ImVec2(0, _search_window_open * -bottom_height), border ? ImGuiChildFlags_Borders : ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNavInputs);
 
 	char buf[128] = "", *buf_end = buf;
 
@@ -357,7 +356,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	const float space_size = calc_text_size(" ").x;
 
 	size_t line_no = static_cast<size_t>(std::floor(ImGui::GetScrollY() / char_advance.y));
-	size_t line_max = std::max(static_cast<size_t>(0), std::min(_lines.size() - 1, line_no + static_cast<size_t>(std::floor((ImGui::GetScrollY() + ImGui::GetWindowContentRegionMax().y) / char_advance.y))));
+	size_t line_max = std::max(static_cast<size_t>(0), std::min(_lines.size() - 1, line_no + static_cast<size_t>(std::floor((ImGui::GetScrollY() + ImGui::GetContentRegionAvail().y) / char_advance.y))));
 
 	const auto calc_text_distance_to_line_begin = [this, space_size](const text_pos &from) {
 		float distance = 0.0f;
@@ -468,7 +467,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		if (auto it = _errors.find(line_no + 1); it != _errors.end())
 		{
 			const ImVec2 beg = ImVec2(line_screen_pos.x + ImGui::GetScrollX(), line_screen_pos.y);
-			const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetWindowContentRegionMax().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
+			const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetContentRegionAvail().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
 
 			draw_list->AddRectFilled(beg, end, palette[it->second.second ? color_warning_marker : color_error_marker]);
 
@@ -488,7 +487,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			if (!has_selection())
 			{
 				const ImVec2 beg = ImVec2(line_screen_pos.x + ImGui::GetScrollX(), line_screen_pos.y);
-				const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetWindowContentRegionMax().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
+				const ImVec2 end = ImVec2(line_screen_pos.x + ImGui::GetContentRegionAvail().x + 2.0f * ImGui::GetScrollX(), line_screen_pos.y + char_advance.y);
 
 				draw_list->AddRectFilled(beg, end, palette[is_focused ? color_current_line_fill : color_current_line_fill_inactive]);
 				draw_list->AddRect(beg, end, palette[color_current_line_edge], 1.0f);
@@ -569,7 +568,6 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		_scroll_to_cursor = false;
 	}
 
-	ImGui::PopTabStop();
 	ImGui::EndChild();
 
 	ImGui::PopStyleVar();

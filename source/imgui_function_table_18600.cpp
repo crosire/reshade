@@ -342,7 +342,7 @@ const imgui_function_table_18600 init_imgui_function_table_18600() { return {
 	{
 		g_imgui_function_table_18971.PushID3(reinterpret_cast<void *>(user_texture_id));
 		if (frame_padding >= 0)
-			g_imgui_function_table_18971.PushStyleVar2(ImGuiStyleVar_FramePadding, ImVec2((float)frame_padding, (float)frame_padding));
+			g_imgui_function_table_18971.PushStyleVar2(11 /* ImGuiStyleVar_FramePadding */, ImVec2(static_cast<float>(frame_padding), static_cast<float>(frame_padding)));
 		bool ret = g_imgui_function_table_18971.ImageButton("#image", user_texture_id, size, uv0, uv1, bg_col, tint_col);
 		if (frame_padding >= 0)
 			g_imgui_function_table_18971.PopStyleVar(1);
@@ -541,7 +541,7 @@ const imgui_function_table_18600 init_imgui_function_table_18600() { return {
 	g_imgui_function_table_18971.ColorConvertFloat4ToU32,
 	g_imgui_function_table_18971.ColorConvertRGBtoHSV,
 	g_imgui_function_table_18971.ColorConvertHSVtoRGB,
-	[](ImGuiKey imgui_key) -> int { return static_cast<int>(ImGui::GetKeyIndex(imgui_key)); },
+	[](ImGuiKey imgui_key) -> int { return g_imgui_function_table_18971.GetIO().KeyMap[imgui_key];	},
 	[](int user_key_index) -> bool { return g_imgui_function_table_18971.IsKeyDown(static_cast<ImGuiKey>(user_key_index)); },
 	[](int user_key_index, bool repeat) -> bool { return g_imgui_function_table_18971.IsKeyPressed(static_cast<ImGuiKey>(user_key_index), repeat); },
 	[](int user_key_index) -> bool { return g_imgui_function_table_18971.IsKeyReleased(static_cast<ImGuiKey>(user_key_index)); },
@@ -677,12 +677,12 @@ const imgui_function_table_18600 init_imgui_function_table_18600() { return {
 		new(_this) imgui_font_18600();
 		_this->FontSize = 0.0f;
 		_this->FallbackAdvanceX = 0.0f;
-		_this->FallbackChar = (ImWchar)-1;
-		_this->EllipsisChar = (ImWchar)-1;
-		_this->DotChar = (ImWchar)-1;
-		_this->FallbackGlyph = NULL;
-		_this->ContainerAtlas = NULL;
-		_this->ConfigData = NULL;
+		_this->FallbackChar = static_cast<ImWchar>(-1);
+		_this->EllipsisChar = static_cast<ImWchar>(-1);
+		_this->DotChar = static_cast<ImWchar>(-1);
+		_this->FallbackGlyph = nullptr;
+		_this->ContainerAtlas = nullptr;
+		_this->ConfigData = nullptr;
 		_this->ConfigDataCount = 0;
 		_this->DirtyLookupTables = false;
 		_this->Scale = 1.0f;

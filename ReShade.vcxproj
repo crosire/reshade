@@ -610,6 +610,7 @@
     <ClCompile Include="source\imgui_function_table_18971.cpp" />
     <ClCompile Include="source\imgui_function_table_19000.cpp" />
     <ClCompile Include="source\imgui_function_table_19040.cpp" />
+    <ClCompile Include="source\imgui_function_table_19180.cpp" />
     <ClCompile Include="source\imgui_widgets.cpp" />
     <ClCompile Include="source\ini_file.cpp" />
     <ClCompile Include="source\input.cpp" />
@@ -728,6 +729,7 @@
     <ClInclude Include="source\imgui_function_table_18971.hpp" />
     <ClInclude Include="source\imgui_function_table_19000.hpp" />
     <ClInclude Include="source\imgui_function_table_19040.hpp" />
+    <ClInclude Include="source\imgui_function_table_19180.hpp" />
     <ClInclude Include="source\imgui_widgets.hpp" />
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />

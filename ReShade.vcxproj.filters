@@ -306,6 +306,9 @@
     <ClCompile Include="source\imgui_function_table_19040.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
+    <ClCompile Include="source\imgui_function_table_19180.cpp">
+      <Filter>core\utils</Filter>
+    </ClCompile>
     <ClCompile Include="source\imgui_widgets.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
@@ -642,6 +645,9 @@
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_function_table_19040.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\imgui_function_table_19180.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">
