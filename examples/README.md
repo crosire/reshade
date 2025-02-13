@@ -72,13 +72,18 @@ Built-in add-on that adds preset synchronization between different effect runtim
 
 ## [16-swapchain_override](/examples/16-swapchain_override)
 
-Adds options to ReShade.ini to force the application into windowed or fullscreen mode, or force a specific resolution or the default refresh rate.
+Adds options to ReShade.ini to force the application into windowed or fullscreen mode, or a specific resolution or the default refresh rate.
 
 ```
 [APP]
+ForceVsync=0
 ForceWindowed=0
 ForceFullscreen=0
 Force10BitFormat=0
 ForceDefaultRefreshRate=0
 ForceResolution=0,0
 ```
+
+## [17-screenshot_to_clipboard](/examples/17-screenshot_to_clipboard)
+
+Copies the saved image file to the Windows clipboard every time a screenshot is taken.
