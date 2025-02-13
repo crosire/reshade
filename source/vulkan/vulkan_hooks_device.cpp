@@ -1117,7 +1117,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	for (uint32_t i = 0; i < num_images; ++i)
 	{
 		reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &image_data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
-		image_data.allocation = VK_NULL_HANDLE;
 		image_data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		image_data.create_info.imageType = VK_IMAGE_TYPE_2D;
 		image_data.create_info.format = create_info.imageFormat;
@@ -1619,7 +1618,6 @@ VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCreateInfo *pC
 
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_BUFFER> &data = *device_impl->register_object<VK_OBJECT_TYPE_BUFFER>(*pBuffer);
-	data.allocation = VK_NULL_HANDLE;
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 #endif
@@ -1728,7 +1726,6 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 
 #if RESHADE_ADDON
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(*pImage);
-	data.allocation = VK_NULL_HANDLE;
 	data.create_info = create_info;
 	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 #endif

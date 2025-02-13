@@ -27,10 +27,8 @@ namespace reshade::vulkan
 	{
 		using Handle = VkImage;
 
-		VmaAllocation allocation;
-#ifndef _WIN64
-		uint32_t padding;
-#endif
+		VmaAllocation allocation = nullptr;
+		VmaPool pool = nullptr;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 		uint64_t memory_offset = 0;
 		VkImageCreateInfo create_info;
@@ -42,10 +40,8 @@ namespace reshade::vulkan
 	{
 		using Handle = VkBuffer;
 
-		VmaAllocation allocation;
-#ifndef _WIN64
-		uint32_t padding;
-#endif
+		VmaAllocation allocation = nullptr;
+		VmaPool pool = nullptr;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 		uint64_t memory_offset = 0;
 		VkBufferCreateInfo create_info;
