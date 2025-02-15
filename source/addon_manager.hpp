@@ -72,11 +72,6 @@ namespace reshade
 			ev != addon_event::unmap_buffer_region &&
 			ev != addon_event::map_texture_region &&
 			ev != addon_event::unmap_texture_region &&
-			ev != addon_event::update_buffer_region &&
-			ev != addon_event::update_texture_region &&
-			ev != addon_event::copy_descriptor_tables &&
-			ev != addon_event::update_descriptor_tables &&
-			ev != addon_event::get_query_heap_results &&
 			ev != addon_event::barrier &&
 			ev != addon_event::bind_pipeline &&
 			ev != addon_event::bind_pipeline_states &&
@@ -85,19 +80,7 @@ namespace reshade
 			ev != addon_event::bind_descriptor_tables &&
 			ev != addon_event::bind_index_buffer &&
 			ev != addon_event::bind_vertex_buffers &&
-			ev != addon_event::bind_stream_output_buffers &&
-			ev != addon_event::copy_resource &&
-			ev != addon_event::copy_buffer_region &&
-			ev != addon_event::copy_buffer_to_texture &&
-			ev != addon_event::copy_texture_region &&
-			ev != addon_event::copy_texture_to_buffer &&
-			ev != addon_event::resolve_texture_region &&
-			ev != addon_event::generate_mipmaps &&
-			ev != addon_event::begin_query &&
-			ev != addon_event::end_query &&
-			ev != addon_event::copy_query_heap_results &&
-			ev != addon_event::copy_acceleration_structure &&
-			ev != addon_event::build_acceleration_structure,
+			ev != addon_event::bind_stream_output_buffers,
 			"Event that is disabled with limited add-on support was used!");
 
 		// Allow a subset of events even when add-ons are disabled, to ensure they continue working correctly
@@ -138,6 +121,26 @@ namespace reshade
 	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
 #if RESHADE_ADDON == 1
+		static_assert(
+			ev != addon_event::update_buffer_region &&
+			ev != addon_event::update_texture_region &&
+			ev != addon_event::copy_descriptor_tables &&
+			ev != addon_event::update_descriptor_tables &&
+			ev != addon_event::get_query_heap_results &&
+			ev != addon_event::copy_resource &&
+			ev != addon_event::copy_buffer_region &&
+			ev != addon_event::copy_buffer_to_texture &&
+			ev != addon_event::copy_texture_region &&
+			ev != addon_event::copy_texture_to_buffer &&
+			ev != addon_event::resolve_texture_region &&
+			ev != addon_event::generate_mipmaps &&
+			ev != addon_event::begin_query &&
+			ev != addon_event::end_query &&
+			ev != addon_event::copy_query_heap_results &&
+			ev != addon_event::copy_acceleration_structure &&
+			ev != addon_event::build_acceleration_structure,
+			"Event that is disabled with limited add-on support was used!");
+
 		if (!addon_enabled)
 			return false;
 #endif
