@@ -131,7 +131,17 @@ namespace reshade { namespace api
 
 	/// <summary>
 	/// An opaque handle to a sampler state object.
-	/// <para>Depending on the graphics API this can be a pointer to a 'ID3D10SamplerState', 'ID3D11SamplerState' or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a sampler descriptor) or 'VkSampler' handle.</para>
+	/// <para>
+	/// Depending on the graphics API this can be:
+	/// <list type="bullet">
+	/// <item>Direct3D 9: An opaque value.</item>
+	/// <item>Direct3D 10: A pointer to a 'ID3D10SamplerState' object.</item>
+	/// <item>Direct3D 11: A pointer to a 'ID3D11SamplerState' object.</item>
+	/// <item>Direct3D 12: A 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a sampler descriptor).</item>
+	/// <item>OpenGL: An OpenGL sampler object name.</item>
+	/// <item>Vulkan: A 'VkSampler' handle.</item>
+	/// </list>
+	/// </para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(sampler);
 
@@ -331,7 +341,17 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource object (buffer, texture, ...).
 	/// <para>Resources created by the application are only guaranteed to be valid during event callbacks.</para>
-	/// <para>Depending on the graphics API this can be a pointer to a 'IDirect3DResource9', 'ID3D10Resource', 'ID3D11Resource' or 'ID3D12Resource' object or a 'VkImage' handle.</para>
+	/// <para>
+	/// Depending on the graphics API this can be:
+	/// <list type="bullet">
+	/// <item>Direct3D 9: A pointer to a 'IDirect3DResource9' object.</item>
+	/// <item>Direct3D 10: A pointer to a 'ID3D10Resource' object.</item>
+	/// <item>Direct3D 11: A pointer to a 'ID3D11Resource' object.</item>
+	/// <item>Direct3D 12: A pointer to a 'ID3D12Resource' object.</item>
+	/// <item>OpenGL: The upper 24-bit contain the OpenGL object type (like GL_BUFFER, GL_TEXTURE_2D, GL_RENDERBUFFER, ...), the lower 32-bit contain the OpenGL object name. So the object type can be extracted with <c>(handle >> 40)</c>, the object with <c>(handle & 0xFFFFFFFF)</c>.</item>
+	/// <item>Vulkan: A 'VkImage' handle.</item>
+	/// </list>
+	/// </para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource);
 
@@ -427,7 +447,17 @@ namespace reshade { namespace api
 	/// <summary>
 	/// An opaque handle to a resource view object (depth-stencil, render target, shader resource view, ...).
 	/// <para>Resource views created by the application are only guaranteed to be valid during event callbacks.</para>
-	/// <para>Depending on the graphics API this can be a pointer to a 'IDirect3DResource9', 'ID3D10View' or 'ID3D11View' object, or a 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor), 'D3D12_GPU_VIRTUAL_ADDRESS' (to an acceleration structrue), 'VkImageView' or 'VkAccelerationStructureKHR' handle.</para>
+	/// <para>
+	/// Depending on the graphics API this can be:
+	/// <list type="bullet">
+	/// <item>Direct3D 9: A pointer to a 'IDirect3DResource9' object.</item>
+	/// <item>Direct3D 10: A pointer to a 'ID3D10View' object.</item>
+	/// <item>Direct3D 11: A pointer to a 'ID3D11View' object.</item>
+	/// <item>Direct3D 12: A 'D3D12_CPU_DESCRIPTOR_HANDLE' (to a view descriptor) or 'D3D12_GPU_VIRTUAL_ADDRESS' (to an acceleration structrue).</item>
+	/// <item>OpenGL: The upper 24-bit contain the OpenGL object type (like GL_TEXTURE_BUFFER, GL_TEXTURE_2D, GL_TEXTURE_CUBE_MAP_POSITIVE_X, ...), the lower 32-bit contain the OpenGL object ID. So the object type can be extracted with <c>(handle >> 40)</c>, the object with <c>(handle & 0xFFFFFFFF)</c>.</item>
+	/// <item>Vulkan: A 'VkImageView' or 'VkAccelerationStructureKHR' handle.</item>
+	/// </list>
+	/// </para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(resource_view);
 
