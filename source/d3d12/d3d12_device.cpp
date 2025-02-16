@@ -356,12 +356,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 		this, pDescriptorHeapDesc, reshade::log::iid_to_string(riid).c_str(), ppvHeap);
 #endif
 
-	if (pDescriptorHeapDesc == nullptr)
-		return E_INVALIDARG;
-
 	const HRESULT hr = _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
 	if (SUCCEEDED(hr))
 	{
+		assert(pDescriptorHeapDesc != nullptr);
+
 #if RESHADE_ADDON >= 2
 		if (ppvHeap != nullptr && pDescriptorHeapDesc->Type <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 		{
@@ -461,10 +460,8 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	if (acceleration_structure)
 	{
 		if (pResource != nullptr)
-		{
+			// 'D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV::Location' describes GPU address, but 'reshade::api::resource_view::buffer::offset' only offset from resource base, so subtract resource base GPU address
 			desc.buffer.offset -= pResource->GetGPUVirtualAddress();
-			desc.buffer.size = pResource->GetDesc().Width - desc.buffer.offset;
-		}
 
 		usage = reshade::api::resource_usage::acceleration_structure;
 	}
@@ -473,13 +470,11 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 	if (pResource != nullptr &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), usage, desc))
 	{
-		if (acceleration_structure)
-		{
-			desc.buffer.offset += pResource->GetGPUVirtualAddress();
-		}
-
 		reshade::d3d12::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+
+		if (acceleration_structure)
+			internal_desc.RaytracingAccelerationStructure.Location += pResource->GetGPUVirtualAddress();
 	}
 #endif
 
@@ -1332,6 +1327,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		// Resource format may have been altered, which would make the optimized clear value mismatch, so just unset it
 		pOptimizedClearValue = nullptr;
 	}
 #endif
@@ -1501,6 +1497,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
 		pHeapProperties = &heap_props;
 		pDesc = &internal_desc;
+		// Resource format may have been altered, which would make the optimized clear value mismatch, so just unset it
 		pOptimizedClearValue = nullptr;
 	}
 #endif
@@ -1743,6 +1740,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource2(ID3D12Heap *pHeap, 
 	{
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+		// Resource format may have been altered, which would make the optimized clear value mismatch, so just unset it
 		pOptimizedClearValue = nullptr;
 	}
 #endif

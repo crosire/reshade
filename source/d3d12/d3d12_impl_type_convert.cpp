@@ -952,6 +952,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
 		desc.type = api::resource_view_type::acceleration_structure;
 		desc.buffer.offset = internal_desc.RaytracingAccelerationStructure.Location;
+		desc.buffer.size = UINT64_MAX;
 		break;
 	}
 	return desc;
