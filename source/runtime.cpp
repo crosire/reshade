@@ -4402,7 +4402,7 @@ void reshade::runtime::save_texture(const texture &tex)
 	}
 
 	std::string filename = tex.unique_name;
-	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
+	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 2 ? ".jpg" : ".png");
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
@@ -4897,6 +4897,13 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 void reshade::runtime::save_screenshot(const std::string_view postfix)
 {
 	const unsigned int screenshot_count = _screenshot_count;
+	unsigned int screenshot_format = _screenshot_format;
+
+	// Use PNG for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
+	if (((_back_buffer_format == api::format::r10g10b10a2_unorm ||
+		  _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
+		 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
+		screenshot_format = 3;
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
@@ -4913,7 +4920,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		screenshot_name += postfix;
 	}
 
-	screenshot_name += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg");
+	screenshot_name += (screenshot_format == 0 ? ".bmp" : screenshot_format == 2 ? ".jpg" : ".png");
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name).lexically_normal();
 
@@ -4921,10 +4928,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 	_last_screenshot_save_successful = true;
 
-	size_t bytes_per_pixel =
-		_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4;
-
-	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * bytes_per_pixel);
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * (_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4));
 		capture_screenshot(pixels.data()))
 	{
 #if RESHADE_FX
@@ -4939,15 +4943,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		if (!_screenshot_sound_path.empty())
 			utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
 
-		_worker_threads.emplace_back([this, screenshot_count, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
-			auto screenshot_format = _screenshot_format;
-
-			// Use PNG for HDR; no tonemapping is implemented, so this is the only way to capture a screenshot in HDR.
-			if (((_back_buffer_format == api::format::r10g10b10a2_unorm  ||
-			      _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
-				 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
-				screenshot_format = 3;
-
+		_worker_threads.emplace_back([this, screenshot_count, screenshot_format, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
 			if (_screenshot_clear_alpha && screenshot_format != 3)
@@ -5087,8 +5083,8 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
 {
 	const api::resource_desc desc = _device->get_resource_desc(resource);
-	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
 
+	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
 	if (view_format != api::format::r8_unorm &&
 		view_format != api::format::r8g8_unorm &&
 		view_format != api::format::r8g8b8a8_unorm &&
@@ -5128,7 +5124,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	if (_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data))
 	{
 		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
-		const uint32_t pixels_row_pitch = desc.texture.format != api::format::r16g16b16a16_float ? desc.texture.width * 4 : desc.texture.width * 8;
+		const uint32_t pixels_row_pitch = api::format_row_pitch(view_format, desc.texture.width);
 
 		for (size_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
