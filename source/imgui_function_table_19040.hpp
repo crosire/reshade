@@ -45,8 +45,24 @@ struct imgui_list_clipper_19040
 	void *TempData;
 };
 
-// Data layout technically changed, but should not generally be accessed by add-ons
-using imgui_draw_list_19040 = imgui_draw_list_19180;
+struct imgui_draw_list_19040
+{
+	ImVector<ImDrawCmd> CmdBuffer;
+	ImVector<ImDrawIdx> IdxBuffer;
+	ImVector<ImDrawVert> VtxBuffer;
+	ImDrawListFlags Flags;
+	unsigned int _VtxCurrentIdx;
+	ImDrawListSharedData *_Data;
+	const char *_OwnerName;
+	ImDrawVert *_VtxWritePtr;
+	ImDrawIdx *_IdxWritePtr;
+	ImVector<ImVec4> _ClipRectStack;
+	ImVector<ImTextureID> _TextureIdStack;
+	ImVector<ImVec2> _Path;
+	ImDrawCmdHeader _CmdHeader;
+	ImDrawListSplitter _Splitter;
+	float _FringeScale;
+};
 
 struct imgui_io_19040
 {
