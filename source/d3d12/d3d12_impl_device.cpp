@@ -1258,7 +1258,6 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 				{
 					pipeline_extra_data extra_data;
 					extra_data.topology = convert_primitive_topology(topology);
-
 					std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
 
 					pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
@@ -1304,7 +1303,6 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		{
 			pipeline_extra_data extra_data;
 			extra_data.topology = convert_primitive_topology(topology);
-
 			std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
 
 			pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
@@ -1331,7 +1329,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 	std::vector<D3D12_ROOT_PARAMETER> internal_params;
 	std::vector<D3D12_STATIC_SAMPLER_DESC> internal_static_samplers;
 	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
-	const auto set_ranges = new std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>[param_count];
+	std::vector<std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>> set_ranges(param_count);
 	api::shader_stage global_visibility_mask = static_cast<api::shader_stage>(0);
 
 	const auto add_internal_param = [&internal_params](uint32_t index) -> D3D12_ROOT_PARAMETER & {
@@ -1513,22 +1511,25 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		SUCCEEDED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
 		pipeline_layout_extra_data extra_data;
-		extra_data.ranges = set_ranges;
+		extra_data.ranges = nullptr;
 		UINT extra_data_size = sizeof(extra_data);
 
 		// D3D12 runtime returns the same root signature object for identical input blobs, just with the reference count increased
 		// Do not overwrite the existing attached extra data in this case
 		if (signature.ref_count() == 1 || FAILED(signature->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
+			extra_data.ranges = new std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>[param_count];
+			std::copy_n(set_ranges.begin(), param_count, const_cast<std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> *>(extra_data.ranges));
+
 			signature->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 		}
 		else
 		{
 #ifndef NDEBUG
-			for (uint32_t i = 0; i < param_count; ++i)
-				assert(extra_data.ranges[i] == set_ranges[i]);
+			if (extra_data.ranges != nullptr)
+				for (uint32_t i = 0; i < param_count; ++i)
+					assert(extra_data.ranges[i] == set_ranges[i]);
 #endif
-			delete[] set_ranges;
 		}
 
 		*out_layout = to_handle(signature.release());
@@ -1539,9 +1540,6 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		if (error_blob != nullptr)
 			log::message(log::level::error, "Failed to create root signature: %s", static_cast<const char *>(error_blob->GetBufferPointer()));
 
-		delete[] set_ranges;
-
-		*out_layout = { 0 };
 		return false;
 	}
 }
