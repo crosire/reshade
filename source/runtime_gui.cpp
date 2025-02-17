@@ -3130,9 +3130,8 @@ void reshade::runtime::draw_gui_about()
 {
 	ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
-	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(_(" Open website ")).x);
-	if (ImGui::SmallButton(_(" Open website ")))
-		utils::execute_command("https://reshade.me");
+	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("https://reshade.me").x, ImGui::GetStyle().ItemSpacing.x);
+	ImGui::TextLinkOpenURL("https://reshade.me");
 
 	ImGui::Separator();
 
@@ -3387,9 +3386,9 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::PopTextWrapPos();
 				}
 				if (!info.website_url.empty())
-					ImGui::TextLinkOpenURL(info.website_url.c_str(), info.website_url.c_str());
+					ImGui::TextLinkOpenURL(info.website_url.c_str());
 				if (!info.issues_url.empty())
-					ImGui::TextLinkOpenURL(info.issues_url.c_str(), info.issues_url.c_str());
+					ImGui::TextLinkOpenURL(info.issues_url.c_str());
 
 				ImGui::EndGroup();
 
@@ -3410,8 +3409,7 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
-	if (ImGui::Button(_("Open developer documentation"), ImVec2(-1, 0)))
-		utils::execute_command("https://reshade.me/docs");
+	ImGui::TextLinkOpenURL(_("Open developer documentation"), "https://reshade.me/docs");
 }
 #endif
 
