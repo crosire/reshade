@@ -154,7 +154,6 @@ BEGIN
 36347 "Utilisation mémoire totale : %lld.%03lld %s"
 42207 "Retour à la ligne"
 16256 "Effacer les Logs"
-21655 " Ouvrir le site web "
 40136 "Developpé et maintenu par crosire."
 49329 "Ce projet utilise plusieurs bibliothèques open-source, leurs licenses sont listées ci-dessous :"
 63124 "Forte activité réseau détectée.\nTous les add-ons sont désactivés pour empêcher les exploits."

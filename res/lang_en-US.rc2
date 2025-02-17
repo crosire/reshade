@@ -154,7 +154,6 @@ BEGIN
 36347 "Total memory usage: %lld.%03lld %s"
 42207 "Word Wrap"
 16256 "Clear Log"
-21655 " Open website "
 40136 "Developed and maintained by crosire."
 49329 "This project makes use of several open source libraries, licenses of which are listed below:"
 63124 "High network activity discovered.\nAll add-ons are disabled to prevent exploitation.\n\nIf this is not a multiplayer game, use the ReShade build with full add-on support instead, which will not disable add-ons."

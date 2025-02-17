@@ -154,7 +154,6 @@ BEGIN
 36347 "Gesamte Speichernutzung: %lld.%03lld %s"
 42207 "Zeilenumbruch"
 16256 "Log leeren"
-21655 "Öffne Webseite"
 40136 "Entwickelt von crosire."
 49329 "Dieses Projekt nutzt Open-Source-Bibliotheken mit folgenden Lizenzen:"
 63124 "Hohe Netzwerkaktivität entdeckt.\nAlle Erweiterungen sind deaktiviert, um Cheating zu verhindern.\n\nSollte dies kein Mehrspielerspiel sein, dann kann stattdessen die ReShade-Variante mit voller Erweiterungsunterstützung benutzt werden, welche Erweiterungen nicht deaktiviert."
