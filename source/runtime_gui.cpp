@@ -3387,17 +3387,9 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::PopTextWrapPos();
 				}
 				if (!info.website_url.empty())
-				{
-					if (ImGui::TextUnformatted(info.website_url.c_str(), info.website_url.c_str() + info.website_url.size()); ImGui::SameLine(),
-						ImGui::SmallButton(ICON_FK_SEARCH))
-						utils::execute_command(info.website_url);
-				}
+					ImGui::TextLinkOpenURL(info.website_url.c_str(), info.website_url.c_str());
 				if (!info.issues_url.empty())
-				{
-					if (ImGui::TextUnformatted(info.issues_url.c_str(), info.issues_url.c_str() + info.issues_url.size()); ImGui::SameLine(),
-						ImGui::SmallButton(ICON_FK_SEARCH))
-						utils::execute_command(info.issues_url);
-				}
+					ImGui::TextLinkOpenURL(info.issues_url.c_str(), info.issues_url.c_str());
 
 				ImGui::EndGroup();
 
