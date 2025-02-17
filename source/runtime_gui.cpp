@@ -1179,7 +1179,7 @@ void reshade::runtime::draw_gui()
 #if RESHADE_FX
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
-				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
+				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(ImGui::GetContentRegionAvail().x, 0), "");
 				ImGui::SameLine(15);
 				ImGui::Text(_(
 					"Compiling (%zu effects remaining) ... "
@@ -1189,7 +1189,7 @@ void reshade::runtime::draw_gui()
 			else
 #endif
 			{
-				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
+				ImGui::ProgressBar(0.0f, ImVec2(ImGui::GetContentRegionAvail().x, 0), "");
 				ImGui::SameLine(15);
 
 				if (_input == nullptr)
@@ -2161,7 +2161,7 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
-	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open base folder in explorer"))).c_str(), ImVec2(-1, 0)))
+	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open base folder in explorer"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 		utils::open_explorer(_config_path);
 
 	ImGui::Spacing();
@@ -3123,7 +3123,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(-1, 0)))
+	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 		utils::open_explorer(log_path);
 }
 void reshade::runtime::draw_gui_about()
