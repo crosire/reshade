@@ -3409,6 +3409,7 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
+	ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(_("Open developer documentation")).x) / 2);
 	ImGui::TextLinkOpenURL(_("Open developer documentation"), "https://reshade.me/docs");
 }
 #endif
