@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Spanish (Spain) resources
+// Spanish (Spain, International Sort) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ESN)
 LANGUAGE 10, 3
@@ -199,5 +199,5 @@ BEGIN
 
 END
 
-#endif    // Spanish (Spain) resources
+#endif    // Spanish (Spain, International Sort) resources
 /////////////////////////////////////////////////////////////////////////////

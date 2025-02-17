@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Chinese (China) resources
+// Chinese (Simplified, China) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
 LANGUAGE 4, 2
@@ -199,5 +199,5 @@ BEGIN
 
 END
 
-#endif    // Chinese (China) resources
+#endif    // Chinese (Simplified, China) resources
 /////////////////////////////////////////////////////////////////////////////
