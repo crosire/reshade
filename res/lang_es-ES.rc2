@@ -154,7 +154,6 @@ BEGIN
 36347 "Uso de memoria total: %lld.%03lld %s"
 42207 "Ajuste de línea"
 16256 "Limpiar log"
-21655 " Abrir la página web "
 40136 "Desarrollado y mantenido por crosire."
 49329 "Este projecto utiliza varias librerías de código abierto, sus licencias se enlistan debajo:"
 63124 "Se detectó actividad de red.\nSe desactivan todos los add-ons para prevenir explotaciones.\n\nSi éste no es un juego multijugador, usá la versión de ReShade con soporte total para add-ons."

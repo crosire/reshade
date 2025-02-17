@@ -1179,7 +1179,7 @@ void reshade::runtime::draw_gui()
 #if RESHADE_FX
 			if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
 			{
-				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(-1, 0), "");
+				ImGui::ProgressBar((_effects.size() - _reload_remaining_effects) / float(_effects.size()), ImVec2(ImGui::GetContentRegionAvail().x, 0), "");
 				ImGui::SameLine(15);
 				ImGui::Text(_(
 					"Compiling (%zu effects remaining) ... "
@@ -1189,7 +1189,7 @@ void reshade::runtime::draw_gui()
 			else
 #endif
 			{
-				ImGui::ProgressBar(0.0f, ImVec2(-1, 0), "");
+				ImGui::ProgressBar(0.0f, ImVec2(ImGui::GetContentRegionAvail().x, 0), "");
 				ImGui::SameLine(15);
 
 				if (_input == nullptr)
@@ -2161,7 +2161,7 @@ void reshade::runtime::draw_gui_home()
 #endif
 void reshade::runtime::draw_gui_settings()
 {
-	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open base folder in explorer"))).c_str(), ImVec2(-1, 0)))
+	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open base folder in explorer"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 		utils::open_explorer(_config_path);
 
 	ImGui::Spacing();
@@ -3123,16 +3123,15 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(-1, 0)))
+	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 		utils::open_explorer(log_path);
 }
 void reshade::runtime::draw_gui_about()
 {
 	ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
 
-	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(_(" Open website ")).x);
-	if (ImGui::SmallButton(_(" Open website ")))
-		utils::execute_command("https://reshade.me");
+	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("https://reshade.me").x, ImGui::GetStyle().ItemSpacing.x);
+	ImGui::TextLinkOpenURL("https://reshade.me");
 
 	ImGui::Separator();
 
@@ -3387,17 +3386,9 @@ void reshade::runtime::draw_gui_addons()
 					ImGui::PopTextWrapPos();
 				}
 				if (!info.website_url.empty())
-				{
-					if (ImGui::TextUnformatted(info.website_url.c_str(), info.website_url.c_str() + info.website_url.size()); ImGui::SameLine(),
-						ImGui::SmallButton(ICON_FK_SEARCH))
-						utils::execute_command(info.website_url);
-				}
+					ImGui::TextLinkOpenURL(info.website_url.c_str());
 				if (!info.issues_url.empty())
-				{
-					if (ImGui::TextUnformatted(info.issues_url.c_str(), info.issues_url.c_str() + info.issues_url.size()); ImGui::SameLine(),
-						ImGui::SmallButton(ICON_FK_SEARCH))
-						utils::execute_command(info.issues_url);
-				}
+					ImGui::TextLinkOpenURL(info.issues_url.c_str());
 
 				ImGui::EndGroup();
 
@@ -3418,8 +3409,8 @@ void reshade::runtime::draw_gui_addons()
 
 	ImGui::Spacing();
 
-	if (ImGui::Button(_("Open developer documentation"), ImVec2(-1, 0)))
-		utils::execute_command("https://reshade.me/docs");
+	ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(_("Open developer documentation")).x) / 2);
+	ImGui::TextLinkOpenURL(_("Open developer documentation"), "https://reshade.me/docs");
 }
 #endif
 
