@@ -677,7 +677,11 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 #endif
 
 	if (_should_save_screenshot)
-		save_screenshot(_screenshot_save_before ? "After" : std::string_view());
+		save_screenshot(
+#if RESHADE_FX
+			_screenshot_save_before ? "After" :
+#endif
+			std::string_view());
 
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -1277,10 +1281,6 @@ void reshade::runtime::load_current_preset()
 	// Reverse queue so that effects are enabled in the order they are defined in the preset (since the queue is worked from back to front)
 	std::reverse(_reload_create_queue.begin(), _reload_create_queue.end());
 }
-void reshade::runtime::save_current_preset() const
-{
-	save_current_preset(ini_file::load_cache(_current_preset_path));
-}
 void reshade::runtime::save_current_preset(ini_file &preset) const
 {
 	// Build list of active techniques and effects
@@ -1375,23 +1375,6 @@ void reshade::runtime::save_current_preset(ini_file &preset) const
 				break;
 			}
 		}
-	}
-}
-void reshade::runtime::export_current_preset(const char *path_in) const
-{
-	if (path_in == nullptr)
-		return;
-
-	std::filesystem::path path = std::filesystem::u8path(path_in);
-	if (ini_file *found = ini_file::find_cache(path); found == nullptr)
-	{
-		ini_file preset(path);
-		save_current_preset(preset);
-		preset.save();
-	}
-	else
-	{
-		save_current_preset(*found);
 	}
 }
 

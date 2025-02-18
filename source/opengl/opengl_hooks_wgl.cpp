@@ -678,6 +678,11 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 				ppfd = &pfd;
 			}
 		}
+
+		if (wglSwapIntervalEXT != nullptr && desc.sync_interval != UINT32_MAX)
+		{
+			wglSwapIntervalEXT(static_cast<int>(desc.sync_interval));
+		}
 	}
 
 	// This is not great, since it will mean add-ons are loaded/unloaded multiple times, but otherwise they will never be unloaded
@@ -695,11 +700,6 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 		reshade::log::message(reshade::log::level::warning, "Application mistakenly called wglSetPixelFormat directly. Passing on to SetPixelFormat ...");
 
 		SetPixelFormat(hdc, iPixelFormat, ppfd);
-	}
-
-	if (wglSwapIntervalEXT != nullptr && desc.sync_interval != UINT32_MAX)
-	{
-		wglSwapIntervalEXT(static_cast<int>(desc.sync_interval));
 	}
 
 	return TRUE;

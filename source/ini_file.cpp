@@ -272,10 +272,9 @@ ini_file *ini_file::find_cache(std::filesystem::path path)
 
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
-	if (auto it = s_ini_cache.find(path); it == s_ini_cache.end())
-		return nullptr;
-	else
-		return &*it->second;
+	const auto it = s_ini_cache.find(path);
+
+	return it != s_ini_cache.end() ? it->second.get() : nullptr;
 }
 ini_file &ini_file::load_cache(std::filesystem::path path)
 {

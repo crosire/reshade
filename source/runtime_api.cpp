@@ -802,12 +802,12 @@ void reshade::runtime::update_texture_bindings([[maybe_unused]] const char *sema
 		if (!effect_data.compiled)
 			continue;
 
-		for (size_t permnutation_index = 0; permnutation_index < _effect_permutations.size(); ++permnutation_index)
+		for (size_t permutation_index = 0; permutation_index < _effect_permutations.size(); ++permutation_index)
 		{
-			if (permnutation_index >= effect_data.permutations.size())
+			if (permutation_index >= effect_data.permutations.size())
 				break;
 
-			for (const effect::binding &binding : effect_data.permutations[permnutation_index].texture_semantic_to_binding)
+			for (const effect::binding &binding : effect_data.permutations[permutation_index].texture_semantic_to_binding)
 			{
 				if (binding.semantic != semantic)
 					continue;
@@ -1490,6 +1490,32 @@ void reshade::runtime::set_effects_state([[maybe_unused]] bool enabled)
 {
 #if RESHADE_FX
 	_effects_enabled = enabled;
+#endif
+}
+
+void reshade::runtime::save_current_preset() const
+{
+#if RESHADE_FX
+	save_current_preset(ini_file::load_cache(_current_preset_path));
+#endif
+}
+void reshade::runtime::export_current_preset([[maybe_unused]] const char *path) const
+{
+#if RESHADE_FX
+	if (path == nullptr)
+		return;
+
+	const std::filesystem::path preset_path = std::filesystem::u8path(path);
+
+	if (ini_file *const cached_preset = ini_file::find_cache(preset_path))
+	{
+		save_current_preset(*cached_preset);
+		return;
+	}
+
+	ini_file preset(preset_path);
+	save_current_preset(preset);
+	preset.save();
 #endif
 }
 
