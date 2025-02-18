@@ -803,13 +803,13 @@
   <ItemGroup>
     <CustomBuild Include="res\shaders\imgui_ps_450.glsl">
       <FileType>Document</FileType>
-      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag "%(FullPath)" -o "res\shaders\%(Filename).spv" -Dfloat3=vec3 -Dfloat4=vec4 -Dfloat3x3=mat3 -Dfloat4x4=mat4</Command>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S frag -g0 "%(FullPath)" -o "res\shaders\%(Filename).spv" -Dfloat3=vec3 -Dfloat4=vec4 -Dfloat3x3=mat3 -Dfloat4x4=mat4</Command>
       <Outputs>res\shaders\%(Filename).spv</Outputs>
       <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
     <CustomBuild Include="res\shaders\imgui_vs_450.glsl">
       <FileType>Document</FileType>
-      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert "%(FullPath)" -o "res\shaders\%(Filename).spv" -Dfloat3=vec3 -Dfloat4=vec4 -Dfloat3x3=mat3 -Dfloat4x4=mat4</Command>
+      <Command>"$(VK_SDK_PATH)\Bin\glslangValidator.exe" -V -S vert -g0 "%(FullPath)" -o "res\shaders\%(Filename).spv" -Dfloat3=vec3 -Dfloat4=vec4 -Dfloat3x3=mat3 -Dfloat4x4=mat4</Command>
       <Outputs>res\shaders\%(Filename).spv</Outputs>
       <ExcludedFromBuild Condition="!Exists('$(VK_SDK_PATH)\Bin\glslangValidator.exe')">true</ExcludedFromBuild>
     </CustomBuild>
