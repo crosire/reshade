@@ -100,7 +100,13 @@ int wmain(int argc, wchar_t *argv[])
 		return 0;
 	}
 
-	wprintf(L"Waiting for a '%s' process to spawn ...\n", argv[1]);
+	const wchar_t *name = wcsrchr(argv[1], L'\\');
+	if (name)
+		name++; // Path separator in the argument, skip to the file name part
+	else
+		name = argv[1]; // No path separator in the argument, this is a file name
+
+	wprintf(L"Waiting for a '%s' process to spawn ...\n", name);
 
 	DWORD pid = 0;
 
@@ -112,7 +118,7 @@ int wmain(int argc, wchar_t *argv[])
 		PROCESSENTRY32W process = { sizeof(process) };
 		for (BOOL next = Process32FirstW(snapshot, &process); next; next = Process32NextW(snapshot, &process))
 		{
-			if (wcscmp(process.szExeFile, argv[1]) == 0)
+			if (_wcsicmp(process.szExeFile, name) == 0)
 			{
 				pid = process.th32ProcessID;
 				break;
@@ -149,7 +155,14 @@ int wmain(int argc, wchar_t *argv[])
 	}
 
 	loading_data arg;
+#if 0
 	GetCurrentDirectoryW(MAX_PATH, arg.load_path);
+#else
+	// Use module directory, since current directory points to target executable directory when drag'n'dropping a target executable onto the injector
+	GetModuleFileNameW(nullptr, arg.load_path, MAX_PATH);
+	if (wchar_t *const load_path_filename = wcsrchr(arg.load_path, L'\\'))
+		*load_path_filename = '\0';
+#endif
 	wcscat_s(arg.load_path, L"\\");
 	wcscat_s(arg.load_path, remote_is_wow64 ? L"ReShade32.dll" : L"ReShade64.dll");
 
@@ -204,7 +217,8 @@ int wmain(int argc, wchar_t *argv[])
 	VirtualFreeEx(remote_process, load_param, 0, MEM_RELEASE);
 
 	// Thread thread exit code will contain the module handle
-	if (DWORD exit_code; GetExitCodeThread(load_thread, &exit_code) &&
+	if (DWORD exit_code;
+		GetExitCodeThread(load_thread, &exit_code) &&
 #if RESHADE_LOADING_THREAD_FUNC
 		exit_code == ERROR_SUCCESS)
 #else
