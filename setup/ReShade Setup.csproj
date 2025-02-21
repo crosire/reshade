@@ -173,7 +173,8 @@
     <ItemGroup>
       <Archive Include="$(SolutionDir)bin\*\$(Configuration)\ReShade*.dll" />
     </ItemGroup>
-    <Exec Command="$(SolutionDir)tools\7za.exe a -mx=9 -mfb=258 -mpass=12 -y &quot;$(TargetPath).zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
+    <Exec Condition="'$(Configuration)' == 'Debug'" Command="$(SolutionDir)tools\7za.exe a -y &quot;$(TargetPath).zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
+    <Exec Condition="'$(Configuration)' == 'Release' Or '$(Configuration)' == 'Release Signed'" Command="$(SolutionDir)tools\7za.exe a -mx=9 -mfb=258 -mpass=12 -y &quot;$(TargetPath).zip&quot; &quot;@(Archive, '&quot; &quot;')&quot;" />
     <Message Text="Appending archive to setup executable ..." Importance="high" />
     <Exec Command="copy /b &quot;$(TargetPath)&quot; + &quot;$(TargetPath).zip&quot; &quot;$(TargetPath)&quot;" EchoOff="true" />
     <Delete Files="$(TargetPath).zip" />
