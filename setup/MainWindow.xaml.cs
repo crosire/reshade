@@ -505,6 +505,8 @@ namespace ReShade.Setup
 				return;
 			}
 
+			UpdateStatus("Downloading compatibility information ...");
+
 			// Attempt to download compatibility list
 			using (var client = new WebClient())
 			{
@@ -527,6 +529,8 @@ namespace ReShade.Setup
 
 		void InstallStep_AnalyzeExecutable()
 		{
+			DownloadCompatibilityIni();
+
 			UpdateStatus("Analyzing executable ...");
 
 			// In case this is the bootstrap executable of an Unreal Engine game, try and find the actual game executable for it
@@ -565,8 +569,6 @@ namespace ReShade.Setup
 			}
 
 			// Check whether the API is specified in the compatibility list, in which case setup can continue right away
-			DownloadCompatibilityIni();
-
 			string executableName = Path.GetFileName(currentInfo.targetPath);
 			if (compatibilityIni?.GetString(executableName, "Banned") == "1")
 			{
@@ -684,12 +686,12 @@ namespace ReShade.Setup
 		}
 		void InstallStep_CheckExistingInstallation()
 		{
+			DownloadCompatibilityIni();
+
 			UpdateStatus("Checking installation status ...");
 
 			string basePath = Path.GetDirectoryName(currentInfo.targetPath);
 			string executableName = Path.GetFileName(currentInfo.targetPath);
-
-			DownloadCompatibilityIni();
 
 			if (currentInfo.targetApi != Api.Vulkan && compatibilityIni != null)
 			{
@@ -1109,8 +1111,6 @@ In that event here are some steps you can try to resolve this:
 					return;
 				}
 			}
-
-			DownloadCompatibilityIni();
 
 			// Add default configuration
 			var config = new IniFile(currentInfo.configPath);
