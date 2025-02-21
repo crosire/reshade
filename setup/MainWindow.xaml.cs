@@ -38,6 +38,7 @@ namespace ReShade.Setup
 			if (productVersion.Contains(" "))
 			{
 				NavigationPanel.Background = Brushes.Crimson;
+				productVersion = productVersion.Remove(productVersion.IndexOf(" "));
 			}
 
 			// Add support for TLS 1.2 and 1.3, so that HTTPS connection to GitHub succeeds
@@ -175,6 +176,8 @@ namespace ReShade.Setup
 #if RESHADE_ADDON
 				MessageBox.Show(this, "This build of ReShade is intended for singleplayer games only and may cause bans in multiplayer games.", "Warning", MessageBoxButton.OK, MessageBoxImage.Exclamation);
 #endif
+
+				CheckForUpdate(productVersion);
 			}
 		}
 
@@ -498,6 +501,60 @@ namespace ReShade.Setup
 			catch
 			{
 				return false;
+			}
+		}
+
+		void CheckForUpdate(string currentVersion)
+		{
+			using (var client = new WebClient())
+			{
+				// GitHub API requests require a user agent to be set
+				client.Headers["User-Agent"] = "reshade";
+
+				client.DownloadStringCompleted += (s, e) =>
+				{
+					if (e.Error != null)
+					{
+						return;
+					}
+
+					string data = e.Result;
+					if (data.Length == 0)
+					{
+						return;
+					}
+
+					int tagBeg = data.IndexOf("\"v");
+					if (tagBeg < 0)
+					{
+						return;
+					}
+
+					tagBeg += 2;
+
+					int tagEnd = data.IndexOf('\"', tagBeg);
+					if (tagEnd < 0)
+					{
+						return;
+					}
+
+					string latestVersion = data.Substring(tagBeg, tagEnd - tagBeg);
+
+					if (new Version(latestVersion) > new Version(currentVersion))
+					{
+						MessageBox.Show(this, "This build of ReShade is outdated. A newer version (v" + latestVersion + ") can be downloaded from https://reshade.me.", "Update", MessageBoxButton.OK, MessageBoxImage.Information);
+					}
+				};
+
+				try
+				{
+
+					client.DownloadStringAsync(new Uri("https://api.github.com/repos/crosire/reshade/tags"));
+				}
+				catch (WebException)
+				{
+					// Ignore if update check failed
+				}
 			}
 		}
 
