@@ -259,27 +259,27 @@ public:
 	/// Saves all changes to INI files that were loaded through <see cref="load_cache"/> to disk.
 	/// </summary>
 	static bool flush_cache();
-	static bool flush_cache(std::filesystem::path path);
+	static bool flush_cache(const std::filesystem::path &path);
 
 	/// <summary>
 	/// Removes all INI files from cache, without saving changes.
 	/// </summary>
 	static void clear_cache();
-	static void clear_cache(std::filesystem::path path);
+	static void clear_cache(const std::filesystem::path &path);
 
 	/// <summary>
 	/// Gets the specified INI file from cache.
 	/// </summary>
-	/// <param name="path">Path to the INI file to access.</param>
+	/// <param name="path">Absolute path to the INI file to access.</param>
 	/// <returns>Reference to the cached data.</returns>
-	static ini_file *ini_file::find_cache(std::filesystem::path path);
+	static ini_file *find_cache(const std::filesystem::path &path);
 
 	/// <summary>
 	/// Gets the specified INI file from cache or opens it when it was not cached yet.
 	/// </summary>
-	/// <param name="path">Path to the INI file to access.</param>
+	/// <param name="path">Absolute path to the INI file to access.</param>
 	/// <returns>Reference to the cached data.</returns>
-	static ini_file &load_cache(std::filesystem::path path);
+	static ini_file &load_cache(const std::filesystem::path &path);
 
 private:
 	template <typename T>

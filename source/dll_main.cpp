@@ -58,17 +58,16 @@ bool is_windows7()
 static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
 {
 	WCHAR buf[4096];
-	if (!ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
+	if (ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
+		path = buf;
+	else
 		return false;
 
-	path = buf;
 	path = base / path;
-	path = path.lexically_normal();
-	if (!path.has_stem()) // Remove trailing slash
-		path = path.parent_path();
 
 	std::error_code ec;
-	return std::filesystem::is_directory(path, ec);
+	path = std::filesystem::canonical(path, ec);
+	return !ec && std::filesystem::is_directory(path, ec);
 }
 
 /// <summary>
@@ -78,11 +77,14 @@ std::filesystem::path get_base_path(bool default_to_target_executable_path = fal
 {
 	std::filesystem::path result;
 
-	if (reshade::global_config().get("INSTALL", "BasePath", result) && resolve_env_path(result))
+	// Cannot use global config here yet, since it uses base path for look up, so look at config file next to target executable instead
+	if (ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", result) &&
+		resolve_env_path(result))
 		return result;
 
 	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
+	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
+		resolve_env_path(result = buf))
 		return result;
 
 	return default_to_target_executable_path ? g_target_executable_path.parent_path() : g_reshade_dll_path.parent_path();
@@ -97,11 +99,13 @@ std::filesystem::path get_system_path()
 	if (!result.empty())
 		return result; // Return the cached path if it exists
 
-	if (reshade::global_config().get("INSTALL", "ModulePath", result) && resolve_env_path(result))
+	if (reshade::global_config().get("INSTALL", "ModulePath", result) &&
+		resolve_env_path(result))
 		return result;
 
 	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) && resolve_env_path(result = buf))
+	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
+		resolve_env_path(result = buf))
 		return result;
 
 	// First try environment variable, use system directory if it does not exist or is empty

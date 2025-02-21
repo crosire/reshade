@@ -233,11 +233,9 @@ bool ini_file::flush_cache()
 
 	return success;
 }
-bool ini_file::flush_cache(std::filesystem::path path)
+bool ini_file::flush_cache(const std::filesystem::path &path)
 {
-	std::error_code ec;
-	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
-		path = std::move(resolved);
+	assert(!path.empty() && path.is_absolute());
 
 	const std::shared_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
@@ -251,38 +249,27 @@ void ini_file::clear_cache()
 
 	s_ini_cache.clear();
 }
-void ini_file::clear_cache(std::filesystem::path path)
+void ini_file::clear_cache(const std::filesystem::path &path)
 {
-	std::error_code ec;
-	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
-		path = std::move(resolved);
+	assert(!path.empty() && path.is_absolute());
 
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
 	s_ini_cache.erase(path);
 }
 
-ini_file *ini_file::find_cache(std::filesystem::path path)
+ini_file *ini_file::find_cache(const std::filesystem::path &path)
 {
-	assert(!path.empty());
+	assert(!path.empty() && path.is_absolute());
 
-	std::error_code ec;
-	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
-		path = std::move(resolved);
-
-	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
+	const std::shared_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 
 	const auto it = s_ini_cache.find(path);
-
 	return it != s_ini_cache.end() ? it->second.get() : nullptr;
 }
-ini_file &ini_file::load_cache(std::filesystem::path path)
+ini_file &ini_file::load_cache(const std::filesystem::path &path)
 {
-	assert(!path.empty());
-
-	std::error_code ec;
-	if (std::filesystem::path resolved = std::filesystem::weakly_canonical(path, ec); !ec)
-		path = std::move(resolved);
+	assert(!path.empty() && path.is_absolute());
 
 	const std::unique_lock<std::shared_mutex> lock(s_ini_cache_mutex);
 

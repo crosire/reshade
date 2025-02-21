@@ -25,7 +25,9 @@
 #include <cstring> // std::memcmp, std::memcpy
 #include <algorithm> // std::any_of, std::count_if, std::find, std::find_if, std::max, std::min, std::replace, std::rotate, std::search, std::swap, std::transform
 
-static bool filter_text(const std::string_view text, const std::string_view filter)
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+
+static bool string_contains(const std::string_view text, const std::string_view filter)
 {
 	return filter.empty() ||
 		std::search(text.cbegin(), text.cend(), filter.cbegin(), filter.cend(),
@@ -33,14 +35,14 @@ static bool filter_text(const std::string_view text, const std::string_view filt
 				return (('a' <= c1 && c1 <= 'z') ? static_cast<char>(c1 - ' ') : c1) == (('a' <= c2 && c2 <= 'z') ? static_cast<char>(c2 - ' ') : c2);
 			}) != text.cend();
 }
-static auto filter_name(ImGuiInputTextCallbackData *data) -> int
-{
-	// A file name cannot contain any of the following characters
-	return data->EventChar == L'\"' || data->EventChar == L'*' || data->EventChar == L'/' || data->EventChar == L':' || data->EventChar == L'<' || data->EventChar == L'>' || data->EventChar == L'?' || data->EventChar == L'\\' || data->EventChar == L'|';
-}
-static auto filter_path_name(ImGuiInputTextCallbackData *data) -> int
+static auto is_invalid_path_element(ImGuiInputTextCallbackData *data) -> int
 {
 	return data->EventChar == L'\"' || data->EventChar == L'*' || data->EventChar == L':' || data->EventChar == L'<' || data->EventChar == L'>' || data->EventChar == L'?' || data->EventChar == L'|';
+}
+static auto is_invalid_filename_element(ImGuiInputTextCallbackData *data) -> int
+{
+	// A file name cannot contain any of the following characters
+	return is_invalid_path_element(data) || data->EventChar == L'/' || data->EventChar == L'\\';
 }
 
 template <typename F>
@@ -193,7 +195,6 @@ void reshade::runtime::build_font_atlas()
 		if (font_path.empty())
 			return true;
 
-		extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 		if (!resolve_path(font_path, ec))
 			return false;
 
@@ -1799,8 +1800,12 @@ void reshade::runtime::draw_gui_home()
 			ImGui::EndDisabled();
 
 		ImGui::SetNextWindowPos(browse_button_pos + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing()));
-		if (imgui::file_dialog("##browse", _file_selection_path, std::max(browse_button_width, 450.0f), { L".ini", L".txt" }, { _config_path, global_config().path() }))
+		if (imgui::file_dialog("##browse", _file_selection_path, std::max(browse_button_width, 450.0f), { L".ini", L".txt" }, { _config_path, g_reshade_base_path / L"ReShade.ini" }))
 		{
+			std::error_code ec;
+			if (std::filesystem::path resolved_path = std::filesystem::canonical(_file_selection_path, ec); !ec)
+				_file_selection_path = std::move(resolved_path);
+
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
 			{
@@ -1825,13 +1830,15 @@ void reshade::runtime::draw_gui_home()
 				ImGui::SetKeyboardFocusHere();
 
 			char preset_name[260] = "";
-			if (ImGui::InputText(_("Preset name"), preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter, filter_name) && preset_name[0] != '\0')
+			if (ImGui::InputText(_("Preset name"), preset_name, sizeof(preset_name), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter, &is_invalid_filename_element) && preset_name[0] != '\0')
 			{
 				std::filesystem::path new_preset_path = _current_preset_path.parent_path() / std::filesystem::u8path(preset_name);
 				if (new_preset_path.extension() != L".ini" && new_preset_path.extension() != L".txt")
 					new_preset_path += L".ini";
 
 				std::error_code ec;
+				resolve_path(new_preset_path, ec);
+
 				if (const std::filesystem::file_type file_type = std::filesystem::status(new_preset_path, ec).type();
 					file_type != std::filesystem::file_type::directory)
 				{
@@ -1929,7 +1936,7 @@ void reshade::runtime::draw_gui_home()
 				if (label.empty())
 					label = tech.name;
 
-				tech.hidden = tech.annotation_as_int("hidden") != 0 || !(filter_text(label, _effect_filter) || filter_text(_effects[tech.effect_index].source_file.filename().u8string(), _effect_filter));
+				tech.hidden = tech.annotation_as_int("hidden") != 0 || !(string_contains(label, _effect_filter) || string_contains(_effects[tech.effect_index].source_file.filename().u8string(), _effect_filter));
 			}
 		}
 
@@ -2231,7 +2238,7 @@ void reshade::runtime::draw_gui_settings()
 
 		char name[260];
 		name[_screenshot_name.copy(name, sizeof(name) - 1)] = '\0';
-		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, filter_path_name))
+		if (ImGui::InputText(_("Screenshot name"), name, sizeof(name), ImGuiInputTextFlags_CallbackCharFilter, &is_invalid_path_element))
 		{
 			modified = true;
 			_screenshot_name = name;
@@ -3079,7 +3086,7 @@ void reshade::runtime::draw_gui_log()
 			{
 				char line_data[2048];
 				while (fgets(line_data, sizeof(line_data), file))
-					if (filter_text(line_data, _log_filter))
+					if (string_contains(line_data, _log_filter))
 						_log_lines.push_back(line_data);
 
 				fclose(file);
@@ -3285,7 +3292,7 @@ void reshade::runtime::draw_gui_addons()
 		{
 			const std::string name = !info.name.empty() ? info.name : std::filesystem::u8path(info.file).stem().u8string();
 
-			if (!filter_text(name, _addons_filter))
+			if (!string_contains(name, _addons_filter))
 				continue;
 
 			ImGui::BeginChild(name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
