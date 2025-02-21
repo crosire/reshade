@@ -1664,10 +1664,7 @@ void reshade::runtime::draw_gui_home()
 		// Loading state may change below, so keep track of current state so that 'ImGui::Push/Pop*' is executed the correct amount of times
 		const bool was_loading = is_loading();
 		if (was_loading)
-		{
-			ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-		}
+			ImGui::BeginDisabled();
 
 		if (ImGui::ArrowButtonEx("<", ImGuiDir_Left, ImVec2(button_height, button_height), ImGuiButtonFlags_NoNavFocus))
 			if (switch_to_next_preset(_current_preset_path.parent_path(), true))
@@ -1799,10 +1796,7 @@ void reshade::runtime::draw_gui_home()
 		ImGui::SetItemTooltip(_("Add a new preset."));
 
 		if (was_loading)
-		{
-			ImGui::PopStyleColor();
-			ImGui::PopItemFlag();
-		}
+			ImGui::EndDisabled();
 
 		ImGui::SetNextWindowPos(browse_button_pos + ImVec2(-_imgui_context->Style.WindowPadding.x, ImGui::GetFrameHeightWithSpacing()));
 		if (imgui::file_dialog("##browse", _file_selection_path, std::max(browse_button_width, 450.0f), { L".ini", L".txt" }, { _config_path, global_config().path() }))
