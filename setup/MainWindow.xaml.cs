@@ -85,6 +85,9 @@ namespace ReShade.Setup
 							case "dxgi":
 								currentInfo.targetApi = Api.DXGI;
 								break;
+							case "ddraw":
+								currentInfo.targetApi = Api.DDraw;
+								break;
 							case "opengl":
 								currentInfo.targetApi = Api.OpenGL;
 								break;
