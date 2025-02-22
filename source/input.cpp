@@ -6,6 +6,7 @@
 #include "input.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
+#include <atomic>
 #include <shared_mutex>
 #include <unordered_map>
 #include <cstring> // std::memset
