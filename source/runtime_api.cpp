@@ -1429,7 +1429,7 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Never perform an immediate reload here, as the list of techniques must not be modified in case this was called from within 'enumerate_techniques'!
-		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, _is_in_present_call ? _back_buffer_color_space : api::color_space::unknown);
+		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, _is_in_present_call || back_buffer_resource == get_current_back_buffer() ? _back_buffer_color_space : api::color_space::unknown);
 		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}

@@ -4075,7 +4075,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 
 	size_t permutation_index = 0;
 #if RESHADE_ADDON
-	if (!_is_in_present_call)
+	if (!_is_in_present_call &&
+		// Special case for when add-on passed in the back buffer, which behaves as if this was called from within present, using the default permutation
+		back_buffer_resource != get_current_back_buffer())
 	{
 		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
 		if (back_buffer_desc.texture.samples > 1)
