@@ -326,16 +326,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	on_reset(true);
 
-	assert(!g_in_dxgi_runtime);
-
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
 	{
 		DXGI_SWAP_CHAIN_DESC desc = {};
-
-		g_in_dxgi_runtime = true;
-		_orig->GetDesc(&desc);
-		g_in_dxgi_runtime = false;
+		GetDesc(&desc);
 
 		desc.BufferCount = BufferCount;
 		desc.BufferDesc.Width = Width;
@@ -355,9 +350,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	}
 #endif
 
+	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
-	g_in_dxgi_runtime = false;
+	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
 		on_init(true);
@@ -584,22 +580,16 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	on_reset(true);
 
-	assert(_interface_version >= 3);
-	assert(!g_in_dxgi_runtime);
-
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
 	{
 		HWND hwnd = nullptr;
+		GetHwnd(&hwnd);
 		DXGI_SWAP_CHAIN_DESC1 desc = {};
+		GetDesc1(&desc);
 		BOOL fullscreen = FALSE;
 		DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc = {};
-
-		g_in_dxgi_runtime = true;
-		static_cast<IDXGISwapChain3 *>(_orig)->GetHwnd(&hwnd);
-		static_cast<IDXGISwapChain3 *>(_orig)->GetDesc1(&desc);
-		_orig->GetFullscreenState(&fullscreen, nullptr);
-		g_in_dxgi_runtime = false;
+		GetFullscreenState(&fullscreen, nullptr);
 
 		desc.BufferCount = BufferCount;
 		desc.Width = Width;
@@ -631,9 +621,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		query_device(present_queues[i], command_queue_proxy);
 	}
 
+	assert(_interface_version >= 3);
+	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, NewFormat, SwapChainFlags, pCreationNodeMask, present_queues.p);
-	g_in_dxgi_runtime = false;
+	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
 		on_init(true);
