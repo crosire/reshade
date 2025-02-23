@@ -50,7 +50,6 @@ bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 	return !ec; // The canonicalization step fails if the path does not exist
 }
 
-#if RESHADE_FX
 bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec)
 {
 	ec.clear();
@@ -173,7 +172,6 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 
 	return files;
 }
-#endif
 
 reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr) :
 	_swapchain(swapchain),
@@ -183,10 +181,8 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	_start_time(std::chrono::high_resolution_clock::now()),
 	_last_present_time(_start_time),
 	_last_frame_duration(std::chrono::milliseconds(1)),
-#if RESHADE_FX
 	_effect_search_paths({ L".\\" }),
 	_texture_search_paths({ L".\\" }),
-#endif
 	_config_path(config_path),
 	_screenshot_path(L".\\"),
 	_screenshot_name("%AppName% %Date% %Time%_%TimeMS%"), // Use a timestamp down to the millisecond because users may request more than one screenshot per-second
@@ -228,11 +224,9 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	// Default shortcut PrtScrn
 	_screenshot_key_data[0] = 0x2C;
 
-#if RESHADE_GUI && RESHADE_FX
-	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
-#endif
-
 #if RESHADE_GUI
+	_timestamp_frequency = graphics_queue->get_timestamp_frequency();
+
 	init_gui();
 #endif
 
@@ -247,9 +241,7 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 reshade::runtime::~runtime()
 {
 	assert(_worker_threads.empty());
-#if RESHADE_FX
 	assert(!_is_initialized && _techniques.empty() && _technique_sorting.empty());
-#endif
 
 #if RESHADE_GUI
 	// Save configuration before shutting down to ensure the current window state is written to disk
@@ -280,13 +272,10 @@ bool reshade::runtime::on_init()
 	if (back_buffer_desc.texture.samples > 1
 		// Always use resolve texture in OpenGL to flip vertically and support sRGB + binding effect stencil
 		|| (_device->get_api() == api::device_api::opengl && !_is_vr)
-#if RESHADE_FX
 		// Some effects rely on there being an alpha channel available, so create resolve texture if that is not the case
 		|| (_back_buffer_format == api::format::r8g8b8x8_unorm || _back_buffer_format == api::format::b8g8r8x8_unorm)
-#endif
 		)
 	{
-#if RESHADE_FX
 		switch (_back_buffer_format)
 		{
 		case api::format::r8g8b8x8_unorm:
@@ -296,7 +285,6 @@ bool reshade::runtime::on_init()
 			_back_buffer_format = api::format::b8g8r8a8_unorm;
 			break;
 		}
-#endif
 
 		const bool need_copy_pipeline =
 			_device->get_api() == api::device_api::d3d10 ||
@@ -369,7 +357,6 @@ bool reshade::runtime::on_init()
 		}
 	}
 
-#if RESHADE_FX
 	// Create an empty texture, which is bound to shader resource view slots with an unknown semantic (since it is not valid to bind a zero handle in Vulkan, unless the 'VK_EXT_robustness2' extension is enabled)
 	if (_empty_tex == 0)
 	{
@@ -414,7 +401,6 @@ bool reshade::runtime::on_init()
 
 	if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
 		goto exit_failure;
-#endif
 
 	// Create render targets for the back buffer resources
 	for (uint32_t i = 0, count = get_back_buffer_count(); i < count; ++i)
@@ -479,7 +465,6 @@ bool reshade::runtime::on_init()
 	return true;
 
 exit_failure:
-#if RESHADE_FX
 	_device->destroy_resource(_empty_tex);
 	_empty_tex = {};
 	_device->destroy_resource_view(_empty_srv);
@@ -495,7 +480,6 @@ exit_failure:
 		_device->destroy_resource_view(permutation.stencil_dsv);
 	}
 	_effect_permutations.clear();
-#endif
 
 	_device->destroy_pipeline(_copy_pipeline);
 	_copy_pipeline = {};
@@ -533,7 +517,6 @@ void reshade::runtime::on_reset()
 	else
 		return; // Nothing to do if the runtime was already destroyed or not successfully initialized in the first place
 
-#if RESHADE_FX
 	// Already performs a wait for idle, so no need to do it again before destroying resources below
 	destroy_effects();
 
@@ -552,12 +535,6 @@ void reshade::runtime::on_reset()
 		_device->destroy_resource_view(permutation.stencil_dsv);
 	}
 	_effect_permutations.clear();
-#else
-	for (std::thread &thread : _worker_threads)
-		if (thread.joinable())
-			thread.join();
-	_worker_threads.clear();
-#endif
 
 	_device->destroy_pipeline(_copy_pipeline);
 	_copy_pipeline = {};
@@ -658,7 +635,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	if (_input != nullptr)
 		input_lock = _input->lock();
 
-#if RESHADE_FX
 	update_effects();
 
 	if (_should_save_screenshot && _screenshot_save_before && _effects_enabled && !_effects_rendered_this_frame)
@@ -674,14 +650,9 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index], _back_buffer_targets[back_buffer_index + 1]);
 		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
 	}
-#endif
 
 	if (_should_save_screenshot)
-		save_screenshot(
-#if RESHADE_FX
-			_screenshot_save_before ? "After" :
-#endif
-			std::string_view());
+		save_screenshot(_screenshot_save_before ? "After" : std::string_view());
 
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -694,11 +665,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	else
 		draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay
-#if RESHADE_FX
-		|| (_preview_texture != 0 && _effects_enabled)
-#endif
-		))
+	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
 		save_screenshot("Overlay");
 #endif
 
@@ -708,7 +675,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 	// Handle keyboard shortcuts
 	if (!_ignore_shortcuts && _input != nullptr)
 	{
-#if RESHADE_FX
 		if (_input->is_key_pressed(_effects_key_data, _force_shortcut_modifiers))
 		{
 #if RESHADE_ADDON
@@ -716,7 +682,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 #endif
 				_effects_enabled = !_effects_enabled;
 		}
-#endif
 
 		if (_input->is_key_pressed(_screenshot_key_data, _force_shortcut_modifiers))
 		{
@@ -724,7 +689,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 			_should_save_screenshot = true; // Remember that we want to save a screenshot next frame
 		}
 
-#if RESHADE_FX
 		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading())
 		{
@@ -829,7 +793,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 			if (_is_in_preset_transition)
 				load_current_preset();
 		}
-#endif
 	}
 
 	// Stretch main render target back into MSAA back buffer if MSAA is active or copy when format conversion is required
@@ -879,9 +842,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 
 	_is_in_present_call = false;
 #endif
-#if RESHADE_FX
 	_effects_rendered_this_frame = false;
-#endif
 
 	// Apply previous state from application
 	apply_state(cmd_list, _app_state);
@@ -920,7 +881,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		traffic = 0;
 		cooldown = 60;
 
-#if RESHADE_FX
 		if (addon_enabled != was_enabled)
 		{
 			if (was_enabled)
@@ -934,7 +894,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 				update_texture_bindings(info.first.c_str(), addon_enabled ? info.second.first : api::resource_view { 0 }, addon_enabled ? info.second.second : api::resource_view { 0 });
 			}
 		}
-#endif
 	}
 
 	if (std::numeric_limits<long>::max() != g_network_traffic)
@@ -960,7 +919,6 @@ void reshade::runtime::load_config()
 
 	config_get("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config_get("INPUT", "KeyScreenshot", _screenshot_key_data);
-#if RESHADE_FX
 	config_get("INPUT", "KeyEffects", _effects_key_data);
 	config_get("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config_get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
@@ -1012,7 +970,6 @@ void reshade::runtime::load_config()
 		std::copy_n(&preset_key_data[i * 4], 4, shortcut.key_data);
 		_preset_shortcuts.push_back(std::move(shortcut));
 	}
-#endif
 
 	config_get("SCREENSHOT", "SavePath", _screenshot_path);
 	config_get("SCREENSHOT", "SoundPath", _screenshot_sound_path);
@@ -1021,10 +978,8 @@ void reshade::runtime::load_config()
 	config_get("SCREENSHOT", "FileNaming", _screenshot_name);
 	config_get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 	config_get("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
-#if RESHADE_FX
 	config_get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config_get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
-#endif
 #if RESHADE_GUI
 	config_get("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 #endif
@@ -1043,7 +998,6 @@ void reshade::runtime::save_config() const
 
 	config.set("INPUT", "ForceShortcutModifiers", _force_shortcut_modifiers);
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
-#if RESHADE_FX
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
 	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
@@ -1081,7 +1035,6 @@ void reshade::runtime::save_config() const
 	}
 	config.set("GENERAL", "PresetShortcutKeys", preset_key_data);
 	config.set("GENERAL", "PresetShortcutPaths", preset_shortcut_paths);
-#endif
 
 	config.set("SCREENSHOT", "SavePath", _screenshot_path);
 	config.set("SCREENSHOT", "SoundPath", _screenshot_sound_path);
@@ -1090,10 +1043,8 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
 	config.set("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
-#if RESHADE_FX
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
-#endif
 #if RESHADE_GUI
 	config.set("SCREENSHOT", "SaveOverlayShot", _screenshot_save_gui);
 #endif
@@ -1107,7 +1058,6 @@ void reshade::runtime::save_config() const
 #endif
 }
 
-#if RESHADE_FX
 void reshade::runtime::load_current_preset()
 {
 	_preset_save_successful = true;
@@ -4772,7 +4722,6 @@ template <> void reshade::runtime::set_uniform_value<uint32_t>(uniform &variable
 		set_uniform_value_data(variable, reinterpret_cast<const uint8_t *>(values), count * sizeof(uint32_t), array_index);
 	}
 }
-#endif
 
 static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros)
 {
@@ -4892,9 +4841,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
-#if RESHADE_FX
-		{ "PresetName",  _current_preset_path.stem().u8string() },
-#endif
+		{ "PresetName", _current_preset_path.stem().u8string() },
 		{ "BeforeAfter", std::string(postfix) },
 		{ "Count", std::to_string(screenshot_count) }
 	});
@@ -4916,14 +4863,11 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * (_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4));
 		capture_screenshot(pixels.data()))
 	{
-#if RESHADE_FX
 		const bool include_preset =
 			_screenshot_include_preset &&
 			postfix != "Before" && postfix != "Overlay" &&
 			ini_file::flush_cache(_current_preset_path);
-#else
-		const bool include_preset = false;
-#endif
+
 		// Play screenshot sound
 		if (!_screenshot_sound_path.empty())
 			utils::play_sound_async(g_reshade_base_path / _screenshot_sound_path);
@@ -4987,7 +4931,6 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 			{
 				execute_screenshot_post_save_command(screenshot_path, screenshot_count, postfix);
 
-#if RESHADE_FX
 				if (include_preset)
 				{
 					std::filesystem::path screenshot_preset_path = screenshot_path;
@@ -4997,7 +4940,6 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 					if (!std::filesystem::copy_file(_current_preset_path, screenshot_preset_path, std::filesystem::copy_options::overwrite_existing, ec))
 						log::message(log::level::error, "Failed to copy preset file for screenshot to '%s' with error code %d!", screenshot_preset_path.u8string().c_str(), ec.value());
 				}
-#endif
 
 #if RESHADE_ADDON
 				invoke_addon_event<addon_event::reshade_screenshot>(this, screenshot_path.u8string().c_str());
@@ -5043,9 +4985,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 		command_line += ' ';
 		command_line += expand_macro_string(_screenshot_post_save_command_arguments, {
 			{ "AppName", g_target_executable_path.stem().u8string() },
-#if RESHADE_FX
-			{ "PresetName",  _current_preset_path.stem().u8string() },
-#endif
+			{ "PresetName", _current_preset_path.stem().u8string() },
 			{ "BeforeAfter", std::string(postfix) },
 			{ "TargetPath", screenshot_path.u8string() },
 			{ "TargetDir", screenshot_path.parent_path().u8string() },

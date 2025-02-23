@@ -5,8 +5,6 @@
 
 #pragma once
 
-#if RESHADE_FX
-
 #include "effect_module.hpp"
 #include "moving_average.hpp"
 
@@ -245,5 +243,3 @@ namespace reshade
 		api::query_heap query_heap = {};
 	};
 }
-
-#endif

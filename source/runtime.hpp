@@ -57,12 +57,10 @@ namespace reshade
 		/// </summary>
 		const std::filesystem::path &get_config_path() const { return _config_path; }
 
-#if RESHADE_FX
 		/// <summary>
 		/// Gets a boolean indicating whether effects are being loaded.
 		/// </summary>
 		bool is_loading() const { return _reload_remaining_effects != std::numeric_limits<size_t>::max() || !_reload_create_queue.empty(); }
-#endif
 
 		void render_effects(api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
 		void render_technique(api::effect_technique handle, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb) final;
@@ -179,7 +177,6 @@ namespace reshade
 		void load_config();
 		void save_config() const;
 
-#if RESHADE_FX
 		void load_current_preset();
 		void save_current_preset(ini_file &preset) const;
 
@@ -236,7 +233,6 @@ namespace reshade
 		}
 
 		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, int scope_mask, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
-#endif
 
 		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
 
@@ -272,11 +268,9 @@ namespace reshade
 		std::shared_ptr<class input> _input;
 		std::shared_ptr<class input_gamepad> _input_gamepad;
 
-#if RESHADE_FX
 		bool _effects_enabled = true;
 		bool _effects_rendered_this_frame = false;
 		unsigned int _effects_key_data[4] = {};
-#endif
 
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_present_time;
@@ -284,7 +278,6 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Effect Loading
-#if RESHADE_FX
 		bool _no_debug_info = true;
 		bool _no_effect_cache = false;
 		bool _no_reload_on_init = false;
@@ -311,13 +304,12 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<technique> _techniques;
 		std::vector<size_t> _technique_sorting;
-#endif
+
 		std::vector<std::thread> _worker_threads;
 		std::chrono::high_resolution_clock::time_point _last_reload_time;
 		#pragma endregion
 
 		#pragma region Effect Rendering
-#if RESHADE_FX
 		struct effect_permutation
 		{
 			unsigned int width = 0;
@@ -340,7 +332,6 @@ namespace reshade
 #if RESHADE_ADDON == 1
 		std::unordered_map<std::string, std::pair<api::resource_view, api::resource_view>> _backup_texture_semantic_bindings;
 #endif
-#endif
 		api::pipeline _copy_pipeline = {};
 		api::pipeline_layout _copy_pipeline_layout = {};
 		api::sampler  _copy_sampler_state = {};
@@ -356,10 +347,8 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Screenshot
-#if RESHADE_FX
 		bool _screenshot_save_before = false;
 		bool _screenshot_include_preset = false;
-#endif
 #if RESHADE_GUI
 		bool _screenshot_save_gui = false;
 #endif
@@ -385,7 +374,6 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Preset Switching
-#if RESHADE_FX
 		unsigned int _prev_preset_key_data[4] = {};
 		unsigned int _next_preset_key_data[4] = {};
 		unsigned int _preset_transition_duration = 1000;
@@ -401,7 +389,6 @@ namespace reshade
 			unsigned int key_data[4] = {};
 		};
 		std::vector<preset_shortcut> _preset_shortcuts;
-#endif
 		#pragma endregion
 
 #if RESHADE_GUI
@@ -420,9 +407,7 @@ namespace reshade
 		void draw_gui();
 		void draw_gui_vr();
 
-#if RESHADE_FX
 		void draw_gui_home();
-#endif
 		void draw_gui_settings();
 		void draw_gui_statistics();
 		void draw_gui_log();
@@ -430,10 +415,8 @@ namespace reshade
 #if RESHADE_ADDON
 		void draw_gui_addons();
 #endif
-#if RESHADE_FX
 		void draw_variable_editor();
 		void draw_technique_editor();
-#endif
 
 		bool init_imgui_resources();
 		void render_imgui_draw_data(api::command_list *cmd_list, ImDrawData *draw_data, api::resource_view rtv);
@@ -449,10 +432,8 @@ namespace reshade
 		unsigned int _show_frametime = false;
 		unsigned int _show_preset_name = false;
 		bool _show_screenshot_message = true;
-#if RESHADE_FX
 		bool _show_preset_transition_message = true;
 		unsigned int _reload_count = 0;
-#endif
 
 		bool _is_font_scaling = false;
 		bool _no_font_scaling = false;
@@ -481,7 +462,6 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Home
-#if RESHADE_FX
 		char _effect_filter[32] = {};
 		bool _variable_editor_tabs = false;
 		bool _auto_save_preset = true;
@@ -494,7 +474,6 @@ namespace reshade
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
 		float _variable_editor_height = 200.0f;
-#endif
 		#pragma endregion
 
 		#pragma region Overlay Add-ons
@@ -515,19 +494,14 @@ namespace reshade
 		float _fps_scale = 1.0f;
 		float _hdr_overlay_brightness = 203.f; // HDR reference white as per BT.2408
 		api::color_space _hdr_overlay_overwrite_color_space = api::color_space::unknown;
-
-#if RESHADE_FX
 		bool  _show_force_load_effects_button = true;
-#endif
 		#pragma endregion
 
 		#pragma region Overlay Statistics
-#if RESHADE_FX
 		bool _gather_gpu_statistics = false;
 		api::resource_view _preview_texture = {};
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
 		uint64_t _timestamp_frequency = 0;
-#endif
 		#pragma endregion
 
 		#pragma region Overlay Log
@@ -538,7 +512,6 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Overlay Code Editor
-#if RESHADE_FX
 		struct editor_instance
 		{
 			size_t effect_index;
@@ -556,13 +529,11 @@ namespace reshade
 		void draw_code_editor(editor_instance &instance);
 
 		std::vector<editor_instance> _editors;
-#endif
 		uint32_t _editor_palette[imgui::code_editor::color_palette_max];
 		#pragma endregion
 #endif
 	};
 
-#if RESHADE_FX
 	template <> void runtime::get_uniform_value<bool>(const uniform &variable, bool *values, size_t count, size_t array_index) const;
 	template <> void runtime::get_uniform_value<float>(const uniform &variable, float *values, size_t count, size_t array_index) const;
 	template <> void runtime::get_uniform_value<int32_t>(const uniform &variable, int32_t *values, size_t count, size_t array_index) const;
@@ -572,5 +543,4 @@ namespace reshade
 	template <> void runtime::set_uniform_value<float>(uniform &variable, const float *values, size_t count, size_t array_index);
 	template <> void runtime::set_uniform_value<int32_t>(uniform &variable, const int32_t *values, size_t count, size_t array_index);
 	template <> void runtime::set_uniform_value<uint32_t>(uniform &variable, const uint32_t *values, size_t count, size_t array_index);
-#endif
 }

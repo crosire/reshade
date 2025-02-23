@@ -120,8 +120,6 @@ void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const
 	config.set(section_string, key_string, elements);
 }
 
-#if RESHADE_ADDON && RESHADE_FX
-
 #include "d3d9/d3d9_impl_device.hpp"
 #include "d3d9/d3d9_impl_swapchain.hpp"
 #include "d3d10/d3d10_impl_device.hpp"
@@ -311,9 +309,7 @@ void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime)
 	present_queue->flush_immediate_command_list();
 }
 
-#endif
-
-#if RESHADE_ADDON && RESHADE_GUI
+#if RESHADE_GUI
 
 #include "imgui_function_table_19180.hpp"
 #include "imgui_function_table_19040.hpp"

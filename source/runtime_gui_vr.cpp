@@ -100,9 +100,7 @@ void reshade::runtime::deinit_gui_vr()
 
 void reshade::runtime::draw_gui_vr()
 {
-#if RESHADE_FX
 	_gather_gpu_statistics = false;
-#endif
 
 	if (s_main_handle == vr::k_ulOverlayHandleInvalid || !s_vr_overlay->IsOverlayVisible(s_main_handle))
 		return;
@@ -200,9 +198,7 @@ void reshade::runtime::draw_gui_vr()
 #endif
 
 	const std::pair<std::string, void(runtime::*)()> overlay_callbacks[] = {
-#if RESHADE_FX
 		{ _("Home###home"), &runtime::draw_gui_home },
-#endif
 #if RESHADE_ADDON
 		{ _("Add-ons###addons"), &runtime::draw_gui_addons },
 #endif
