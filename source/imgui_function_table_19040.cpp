@@ -317,55 +317,67 @@ namespace
 		new_clipper.TempData = old_clipper.TempData;
 	}
 
-	static struct imgui_draw_list_19040_internal : public imgui_draw_list_19040 { imgui_draw_list_19180 *orig = nullptr; } temp_draw_list;
+	static struct imgui_draw_list_19040_internal : public imgui_draw_list_19040 { imgui_draw_list_19180 *orig = nullptr; bool reserved_prims = false; } temp_draw_list;
 
 	imgui_draw_list_19040 *wrap(imgui_draw_list_19180 *new_draw_list)
 	{
-		temp_draw_list.CmdBuffer = new_draw_list->CmdBuffer;
-		temp_draw_list.IdxBuffer = new_draw_list->IdxBuffer;
-		temp_draw_list.VtxBuffer = new_draw_list->VtxBuffer;
-		temp_draw_list.Flags = new_draw_list->Flags;
-
-		temp_draw_list._VtxCurrentIdx = new_draw_list->_VtxCurrentIdx;
-		temp_draw_list._Data = new_draw_list->_Data;
-		temp_draw_list._OwnerName = new_draw_list->_OwnerName;
-		temp_draw_list._VtxWritePtr = temp_draw_list.VtxBuffer.Data + (new_draw_list->_VtxWritePtr - new_draw_list->VtxBuffer.Data);
-		temp_draw_list._IdxWritePtr = temp_draw_list.IdxBuffer.Data + (new_draw_list->_IdxWritePtr - new_draw_list->IdxBuffer.Data);
-		temp_draw_list._ClipRectStack = new_draw_list->_ClipRectStack;
-		temp_draw_list._TextureIdStack = new_draw_list->_TextureIdStack;
-		temp_draw_list._Path = new_draw_list->_Path;
-		temp_draw_list._CmdHeader = new_draw_list->_CmdHeader;
-		temp_draw_list._Splitter = new_draw_list->_Splitter;
-		temp_draw_list._FringeScale = new_draw_list->_FringeScale;
-
+		temp_draw_list = imgui_draw_list_19040_internal {};
 		temp_draw_list.orig = new_draw_list;
+
 		return &temp_draw_list;
 	}
-	imgui_draw_list_19180 *unwrap(const imgui_draw_list_19040 *old_draw_list)
+	imgui_draw_list_19040 *wrap(imgui_draw_list_19180 *new_draw_list, imgui_draw_list_19040 *old_draw_list)
 	{
-		imgui_draw_list_19180 *new_draw_list = static_cast<const imgui_draw_list_19040_internal *>(old_draw_list)->orig;
-		new_draw_list->CmdBuffer = old_draw_list->CmdBuffer;
-		new_draw_list->IdxBuffer = old_draw_list->IdxBuffer;
-		new_draw_list->VtxBuffer = old_draw_list->VtxBuffer;
-		new_draw_list->Flags = old_draw_list->Flags;
+		if (temp_draw_list.reserved_prims && temp_draw_list.orig == new_draw_list)
+		{
+			old_draw_list->CmdBuffer = new_draw_list->CmdBuffer;
+			old_draw_list->IdxBuffer = new_draw_list->IdxBuffer;
+			old_draw_list->VtxBuffer = new_draw_list->VtxBuffer;
+			old_draw_list->Flags = new_draw_list->Flags;
 
-		new_draw_list->_VtxCurrentIdx = old_draw_list->_VtxCurrentIdx;
-		new_draw_list->_Data = old_draw_list->_Data;
-		new_draw_list->_OwnerName = old_draw_list->_OwnerName;
-		new_draw_list->_VtxWritePtr = new_draw_list->VtxBuffer.Data + (old_draw_list->_VtxWritePtr - old_draw_list->VtxBuffer.Data);
-		new_draw_list->_IdxWritePtr = new_draw_list->IdxBuffer.Data + (old_draw_list->_IdxWritePtr - old_draw_list->IdxBuffer.Data);
-		new_draw_list->_ClipRectStack = old_draw_list->_ClipRectStack;
-		new_draw_list->_TextureIdStack = old_draw_list->_TextureIdStack;
-		new_draw_list->_Path = old_draw_list->_Path;
-		new_draw_list->_CmdHeader = old_draw_list->_CmdHeader;
-		new_draw_list->_Splitter = old_draw_list->_Splitter;
-		new_draw_list->_FringeScale = old_draw_list->_FringeScale;
+			old_draw_list->_VtxCurrentIdx = new_draw_list->_VtxCurrentIdx;
+			old_draw_list->_Data = new_draw_list->_Data;
+			old_draw_list->_OwnerName = new_draw_list->_OwnerName;
+			old_draw_list->_VtxWritePtr = old_draw_list->VtxBuffer.Data + (new_draw_list->_VtxWritePtr - new_draw_list->VtxBuffer.Data);
+			old_draw_list->_IdxWritePtr = old_draw_list->IdxBuffer.Data + (new_draw_list->_IdxWritePtr - new_draw_list->IdxBuffer.Data);
+			old_draw_list->_ClipRectStack = new_draw_list->_ClipRectStack;
+			old_draw_list->_TextureIdStack = new_draw_list->_TextureIdStack;
+			old_draw_list->_Path = new_draw_list->_Path;
+			old_draw_list->_CmdHeader = new_draw_list->_CmdHeader;
+			old_draw_list->_Splitter = new_draw_list->_Splitter;
+			old_draw_list->_FringeScale = new_draw_list->_FringeScale;
+		}
+
+		return old_draw_list;
+	}
+	imgui_draw_list_19180 *unwrap(imgui_draw_list_19040 *old_draw_list, bool reserved_prims = false)
+	{
+		imgui_draw_list_19180 *const new_draw_list = temp_draw_list.orig;
+		assert(old_draw_list == &temp_draw_list && new_draw_list != nullptr);
+
+		if (temp_draw_list.reserved_prims && temp_draw_list.orig == new_draw_list)
+		{
+			new_draw_list->CmdBuffer = old_draw_list->CmdBuffer;
+			new_draw_list->IdxBuffer = old_draw_list->IdxBuffer;
+			new_draw_list->VtxBuffer = old_draw_list->VtxBuffer;
+			new_draw_list->Flags = old_draw_list->Flags;
+
+			new_draw_list->_VtxCurrentIdx = old_draw_list->_VtxCurrentIdx;
+			new_draw_list->_Data = old_draw_list->_Data;
+			new_draw_list->_VtxWritePtr = new_draw_list->VtxBuffer.Data + (old_draw_list->_VtxWritePtr - old_draw_list->VtxBuffer.Data);
+			new_draw_list->_IdxWritePtr = new_draw_list->IdxBuffer.Data + (old_draw_list->_IdxWritePtr - old_draw_list->IdxBuffer.Data);
+			new_draw_list->_ClipRectStack = old_draw_list->_ClipRectStack;
+			new_draw_list->_TextureIdStack = old_draw_list->_TextureIdStack;
+			new_draw_list->_Path = old_draw_list->_Path;
+			new_draw_list->_CmdHeader = old_draw_list->_CmdHeader;
+			new_draw_list->_Splitter = old_draw_list->_Splitter;
+			new_draw_list->_FringeScale = old_draw_list->_FringeScale;
+			new_draw_list->_OwnerName = old_draw_list->_OwnerName;
+		}
+
+		temp_draw_list.reserved_prims = reserved_prims;
 
 		return new_draw_list;
-	}
-	void update(imgui_draw_list_19040 *old_draw_list)
-	{
-		wrap(static_cast<const imgui_draw_list_19040_internal *>(old_draw_list)->orig);
 	}
 }
 
@@ -788,178 +800,220 @@ const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 		temp.TempData = nullptr;
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &clip_rect_min, const ImVec2 &clip_rect_max, bool intersect_with_current_clip_rect) -> void {
-		g_imgui_function_table_19180.ImDrawList_PushClipRect(unwrap(_this), clip_rect_min, clip_rect_max, intersect_with_current_clip_rect);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PushClipRect(draw_list_19180, clip_rect_min, clip_rect_max, intersect_with_current_clip_rect);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this) -> void {
-		g_imgui_function_table_19180.ImDrawList_PushClipRectFullScreen(unwrap(_this));
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PushClipRectFullScreen(draw_list_19180);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this) -> void {
-		g_imgui_function_table_19180.ImDrawList_PopClipRect(unwrap(_this));
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PopClipRect(draw_list_19180);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, ImTextureID texture_id) -> void {
-		g_imgui_function_table_19180.ImDrawList_PushTextureID(unwrap(_this), texture_id);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PushTextureID(draw_list_19180, texture_id);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this) -> void {
-		g_imgui_function_table_19180.ImDrawList_PopTextureID(unwrap(_this));
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PopTextureID(draw_list_19180);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, ImU32 col, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddLine(unwrap(_this), p1, p2, col, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddLine(draw_list_19180, p1, p2, col, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddRect(unwrap(_this), p_min, p_max, col, rounding, flags, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddRect(draw_list_19180, p_min, p_max, col, rounding, flags, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col, float rounding, ImDrawFlags flags) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddRectFilled(unwrap(_this), p_min, p_max, col, rounding, flags);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddRectFilled(draw_list_19180, p_min, p_max, col, rounding, flags);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddRectFilledMultiColor(unwrap(_this), p_min, p_max, col_upr_left, col_upr_right, col_bot_right, col_bot_left);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddRectFilledMultiColor(draw_list_19180, p_min, p_max, col_upr_left, col_upr_right, col_bot_right, col_bot_left);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddQuad(unwrap(_this), p1, p2, p3, p4, col, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddQuad(draw_list_19180, p1, p2, p3, p4, col, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddQuadFilled(unwrap(_this), p1, p2, p3, p4, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddQuadFilled(draw_list_19180, p1, p2, p3, p4, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddTriangle(unwrap(_this), p1, p2, p3, col, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddTriangle(draw_list_19180, p1, p2, p3, col, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddTriangleFilled(unwrap(_this), p1, p2, p3, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddTriangleFilled(draw_list_19180, p1, p2, p3, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddCircle(unwrap(_this), center, radius, col, num_segments, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddCircle(draw_list_19180, center, radius, col, num_segments, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddCircleFilled(unwrap(_this), center, radius, col, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddCircleFilled(draw_list_19180, center, radius, col, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddNgon(unwrap(_this), center, radius, col, num_segments, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddNgon(draw_list_19180, center, radius, col, num_segments, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddNgonFilled(unwrap(_this), center, radius, col, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddNgonFilled(draw_list_19180, center, radius, col, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius_x, float radius_y, ImU32 col, float rot, int num_segments, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddEllipse(unwrap(_this), center, ImVec2(radius_x, radius_y), col, rot, num_segments, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddEllipse(draw_list_19180, center, ImVec2(radius_x, radius_y), col, rot, num_segments, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius_x, float radius_y, ImU32 col, float rot, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddEllipseFilled(unwrap(_this), center, ImVec2(radius_x, radius_y), col, rot, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddEllipseFilled(draw_list_19180, center, ImVec2(radius_x, radius_y), col, rot, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddText(unwrap(_this), pos, col, text_begin, text_end);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddText(draw_list_19180, pos, col, text_begin, text_end);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const imgui_font_19040 *font, float font_size, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end, float wrap_width, const ImVec4 *cpu_fine_clip_rect) -> void {
+		const auto draw_list_19180 = unwrap(_this);
 		if (font != nullptr) {
-			imgui_font_19180 temp;
-			convert(*font, temp);
-			g_imgui_function_table_19180.ImDrawList_AddText2(unwrap(_this), &temp, font_size, pos, col, text_begin, text_end, wrap_width, cpu_fine_clip_rect);
+			imgui_font_19180 font_19180;
+			convert(*font, font_19180);
+			g_imgui_function_table_19180.ImDrawList_AddText2(draw_list_19180, &font_19180, font_size, pos, col, text_begin, text_end, wrap_width, cpu_fine_clip_rect);
 		}
 		else {
-			g_imgui_function_table_19180.ImDrawList_AddText2(unwrap(_this), nullptr, font_size, pos, col, text_begin, text_end, wrap_width, cpu_fine_clip_rect);
+			g_imgui_function_table_19180.ImDrawList_AddText2(draw_list_19180, nullptr, font_size, pos, col, text_begin, text_end, wrap_width, cpu_fine_clip_rect);
 		}
-		update(_this);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 *points, int num_points, ImU32 col, ImDrawFlags flags, float thickness) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddPolyline(unwrap(_this), points, num_points, col, flags, thickness);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddPolyline(draw_list_19180, points, num_points, col, flags, thickness);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 *points, int num_points, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddConvexPolyFilled(unwrap(_this), points, num_points, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddConvexPolyFilled(draw_list_19180, points, num_points, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddBezierCubic(unwrap(_this), p1, p2, p3, p4, col, thickness, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddBezierCubic(draw_list_19180, p1, p2, p3, p4, col, thickness, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col, float thickness, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddBezierQuadratic(unwrap(_this), p1, p2, p3, col, thickness, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddBezierQuadratic(draw_list_19180, p1, p2, p3, col, thickness, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, ImTextureID user_texture_id, const ImVec2 &p_min, const ImVec2 &p_max, const ImVec2 &uv_min, const ImVec2 &uv_max, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddImage(unwrap(_this), user_texture_id, p_min, p_max, uv_min, uv_max, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddImage(draw_list_19180, user_texture_id, p_min, p_max, uv_min, uv_max, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, ImTextureID user_texture_id, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, const ImVec2 &uv1, const ImVec2 &uv2, const ImVec2 &uv3, const ImVec2 &uv4, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddImageQuad(unwrap(_this), user_texture_id, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddImageQuad(draw_list_19180, user_texture_id, p1, p2, p3, p4, uv1, uv2, uv3, uv4, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, ImTextureID user_texture_id, const ImVec2 &p_min, const ImVec2 &p_max, const ImVec2 &uv_min, const ImVec2 &uv_max, ImU32 col, float rounding, ImDrawFlags flags) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddImageRounded(unwrap(_this), user_texture_id, p_min, p_max, uv_min, uv_max, col, rounding, flags);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddImageRounded(draw_list_19180, user_texture_id, p_min, p_max, uv_min, uv_max, col, rounding, flags);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius, float a_min, float a_max, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_PathArcTo(unwrap(_this), center, radius, a_min, a_max, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PathArcTo(draw_list_19180, center, radius, a_min, a_max, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius, int a_min_of_12, int a_max_of_12) -> void {
-		g_imgui_function_table_19180.ImDrawList_PathArcToFast(unwrap(_this), center, radius, a_min_of_12, a_max_of_12);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PathArcToFast(draw_list_19180, center, radius, a_min_of_12, a_max_of_12);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &center, float radius_x, float radius_y, float rot, float a_min, float a_max, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_PathEllipticalArcTo(unwrap(_this), center, ImVec2(radius_x, radius_y), rot, a_min, a_max, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PathEllipticalArcTo(draw_list_19180, center, ImVec2(radius_x, radius_y), rot, a_min, a_max, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_PathBezierCubicCurveTo(unwrap(_this), p2, p3, p4, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PathBezierCubicCurveTo(draw_list_19180, p2, p3, p4, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &p2, const ImVec2 &p3, int num_segments) -> void {
-		g_imgui_function_table_19180.ImDrawList_PathBezierQuadraticCurveTo(unwrap(_this), p2, p3, num_segments);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PathBezierQuadraticCurveTo(draw_list_19180, p2, p3, num_segments);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &rect_min, const ImVec2 &rect_max, float rounding, ImDrawFlags flags) -> void {
-		g_imgui_function_table_19180.ImDrawList_PathRect(unwrap(_this), rect_min, rect_max, rounding, flags);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PathRect(draw_list_19180, rect_min, rect_max, rounding, flags);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, ImDrawCallback callback, void *callback_data) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddCallback(unwrap(_this), callback, callback_data, 0);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddCallback(draw_list_19180, callback, callback_data, 0);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this) -> void {
-		g_imgui_function_table_19180.ImDrawList_AddDrawCmd(unwrap(_this));
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_AddDrawCmd(draw_list_19180);
+		wrap(draw_list_19180, _this);
 	},
-	[](const imgui_draw_list_19040 *_this) -> imgui_draw_list_19040 * {
-		return wrap(g_imgui_function_table_19180.ImDrawList_CloneOutput(unwrap(_this)));
-	},
-	[](imgui_draw_list_19040 *_this, int idx_count, int vtx_count) -> void {
-		g_imgui_function_table_19180.ImDrawList_PrimReserve(unwrap(_this), idx_count, vtx_count);
-		update(_this);
+	[](const imgui_draw_list_19040 *) -> imgui_draw_list_19040 * {
+		// Cloning does not work with just a single global draw list for conversion
+		return nullptr;
 	},
 	[](imgui_draw_list_19040 *_this, int idx_count, int vtx_count) -> void {
-		g_imgui_function_table_19180.ImDrawList_PrimUnreserve(unwrap(_this), idx_count, vtx_count);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this, true);
+		g_imgui_function_table_19180.ImDrawList_PrimReserve(draw_list_19180, idx_count, vtx_count);
+		wrap(draw_list_19180, _this);
+	},
+	[](imgui_draw_list_19040 *_this, int idx_count, int vtx_count) -> void {
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PrimUnreserve(draw_list_19180, idx_count, vtx_count);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &a, const ImVec2 &b, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_PrimRect(unwrap(_this), a, b, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PrimRect(draw_list_19180, a, b, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &uv_a, const ImVec2 &uv_b, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_PrimRectUV(unwrap(_this), a, b, uv_a, uv_b, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this);
+		g_imgui_function_table_19180.ImDrawList_PrimRectUV(draw_list_19180, a, b, uv_a, uv_b, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &c, const ImVec2 &d, const ImVec2 &uv_a, const ImVec2 &uv_b, const ImVec2 &uv_c, const ImVec2 &uv_d, ImU32 col) -> void {
-		g_imgui_function_table_19180.ImDrawList_PrimQuadUV(unwrap(_this), a, b, c, d, uv_a, uv_b, uv_c, uv_d, col);
-		update(_this);
+		const auto draw_list_19180 = unwrap(_this, true);
+		g_imgui_function_table_19180.ImDrawList_PrimQuadUV(draw_list_19180, a, b, c, d, uv_a, uv_b, uv_c, uv_d, col);
+		wrap(draw_list_19180, _this);
 	},
 	[](imgui_font_19040 *_this) -> void {
 		new(_this) imgui_font_19040();
@@ -1007,14 +1061,16 @@ const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 	[](const imgui_font_19040 *_this, imgui_draw_list_19040 *draw_list, float size, const ImVec2 &pos, ImU32 col, ImWchar c) -> void {
 		imgui_font_19180 temp;
 		convert(*_this, temp);
-		g_imgui_function_table_19180.ImFont_RenderChar(&temp, unwrap(draw_list), size, pos, col, c);
-		update(draw_list);
+		const auto draw_list_19180 = unwrap(draw_list);
+		g_imgui_function_table_19180.ImFont_RenderChar(&temp, draw_list_19180, size, pos, col, c);
+		wrap(draw_list_19180, draw_list);
 	},
 	[](const imgui_font_19040 *_this, imgui_draw_list_19040 *draw_list, float size, const ImVec2 &pos, ImU32 col, const ImVec4 &clip_rect, const char *text_begin, const char *text_end, float wrap_width, bool cpu_fine_clip) -> void {
 		imgui_font_19180 temp;
 		convert(*_this, temp);
-		g_imgui_function_table_19180.ImFont_RenderText(&temp, unwrap(draw_list), size, pos, col, clip_rect, text_begin, text_end, wrap_width, cpu_fine_clip);
-		update(draw_list);
+		const auto draw_list_19180 = unwrap(draw_list);
+		g_imgui_function_table_19180.ImFont_RenderText(&temp, draw_list_19180, size, pos, col, clip_rect, text_begin, text_end, wrap_width, cpu_fine_clip);
+		wrap(draw_list_19180, draw_list);
 	},
 
 }; }
