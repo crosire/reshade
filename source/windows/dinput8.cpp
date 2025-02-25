@@ -40,27 +40,26 @@ IDirectInputDevice8_SetCooperativeLevel_Impl(13, W)
 #define IDirectInputDevice8_GetDeviceState_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceState(IDirectInputDevice8##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
 	{ \
-		DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
-		pDevice->GetDeviceInfo(&info); \
-		switch (LOBYTE(info.dwDevType)) \
+		const HRESULT hr = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
+		if (SUCCEEDED(hr)) \
 		{ \
-		case DI8DEVTYPE_MOUSE: \
-			if (reshade::input::is_blocking_any_mouse_input()) \
+			DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
+			pDevice->GetDeviceInfo(&info); \
+			switch (LOBYTE(info.dwDevType)) \
 			{ \
-				std::memset(lpvData, 0, cbData); \
-				return DI_OK; \
+			case DI8DEVTYPE_MOUSE: \
+				if (reshade::input::is_blocking_any_mouse_input() && ( \
+					cbData == sizeof(DIMOUSESTATE) || cbData == sizeof(DIMOUSESTATE2))) \
+					/* Only clear button state, to prevent camera resetting when overlay is opened in RoadCraft */ \
+					std::memset(static_cast<LPBYTE>(lpvData) + offsetof(DIMOUSESTATE, rgbButtons), 0, cbData - offsetof(DIMOUSESTATE, rgbButtons)); \
+				break; \
+			case DI8DEVTYPE_KEYBOARD: \
+				if (reshade::input::is_blocking_any_keyboard_input()) \
+					std::memset(lpvData, 0, cbData); \
+				break; \
 			} \
-			break; \
-		case DI8DEVTYPE_KEYBOARD: \
-			if (reshade::input::is_blocking_any_keyboard_input()) \
-			{ \
-				std::memset(lpvData, 0, cbData); \
-				return DI_OK; \
-			} \
-			break; \
 		} \
-		\
-		return reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
+		return hr; \
 	}
 
 IDirectInputDevice8_GetDeviceState_Impl(9, A)
@@ -69,7 +68,8 @@ IDirectInputDevice8_GetDeviceState_Impl(9, W)
 #define IDirectInputDevice8_GetDeviceData_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceData(IDirectInputDevice8##encoding *pDevice, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags) \
 	{ \
-		if ((dwFlags & DIGDD_PEEK) == 0) \
+		HRESULT hr = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+		if (SUCCEEDED(hr) && (dwFlags & DIGDD_PEEK) == 0) \
 		{ \
 			DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
 			pDevice->GetDeviceInfo(&info); \
@@ -79,20 +79,19 @@ IDirectInputDevice8_GetDeviceState_Impl(9, W)
 				if (reshade::input::is_blocking_any_mouse_input()) \
 				{ \
 					*pdwInOut = 0; \
-					return DI_OK; \
+					hr = DI_OK; /* Overwrite potential 'DI_BUFFEROVERFLOW' */ \
 				} \
 				break; \
 			case DI8DEVTYPE_KEYBOARD: \
 				if (reshade::input::is_blocking_any_keyboard_input()) \
 				{ \
 					*pdwInOut = 0; \
-					return DI_OK; \
+					hr = DI_OK; \
 				} \
 				break; \
 			} \
 		} \
-		\
-		return reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+		return hr; \
 	}
 
 IDirectInputDevice8_GetDeviceData_Impl(10, A)

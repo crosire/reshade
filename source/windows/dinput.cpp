@@ -44,27 +44,24 @@ IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, W)
 #define IDirectInputDevice_GetDeviceState_Impl(vtable_index, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceState(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
 	{ \
-		DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
-		pDevice->GetDeviceInfo(&info); \
-		switch (LOBYTE(info.dwDevType)) \
+		const HRESULT hr = reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
+		if (SUCCEEDED(hr)) \
 		{ \
-		case DIDEVTYPE_MOUSE: \
-			if (reshade::input::is_blocking_any_mouse_input()) \
+			DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
+			pDevice->GetDeviceInfo(&info); \
+			switch (LOBYTE(info.dwDevType)) \
 			{ \
-				std::memset(lpvData, 0, cbData); \
-				return DI_OK; \
+			case DIDEVTYPE_MOUSE: \
+				if (reshade::input::is_blocking_any_mouse_input()) \
+					std::memset(lpvData, 0, cbData); \
+				break; \
+			case DIDEVTYPE_KEYBOARD: \
+				if (reshade::input::is_blocking_any_keyboard_input()) \
+					std::memset(lpvData, 0, cbData); \
+				break; \
 			} \
-			break; \
-		case DIDEVTYPE_KEYBOARD: \
-			if (reshade::input::is_blocking_any_keyboard_input()) \
-			{ \
-				std::memset(lpvData, 0, cbData); \
-				return DI_OK; \
-			} \
-			break; \
 		} \
-		\
-		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
+		return hr; \
 	}
 
 IDirectInputDevice_GetDeviceState_Impl(9,  , A)
@@ -77,7 +74,8 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 #define IDirectInputDevice_GetDeviceData_Impl(vtable_index, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceData(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags) \
 	{ \
-		if ((dwFlags & DIGDD_PEEK) == 0) \
+		HRESULT hr = reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+		if (SUCCEEDED(hr) && (dwFlags & DIGDD_PEEK) == 0) \
 		{ \
 			DIDEVICEINSTANCE##encoding info = { sizeof(info) }; \
 			pDevice->GetDeviceInfo(&info); \
@@ -87,20 +85,19 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 				if (reshade::input::is_blocking_any_mouse_input()) \
 				{ \
 					*pdwInOut = 0; \
-					return DI_OK; \
+					hr = DI_OK; /* Overwrite potential 'DI_BUFFEROVERFLOW' */ \
 				} \
 				break; \
 			case DIDEVTYPE_KEYBOARD: \
 				if (reshade::input::is_blocking_any_keyboard_input()) \
 				{ \
 					*pdwInOut = 0; \
-					return DI_OK; \
+					hr = DI_OK; \
 				} \
 				break; \
 			} \
 		} \
-		\
-		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+		return hr; \
 	}
 
 IDirectInputDevice_GetDeviceData_Impl(10,  , A)
