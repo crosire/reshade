@@ -6,7 +6,6 @@
 #pragma once
 
 #include <mutex>
-#include <chrono>
 #include <memory>
 #include <string>
 
@@ -28,8 +27,6 @@ namespace reshade
 		/// A window handle (HWND).
 		/// </summary>
 		using window_handle = void *;
-
-		static constexpr std::chrono::milliseconds block_grace_period = std::chrono::milliseconds(125);
 
 		explicit input(window_handle window);
 
@@ -88,7 +85,7 @@ namespace reshade
 		/// Set to <see langword="true"/> to prevent keyboard input window messages from reaching the application.
 		/// </summary>
 		void block_keyboard_input(bool enable);
-		bool is_blocking_keyboard_input() const { return _block_keyboard || std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - _block_keyboard_time) < block_grace_period; }
+		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 		static bool is_blocking_any_keyboard_input(window_handle window = nullptr);
 		/// <summary>
 		/// Set to <see langword="true"/> to prevent 'GetCursorPos' from returning the real mouse cursor position, instead returning the last value that was passed to 'SetCursorPos'.
@@ -134,7 +131,6 @@ namespace reshade
 		bool _block_mouse = false;
 		bool _block_keyboard = false;
 		bool _block_cursor_warping = false;
-		std::chrono::high_resolution_clock::time_point _block_keyboard_time; // timestamp when keyboard input was last blocked (prevent games from processing the keyboard combo to toggle ReShade's UI off)
 		uint8_t _keys[256] = {};
 		uint8_t _last_keys[256] = {};
 		unsigned int _keys_time[256] = {};

@@ -501,9 +501,6 @@ void reshade::input::block_mouse_input(bool enable)
 }
 void reshade::input::block_keyboard_input(bool enable)
 {
-	if (enable)
-		_block_keyboard_time = std::chrono::high_resolution_clock::now();
-
 	_block_keyboard = enable;
 }
 void reshade::input::block_mouse_cursor_warping(bool enable)
