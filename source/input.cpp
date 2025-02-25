@@ -21,7 +21,6 @@ static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
 static RECT s_last_clip_cursor = {};
 static POINT s_last_cursor_position = {};
-static std::chrono::high_resolution_clock::time_point s_last_cursor_warp = {};
 static std::atomic<bool> s_block_mouse = false;
 static std::atomic<bool> s_block_keyboard = false;
 static std::atomic<bool> s_block_cursor_warping = false;
@@ -776,8 +775,6 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 	s_last_cursor_position.x = X;
 	s_last_cursor_position.y = Y;
 
-	s_last_cursor_warp = std::chrono::high_resolution_clock::now();
-
 	if (reshade::input::is_blocking_any_mouse_cursor_warping())
 		return TRUE;
 
@@ -786,12 +783,10 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 }
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
-	// Allow the game to see the real cursor position if it is not busy using the wrong API for mouselook... (i.e. no calls to 'SetCursorPosition' in a certain period of time)
-	if (reshade::input::is_blocking_any_mouse_cursor_warping() && std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - s_last_cursor_warp) < reshade::input::block_grace_period)
+	if (reshade::input::is_blocking_any_mouse_cursor_warping())
 	{
 		assert(lpPoint != nullptr);
 
-		// Return the last cursor position before we started immobilizing the mouse cursor
 		*lpPoint = s_last_cursor_position;
 
 		return TRUE;
