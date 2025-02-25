@@ -25,10 +25,9 @@ static std::atomic<bool> s_block_mouse = false;
 static std::atomic<bool> s_block_keyboard = false;
 static std::atomic<bool> s_block_cursor_warping = false;
 
+extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect);
 extern "C" auto WINAPI HookGetKeyState(int vKey) -> SHORT;
 extern "C" auto WINAPI HookGetAsyncKeyState(int vKey) -> SHORT;
-extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect);
-extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint);
 
 reshade::input::input(window_handle window)
 	: _window(window)
@@ -509,14 +508,6 @@ void reshade::input::block_keyboard_input(bool enable)
 }
 void reshade::input::block_mouse_cursor_warping(bool enable)
 {
-	static const auto GetCursorPos_trampoline = reshade::hooks::call(HookGetCursorPosition);
-
-	if (enable && !_block_cursor_warping)
-	{
-		// Update the initial cursor position as soon as blocking starts
-		GetCursorPos_trampoline(&s_last_cursor_position);
-	}
-
 	_block_cursor_warping = enable;
 }
 
@@ -760,11 +751,9 @@ extern "C" BOOL WINAPI HookClipCursor(const RECT *lpRect)
 {
 	s_last_clip_cursor = (lpRect != nullptr) ? *lpRect : RECT {};
 
-	// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
 	if (reshade::input::is_blocking_any_mouse_input() || reshade::input::is_blocking_any_mouse_cursor_warping())
-	{
+		// Some applications clip the mouse cursor, so disable that while we want full control over mouse input
 		lpRect = nullptr;
-	}
 
 	static const auto trampoline = reshade::hooks::call(HookClipCursor);
 	return trampoline(lpRect);
@@ -793,7 +782,16 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	}
 
 	static const auto trampoline = reshade::hooks::call(HookGetCursorPosition);
-	return trampoline(lpPoint);
+	const BOOL result = trampoline(lpPoint);
+	if (result)
+	{
+		assert(lpPoint != nullptr);
+
+		// Update position in case it is not overriden via 'SetCursorPos'
+		s_last_cursor_position = *lpPoint;
+	}
+
+	return result;
 }
 
 extern "C" auto WINAPI HookGetKeyState(int vKey) -> SHORT
@@ -836,13 +834,12 @@ extern "C" BOOL WINAPI HookGetKeyboardState(PBYTE lpKeyState)
 {
 	static const auto trampoline = reshade::hooks::call(HookGetKeyboardState);
 	const BOOL result = trampoline(lpKeyState);
-
 	if (result)
 	{
 		if (reshade::input::is_blocking_any_mouse_input())
 			std::memset(lpKeyState, 0, 7);
 		if (reshade::input::is_blocking_any_keyboard_input())
-			std::memset(lpKeyState + 7, 0, 247);
+			std::memset(lpKeyState + 7, 0, 256 - 7);
 	}
 
 	return result;
