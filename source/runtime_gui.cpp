@@ -840,9 +840,9 @@ void reshade::runtime::draw_gui()
 
 	if (_input != nullptr)
 	{
-		if (_show_overlay && !_ignore_shortcuts && !_imgui_context->IO.NavVisible && _input->is_key_pressed(0x1B /* VK_ESCAPE */) &&
-			((_input_processing_mode == 2 || (_input_processing_mode == 1 && (_input->is_blocking_any_mouse_input() || _input->is_blocking_any_keyboard_input())))))
-			show_overlay = false; // Close when pressing the escape button and not currently navigating with the keyboard
+		if (_show_overlay && !_ignore_shortcuts && _input->is_key_pressed(0x1B /* VK_ESCAPE */) &&
+			(_input_processing_mode == 2 || (_input_processing_mode == 1 && (_imgui_context->IO.WantCaptureMouse || _imgui_context->IO.WantCaptureKeyboard))) && !_imgui_context->IO.NavVisible)
+			show_overlay = false; // Close when pressing the escape button, input focus is on the overlay and not currently navigating with the keyboard
 		else if (!_ignore_shortcuts && _input->is_key_pressed(_overlay_key_data, _force_shortcut_modifiers) && _imgui_context->ActiveId == 0)
 			show_overlay = !_show_overlay;
 
