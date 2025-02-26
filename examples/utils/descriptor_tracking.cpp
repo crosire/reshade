@@ -92,18 +92,18 @@ static void on_destroy_device(device *device)
 
 void descriptor_tracking::on_init_pipeline_layout(device *device, uint32_t count, const pipeline_layout_param *params, pipeline_layout layout)
 {
-	descriptor_tracking &ctx = device->get_private_data<descriptor_tracking>();
+	auto &ctx = *device->get_private_data<descriptor_tracking>();
 	ctx.register_pipeline_layout(layout, count, params);
 }
 void descriptor_tracking::on_destroy_pipeline_layout(device *device, pipeline_layout layout)
 {
-	descriptor_tracking &ctx = device->get_private_data<descriptor_tracking>();
+	auto &ctx = *device->get_private_data<descriptor_tracking>();
 	ctx.unregister_pipeline_layout(layout);
 }
 
 bool descriptor_tracking::on_copy_descriptor_tables(device *device, uint32_t count, const descriptor_table_copy *copies)
 {
-	descriptor_tracking &ctx = device->get_private_data<descriptor_tracking>();
+	auto &ctx = *device->get_private_data<descriptor_tracking>();
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -134,7 +134,7 @@ bool descriptor_tracking::on_copy_descriptor_tables(device *device, uint32_t cou
 
 bool descriptor_tracking::on_update_descriptor_tables(device *device, uint32_t count, const descriptor_table_update *updates)
 {
-	descriptor_tracking &ctx = device->get_private_data<descriptor_tracking>();
+	auto &ctx = *device->get_private_data<descriptor_tracking>();
 
 	for (uint32_t i = 0; i < count; ++i)
 	{

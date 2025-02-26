@@ -45,41 +45,41 @@ static void on_destroy_command_list(command_list *cmd_list)
 
 static void on_init_effect_runtime(effect_runtime *runtime)
 {
-	auto &dev_data = runtime->get_device()->get_private_data<device_data>();
-	if (std::addressof(dev_data) == nullptr)
+	const auto data = runtime->get_device()->get_private_data<device_data>();
+	if (data == nullptr)
 		return;
 
 	// Assume last created effect runtime is the main one
-	dev_data.main_runtime = runtime;
+	data->main_runtime = runtime;
 }
 static void on_destroy_effect_runtime(effect_runtime *runtime)
 {
-	auto &dev_data = runtime->get_device()->get_private_data<device_data>();
-	if (std::addressof(dev_data) == nullptr)
+	const auto data = runtime->get_device()->get_private_data<device_data>();
+	if (data == nullptr)
 		return;
 
-	if (runtime == dev_data.main_runtime)
-		dev_data.main_runtime = nullptr;
+	if (runtime == data->main_runtime)
+		data->main_runtime = nullptr;
 }
 
 // Called after game has rendered a render pass, so check if it makes sense to render effects then (e.g. after main scene rendering, before UI rendering)
 static void on_end_render_pass(command_list *cmd_list)
 {
-	auto &data = cmd_list->get_private_data<command_list_data>();
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
 
-	if (data.has_multiple_rtvs || data.current_main_rtv == 0)
+	if (cmd_data.has_multiple_rtvs || cmd_data.current_main_rtv == 0)
 		return; // Ignore when game is rendering to multiple render targets simultaneously
 
 	device *const device = cmd_list->get_device();
-	const auto &dev_data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
 	// Optionally ignore render targets that do not match the effect runtime back buffer dimensions
 	if (s_filter_width_and_height)
 	{
 		uint32_t width, height;
-		dev_data.main_runtime->get_screenshot_width_and_height(&width, &height);
+		data->main_runtime->get_screenshot_width_and_height(&width, &height);
 
-		const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(data.current_main_rtv));
+		const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(cmd_data.current_main_rtv));
 
 		if (render_target_desc.texture.width != width || render_target_desc.texture.height != height)
 			return;
@@ -87,57 +87,57 @@ static void on_end_render_pass(command_list *cmd_list)
 
 	// Render post-processing effects when a specific render pass is found (instead of at the end of the frame)
 	// This is not perfect, since there may be multiple command lists, so a global index is not conclusive and this may cause effects to be rendered multiple times ...
-	if (data.current_render_pass_index++ == (dev_data.last_render_pass_count - dev_data.offset_from_last_pass))
+	if (cmd_data.current_render_pass_index++ == (data->last_render_pass_count - data->offset_from_last_pass))
 	{
-		const auto &current_state = cmd_list->get_private_data<state_tracking>();
+		const state_tracking *const current_state = cmd_list->get_private_data<state_tracking>();
 
 		// This does not handle sRGB correctly, since it would need to pass in separate render target views created with a non-sRGB and a sRGB format variant of the target resource
 		// For simplicity and demonstration purposes the same render target view (which can be either non-sRGB or sRGB, depending on what the application created it with) for both cases is passed in here, but this should be fixed in a proper implementation
-		dev_data.main_runtime->render_effects(cmd_list, data.current_main_rtv, data.current_main_rtv);
+		data->main_runtime->render_effects(cmd_list, cmd_data.current_main_rtv, cmd_data.current_main_rtv);
 
 		// Re-apply state to the command list, as it may have been modified by the call to 'render_effects'
-		current_state.apply(cmd_list);
+		current_state->apply(cmd_list);
 	}
 }
 
 static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *)
 {
-	auto &data = cmd_list->get_private_data<command_list_data>();
-	data.has_multiple_rtvs = count > 1;
-	data.current_main_rtv = (count != 0) ? rts[0].view : resource_view { 0 };
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
+	cmd_data.has_multiple_rtvs = count > 1;
+	cmd_data.current_main_rtv = (count != 0) ? rts[0].view : resource_view { 0 };
 }
 static void on_bind_render_targets_and_depth_stencil(command_list *cmd_list, uint32_t count, const resource_view *rtvs, resource_view)
 {
-	auto &data = cmd_list->get_private_data<command_list_data>();
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
 
 	const resource_view new_main_rtv = (count != 0) ? rtvs[0] : resource_view { 0 };
-	if (new_main_rtv != data.current_main_rtv)
+	if (new_main_rtv != cmd_data.current_main_rtv)
 		on_end_render_pass(cmd_list);
 
-	data.has_multiple_rtvs = count > 1;
-	data.current_main_rtv = new_main_rtv;
+	cmd_data.has_multiple_rtvs = count > 1;
+	cmd_data.current_main_rtv = new_main_rtv;
 }
 
 static void on_execute(command_queue *queue, command_list *cmd_list)
 {
-	auto &dev_data = queue->get_device()->get_private_data<device_data>();
-	const auto &data = cmd_list->get_private_data<command_list_data>();
+	const auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
+	device_data *const data = queue->get_device()->get_private_data<device_data>();
 
 	// Now that this command list is executed, add its render pass count to the total of the current frame
-	dev_data.current_render_pass_count += data.current_render_pass_index + 1;
+	data->current_render_pass_count += cmd_data.current_render_pass_index + 1;
 }
 static void on_reset_command_list(command_list *cmd_list)
 {
-	auto &data = cmd_list->get_private_data<command_list_data>();
-	data.current_render_pass_index = 0;
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
+	cmd_data.current_render_pass_index = 0;
 }
 
 static void on_present(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	auto &dev_data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
-	if (std::addressof(dev_data) == nullptr || runtime != dev_data.main_runtime)
+	if (data == nullptr || runtime != data->main_runtime)
 		return;
 
 	// The 'reset_command_list' event is not called for immediate command lists, so call it manually here in D3D9/10/11/OpenGL to reset the current render pass index every frame
@@ -145,19 +145,19 @@ static void on_present(effect_runtime *runtime)
 		on_reset_command_list(runtime->get_command_queue()->get_immediate_command_list());
 
 	// Keep track of the total render pass count of this frame
-	dev_data.last_render_pass_count = dev_data.current_render_pass_count > 0 ? dev_data.current_render_pass_count : std::numeric_limits<uint32_t>::max();
-	dev_data.current_render_pass_count = 0;
+	data->last_render_pass_count = data->current_render_pass_count > 0 ? data->current_render_pass_count : std::numeric_limits<uint32_t>::max();
+	data->current_render_pass_count = 0;
 
-	if (dev_data.offset_from_last_pass > dev_data.last_render_pass_count)
-		dev_data.offset_from_last_pass = dev_data.last_render_pass_count;
+	if (data->offset_from_last_pass > data->last_render_pass_count)
+		data->offset_from_last_pass = data->last_render_pass_count;
 }
 
 static void on_draw_settings(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	auto &dev_data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
-	if (std::addressof(dev_data) == nullptr || runtime != dev_data.main_runtime)
+	if (data == nullptr || runtime != data->main_runtime)
 	{
 		ImGui::TextUnformatted("This is not the main effect runtime.");
 		return;
@@ -165,21 +165,21 @@ static void on_draw_settings(effect_runtime *runtime)
 
 	ImGui::Checkbox("Filter out render passes with different dimensions", &s_filter_width_and_height);
 
-	ImGui::Text("Current render pass count: %u", dev_data.last_render_pass_count);
-	ImGui::Text("Offset from end of frame to render effects at: %u", dev_data.offset_from_last_pass);
+	ImGui::Text("Current render pass count: %u", data->last_render_pass_count);
+	ImGui::Text("Offset from end of frame to render effects at: %u", data->offset_from_last_pass);
 
-	if (dev_data.offset_from_last_pass < dev_data.last_render_pass_count)
+	if (data->offset_from_last_pass < data->last_render_pass_count)
 	{
 		ImGui::SameLine();
 		if (ImGui::SmallButton("+"))
-			dev_data.offset_from_last_pass++;
+			data->offset_from_last_pass++;
 	}
 
-	if (dev_data.offset_from_last_pass != 0)
+	if (data->offset_from_last_pass != 0)
 	{
 		ImGui::SameLine();
 		if (ImGui::SmallButton("-"))
-			dev_data.offset_from_last_pass--;
+			data->offset_from_last_pass--;
 	}
 }
 

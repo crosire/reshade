@@ -201,7 +201,7 @@ static void encode_frame(AVCodecContext *enc, AVFormatContext *s, AVFrame *frame
 
 static void on_init(reshade::api::effect_runtime *runtime)
 {
-	video_capture &data = runtime->create_private_data<video_capture>();
+	video_capture &data = *runtime->create_private_data<video_capture>();
 
 	// Create a fence that is used to communicate status of copies between device and host
 	if (!runtime->get_device()->create_fence(0, reshade::api::fence_flags::none, &data.copy_finished_fence))
@@ -211,7 +211,7 @@ static void on_init(reshade::api::effect_runtime *runtime)
 }
 static void on_destroy(reshade::api::effect_runtime *runtime)
 {
-	video_capture &data = runtime->get_private_data<video_capture>();
+	video_capture &data = *runtime->get_private_data<video_capture>();
 
 	reshade::api::device *const device = runtime->get_device();
 
@@ -231,7 +231,7 @@ static void on_destroy(reshade::api::effect_runtime *runtime)
 
 static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, reshade::api::command_list *, reshade::api::resource_view rtv, reshade::api::resource_view)
 {
-	video_capture &data = runtime->get_private_data<video_capture>();
+	video_capture &data = *runtime->get_private_data<video_capture>();
 
 	reshade::api::device *const device = runtime->get_device();
 	reshade::api::command_queue *const queue = runtime->get_command_queue();

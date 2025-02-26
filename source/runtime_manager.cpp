@@ -15,7 +15,7 @@ static std::unordered_set<std::string> s_runtime_config_names;
 
 void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
 {
-	if (graphics_queue == nullptr || &swapchain->get_private_data<reshade::runtime>() != nullptr)
+	if (graphics_queue == nullptr || swapchain->get_private_data<reshade::runtime>() != nullptr)
 		return;
 
 	assert((graphics_queue->get_type() & api::command_queue_type::graphics) != 0);
@@ -44,7 +44,7 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 }
 void reshade::destroy_effect_runtime(api::swapchain *swapchain)
 {
-	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 	{
 		// Free up the configuration name of this effect runtime instance for reuse
 		const std::unique_lock<std::shared_mutex> lock(s_runtime_config_names_mutex);
@@ -57,16 +57,16 @@ void reshade::destroy_effect_runtime(api::swapchain *swapchain)
 
 void reshade::init_effect_runtime(api::swapchain *swapchain)
 {
-	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 		runtime->on_init();
 }
 void reshade::reset_effect_runtime(api::swapchain *swapchain)
 {
-	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 		runtime->on_reset();
 }
 void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
 {
-	if (const auto runtime = &swapchain->get_private_data<reshade::runtime>())
+	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 		runtime->on_present(present_queue);
 }

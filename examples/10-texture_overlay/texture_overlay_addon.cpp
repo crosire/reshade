@@ -57,7 +57,7 @@ static std::mutex s_mutex;
 
 static void on_init_device(device *device)
 {
-	auto &data = device->create_private_data<device_data>();
+	const auto data = device->create_private_data<device_data>();
 
 	constexpr uint32_t GREEN = 0xff00ff00;
 
@@ -66,12 +66,12 @@ static void on_init_device(device *device)
 	initial_data.row_pitch = sizeof(GREEN);
 	initial_data.slice_pitch = sizeof(GREEN);
 
-	if (!device->create_resource(resource_desc(1, 1, 1, 1, format::r8g8b8a8_unorm, 1, memory_heap::gpu_only, resource_usage::shader_resource), &initial_data, resource_usage::shader_resource, &data.green_texture))
+	if (!device->create_resource(resource_desc(1, 1, 1, 1, format::r8g8b8a8_unorm, 1, memory_heap::gpu_only, resource_usage::shader_resource), &initial_data, resource_usage::shader_resource, &data->green_texture))
 	{
 		reshade::log::message(reshade::log::level::error, "Failed to create green texture!");
 		return;
 	}
-	if (!device->create_resource_view(data.green_texture, resource_usage::shader_resource, resource_view_desc(format::r8g8b8a8_unorm), &data.green_texture_srv))
+	if (!device->create_resource_view(data->green_texture, resource_usage::shader_resource, resource_view_desc(format::r8g8b8a8_unorm), &data->green_texture_srv))
 	{
 		reshade::log::message(reshade::log::level::error, "Failed to create green texture view!");
 		return;
@@ -79,10 +79,10 @@ static void on_init_device(device *device)
 }
 static void on_destroy_device(device *device)
 {
-	auto &data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
-	device->destroy_resource(data.green_texture);
-	device->destroy_resource_view(data.green_texture_srv);
+	device->destroy_resource(data->green_texture);
+	device->destroy_resource_view(data->green_texture_srv);
 
 	device->destroy_private_data<device_data>();
 }
@@ -102,42 +102,42 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
 		return;
 
-	auto &data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
-	data.total_texture_list.emplace(res, tex_data { desc });
+	data->total_texture_list.emplace(res, tex_data { desc });
 }
 static void on_destroy_texture(device *device, resource res)
 {
-	auto &data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
 	// In some cases the 'destroy_device' event may be called before all resources have been destroyed
-	if (&data == nullptr)
+	if (data == nullptr)
 		return;
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
-	if (const auto it = data.total_texture_list.find(res);
-		it != data.total_texture_list.end())
+	if (const auto it = data->total_texture_list.find(res);
+		it != data->total_texture_list.end())
 	{
 		// TODO: Crash will occur if application destroys texture, but it is still referenced in command list with ImGui commands being executed
-		data.total_texture_list.erase(it);
+		data->total_texture_list.erase(it);
 	}
 }
 static void on_destroy_texture_view(device *device, resource_view view)
 {
-	auto &data = device->get_private_data<device_data>();
+	const auto data = device->get_private_data<device_data>();
 
 	// In some cases the 'destroy_device' event may be called before all resource views have been destroyed
-	if (&data == nullptr)
+	if (data == nullptr)
 		return;
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
-	data.destroyed_views.push_back(view);
+	data->destroyed_views.push_back(view);
 
-	for (auto &tex : data.total_texture_list)
+	for (auto &tex : data->total_texture_list)
 	{
 		if (tex.second.last_view == view)
 		{
@@ -151,9 +151,10 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 	if ((stages & shader_stage::pixel) != shader_stage::pixel || (update.type != descriptor_type::shader_resource_view && update.type != descriptor_type::sampler_with_resource_view))
 		return;
 
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
+
 	device *const device = cmd_list->get_device();
-	auto &data = device->get_private_data<device_data>();
-	auto &cmd_data = cmd_list->get_private_data<command_list_data>();
+	const auto data = device->get_private_data<device_data>();
 
 	for (uint32_t i = 0; i < update.count; ++i)
 	{
@@ -165,9 +166,9 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 
 			cmd_data.current_texture_list.emplace(descriptor);
 
-			if (data.replaced_texture_srv == descriptor)
+			if (data->replaced_texture_srv == descriptor)
 			{
-				descriptor = data.green_texture_srv;
+				descriptor = data->green_texture_srv;
 
 				descriptor_table_update new_update = update;
 				new_update.binding += i;
@@ -185,9 +186,9 @@ static void on_push_descriptors(command_list *cmd_list, shader_stage stages, pip
 
 			cmd_data.current_texture_list.emplace(descriptor.view);
 
-			if (data.replaced_texture_srv == descriptor.view)
+			if (data->replaced_texture_srv == descriptor.view)
 			{
-				descriptor.view = data.green_texture_srv;
+				descriptor.view = data->green_texture_srv;
 
 				descriptor_table_update new_update = update;
 				new_update.binding += i;
@@ -204,14 +205,16 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 	if ((stages & shader_stage::pixel) != shader_stage::pixel)
 		return;
 
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
+
 	device *const device = cmd_list->get_device();
-	auto &cmd_data = cmd_list->get_private_data<command_list_data>();
-	auto &descriptor_data = device->get_private_data<descriptor_tracking>();
-	assert((&descriptor_data) != nullptr);
+
+	descriptor_tracking *const descriptor_data = device->get_private_data<descriptor_tracking>();
+	assert(descriptor_data != nullptr);
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const pipeline_layout_param param = descriptor_data.get_pipeline_layout_param(layout, first + i);
+		const pipeline_layout_param param = descriptor_data->get_pipeline_layout_param(layout, first + i);
 		assert(param.type == pipeline_layout_param_type::descriptor_table);
 
 		for (uint32_t k = 0; k < param.descriptor_table.count; ++k)
@@ -230,7 +233,7 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 
 			for (uint32_t j = 0; j < range.count; ++j)
 			{
-				resource_view descriptor = descriptor_data.get_resource_view(heap, base_offset + j);
+				resource_view descriptor = descriptor_data->get_resource_view(heap, base_offset + j);
 				if (descriptor.handle == 0)
 					continue;
 
@@ -242,41 +245,42 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 
 static void on_execute(command_queue *, command_list *cmd_list)
 {
-	device *const device = cmd_list->get_device();
-	auto &data = device->get_private_data<device_data>();
-	auto &cmd_data = cmd_list->get_private_data<command_list_data>();
+	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
 
-	data.current_texture_list.insert(cmd_data.current_texture_list.begin(), cmd_data.current_texture_list.end());
+	device *const device = cmd_list->get_device();
+	const auto data = device->get_private_data<device_data>();
+
+	data->current_texture_list.insert(cmd_data.current_texture_list.begin(), cmd_data.current_texture_list.end());
 	cmd_data.current_texture_list.clear();
 }
 
 static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
 {
 	device *const device = swapchain->get_device();
+	const auto data = device->get_private_data<device_data>();
 
-	auto &data = device->get_private_data<device_data>();
-	data.frame_index++;
+	data->frame_index++;
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
-	for (auto srv : data.current_texture_list)
+	for (const resource_view srv : data->current_texture_list)
 	{
-		if (std::find(data.destroyed_views.begin(), data.destroyed_views.end(), srv) != data.destroyed_views.end())
+		if (std::find(data->destroyed_views.begin(), data->destroyed_views.end(), srv) != data->destroyed_views.end())
 			continue;
 
 		resource res = device->get_resource_from_view(srv);
 
-		if (const auto it = data.total_texture_list.find(res);
-			it != data.total_texture_list.end())
+		if (const auto it = data->total_texture_list.find(res);
+			it != data->total_texture_list.end())
 		{
 			tex_data &tex_data = it->second;
 			tex_data.last_view = srv;
-			tex_data.last_used = data.frame_index;
+			tex_data.last_used = data->frame_index;
 		}
 	}
 
-	data.current_texture_list.clear();
-	data.destroyed_views.clear();
+	data->current_texture_list.clear();
+	data->destroyed_views.clear();
 }
 
 // See implementation in 'utils\save_texture_image.cpp'
@@ -331,11 +335,12 @@ static bool save_texture_image(command_queue *queue, resource tex, const resourc
 static void draw_overlay(effect_runtime *runtime)
 {
 	device *const device = runtime->get_device();
-	auto &data = device->get_private_data<device_data>();
-	if (std::addressof(data) == nullptr)
+	const auto data = device->get_private_data<device_data>();
+
+	if (data == nullptr)
 		return;
 
-	ImGui::Checkbox("Show only used this frame", &data.filter);
+	ImGui::Checkbox("Show only used this frame", &data->filter);
 
 	const bool save_all_textures = ImGui::Button("Save All", ImVec2(ImGui::GetContentRegionAvail().x, 0));
 
@@ -343,23 +348,23 @@ static void draw_overlay(effect_runtime *runtime)
 	ImGui::TextUnformatted("Clicking one will save it as an image to disk.");
 
 	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
-	ImGui::SliderFloat("##scale", &data.scale, 0.01f, 2.0f, "%.3f", ImGuiSliderFlags_NoInput);
+	ImGui::SliderFloat("##scale", &data->scale, 0.01f, 2.0f, "%.3f", ImGuiSliderFlags_NoInput);
 	ImGui::PopItemWidth();
 
 	const auto total_width = ImGui::GetContentRegionAvail().x;
-	const auto num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * data.scale * 13)));
+	const auto num_columns = static_cast<unsigned int>(std::ceilf(total_width / (50.0f * data->scale * 13)));
 	const auto single_image_max_size = (total_width / num_columns) - 5.0f;
 
-	data.replaced_texture_srv = { 0 };
+	data->replaced_texture_srv = { 0 };
 
 	std::lock_guard<std::mutex> lock(s_mutex);
 
 	std::vector<std::pair<resource, tex_data>> filtered_texture_list;
-	for (const auto &[tex, tex_data] : data.total_texture_list)
+	for (const auto &[tex, tex_data] : data->total_texture_list)
 	{
 		if (tex_data.last_view.handle == 0)
 			continue;
-		if (data.filter && tex_data.last_used != data.frame_index)
+		if (data->filter && tex_data.last_used != data->frame_index)
 			continue;
 
 		if (save_all_textures)
@@ -387,7 +392,7 @@ static void draw_overlay(effect_runtime *runtime)
 		ImGui::Image(tex_data.last_view.handle, size, ImVec2(0, 0), ImVec2(1, 1), ImGui::IsMouseHoveringRect(pos, ImVec2(pos.x + size.x, pos.y + size.y)) ? ImColor(0.0f, 1.0f, 0.0f) : ImColor(1.0f, 1.0f, 1.0f), ImColor(0.0f, 0.0f, 0.0f, 0.0f));
 
 		if (ImGui::IsItemHovered())
-			data.replaced_texture_srv = tex_data.last_view;
+			data->replaced_texture_srv = tex_data.last_view;
 
 		if (ImGui::IsItemClicked())
 			save_texture_image(runtime->get_command_queue(), filtered_texture_list[i].first, tex_data.desc);

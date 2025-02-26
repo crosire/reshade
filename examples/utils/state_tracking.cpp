@@ -62,20 +62,20 @@ static void on_destroy_command_list(command_list *cmd_list)
 
 static void on_bind_render_targets_and_depth_stencil(command_list *cmd_list, uint32_t count, const resource_view *rtvs, resource_view dsv)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>();
+	auto &state = *cmd_list->get_private_data<state_tracking>();
 	state.render_targets.assign(rtvs, rtvs + count);
 	state.depth_stencil = dsv;
 }
 
 static void on_bind_pipeline(command_list *cmd_list, pipeline_stage stages, pipeline pipeline)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>();
+	auto &state = *cmd_list->get_private_data<state_tracking>();
 	state.pipelines[stages] = pipeline;
 }
 
 static void on_bind_pipeline_states(command_list *cmd_list, uint32_t count, const dynamic_state *states, const uint32_t *values)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>();
+	auto &state = *cmd_list->get_private_data<state_tracking>();
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -102,7 +102,7 @@ static void on_bind_pipeline_states(command_list *cmd_list, uint32_t count, cons
 
 static void on_bind_viewports(command_list *cmd_list, uint32_t first, uint32_t count, const viewport *viewports)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>();
+	auto &state = *cmd_list->get_private_data<state_tracking>();
 
 	const uint32_t total_count = first + count;
 	if (state.viewports.size() < total_count)
@@ -114,7 +114,7 @@ static void on_bind_viewports(command_list *cmd_list, uint32_t first, uint32_t c
 
 static void on_bind_scissor_rects(command_list *cmd_list, uint32_t first, uint32_t count, const rect *rects)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>();
+	auto &state = *cmd_list->get_private_data<state_tracking>();
 
 	const uint32_t total_count = first + count;
 	if (state.scissor_rects.size() < total_count)
@@ -126,7 +126,7 @@ static void on_bind_scissor_rects(command_list *cmd_list, uint32_t first, uint32
 
 static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>().descriptor_tables[stages];
+	auto &state = cmd_list->get_private_data<state_tracking>()->descriptor_tables[stages];
 
 	if (layout != state.first)
 		state.second.clear(); // Layout changed, which resets all descriptor table bindings
@@ -142,7 +142,7 @@ static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stage
 
 static void on_reset_command_list(command_list *cmd_list)
 {
-	auto &state = cmd_list->get_private_data<state_tracking>();
+	auto &state = *cmd_list->get_private_data<state_tracking>();
 	state.clear();
 }
 
