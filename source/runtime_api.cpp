@@ -10,6 +10,7 @@
 #include "input.hpp"
 #include <algorithm> // std::all_of, std::find, std::find_if, std::for_each, std::remove_if
 
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 extern bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec);
 
 bool reshade::runtime::is_key_down(uint32_t keycode) const
@@ -1409,7 +1410,10 @@ void reshade::runtime::export_current_preset(const char *path_in) const
 	if (path_in == nullptr)
 		return;
 
-	const std::filesystem::path preset_path = std::filesystem::u8path(path_in);
+	std::filesystem::path preset_path = std::filesystem::u8path(path_in);
+
+	std::error_code ec;
+	resolve_path(preset_path, ec);
 
 	if (ini_file *const cached_preset = ini_file::find_cache(preset_path))
 	{
@@ -1444,10 +1448,10 @@ void reshade::runtime::set_current_preset_path(const char *path_in)
 	if (path_in == nullptr)
 		return;
 
-	std::error_code ec;
 	std::filesystem::path preset_path = std::filesystem::u8path(path_in);
 
 	// Only change preset when this is a valid preset path
+	std::error_code ec;
 	if (resolve_preset_path(preset_path, ec))
 	{
 		if (is_loading())

@@ -1757,8 +1757,7 @@ void reshade::runtime::draw_gui_home()
 		if (imgui::file_dialog("##browse", _file_selection_path, std::max(browse_button_width, 450.0f), { L".ini", L".txt" }, { _config_path, g_reshade_base_path / L"ReShade.ini" }))
 		{
 			std::error_code ec;
-			if (std::filesystem::path resolved_path = std::filesystem::canonical(_file_selection_path, ec); !ec)
-				_file_selection_path = std::move(resolved_path);
+			resolve_path(_file_selection_path, ec);
 
 			// Check that this is actually a valid preset file
 			if (ini_file::load_cache(_file_selection_path).has({}, "Techniques"))
