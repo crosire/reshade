@@ -27,7 +27,7 @@
 #include <cstdlib> // std::malloc, std::rand, std::strtod, std::strtol
 #include <cstring> // std::memcpy, std::memset, std::strlen
 #include <charconv> // std::to_chars
-#include <algorithm> // std::all_of, std::copy_n, std::equal, std::fill_n, std::find, std::find_if, std::for_each, std::max, std::min, std::replace, std::remove, std::remove_if, std::reverse, std::search, std::sort, std::stable_sort, std::swap, std::transform
+#include <algorithm> // std::all_of, std::copy_n, std::equal, std::fill_n, std::find, std::find_if, std::for_each, std::max, std::min, std::replace, std::remove, std::remove_if, std::reverse, std::search, std::set_symmetric_difference, std::sort, std::stable_sort, std::swap, std::transform
 #include <fpng.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -1760,10 +1760,49 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			}
 			else
 			{
-				if (permutation.module.uniforms.size() != effect.permutations[0].module.uniforms.size() ||
-					permutation.module.total_uniform_size != effect.permutations[0].module.total_uniform_size)
+				if (permutation.module.total_uniform_size != effect.permutations[0].module.total_uniform_size ||
+					!std::equal(
+						permutation.module.uniforms.begin(), permutation.module.uniforms.end(),
+						effect.permutations[0].module.uniforms.begin(), effect.permutations[0].module.uniforms.end(),
+						[](const reshadefx::uniform &lhs, const reshadefx::uniform &rhs) {
+							return lhs.offset == rhs.offset && lhs.size == rhs.size && lhs.type == rhs.type && lhs.name == rhs.name;
+						}))
 				{
-					errors += "error: effect permutation defines different uniform variables\n";
+					errors += "error: effect permutation defines different uniform variables";
+
+					std::vector<std::string> uniform_names_lhs;
+					uniform_names_lhs.reserve(permutation.module.uniforms.size());
+					std::transform(
+						permutation.module.uniforms.begin(), permutation.module.uniforms.end(),
+						std::back_inserter(uniform_names_lhs),
+						[](const reshadefx::uniform &variable) { return variable.name; });
+					std::sort(uniform_names_lhs.begin(), uniform_names_lhs.end());
+
+					std::vector<std::string> uniform_names_rhs;
+					uniform_names_rhs.reserve(effect.permutations[0].module.uniforms.size());
+					std::transform(
+						effect.permutations[0].module.uniforms.begin(), effect.permutations[0].module.uniforms.end(),
+						std::back_inserter(uniform_names_rhs),
+						[](const reshadefx::uniform &variable) { return variable.name; });
+					std::sort(uniform_names_rhs.begin(), uniform_names_rhs.end());
+
+					std::vector<std::string> different_uniform_names;
+					different_uniform_names.reserve(std::max(uniform_names_lhs.size(), uniform_names_rhs.size()));
+					std::set_symmetric_difference(
+						uniform_names_lhs.begin(), uniform_names_lhs.end(),
+						uniform_names_rhs.begin(), uniform_names_rhs.end(),
+						std::back_inserter(different_uniform_names));
+
+					if (!different_uniform_names.empty())
+					{
+						errors += " (";
+						errors += different_uniform_names[0];
+						for (size_t i = 1; i < different_uniform_names.size(); ++i)
+							errors += ", " + different_uniform_names[i];
+						errors +=  ')';
+					}
+
+					errors += '\n';
 					compiled = false;
 				}
 			}
