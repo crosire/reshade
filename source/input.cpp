@@ -769,7 +769,7 @@ extern "C" BOOL WINAPI HookSetCursorPosition(int X, int Y)
 }
 extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
-	if (reshade::input::is_blocking_any_mouse_cursor_warping())
+	if (reshade::input::is_blocking_any_mouse_input())
 	{
 		assert(lpPoint != nullptr);
 
@@ -842,7 +842,7 @@ extern "C" BOOL WINAPI HookGetKeyboardState(PBYTE lpKeyState)
 	return result;
 }
 
-// This variety of raw input does not use 'WM_INPUT' messages, so a hook is necessary to block these inputs
+// This variant of raw input does not use 'WM_INPUT' messages, so a hook is necessary to block these inputs
 extern "C" UINT WINAPI HookGetRawInputBuffer(PRAWINPUT pData, PUINT pcbSize, UINT cbSizeHeader)
 {
 	static const auto trampoline = reshade::hooks::call(HookGetRawInputBuffer);

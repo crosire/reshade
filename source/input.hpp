@@ -88,8 +88,7 @@ namespace reshade
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 		static bool is_blocking_any_keyboard_input(window_handle window = nullptr);
 		/// <summary>
-		/// Set to <see langword="true"/> to prevent 'GetCursorPos' from returning the real mouse cursor position, instead returning the last value that was passed to 'SetCursorPos'.
-		/// This is separate from mouse input blocking and it is intended to prevent games using 'Set/GetCursorPos' from warping the cursor.
+		/// Set to <see langword="true"/> to prevent 'SetCursorPos' calls from warping the cursor to a new position.
 		/// </summary>
 		void block_mouse_cursor_warping(bool enable);
 		bool is_blocking_mouse_cursor_warping() const { return _block_cursor_warping; }

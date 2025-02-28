@@ -139,9 +139,9 @@ extern "C" HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, R
 	IUnknown *const factory = static_cast<IUnknown *>(*ppvOut);
 
 	if (riidltf == IID_IDirectInput8W)
-		reshade::hooks::install("IDirectInput8W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast <IDirectInput8W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput8W_CreateDevice));
+		reshade::hooks::install("IDirectInput8W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput8W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput8W_CreateDevice));
 	if (riidltf == IID_IDirectInput8A)
-		reshade::hooks::install("IDirectInput8A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast <IDirectInput8A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput8A_CreateDevice));
+		reshade::hooks::install("IDirectInput8A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput8A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput8A_CreateDevice));
 
 	return hr;
 }
