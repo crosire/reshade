@@ -12,7 +12,7 @@
     <IntermediateOutputPath>$(SolutionDir)\intermediate\$(AssemblyName)\$(Platform)\$(Configuration)\</IntermediateOutputPath>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ReShade.Setup</RootNamespace>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ApplicationManifest>Properties\Assembly.manifest</ApplicationManifest>
     <WarningLevel>4</WarningLevel>
