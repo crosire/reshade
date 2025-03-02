@@ -484,6 +484,14 @@ std::string reshade::input::key_name(const unsigned int key[4])
 
 void reshade::input::block_mouse_input(bool enable)
 {
+	_block_mouse = enable;
+}
+void reshade::input::block_keyboard_input(bool enable)
+{
+	_block_keyboard = enable;
+}
+void reshade::input::block_mouse_cursor_warping(bool enable)
+{
 	static const auto ClipCursor_trampoline = reshade::hooks::call(HookClipCursor);
 
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
@@ -497,14 +505,6 @@ void reshade::input::block_mouse_input(bool enable)
 		ClipCursor_trampoline(&s_last_clip_cursor);
 	}
 
-	_block_mouse = enable;
-}
-void reshade::input::block_keyboard_input(bool enable)
-{
-	_block_keyboard = enable;
-}
-void reshade::input::block_mouse_cursor_warping(bool enable)
-{
 	_block_cursor_warping = enable;
 }
 
