@@ -943,7 +943,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	for (auto &[resource, info] : current_depth_stencil_resources)
 	{
-		if (info.last_counters.total_stats.drawcalls == 0 || info.last_counters.total_stats.vertices <= 3)
+		if (info.last_counters.total_stats.drawcalls == 0 || (info.last_counters.total_stats.vertices <= 3 && info.last_counters.total_stats.drawcalls_indirect == 0))
 			continue; // Skip unused
 
 		if (info.last_used_in_frame < device_data->frame_index || device_data->frame_index <= (info.first_used_in_frame + 1))
