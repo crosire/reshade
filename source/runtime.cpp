@@ -1621,7 +1621,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				source = "// " + definition.first + '=' + definition.second + '\n' + source;
 			}
 
-			std::sort(effect.definitions.begin(), effect.definitions.end());
+			std::sort(preprocessor_definitions.begin(), preprocessor_definitions.end());
 
 			// Do not cache if any special pragma directives were used, to ensure they are read again next time
 			if (!skip_optimization)
