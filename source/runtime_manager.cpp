@@ -22,7 +22,6 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 
 	// Try to find a unique configuration name for this effect runtime instance
 	std::string config_name = "ReShade";
-
 	if (is_vr)
 		config_name += "VR";
 	{
@@ -34,7 +33,7 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 			global_config().get("INSTALL", "MaxEffectRuntimes", max_runtimes) &&
 			s_runtime_config_names.size() >= max_runtimes)
 				return;
-		
+
 		for (int attempt = 1; attempt < 100 && s_runtime_config_names.find(config_name) != s_runtime_config_names.end(); ++attempt)
 			config_name = config_name_base + std::to_string(attempt + 1);
 
