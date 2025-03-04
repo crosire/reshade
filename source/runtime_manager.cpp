@@ -29,6 +29,11 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 
 		const std::unique_lock<std::shared_mutex> lock(s_runtime_config_names_mutex);
 
+		if (size_t max_runtimes = std::numeric_limits<size_t>::max();
+			global_config().get("INSTALL", "MaxEffectRuntimes", max_runtimes) &&
+			s_runtime_config_names.size() >= max_runtimes)
+				return;
+
 		for (int attempt = 1; attempt < 100 && s_runtime_config_names.find(config_name) != s_runtime_config_names.end(); ++attempt)
 			config_name = config_name_base + std::to_string(attempt + 1);
 
