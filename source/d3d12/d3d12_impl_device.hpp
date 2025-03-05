@@ -9,6 +9,7 @@
 #include "reshade_api_object_impl.hpp"
 #include <unordered_map>
 #include <concurrent_vector.h>
+#include <map>
 
 struct D3D12DescriptorHeap;
 
@@ -152,7 +153,8 @@ namespace reshade::d3d12
 		mutable std::shared_mutex _resource_mutex;
 #if RESHADE_ADDON >= 2
 		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
-		std::vector<std::tuple<ID3D12Resource *, D3D12_GPU_VIRTUAL_ADDRESS_RANGE, bool>> _buffer_gpu_addresses; // TODO: Replace with interval tree
+		mutable std::shared_mutex _buffer_gpu_addresses_mutex;
+		std::map<D3D12_GPU_VIRTUAL_ADDRESS, std::tuple<UINT64, ID3D12Resource *, bool>> _buffer_gpu_addresses;
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
 
