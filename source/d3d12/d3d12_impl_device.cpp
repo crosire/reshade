@@ -2088,7 +2088,7 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bo
 		{
 			const std::unique_lock<std::shared_mutex> lock(_buffer_gpu_addresses_mutex);
 
-			// Placed Resources may overwrite old resources
+			// Placed resources may overwrite old resources
 			_buffer_gpu_addresses.insert_or_assign(
 				address,
 				std::tuple<UINT64, ID3D12Resource *, bool >({ desc.Width, resource, acceleration_structure }));
@@ -2110,9 +2110,9 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 
 		const std::unique_lock<std::shared_mutex> lock(_buffer_gpu_addresses_mutex);
 
-		if (auto pair = _buffer_gpu_addresses.find(start_address);
-			pair != _buffer_gpu_addresses.end() && std::get<ID3D12Resource *>(pair->second) == resource)
-			_buffer_gpu_addresses.erase(pair);
+		if (const auto it = _buffer_gpu_addresses.find(start_address);
+			it != _buffer_gpu_addresses.end() && std::get<ID3D12Resource *>(it->second) == resource)
+			_buffer_gpu_addresses.erase(it);
 	}
 #endif
 
@@ -2180,24 +2180,27 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 	const std::shared_lock<std::shared_mutex> lock(_buffer_gpu_addresses_mutex);
 
-	assert(!_buffer_gpu_addresses.empty());
-
-	auto iterator = _buffer_gpu_addresses.upper_bound(address);
-	--iterator;
-	const auto &start_address = iterator->first;
-	const auto &buffer_info = iterator->second;
-
-	const UINT64 address_offset = address - start_address;
-	if (address_offset >= std::get<UINT64>(buffer_info)) {
-		assert(address_offset < std::get<UINT64>(buffer_info));
+	// Find next resource placed above this address
+	auto it = _buffer_gpu_addresses.upper_bound(address);
+	if (it == _buffer_gpu_addresses.end())
 		return false;
-	}
-	
+
+	// Go down to the resource before, which would be the one containing the address
+	--it;
+
+	const D3D12_GPU_VIRTUAL_ADDRESS start_address = it->first;
+	const std::tuple<UINT64, ID3D12Resource *, bool> &buffer_info = it->second;
+
+	// Verify that the address is actually within the address range of that resource
+	const UINT64 address_offset = address - start_address;
+	if (address_offset >= std::get<UINT64>(buffer_info))
+		return false;
 
 	*out_offset = address_offset;
 	*out_resource = to_handle(std::get<ID3D12Resource *>(buffer_info));
 	if (out_acceleration_structure != nullptr)
 		*out_acceleration_structure = std::get<bool>(buffer_info);
+
 	return true;
 }
 
