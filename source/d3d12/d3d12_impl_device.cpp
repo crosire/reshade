@@ -2086,7 +2086,7 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bo
 	{
 		if (const D3D12_GPU_VIRTUAL_ADDRESS address = resource->GetGPUVirtualAddress())
 		{
-			const std::unique_lock<std::shared_mutex> lock(_buffer_gpu_addresses_mutex);
+			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 			// Placed resources may overwrite old resources
 			_buffer_gpu_addresses.insert_or_assign(
@@ -2108,7 +2108,7 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 	{
 		const D3D12_GPU_VIRTUAL_ADDRESS start_address = resource->GetGPUVirtualAddress();
 
-		const std::unique_lock<std::shared_mutex> lock(_buffer_gpu_addresses_mutex);
+		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
 		if (const auto it = _buffer_gpu_addresses.find(start_address);
 			it != _buffer_gpu_addresses.end() && std::get<ID3D12Resource *>(it->second) == resource)
@@ -2178,7 +2178,7 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 	if (!address)
 		return true;
 
-	const std::shared_lock<std::shared_mutex> lock(_buffer_gpu_addresses_mutex);
+	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
 
 	// Find next resource placed above this address
 	auto it = _buffer_gpu_addresses.upper_bound(address);
