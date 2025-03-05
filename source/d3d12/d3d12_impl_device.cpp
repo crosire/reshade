@@ -2088,7 +2088,10 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bo
 		{
 			const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
-			_buffer_gpu_addresses.emplace_back(resource, D3D12_GPU_VIRTUAL_ADDRESS_RANGE { address, desc.Width }, acceleration_structure);
+			// Placed resources may overwrite old resources
+			_buffer_gpu_addresses.insert_or_assign(
+				address,
+				std::tuple<UINT64, ID3D12Resource *, bool >({ desc.Width, resource, acceleration_structure }));
 		}
 	}
 #else
@@ -2103,16 +2106,13 @@ void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)
 	if (const D3D12_RESOURCE_DESC desc = resource->GetDesc();
 		desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
+		const D3D12_GPU_VIRTUAL_ADDRESS start_address = resource->GetGPUVirtualAddress();
+
 		const std::unique_lock<std::shared_mutex> lock(_resource_mutex);
 
-		if (const auto it = std::find_if(_buffer_gpu_addresses.begin(), _buffer_gpu_addresses.end(),
-				[resource](const auto &buffer_info) {
-					return std::get<0>(buffer_info) == resource;
-				});
-			it != _buffer_gpu_addresses.end())
-		{
+		if (const auto it = _buffer_gpu_addresses.find(start_address);
+			it != _buffer_gpu_addresses.end() && std::get<ID3D12Resource *>(it->second) == resource)
 			_buffer_gpu_addresses.erase(it);
-		}
 	}
 #endif
 
@@ -2180,24 +2180,28 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 	const std::shared_lock<std::shared_mutex> lock(_resource_mutex);
 
-	for (const auto &buffer_info : _buffer_gpu_addresses)
-	{
-		if (address < std::get<1>(buffer_info).StartAddress)
-			continue;
+	// Find next resource placed above this address
+	auto it = _buffer_gpu_addresses.upper_bound(address);
+	if (it == _buffer_gpu_addresses.end())
+		return false;
 
-		const UINT64 address_offset = address - std::get<1>(buffer_info).StartAddress;
-		if (address_offset >= std::get<1>(buffer_info).SizeInBytes)
-			continue;
+	// Go down to the resource before, which would be the one containing the address
+	--it;
 
-		*out_offset = address_offset;
-		*out_resource = to_handle(std::get<0>(buffer_info));
-		if (out_acceleration_structure != nullptr)
-			*out_acceleration_structure = std::get<2>(buffer_info);
-		return true;
-	}
+	const D3D12_GPU_VIRTUAL_ADDRESS start_address = it->first;
+	const std::tuple<UINT64, ID3D12Resource *, bool> &buffer_info = it->second;
 
-	assert(false);
-	return false;
+	// Verify that the address is actually within the address range of that resource
+	const UINT64 address_offset = address - start_address;
+	if (address_offset >= std::get<UINT64>(buffer_info))
+		return false;
+
+	*out_offset = address_offset;
+	*out_resource = to_handle(std::get<ID3D12Resource *>(buffer_info));
+	if (out_acceleration_structure != nullptr)
+		*out_acceleration_structure = std::get<bool>(buffer_info);
+
+	return true;
 }
 
 void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *heap)
