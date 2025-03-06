@@ -2182,7 +2182,7 @@ bool reshade::d3d12::device_impl::resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS 
 
 	// Find next resource placed above this address
 	auto it = _buffer_gpu_addresses.upper_bound(address);
-	if (it == _buffer_gpu_addresses.end())
+	if (_buffer_gpu_addresses.empty() || it == _buffer_gpu_addresses.begin()) // There is no entry, or all entries are greater than the address
 		return false;
 
 	// Go down to the resource before, which would be the one containing the address
