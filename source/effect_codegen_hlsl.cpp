@@ -2064,6 +2064,10 @@ private:
 			write_constant(code, return_type, constant());
 			code += ";\n";
 		}
+		else
+		{
+			code += "\treturn;\n";
+		}
 
 		return set_block(0);
 	}
