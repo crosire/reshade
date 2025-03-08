@@ -1983,7 +1983,14 @@ In that event here are some steps you can try to resolve this:
 
 		void OnSkipButtonClick(object sender, RoutedEventArgs e)
 		{
-			InstallStep_Finish();
+			if (CurrentPage.Content is SelectEffectsPage)
+			{
+				InstallStep_CheckAddons();
+			}
+			else
+			{
+				InstallStep_Finish();
+			}
 		}
 		void OnCancelButtonClick(object sender, RoutedEventArgs e)
 		{
