@@ -48,8 +48,7 @@ IDirectInputDevice8_SetCooperativeLevel_Impl(13, W)
 			switch (LOBYTE(info.dwDevType)) \
 			{ \
 			case DI8DEVTYPE_MOUSE: \
-				if (reshade::input::is_blocking_any_mouse_input() && ( \
-					cbData == sizeof(DIMOUSESTATE) || cbData == sizeof(DIMOUSESTATE2))) \
+				if (reshade::input::is_blocking_any_mouse_input() && (cbData == sizeof(DIMOUSESTATE) || cbData == sizeof(DIMOUSESTATE2))) \
 					/* Only clear button state, to prevent camera resetting when overlay is opened in RoadCraft */ \
 					std::memset(static_cast<LPBYTE>(lpvData) + offsetof(DIMOUSESTATE, rgbButtons), 0, cbData - offsetof(DIMOUSESTATE, rgbButtons)); \
 				break; \

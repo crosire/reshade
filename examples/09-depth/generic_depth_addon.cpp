@@ -755,8 +755,8 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 
 		// Make a backup of the depth texture before it is used differently, since in D3D12 or Vulkan the underlying memory may be aliased to a different resource, so cannot just access it at the end of the frame
 		if (s_preserve_depth_buffers == 2 &&
-			state.current_depth_stencil != 0 && depth_stencil == 0 && (
-			cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan))
+			state.current_depth_stencil != 0 && depth_stencil == 0 &&
+			(cmd_list->get_device()->get_api() == device_api::d3d12 || cmd_list->get_device()->get_api() == device_api::vulkan))
 			on_clear_depth_impl(cmd_list, state, state.current_depth_stencil, clear_op::unbind_depth_stencil_view);
 	}
 
