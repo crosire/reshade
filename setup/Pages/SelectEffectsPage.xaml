@@ -11,6 +11,12 @@
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
       <TextBlock x:Uid="PageTitle" Style="{StaticResource TitleStyle}" Text="Select effects to install:" />
+      <ComboBox x:Name="SortBy" x:FieldModifier="private" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center" Margin="10" Width="100" SelectedIndex="0" SelectionChanged="OnSortByChanged">
+        <ComboBoxItem x:Uid="SortByDefault">Default</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByAZ">A to Z</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByZA">Z to A</ComboBoxItem>
+      </ComboBox>
+      <TextBlock x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource TextStyle}" Text="Sort by:" />
       <Button x:Uid="CheckAllButton" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Margin="10" Content="Uncheck _all" Click="OnCheckAllClick" KeyboardNavigation.TabIndex="2" />
     </DockPanel>
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap" Style="{StaticResource TextStyle}">

@@ -11,6 +11,12 @@
   <DockPanel LastChildFill="True">
     <DockPanel DockPanel.Dock="Top">
       <TextBlock x:Uid="PageTitle" Style="{StaticResource TitleStyle}" Text="Select add-ons to install:" />
+      <ComboBox x:Name="SortBy" x:FieldModifier="private" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalContentAlignment="Center" Margin="10" Width="100" SelectedIndex="0" SelectionChanged="OnSortByChanged">
+        <ComboBoxItem x:Uid="SortByDefault">Default</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByAZ">A to Z</ComboBoxItem>
+        <ComboBoxItem x:Uid="SortByZA">Z to A</ComboBoxItem>
+      </ComboBox>
+      <TextBlock x:Uid="SortByBoxLabel" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource TextStyle}" Text="Sort by:" />
     </DockPanel>
     <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap" Style="{StaticResource TextStyle}">
       Optionally check add-ons you want to install or update.<LineBreak />Only select add-ons you know are needed, since incompatible add-ons may cause crashes or performance degradation.

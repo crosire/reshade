@@ -13,6 +13,7 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
@@ -222,6 +223,23 @@ namespace ReShade.Setup.Pages
 					package.Selected = check;
 					package.NotifyPropertyChanged(nameof(package.Selected));
 				}
+			}
+		}
+
+		private void OnSortByChanged(object sender, SelectionChangedEventArgs e)
+		{
+			var view = CollectionViewSource.GetDefaultView(Items);
+			view.SortDescriptions.Clear();
+			switch (SortBy.SelectedIndex)
+			{
+				case 0:
+					break;
+				case 1:
+					view.SortDescriptions.Add(new SortDescription(nameof(EffectPackage.Name), ListSortDirection.Ascending));
+					break;
+				case 2:
+					view.SortDescriptions.Add(new SortDescription(nameof(EffectPackage.Name), ListSortDirection.Descending));
+					break;
 			}
 		}
 

@@ -12,6 +12,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Navigation;
 using ReShade.Setup.Utilities;
 
@@ -89,6 +90,23 @@ namespace ReShade.Setup.Pages
 
 		public IEnumerable<Addon> SelectedItems => Items.Where(x => x.Selected);
 		public ObservableCollection<Addon> Items { get; } = new ObservableCollection<Addon>();
+
+		private void OnSortByChanged(object sender, SelectionChangedEventArgs e)
+		{
+			var view = CollectionViewSource.GetDefaultView(Items);
+			view.SortDescriptions.Clear();
+			switch (SortBy.SelectedIndex)
+			{
+				case 0:
+					break;
+				case 1:
+					view.SortDescriptions.Add(new SortDescription(nameof(Addon.Name), ListSortDirection.Ascending));
+					break;
+				case 2:
+					view.SortDescriptions.Add(new SortDescription(nameof(Addon.Name), ListSortDirection.Descending));
+					break;
+			}
+		}
 
 		private void OnHyperlinkRequestNavigate(object sender, RequestNavigateEventArgs e)
 		{
