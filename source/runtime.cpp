@@ -4099,15 +4099,17 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	for (size_t technique_index : _technique_sorting)
 	{
 		technique &tech = _techniques[technique_index];
-		const effect &effect = _effects[tech.effect_index];
 
-		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot) || (!_effects_enabled && !effect.addon))
+		const size_t effect_index = tech.effect_index;
+
+		if (!tech.enabled || (_should_save_screenshot && !tech.enabled_in_screenshot) || (!_effects_enabled && !_effects[effect_index].addon))
 			continue;
 
-		if (permutation_index >= tech.permutations.size() || (!tech.permutations[permutation_index].created && effect.permutations[permutation_index].assembly.empty()))
+		if (permutation_index >= tech.permutations.size() ||
+			(!tech.permutations[permutation_index].created && _effects[effect_index].permutations[permutation_index].assembly.empty()))
 		{
-			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech.effect_index, permutation_index)) == _reload_required_effects.end())
-				_reload_required_effects.emplace_back(tech.effect_index, permutation_index);
+			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(effect_index, permutation_index)) == _reload_required_effects.end())
+				_reload_required_effects.emplace_back(effect_index, permutation_index);
 			continue;
 		}
 

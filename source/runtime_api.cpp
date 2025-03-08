@@ -1340,6 +1340,9 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 	size_t permutation_index = 0;
 #if RESHADE_ADDON
+	if (!_is_in_present_call &&
+		// Special case for when add-on passed in the back buffer, which behaves as if this was called from within present, using the default permutation
+		back_buffer_resource != get_current_back_buffer())
 	{
 		const api::resource_desc back_buffer_desc = _device->get_resource_desc(back_buffer_resource);
 		if (back_buffer_desc.texture.samples > 1)
@@ -1351,23 +1354,26 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 
 		// Ensure dimensions and format of the effect color resource matches that of the input back buffer resource (so that the copy to the effect color resource succeeds)
 		// Never perform an immediate reload here, as the list of techniques must not be modified in case this was called from within 'enumerate_techniques'!
-		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, _is_in_present_call || back_buffer_resource == get_current_back_buffer() ? _back_buffer_color_space : api::color_space::unknown);
+		permutation_index = add_effect_permutation(back_buffer_desc.texture.width, back_buffer_desc.texture.height, color_format, _effect_permutations[0].stencil_format, api::color_space::unknown);
 		if (permutation_index == std::numeric_limits<size_t>::max())
 			return;
 	}
 
-	if (permutation_index >= tech->permutations.size() || (!tech->permutations[permutation_index].created && _effects[tech->effect_index].permutations[permutation_index].assembly.empty()))
+	const size_t effect_index = tech->effect_index;
+
+	if (permutation_index >= tech->permutations.size() ||
+		(!tech->permutations[permutation_index].created && _effects[effect_index].permutations[permutation_index].assembly.empty()))
 	{
-		if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(tech->effect_index, permutation_index)) == _reload_required_effects.end())
-			_reload_required_effects.emplace_back(tech->effect_index, permutation_index);
+		if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(effect_index, permutation_index)) == _reload_required_effects.end())
+			_reload_required_effects.emplace_back(effect_index, permutation_index);
 		return;
 	}
 
 	// Queue effect file for initialization if it was not fully loaded yet
 	if (!tech->permutations[permutation_index].created)
 	{
-		if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech->effect_index, permutation_index)) == _reload_create_queue.cend())
-			_reload_create_queue.emplace_back(tech->effect_index, permutation_index);
+		if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(effect_index, permutation_index)) == _reload_create_queue.cend())
+			_reload_create_queue.emplace_back(effect_index, permutation_index);
 		return;
 	}
 
