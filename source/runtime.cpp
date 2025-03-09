@@ -3836,7 +3836,7 @@ void reshade::runtime::update_effects()
 				// Set effect index again in case it was moved during the reload
 				instance.effect_index = std::distance(_effects.cbegin(), it);
 
-				if (instance.entry_point_name.empty() && instance.permutation_index < it->permutations.size())
+				if (instance.entry_point_name.empty() && (instance.permutation_index < it->permutations.size() || !instance.generated))
 					open_code_editor(instance);
 				else
 					// Those editors referencing assembly will be updated in a separate step below
