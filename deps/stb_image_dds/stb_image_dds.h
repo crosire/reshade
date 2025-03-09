@@ -1,5 +1,7 @@
-// DDS loader
-// http://lonesock.net/soil.html
+/* DDS file support
+   License: Public Domain, http://lonesock.net/soil.html
+   Modified fork that adds basic DDS_HEADER_DXT10 and volume support
+ */
 
 #ifndef HEADER_STB_IMAGE_DDS_AUGMENTATION
 #define HEADER_STB_IMAGE_DDS_AUGMENTATION
@@ -8,12 +10,21 @@
 extern "C" {
 #endif
 
-extern int stbi_dds_test_memory(stbi_uc const *buffer, int len);
-extern stbi_uc *stbi_dds_load(const char *filename, int *x, int *y, int *z, int *comp, int req_comp);
-extern stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *z, int *comp, int req_comp);
 #ifndef STBI_NO_STDIO
 extern int stbi_dds_test_file(FILE *f);
+#endif
+
+extern int stbi_dds_test_memory(stbi_uc const *buffer, int len);
+
+#ifndef STBI_NO_STDIO
+extern stbi_uc *stbi_dds_load(const char *filename, int *x, int *y, int *z, int *comp, int req_comp);
 extern stbi_uc *stbi_dds_load_from_file(FILE *f, int *x, int *y, int *z, int *comp, int req_comp);
+#endif
+
+extern stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *y, int *z, int *comp, int req_comp);
+
+#ifdef __cplusplus
+}
 #endif
 
 #ifdef STB_IMAGE_DDS_IMPLEMENTATION
@@ -92,18 +103,29 @@ typedef struct DDS_HEADER_DXT10
 
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((stbi__uint32)(stbi_uc)(ch0) | ((stbi__uint32)(stbi_uc)(ch1) << 8) | ((stbi__uint32)(stbi_uc)(ch2) << 16) | ((stbi__uint32)(stbi_uc)(ch3) << 24 ))
 
+static int stbi__dds_test(stbi__context *s)
+{
+	//	check the magic number
+	if (stbi__get8(s) != 'D') return 0;
+	if (stbi__get8(s) != 'D') return 0;
+	if (stbi__get8(s) != 'S') return 0;
+	if (stbi__get8(s) != ' ') return 0;
+	return 1;
+}
+
 stbi_inline static int stbi__convert_bit_range(int c, int from_bits, int to_bits)
 {
 	int b = (1 << (from_bits - 1)) + c * ((1 << to_bits) - 1);
-
 	return (b + (b >> from_bits)) >> from_bits;
 }
+
 stbi_inline static void stbi__rgb_888_from_565(unsigned int c, int *r, int *g, int *b)
 {
 	*r = stbi__convert_bit_range((c >> 11) & 31, 5, 8);
 	*g = stbi__convert_bit_range((c >> 05) & 63, 6, 8);
 	*b = stbi__convert_bit_range((c >> 00) & 31, 5, 8);
 }
+
 void stbi__dxt_decode_DXT1_block(unsigned char uncompressed[16 * 4], unsigned char compressed[8])
 {
 	int next_bit = 4 * 8;
@@ -162,7 +184,7 @@ void stbi__dxt_decode_DXT1_block(unsigned char uncompressed[16 * 4], unsigned ch
 void stbi__dxt_decode_DXT23_alpha_block(unsigned char uncompressed[16 * 4], unsigned char compressed[8])
 {
 	int i, next_bit = 0;
-
+	//	each alpha value gets 4 bits
 	for (i = 3; i < 16 * 4; i += 4)
 	{
 		uncompressed[i] = stbi__convert_bit_range((compressed[next_bit >> 3] >> (next_bit & 7)) & 15, 4, 8);
@@ -249,141 +271,115 @@ void stbi__dxt_decode_DXT_color_block(unsigned char uncompressed[16 * 4], unsign
 	//	done
 }
 
-static int stbi__dds_test(stbi__context *s)
-{
-	// Check the magic number
-	if (stbi__get8(s) != 'D')
-	{
-		return 0;
-	}
-	if (stbi__get8(s) != 'D')
-	{
-		return 0;
-	}
-	if (stbi__get8(s) != 'S')
-	{
-		return 0;
-	}
-	if (stbi__get8(s) != ' ')
-	{
-		return 0;
-	}
-
-	return 1;
-}
-
 static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *comp, int req_comp)
 {
-	// All variables go up front
+	//	all variables go up front
 	stbi_uc *dds_data = NULL;
 	stbi_uc block[16 * 4];
 	stbi_uc compressed[8];
-	int flags, DXT_family;
+	int DXT_family = 0;
 	int has_alpha, has_mipmap;
-	int is_compressed, cubemap_faces;
+	int cubemap_faces;
 	int block_pitch, num_blocks;
-	int i, sz, cf;
 	DDS_HEADER header;
 	DDS_HEADER_DXT10 header2;
+	int i, sz, cf;
 
-	// Check the magic number
 	if (!stbi__dds_test(s))
-	{
 		return NULL;
-	}
 
-	// Load the header
-	stbi__getn(s, (stbi_uc *)(&header), sizeof(DDS_HEADER));
+	//	load the header
+	stbi__getn(s, (stbi_uc *)&header, sizeof(header));
 
-	if (header.dwSize != 124)
-	{
+	//	and do some checking
+	if ( header.dwSize != sizeof(header))
 		return NULL;
-	}
-
-	// Checks
-	flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
-
-	if ((header.dwFlags & flags) != flags)
-	{
+	if ((header.dwFlags & (DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT)) != (DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT))
 		return NULL;
-	}
-
-	if (header.sPixelFormat.dwSize != 32)
-	{
+	if ( header.sPixelFormat.dwSize != sizeof(header.sPixelFormat))
 		return NULL;
-	}
-
-	flags = DDPF_FOURCC | DDPF_RGB | DDPF_LUMINANCE | DDPF_YUV;
-
-	if ((header.sPixelFormat.dwFlags & flags) == 0)
-	{
+	if ((header.sPixelFormat.dwFlags & (DDPF_FOURCC | DDPF_RGB | DDPF_LUMINANCE | DDPF_YUV)) == 0)
 		return NULL;
-	}
-
 	if ((header.sCaps.dwCaps1 & DDSCAPS_TEXTURE) == 0)
-	{
 		return NULL;
+
+	if ((header.sPixelFormat.dwFlags & DDPF_FOURCC) != 0)
+	{
+		if (header.sPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', '1', '0'))
+		{
+			stbi__getn(s, (stbi_uc *)&header2, sizeof(header2));
+
+			if (header2.arraySize > 1)
+				return NULL;
+
+			switch (header2.dxgiFormat)
+			{
+			case 28: // DXGI_FORMAT_R8G8B8A8_UNORM
+			case 49: // DXGI_FORMAT_R8G8_UNORM
+			case 61: // DXGI_FORMAT_R8_UNORM
+				break;
+			case 71: // DXGI_FORMAT_BC1_UNORM
+				DXT_family = 1;
+				break;
+			case 74: // DXGI_FORMAT_BC2_UNORM
+				DXT_family = 3;
+				break;
+			case 77: // DXGI_FORMAT_BC3_UNORM
+				DXT_family = 5;
+				break;
+			default:
+				return NULL;
+			}
+		}
+		else
+		{
+			//	dwFourCC is something like (('D' << 0) | ('X' << 8) | ('T' << 16) | ('1' << 24))
+			DXT_family = 1 + (header.sPixelFormat.dwFourCC >> 24) - '1';
+			if ((DXT_family < 1) || (DXT_family > 5))
+				return NULL;
+		}
 	}
 
-	// Get the image information
+	//	get the image data
 	*x = s->img_x = header.dwWidth;
 	*y = s->img_y = header.dwHeight;
 	*z = (header.dwDepth > 1) ? header.dwDepth : 1;
 	*comp = s->img_n = 4;
 
-	is_compressed = (header.sPixelFormat.dwFlags & DDPF_FOURCC) / DDPF_FOURCC;
 	has_alpha = (header.sPixelFormat.dwFlags & DDPF_ALPHAPIXELS) / DDPF_ALPHAPIXELS;
 	has_mipmap = (header.sCaps.dwCaps1 & DDSCAPS_MIPMAP) && (header.dwMipMapCount > 1);
 	cubemap_faces = (header.sCaps.dwCaps2 & DDSCAPS2_CUBEMAP) / DDSCAPS2_CUBEMAP;
 
-	// Cubemaps need to have square faces
+	//	cubemaps need to have square faces
 	cubemap_faces &= (s->img_x == s->img_y);
 	cubemap_faces *= 5;
 	cubemap_faces += 1;
 
 	if ((header.dwDepth > 1) && cubemap_faces != 1)
-	{
 		return NULL;
-	}
 
 	cubemap_faces *= (*z);
 	*z = cubemap_faces;
 
-	block_pitch = (s->img_x + 3) >> 2;
-	num_blocks = block_pitch * ((s->img_y + 3) >> 2);
-
-	if (is_compressed)
+	if (DXT_family != 0)
 	{
-#pragma region Compressed
-		if (header.sPixelFormat.dwFourCC & MAKEFOURCC('D', 'X', '1', '0'))
-		{
-			stbi__getn(s, (stbi_uc *)(&header2), sizeof(DDS_HEADER_DXT10));
-		}
+		block_pitch = (s->img_x + 3) >> 2;
+		num_blocks = block_pitch * ((s->img_y + 3) >> 2);
 
-		/*	compressed	*/
-		//	note: header.sPixelFormat.dwFourCC is something like (('D'<<0)|('X'<<8)|('T'<<16)|('1'<<24))
-		DXT_family = 1 + (header.sPixelFormat.dwFourCC >> 24) - '1';
-		if ((DXT_family < 1) || (DXT_family > 5))
-		{
-			return NULL;
-		}
-
-		/*	check the expected size...oops, nevermind...
-		those non-compliant writers leave
-		dwPitchOrLinearSize == 0	*/
 		//	passed all the tests, get the RAM for decoding
 		sz = (s->img_x) * (s->img_y) * 4 * cubemap_faces;
-		dds_data = (stbi_uc *)malloc(sz);
-		/*	do this once for each face	*/
+		dds_data = (stbi_uc *)stbi__malloc(sz);
+
+		//	do this once for each face
 		for (cf = 0; cf < cubemap_faces; ++cf)
 		{
-			//	now read and decode all the blocks
+			//	read and decode all the blocks
 			for (i = 0; i < num_blocks; ++i)
 			{
-				//	where are we?
 				int bx, by, bw = 4, bh = 4;
 				int ref_x = 4 * (i % block_pitch);
 				int ref_y = 4 * (i / block_pitch);
+
 				//	get the next block's worth of compressed data, and decompress it
 				if (DXT_family == 1)
 				{
@@ -407,6 +403,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 					stbi__getn(s, compressed, 8);
 					stbi__dxt_decode_DXT_color_block(block, compressed);
 				}
+
 				//	is this a partial block?
 				if (ref_x + 4 > (int)s->img_x)
 				{
@@ -416,6 +413,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 				{
 					bh = s->img_y - ref_y;
 				}
+
 				//	now drop our decompressed data into the buffer
 				for (by = 0; by < bh; ++by)
 				{
@@ -427,7 +425,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 				}
 			}
 
-			/*	done reading and decoding the main image... skip MIPmaps if present	*/
+			//	done reading and decoding the main image... skip MIPmaps if present
 			if (has_mipmap)
 			{
 				int block_size = 16;
@@ -435,6 +433,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 				{
 					block_size = 8;
 				}
+
 				for (i = 1; i < (int)header.dwMipMapCount; ++i)
 				{
 					int mx = s->img_x >> (i + 2);
@@ -451,13 +450,9 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 				}
 			}
 		}
-#pragma endregion
 	}
 	else
 	{
-#pragma region Uncompressed
-		DXT_family = 0;
-
 		if (header.sPixelFormat.dwRGBBitCount != 0)
 		{
 			s->img_n = header.sPixelFormat.dwRGBBitCount / 8;
@@ -473,15 +468,15 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 		*comp = s->img_n;
 
 		sz = (s->img_x) * (s->img_y) * s->img_n * cubemap_faces;
-		dds_data = (stbi_uc *)malloc(sz);
+		dds_data = (stbi_uc *)stbi__malloc(sz);
 
-		/*	do this once for each face	*/
+		//	do this once for each face
 		for (cf = 0; cf < cubemap_faces; ++cf)
 		{
-			/*	read the main image for this face	*/
+			//	read the main image for this face
 			stbi__getn(s, &dds_data[cf * s->img_x * s->img_y * s->img_n], s->img_x * s->img_y * s->img_n);
 
-			/*	done reading and decoding the main image... skip MIPmaps if present	*/
+			//	done reading and decoding the main image... skip MIPmaps if present
 			if (has_mipmap)
 			{
 				for (i = 1; i < (int)header.dwMipMapCount; ++i)
@@ -503,7 +498,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 
 		if (s->img_n >= 3)
 		{
-			/*	data was BGR, I need it RGB	*/
+			//	data was BGR, convert it to RGB
 			for (i = 0; i < sz; i += s->img_n)
 			{
 				stbi_uc temp = dds_data[i];
@@ -511,12 +506,10 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 				dds_data[i + 2] = temp;
 			}
 		}
-#pragma endregion
 	}
 
-	//	Test if all alpha values are 255 (i.e. no transparency)
+	//	see if all the alpha values are 255 (i.e. no transparency)
 	has_alpha = 0;
-
 	if (s->img_n == 4)
 	{
 		for (i = 3; (i < sz) && (has_alpha == 0); i += 4)
@@ -556,6 +549,7 @@ int stbi_dds_test_file(FILE *f)
 	return r;
 }
 #endif
+
 int stbi_dds_test_memory(stbi_uc const *buffer, int len)
 {
 	stbi__context s;
@@ -588,10 +582,6 @@ stbi_uc *stbi_dds_load_from_memory(stbi_uc const *buffer, int len, int *x, int *
 	return stbi__dds_load(&s, x, y, z, comp, req_comp);
 }
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif // HEADER_STB_IMAGE_DDS_AUGMENTATION
