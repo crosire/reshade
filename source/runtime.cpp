@@ -691,7 +691,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 		// Do not allow the following shortcuts while effects are being loaded or initialized (since they affect that state)
 		if (!is_loading())
 		{
-			if (_effects_enabled)
+			if (_effects_enabled && !_is_in_preset_transition)
 			{
 				for (effect &effect : _effects)
 				{
@@ -1232,6 +1232,8 @@ void reshade::runtime::load_current_preset()
 }
 void reshade::runtime::save_current_preset(ini_file &preset) const
 {
+	assert(!_is_in_preset_transition);
+
 	// Build list of active techniques and effects
 	std::set<size_t> effect_list;
 	std::vector<std::string> technique_list;
@@ -3765,9 +3767,9 @@ void reshade::runtime::update_effects()
 	if (_frame_count == 0 && !_no_reload_on_init)
 		reload_effects();
 
-	if (!is_loading() && !_reload_required_effects.empty())
+	if (!is_loading() && !_is_in_preset_transition && !_reload_required_effects.empty())
 	{
-		save_current_preset(); // Save preset preprocessor definitions
+		save_current_preset(); // Save preset preprocessor definitions (careful to not do this during a preset transition)
 
 		_reload_remaining_effects = 0;
 
