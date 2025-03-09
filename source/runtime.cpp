@@ -1763,33 +1763,33 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					!std::equal(
 						permutation.module.uniforms.begin(), permutation.module.uniforms.end(),
 						effect.permutations[0].module.uniforms.begin(), effect.permutations[0].module.uniforms.end(),
-						[](const reshadefx::uniform &lhs, const reshadefx::uniform &rhs) {
-							return lhs.offset == rhs.offset && lhs.size == rhs.size && lhs.type == rhs.type && lhs.name == rhs.name;
+						[](const reshadefx::uniform &lhs_variable, const reshadefx::uniform &rhs_variable) {
+							return lhs_variable.offset == rhs_variable.offset && lhs_variable.size == rhs_variable.size && lhs_variable.type == rhs_variable.type && lhs_variable.name == rhs_variable.name;
 						}))
 				{
 					errors += "error: effect permutation defines different uniform variables";
 
-					std::vector<std::string> uniform_names_lhs;
-					uniform_names_lhs.reserve(permutation.module.uniforms.size());
+					std::vector<std::string> lhs_uniform_names;
+					lhs_uniform_names.reserve(permutation.module.uniforms.size());
 					std::transform(
 						permutation.module.uniforms.begin(), permutation.module.uniforms.end(),
-						std::back_inserter(uniform_names_lhs),
+						std::back_inserter(lhs_uniform_names),
 						[](const reshadefx::uniform &variable) { return variable.name; });
-					std::sort(uniform_names_lhs.begin(), uniform_names_lhs.end());
+					std::sort(lhs_uniform_names.begin(), lhs_uniform_names.end());
 
-					std::vector<std::string> uniform_names_rhs;
-					uniform_names_rhs.reserve(effect.permutations[0].module.uniforms.size());
+					std::vector<std::string> rhs_uniform_names;
+					rhs_uniform_names.reserve(effect.permutations[0].module.uniforms.size());
 					std::transform(
 						effect.permutations[0].module.uniforms.begin(), effect.permutations[0].module.uniforms.end(),
-						std::back_inserter(uniform_names_rhs),
+						std::back_inserter(rhs_uniform_names),
 						[](const reshadefx::uniform &variable) { return variable.name; });
-					std::sort(uniform_names_rhs.begin(), uniform_names_rhs.end());
+					std::sort(rhs_uniform_names.begin(), rhs_uniform_names.end());
 
 					std::vector<std::string> different_uniform_names;
-					different_uniform_names.reserve(std::max(uniform_names_lhs.size(), uniform_names_rhs.size()));
+					different_uniform_names.reserve(std::max(lhs_uniform_names.size(), rhs_uniform_names.size()));
 					std::set_symmetric_difference(
-						uniform_names_lhs.begin(), uniform_names_lhs.end(),
-						uniform_names_rhs.begin(), uniform_names_rhs.end(),
+						lhs_uniform_names.begin(), lhs_uniform_names.end(),
+						rhs_uniform_names.begin(), rhs_uniform_names.end(),
 						std::back_inserter(different_uniform_names));
 
 					if (!different_uniform_names.empty())
@@ -1804,52 +1804,97 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					errors += '\n';
 					compiled = false;
 				}
+
+				if (!std::equal(
+						permutation.module.techniques.begin(), permutation.module.techniques.end(),
+						effect.permutations[0].module.techniques.begin(), effect.permutations[0].module.techniques.end(),
+						[](const reshadefx::technique &lhs_tech, const reshadefx::technique &rhs_tech) {
+							return lhs_tech.name == rhs_tech.name;
+						}))
+				{
+					errors += "error: effect permutation defines different techniques";
+
+					std::vector<std::string> lhs_technique_names;
+					lhs_technique_names.reserve(permutation.module.techniques.size());
+					std::transform(
+						permutation.module.techniques.begin(), permutation.module.techniques.end(),
+						std::back_inserter(lhs_technique_names),
+						[](const reshadefx::technique &tech) { return tech.name; });
+					std::sort(lhs_technique_names.begin(), lhs_technique_names.end());
+
+					std::vector<std::string> rhs_technique_names;
+					rhs_technique_names.reserve(effect.permutations[0].module.techniques.size());
+					std::transform(
+						effect.permutations[0].module.techniques.begin(), effect.permutations[0].module.techniques.end(),
+						std::back_inserter(rhs_technique_names),
+						[](const reshadefx::technique &tech) { return tech.name; });
+					std::sort(rhs_technique_names.begin(), rhs_technique_names.end());
+
+					std::vector<std::string> different_technique_names;
+					different_technique_names.reserve(std::max(lhs_technique_names.size(), rhs_technique_names.size()));
+					std::set_symmetric_difference(
+						lhs_technique_names.begin(), lhs_technique_names.end(),
+						rhs_technique_names.begin(), rhs_technique_names.end(),
+						std::back_inserter(different_technique_names));
+
+					if (!different_technique_names.empty())
+					{
+						errors += " (";
+						errors += different_technique_names[0];
+						for (size_t i = 1; i < different_technique_names.size(); ++i)
+							errors += ", " + different_technique_names[i];
+						errors += ')';
+					}
+
+					errors += '\n';
+					compiled = false;
+				}
 			}
 
 			// Fill all specialization constants with values from the current preset
 			if (_performance_mode)
 			{
-				for (reshadefx::uniform &constant : permutation.module.spec_constants)
+				for (reshadefx::uniform &spec_constant : permutation.module.spec_constants)
 				{
-					switch (constant.type.base)
+					switch (spec_constant.type.base)
 					{
 					case reshadefx::type::t_int:
-						preset.get(effect_name, constant.name, constant.initializer_value.as_int);
+						preset.get(effect_name, spec_constant.name, spec_constant.initializer_value.as_int);
 						break;
 					case reshadefx::type::t_bool:
 					case reshadefx::type::t_uint:
-						preset.get(effect_name, constant.name, constant.initializer_value.as_uint);
+						preset.get(effect_name, spec_constant.name, spec_constant.initializer_value.as_uint);
 						break;
 					case reshadefx::type::t_float:
-						preset.get(effect_name, constant.name, constant.initializer_value.as_float);
+						preset.get(effect_name, spec_constant.name, spec_constant.initializer_value.as_float);
 						break;
 					}
 
 					// Check if this is a split specialization constant and move data accordingly
-					if (constant.type.is_scalar() && constant.offset != 0)
-						constant.initializer_value.as_uint[0] = constant.initializer_value.as_uint[constant.offset];
+					if (spec_constant.type.is_scalar() && spec_constant.offset != 0)
+						spec_constant.initializer_value.as_uint[0] = spec_constant.initializer_value.as_uint[spec_constant.offset];
 
 					if (_renderer_id >= 0x20000)
 						continue;
 
-					code_preamble += "#define SPEC_CONSTANT_" + constant.name + ' ';
+					code_preamble += "#define SPEC_CONSTANT_" + spec_constant.name + ' ';
 
-					for (unsigned int i = 0; i < constant.type.components(); ++i)
+					for (unsigned int i = 0; i < spec_constant.type.components(); ++i)
 					{
-						switch (constant.type.base)
+						switch (spec_constant.type.base)
 						{
 						case reshadefx::type::t_bool:
-							code_preamble += constant.initializer_value.as_uint[i] ? "true" : "false";
+							code_preamble += spec_constant.initializer_value.as_uint[i] ? "true" : "false";
 							break;
 						case reshadefx::type::t_int:
-							code_preamble += std::to_string(constant.initializer_value.as_int[i]);
+							code_preamble += std::to_string(spec_constant.initializer_value.as_int[i]);
 							break;
 						case reshadefx::type::t_uint:
-							code_preamble += std::to_string(constant.initializer_value.as_uint[i]);
+							code_preamble += std::to_string(spec_constant.initializer_value.as_uint[i]);
 							break;
 						case reshadefx::type::t_float:
 							char temp[64];
-							const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), constant.initializer_value.as_float[i]
+							const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), spec_constant.initializer_value.as_float[i]
 #if !defined(_HAS_COMPLETE_CHARCONV) || _HAS_COMPLETE_CHARCONV
 								, std::chars_format::scientific, 8
 #endif
@@ -1861,7 +1906,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 							break;
 						}
 
-						if (i + 1 < constant.type.components())
+						if (i + 1 < spec_constant.type.components())
 							code_preamble += ", ";
 					}
 
@@ -2096,24 +2141,33 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (new_texture.semantic != existing_texture->semantic)
 				{
-					errors += "error: " + new_texture.unique_name + ": another effect (";
-					errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					errors += ") already created a texture with the same name but different semantic\n";
+					errors += "error: " + new_texture.unique_name + ": another effect ";
+					if (existing_texture->effect_index == new_texture.effect_index)
+						errors += "permutation";
+					else
+						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
+					errors += " already created a texture with the same name but different semantic\n";
 					compiled = false;
 					break;
 				}
 
 				if (new_texture.semantic.empty() && !existing_texture->matches_description(new_texture))
 				{
-					errors += "warning: " + new_texture.unique_name + ": another effect (";
-					errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					errors += ") already created a texture with the same name but different dimensions\n";
+					errors += "warning: " + new_texture.unique_name + ": another effect ";
+					if (existing_texture->effect_index == new_texture.effect_index)
+						errors += "permutation";
+					else
+						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
+					errors += " already created a texture with the same name but different dimensions\n";
 				}
 				if (new_texture.semantic.empty() && (existing_texture->annotation_as_string("source") != new_texture.annotation_as_string("source")))
 				{
-					errors += "warning: " + new_texture.unique_name + ": another effect (";
-					errors += _effects[existing_texture->effect_index].source_file.filename().u8string();
-					errors += ") already created a texture with a different image file\n";
+					errors += "warning: " + new_texture.unique_name + ": another effect ";
+					if (existing_texture->effect_index == new_texture.effect_index)
+						errors += "permutation";
+					else
+						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
+					errors += " already created a texture with a different image file\n";
 				}
 
 				if (existing_texture->semantic == "COLOR" && api::format_bit_depth(_effect_permutations[permutation_index].color_format) != 8)
@@ -2151,19 +2205,20 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						if (sampler_info.texture_name == new_texture.unique_name)
 							sampler_info.texture_name = existing_texture->unique_name;
 					}
+
 					// Overwrite referenced texture in storages with the pooled one
 					for (reshadefx::storage &storage_info : permutation.module.storages)
 					{
 						if (storage_info.texture_name == new_texture.unique_name)
 							storage_info.texture_name = existing_texture->unique_name;
 					}
+
 					// Overwrite referenced texture in render targets with the pooled one
-					for (reshadefx::technique &technique_info : permutation.module.techniques)
+					for (reshadefx::technique &tech : permutation.module.techniques)
 					{
-						for (reshadefx::pass &pass_info : technique_info.passes)
+						for (reshadefx::pass &pass : tech.passes)
 						{
-							std::replace(std::begin(pass_info.render_target_names), std::end(pass_info.render_target_names),
-								new_texture.unique_name, existing_texture->unique_name);
+							std::replace(std::begin(pass.render_target_names), std::end(pass.render_target_names), new_texture.unique_name, existing_texture->unique_name);
 						}
 					}
 
@@ -2182,37 +2237,30 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			_textures.push_back(std::move(new_texture));
 		}
 
-		for (reshadefx::technique &tech : permutation.module.techniques)
+		for (technique new_technique : permutation.module.techniques)
 		{
+			new_technique.effect_index = effect_index;
+
 			if (const auto existing_technique = std::find_if(_techniques.begin(), _techniques.end(),
-					[effect_index, &tech](const technique &item) {
-						return item.effect_index == effect_index && item.name == tech.name;
+					[&new_technique](const technique &item) {
+						return item.effect_index == new_technique.effect_index && item.name == new_technique.name;
 					});
 					existing_technique != _techniques.end())
 			{
-				if (permutation_index >= existing_technique->permutations.size())
-					existing_technique->permutations.resize(permutation_index + 1);
-				existing_technique->permutations[permutation_index].passes.assign(tech.passes.begin(), tech.passes.end());
+				existing_technique->permutations.resize(effect.permutations.size());
+				existing_technique->permutations[permutation_index] = std::move(new_technique.permutations[0]);
 
 				// Merge annotations
-				existing_technique->annotations.insert(existing_technique->annotations.end(), tech.annotations.begin(), tech.annotations.end());
+				existing_technique->annotations.insert(existing_technique->annotations.end(), new_technique.annotations.begin(), new_technique.annotations.end());
 				continue;
 			}
 
-			technique new_technique;
-			new_technique.name = tech.name;
-			new_technique.effect_index = effect_index;
-
-			new_technique.annotations = tech.annotations; // Do not 'std::move', since technique may be recreated on a reload that only preprocesses and copy this again
+			assert(permutation_index == 0);
 
 			new_technique.hidden = new_technique.annotation_as_int("hidden") != 0;
 			new_technique.enabled_in_screenshot = new_technique.annotation_as_int("enabled_in_screenshot", 0, true) != 0;
 
-			// Make space for all permutations in case this technique only exists in a specific one
-			new_technique.permutations.resize(permutation_index + 1);
-			new_technique.permutations[permutation_index].passes.assign(tech.passes.begin(), tech.passes.end());
-
-			if (permutation_index == 0 && new_technique.annotation_as_int("enabled"))
+			if (new_technique.annotation_as_int("enabled"))
 				enable_technique(new_technique);
 
 			_techniques.push_back(std::move(new_technique));
@@ -2463,10 +2511,10 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	{
 		technique &tech = _techniques[tech_index];
 
-		if (tech.effect_index != effect_index || permutation_index >= tech.permutations.size())
+		if (tech.effect_index != effect_index)
 			continue;
 
-		assert(!tech.permutations[permutation_index].created);
+		assert(permutation_index < tech.permutations.size() && !tech.permutations[permutation_index].created);
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
 		if (permutation_index == 0)
