@@ -812,5 +812,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="path">File path to the preset to save to.</param>
 		virtual void export_current_preset(const char *path) const = 0;
+
+		/// <summary>
+		/// Gets a boolean indicating whether effects are being loaded.
+		/// </summary>
+		/// <returns><see langword="true"/> if the the effect runtime is loading effects, <see langword="false"/> otherwise.</returns>
+		virtual bool get_is_loading() const = 0;
 	};
 } }

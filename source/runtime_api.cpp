@@ -1559,3 +1559,8 @@ void reshade::runtime::reload_effect_next_frame(const char *effect_name)
 			_reload_required_effects.emplace_back(effect_index, 0u);
 	}
 }
+
+bool reshade::runtime::get_is_loading() const
+{
+	return is_loading();
+}

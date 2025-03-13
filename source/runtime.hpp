@@ -171,6 +171,8 @@ namespace reshade
 
 		void reload_effect_next_frame(const char *effect_name) final;
 
+		bool get_is_loading() const final;
+
 	private:
 		static void check_for_update();
 
