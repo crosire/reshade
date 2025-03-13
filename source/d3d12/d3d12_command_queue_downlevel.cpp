@@ -24,11 +24,13 @@ D3D12CommandQueueDownlevel::~D3D12CommandQueueDownlevel()
 {
 	if (_back_buffers[0] != nullptr)
 	{
-		reshade::reset_effect_runtime(this);
+		if (reshade::reset_effect_runtime(this))
+		{
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, false);
+			reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, false);
 #endif
+		}
 	}
 
 	reshade::destroy_effect_runtime(this);
@@ -72,13 +74,17 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	// Update source texture render target view
 	if (_back_buffers[_swap_index] != pSourceTex2D)
 	{
-		reshade::reset_effect_runtime(this);
+		const bool resize = (_back_buffers[0] != nullptr);
+
+		if (reshade::reset_effect_runtime(this))
+		{
 
 #if RESHADE_ADDON
-		const bool resize = (_back_buffers[0] != nullptr);
-		if (resize)
-			reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
+			
+			if (resize)
+				reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
 #endif
+		}
 
 		// Reduce number of back buffers if less are used than predicted
 		if (const auto it = std::find(_back_buffers.begin(), _back_buffers.end(), pSourceTex2D); it != _back_buffers.end())
@@ -101,11 +107,12 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	// Do not call 'present' event before 'init_swapchain' event
 	if (_back_buffers[0] != nullptr)
 	{
+		if (reshade::present_effect_runtime(this, _parent_queue))
+		{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
-
-		reshade::present_effect_runtime(this, _parent_queue);
+		}
 
 		_parent_queue->flush_immediate_command_list();
 	}

@@ -1047,7 +1047,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (nullptr != swapchain_impl)
 	{
 		// Reuse the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
-		reshade::reset_effect_runtime(swapchain_impl);
+		bool hasRuntime = reshade::reset_effect_runtime(swapchain_impl);
 
 		// Get back buffer images of old swap chain
 		uint32_t num_images = 0;
@@ -1055,15 +1055,21 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		temp_mem<VkImage, 3> swapchain_images(num_images);
 		device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
 
+		if (hasRuntime)
+		{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
+			reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
 #endif
+		}
 
 		for (uint32_t i = 0; i < num_images; ++i)
 		{
+			if (hasRuntime)
+			{
 #if RESHADE_ADDON
-			destroy_default_view(device_impl, swapchain_images[i]);
+				destroy_default_view(device_impl, swapchain_images[i]);
 #endif
+			}
 
 			device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
 		}
@@ -1166,7 +1172,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
 	if (swapchain_impl != nullptr)
 	{
-		reshade::reset_effect_runtime(swapchain_impl);
+		bool hasRuntime = reshade::reset_effect_runtime(swapchain_impl);
 
 		// Get back buffer images of old swap chain
 		uint32_t num_images = 0;
@@ -1174,15 +1180,21 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 		temp_mem<VkImage, 3> swapchain_images(num_images);
 		device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.p);
 
+		if (hasRuntime)
+		{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
+			reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
 #endif
+		}
 
 		for (uint32_t i = 0; i < num_images; ++i)
 		{
+			if (hasRuntime)
+			{
 #if RESHADE_ADDON
-			destroy_default_view(device_impl, swapchain_images[i]);
+				destroy_default_view(device_impl, swapchain_images[i]);
 #endif
+			}
 
 			device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
 		}
@@ -1308,61 +1320,62 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	{
 		reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
 
-#if RESHADE_ADDON
-		uint32_t dirty_rect_count = 0;
-		temp_mem<reshade::api::rect, 16> dirty_rects;
-
-		const auto present_regions = find_in_structure_chain<VkPresentRegionsKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR);
-		if (present_regions != nullptr)
+		if (reshade::present_effect_runtime(swapchain_impl, queue_impl))
 		{
-			assert(present_regions->swapchainCount == pPresentInfo->swapchainCount);
+#if RESHADE_ADDON
+			uint32_t dirty_rect_count = 0;
+			temp_mem<reshade::api::rect, 16> dirty_rects;
 
-			dirty_rect_count = present_regions->pRegions[i].rectangleCount;
-			if (dirty_rect_count > 16)
-				dirty_rects.p = new reshade::api::rect[dirty_rect_count];
-
-			const VkRectLayerKHR *const rects = present_regions->pRegions[i].pRectangles;
-
-			for (uint32_t k = 0; k < dirty_rect_count; ++k)
+			const auto present_regions = find_in_structure_chain<VkPresentRegionsKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR);
+			if (present_regions != nullptr)
 			{
-				dirty_rects[k] = {
-					rects[k].offset.x,
-					rects[k].offset.y,
-					rects[k].offset.x + static_cast<int32_t>(rects[k].extent.width),
-					rects[k].offset.y + static_cast<int32_t>(rects[k].extent.height)
+				assert(present_regions->swapchainCount == pPresentInfo->swapchainCount);
+
+				dirty_rect_count = present_regions->pRegions[i].rectangleCount;
+				if (dirty_rect_count > 16)
+					dirty_rects.p = new reshade::api::rect[dirty_rect_count];
+
+				const VkRectLayerKHR *const rects = present_regions->pRegions[i].pRectangles;
+
+				for (uint32_t k = 0; k < dirty_rect_count; ++k)
+				{
+					dirty_rects[k] = {
+						rects[k].offset.x,
+						rects[k].offset.y,
+						rects[k].offset.x + static_cast<int32_t>(rects[k].extent.width),
+						rects[k].offset.y + static_cast<int32_t>(rects[k].extent.height)
+					};
+				}
+			}
+
+			reshade::api::rect source_rect, dest_rect;
+
+			const auto display_present_info = find_in_structure_chain<VkDisplayPresentInfoKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR);
+			if (display_present_info != nullptr)
+			{
+				source_rect = {
+					display_present_info->srcRect.offset.x,
+					display_present_info->srcRect.offset.y,
+					display_present_info->srcRect.offset.x + static_cast<int32_t>(display_present_info->srcRect.extent.width),
+					display_present_info->srcRect.offset.y + static_cast<int32_t>(display_present_info->srcRect.extent.height)
+				};
+				dest_rect = {
+					display_present_info->dstRect.offset.x,
+					display_present_info->dstRect.offset.y,
+					display_present_info->dstRect.offset.x + static_cast<int32_t>(display_present_info->dstRect.extent.width),
+					display_present_info->dstRect.offset.y + static_cast<int32_t>(display_present_info->dstRect.extent.height)
 				};
 			}
-		}
 
-		reshade::api::rect source_rect, dest_rect;
-
-		const auto display_present_info = find_in_structure_chain<VkDisplayPresentInfoKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR);
-		if (display_present_info != nullptr)
-		{
-			source_rect = {
-				display_present_info->srcRect.offset.x,
-				display_present_info->srcRect.offset.y,
-				display_present_info->srcRect.offset.x + static_cast<int32_t>(display_present_info->srcRect.extent.width),
-				display_present_info->srcRect.offset.y + static_cast<int32_t>(display_present_info->srcRect.extent.height)
-			};
-			dest_rect = {
-				display_present_info->dstRect.offset.x,
-				display_present_info->dstRect.offset.y,
-				display_present_info->dstRect.offset.x + static_cast<int32_t>(display_present_info->dstRect.extent.width),
-				display_present_info->dstRect.offset.y + static_cast<int32_t>(display_present_info->dstRect.extent.height)
-			};
-		}
-
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			queue_impl,
-			swapchain_impl,
-			display_present_info != nullptr ? &source_rect : nullptr,
-			display_present_info != nullptr ? &dest_rect : nullptr,
-			dirty_rect_count,
-			dirty_rect_count != 0 ? dirty_rects.p : nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::present>(
+				queue_impl,
+				swapchain_impl,
+				display_present_info != nullptr ? &source_rect : nullptr,
+				display_present_info != nullptr ? &dest_rect : nullptr,
+				dirty_rect_count,
+				dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #endif
-
-		reshade::present_effect_runtime(swapchain_impl, queue_impl);
+		}
 	}
 
 	// Synchronize immediate command list flush

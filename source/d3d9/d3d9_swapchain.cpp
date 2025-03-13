@@ -207,13 +207,15 @@ void Direct3DSwapChain9::on_reset(bool resize)
 	if (!_is_initialized)
 		return;
 
-	reshade::reset_effect_runtime(this);
+	if (reshade::reset_effect_runtime(this))
+	{
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
 #else
-	UNREFERENCED_PARAMETER(resize);
+		UNREFERENCED_PARAMETER(resize);
 #endif
+	}
 
 	_back_buffer.reset();
 

@@ -700,27 +700,30 @@ void DXGISwapChain::on_init(bool resize)
 
 	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
-#if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl, resize);
 
-	BOOL fullscreen = FALSE;
-	com_ptr<IDXGIOutput> output;
-	GetFullscreenState(&fullscreen, &output);
-
-	HMONITOR hmonitor = nullptr;
-	if (output != nullptr)
+	if (reshade::init_effect_runtime(_impl))
 	{
-		DXGI_OUTPUT_DESC output_desc = {};
-		output->GetDesc(&output_desc);
-		hmonitor = output_desc.Monitor;
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl, resize);
+
+		BOOL fullscreen = FALSE;
+		com_ptr<IDXGIOutput> output;
+		GetFullscreenState(&fullscreen, &output);
+
+		HMONITOR hmonitor = nullptr;
+		if (output != nullptr)
+		{
+			DXGI_OUTPUT_DESC output_desc = {};
+			output->GetDesc(&output_desc);
+			hmonitor = output_desc.Monitor;
+		}
+
+		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(_impl, fullscreen != FALSE, hmonitor);
+#else
+		UNREFERENCED_PARAMETER(resize);
+#endif
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(_impl, fullscreen != FALSE, hmonitor);
-#else
-	UNREFERENCED_PARAMETER(resize);
-#endif
-
-	reshade::init_effect_runtime(_impl);
 
 	_is_initialized = true;
 }
@@ -731,13 +734,15 @@ void DXGISwapChain::on_reset(bool resize)
 
 	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
-	reshade::reset_effect_runtime(_impl);
+	if (reshade::reset_effect_runtime(_impl))
+	{
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl, resize);
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl, resize);
 #else
-	UNREFERENCED_PARAMETER(resize);
+		UNREFERENCED_PARAMETER(resize);
 #endif
+	}
 
 	_is_initialized = false;
 }
@@ -764,49 +769,57 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	switch (_direct3d_version)
 	{
 	case 10:
-#if RESHADE_ADDON
-		// Behave as if immediate command list is flushed
-		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
-			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
-			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)));
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
-			_impl,
-			nullptr,
-			nullptr,
-			params != nullptr ? params->DirtyRectsCount : 0,
-			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
+		if (reshade::present_effect_runtime(_impl, static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device))))
+		{
+#if RESHADE_ADDON
+			// Behave as if immediate command list is flushed
+			reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
+				static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
+				static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)));
+
+			reshade::invoke_addon_event<reshade::addon_event::present>(
+				static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
+				_impl,
+				nullptr,
+				nullptr,
+				params != nullptr ? params->DirtyRectsCount : 0,
+				params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
-		reshade::present_effect_runtime(_impl, static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)));
+		}
 		break;
 	case 11:
+		if (reshade::present_effect_runtime(_impl, static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context))
+		{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
-			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
-			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context);
+			reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
+				static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
+				static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context);
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
-			_impl,
-			nullptr,
-			nullptr,
-			params != nullptr ? params->DirtyRectsCount : 0,
-			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::present>(
+				static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
+				_impl,
+				nullptr,
+				nullptr,
+				params != nullptr ? params->DirtyRectsCount : 0,
+				params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
-		reshade::present_effect_runtime(_impl, static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context);
+		}
 		break;
 	case 12:
+
+		if (reshade::present_effect_runtime(_impl, static_cast<D3D12CommandQueue *>(_direct3d_command_queue)))
+		{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
-			_impl,
-			nullptr,
-			nullptr,
-			params != nullptr ? params->DirtyRectsCount : 0,
-			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::present>(
+				static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
+				_impl,
+				nullptr,
+				nullptr,
+				params != nullptr ? params->DirtyRectsCount : 0,
+				params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
 #endif
-		reshade::present_effect_runtime(_impl, static_cast<D3D12CommandQueue *>(_direct3d_command_queue));
+		}
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
 	}

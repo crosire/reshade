@@ -13,15 +13,16 @@
 static std::shared_mutex s_runtime_config_names_mutex;
 static std::unordered_set<std::string> s_runtime_config_names;
 
-void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
+bool reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
 {
 	if (graphics_queue == nullptr || swapchain->get_private_data<reshade::runtime>() != nullptr)
-		return;
+		return false;
 
 	assert((graphics_queue->get_type() & api::command_queue_type::graphics) != 0);
 
 	// Try to find a unique configuration name for this effect runtime instance
 	std::string config_name = "ReShade";
+
 	if (is_vr)
 		config_name += "VR";
 	{
@@ -32,7 +33,7 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 		if (size_t max_runtimes = std::numeric_limits<size_t>::max();
 			global_config().get("INSTALL", "MaxEffectRuntimes", max_runtimes) &&
 			s_runtime_config_names.size() >= max_runtimes)
-				return;
+				return false;
 
 		for (int attempt = 1; attempt < 100 && s_runtime_config_names.find(config_name) != s_runtime_config_names.end(); ++attempt)
 			config_name = config_name_base + std::to_string(attempt + 1);
@@ -43,35 +44,54 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 
 	const ini_file &config = ini_file::load_cache(g_reshade_base_path / std::filesystem::u8path(config_name + ".ini"));
 	if (config.get("GENERAL", "Disable"))
-		return;
+		return false;
 
 	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config.path(), is_vr);
+	return true;
 }
-void reshade::destroy_effect_runtime(api::swapchain *swapchain)
+bool reshade::destroy_effect_runtime(api::swapchain *swapchain)
 {
+	bool hadRuntim = false;
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 	{
 		// Free up the configuration name of this effect runtime instance for reuse
 		const std::unique_lock<std::shared_mutex> lock(s_runtime_config_names_mutex);
 
 		s_runtime_config_names.erase(runtime->get_config_path().stem().u8string());
+		hadRuntim = true;
 	}
 
 	swapchain->destroy_private_data<reshade::runtime>();
+	return hadRuntim;
 }
 
-void reshade::init_effect_runtime(api::swapchain *swapchain)
+bool reshade::init_effect_runtime(api::swapchain *swapchain)
 {
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
+	{
 		runtime->on_init();
+		return true;
+	}
+
+	return false;
 }
-void reshade::reset_effect_runtime(api::swapchain *swapchain)
+bool reshade::reset_effect_runtime(api::swapchain *swapchain)
 {
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
+	{
 		runtime->on_reset();
+		return true;
+	}
+
+	return false;
 }
-void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
+bool reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
 {
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
+	{
 		runtime->on_present(present_queue);
+		return true;
+	}
+
+	return false;
 }
