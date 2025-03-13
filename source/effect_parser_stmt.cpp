@@ -1245,7 +1245,7 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 		},
 		[this]() {
 			leave_scope();
-			_codegen->leave_function();
+			_codegen->_current_function = nullptr;
 		});
 
 	while (!peek(')'))
@@ -1445,6 +1445,8 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 
 	if (!insert_symbol(name, symbol, true))
 	{
+		_codegen->leave_function();
+
 		error(function_location, 3003, "redefinition of '" + name + '\'');
 		return false;
 	}
@@ -1453,6 +1455,8 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 	{
 		if (!insert_symbol(param.name, { symbol_type::variable, param.id, param.type }))
 		{
+			_codegen->leave_function();
+
 			error(param.location, 3003, "redefinition of '" + param.name + '\'');
 			return false;
 		}
@@ -1467,6 +1471,8 @@ bool reshadefx::parser::parse_function(type type, std::string name, shader_type 
 	// Add implicit return statement to the end of functions
 	if (_codegen->is_in_block())
 		_codegen->leave_block_and_return();
+
+	_codegen->leave_function();
 
 	return parse_success;
 }
