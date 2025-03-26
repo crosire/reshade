@@ -636,6 +636,8 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 
 	update_effects();
 
+	_current_time = std::chrono::system_clock::now();
+
 	if (_should_save_screenshot && _screenshot_save_before && _effects_enabled && !_effects_rendered_this_frame)
 		save_screenshot("Before");
 
@@ -3976,7 +3978,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 				}
 				case special_uniform::date:
 				{
-					const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+					const std::time_t t = std::chrono::system_clock::to_time_t(_current_time);
 					struct tm tm; localtime_s(&tm, &t);
 
 					const int value[4] = {
@@ -4812,9 +4814,8 @@ template <> void reshade::runtime::set_uniform_value<uint32_t>(uniform &variable
 	}
 }
 
-static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros)
+static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
 {
-	const auto now = std::chrono::system_clock::now();
 	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
 
 	char timestamp[21];
@@ -4933,7 +4934,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 		{ "PresetName", _current_preset_path.stem().u8string() },
 		{ "BeforeAfter", std::string(postfix) },
 		{ "Count", std::to_string(screenshot_count) }
-	});
+	}, _current_time);
 
 	if (!postfix.empty() && _screenshot_name.find("%BeforeAfter%") == std::string::npos)
 	{
@@ -5082,7 +5083,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 			{ "TargetExt", screenshot_path.extension().u8string() },
 			{ "TargetName", screenshot_path.stem().u8string() },
 			{ "Count", std::to_string(screenshot_count) }
-		});
+		}, _current_time);
 	}
 
 	if (!utils::execute_command(command_line, g_reshade_base_path / _screenshot_post_save_command_working_directory, _screenshot_post_save_command_hide_window))

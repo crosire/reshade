@@ -272,9 +272,10 @@ namespace reshade
 		bool _effects_rendered_this_frame = false;
 		unsigned int _effects_key_data[4] = {};
 
+		std::chrono::system_clock::time_point _current_time;
+		uint64_t _frame_count = 0;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_present_time;
-		uint64_t _frame_count = 0;
 		#pragma endregion
 
 		#pragma region Effect Loading

@@ -1302,7 +1302,7 @@ void reshade::runtime::draw_gui()
 
 		if (show_clock)
 		{
-			const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+			const std::time_t t = std::chrono::system_clock::to_time_t(_current_time);
 			struct tm tm; localtime_s(&tm, &t);
 
 			int temp_size;
@@ -2568,7 +2568,7 @@ void reshade::runtime::draw_gui_statistics()
 			_imgui_context->FramerateSecPerFrameAccum / static_cast<int>(std::size(_imgui_context->FramerateSecPerFrame)) * 1.5f,
 			ImVec2(0, 50));
 
-		const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+		const std::time_t t = std::chrono::system_clock::to_time_t(_current_time);
 		struct tm tm; localtime_s(&tm, &t);
 
 		ImGui::BeginGroup();
