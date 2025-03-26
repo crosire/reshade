@@ -217,6 +217,9 @@ auto reshade::d3d9::convert_format(D3DFORMAT d3d_format, BOOL *lockable) -> api:
 	case D3DFMT_A8:
 		return api::format::a8_unorm;
 
+	case D3DFMT_A8L8:
+		return api::format::l8a8_unorm;
+
 	case D3DFMT_R8G8B8:
 		return api::format::b8g8r8_unorm;
 
