@@ -2709,16 +2709,50 @@ void reshade::runtime::draw_gui_statistics()
 
 	if (ImGui::CollapsingHeader(_("Render Targets & Textures"), ImGuiTreeNodeFlags_DefaultOpen) && !is_loading())
 	{
-		static const char *texture_formats[] = {
-			"unknown",
-			"R8", "R16", "R16F", "R32I", "R32U", "R32F", "RG8", "RG16", "RG16F", "RG32F", "RGBA8", "RGBA16", "RGBA16F", "RGBA32I", "RGBA32U", "RGBA32F", "RGB10A2"
+		const auto texture_format_info = [](reshadefx::texture_format format) -> std::pair<const char *, int> {
+			switch (format)
+			{
+			default:
+				assert(false);
+				[[fallthrough]];
+			case reshadefx::texture_format::unknown:
+				return { "unknown", 0 };
+			case reshadefx::texture_format::r8:
+				return { "R8", 1 };
+			case reshadefx::texture_format::r16:
+				return { "R16", 2 };
+			case reshadefx::texture_format::r16f:
+				return { "R16F", 2 };
+			case reshadefx::texture_format::r32i:
+				return { "R32I", 4 };
+			case reshadefx::texture_format::r32u:
+				return { "R32U", 4 };
+			case reshadefx::texture_format::r32f:
+				return { "R32F", 4 };
+			case reshadefx::texture_format::rg8:
+				return { "RG8", 2 };
+			case reshadefx::texture_format::rg16:
+				return { "RG16", 4 };
+			case reshadefx::texture_format::rg16f:
+				return { "RG16F", 4 };
+			case reshadefx::texture_format::rg32f:
+				return { "RG32F", 8 };
+			case reshadefx::texture_format::rgba8:
+				return { "RGBA8", 4 };
+			case reshadefx::texture_format::rgba16:
+				return { "RGBA16", 8 };
+			case reshadefx::texture_format::rgba16f:
+				return { "RGBA16F", 8 };
+			case reshadefx::texture_format::rgba32i:
+				return { "RGBA32I", 16 };
+			case reshadefx::texture_format::rgba32u:
+				return { "RGBA32U", 16 };
+			case reshadefx::texture_format::rgba32f:
+				return { "RGBA32F", 16 };
+			case reshadefx::texture_format::rgb10a2:
+				return { "RGB10A2", 4 };
+			}
 		};
-		static constexpr uint32_t pixel_sizes[] = {
-			0,
-			1 /*R8*/, 2 /*R16*/, 2 /*R16F*/, 4 /*R32I*/, 4 /*R32U*/, 4 /*R32F*/, 2 /*RG8*/, 4 /*RG16*/, 4 /*RG16F*/, 8 /*RG32F*/, 4 /*RGBA8*/, 8 /*RGBA16*/, 8 /*RGBA16F*/, 16 /*RGBA32I*/, 16 /*RGBA32U*/, 16 /*RGBA32F*/, 4 /*RGB10A2*/
-		};
-
-		static_assert((std::size(texture_formats) - 1) == static_cast<size_t>(reshadefx::texture_format::rgb10a2));
 
 		const float total_width = ImGui::GetContentRegionAvail().x;
 		int texture_index = 0;
@@ -2742,7 +2776,7 @@ void reshade::runtime::draw_gui_statistics()
 
 			int64_t memory_size = 0;
 			for (uint32_t level = 0, width = tex.width, height = tex.height, depth = tex.depth; level < tex.levels; ++level, width /= 2, height /= 2, depth /= 2)
-				memory_size += static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * pixel_sizes[static_cast<int>(tex.format)];
+				memory_size += static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * texture_format_info(tex.format).second;
 
 			post_processing_memory_size += memory_size;
 
@@ -2765,7 +2799,7 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::Text("%u | %u mipmap(s) | %s | %lld.%03lld %s",
 					tex.width,
 					tex.levels - 1,
-					texture_formats[static_cast<int>(tex.format)],
+					texture_format_info(tex.format).first,
 					memory_view.quot, memory_view.rem, memory_size_unit);
 				break;
 			case reshadefx::texture_type::texture_2d:
@@ -2773,7 +2807,7 @@ void reshade::runtime::draw_gui_statistics()
 					tex.width,
 					tex.height,
 					tex.levels - 1,
-					texture_formats[static_cast<int>(tex.format)],
+					texture_format_info(tex.format).first,
 					memory_view.quot, memory_view.rem, memory_size_unit);
 				break;
 			case reshadefx::texture_type::texture_3d:
@@ -2782,7 +2816,7 @@ void reshade::runtime::draw_gui_statistics()
 					tex.height,
 					tex.depth,
 					tex.levels - 1,
-					texture_formats[static_cast<int>(tex.format)],
+					texture_format_info(tex.format).first,
 					memory_view.quot, memory_view.rem, memory_size_unit);
 				break;
 			}

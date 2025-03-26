@@ -59,25 +59,25 @@ namespace reshadefx
 	/// </summary>
 	enum class texture_format : uint8_t
 	{
-		unknown,
+		unknown = 0,
 
-		r8,
-		r16,
-		r16f,
-		r32i,
-		r32u,
-		r32f,
-		rg8,
-		rg16,
-		rg16f,
-		rg32f,
-		rgba8,
-		rgba16,
-		rgba16f,
-		rgba32i,
-		rgba32u,
-		rgba32f,
-		rgb10a2
+		r8 = 61,
+		r16 = 56,
+		r16f = 54,
+		r32i = 43,
+		r32u = 42,
+		r32f = 41,
+		rg8 = 49,
+		rg16 = 35,
+		rg16f = 34,
+		rg32f = 16,
+		rgba8 = 28,
+		rgba16 = 11,
+		rgba16f = 10,
+		rgba32i = 4,
+		rgba32u = 3,
+		rgba32f = 2,
+		rgb10a2 = 24
 	};
 
 	/// <summary>
