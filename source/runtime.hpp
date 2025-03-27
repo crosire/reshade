@@ -185,7 +185,7 @@ namespace reshade
 		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, size_t permutation_index, bool force_load = false, bool preprocess_required = false);
 		bool create_effect(size_t effect_index, size_t permutation_index);
 		bool create_effect_sampler_state(const reshadefx::sampler_desc &desc, api::sampler &sampler);
-		void destroy_effect(size_t effect_index);
+		void destroy_effect(size_t effect_index, bool unload = true);
 
 		void load_textures(size_t effect_index);
 		bool create_texture(texture &texture);

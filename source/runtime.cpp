@@ -2316,8 +2316,28 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	// Create textures now, since they are referenced when building samplers below
 	for (texture &tex : _textures)
 	{
-		if (tex.resource != 0 || std::find(tex.shared.cbegin(), tex.shared.cend(), effect_index) == tex.shared.cend())
+		if (std::find(tex.shared.cbegin(), tex.shared.cend(), effect_index) == tex.shared.cend())
 			continue;
+
+		if (tex.resource != 0)
+		{
+			if (!(tex.render_target && tex.rtv[0] == 0) &&
+				!(tex.storage_access && tex.uav.empty()))
+				continue;
+
+			// Update texture if usage has changed since it was last created (e.g. because a pooled texture is now used with storage access when it was not before)
+			destroy_texture(tex);
+
+			// This also requires the descriptors to be updated in all effects referencing this texture, so simply recreate them
+			for (size_t shared_effect_index : tex.shared)
+			{
+				if (shared_effect_index == effect_index)
+					continue;
+
+				destroy_effect(shared_effect_index, false);
+				_reload_create_queue.emplace_back(shared_effect_index, permutation_index);
+			}
+		}
 
 		if (!create_texture(tex))
 		{
@@ -2912,7 +2932,7 @@ bool reshade::runtime::create_effect_sampler_state(const reshadefx::sampler_desc
 		return false;
 	}
 }
-void reshade::runtime::destroy_effect(size_t effect_index)
+void reshade::runtime::destroy_effect(size_t effect_index, bool unload)
 {
 	assert(effect_index < _effects.size());
 
@@ -2923,16 +2943,23 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 
 		for (technique::permutation &permutation : tech.permutations)
 		{
-			for (const technique::pass &pass : permutation.passes)
+			for (technique::pass &pass : permutation.passes)
 			{
 				_device->destroy_pipeline(pass.pipeline);
+				pass.pipeline = {};
 
 				_device->free_descriptor_table(pass.texture_table);
+				pass.texture_table = {};
 				_device->free_descriptor_table(pass.storage_table);
-			}
-		}
+				pass.storage_table = {};
 
-		tech.permutations.clear();
+				std::fill_n(pass.render_target_views, 8, api::resource_view {});
+				pass.modified_resources.clear();
+				pass.generate_mipmap_views.clear();
+			}
+
+			permutation.created = false;
+		}
 	}
 
 	effect &effect = _effects[effect_index];
@@ -2956,6 +2983,9 @@ void reshade::runtime::destroy_effect(size_t effect_index)
 			permutation.texture_semantic_to_binding.clear();
 		}
 	}
+
+	if (!unload)
+		return;
 
 	// Lock here to be safe in case another effect is still loading
 	const std::unique_lock<std::shared_mutex> lock(_reload_mutex);
