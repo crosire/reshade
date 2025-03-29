@@ -256,7 +256,7 @@ bool reshade::runtime::on_init()
 {
 	assert(!_is_initialized);
 
-	const api::resource_desc back_buffer_desc = _device->get_resource_desc(get_back_buffer(0));
+	const api::resource_desc back_buffer_desc = _device->get_resource_desc(_swapchain->get_back_buffer(0));
 
 	// Avoid initializing on very small swap chains (e.g. implicit swap chain in The Sims 4, which is not used to present in windowed mode)
 	if (back_buffer_desc.texture.width <= 16 && back_buffer_desc.texture.height <= 16)
@@ -402,9 +402,9 @@ bool reshade::runtime::on_init()
 		goto exit_failure;
 
 	// Create render targets for the back buffer resources
-	for (uint32_t i = 0, count = get_back_buffer_count(); i < count; ++i)
+	for (uint32_t i = 0, count = _swapchain->get_back_buffer_count(); i < count; ++i)
 	{
-		const api::resource back_buffer_resource = get_back_buffer(i);
+		const api::resource back_buffer_resource = _swapchain->get_back_buffer(i);
 
 		if (!_device->create_resource_view(
 				back_buffer_resource,
@@ -609,7 +609,7 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 
 	capture_state(cmd_list, _app_state);
 
-	uint32_t back_buffer_index = (_back_buffer_resolved != 0 ? 2 : 0) + get_current_back_buffer_index() * 2;
+	uint32_t back_buffer_index = (_back_buffer_resolved != 0 ? 2 : 0) + _swapchain->get_current_back_buffer_index() * 2;
 	const api::resource back_buffer_resource = _device->get_resource_from_view(_back_buffer_targets[back_buffer_index]);
 
 	// Resolve MSAA back buffer if MSAA is active or copy when format conversion is required
@@ -2334,8 +2334,11 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 				if (shared_effect_index == effect_index)
 					continue;
 
-				destroy_effect(shared_effect_index, false);
-				_reload_create_queue.emplace_back(shared_effect_index, permutation_index);
+				if (std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(shared_effect_index, permutation_index)) == _reload_create_queue.cend())
+				{
+					destroy_effect(shared_effect_index, false);
+					_reload_create_queue.emplace_back(shared_effect_index, permutation_index);
+				}
 			}
 		}
 

@@ -8,6 +8,7 @@
 
 struct scoped_file_handle
 {
+	scoped_file_handle(HANDLE handle = INVALID_HANDLE_VALUE) : handle(handle) {}
 	~scoped_file_handle()
 	{
 		if (handle != INVALID_HANDLE_VALUE)
@@ -22,7 +23,7 @@ struct scoped_file_handle
 	}
 
 private:
-	HANDLE handle = INVALID_HANDLE_VALUE;
+	HANDLE handle;
 };
 
 static scoped_file_handle s_file_handle;
@@ -62,8 +63,7 @@ void reshade::log::message(level level, const char *format, ...)
 	SYSTEMTIME time;
 	GetLocalTime(&time);
 
-	std::string line_string;
-	line_string.resize(256);
+	std::string line_string(256, '\0');
 
 	// Start a new line
 	const auto meta_length = std::snprintf(line_string.data(), line_string.size(),
@@ -81,7 +81,7 @@ void reshade::log::message(level level, const char *format, ...)
 	const auto content_length = std::vsnprintf(line_string.data() + meta_length, line_string.size() + 1 - meta_length, format, args);
 	va_end(args);
 
-	const auto remaining_content = static_cast<size_t>(meta_length) + static_cast<size_t>(content_length) > line_string.size();
+	const bool remaining_content = static_cast<size_t>(meta_length) + static_cast<size_t>(content_length) > line_string.size();
 	line_string.resize(static_cast<size_t>(meta_length) + static_cast<size_t>(content_length));
 
 	if (remaining_content)

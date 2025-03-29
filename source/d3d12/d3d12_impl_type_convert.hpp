@@ -36,8 +36,7 @@ namespace reshade::d3d12
 		std::pair<ID3D12Fence *, UINT64> *fences;
 	};
 
-	// {B2257A30-4014-46EA-BD88-DEC21DB6A02B}
-	inline constexpr GUID extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } };
+	inline constexpr GUID extra_data_guid = { 0xB2257A30, 0x4014, 0x46EA, { 0xBD, 0x88, 0xDE, 0xC2, 0x1D, 0xB6, 0xA0, 0x2B } }; // {B2257A30-4014-46EA-BD88-DEC21DB6A02B}
 
 	auto convert_format(api::format format) -> DXGI_FORMAT;
 	auto convert_format(DXGI_FORMAT format) -> api::format;

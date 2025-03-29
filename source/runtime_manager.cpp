@@ -13,7 +13,7 @@
 static std::shared_mutex s_runtime_config_names_mutex;
 static std::unordered_set<std::string> s_runtime_config_names;
 
-void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool is_vr)
+void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, bool vr)
 {
 	if (graphics_queue == nullptr || swapchain->get_private_data<reshade::runtime>() != nullptr)
 		return;
@@ -22,7 +22,7 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 
 	// Try to find a unique configuration name for this effect runtime instance
 	std::string config_name = "ReShade";
-	if (is_vr)
+	if (vr)
 		config_name += "VR";
 	{
 		const std::string config_name_base = config_name;
@@ -32,7 +32,7 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 		if (size_t max_runtimes = std::numeric_limits<size_t>::max();
 			global_config().get("INSTALL", "MaxEffectRuntimes", max_runtimes) &&
 			s_runtime_config_names.size() >= max_runtimes)
-				return;
+			return;
 
 		for (int attempt = 1; attempt < 100 && s_runtime_config_names.find(config_name) != s_runtime_config_names.end(); ++attempt)
 			config_name = config_name_base + std::to_string(attempt + 1);
@@ -45,16 +45,18 @@ void reshade::create_effect_runtime(api::swapchain *swapchain, api::command_queu
 	if (config.get("GENERAL", "Disable"))
 		return;
 
-	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config.path(), is_vr);
+	swapchain->create_private_data<reshade::runtime>(swapchain, graphics_queue, config.path(), vr);
 }
 void reshade::destroy_effect_runtime(api::swapchain *swapchain)
 {
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 	{
+		const std::string config_name = runtime->get_config_path().stem().u8string();
+
 		// Free up the configuration name of this effect runtime instance for reuse
 		const std::unique_lock<std::shared_mutex> lock(s_runtime_config_names_mutex);
 
-		s_runtime_config_names.erase(runtime->get_config_path().stem().u8string());
+		s_runtime_config_names.erase(config_name);
 	}
 
 	swapchain->destroy_private_data<reshade::runtime>();
