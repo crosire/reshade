@@ -30,12 +30,9 @@ namespace reshade::d3d12
 		bool check_color_space_support(api::color_space color_space) const final;
 
 		api::color_space get_color_space() const final;
-		DXGI_COLOR_SPACE_TYPE get_color_space_native() const { return _color_space; }
-		void set_color_space_native(DXGI_COLOR_SPACE_TYPE type) { _color_space = type; }
 
 	private:
 		device_impl *const _device_impl;
-		DXGI_COLOR_SPACE_TYPE _color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 	};
 
 	class swapchain_d3d12on7_impl : public api::api_object_impl<ID3D12CommandQueueDownlevel *, api::swapchain>

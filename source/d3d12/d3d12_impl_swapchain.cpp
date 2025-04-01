@@ -12,14 +12,6 @@ reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 	api_object_impl(swapchain),
 	_device_impl(device)
 {
-	DXGI_SWAP_CHAIN_DESC swap_desc = {};
-	_orig->GetDesc(&swap_desc);
-
-	_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	if (swap_desc.BufferDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-		_color_space = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
-
-	assert(swap_desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT);
 }
 
 reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
@@ -73,12 +65,25 @@ bool reshade::d3d12::swapchain_impl::check_color_space_support(api::color_space 
 	return SUCCEEDED(_orig->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
 }
 
+inline constexpr GUID SKID_SwapChainColorSpace = { 0x18b57e4, 0x1493, 0x4953, { 0xad, 0xf2, 0xde, 0x6d, 0x99, 0xcc, 0x5, 0xe5 } };
+
 reshade::api::color_space reshade::d3d12::swapchain_impl::get_color_space() const
 {
-	if (_color_space == DXGI_COLOR_SPACE_CUSTOM)
+	DXGI_COLOR_SPACE_TYPE color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+	UINT color_space_size = sizeof(color_space);
+	if (FAILED(_orig->GetPrivateData(SKID_SwapChainColorSpace, &color_space_size, &color_space)))
+	{
+		DXGI_SWAP_CHAIN_DESC swap_desc = {};
+		_orig->GetDesc(&swap_desc);
+
+		if (swap_desc.BufferDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+			color_space = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+	}
+
+	if (color_space == DXGI_COLOR_SPACE_CUSTOM)
 		return api::color_space::unknown;
 
-	return convert_color_space(_color_space);
+	return convert_color_space(color_space);
 }
 
 reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, ID3D12CommandQueueDownlevel *command_queue_downlevel) :

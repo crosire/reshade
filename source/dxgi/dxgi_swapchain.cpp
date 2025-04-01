@@ -26,6 +26,9 @@ extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 thread_local bool g_in_dxgi_runtime = false;
 
+// SpecialK uses this private data GUID to track the current swap chain color space, so just do the same
+inline constexpr GUID SKID_SwapChainColorSpace = { 0x18b57e4, 0x1493, 0x4953, { 0xad, 0xf2, 0xde, 0x6d, 0x99, 0xcc, 0x5, 0xe5 } }; // {018B57E4-1493-4953-ADF2-DE6D99CC05E5}
+
 DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_orig(original),
 	_interface_version(0),
@@ -535,17 +538,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 #endif
 		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
-	// Only supported in Direct3D 11 and 12 (see https://docs.microsoft.com/windows/win32/direct3darticles/high-dynamic-range)
 	DXGI_COLOR_SPACE_TYPE prev_color_space = ColorSpace;
-	switch (_direct3d_version)
-	{
-	case 11:
-		prev_color_space = static_cast<reshade::d3d11::swapchain_impl *>(_impl)->get_color_space_native();
-		break;
-	case 12:
-		prev_color_space = static_cast<reshade::d3d12::swapchain_impl *>(_impl)->get_color_space_native();
-		break;
-	}
+	UINT prev_color_space_size = sizeof(prev_color_space);
+	_orig->GetPrivateData(SKID_SwapChainColorSpace, &prev_color_space_size, &prev_color_space);
 
 	if (ColorSpace != prev_color_space)
 		on_reset(true);
@@ -557,15 +552,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
-		switch (_direct3d_version)
-		{
-		case 11:
-			static_cast<reshade::d3d11::swapchain_impl *>(_impl)->set_color_space_native(ColorSpace);
-			break;
-		case 12:
-			static_cast<reshade::d3d12::swapchain_impl *>(_impl)->set_color_space_native(ColorSpace);
-			break;
-		}
+		_orig->SetPrivateData(SKID_SwapChainColorSpace, sizeof(prev_color_space), &prev_color_space);
 	}
 
 	if (ColorSpace != prev_color_space)
