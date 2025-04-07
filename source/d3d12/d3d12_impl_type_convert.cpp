@@ -331,14 +331,14 @@ reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_STAT
 	switch (internal_desc.BorderColor)
 	{
 	case D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK:
+		std::fill_n(desc.border_color, 4, 0.0f);
 		break;
 	case D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK:
 	case D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK_UINT:
-		desc.border_color[3] = 1.0f;
+		std::fill_n(desc.border_color, 3, 0.0f);
 		break;
 	case D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE:
 	case D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE_UINT:
-		std::fill_n(desc.border_color, 4, 1.0f);
 		break;
 	}
 
