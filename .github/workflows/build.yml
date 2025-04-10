@@ -1,0 +1,59 @@
+name: Build ReShade and Upload Artifacts
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Set up Visual Studio
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build ReShade (32-bit)
+        run: |
+          msbuild ReShade.sln /p:Configuration=Release /p:Platform=32-bit
+
+      - name: Build ReShade (64-bit)
+        run: |
+          msbuild ReShade.sln /p:Configuration=Release /p:Platform=64-bit
+
+      - name: Build Setup Tool
+        run: |
+          msbuild ReShade.sln /p:Configuration="Release Setup"
+
+      # Upload artifacts
+      - name: Upload Setup
+        uses: actions/upload-artifact@v4
+        with:
+         name: Reshade-Setup
+         path: |
+            bin/AnyCPU/Release
+      - name: Upload 32bit
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReShade-32bit
+          path: |
+            bin/Win32/Release
+      - name: Upload 64-bit
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReShade-64bit
+          path: |
+            bin/x64/Release
