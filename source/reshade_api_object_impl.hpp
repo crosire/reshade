@@ -56,6 +56,12 @@ namespace reshade::api
 		{
 			assert(data != nullptr);
 
+			if (_private_data.empty()) // Early-out to avoid crash when this is called after the object was destroyed
+			{
+				*data = 0;
+				return;
+			}
+
 			if (const auto it = _private_data.find(*reinterpret_cast<const guid_t *>(guid));
 				it != _private_data.end())
 				*data = it->second;
