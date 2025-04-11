@@ -48,7 +48,10 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	_default_fbo_desc.type = reshade::api::resource_type::surface;
 	_default_fbo_desc.texture.width = window_rect.right;
 	_default_fbo_desc.texture.height = window_rect.bottom;
+	_default_fbo_desc.texture.depth_or_layers = 1;
+	_default_fbo_desc.texture.levels = 1;
 	_default_fbo_desc.texture.format = convert_pixel_format(pfd);
+	_default_fbo_desc.texture.samples = 1;
 	_default_fbo_desc.heap = reshade::api::memory_heap::gpu_only;
 	_default_fbo_desc.usage = reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source | reshade::api::resource_usage::resolve_dest;
 
