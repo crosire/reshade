@@ -552,7 +552,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	g_in_dxgi_runtime = false;
 	if (SUCCEEDED(hr))
 	{
-		_orig->SetPrivateData(SKID_SwapChainColorSpace, sizeof(prev_color_space), &prev_color_space);
+		_orig->SetPrivateData(SKID_SwapChainColorSpace, sizeof(ColorSpace), &ColorSpace);
 	}
 
 	if (ColorSpace != prev_color_space)
