@@ -2609,8 +2609,17 @@ void Direct3DDevice9::on_reset()
 		_orig->SetStreamSource(0, nullptr, 0, 0);
 	_orig->SetIndices(nullptr);
 
-	for (DWORD i = 0; i < _caps.NumSimultaneousRTs; ++i)
+	// It is not allowed to unset the first render target, so simply create a temporary dummy to replace the current one with
+	// This forces any remaining reference on the current first render target to be released, invoking the destruction events, and the dummy render target is simply released during device destruction
+	com_ptr<IDirect3DSurface9> dummy_render_target;
+	_orig->CreateRenderTarget(1, 1, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, FALSE, &dummy_render_target, nullptr);
+
+	_orig->SetRenderTarget(0, dummy_render_target.get());
+	dummy_render_target.reset();
+
+	for (DWORD i = 1; i < _caps.NumSimultaneousRTs; ++i)
 		_orig->SetRenderTarget(i, nullptr);
+
 	// Release reference to the potentially replaced auto depth-stencil resource
 	_orig->SetDepthStencilSurface(nullptr);
 
