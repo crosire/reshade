@@ -427,6 +427,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	com_ptr<IUnknown> device_proxy;
 	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
+	// Space Engineers 2 does not set any usage flags, change default to at least include render target output support
+	if (0 == desc.BufferUsage && direct3d_version == 12)
+		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
