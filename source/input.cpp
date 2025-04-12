@@ -387,8 +387,8 @@ void reshade::input::max_mouse_position(unsigned int position[2]) const
 
 void reshade::input::next_frame()
 {
-	static const auto GetKeyState_trampoline = reshade::hooks::call(HookGetKeyState);
-	static const auto GetAsyncKeyState_trampoline = reshade::hooks::call(HookGetAsyncKeyState);
+	static const auto GetKeyState_trampoline = reshade::hooks::is_hooked(GetKeyState) ? reshade::hooks::call(HookGetKeyState, GetKeyState) : GetKeyState;
+	static const auto GetAsyncKeyState_trampoline = reshade::hooks::is_hooked(GetAsyncKeyState) ? reshade::hooks::call(HookGetAsyncKeyState, GetAsyncKeyState) : GetAsyncKeyState;
 
 	_frame_count++;
 
@@ -492,7 +492,7 @@ void reshade::input::block_keyboard_input(bool enable)
 }
 void reshade::input::block_mouse_cursor_warping(bool enable)
 {
-	static const auto ClipCursor_trampoline = reshade::hooks::call(HookClipCursor);
+	static const auto ClipCursor_trampoline = reshade::hooks::is_hooked(ClipCursor) ? reshade::hooks::call(HookClipCursor, ClipCursor) : ClipCursor;
 
 	// Some games setup ClipCursor with a tiny area which could make the cursor stay in that area instead of the whole window
 	if (enable)
