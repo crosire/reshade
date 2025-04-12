@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#if defined(RESHADE_API_LIBRARY_EXPORT)
+#if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON
 
 #include "reshade.hpp"
 #include "addon_manager.hpp"
