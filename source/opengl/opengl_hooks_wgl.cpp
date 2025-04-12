@@ -1112,14 +1112,28 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		assert(s_hooks_installed);
 
+		const bool legacy_context = s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end();
+
 		const auto device = new wgl_device(
 			hdc, shared_hglrc,
 			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
 			// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
-			s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end());
+			legacy_context);
 
 		s_opengl_contexts.emplace(shared_hglrc, device);
 		g_opengl_context = device;
+
+		if (device->get_compatibility_context() && !legacy_context)
+		{
+			// In the OpenGL core profile, all generic vertex attributes have the initial values { 0.0, 0.0, 0.0, 1.0 }
+			// In the OpenGL compatibility profile, some generic vertex attributes have different values, because they can be vertex coordinates, normals, colors (which have the initial value { 1.0, 1.0, 1.0, 1.0 }), secondary colors, texture coordinates, ...
+			// Since ReShade can change the context to use the compatibility profile, need to adjust the initial values if the application is expecting a core profile, or vertex shading can break (e.g. in Vintage Story)
+			GLint max_elements = 0;
+			gl.GetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_elements);
+
+			for (GLsizei i = 0; i < max_elements; ++i)
+				gl.VertexAttrib4f(i, 0.0f, 0.0f, 0.0f, 1.0f);
+		}
 	}
 
 	assert(g_opengl_context != nullptr);
