@@ -1,4 +1,4 @@
-name: Build ReShade and Upload Artifacts
+name: Build
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: true
@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Set up Visual Studio
+      - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
       - name: Build ReShade (32-bit)
@@ -34,26 +34,24 @@ jobs:
         run: |
           msbuild ReShade.sln /p:Configuration=Release /p:Platform=64-bit
 
-      - name: Build Setup Tool
+      - name: Build ReShade Setup
         run: |
           msbuild ReShade.sln /p:Configuration="Release Setup"
 
-      # Upload artifacts
-      - name: Upload Setup
+      - name: Upload ReShade (32-bit)
         uses: actions/upload-artifact@v4
         with:
-         name: Reshade-Setup
-         path: |
-            bin/AnyCPU/Release
-      - name: Upload 32bit
+          name: ReShade (32-bit)
+          path: './bin/Win32/Release/ReShade32.dll'
+
+      - name: Upload ReShade (64-bit)
         uses: actions/upload-artifact@v4
         with:
-          name: ReShade-32bit
-          path: |
-            bin/Win32/Release
-      - name: Upload 64-bit
+          name: ReShade (64-bit)
+          path: './bin/x64/Release/ReShade64.dll'
+
+      - name: Upload ReShade Setup
         uses: actions/upload-artifact@v4
         with:
-          name: ReShade-64bit
-          path: |
-            bin/x64/Release
+          name: ReShade Setup
+          path: './bin/AnyCPU/Release/ReShade Setup.exe'
