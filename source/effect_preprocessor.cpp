@@ -5,6 +5,7 @@
 
 #include "effect_lexer.hpp"
 #include "effect_preprocessor.hpp"
+#include <limits>
 #include <cstdio> // fclose, fopen, fread, fseek
 #include <cassert>
 #include <algorithm> // std::find_if

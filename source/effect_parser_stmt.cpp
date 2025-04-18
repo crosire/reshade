@@ -6,6 +6,7 @@
 #include "effect_lexer.hpp"
 #include "effect_parser.hpp"
 #include "effect_codegen.hpp"
+#include <limits>
 #include <cctype> // std::toupper
 #include <cassert>
 #include <iterator> // std::back_inserter
