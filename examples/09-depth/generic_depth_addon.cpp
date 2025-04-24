@@ -359,7 +359,7 @@ static bool check_aspect_ratio(float width_to_check, float height_to_check, floa
 	if (s_aspect_ratio_heuristic == aspect_ratio_heuristic::match_resolution_exactly || (s_aspect_ratio_heuristic == aspect_ratio_heuristic::match_custom_resolution_exactly && s_custom_resolution_filtering[0] == 0 && s_custom_resolution_filtering[1] == 0))
 		return width_to_check == width && height_to_check == height;
 	if (s_aspect_ratio_heuristic == aspect_ratio_heuristic::match_custom_resolution_exactly)
-		return width_to_check == s_custom_resolution_filtering[0] && width_to_check == s_custom_resolution_filtering[1];
+		return width_to_check == s_custom_resolution_filtering[0] && height_to_check == s_custom_resolution_filtering[1];
 
 	float w_ratio = width / width_to_check;
 	float h_ratio = height / height_to_check;
