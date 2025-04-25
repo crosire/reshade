@@ -311,6 +311,8 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 				temp_mem<reshade::api::resource, 2> view_textures(layer->viewCount);
 				temp_mem<reshade::api::subresource_box, 2> view_boxes(layer->viewCount);
 				temp_mem<uint32_t, 2> view_layers(layer->viewCount);
+				const std::vector<reshade::api::resource> *swapchain_images = nullptr;
+				uint32_t swap_index = 0;
 
 				assert(layer->viewCount != 0);
 
@@ -336,11 +338,16 @@ XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo *frameEnd
 					view_box.back = 1;
 
 					view_layers[view_count] = sub_image.imageArrayIndex;
+
+					swapchain_images = &swapchain_data.surface_images;
+					if (view_textures[view_count] != view_textures[0] || view_layers[view_count] != view_layers[0])
+						swapchain_images = nullptr;
+					swap_index = swapchain_data.last_released_index;
 				}
 
 				if (view_count == layer->viewCount)
 				{
-					data.swapchain_impl->on_present(view_count, view_textures.p, view_boxes.p, view_layers.p);
+					data.swapchain_impl->on_present(view_count, view_textures.p, view_boxes.p, view_layers.p, swapchain_images, swap_index);
 					break;
 				}
 			}
