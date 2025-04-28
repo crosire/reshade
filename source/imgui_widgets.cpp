@@ -856,6 +856,7 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 	const auto item_width_with_buttons = item_width - (components * 2 * (button_spacing + button_size));
 
 	const bool with_buttons = item_width_with_buttons > 50 * components;
+	const bool ignore_limits = ImGui::GetIO().KeyCtrl;
 
 	ImGui::BeginGroup();
 	ImGui::PushID(label);
@@ -875,15 +876,19 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 		{
 			ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
 			ImGui::SameLine(0, button_spacing);
-			if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && v[c] > v_min)
+			if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && (ignore_limits || v[c] > v_min))
 			{
-				v[c] = std::max(v[c] - v_speed, v_min);
+				v[c] -= v_speed;
+				if (!ignore_limits)
+					v[c] = std::max(v[c], v_min);
 				res = true;
 			}
 			ImGui::SameLine(0, button_spacing);
-			if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && v[c] < v_max)
+			if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && (ignore_limits || v[c] < v_max))
 			{
-				v[c] = std::min(v[c] + v_speed, v_max);
+				v[c] += v_speed;
+				if (!ignore_limits)
+					v[c] = std::min(v[c], v_max);
 				res = true;
 			}
 			ImGui::PopItemFlag();
@@ -896,17 +901,25 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 	{
 		ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && v[0] > v_min)
+		if (ImGui::ButtonEx("<", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && (ignore_limits || v[0] > v_min))
 		{
 			for (int c = 0; c < components; ++c)
-				v[c] = std::max(v[c] - v_speed, v_min);
+			{
+				v[c] -= v_speed;
+				if (!ignore_limits)
+					v[c] = std::max(v[c], v_min);
+			}
 			res = true;
 		}
 		ImGui::SameLine(0, button_spacing);
-		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && v[0] < v_max)
+		if (ImGui::ButtonEx(">", ImVec2(button_size, 0), ImGuiButtonFlags_PressedOnClick) && (ignore_limits || v[0] < v_max))
 		{
 			for (int c = 0; c < components; ++c)
-				v[c] = std::min(v[c] + v_speed, v_max);
+			{
+				v[c] += v_speed;
+				if (!ignore_limits)
+					v[c] = std::min(v[c], v_max);
+			}
 			res = true;
 		}
 		ImGui::PopItemFlag();
