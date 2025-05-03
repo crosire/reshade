@@ -1086,7 +1086,7 @@ void reshade::runtime::load_current_preset()
 		}
 
 		if (std::find_if(technique_list.cbegin(), technique_list.cend(),
-				[this](const std::string &technique_name) {
+				[this](const std::string_view technique_name) {
 					const size_t at_pos = technique_name.find('@');
 					if (at_pos == std::string::npos)
 						return true;
@@ -1447,7 +1447,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		addon_definition.reserve(6 + info.name.size());
 		addon_definition = "ADDON_";
 		std::transform(info.name.begin(), info.name.end(), std::back_inserter(addon_definition),
-			[](const std::string::value_type c) { return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ? c : (c >= 'a' && c <= 'z') ? static_cast<std::string::value_type>(c - 'a' + 'A') : '_'; });
+			[](const std::string::value_type c) {
+				return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ? c : (c >= 'a' && c <= 'z') ? static_cast<std::string::value_type>(c - 'a' + 'A') : '_';
+			});
 		preprocessor_definitions.emplace_back(addon_definition, std::to_string(std::max(1, info.version.number.major * 10000 + info.version.number.minor * 100 + info.version.number.build)));
 	}
 #endif
@@ -1546,6 +1548,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	{
 		reshadefx::preprocessor pp;
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		pp.add_macro_definition("__RESHADE_PERMUTATION__", permutation_index != 0 ? "1" : "0");
 		pp.add_macro_definition("__RESHADE_PERFORMANCE_MODE__", _performance_mode ? "1" : "0");
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
