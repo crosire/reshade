@@ -16,7 +16,8 @@ buffer_range descriptor_tracking::get_buffer_range(descriptor_heap heap, uint32_
 	{
 		const std::pair<descriptor_type, descriptor_data> &descriptor = heap_data.descriptors[offset];
 
-		if (descriptor.first == descriptor_type::constant_buffer || descriptor.first == descriptor_type::acceleration_structure)
+		if (descriptor.first == descriptor_type::constant_buffer ||
+			descriptor.first == descriptor_type::shader_storage_buffer)
 			return descriptor.second.b;
 	}
 
@@ -31,7 +32,8 @@ sampler descriptor_tracking::get_sampler(descriptor_heap heap, uint32_t offset) 
 	{
 		const std::pair<descriptor_type, descriptor_data> &descriptor = heap_data.descriptors[offset];
 
-		if (descriptor.first == descriptor_type::sampler || descriptor.first == descriptor_type::sampler_with_resource_view)
+		if (descriptor.first == descriptor_type::sampler ||
+			descriptor.first == descriptor_type::sampler_with_resource_view)
 			return descriptor.second.t.sampler;
 	}
 
@@ -45,7 +47,12 @@ resource_view descriptor_tracking::get_resource_view(descriptor_heap heap, uint3
 	{
 		const std::pair<descriptor_type, descriptor_data> &descriptor = heap_data.descriptors[offset];
 
-		if (descriptor.first == descriptor_type::sampler_with_resource_view || descriptor.first == descriptor_type::shader_resource_view || descriptor.first == descriptor_type::unordered_access_view)
+		if (descriptor.first == descriptor_type::sampler_with_resource_view ||
+			descriptor.first == descriptor_type::buffer_shader_resource_view ||
+			descriptor.first == descriptor_type::buffer_unordered_access_view ||
+			descriptor.first == descriptor_type::texture_shader_resource_view ||
+			descriptor.first == descriptor_type::texture_unordered_access_view ||
+			descriptor.first == descriptor_type::acceleration_structure)
 			return descriptor.second.t.view;
 	}
 
@@ -163,12 +170,15 @@ bool descriptor_tracking::on_update_descriptor_tables(device *device, uint32_t c
 			case descriptor_type::sampler_with_resource_view:
 				descriptor.second.t = static_cast<const sampler_with_resource_view *>(update.descriptors)[k];
 				break;
-			case descriptor_type::shader_resource_view:
-			case descriptor_type::unordered_access_view:
+			case descriptor_type::buffer_shader_resource_view:
+			case descriptor_type::buffer_unordered_access_view:
+			case descriptor_type::texture_shader_resource_view:
+			case descriptor_type::texture_unordered_access_view:
+			case descriptor_type::acceleration_structure:
 				descriptor.second.t.view = static_cast<const resource_view *>(update.descriptors)[k];
 				break;
 			case descriptor_type::constant_buffer:
-			case descriptor_type::acceleration_structure:
+			case descriptor_type::shader_storage_buffer:
 				descriptor.second.b = static_cast<const buffer_range *>(update.descriptors)[k];
 				break;
 			}
