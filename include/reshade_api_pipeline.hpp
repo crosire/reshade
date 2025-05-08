@@ -109,7 +109,7 @@ namespace reshade { namespace api
 		/// </summary>
 		shader_storage_buffer = 7,
 		/// <summary>
-		/// Descriptors are an array of <see cref="acceleration_structure"/>.
+		/// Descriptors are an array of <see cref="resource_view"/>.
 		/// </summary>
 		acceleration_structure = 8
 	};
