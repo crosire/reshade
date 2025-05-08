@@ -161,11 +161,13 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Destroying ID3D12Device%hu object %p (%p).", interface_version, this, orig);
 #endif
-	delete this;
+	this->~D3D12Device();
 
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		reshade::log::message(reshade::log::level::warning, "Reference count for ID3D12Device%hu object %p (%p) is inconsistent (%lu).", interface_version, this, orig, ref_orig);
+	else
+		operator delete(this, sizeof(D3D12Device));
 	return 0;
 }
 

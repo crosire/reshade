@@ -193,12 +193,16 @@ ULONG   STDMETHODCALLTYPE D3D11Device::Release()
 		"Destroying ID3D11Device%hu object %p (%p) and IDXGIDevice%hu object %p (%p).",
 		interface_version, static_cast<ID3D11Device *>(this), orig, DXGIDevice::_interface_version, static_cast<IDXGIDevice1 *>(this), DXGIDevice::_orig);
 #endif
-	delete this;
+	// Only call destructor and do not yet free memory before calling final 'Release' below
+	// Some resources may still be alive here (e.g. because of a shared resource from the Epic Games overlay), which will then call the resource destruction callbacks during the final 'Release' and still access this memory
+	this->~D3D11Device();
 
 	// Note: At this point the immediate context should have been deleted by the release above (so do not access it)
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		reshade::log::message(reshade::log::level::warning, "Reference count for ID3D11Device%hu object %p (%p) is inconsistent (%lu).", interface_version, static_cast<ID3D11Device *>(this), orig, ref_orig);
+	else
+		operator delete(this, sizeof(D3D11Device));
 	return 0;
 }
 

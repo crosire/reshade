@@ -126,11 +126,13 @@ ULONG   STDMETHODCALLTYPE D3D10Device::Release()
 		"Destroying ID3D10Device1 object %p (%p) and IDXGIDevice%hu object %p (%p).",
 		static_cast<ID3D10Device *>(this), orig, DXGIDevice::_interface_version, static_cast<IDXGIDevice1 *>(this), DXGIDevice::_orig);
 #endif
-	delete this;
+	this->~D3D10Device();
 
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0) // Verify internal reference count
 		reshade::log::message(reshade::log::level::warning, "Reference count for ID3D10Device1 object %p (%p) is inconsistent (%lu).", static_cast<ID3D10Device *>(this), orig, ref_orig);
+	else
+		operator delete(this, sizeof(D3D10Device));
 	return 0;
 }
 
