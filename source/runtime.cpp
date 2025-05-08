@@ -1061,6 +1061,7 @@ void reshade::runtime::save_config() const
 
 void reshade::runtime::load_current_preset()
 {
+	_preset_is_incomplete = false;
 	_preset_save_successful = true;
 
 	const ini_file &preset = ini_file::load_cache(_current_preset_path);
@@ -1106,6 +1107,18 @@ void reshade::runtime::load_current_preset()
 		ini_file::load_cache(_config_path).get("GENERAL", "TechniqueSorting", sorted_technique_list);
 	if (sorted_technique_list.empty())
 		sorted_technique_list = technique_list;
+
+	for (const std::string_view technique_name : technique_list)
+	{
+		if (std::find_if(_techniques.begin(), _techniques.end(),
+				[name = technique_name.substr(0, technique_name.find('@'))](const technique &technique) {
+					return technique.name == name;
+				}) == _techniques.end())
+		{
+			log::message(log::level::warning, "Preset '%s' uses unknown technique '%*s'.", _current_preset_path.u8string().c_str(), technique_name.size(), technique_name.data());
+			_preset_is_incomplete = true;
+		}
+	}
 
 	// Reorder techniques
 	std::stable_sort(_technique_sorting.begin(), _technique_sorting.end(),

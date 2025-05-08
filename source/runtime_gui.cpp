@@ -1834,6 +1834,9 @@ void reshade::runtime::draw_gui_home()
 			save_config();
 			load_current_preset();
 
+			if (_preset_is_incomplete)
+				ImGui::OpenPopup("##presetincomplete");
+
 			_show_splash = true;
 			_preset_is_modified = false;
 			_last_preset_switching_time = _last_present_time;
@@ -1843,6 +1846,12 @@ void reshade::runtime::draw_gui_home()
 			if (!is_loading()) // Will be called by 'update_effects' when 'load_current_preset' forced a reload
 				invoke_addon_event<addon_event::reshade_set_current_preset_path>(this, _current_preset_path.u8string().c_str());
 #endif
+		}
+
+		if (ImGui::BeginPopup("##presetincomplete"))
+		{
+			ImGui::TextColored(COLOR_RED, _("The selected preset uses unknown techniques. Please install all required effect files to the effect search paths."));
+			ImGui::EndPopup();
 		}
 
 		if (_tutorial_index == 1)
