@@ -2402,32 +2402,38 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VS:
 			vs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_VS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
+			if (vs_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::vertex_shader, 1, &vs_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_VS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS:
 			ps_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_PS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
+			if (ps_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &ps_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_PS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DS:
 			ds_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_DS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc });
+			if (ds_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::domain_shader, 1, &ds_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_DS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_HS:
 			hs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_HS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc });
+			if (hs_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::hull_shader, 1, &hs_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_HS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_GS:
 			gs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_GS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc });
+			if (gs_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::geometry_shader, 1, &gs_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_GS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CS:
 			cs_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_CS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc });
+			if (cs_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::compute_shader, 1, &cs_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_CS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_STREAM_OUTPUT:
@@ -2514,12 +2520,14 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS:
 			as_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_AS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
+			if (as_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &as_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_AS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS:
 			ms_desc = reshade::d3d12::convert_shader_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_MS *>(p)->data);
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
+			if (ms_desc.code != nullptr)
+				subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &ms_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_MS);
 			continue;
 		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL2:
