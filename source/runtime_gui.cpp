@@ -1205,16 +1205,14 @@ void reshade::runtime::draw_gui()
 			std::string error_message;
 #if RESHADE_ADDON
 			if (!addon_all_loaded)
-				error_message += _("There were errors loading some add-ons."),
-				error_message += ' ';
+				error_message += static_cast<std::string &&>(_("There were errors loading some add-ons.") + " ");
 #endif
 			if (!_last_reload_successful)
-				error_message += _("There were errors loading some effects."),
-				error_message += ' ';
+				error_message += static_cast<std::string &&>(_("There were errors loading some effects.") + " ");
 
 			if (!error_message.empty())
 			{
-				error_message += _("Check the log for more details.");
+				error_message += static_cast<std::string &&>(_("Check the log for more details."));
 				ImGui::Spacing();
 				ImGui::TextColored(COLOR_RED, error_message.c_str());
 			}
@@ -1298,7 +1296,7 @@ void reshade::runtime::draw_gui()
 		ImGui::SetWindowFontScale(_fps_scale);
 
 		const float content_width = ImGui::GetContentRegionAvail().x;
-		char temp[512];
+		char temp[32];
 
 		if (show_clock)
 		{
@@ -1310,13 +1308,13 @@ void reshade::runtime::draw_gui()
 			{
 			default:
 			case 0:
-				temp_size = ImFormatString(temp, sizeof(temp), "%02d:%02d", tm.tm_hour, tm.tm_min);
+				temp_size = ImFormatString(temp, IM_ARRAYSIZE(temp), "%02d:%02d", tm.tm_hour, tm.tm_min);
 				break;
 			case 1:
-				temp_size = ImFormatString(temp, sizeof(temp), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+				temp_size = ImFormatString(temp, IM_ARRAYSIZE(temp), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
 				break;
 			case 2:
-				temp_size = ImFormatString(temp, sizeof(temp), "%.4d-%.2d-%.2d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+				temp_size = ImFormatString(temp, IM_ARRAYSIZE(temp), "%.4d-%.2d-%.2d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 				break;
 			}
 			if (_fps_pos % 2) // Align text to the right of the window
@@ -1325,14 +1323,14 @@ void reshade::runtime::draw_gui()
 		}
 		if (show_fps)
 		{
-			const int temp_size = ImFormatString(temp, sizeof(temp), "%.0f fps", imgui_io.Framerate);
+			const int temp_size = ImFormatString(temp, IM_ARRAYSIZE(temp), "%.0f fps", imgui_io.Framerate);
 			if (_fps_pos % 2)
 				ImGui::SetCursorPosX(content_width - ImGui::CalcTextSize(temp, temp + temp_size).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp, temp + temp_size);
 		}
 		if (show_frametime)
 		{
-			const int temp_size = ImFormatString(temp, sizeof(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
+			const int temp_size = ImFormatString(temp, IM_ARRAYSIZE(temp), "%5.2f ms", 1000.0f / imgui_io.Framerate);
 			if (_fps_pos % 2)
 				ImGui::SetCursorPosX(content_width - ImGui::CalcTextSize(temp, temp + temp_size).x + _imgui_context->Style.ItemSpacing.x);
 			ImGui::TextUnformatted(temp, temp + temp_size);
@@ -1602,10 +1600,10 @@ void reshade::runtime::draw_gui_home()
 	{
 		if (_tutorial_index == 1)
 		{
-			tutorial_text = _(
+			tutorial_text = static_cast<std::string &&>(_(
 				"This is the preset selection. All changes will be saved to the selected preset file.\n\n"
 				"Click on the '+' button to add a new one.\n"
-				"Use the right mouse button and click on the preset button to open a context menu with additional options.");
+				"Use the right mouse button and click on the preset button to open a context menu with additional options."));
 
 			ImGui::PushStyleColor(ImGuiCol_FrameBg, COLOR_RED);
 			ImGui::PushStyleColor(ImGuiCol_Button, COLOR_RED);
@@ -1683,7 +1681,7 @@ void reshade::runtime::draw_gui_home()
 		const bool was_auto_save_preset = _auto_save_preset;
 
 		if (imgui::toggle_button(
-				(std::string(was_auto_save_preset ? _("Auto Save on") : _("Auto Save")) + "###auto_save").c_str(),
+				(was_auto_save_preset ? _("Auto Save on") : _("Auto Save")) + "###auto_save",
 				_auto_save_preset,
 				(was_auto_save_preset ? 0.0f : auto_save_button_spacing) + button_width - (button_spacing + button_height) * (was_auto_save_preset ? 2 : 3)))
 		{
@@ -1859,13 +1857,13 @@ void reshade::runtime::draw_gui_home()
 	}
 	else
 	{
-		tutorial_text = _(
+		tutorial_text = static_cast<std::string &&>(_(
 			"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 			"If you have difficulties reading this text, press the 'Ctrl' key and adjust the font size with your mouse wheel. "
 			"The window size is variable as well, just grab the right edge and move it around.\n\n"
 			"You can also use the keyboard for navigation in case mouse input does not work. Use the arrow keys to navigate, space bar to confirm an action or enter a control and the 'Esc' key to leave a control. "
 			"Press 'Ctrl + Tab' to switch between tabs and windows (use this to focus this page in case the other navigation keys do not work at first).\n\n"
-			"Click on the 'Continue' button to continue the tutorial.");
+			"Click on the 'Continue' button to continue the tutorial."));
 	}
 
 	if (_tutorial_index > 1)
@@ -1936,11 +1934,11 @@ void reshade::runtime::draw_gui_home()
 
 		if (_tutorial_index == 2)
 		{
-			tutorial_text = _(
+			tutorial_text = static_cast<std::string &&>(_(
 				"This is the list of effects. It contains all techniques exposed by effect files (.fx) found in the effect search paths specified in the settings.\n\n"
 				"Enter text in the \"Search\" box at the top to filter it and search for specific techniques.\n\n"
 				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied (from top to bottom).\n"
-				"Use the right mouse button and click on an item to open a context menu with additional options.");
+				"Use the right mouse button and click on an item to open a context menu with additional options."));
 
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
@@ -1979,10 +1977,10 @@ void reshade::runtime::draw_gui_home()
 
 				if (skipped_effects > 0)
 				{
-					char temp[64];
-					const int temp_size = ImFormatString(temp, sizeof(temp), _("Force load all effects (%zu remaining)"), skipped_effects);
+					char label[64] = "";
+					ImFormatString(label, IM_ARRAYSIZE(label), _("Force load all effects (%zu remaining)") + "###force_reload_button", skipped_effects);
 
-					if (ImGui::ButtonEx((std::string(temp, temp_size) + "###force_reload_button").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+					if (ImGui::ButtonEx(label, ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 					{
 						reload_effects(true);
 
@@ -2021,12 +2019,12 @@ void reshade::runtime::draw_gui_home()
 
 		if (_tutorial_index == 3)
 		{
-			tutorial_text = _(
+			tutorial_text = static_cast<std::string &&>(_(
 				"This is the list of variables. It contains all tweakable options the active effects expose. Values here apply in real-time.\n\n"
 				"Press 'Ctrl' and click on a widget to manually edit the value (can also hold 'Ctrl' while adjusting the value in a widget to have it ignore any minimum or maximum values).\n"
 				"Use the right mouse button and click on an item to open a context menu with additional options.\n\n"
 				"Once you have finished tweaking your preset, be sure to enable the 'Performance Mode' check box. "
-				"This will reload all effects into a more optimal representation that can give a performance boost, but disables variable tweaking and this list.");
+				"This will reload all effects into a more optimal representation that can give a performance boost, but disables variable tweaking and this list."));
 
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
 		}
@@ -2049,7 +2047,7 @@ void reshade::runtime::draw_gui_home()
 	{
 		ImGui::Spacing();
 
-		if (ImGui::Button((ICON_FK_REFRESH " " + std::string(_("Reload"))).c_str(), ImVec2(-(auto_save_button_spacing + button_width), 0)))
+		if (ImGui::Button(ICON_FK_REFRESH " " + _("Reload"), ImVec2(-(auto_save_button_spacing + button_width), 0)))
 		{
 			load_config(); // Reload configuration too
 
@@ -2089,7 +2087,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (_tutorial_index == 0)
 		{
-			if (ImGui::Button((std::string(_("Continue")) + "###tutorial_button").c_str(), ImVec2(max_frame_width * 0.66666666f, 0)))
+			if (ImGui::Button(_("Continue") + "###tutorial_button", ImVec2(max_frame_width * 0.66666666f, 0)))
 			{
 				_tutorial_index++;
 
@@ -2107,7 +2105,7 @@ void reshade::runtime::draw_gui_home()
 		}
 		else
 		{
-			if (ImGui::Button((std::string(_tutorial_index == 3 ? _("Finish") : _("Continue")) + "###tutorial_button").c_str(), ImVec2(max_frame_width, 0)))
+			if (ImGui::Button((_tutorial_index == 3 ? _("Finish") : _("Continue")) + "###tutorial_button", ImVec2(max_frame_width, 0)))
 			{
 				_tutorial_index++;
 
@@ -2119,7 +2117,7 @@ void reshade::runtime::draw_gui_home()
 }
 void reshade::runtime::draw_gui_settings()
 {
-	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open base folder in explorer"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+	if (ImGui::Button(ICON_FK_FOLDER " " + _("Open base folder in explorer"), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 		utils::open_explorer(_config_path);
 
 	ImGui::Spacing();
@@ -3075,7 +3073,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::Spacing();
 
-	if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
+	if (ImGui::Button(ICON_FK_FOLDER " " + _("Open folder in explorer"), ImVec2(ImGui::GetContentRegionAvail().x, 0)))
 		utils::open_explorer(log_path);
 }
 void reshade::runtime::draw_gui_about()
@@ -3455,12 +3453,10 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::EndChild();
 
 		const float apply_button_size = 8.0f * ImGui::GetFontSize();
-		std::string apply_button_label = ICON_FK_OK " ";
-		apply_button_label += _("Apply");
 
 		ImGui::Dummy(ImVec2());
 		ImGui::SameLine(0, content_region_width - apply_button_size);
-		if (ImGui::Button(apply_button_label.c_str(), ImVec2(apply_button_size, 0)))
+		if (ImGui::Button(ICON_FK_OK " " + _("Apply"), ImVec2(apply_button_size, 0)))
 			ImGui::CloseCurrentPopup();
 
 		if (global_modified)
@@ -3525,7 +3521,7 @@ void reshade::runtime::draw_variable_editor()
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(_imgui_context->Style.FramePadding.x, 0));
 		if (imgui::confirm_button(
-				(ICON_FK_UNDO " " + std::string(_("Reset all to default"))).c_str(),
+				ICON_FK_UNDO " " + _("Reset all to default"),
 				_variable_editor_tabs ? ImGui::GetContentRegionAvail().x : ImGui::CalcItemWidth(),
 				_("Do you really want to reset all values in '%s' to their defaults?"), effect_name.c_str()))
 		{
@@ -3619,11 +3615,11 @@ void reshade::runtime::draw_variable_editor()
 
 						if (ImGui::BeginPopupContextItem(category_label.c_str()))
 						{
-							char temp[64];
-							const int temp_size = ImFormatString(temp, sizeof(temp), _("Reset all in '%s' to default"), current_category.c_str());
+							char label[64] = "";
+							ImFormatString(label, IM_ARRAYSIZE(label), ICON_FK_UNDO " " + _("Reset all in '%s' to default"), current_category.c_str());
 
 							if (imgui::confirm_button(
-									(ICON_FK_UNDO " " + std::string(temp, temp_size)).c_str(),
+									label,
 									ImGui::GetContentRegionAvail().x,
 									_("Do you really want to reset all values in '%s' to their defaults?"), current_category.c_str()))
 							{
@@ -3855,7 +3851,7 @@ void reshade::runtime::draw_variable_editor()
 					imgui::key_input_box("##toggle_key", variable.toggle_key_data, *_input))
 					modified = true;
 
-				if (ImGui::Button((ICON_FK_UNDO " " + std::string(_("Reset to default"))).c_str(), ImVec2(18.0f * _font_size, 0)))
+				if (ImGui::Button(ICON_FK_UNDO " " + _("Reset to default"), ImVec2(18.0f * _font_size, 0)))
 				{
 					modified = true;
 					reset_uniform_value(variable);
@@ -3957,7 +3953,7 @@ void reshade::runtime::draw_variable_editor()
 
 					if (ImGui::BeginPopupContextItem())
 					{
-						if (ImGui::Button((ICON_FK_UNDO " " + std::string(_("Reset to default"))).c_str(), ImVec2(18.0f * _font_size, 0)))
+						if (ImGui::Button(ICON_FK_UNDO " " + _("Reset to default"), ImVec2(18.0f * _font_size, 0)))
 						{
 							if (definition_scope != nullptr)
 							{
@@ -4070,7 +4066,7 @@ void reshade::runtime::draw_technique_editor()
 
 			{
 				char label[128] = "";
-				ImFormatString(label, sizeof(label), _("[%s] failed to compile"), effect.source_file.filename().u8string().c_str());
+				ImFormatString(label, IM_ARRAYSIZE(label), _("[%s] failed to compile"), effect.source_file.filename().u8string().c_str());
 
 				bool value = false;
 				ImGui::Checkbox(label, &value);
@@ -4096,12 +4092,12 @@ void reshade::runtime::draw_technique_editor()
 
 			if (ImGui::BeginPopup("##context"))
 			{
-				if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(18.0f * _font_size, 0)))
+				if (ImGui::Button(ICON_FK_FOLDER " " + _("Open folder in explorer"), ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
-				if (imgui::popup_button((ICON_FK_PENCIL " " + std::string(_("Edit source code"))).c_str(), 18.0f * _font_size))
+				if (imgui::popup_button(ICON_FK_PENCIL " " + _("Edit source code"), 18.0f * _font_size))
 				{
 					std::unordered_map<std::string_view, std::string> file_errors_lookup;
 					parse_errors(effect.errors,
@@ -4331,12 +4327,12 @@ void reshade::runtime::draw_technique_editor()
 				if (is_not_top || is_not_bottom || (_input != nullptr && !force_enabled))
 					ImGui::Separator();
 
-				if (ImGui::Button((ICON_FK_FOLDER " " + std::string(_("Open folder in explorer"))).c_str(), ImVec2(18.0f * _font_size, 0)))
+				if (ImGui::Button(ICON_FK_FOLDER " " + _("Open folder in explorer"), ImVec2(18.0f * _font_size, 0)))
 					utils::open_explorer(effect.source_file);
 
 				ImGui::Separator();
 
-				if (imgui::popup_button((ICON_FK_PENCIL " " + std::string(_("Edit source code"))).c_str(), 18.0f * _font_size))
+				if (imgui::popup_button(ICON_FK_PENCIL " " + _("Edit source code"), 18.0f * _font_size))
 				{
 					std::filesystem::path source_file;
 					if (ImGui::MenuItem(effect.source_file.filename().u8string().c_str()))
@@ -4580,7 +4576,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 void reshade::runtime::draw_code_editor(editor_instance &instance)
 {
 	if (!instance.generated &&
-		(ImGui::Button((ICON_FK_FLOPPY " " + std::string(_("Save"))).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0)) ||
+		(ImGui::Button(ICON_FK_FLOPPY " " + _("Save"), ImVec2(ImGui::GetContentRegionAvail().x, 0)) ||
 			(_input != nullptr && _input->is_key_pressed('S', true, false, false))))
 	{
 		// Write current editor text to file

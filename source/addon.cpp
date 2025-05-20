@@ -14,17 +14,12 @@
 
 void ReShadeLogMessage([[maybe_unused]] HMODULE module, int level, const char *message)
 {
-	std::string prefix;
 #if RESHADE_ADDON
-	if (module != nullptr)
-	{
-		reshade::addon_info *const info = reshade::find_addon(module);
-		if (info != nullptr)
-			prefix = "[" + info->name + "] ";
-	}
+	if (reshade::addon_info *const info = reshade::find_addon(module))
+		reshade::log::message(static_cast<reshade::log::level>(level), "[%.*s] %s", static_cast<int>(info->name.size()), info->name.c_str(), message);
+	else
 #endif
-
-	reshade::log::message(static_cast<reshade::log::level>(level), "%.*s%s", static_cast<int>(prefix.size()), prefix.c_str(), message);
+		reshade::log::message(static_cast<reshade::log::level>(level), "%s", message);
 }
 
 void ReShadeGetBasePath(char *path, size_t *size)
@@ -96,7 +91,7 @@ void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();
 
-	if (size == 0)
+	if (value == nullptr)
 	{
 		config.remove_key(section_string, key_string);
 		return;

@@ -221,15 +221,10 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 			path = path.parent_path() / buf;
 	}
 
-	std::string select_button_label = ICON_FK_OK " ";
-	select_button_label += _("Select");
-	std::string cancel_button_label = ICON_FK_CANCEL " ";
-	cancel_button_label += _("Cancel");
-
 	ImGui::SameLine(0, button_spacing);
-	const bool select = ImGui::Button(select_button_label.c_str(), ImVec2(button_size, 0));
+	const bool select = ImGui::Button(ICON_FK_OK " " + _("Select"), ImVec2(button_size, 0));
 	ImGui::SameLine(0, button_spacing);
-	const bool cancel = ImGui::Button(cancel_button_label.c_str(), ImVec2(button_size, 0));
+	const bool cancel = ImGui::Button(ICON_FK_CANCEL " " + _("Cancel"), ImVec2(button_size, 0));
 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
@@ -328,11 +323,8 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 
 	const bool show_clear_button = filter[0] != '\0';
 
-	std::string hint = _("Search");
-	hint += " " ICON_FK_SEARCH;
-
 	ImGui::SetNextItemWidth(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f));
-	if (ImGui::InputTextWithHint("##filter", hint.c_str(), filter, filter_size, ImGuiInputTextFlags_AutoSelectAll))
+	if (ImGui::InputTextWithHint("##filter", _("Search") + " " ICON_FK_SEARCH, filter, filter_size, ImGuiInputTextFlags_AutoSelectAll))
 		res = true;
 
 	if (show_clear_button)
@@ -529,11 +521,7 @@ bool reshade::imgui::confirm_button(const char *label, float width, const char *
 
 		const float button_width = (ImGui::GetContentRegionAvail().x / 2) - ImGui::GetStyle().ItemInnerSpacing.x;
 
-		std::string button_label;
-		button_label = ICON_FK_OK " ";
-		button_label += _("Yes");
-
-		if (ImGui::Button(button_label.c_str(), ImVec2(button_width, 0)))
+		if (ImGui::Button(ICON_FK_OK " " + _("Yes"), ImVec2(button_width, 0)))
 		{
 			ImGui::CloseCurrentPopup();
 			res = true;
@@ -541,10 +529,7 @@ bool reshade::imgui::confirm_button(const char *label, float width, const char *
 
 		ImGui::SameLine();
 
-		button_label = ICON_FK_CANCEL " ";
-		button_label += _("No");
-
-		if (ImGui::Button(button_label.c_str(), ImVec2(button_width, 0)))
+		if (ImGui::Button(ICON_FK_CANCEL " " + _("No"), ImVec2(button_width, 0)))
 		{
 			ImGui::CloseCurrentPopup();
 		}
