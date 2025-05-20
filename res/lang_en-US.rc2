@@ -173,6 +173,7 @@ BEGIN
 2314 "Global"
 38344 "Current Preset"
 10646 "Do you really want to remove the preprocessor definition '%s'?"
+63179 "Apply"
 9813 "Reset all to default"
 2781 "Do you really want to reset all values in '%s' to their defaults?"
 18455 "Reset all in '%s' to default"

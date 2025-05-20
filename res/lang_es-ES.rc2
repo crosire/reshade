@@ -173,6 +173,7 @@ BEGIN
 2314 "Global"
 38344 "Preset Actual"
 10646 "¿Remover la definición del preprocesador '%s'?"
+63179 "Aplicar"
 9813 "Resetear todo"
 2781 "¿Resetear todos los valores en '%s'?"
 18455 "Resetear todo en '%s'"

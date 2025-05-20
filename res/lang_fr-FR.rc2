@@ -173,6 +173,7 @@ BEGIN
 2314 "Global"
 38344 "Configuration actuelle"
 10646 "Êtes vous certain de vouloir supprimer la définition du pré-processeur '%s'?"
+63179 "Appliquer"
 9813 "Réinitialiser aux valeurs par défaut"
 2781 "Êtes vous certain de vouloir réinitialiser les valeurs de '%s' par défaut ?"
 18455 "Réinitialiser les valeurs de '%s' par défaut"

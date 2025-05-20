@@ -3383,10 +3383,10 @@ void reshade::runtime::draw_variable_editor()
 
 		ImGui::BeginChild("##definitions", ImVec2(30.0f * _font_size, popup_height));
 
+		const float content_region_width = ImGui::GetContentRegionAvail().x;
+
 		if (ImGui::BeginTabBar("##definition_types", ImGuiTabBarFlags_NoTooltip))
 		{
-			const float content_region_width = ImGui::GetContentRegionAvail().x;
-
 			struct
 			{
 				std::string name;
@@ -3453,6 +3453,15 @@ void reshade::runtime::draw_variable_editor()
 		}
 
 		ImGui::EndChild();
+
+		const float apply_button_size = 8.0f * ImGui::GetFontSize();
+		std::string apply_button_label = ICON_FK_OK " ";
+		apply_button_label += _("Apply");
+
+		ImGui::Dummy(ImVec2());
+		ImGui::SameLine(0, content_region_width - apply_button_size);
+		if (ImGui::Button(apply_button_label.c_str(), ImVec2(apply_button_size, 0)))
+			ImGui::CloseCurrentPopup();
 
 		if (global_modified)
 			save_config();
