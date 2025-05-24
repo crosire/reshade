@@ -158,7 +158,10 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &semaphore
 
 	// Command buffer is now ready for a reset
 	if (vk.BeginCommandBuffer(_cmd_buffers[_cmd_index], &begin_info) != VK_SUCCESS)
+	{
+		log::message(log::level::error, "Failed to reset immediate command list!");
 		return false;
+	}
 
 	// Command buffer is now in the recording state
 	_orig = _cmd_buffers[_cmd_index];

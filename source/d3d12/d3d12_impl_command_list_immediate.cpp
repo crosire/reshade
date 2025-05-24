@@ -162,7 +162,13 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 	_cmd_alloc[_cmd_index]->Reset();
 
 	// Reset command list using current command allocator and put it into the recording state
-	return SUCCEEDED(_orig->Reset(_cmd_alloc[_cmd_index].get(), nullptr));
+	if (const HRESULT hr = _orig->Reset(_cmd_alloc[_cmd_index].get(), nullptr); FAILED(hr))
+	{
+		log::message(log::level::error, "Failed to reset immediate command list with error code %s!", reshade::log::hr_to_string(hr).c_str());
+		return false;
+	}
+
+	return true;
 }
 bool reshade::d3d12::command_list_immediate_impl::flush_and_wait()
 {
