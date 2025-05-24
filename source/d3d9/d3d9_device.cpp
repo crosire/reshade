@@ -387,6 +387,10 @@ void    STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMM
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture9 **ppTexture, HANDLE *pSharedHandle)
 {
+#if RESHADE_ADDON >= 2
+	modify_pool_for_d3d9ex(Usage, Pool);
+#endif
+
 #if RESHADE_ADDON
 	D3DSURFACE_DESC internal_desc = { Format, D3DRTYPE_TEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, Width, Height };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, Levels, FALSE, _caps, pSharedHandle != nullptr);
@@ -492,6 +496,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT Height, UINT Depth, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DVolumeTexture9 **ppVolumeTexture, HANDLE *pSharedHandle)
 {
+#if RESHADE_ADDON >= 2
+	modify_pool_for_d3d9ex(Usage, Pool);
+#endif
+
 #if RESHADE_ADDON
 	D3DVOLUME_DESC internal_desc { Format, D3DRTYPE_VOLUMETEXTURE, Usage, Pool, Width, Height, Depth };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, Levels, pSharedHandle != nullptr);
@@ -572,6 +580,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DCubeTexture9 **ppCubeTexture, HANDLE *pSharedHandle)
 {
+#if RESHADE_ADDON >= 2
+	modify_pool_for_d3d9ex(Usage, Pool);
+#endif
+
 #if RESHADE_ADDON
 	D3DSURFACE_DESC internal_desc { Format, D3DRTYPE_CUBETEXTURE, Usage, Pool, D3DMULTISAMPLE_NONE, 0, EdgeLength, EdgeLength };
 	auto desc = reshade::d3d9::convert_resource_desc(internal_desc, Levels, FALSE, _caps, pSharedHandle != nullptr);
@@ -686,6 +698,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	// Need to allow buffer for use in software vertex processing, since application uses software and not hardware processing, but device was created with both
 	if (_use_software_rendering)
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
+#if RESHADE_ADDON >= 2
+	modify_pool_for_d3d9ex(Usage, Pool);
+#endif
 
 #if RESHADE_ADDON
 	D3DVERTEXBUFFER_DESC internal_desc = { D3DFMT_VERTEXDATA, D3DRTYPE_VERTEXBUFFER, Usage, Pool, Length, FVF };
@@ -737,6 +752,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 {
 	if (_use_software_rendering)
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
+#if RESHADE_ADDON >= 2
+	modify_pool_for_d3d9ex(Usage, Pool);
+#endif
 
 #if RESHADE_ADDON
 	D3DINDEXBUFFER_DESC internal_desc = { Format, D3DRTYPE_INDEXBUFFER, Usage, Pool, Length };
@@ -2769,5 +2787,16 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 				_primitive_up_index_buffer);
 		}
 	}
+}
+
+void Direct3DDevice9::modify_pool_for_d3d9ex(DWORD &usage, D3DPOOL &pool) const
+{
+	if (!_extended_interface)
+		return;
+	if (pool != D3DPOOL_MANAGED)
+		return;
+
+	pool = D3DPOOL_DEFAULT;
+	usage |= D3DUSAGE_DYNAMIC;
 }
 #endif

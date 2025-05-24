@@ -167,6 +167,8 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 #endif
 #if RESHADE_ADDON >= 2
 	void resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size, UINT index_size);
+
+	void modify_pool_for_d3d9ex(DWORD &usage, D3DPOOL &pool) const;
 #endif
 
 	bool check_and_upgrade_interface(REFIID riid);
