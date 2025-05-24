@@ -41,7 +41,8 @@ namespace reshade::vulkan
 	{
 		using Handle = VkSwapchainKHR;
 
-		object_data(device_impl *device, VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd) : swapchain_impl(device, swapchain, create_info, hwnd) {}
+		object_data(device_impl *device, VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd) :
+			swapchain_impl(device, swapchain, create_info, hwnd) {}
 
 		using swapchain_impl::_create_info;
 		using swapchain_impl::_hwnd;

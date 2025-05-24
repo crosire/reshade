@@ -15,6 +15,8 @@ reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, VkSwapchain
 	_create_info(create_info),
 	_hwnd(hwnd)
 {
+	_create_info.pNext = nullptr;
+
 	assert(create_info.imageUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 }
 

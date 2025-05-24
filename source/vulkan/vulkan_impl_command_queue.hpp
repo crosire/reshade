@@ -46,6 +46,7 @@ namespace reshade::vulkan
 	{
 		using Handle = VkQueue;
 
-		object_data(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) : command_queue_impl(device, queue_family_index, queue_family, queue) {}
+		object_data(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
+			command_queue_impl(device, queue_family_index, queue_family, queue) {}
 	};
 }

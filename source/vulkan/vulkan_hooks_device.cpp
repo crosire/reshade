@@ -1102,6 +1102,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	{
 		swapchain_impl->_orig = *pSwapchain;
 		swapchain_impl->_create_info = create_info;
+		swapchain_impl->_create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
 		swapchain_impl->_hwnd = hwnd;
 	}
 
@@ -1127,6 +1128,14 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		image_data.create_info.usage = create_info.imageUsage;
 		image_data.create_info.sharingMode = create_info.imageSharingMode;
 		image_data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		// See also https://registry.khronos.org/vulkan/specs/latest/man/html/vkCreateSwapchainKHR.html#_description
+		if ((create_info.flags & VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR) != 0)
+			image_data.create_info.flags |= VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT;
+		if ((create_info.flags & VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR) != 0)
+			image_data.create_info.flags |= VK_IMAGE_CREATE_PROTECTED_BIT;
+		if ((create_info.flags & VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR) != 0)
+			image_data.create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT;
 	}
 
 #if RESHADE_ADDON
@@ -1244,25 +1253,29 @@ VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextI
 
 VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
 {
-	assert(pSubmits != nullptr);
-
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(queue));
+
 #if RESHADE_ADDON
-	reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
-
-	for (uint32_t i = 0; i < submitCount; ++i)
+	if (submitCount != 0)
 	{
-		for (uint32_t k = 0; k < pSubmits[i].commandBufferCount; ++k)
+		assert(pSubmits != nullptr);
+
+		reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
+
+		for (uint32_t i = 0; i < submitCount; ++i)
 		{
-			assert(pSubmits[i].pCommandBuffers[k] != VK_NULL_HANDLE);
+			for (uint32_t k = 0; k < pSubmits[i].commandBufferCount; ++k)
+			{
+				assert(pSubmits[i].pCommandBuffers[k] != VK_NULL_HANDLE);
 
-			reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBuffers[k]);
+				reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBuffers[k]);
 
-			reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
+				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
+			}
 		}
-	}
 
-	queue_impl->flush_immediate_command_list();
+		queue_impl->flush_immediate_command_list();
+	}
 #endif
 
 	GET_DISPATCH_PTR_FROM(QueueSubmit, device_impl);
@@ -1270,25 +1283,29 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 }
 VkResult VKAPI_CALL vkQueueSubmit2(VkQueue queue, uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence)
 {
-	assert(pSubmits != nullptr);
-
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(queue));
+
 #if RESHADE_ADDON
-	reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
-
-	for (uint32_t i = 0; i < submitCount; ++i)
+	if (submitCount != 0)
 	{
-		for (uint32_t k = 0; k < pSubmits[i].commandBufferInfoCount; ++k)
+		assert(pSubmits != nullptr);
+
+		reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
+
+		for (uint32_t i = 0; i < submitCount; ++i)
 		{
-			assert(pSubmits[i].pCommandBufferInfos[k].commandBuffer != VK_NULL_HANDLE);
+			for (uint32_t k = 0; k < pSubmits[i].commandBufferInfoCount; ++k)
+			{
+				assert(pSubmits[i].pCommandBufferInfos[k].commandBuffer != VK_NULL_HANDLE);
 
-			reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBufferInfos[k].commandBuffer);
+				reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBufferInfos[k].commandBuffer);
 
-			reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
+				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
+			}
 		}
-	}
 
-	queue_impl->flush_immediate_command_list();
+		queue_impl->flush_immediate_command_list();
+	}
 #endif
 
 	GET_DISPATCH_PTR_FROM(QueueSubmit2, device_impl);

@@ -81,7 +81,8 @@ namespace reshade::vulkan
 	{
 		using Handle = VkCommandBuffer;
 
-		object_data(device_impl *device, VkCommandBuffer cmd_list) : command_list_impl(device, cmd_list) {}
+		object_data(device_impl *device, VkCommandBuffer cmd_list) :
+			command_list_impl(device, cmd_list) {}
 
 #if RESHADE_ADDON
 		using command_list_impl::_is_in_render_pass;
