@@ -127,8 +127,6 @@ bool reshade::vulkan::command_queue_impl::wait(api::fence fence, uint64_t value)
 {
 	const VkSemaphore wait_semaphore = (VkSemaphore)fence.handle;
 
-	const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
 	VkTimelineSemaphoreSubmitInfo wait_semaphore_info { VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO };
 	wait_semaphore_info.waitSemaphoreValueCount = 1;
 	wait_semaphore_info.pWaitSemaphoreValues = &value;
@@ -136,6 +134,7 @@ bool reshade::vulkan::command_queue_impl::wait(api::fence fence, uint64_t value)
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO, &wait_semaphore_info };
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = &wait_semaphore;
+	static const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 	submit_info.pWaitDstStageMask = &wait_stage;
 
 	return vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
@@ -153,8 +152,6 @@ bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t valu
 	submit_info.pSignalSemaphores = &signal_semaphore;
 
 	flush_immediate_command_list(submit_info);
-	if (submit_info.signalSemaphoreCount == 0)
-		return true; // Already submitted by the flush
 
 	return vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
 }

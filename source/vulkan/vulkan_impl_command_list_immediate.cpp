@@ -91,7 +91,7 @@ reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 	_orig = VK_NULL_HANDLE;
 }
 
-bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_info)
+bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &semaphore_info)
 {
 	s_last_immediate_command_list = this;
 
@@ -114,11 +114,15 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_in
 		return false;
 	}
 
-	assert(submit_info.sType == VK_STRUCTURE_TYPE_SUBMIT_INFO && submit_info.commandBufferCount == 0);
+	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	submit_info.waitSemaphoreCount = semaphore_info.waitSemaphoreCount;
+	submit_info.pWaitSemaphores = semaphore_info.pWaitSemaphores;
+	submit_info.pWaitDstStageMask = semaphore_info.pWaitDstStageMask;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &_orig;
 
-	if (submit_info.waitSemaphoreCount != 0 && submit_info.signalSemaphoreCount == 0)
+	if (semaphore_info.waitSemaphoreCount != 0 ||
+		semaphore_info.signalSemaphoreCount != 0)
 	{
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
@@ -138,13 +142,10 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &submit_in
 
 	// This queue submit now waits on the requested wait semaphores
 	// The next queue submit should therefore wait on the semaphore that was signaled by this submit
-	submit_info.waitSemaphoreCount = submit_info.signalSemaphoreCount;
-	submit_info.pWaitSemaphores = submit_info.pSignalSemaphores;
-	submit_info.pWaitDstStageMask = nullptr;
-	submit_info.commandBufferCount = 0;
-	submit_info.pCommandBuffers = nullptr;
-	submit_info.signalSemaphoreCount = 0;
-	submit_info.pSignalSemaphores = nullptr;
+	semaphore_info.waitSemaphoreCount = submit_info.signalSemaphoreCount;
+	semaphore_info.pWaitSemaphores = submit_info.pSignalSemaphores;
+	static const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	semaphore_info.pWaitDstStageMask = &wait_stage;
 
 	// Continue with next command buffer now that the current one was submitted
 	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;

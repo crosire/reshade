@@ -791,8 +791,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			{
 				VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 				submit_info.waitSemaphoreCount = 1;
-				VkPipelineStageFlags wait_mask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				submit_info.pWaitDstStageMask = &wait_mask;
+				VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				submit_info.pWaitDstStageMask = &wait_stage;
 				submit_info.pWaitSemaphores = &sem_acquire;
 				submit_info.commandBufferCount = 1;
 				submit_info.pCommandBuffers = &cmd_list[swapchain_image_index];

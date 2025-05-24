@@ -1253,28 +1253,27 @@ VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextI
 
 VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkSubmitInfo *pSubmits, VkFence fence)
 {
+	assert(pSubmits != nullptr || submitCount == 0);
+
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(queue));
 
 #if RESHADE_ADDON
-	if (submitCount != 0)
+	reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
+
+	for (uint32_t i = 0; i < submitCount; ++i)
 	{
-		assert(pSubmits != nullptr);
+		const VkSubmitInfo &submit_info = pSubmits[i];
 
-		reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
-
-		for (uint32_t i = 0; i < submitCount; ++i)
+		for (uint32_t k = 0; k < submit_info.commandBufferCount; ++k)
 		{
-			for (uint32_t k = 0; k < pSubmits[i].commandBufferCount; ++k)
-			{
-				assert(pSubmits[i].pCommandBuffers[k] != VK_NULL_HANDLE);
+			assert(submit_info.pCommandBuffers[k] != VK_NULL_HANDLE);
 
-				reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBuffers[k]);
+			reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(submit_info.pCommandBuffers[k]);
 
-				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
-			}
+			reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
 		}
 
-		queue_impl->flush_immediate_command_list();
+		queue_impl->flush_immediate_command_list(const_cast<VkSubmitInfo &>(submit_info));
 	}
 #endif
 
@@ -1283,25 +1282,24 @@ VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount, const VkS
 }
 VkResult VKAPI_CALL vkQueueSubmit2(VkQueue queue, uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence)
 {
+	assert(pSubmits != nullptr || submitCount == 0);
+
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(queue));
 
 #if RESHADE_ADDON
-	if (submitCount != 0)
+	reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
+
+	for (uint32_t i = 0; i < submitCount; ++i)
 	{
-		assert(pSubmits != nullptr);
+		const VkSubmitInfo2 &submit_info = pSubmits[i];
 
-		reshade::vulkan::command_queue_impl *const queue_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUEUE>(queue);
-
-		for (uint32_t i = 0; i < submitCount; ++i)
+		for (uint32_t k = 0; k < submit_info.commandBufferInfoCount; ++k)
 		{
-			for (uint32_t k = 0; k < pSubmits[i].commandBufferInfoCount; ++k)
-			{
-				assert(pSubmits[i].pCommandBufferInfos[k].commandBuffer != VK_NULL_HANDLE);
+			assert(submit_info.pCommandBufferInfos[k].commandBuffer != VK_NULL_HANDLE);
 
-				reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(pSubmits[i].pCommandBufferInfos[k].commandBuffer);
+			reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(submit_info.pCommandBufferInfos[k].commandBuffer);
 
-				reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
-			}
+			reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(queue_impl, cmd_impl);
 		}
 
 		queue_impl->flush_immediate_command_list();
