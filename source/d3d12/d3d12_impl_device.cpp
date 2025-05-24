@@ -29,17 +29,17 @@ static auto adapter_from_device(ID3D12Device *device, DXGI_ADAPTER_DESC *adapter
 {
 	const auto dxgi_module = GetModuleHandleW(L"dxgi.dll");
 	assert(dxgi_module != nullptr);
-	const auto CreateDXGIFactory1 = reinterpret_cast<HRESULT(WINAPI *)(REFIID riid, void **ppFactory)>(GetProcAddress(dxgi_module, "CreateDXGIFactory1"));
-	assert(CreateDXGIFactory1 != nullptr);
-	const auto CreateDXGIFactory2 = reinterpret_cast<HRESULT(WINAPI *)(UINT Flags, REFIID riid, void **ppFactory)>(GetProcAddress(dxgi_module, "CreateDXGIFactory2"));
-	assert(CreateDXGIFactory2 != nullptr || is_windows7());
+	const auto CreateDXGIFactory1_orig = reinterpret_cast<decltype(&CreateDXGIFactory1)>(GetProcAddress(dxgi_module, "CreateDXGIFactory1"));
+	assert(CreateDXGIFactory1_orig != nullptr);
+	const auto CreateDXGIFactory2_orig = reinterpret_cast<decltype(&CreateDXGIFactory2)>(GetProcAddress(dxgi_module, "CreateDXGIFactory2"));
+	assert(CreateDXGIFactory2_orig != nullptr || is_windows7());
 
 	const LUID luid = device->GetAdapterLuid();
 
 	com_ptr<IDXGIAdapter> dxgi_adapter;
 
 	if (com_ptr<IDXGIFactory4> factory4;
-		CreateDXGIFactory2 != nullptr && SUCCEEDED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory4))))
+		CreateDXGIFactory2_orig != nullptr && SUCCEEDED(CreateDXGIFactory2_orig(0, IID_PPV_ARGS(&factory4))))
 	{
 		if (SUCCEEDED(factory4->EnumAdapterByLuid(luid, IID_PPV_ARGS(&dxgi_adapter))))
 		{
@@ -48,11 +48,12 @@ static auto adapter_from_device(ID3D12Device *device, DXGI_ADAPTER_DESC *adapter
 	}
 	else
 	if (com_ptr<IDXGIFactory1> factory1;
-		SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory1))))
+		SUCCEEDED(CreateDXGIFactory1_orig(IID_PPV_ARGS(&factory1))))
 	{
 		for (UINT i = 0; factory1->EnumAdapters(i, &dxgi_adapter) != DXGI_ERROR_NOT_FOUND; ++i, dxgi_adapter.reset())
 		{
-			if (SUCCEEDED(dxgi_adapter->GetDesc(adapter_desc)) && std::memcmp(&adapter_desc->AdapterLuid, &luid, sizeof(luid)) == 0)
+			if (SUCCEEDED(dxgi_adapter->GetDesc(adapter_desc)) &&
+				std::memcmp(&adapter_desc->AdapterLuid, &luid, sizeof(luid)) == 0)
 				break;
 		}
 	}
@@ -1738,7 +1739,8 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 				_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 			}
 		}
-		else if (update.type == api::descriptor_type::sampler ||
+		else if (
+			update.type == api::descriptor_type::sampler ||
 			update.type == api::descriptor_type::buffer_shader_resource_view ||
 			update.type == api::descriptor_type::buffer_unordered_access_view ||
 			update.type == api::descriptor_type::texture_shader_resource_view ||

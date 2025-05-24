@@ -440,7 +440,8 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
 	}
-	else if (update.type == api::descriptor_type::sampler ||
+	else if (
+		update.type == api::descriptor_type::sampler ||
 		update.type == api::descriptor_type::buffer_shader_resource_view ||
 		update.type == api::descriptor_type::buffer_unordered_access_view ||
 		update.type == api::descriptor_type::texture_shader_resource_view ||

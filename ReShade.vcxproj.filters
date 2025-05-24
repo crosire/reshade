@@ -467,9 +467,6 @@
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>
     </ClInclude>
-    <ClInclude Include="res\shaders\imgui_hdr.h">
-      <Filter>resources\shaders</Filter>
-    </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
     </ClInclude>
@@ -749,6 +746,9 @@
     </None>
     <None Include="res\fonts\forkawesome.inl">
       <Filter>resources\fonts</Filter>
+    </None>
+    <None Include="res\shaders\imgui_hdr.hlsl">
+      <Filter>resources\shaders</Filter>
     </None>
     <None Include="res\shaders\imgui_ps_430.glsl">
       <Filter>resources\shaders</Filter>

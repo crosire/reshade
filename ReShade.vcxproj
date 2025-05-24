@@ -669,7 +669,6 @@
     <ClInclude Include="res\fonts\forkawesome.h" />
     <ClInclude Include="res\fonts\glyph_ranges.hpp" />
     <ClInclude Include="res\resource.h" />
-    <ClInclude Include="res\shaders\imgui_hdr.h" />
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\addon.hpp" />
     <ClInclude Include="source\addon_manager.hpp" />
@@ -766,6 +765,7 @@
   <ItemGroup>
     <None Include="res\exports.def" />
     <None Include="res\fonts\forkawesome.inl" />
+    <None Include="res\shaders\imgui_hdr.hlsl" />
     <None Include="res\shaders\imgui_ps_430.glsl" />
     <None Include="res\shaders\imgui_vs_430.glsl" />
     <None Include="res\shaders\mipmap_cs_430.glsl" />

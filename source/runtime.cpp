@@ -4183,7 +4183,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	}
 
 	if (!_is_in_present_call)
-		capture_state(cmd_list, _app_state);
+		api::capture_state(cmd_list, _app_state);
 
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
 #endif
@@ -4228,7 +4228,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 
 	if (!_is_in_present_call)
-		apply_state(cmd_list, _app_state);
+		api::apply_state(cmd_list, _app_state);
 #endif
 }
 void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_list, api::resource back_buffer_resource, api::resource_view back_buffer_rtv, api::resource_view back_buffer_rtv_srgb, size_t permutation_index)

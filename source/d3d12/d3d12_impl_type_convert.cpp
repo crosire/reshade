@@ -1731,9 +1731,9 @@ auto reshade::d3d12::convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -
 		assert(false);
 		[[fallthrough]];
 	case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
-		return api::descriptor_type::texture_shader_resource_view;
+		return api::descriptor_type::shader_resource_view;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
-		return api::descriptor_type::texture_unordered_access_view;
+		return api::descriptor_type::unordered_access_view;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
 		return api::descriptor_type::constant_buffer;
 	case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:

@@ -14,21 +14,21 @@ layout(push_constant) uniform PushConstants
 	layout(offset = 68) float hdr_overlay_brightness;
 };
 
-#include "imgui_hdr.h"
+#include "imgui_hdr.hlsl"
 
 void main()
 {
 	if (color_space == COLOR_SPACE_HDR10)
 	{
-		vcol = to_pq(vcol);
+		vcol.rgb = to_pq(vcol.rgb);
 	}
 	else if (color_space == COLOR_SPACE_HLG)
 	{
-		vcol = to_hlg(vcol);
+		vcol.rgb = to_hlg(vcol.rgb);
 	}
 	else if (color_space == COLOR_SPACE_SCRGB)
 	{
-		vcol = to_scrgb(vcol);
+		vcol.rgb = to_scrgb(vcol.rgb);
 	}
 
 	col = texture(s0, i.tex);

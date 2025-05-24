@@ -53,29 +53,32 @@ float3 hlg_inverse_eotf(float3 col)
 }
 
 // HDR10 (PQ transfer function + BT.2020 primaries)
-float4 to_pq(float4 col)
+float3 to_pq(float3 col)
 {
-	col.rgb = pow(col.rgb, 2.2.xxx);
-	col.rgb = bt709_to_bt2020(col.rgb) * hdr_overlay_brightness / 10000.0;
-	col.rgb = pq_inverse_eotf(col.rgb);
+	col = pow(col, 2.2.xxx);
+	col = bt709_to_bt2020(col);
+	col = col * hdr_overlay_brightness / 10000.0;
+	col = pq_inverse_eotf(col);
 
 	return col;
 }
 
 // HLG (HLG transfer function + BT.2020 primaries)
-float4 to_hlg(float4 col)
+float3 to_hlg(float3 col)
 {
-	col.rgb = pow(col.rgb, 2.2.xxx);
-	col.rgb = bt709_to_bt2020(col.rgb) * hdr_overlay_brightness / 1000.0;
-	col.rgb = hlg_inverse_eotf(col.rgb);
+	col = pow(col, 2.2.xxx);
+	col = bt709_to_bt2020(col);
+	col = col * hdr_overlay_brightness /  1000.0;
+	col = hlg_inverse_eotf(col);
 
 	return col;
 }
 
 // scRGB (linear + BT.709/sRGB primaries)
-float4 to_scrgb(float4 col) // 1.0 = 80 nits in scRGB
+float3 to_scrgb(float3 col) // 1.0 = 80 nits in scRGB
 {
-	col.rgb = pow(col.rgb, 2.2.xxx) * hdr_overlay_brightness / 80.0;
+	col = pow(col, 2.2.xxx);
+	col = col * hdr_overlay_brightness /    80.0;
 
 	return col;
 }
