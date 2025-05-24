@@ -7,6 +7,7 @@
 #include "d3d11_device_context.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 extern thread_local bool g_in_dxgi_runtime;
 
@@ -55,6 +56,17 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	dummy_factory.reset();
 #endif
 
+#if RESHADE_ADDON >= 2
+	reshade::load_addons();
+
+	uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
+	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d11, api_version))
+	{
+		FeatureLevels = 1;
+		pFeatureLevels = reinterpret_cast<const D3D_FEATURE_LEVEL *>(&api_version);
+	}
+#endif
+
 	// Use local feature level variable in case the application did not pass one in
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
@@ -63,6 +75,9 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
 		reshade::log::message(reshade::log::level::warning, "D3D11CreateDeviceAndSwapChain failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
@@ -76,6 +91,10 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr && ppImmediateContext == nullptr);
+
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
 		return hr;
 	}
 
@@ -129,6 +148,10 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 
 		hr = factory->CreateSwapChain(device, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
 	}
+
+#if RESHADE_ADDON >= 2
+	reshade::unload_addons();
+#endif
 
 	if (SUCCEEDED(hr))
 	{

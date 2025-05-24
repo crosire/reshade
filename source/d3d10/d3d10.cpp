@@ -6,6 +6,7 @@
 #include "d3d10_device.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
+#include "addon_manager.hpp"
 
 extern thread_local bool g_in_dxgi_runtime;
 
@@ -76,12 +77,25 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	Flags &= ~D3D10_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY;
 #endif
 
+#if RESHADE_ADDON >= 2
+	reshade::load_addons();
+
+	uint32_t api_version = static_cast<uint32_t>(HardwareLevel);
+	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d10, api_version))
+	{
+		HardwareLevel = static_cast<D3D10_FEATURE_LEVEL1>(api_version);
+	}
+#endif
+
 	// This may call 'D3D11CreateDeviceAndSwapChain' internally, so to avoid duplicated hooks, set the flag that forces it to return early
 	g_in_dxgi_runtime = true;
 	HRESULT hr = trampoline(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
 		reshade::log::message(reshade::log::level::warning, "D3D10CreateDeviceAndSwapChain1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
@@ -90,6 +104,10 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr);
+
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
 		return hr;
 	}
 
@@ -133,6 +151,10 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 
 		hr = factory->CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
 	}
+
+#if RESHADE_ADDON >= 2
+	reshade::unload_addons();
+#endif
 
 	if (SUCCEEDED(hr))
 	{

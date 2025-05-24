@@ -260,7 +260,7 @@ extern thread_local bool g_in_dxgi_runtime;
 
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
-	const auto trampoline = reshade::hooks::call(IDirect3D9_CreateDevice, reshade::hooks::vtable_from_instance(pD3D) + 16);
+	auto trampoline = reshade::hooks::call(IDirect3D9_CreateDevice, reshade::hooks::vtable_from_instance(pD3D) + 16);
 
 	// Pass on unmodified in case this called from within the runtime, to avoid hooking internal devices
 	if (g_in_d3d9_runtime)
@@ -281,8 +281,23 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 #if RESHADE_ADDON
-	// Load add-ons before 'create_swapchain' event in 'dump_and_modify_present_parameters'
+	// Load add-ons before 'create_device' event and 'create_swapchain' event in 'dump_and_modify_present_parameters'
 	reshade::load_addons();
+#endif
+#if RESHADE_ADDON >= 2
+	uint32_t api_version = 0x9000;
+	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d9, api_version) && api_version > 0x9000)
+	{
+		// Upgrade Direct3D 9 to Direct3D 9Ex
+		trampoline =
+			[](IDirect3D9 *, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface) {
+				assert(g_in_d3d9_runtime);
+				com_ptr<IDirect3D9Ex> d3dex;
+				if (FAILED(Direct3DCreate9Ex(D3D_SDK_VERSION, &d3dex)))
+					return D3DERR_NOTAVAILABLE;
+				return d3dex->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, nullptr, reinterpret_cast<IDirect3DDevice9Ex **>(ppReturnedDeviceInterface));
+			};
+	}
 #endif
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
@@ -346,8 +361,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	}
 
 #if RESHADE_ADDON
-	// Load add-ons before 'create_swapchain' event in 'dump_and_modify_present_parameters'
+	// Load add-ons before 'create_device' event and 'create_swapchain' event in 'dump_and_modify_present_parameters'
 	reshade::load_addons();
+#endif
+#if RESHADE_ADDON >= 2
+	uint32_t api_version = 0x9100;
+	reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d9, api_version);
 #endif
 
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
@@ -440,7 +459,7 @@ extern "C"     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **
 
 	assert(ppD3D != nullptr);
 
-	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
+	reshade::hooks::install("IDirect3D9Ex::CreateDevice", reshade::hooks::vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
 
 #if RESHADE_VERBOSE_LOG

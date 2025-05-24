@@ -158,8 +158,8 @@ bool reshade::vulkan::device_impl::get_property(api::device_properties property,
 	{
 	case api::device_properties::api_version:
 		*static_cast<uint32_t *>(data) =
-			VK_VERSION_MAJOR(device_props.properties.apiVersion) << 12 |
-			VK_VERSION_MINOR(device_props.properties.apiVersion) << 8;
+			VK_API_VERSION_MAJOR(device_props.properties.apiVersion) << 12 |
+			VK_API_VERSION_MINOR(device_props.properties.apiVersion) <<  8;
 		return true;
 	case api::device_properties::driver_version:
 	{

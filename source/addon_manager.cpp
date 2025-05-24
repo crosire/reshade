@@ -27,6 +27,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	switch (ev)
 	{
 		CASE(init_device);
+		CASE(create_device);
 		CASE(destroy_device);
 		CASE(init_command_list);
 		CASE(destroy_command_list);

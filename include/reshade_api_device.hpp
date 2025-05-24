@@ -197,6 +197,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Version of the underlying graphics API the device is using.
 		/// Data is a 32-bit unsigned integer value.
+		/// The major version is encoded in bit 12-16, the minor version in bit 8-12. So the major version can be extracted with <c>(api_version >> 12) & 0xF</c>, the object with <c>(api_version >> 8) & 0xF</c>.
 		/// </summary>
 		api_version = 1,
 		/// <summary>

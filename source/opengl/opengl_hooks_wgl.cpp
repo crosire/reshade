@@ -808,6 +808,19 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 		}
 	}
 
+#if RESHADE_ADDON >= 2
+	reshade::load_addons();
+
+	uint32_t api_version = (major << 12) | (minor << 8);
+	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::opengl, api_version))
+	{
+		major = (api_version >> 12) & 0xF;
+		minor = (api_version >>  8) & 0xF;
+	}
+
+	reshade::unload_addons();
+#endif
+
 	if (major < 3 || (major == 3 && minor < 2))
 		compatibility = true;
 
@@ -821,7 +834,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	attribs[i].name = wgl_attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
 	attribs[i++].value = compatibility ? wgl_attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : wgl_attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 
-	reshade::log::message(reshade::log::level::info, "> Requesting %s OpenGL context for version %d.%d.", compatibility ? "compatibility" : "core", major, minor);
+	reshade::log::message(reshade::log::level::info, "Requesting %s OpenGL context for version %d.%d.", compatibility ? "compatibility" : "core", major, minor);
 
 	if (major < 4 || (major == 4 && minor < 3))
 	{
