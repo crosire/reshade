@@ -763,11 +763,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 
 		resize_swapchain();
 
-		VkSemaphore sem_acquire = VK_NULL_HANDLE;
-		VkSemaphore sem_present = VK_NULL_HANDLE;
-		{   VkSemaphoreCreateInfo create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-			VK_CHECK(VK_CALL_DEVICE(vkCreateSemaphore, device, &create_info, nullptr, &sem_acquire));
-			VK_CHECK(VK_CALL_DEVICE(vkCreateSemaphore, device, &create_info, nullptr, &sem_present));
+		uint32_t sem_index = 0;
+		VkSemaphore sem_acquire[4] = {};
+		VkSemaphore sem_present[4] = {};
+		for (size_t i = 0; i < ARRAYSIZE(sem_acquire); ++i)
+		{
+			VkSemaphoreCreateInfo create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+			VK_CHECK(VK_CALL_DEVICE(vkCreateSemaphore, device, &create_info, nullptr, &sem_acquire[i]));
+			VK_CHECK(VK_CALL_DEVICE(vkCreateSemaphore, device, &create_info, nullptr, &sem_present[i]));
 		}
 
 		while (true)
@@ -785,25 +788,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			}
 
 			uint32_t swapchain_image_index = 0;
+			sem_index = (sem_index + 1) % ARRAYSIZE(sem_acquire);
 
-			VkResult present_res = VK_CALL_DEVICE(vkAcquireNextImageKHR, device, swapchain, UINT64_MAX, sem_acquire, VK_NULL_HANDLE, &swapchain_image_index);
+			VkResult present_res = VK_CALL_DEVICE(vkAcquireNextImageKHR, device, swapchain, UINT64_MAX, sem_acquire[sem_index], VK_NULL_HANDLE, &swapchain_image_index);
 			if (present_res == VK_SUCCESS)
 			{
 				VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 				submit_info.waitSemaphoreCount = 1;
-				VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				submit_info.pWaitSemaphores = &sem_acquire[sem_index];
+				const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 				submit_info.pWaitDstStageMask = &wait_stage;
-				submit_info.pWaitSemaphores = &sem_acquire;
 				submit_info.commandBufferCount = 1;
 				submit_info.pCommandBuffers = &cmd_list[swapchain_image_index];
 				submit_info.signalSemaphoreCount = 1;
-				submit_info.pSignalSemaphores = &sem_present;
+				submit_info.pSignalSemaphores = &sem_present[sem_index];
 
 				VK_CHECK(VK_CALL_CMD(vkQueueSubmit, device, queue, 1, &submit_info, VK_NULL_HANDLE));
 
 				VkPresentInfoKHR present_info { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 				present_info.waitSemaphoreCount = 1;
-				present_info.pWaitSemaphores = &sem_present;
+				present_info.pWaitSemaphores = &sem_present[sem_index];
 				present_info.swapchainCount = 1;
 				present_info.pSwapchains = &swapchain;
 				present_info.pImageIndices = &swapchain_image_index;
@@ -819,8 +823,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		// Wait for all GPU work to finish before destroying objects
 		VK_CALL_DEVICE(vkDeviceWaitIdle, device);
 
-		VK_CALL_DEVICE(vkDestroySemaphore, device, sem_acquire, nullptr);
-		VK_CALL_DEVICE(vkDestroySemaphore, device, sem_present, nullptr);
+		for (size_t i = 0; i < ARRAYSIZE(sem_acquire); ++i)
+		{
+			VK_CALL_DEVICE(vkDestroySemaphore, device, sem_acquire[i], nullptr);
+			VK_CALL_DEVICE(vkDestroySemaphore, device, sem_present[i], nullptr);
+		}
 		VK_CALL_DEVICE(vkFreeCommandBuffers, device, cmd_alloc, uint32_t(cmd_list.size()), cmd_list.data());
 		VK_CALL_DEVICE(vkDestroyCommandPool, device, cmd_alloc, nullptr);
 		VK_CALL_DEVICE(vkDestroySwapchainKHR, device, swapchain, nullptr);
