@@ -617,15 +617,18 @@ void reshade::runtime::on_present()
 	if (_should_save_screenshot && _screenshot_save_before && _effects_enabled && !_effects_rendered_this_frame)
 		save_screenshot("Before");
 
-	if (_back_buffer_resolved != 0)
+	if (!is_loading() && !_techniques.empty())
 	{
-		runtime::render_effects(cmd_list, _back_buffer_targets[0], _back_buffer_targets[1]);
-	}
-	else
-	{
-		cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
-		runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index], _back_buffer_targets[back_buffer_index + 1]);
-		cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+		if (_back_buffer_resolved != 0)
+		{
+			runtime::render_effects(cmd_list, _back_buffer_targets[0], _back_buffer_targets[1]);
+		}
+		else
+		{
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::present, api::resource_usage::render_target);
+			runtime::render_effects(cmd_list, _back_buffer_targets[back_buffer_index], _back_buffer_targets[back_buffer_index + 1]);
+			cmd_list->barrier(back_buffer_resource, api::resource_usage::render_target, api::resource_usage::present);
+		}
 	}
 
 	if (_should_save_screenshot)
