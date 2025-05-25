@@ -482,6 +482,10 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 		compositor_version == 0 && interface_instance != nullptr &&
 		std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version) != 0)
 	{
+		// There is a new internal 'IVRCompositor_29' with changed vtable layout, skip this for now
+		if (compositor_version > 28)
+			compositor_version = 0;
+
 		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
 		if (compositor_version >= 12)
 			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 5, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_012));
@@ -492,7 +496,7 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 		else if (compositor_version == 7)
 			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_007));
 
-		if (compositor_version >= 28)
+		if (compositor_version == 28)
 			reshade::hooks::install("IVRCompositor::SubmitWithArrayIndex", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_SubmitWithArrayIndex_028));
 	}
 
