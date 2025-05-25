@@ -3527,7 +3527,10 @@ void reshade::runtime::load_effects(bool force_load_all)
 	// Ensure HLSL compiler is loaded before trying to compile effects in Direct3D
 	if (_d3d_compiler_module == nullptr && (_renderer_id & 0xF0000) == 0)
 	{
-		if ((_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
+		extern std::filesystem::path get_system_path();
+		// Prefer loading up-to-date system D3DCompiler DLL over local variants
+		if ((_d3d_compiler_module = LoadLibraryW((get_system_path() / L"d3dcompiler_47.dll").c_str())) == nullptr &&
+			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
 			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
 		{
 			log::message(log::level::error, "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!");
