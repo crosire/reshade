@@ -23,11 +23,7 @@ static void on_init(effect_runtime *runtime)
 
 	if (!reshade::get_config_value(nullptr, "ADDON", "SyncEffectRuntimes", s_sync))
 		// Enable synchronization by default if application is using VR
-#ifndef _WIN64
-		s_sync = GetModuleHandleW(L"vrclient.dll") != nullptr || GetModuleHandleW(L"openxr_loader.dll") != nullptr;
-#else
-		s_sync = GetModuleHandleW(L"vrclient_x64.dll") != nullptr || GetModuleHandleW(L"openxr_loader.dll") != nullptr;
-#endif
+		s_sync = GetModuleHandleW(L"openvr_api.dll") != nullptr || GetModuleHandleW(L"openxr_loader.dll") != nullptr;
 }
 static void on_destroy(effect_runtime *runtime)
 {

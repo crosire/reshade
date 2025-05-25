@@ -460,27 +460,107 @@ VR_Interface_Impl(IVRCompositor, SubmitWithArrayIndex, 6, 028, {
 	}
 }, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, uint32_t unTextureArrayIndex, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
 
-VR_Interface_Impl(IVRClientCore, Cleanup, 1, 001, {
-	reshade::log::message(reshade::log::level::info, "Redirecting IVRClientCore::Cleanup(this = %p) ...", pThis);
+void check_and_init_openvr_hooks()
+{
+	vr::EVRInitError error_code = vr::VRInitError_None;
+	vr::VR_GetGenericInterface(vr::IVRCompositor_Version, &error_code);
+}
+
+extern "C" uint32_t VR_CALLTYPE VR_GetInitToken()
+{
+	static const auto trampoline = reshade::hooks::is_hooked(VR_GetInitToken) ? reshade::hooks::call(VR_GetInitToken) : nullptr;
+	return trampoline != nullptr ? trampoline() : vr::VRToken();
+}
+
+extern "C" void *   VR_CALLTYPE VR_Init(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType) // Export used before OpenVR 0.9.17
+{
+	reshade::log::message(reshade::log::level::info, "Redirecting VR_Init(eApplicationType = %d) ...", static_cast<int>(eApplicationType));
+
+	// Force update of interface pointers
+	vr::VRToken() = 0;
+	vr::OpenVRInternal_ModuleContext().Clear();
+
+	void *const interface_instance = reshade::hooks::call(VR_Init)(peError, eApplicationType);
+
+	// Force hooking of compositor interface, since 'VR_GetGenericInterface' may not be called by the application
+	if (interface_instance != nullptr)
+		check_and_init_openvr_hooks();
+
+	return interface_instance;
+}
+
+extern "C" uint32_t VR_CALLTYPE VR_InitInternal(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType) // Export used before OpenVR 1.0.10
+{
+	reshade::log::message(reshade::log::level::info, "Redirecting VR_InitInternal(eApplicationType = %d) ...", static_cast<int>(eApplicationType));
+
+	vr::OpenVRInternal_ModuleContext().Clear();
+
+	return vr::VRToken() = reshade::hooks::call(VR_InitInternal)(peError, eApplicationType);
+}
+
+extern "C" uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType, const char *pStartupInfo)
+{
+	reshade::log::message(reshade::log::level::info, "Redirecting VR_InitInternal2(eApplicationType = %d) ...", static_cast<int>(eApplicationType));
+
+	vr::OpenVRInternal_ModuleContext().Clear();
+
+	return vr::VRToken() = reshade::hooks::call(VR_InitInternal2)(peError, eApplicationType, pStartupInfo);
+}
+
+extern "C" void     VR_CALLTYPE VR_Shutdown() // Export used before OpenVR 0.9.17
+{
+	reshade::log::message(reshade::log::level::info, "Redirecting VR_Shutdown() ...");
 
 	delete s_vr_swapchain;
 	s_vr_swapchain = nullptr;
 
-	VR_Interface_Call();
-}, void)
+	reshade::hooks::call(VR_Shutdown)();
+}
 
-VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
-	assert(pchNameAndVersion != nullptr);
+extern "C" void     VR_CALLTYPE VR_ShutdownInternal()
+{
+	reshade::log::message(reshade::log::level::info, "Redirecting VR_ShutdownInternal() ...");
 
-	reshade::log::message(reshade::log::level::info, "Redirecting IVRClientCore::GetGenericInterface(this = %p, pchNameAndVersion = %s) ...", pThis, pchNameAndVersion);
+	delete s_vr_swapchain;
+	s_vr_swapchain = nullptr;
 
-	void *const interface_instance = VR_Interface_Call(pchNameAndVersion, peError);
+	reshade::hooks::call(VR_ShutdownInternal)();
+}
+
+extern "C" void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterfaceVersion, vr::EVRInitError *peError)
+{
+	if (GetModuleHandleW(L"openvr_api.dll") == nullptr)
+	{
+		// Fall back to SteamVR client library directly, to support usage with OpenXR
+#ifndef _WIN64
+		if (const auto vrclient_module = GetModuleHandleW(L"vrclient.dll"))
+#else
+		if (const auto vrclient_module = GetModuleHandleW(L"vrclient_x64.dll"))
+#endif
+		{
+			if (const auto vrclient_factory = reinterpret_cast<void *(VR_CALLTYPE *)(const char *pInterfaceName, int *pReturnCode)>(GetProcAddress(vrclient_module, "VRClientCoreFactory")))
+			{
+				if (const auto vrclient_core = static_cast<vr::IVRClientCore *>(vrclient_factory(vr::IVRClientCore_Version, reinterpret_cast<int *>(peError))))
+				{
+					return vrclient_core->GetGenericInterface(pchInterfaceVersion, peError);
+				}
+			}
+		}
+
+		if (peError != nullptr)
+			*peError = vr::VRInitError_Init_NotInitialized;
+		return nullptr;
+	}
+
+	reshade::log::message(reshade::log::level::info, "Redirecting VR_GetGenericInterface(pchInterfaceVersion = %s) ...", pchInterfaceVersion);
+
+	void *const interface_instance = reshade::hooks::call(VR_GetGenericInterface)(pchInterfaceVersion, peError);
 
 	// Only install hooks once, for the first compositor interface version encountered to avoid duplicated hooks
 	// This is necessary because vrclient.dll may create an internal compositor instance with a different version than the application to translate older versions, which with hooks installed for both would cause an infinite loop
 	if (static unsigned int compositor_version = 0;
 		compositor_version == 0 && interface_instance != nullptr &&
-		std::sscanf(pchNameAndVersion, "IVRCompositor_%u", &compositor_version) != 0)
+		std::sscanf(pchInterfaceVersion, "IVRCompositor_%u", &compositor_version) != 0)
 	{
 		// There is a new internal 'IVRCompositor_29' with changed vtable layout, skip this for now
 		if (compositor_version > 28)
@@ -501,44 +581,4 @@ VR_Interface_Impl(IVRClientCore, GetGenericInterface, 3, 001, {
 	}
 
 	return interface_instance;
-}, void *, const char *pchNameAndVersion, vr::EVRInitError *peError)
-
-vr::IVRClientCore *g_vr_client_core = nullptr;
-
-extern "C" void *VR_CALLTYPE VRClientCoreFactory(const char *pInterfaceName, int *pReturnCode)
-{
-	assert(pInterfaceName != nullptr);
-
-	reshade::log::message(reshade::log::level::info, "Redirecting VRClientCoreFactory(pInterfaceName = %s) ...", pInterfaceName);
-
-	void *const interface_instance = reshade::hooks::call(VRClientCoreFactory)(pInterfaceName, pReturnCode);
-
-	if (static unsigned int client_core_version = 0;
-		client_core_version == 0 && interface_instance != nullptr &&
-		std::sscanf(pInterfaceName, "IVRClientCore_%u", &client_core_version) != 0)
-	{
-		g_vr_client_core = static_cast<vr::IVRClientCore *>(interface_instance);
-
-		// The 'IVRClientCore::Cleanup' and 'IVRClientCore::GetGenericInterface' functions did not change between 'IVRClientCore_001' and 'IVRClientCore_003'
-		reshade::hooks::install("IVRClientCore::Cleanup", reshade::hooks::vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 1, reinterpret_cast<reshade::hook::address>(&IVRClientCore_Cleanup_001));
-		reshade::hooks::install("IVRClientCore::GetGenericInterface", reshade::hooks::vtable_from_instance(static_cast<vr::IVRClientCore *>(interface_instance)), 3, reinterpret_cast<reshade::hook::address>(&IVRClientCore_GetGenericInterface_001));
-	}
-
-	return interface_instance;
-}
-
-void check_and_init_openvr_hooks()
-{
-	if (g_vr_client_core != nullptr ||
-#ifndef _WIN64
-		GetModuleHandleW(L"vrclient.dll") == nullptr)
-#else
-		GetModuleHandleW(L"vrclient_x64.dll") == nullptr)
-#endif
-		return;
-
-	vr::EVRInitError error_code = vr::VRInitError_None;
-	VRClientCoreFactory(vr::IVRClientCore_Version, reinterpret_cast<int *>(&error_code));
-	if (g_vr_client_core != nullptr)
-		g_vr_client_core->GetGenericInterface(vr::IVRCompositor_Version, &error_code);
 }

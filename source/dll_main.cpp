@@ -335,11 +335,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 					// Do not register Vulkan hooks, since Vulkan layering mechanism is used instead
 
-#ifndef _WIN64
-					reshade::hooks::register_module(L"vrclient.dll");
-#else
-					reshade::hooks::register_module(L"vrclient_x64.dll");
-#endif
+					reshade::hooks::register_module(L"openvr_api.dll");
 				}
 			}
 
