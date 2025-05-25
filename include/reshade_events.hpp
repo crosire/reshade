@@ -50,7 +50,7 @@ namespace reshade
 		/// <para>Callback function signature: <c>bool (api::device_api api, uint32_t &amp;api_version)</c></para>
 		/// </summary>
 		/// <remarks>
-		/// To overwrite the API version, modify <c>desc</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// To overwrite the API version, modify <c>api_version</c> in the callback and return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		create_device = 96,
 

@@ -261,28 +261,28 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, [[maybe_
 #endif
 }
 
-UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
+reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 {
 	if (com_ptr<D3D10Device> device_d3d10;
 		SUCCEEDED(device->QueryInterface(&device_d3d10)))
 	{
 		device = device_d3d10->_orig; // Set device pointer back to original object so that the swap chain creation functions work as expected
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
-		return 10;
+		return reshade::api::device_api::d3d10;
 	}
 	if (com_ptr<D3D11Device> device_d3d11;
 		SUCCEEDED(device->QueryInterface(&device_d3d11)))
 	{
 		device = device_d3d11->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d11));
-		return 11;
+		return reshade::api::device_api::d3d11;
 	}
 	if (com_ptr<D3D12CommandQueue> command_queue_d3d12;
 		SUCCEEDED(device->QueryInterface(&command_queue_d3d12)))
 	{
 		device = command_queue_d3d12->_orig;
 		device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(command_queue_d3d12));
-		return 12;
+		return reshade::api::device_api::d3d12;
 	}
 
 	// Fall back to checking private data in case original device pointer was passed in (e.g. because D3D11 device was created with video support and then queried though 'D3D11Device::QueryInterface')
@@ -295,7 +295,7 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 		{
 			assert(device_d3d10_orig == device_d3d10->_orig);
 			device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d10));
-			return 10;
+			return reshade::api::device_api::d3d10;
 		}
 	}
 	if (com_ptr<ID3D11Device> device_d3d11_orig;
@@ -305,16 +305,16 @@ UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy)
 		{
 			assert(device_d3d11_orig == device_d3d11->_orig);
 			device_proxy = std::move(reinterpret_cast<com_ptr<IUnknown> &>(device_d3d11));
-			return 11;
+			return reshade::api::device_api::d3d11;
 		}
 	}
 
 	// Did not find a proxy device
-	return 0;
+	return static_cast<reshade::api::device_api>(0);
 }
 
 template <typename T>
-static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, UINT sync_interval)
+static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, UINT sync_interval)
 {
 	DXGISwapChain *swapchain_proxy = nullptr;
 
@@ -322,19 +322,19 @@ static void init_swapchain_proxy(T *&swapchain, UINT direct3d_version, const com
 	{
 		reshade::log::message(reshade::log::level::warning, "Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.");
 	}
-	else if (direct3d_version == 10)
+	else if (direct3d_version == reshade::api::device_api::d3d10)
 	{
 		const com_ptr<D3D10Device> &device = reinterpret_cast<const com_ptr<D3D10Device> &>(device_proxy);
 
 		swapchain_proxy = new DXGISwapChain(device.get(), swapchain); // Overwrite returned swap chain with proxy swap chain
 	}
-	else if (direct3d_version == 11)
+	else if (direct3d_version == reshade::api::device_api::d3d11)
 	{
 		const com_ptr<D3D11Device> &device = reinterpret_cast<const com_ptr<D3D11Device> &>(device_proxy);
 
 		swapchain_proxy = new DXGISwapChain(device.get(), swapchain);
 	}
-	else if (direct3d_version == 12)
+	else if (direct3d_version == reshade::api::device_api::d3d12)
 	{
 		if (com_ptr<IDXGISwapChain3> swapchain3;
 			SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
@@ -379,12 +379,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 		return DXGI_ERROR_INVALID_CALL;
 
+	com_ptr<IUnknown> device_proxy;
+	const reshade::api::device_api direct3d_version = query_device(pDevice, device_proxy);
+
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	dump_and_modify_swapchain_desc(desc, sync_interval);
-
-	com_ptr<IUnknown> device_proxy;
-	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, ppSwapChain);
@@ -415,6 +415,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 		return DXGI_ERROR_INVALID_CALL;
 
+	com_ptr<IUnknown> device_proxy;
+	const reshade::api::device_api direct3d_version = query_device(pDevice, device_proxy);
+
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc = {};
@@ -424,11 +427,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		fullscreen_desc.Windowed = TRUE;
 	dump_and_modify_swapchain_desc(desc, sync_interval, &fullscreen_desc, hWnd);
 
-	com_ptr<IUnknown> device_proxy;
-	const UINT direct3d_version = query_device(pDevice, device_proxy);
-
 	// Space Engineers 2 does not set any usage flags, change default to at least include render target output support
-	if (0 == desc.BufferUsage && direct3d_version == 12)
+	if (0 == desc.BufferUsage && direct3d_version == reshade::api::device_api::d3d12)
 		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 
 	g_in_dxgi_runtime = true;
@@ -459,13 +459,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 		return DXGI_ERROR_INVALID_CALL;
 
+	com_ptr<IUnknown> device_proxy;
+	const reshade::api::device_api direct3d_version = query_device(pDevice, device_proxy);
+
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	// UWP applications cannot be set into fullscreen mode
 	dump_and_modify_swapchain_desc(desc, sync_interval);
-
-	com_ptr<IUnknown> device_proxy;
-	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
@@ -495,13 +495,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 		return DXGI_ERROR_INVALID_CALL;
 
+	com_ptr<IUnknown> device_proxy;
+	const reshade::api::device_api direct3d_version = query_device(pDevice, device_proxy);
+
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	// Composition swap chains cannot be set into fullscreen mode
 	dump_and_modify_swapchain_desc(desc, sync_interval);
-
-	com_ptr<IUnknown> device_proxy;
-	const UINT direct3d_version = query_device(pDevice, device_proxy);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);

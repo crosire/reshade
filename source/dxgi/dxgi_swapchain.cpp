@@ -21,7 +21,7 @@ extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interva
 extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
 #endif
 
-extern UINT query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
+extern reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 thread_local bool g_in_dxgi_runtime = false;
@@ -34,7 +34,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(static_cast<ID3D10Device *>(device)),
 	_direct3d_command_queue(nullptr),
-	_direct3d_version(10),
+	_direct3d_version(reshade::api::device_api::d3d10),
 	_impl(new reshade::d3d10::swapchain_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
@@ -49,7 +49,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(static_cast<ID3D10Device *>(device)),
 	_direct3d_command_queue(nullptr),
-	_direct3d_version(10),
+	_direct3d_version(reshade::api::device_api::d3d10),
 	_impl(new reshade::d3d10::swapchain_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
@@ -63,7 +63,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_interface_version(0),
 	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
-	_direct3d_version(11),
+	_direct3d_version(reshade::api::device_api::d3d11),
 	_impl(new reshade::d3d11::swapchain_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
@@ -77,7 +77,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_interface_version(1),
 	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
-	_direct3d_version(11),
+	_direct3d_version(reshade::api::device_api::d3d11),
 	_impl(new reshade::d3d11::swapchain_impl(device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
@@ -91,7 +91,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	_interface_version(3),
 	_direct3d_device(static_cast<ID3D12Device *>(command_queue->_device)), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_command_queue(command_queue),
-	_direct3d_version(12),
+	_direct3d_version(reshade::api::device_api::d3d12),
 	_impl(new reshade::d3d12::swapchain_impl(command_queue->_device, original))
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr && _direct3d_command_queue != nullptr);
@@ -113,13 +113,13 @@ DXGISwapChain::~DXGISwapChain()
 	// Destroy effect runtime first to release all internal references to device objects
 	switch (_direct3d_version)
 	{
-	case 10:
+	case reshade::api::device_api::d3d10:
 		delete static_cast<reshade::d3d10::swapchain_impl *>(_impl);
 		break;
-	case 11:
+	case reshade::api::device_api::d3d11:
 		delete static_cast<reshade::d3d11::swapchain_impl *>(_impl);
 		break;
-	case 12:
+	case reshade::api::device_api::d3d12:
 		delete static_cast<reshade::d3d12::swapchain_impl *>(_impl);
 		break;
 	}
@@ -649,15 +649,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE T
 class unique_direct3d_device_lock : std::unique_lock<std::recursive_mutex>
 {
 public:
-	unique_direct3d_device_lock(IUnknown *direct3d_device, unsigned int direct3d_version, std::recursive_mutex &mutex) : unique_lock(mutex)
+	unique_direct3d_device_lock(IUnknown *direct3d_device, reshade::api::device_api direct3d_version, std::recursive_mutex &mutex) : unique_lock(mutex)
 	{
 		switch (direct3d_version)
 		{
-		case 10:
+		case reshade::api::device_api::d3d10:
 			// 'ID3D10Multithread' and 'ID3D11Multithread' are the same interface
 			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(direct3d_device))->_orig->QueryInterface(&multithread);
 			break;
-		case 11:
+		case reshade::api::device_api::d3d11:
 			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(direct3d_device))->_immediate_context->_orig->QueryInterface(&multithread);
 			break;
 		}
@@ -687,7 +687,7 @@ void DXGISwapChain::on_init(bool resize)
 {
 	assert(!_is_initialized);
 
-	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == reshade::api::device_api::d3d12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl, resize);
@@ -718,7 +718,7 @@ void DXGISwapChain::on_reset(bool resize)
 	if (!_is_initialized)
 		return;
 
-	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == reshade::api::device_api::d3d12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 	reshade::reset_effect_runtime(_impl);
 
@@ -748,11 +748,11 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	// Synchronize access to effect runtime to avoid race conditions between 'load_effects' and 'destroy_effects' causing crashes
 	// This is necessary because Resident Evil 3 calls D3D11 and DXGI functions simultaneously from multiple threads
 	// In case of D3D12, also synchronize access to the command queue while events are invoked and the immediate command list may be accessed
-	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == 12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == reshade::api::device_api::d3d12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
 	switch (_direct3d_version)
 	{
-	case 10:
+	case reshade::api::device_api::d3d10:
 #if RESHADE_ADDON
 		// Behave as if immediate command list is flushed
 		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
@@ -769,7 +769,7 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 #endif
 		reshade::present_effect_runtime(_impl);
 		break;
-	case 11:
+	case reshade::api::device_api::d3d11:
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(
 			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
@@ -785,7 +785,7 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 #endif
 		reshade::present_effect_runtime(_impl);
 		break;
-	case 12:
+	case reshade::api::device_api::d3d12:
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::present>(
 			static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
@@ -814,13 +814,13 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 			HRESULT reason = DXGI_ERROR_INVALID_CALL;
 			switch (_direct3d_version)
 			{
-			case 10:
+			case reshade::api::device_api::d3d10:
 				reason = static_cast<ID3D10Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
-			case 11:
+			case reshade::api::device_api::d3d11:
 				reason = static_cast<ID3D11Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
-			case 12:
+			case reshade::api::device_api::d3d12:
 				reason = static_cast<ID3D12Device *>(_direct3d_device)->GetDeviceRemovedReason();
 				break;
 			}

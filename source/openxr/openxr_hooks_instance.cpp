@@ -46,7 +46,7 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	XrApiLayerCreateInfo api_layer_info = *pApiLayerInfo;
 	api_layer_info.nextInfo = pApiLayerInfo->nextInfo->next;
 
-	reshade::log::message(reshade::log::level::info, "> Requesting new OpenXR instance for API version %hu.%hu.", XR_VERSION_MAJOR(pCreateInfo->applicationInfo.apiVersion), XR_VERSION_MINOR(pCreateInfo->applicationInfo.apiVersion));
+	reshade::log::message(reshade::log::level::info, "Requesting new OpenXR instance for API version %hu.%hu.", XR_VERSION_MAJOR(pCreateInfo->applicationInfo.apiVersion), XR_VERSION_MINOR(pCreateInfo->applicationInfo.apiVersion));
 
 	// Continue calling down the chain
 	const XrResult result = trampoline(pCreateInfo, &api_layer_info, pInstance);

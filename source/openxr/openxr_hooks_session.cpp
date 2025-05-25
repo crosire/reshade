@@ -113,11 +113,16 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 		if (const auto binding_opengl = find_in_structure_chain<XrGraphicsBindingOpenGLWin32KHR>(pCreateInfo, XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR))
 		{
 			extern thread_local reshade::opengl::device_context_impl *g_opengl_context;
+
 			if (g_opengl_context != nullptr)
 			{
 				assert(reinterpret_cast<HGLRC>(g_opengl_context->get_native()) == binding_opengl->hGLRC);
 
 				swapchain_impl = new reshade::openxr::swapchain_impl(g_opengl_context->get_device(), g_opengl_context, *pSession);
+			}
+			else
+			{
+				reshade::log::message(reshade::log::level::warning, "Skipping OpenXR session because it was created without an OpenGL context current.");
 			}
 		}
 		else
@@ -131,15 +136,11 @@ XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateIn
 				device->_dispatch_table.GetDeviceQueue(binding_vulkan->device, binding_vulkan->queueFamilyIndex, binding_vulkan->queueIndex, &queue_handle);
 				assert(queue_handle != VK_NULL_HANDLE);
 
-				reshade::vulkan::command_queue_impl *queue = nullptr;
 				if (const auto queue_it = std::find_if(device->_queues.cbegin(), device->_queues.cend(),
 						[queue_handle](reshade::vulkan::command_queue_impl *queue) { return queue->_orig == queue_handle; });
 					queue_it != device->_queues.cend())
-					queue = *queue_it;
-
-				if (queue != nullptr)
 				{
-					swapchain_impl = new reshade::openxr::swapchain_impl(device, queue, *pSession);
+					swapchain_impl = new reshade::openxr::swapchain_impl(device, *queue_it, *pSession);
 				}
 			}
 			else

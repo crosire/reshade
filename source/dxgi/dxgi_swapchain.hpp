@@ -11,7 +11,7 @@
 struct D3D10Device;
 struct D3D11Device;
 struct D3D12CommandQueue;
-namespace reshade::api { struct swapchain; }
+namespace reshade::api { enum class device_api; struct swapchain; }
 
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
 {
@@ -101,7 +101,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	// Instead spoof a more similar layout to the original 'CDXGISwapChain' implementation, so that the GOG Galaxy overlay successfully extracts and
 	// later uses these command queue pointer offsets directly (the second of which is indexed with the back buffer index), ensuring the correct queue is used.
 	IUnknown *const _direct3d_command_queue, *_direct3d_command_queue_per_back_buffer[DXGI_MAX_SWAP_CHAIN_BUFFERS] = {};
-	const unsigned int _direct3d_version;
+	const reshade::api::device_api _direct3d_version;
 
 	std::recursive_mutex _impl_mutex;
 	reshade::api::swapchain *const _impl;

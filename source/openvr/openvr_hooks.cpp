@@ -196,7 +196,7 @@ static vr::EVRCompositorError on_vr_submit_opengl(vr::IVRCompositor *compositor,
 
 	const GLuint target_texture = s_vr_swapchain->get_back_buffer().handle & 0xFFFFFFFF;
 
-	// Target object created in 'on_vr_submit' is a 2D texture
+	// The side-by-side texture created in 'on_vr_submit' is a 2D texture
 	flags = static_cast<vr::EVRSubmitFlags>(flags & ~(vr::Submit_GlRenderBuffer | vr::Submit_GlArrayTexture));
 
 	const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);
@@ -253,7 +253,7 @@ static vr::EVRCompositorError on_vr_submit_vulkan(vr::IVRCompositor *compositor,
 	// Multisampled source textures were already resolved, so sample count is always one at this point
 	target_texture.m_nSampleCount = target_desc.texture.samples;
 
-	// The side-by-side texture is not an array texture
+	// The side-by-side texture created in 'on_vr_submit' is not an array texture
 	flags = static_cast<vr::EVRSubmitFlags>(flags & ~vr::Submit_VulkanTextureWithArrayData);
 
 	const vr::VRTextureBounds_t left_bounds = calc_side_by_side_bounds(vr::Eye_Left, bounds);

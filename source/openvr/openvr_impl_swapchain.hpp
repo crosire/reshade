@@ -41,7 +41,7 @@ namespace reshade::openvr
 		api::rect get_eye_rect(vr::EVREye eye) const;
 		api::subresource_box get_eye_subresource_box(vr::EVREye eye) const;
 
-		bool on_init();
+		void on_init();
 		void on_reset();
 
 		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
@@ -51,7 +51,6 @@ namespace reshade::openvr
 		api::command_queue *const _graphics_queue;
 		api::resource _side_by_side_texture = {};
 		void *_direct3d_device = nullptr;
-		bool _is_opengl = false;
 		api::color_space _back_buffer_color_space = api::color_space::unknown;
 	};
 }

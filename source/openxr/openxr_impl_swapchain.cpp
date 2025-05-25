@@ -162,8 +162,11 @@ void reshade::openxr::swapchain_impl::on_present(uint32_t view_count, const api:
 			on_reset();
 
 			// Only make format typeless for format variants that support sRGB, so to not break format variants that can be either unorm or float
-			const api::format format = (source_desc.texture.format == api::format::r8g8b8a8_unorm || source_desc.texture.format == api::format::r8g8b8a8_unorm_srgb || source_desc.texture.format == api::format::b8g8r8a8_unorm || source_desc.texture.format == api::format::b8g8r8a8_unorm_srgb) ?
-				api::format_to_typeless(source_desc.texture.format) : source_desc.texture.format;
+			const api::format format = (
+				source_desc.texture.format == api::format::r8g8b8a8_unorm ||
+				source_desc.texture.format == api::format::r8g8b8a8_unorm_srgb ||
+				source_desc.texture.format == api::format::b8g8r8a8_unorm ||
+				source_desc.texture.format == api::format::b8g8r8a8_unorm_srgb) ? api::format_to_typeless(source_desc.texture.format) : source_desc.texture.format;
 
 			if (!_device->create_resource(
 					api::resource_desc(target_width, region_height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest),

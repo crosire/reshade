@@ -10,9 +10,11 @@
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "opengl/opengl_impl_device_context.hpp"
+#include "vulkan/vulkan_impl_device.hpp"
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
+#include "lockfree_linear_map.hpp"
 #include <cmath> // std::abs, std::ceil, std::floor
 #include <algorithm> // std::max, std::min
 
@@ -45,16 +47,16 @@ reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::comman
 	_device(device),
 	_graphics_queue(graphics_queue)
 {
-	_is_opengl = device->get_api() == api::device_api::opengl;
-
 	create_effect_runtime(this, graphics_queue, true);
 }
 
 reshade::openvr::swapchain_impl::~swapchain_impl()
 {
 	extern thread_local reshade::opengl::device_context_impl *g_opengl_context;
+	extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
+
 	// Do not access '_device' object to check the device API, in case it was already destroyed
-	if (_is_opengl && g_opengl_context == nullptr)
+	if (g_opengl_context == nullptr && (_direct3d_device == nullptr && g_vulkan_devices.at(_device) == nullptr))
 	{
 		return; // Cannot clean up if OpenGL context was already destroyed
 	}
@@ -116,7 +118,7 @@ reshade::api::subresource_box reshade::openvr::swapchain_impl::get_eye_subresour
 	};
 }
 
-bool reshade::openvr::swapchain_impl::on_init()
+void reshade::openvr::swapchain_impl::on_init()
 {
 	// Created in 'on_vr_submit' below
 	assert(_side_by_side_texture != 0);
@@ -126,8 +128,6 @@ bool reshade::openvr::swapchain_impl::on_init()
 #endif
 
 	init_effect_runtime(this);
-
-	return true;
 }
 void reshade::openvr::swapchain_impl::on_reset()
 {
@@ -156,21 +156,21 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 	reshade::api::subresource_box source_box;
 	if (bounds != nullptr)
 	{
-		source_box.left  = static_cast<uint32_t>(std::floor(source_desc.texture.width * std::min(bounds->uMin, bounds->uMax)));
-		source_box.top   = static_cast<uint32_t>(std::floor(source_desc.texture.height * std::min(bounds->vMin, bounds->vMax)));
+		source_box.left = static_cast<uint32_t>(std::floor(source_desc.texture.width * std::min(bounds->uMin, bounds->uMax)));
+		source_box.top = static_cast<uint32_t>(std::floor(source_desc.texture.height * std::min(bounds->vMin, bounds->vMax)));
 		source_box.front = 0;
-		source_box.right  = static_cast<uint32_t>(std::ceil(source_desc.texture.width * std::max(bounds->uMin, bounds->uMax)));
+		source_box.right = static_cast<uint32_t>(std::ceil(source_desc.texture.width * std::max(bounds->uMin, bounds->uMax)));
 		source_box.bottom = static_cast<uint32_t>(std::ceil(source_desc.texture.height * std::max(bounds->vMin, bounds->vMax)));
-		source_box.back   = 1;
+		source_box.back = 1;
 	}
 	else
 	{
-		source_box.left  = 0;
-		source_box.top   = 0;
+		source_box.left = 0;
+		source_box.top = 0;
 		source_box.front = 0;
-		source_box.right  = source_desc.texture.width;
+		source_box.right = source_desc.texture.width;
 		source_box.bottom = source_desc.texture.height;
-		source_box.back   = 1;
+		source_box.back = 1;
 	}
 
 	const uint32_t region_width = source_box.width();
@@ -188,15 +188,20 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 	const auto width_difference = std::abs(static_cast<int32_t>(target_width) - static_cast<int32_t>(target_desc.texture.width));
 	const auto height_difference = std::abs(static_cast<int32_t>(region_height) - static_cast<int32_t>(target_desc.texture.height));
 
-	if (width_difference > 2 || height_difference > 2 || api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(target_desc.texture.format))
+	if (width_difference > 2 ||
+		height_difference > 2 ||
+		api::format_to_typeless(source_desc.texture.format) != api::format_to_typeless(target_desc.texture.format))
 	{
 		reshade::log::message(reshade::log::level::info, "Resizing runtime %p in VR to %ux%u ...", this, target_width, region_height);
 
 		on_reset();
 
 		// Only make format typeless for format variants that support sRGB, so to not break format variants that can be either unorm or float
-		const api::format format = (source_desc.texture.format == api::format::r8g8b8a8_unorm || source_desc.texture.format == api::format::r8g8b8a8_unorm_srgb || source_desc.texture.format == api::format::b8g8r8a8_unorm || source_desc.texture.format == api::format::b8g8r8a8_unorm_srgb) ?
-			api::format_to_typeless(source_desc.texture.format) : source_desc.texture.format;
+		const api::format format = (
+			source_desc.texture.format == api::format::r8g8b8a8_unorm ||
+			source_desc.texture.format == api::format::r8g8b8a8_unorm_srgb ||
+			source_desc.texture.format == api::format::b8g8r8a8_unorm ||
+			source_desc.texture.format == api::format::b8g8r8a8_unorm_srgb) ? api::format_to_typeless(source_desc.texture.format) : source_desc.texture.format;
 
 		if (!_device->create_resource(
 				api::resource_desc(target_width, region_height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source | api::resource_usage::copy_dest),
@@ -208,8 +213,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 		_device->set_resource_name(_side_by_side_texture, "ReShade side-by-side texture");
 
-		if (!on_init())
-			return false;
+		on_init();
 	}
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
