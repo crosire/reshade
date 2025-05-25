@@ -119,10 +119,20 @@ void reshadefx::preprocessor::add_include_path(const std::filesystem::path &path
 	assert(!path.empty());
 	_include_paths.push_back(path);
 }
-bool reshadefx::preprocessor::add_macro_definition(const std::string &name, const macro &macro)
+bool reshadefx::preprocessor::add_macro_definition(const std::string &name, const macro &new_macro)
 {
 	assert(!name.empty());
-	return _macros.emplace(name, macro).second;
+	const auto insert = _macros.emplace(name, new_macro);
+	if (insert.second)
+		return true;
+	// Allow redefinition of identical macros
+	const macro &existing_macro = insert.first->second;
+	return
+		existing_macro.replacement_list == new_macro.replacement_list &&
+		existing_macro.parameters == new_macro.parameters &&
+		existing_macro.is_predefined == new_macro.is_predefined &&
+		existing_macro.is_variadic == new_macro.is_variadic &&
+		existing_macro.is_function_like == new_macro.is_function_like;
 }
 
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
