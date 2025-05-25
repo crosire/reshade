@@ -32,7 +32,7 @@ static auto rational_to_floating_point(DXGI_RATIONAL value) -> float
 	return value.Denominator != 0 ? static_cast<float>(value.Numerator) / static_cast<float>(value.Denominator) : 0.0f;
 }
 
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc, UINT &sync_interval)
+bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &internal_desc, UINT &sync_interval)
 {
 	reshade::api::swapchain_desc desc = {};
 	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
@@ -66,7 +66,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc, UINT &sync_inter
 	desc.fullscreen_state = internal_desc.Windowed == FALSE;
 	desc.fullscreen_refresh_rate = rational_to_floating_point(internal_desc.BufferDesc.RefreshRate);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, internal_desc.OutputWindow))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(api, desc, internal_desc.OutputWindow))
 	{
 		internal_desc.BufferDesc.Width = desc.back_buffer.texture.width;
 		internal_desc.BufferDesc.Height = desc.back_buffer.texture.height;
@@ -96,7 +96,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &internal_desc, UINT &sync_inter
 
 	return false;
 }
-bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window)
+bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &internal_desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window)
 {
 	reshade::api::swapchain_desc desc = {};
 	desc.back_buffer.type = reshade::api::resource_type::texture_2d;
@@ -137,7 +137,7 @@ bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &internal_desc, UINT &sync_inte
 		desc.fullscreen_refresh_rate = rational_to_floating_point(fullscreen_desc->RefreshRate);
 	}
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(api, desc, window))
 	{
 		internal_desc.Width = desc.back_buffer.texture.width;
 		internal_desc.Height = desc.back_buffer.texture.height;
@@ -198,7 +198,7 @@ static std::string format_to_string(DXGI_FORMAT format)
 	}
 }
 
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc, [[maybe_unused]] UINT &sync_interval)
+static void dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, [[maybe_unused]] UINT &sync_interval)
 {
 	reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
@@ -221,10 +221,10 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc, [[maybe_u
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 #if RESHADE_ADDON
-	modify_swapchain_desc(desc, sync_interval);
+	modify_swapchain_desc(api, desc, sync_interval);
 #endif
 }
-static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, [[maybe_unused]] UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = nullptr, [[maybe_unused]] HWND window = nullptr)
+static void dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, [[maybe_unused]] UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = nullptr, [[maybe_unused]] HWND window = nullptr)
 {
 	reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
@@ -257,7 +257,7 @@ static void dump_and_modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, [[maybe_
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 #if RESHADE_ADDON
-	modify_swapchain_desc(desc, sync_interval, fullscreen_desc, window);
+	modify_swapchain_desc(api, desc, sync_interval, fullscreen_desc, window);
 #endif
 }
 
@@ -384,7 +384,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
-	dump_and_modify_swapchain_desc(desc, sync_interval);
+	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, ppSwapChain);
@@ -425,7 +425,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		fullscreen_desc = *pFullscreenDesc;
 	else
 		fullscreen_desc.Windowed = TRUE;
-	dump_and_modify_swapchain_desc(desc, sync_interval, &fullscreen_desc, hWnd);
+	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval, &fullscreen_desc, hWnd);
 
 	// Space Engineers 2 does not set any usage flags, change default to at least include render target output support
 	if (0 == desc.BufferUsage && direct3d_version == reshade::api::device_api::d3d12)
@@ -465,7 +465,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	// UWP applications cannot be set into fullscreen mode
-	dump_and_modify_swapchain_desc(desc, sync_interval);
+	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
@@ -501,7 +501,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	// Composition swap chains cannot be set into fullscreen mode
-	dump_and_modify_swapchain_desc(desc, sync_interval);
+	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);

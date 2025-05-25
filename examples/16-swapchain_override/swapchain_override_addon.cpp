@@ -6,7 +6,7 @@
 #include <reshade.hpp>
 #include <cstdlib>
 
-static bool on_create_swapchain(reshade::api::swapchain_desc &desc, void *)
+static bool on_create_swapchain(reshade::api::device_api, reshade::api::swapchain_desc &desc, void *)
 {
 	bool modified = false;
 

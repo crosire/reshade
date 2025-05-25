@@ -117,7 +117,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 		desc.sync_interval = UINT32_MAX;
 	}
 
-	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(desc, window))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(reshade::api::device_api::d3d9, desc, window))
 	{
 		pp.BackBufferWidth = desc.back_buffer.texture.width;
 		pp.BackBufferHeight = desc.back_buffer.texture.height;

@@ -17,8 +17,8 @@
 #include "runtime_manager.hpp"
 
 #if RESHADE_ADDON
-extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
-extern bool modify_swapchain_desc(DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
+extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
+extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
 #endif
 
 extern reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
@@ -342,7 +342,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			desc.BufferDesc.Format = NewFormat;
 		desc.Flags = SwapChainFlags;
 
-		if (modify_swapchain_desc(desc, _sync_interval))
+		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval))
 		{
 			BufferCount = desc.BufferCount;
 			Width = desc.BufferDesc.Width;
@@ -589,7 +589,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 		fullscreen_desc.Windowed = !fullscreen;
 
-		if (modify_swapchain_desc(desc, _sync_interval, &fullscreen_desc, hwnd))
+		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval, &fullscreen_desc, hwnd))
 		{
 			BufferCount = desc.BufferCount;
 			Width = desc.Width;
