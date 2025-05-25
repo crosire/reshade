@@ -240,7 +240,7 @@ void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] co
 
 		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
 		if (is_presenting_entire_surface(source_rect, window_override))
-			reshade::present_effect_runtime(this, _device);
+			reshade::present_effect_runtime(this);
 
 		_hwnd = nullptr;
 

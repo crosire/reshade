@@ -105,7 +105,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
 
-		reshade::present_effect_runtime(this, _parent_queue);
+		reshade::present_effect_runtime(this);
 
 		_parent_queue->flush_immediate_command_list();
 	}

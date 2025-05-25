@@ -35,7 +35,7 @@ namespace reshade
 
 		bool on_init();
 		void on_reset();
-		void on_present(api::command_queue *present_queue);
+		void on_present();
 
 		uint64_t get_native() const final { return _swapchain->get_native(); }
 
@@ -342,9 +342,6 @@ namespace reshade
 		std::vector<api::resource_view> _back_buffer_targets;
 
 		api::state_block _app_state = {};
-
-		api::fence _queue_sync_fence = {};
-		uint64_t _queue_sync_value = 0;
 		#pragma endregion
 
 		#pragma region Screenshot

@@ -144,7 +144,7 @@ void reshade::openxr::swapchain_impl::on_present(uint32_t view_count, const api:
 		invoke_addon_event<addon_event::present>(_graphics_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
 
-		present_effect_runtime(this, _graphics_queue);
+		present_effect_runtime(this);
 
 		cmd_list->barrier(view_textures[0], api::resource_usage::present, before_state);
 	}
@@ -195,7 +195,7 @@ void reshade::openxr::swapchain_impl::on_present(uint32_t view_count, const api:
 		invoke_addon_event<addon_event::present>(_graphics_queue, this, nullptr, nullptr, 0, nullptr);
 #endif
 
-		present_effect_runtime(this, _graphics_queue);
+		present_effect_runtime(this);
 
 		cmd_list->barrier(_side_by_side_texture, api::resource_usage::present, api::resource_usage::copy_source);
 

@@ -24,6 +24,7 @@ namespace reshade::openvr
 		~swapchain_impl();
 
 		api::device *get_device() final;
+		api::command_queue *get_command_queue() { return _graphics_queue; }
 
 		void *get_hwnd() const final { return nullptr; }
 
@@ -43,10 +44,11 @@ namespace reshade::openvr
 		bool on_init();
 		void on_reset();
 
-		bool on_vr_submit(api::command_queue *queue, vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
+		bool on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer);
 
 	private:
 		api::device *const _device;
+		api::command_queue *const _graphics_queue;
 		api::resource _side_by_side_texture = {};
 		void *_direct3d_device = nullptr;
 		bool _is_opengl = false;

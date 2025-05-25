@@ -72,8 +72,8 @@ void reshade::reset_effect_runtime(api::swapchain *swapchain)
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
 		runtime->on_reset();
 }
-void reshade::present_effect_runtime(api::swapchain *swapchain, reshade::api::command_queue *present_queue)
+void reshade::present_effect_runtime(api::swapchain *swapchain)
 {
 	if (const auto runtime = swapchain->get_private_data<reshade::runtime>())
-		runtime->on_present(present_queue);
+		runtime->on_present();
 }

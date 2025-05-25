@@ -154,7 +154,8 @@ namespace reshade::vulkan
 		const VkLayerDispatchTable _dispatch_table;
 		const VkLayerInstanceDispatchTable _instance_dispatch_table;
 
-		uint32_t _graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
+		command_queue_impl *_primary_graphics_queue = nullptr;
+		uint32_t _primary_graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 		std::vector<command_queue_impl *> _queues;
 
 		const bool _push_descriptor_ext;

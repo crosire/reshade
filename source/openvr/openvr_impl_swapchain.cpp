@@ -42,7 +42,8 @@ reshade::openvr::swapchain_impl::swapchain_impl(D3D12CommandQueue *queue, vr::IV
 
 reshade::openvr::swapchain_impl::swapchain_impl(api::device *device, api::command_queue *graphics_queue, vr::IVRCompositor *compositor) :
 	api_object_impl(compositor),
-	_device(device)
+	_device(device),
+	_graphics_queue(graphics_queue)
 {
 	_is_opengl = device->get_api() == api::device_api::opengl;
 
@@ -143,7 +144,7 @@ void reshade::openvr::swapchain_impl::on_reset()
 	_side_by_side_texture = {};
 }
 
-bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer)
+bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource eye_texture, vr::EColorSpace color_space, const vr::VRTextureBounds_t *bounds, uint32_t layer)
 {
 	assert(eye < 2 && eye_texture != 0);
 
@@ -211,7 +212,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr
 			return false;
 	}
 
-	api::command_list *const cmd_list = queue->get_immediate_command_list();
+	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 
 	// Copy region of the source texture (in case of an array texture, copy from the layer corresponding to the current eye)
 	const api::subresource_box dest_box = get_eye_subresource_box(eye);
@@ -250,11 +251,11 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(api::command_queue *queue, vr
 
 #if RESHADE_ADDON
 	const reshade::api::rect eye_rect = get_eye_rect(eye);
-	invoke_addon_event<reshade::addon_event::present>(queue, this, &eye_rect, &eye_rect, 0, nullptr);
+	invoke_addon_event<reshade::addon_event::present>(_graphics_queue, this, &eye_rect, &eye_rect, 0, nullptr);
 #endif
 
 	if (eye == vr::Eye_Right)
-		reshade::present_effect_runtime(this, queue);
+		reshade::present_effect_runtime(this);
 
 	return true;
 }

@@ -297,11 +297,9 @@ void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime)
 	if (runtime == nullptr)
 		return;
 
-	reshade::api::command_queue *const present_queue = runtime->get_command_queue();
+	static_cast<reshade::runtime *>(runtime)->on_present();
 
-	static_cast<reshade::runtime *>(runtime)->on_present(present_queue);
-
-	present_queue->flush_immediate_command_list();
+	runtime->get_command_queue()->flush_immediate_command_list();
 }
 
 #if RESHADE_GUI

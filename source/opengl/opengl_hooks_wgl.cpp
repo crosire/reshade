@@ -337,7 +337,7 @@ public:
 #endif
 
 		// Assume that the correct OpenGL context is still current here
-		reshade::present_effect_runtime(this, context);
+		reshade::present_effect_runtime(this);
 
 #ifndef NDEBUG
 		GLenum type = GL_NONE; char message[512] = "";

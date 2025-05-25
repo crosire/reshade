@@ -14,5 +14,5 @@ namespace reshade
 
 	void init_effect_runtime(api::swapchain *swapchain);
 	void reset_effect_runtime(api::swapchain *swapchain);
-	void present_effect_runtime(api::swapchain *swapchain, api::command_queue *present_queue);
+	void present_effect_runtime(api::swapchain *swapchain);
 }

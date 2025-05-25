@@ -6,7 +6,7 @@
 #pragma once
 
 #include "d3d12_impl_command_list_immediate.hpp"
-#include <shared_mutex>
+#include <mutex>
 
 namespace reshade::d3d12
 {

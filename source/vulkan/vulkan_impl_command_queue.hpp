@@ -6,6 +6,7 @@
 #pragma once
 
 #include "vulkan_impl_command_list_immediate.hpp"
+#include <mutex>
 
 namespace reshade::vulkan
 {
@@ -34,6 +35,8 @@ namespace reshade::vulkan
 		bool signal(api::fence fence, uint64_t value) final;
 
 		uint64_t get_timestamp_frequency() const final;
+
+		mutable std::recursive_mutex _mutex;
 
 	private:
 		device_impl *const _device_impl;

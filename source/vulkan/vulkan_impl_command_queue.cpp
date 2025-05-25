@@ -65,8 +65,7 @@ void reshade::vulkan::command_queue_impl::wait_idle() const
 void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 {
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(submit_info);
+	flush_immediate_command_list(submit_info);
 }
 void reshade::vulkan::command_queue_impl::flush_immediate_command_list(VkSubmitInfo &semaphore_info) const
 {

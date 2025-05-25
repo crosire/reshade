@@ -554,9 +554,6 @@ void reshade::runtime::on_reset()
 	destroy_state_block(_device, _app_state);
 	_app_state = {};
 
-	_device->destroy_fence(_queue_sync_fence);
-	_queue_sync_fence = {};
-
 	_width = _height = 0;
 	_back_buffer_format = api::format::unknown;
 	_back_buffer_samples = 1;
@@ -575,31 +572,10 @@ void reshade::runtime::on_reset()
 
 	log::message(log::level::info, "Destroyed runtime environment on runtime %p ('%s').", this, _config_path.u8string().c_str());
 }
-void reshade::runtime::on_present(api::command_queue *present_queue)
+void reshade::runtime::on_present()
 {
-	assert(present_queue != nullptr);
-
 	if (!_is_initialized)
 		return;
-
-	// If the application is presenting with a different queue than rendering, synchronize these two queues first
-	// This ensures that it has finished rendering before ReShade applies its own rendering
-	if (present_queue != _graphics_queue)
-	{
-		if (_queue_sync_fence == 0 &&
-			!_device->create_fence(_queue_sync_value, api::fence_flags::none, &_queue_sync_fence))
-		{
-			log::message(log::level::error, "Failed to create queue synchronization fence!");
-			return;
-		}
-
-		_queue_sync_value++;
-
-		// Signal from the queue the application is presenting with
-		if (present_queue->signal(_queue_sync_fence, _queue_sync_value))
-			// Wait on that before the immediate command list flush below
-			_graphics_queue->wait(_queue_sync_fence, _queue_sync_value);
-	}
 
 #if RESHADE_ADDON
 	_is_in_present_call = true;
@@ -847,14 +823,6 @@ void reshade::runtime::on_present(api::command_queue *present_queue)
 
 	// Apply previous state from application
 	apply_state(cmd_list, _app_state);
-
-	if (present_queue != _graphics_queue)
-	{
-		_queue_sync_value++;
-
-		if (_graphics_queue->signal(_queue_sync_fence, _queue_sync_value))
-			present_queue->wait(_queue_sync_fence, _queue_sync_value);
-	}
 
 	// Update input status
 	if (_input != nullptr)
