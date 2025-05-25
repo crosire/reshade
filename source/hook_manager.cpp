@@ -516,7 +516,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	// Do a case insensitive comparison here to catch cases like "OPENGL32" refering to the same module as "opengl32.dll"
 	const std::filesystem::path target_name = target_path.stem();
 	const std::filesystem::path replacement_name = g_reshade_dll_path.stem();
-	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0)
+	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0 && (!g_reshade_dll_path.has_extension() || g_reshade_dll_path.extension() == L".dll"))
 	{
 		assert(target_path != g_reshade_dll_path);
 
