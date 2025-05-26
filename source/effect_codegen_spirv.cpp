@@ -1008,7 +1008,7 @@ private:
 		{
 			const id res = emit_constant(info.type, info.initializer_value, true);
 
-			add_name(res, info.name.c_str());
+			add_name(res, info.unique_name.c_str());
 
 			const auto add_spec_constant = [this](const spirv_instruction &inst, const uniform &info, const constant &initializer_value, size_t initializer_offset) {
 				assert(inst.op == spv::OpSpecConstant || inst.op == spv::OpSpecConstantTrue || inst.op == spv::OpSpecConstantFalse);
@@ -1130,7 +1130,7 @@ private:
 			_global_ubo_types.push_back(
 				convert_type(ubo_type, false, spv::StorageClassUniform, spv::ImageFormatUnknown, info.type.is_array() ? array_stride : 0u));
 
-			add_member_name(_global_ubo_type, member_index, info.name.c_str());
+			add_member_name(_global_ubo_type, member_index, info.unique_name.c_str());
 
 			add_member_decoration(_global_ubo_type, member_index, spv::DecorationOffset, { info.offset });
 

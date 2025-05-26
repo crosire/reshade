@@ -2014,6 +2014,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		uniform_info.name = name;
 		uniform_info.type = type;
 
+		// Add namespace scope to avoid name clashes
+		uniform_info.unique_name = 'V' + current_scope().name + name;
+		std::replace(uniform_info.unique_name.begin(), uniform_info.unique_name.end(), ':', '_');
+
 		uniform_info.annotations = std::move(sampler_info.annotations);
 
 		uniform_info.initializer_value = std::move(initializer.constant);

@@ -1868,7 +1868,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					if (_renderer_id >= 0x20000)
 						continue;
 
-					code_preamble += "#define SPEC_CONSTANT_" + spec_constant.name + ' ';
+					code_preamble += "#define SPEC_CONSTANT_" + spec_constant.unique_name + ' ';
 
 					for (unsigned int i = 0; i < spec_constant.type.components(); ++i)
 					{

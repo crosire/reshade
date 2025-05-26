@@ -238,6 +238,7 @@ namespace reshadefx
 	{
 		reshadefx::type type = {};
 		std::string name;
+		std::string unique_name;
 		uint32_t size = 0;
 		uint32_t offset = 0;
 		std::vector<annotation> annotations;

@@ -807,7 +807,7 @@ private:
 	id   define_uniform(const location &loc, uniform &info) override
 	{
 		const id res = make_id();
-		define_name<naming::unique>(res, info.name);
+		define_name<naming::unique>(res, info.unique_name);
 
 		if (_uniforms_to_spec_constants && info.has_initializer_value)
 		{
@@ -826,7 +826,7 @@ private:
 			code += ' ' + id_to_name(res) + " = ";
 			if (!info.type.is_scalar())
 				write_type<false, false>(code, info.type);
-			code += "(SPEC_CONSTANT_" + info.name + ");\n";
+			code += "(SPEC_CONSTANT_" + info.unique_name + ");\n";
 
 			_module.spec_constants.push_back(info);
 		}
