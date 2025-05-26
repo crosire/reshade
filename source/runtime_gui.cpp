@@ -4580,7 +4580,7 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 
 		if (!is_loading() && instance.effect_index < _effects.size())
 		{
-			// Clear modified flag, so that errors are updated next frame (see 'update_and_render_effects')
+			// Clear modified flag, so that errors are updated next frame (see 'update_effects')
 			instance.editor.clear_modified();
 
 			reload_effect(instance.effect_index);

@@ -1489,11 +1489,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	const size_t source_hash = std::hash<std::string>()(attributes);
 	if (permutation_index == 0 && (source_file != effect.source_file || source_hash != effect.source_hash))
 	{
+		if (effect.created)
+			return false; // Cannot reset an effect that has not been destroyed
+
 		// Source hash has changed, reset effect and load from scratch, rather than updating
-		effect = {};
-		effect.source_file = source_file;
-		effect.source_hash = source_hash;
-		effect.addon = source_file.extension() == L".addonfx";
+		effect = {
+			source_file,
+			source_hash,
+			source_file.extension() == L".addonfx"
+		};
 	}
 
 	if (_effect_load_skipping && !force_load)
@@ -1509,7 +1513,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			if (effect.skipped)
 			{
-				if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
+				if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
 					_reload_remaining_effects--;
 				return false;
 			}
@@ -2301,6 +2305,8 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	if (!effect.compiled)
 		return false;
 
+	assert(!effect.created);
+
 	effect::permutation &permutation = effect.permutations[permutation_index];
 
 	// Create textures now, since they are referenced when building samplers below
@@ -2877,6 +2883,8 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	if (!descriptor_writes.empty())
 		_device->update_descriptor_tables(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 
+	effect.created = true;
+
 #if 0 // TODO: This no longer works, since assembly may be needed to recreate effect after reloading to get preprocessor text
 	// Clear effect assembly now that it was consumed
 	permutation.assembly.clear();
@@ -2975,6 +2983,8 @@ void reshade::runtime::destroy_effect(size_t effect_index, bool unload)
 
 			permutation.texture_semantic_to_binding.clear();
 		}
+
+		effect.created = false;
 	}
 
 	if (!unload)

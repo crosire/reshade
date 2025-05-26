@@ -212,6 +212,7 @@ namespace reshade
 
 		unsigned int rendering = 0;
 		bool skipped = false;
+		bool created = false;
 		bool compiled = false;
 		bool preprocessed = false;
 		std::string errors;
