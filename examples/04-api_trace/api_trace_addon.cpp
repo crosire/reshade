@@ -343,30 +343,22 @@ static void on_init_swapchain(swapchain *swapchain, bool)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-	const device_api api = swapchain->get_device()->get_api();
-
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const resource buffer = swapchain->get_back_buffer(i);
 
 		s_resources.emplace(buffer.handle);
-		if (api == device_api::d3d9 || api == device_api::opengl)
-			s_resource_views.emplace(buffer.handle);
 	}
 }
 static void on_destroy_swapchain(swapchain *swapchain, bool)
 {
 	const std::unique_lock<std::shared_mutex> lock(s_mutex);
 
-	const device_api api = swapchain->get_device()->get_api();
-
 	for (uint32_t i = 0; i < swapchain->get_back_buffer_count(); ++i)
 	{
 		const resource buffer = swapchain->get_back_buffer(i);
 
 		s_resources.erase(buffer.handle);
-		if (api == device_api::d3d9 || api == device_api::opengl)
-			s_resource_views.erase(buffer.handle);
 	}
 }
 static void on_init_sampler(device *device, const sampler_desc &desc, sampler handle)

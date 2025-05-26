@@ -2672,43 +2672,35 @@ void Direct3DDevice9::init_auto_depth_stencil()
 			auto_depth_stencil = std::move(auto_depth_stencil_replacement);
 	}
 
-	IDirect3DSurface9 *const surface = auto_depth_stencil.release(); // This internal reference is later released in 'reset_auto_depth_stencil' below
-	_auto_depth_stencil = new Direct3DDepthStencilSurface9(this, surface, old_desc);
+	_auto_depth_stencil = new Direct3DDepthStencilSurface9(
+		this,
+		// This internal reference is later released in 'reset_auto_depth_stencil' below
+		auto_depth_stencil.release(),
+		old_desc);
 
 	// The auto depth-stencil starts with a public reference count of zero
 	_auto_depth_stencil->_ref = 0;
 
-	// In case surface was replaced with a texture resource
-	com_ptr<IDirect3DResource9> resource;
-	if (SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
-		desc.type = reshade::api::resource_type::texture_2d;
-	else
-		resource = surface;
-
-	reshade::invoke_addon_event<reshade::addon_event::init_resource>(
-		this,
-		desc,
-		nullptr,
-		reshade::api::resource_usage::depth_stencil,
-		to_handle(resource.get()));
-	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
-		this,
-		to_handle(resource.get()),
-		reshade::api::resource_usage::depth_stencil,
-		reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
-		to_handle(surface));
-
-	if (reshade::has_addon_event<reshade::addon_event::destroy_resource>())
+	// Communicate auto depth-stencil view to add-ons
 	{
-		register_destruction_callback_d3d9(resource.get(), [this, resource = resource.get()]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource));
-		});
-	}
-	if (reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
-	{
-		register_destruction_callback_d3d9(surface, [this, surface]() {
-			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(surface));
-		}, surface == resource ? 1 : 0);
+		com_ptr<IDirect3DResource9> resource;
+		if (FAILED(_auto_depth_stencil->_orig->GetContainer(IID_PPV_ARGS(&resource))))
+			resource = _auto_depth_stencil->_orig;
+		else
+			desc.type = reshade::api::resource_type::texture_2d; // In case surface was replaced with a texture resource
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource>(
+			this,
+			desc,
+			nullptr,
+			reshade::api::resource_usage::depth_stencil,
+			to_handle(resource.get()));
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+			this,
+			to_handle(resource.get()),
+			reshade::api::resource_usage::depth_stencil,
+			reshade::api::resource_view_desc(desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, desc.texture.format, 0, 1, 0, 1),
+			to_handle(_auto_depth_stencil->_orig));
 	}
 
 	// Communicate default state to add-ons
@@ -2720,6 +2712,16 @@ void Direct3DDevice9::reset_auto_depth_stencil()
 
 	if (_auto_depth_stencil == nullptr)
 		return;
+
+	// Communicate destruction of auto depth-stencil view to add-ons
+	{
+		com_ptr<IDirect3DResource9> resource;
+		if (FAILED(_auto_depth_stencil->_orig->GetContainer(IID_PPV_ARGS(&resource))))
+			resource = _auto_depth_stencil->_orig;
+
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(this, to_handle(_auto_depth_stencil->_orig));
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, to_handle(resource.get()));
+	}
 
 	assert(_auto_depth_stencil->_ref == 0);
 	// Release the internal reference that was added in 'init_auto_depth_stencil' above

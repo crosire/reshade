@@ -215,6 +215,7 @@ public:
 class wgl_swapchain : public reshade::opengl::swapchain_impl
 {
 public:
+	static constexpr reshade::api::resource default_rt = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 	static constexpr reshade::api::resource_view default_rtv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_BACK);
 	static constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 	static constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
@@ -252,6 +253,16 @@ public:
 
 		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this, resize);
 
+		// Communicate implicit back buffer render target view and depth-stencil view to add-ons
+		assert(default_rt == get_back_buffer());
+
+		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
+			device,
+			default_rt,
+			reshade::api::resource_usage::render_target,
+			reshade::api::resource_view_desc(device->_default_fbo_desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, device->_default_fbo_desc.texture.format, 0, 1, 0, 1),
+			default_rtv);
+
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
@@ -264,7 +275,7 @@ public:
 				device,
 				default_ds,
 				reshade::api::resource_usage::depth_stencil,
-				reshade::api::resource_view_desc(device->_default_depth_format),
+				reshade::api::resource_view_desc(device->_default_fbo_desc.texture.samples > 1 ? reshade::api::resource_view_type::texture_2d_multisample : reshade::api::resource_view_type::texture_2d, device->_default_depth_format, 0, 1, 0, 1),
 				default_dsv);
 		}
 
@@ -293,6 +304,8 @@ public:
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, default_dsv);
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device, default_ds);
 		}
+
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, default_rtv);
 
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
 #else
