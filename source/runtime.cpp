@@ -1625,6 +1625,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			// Keep track of included files
 			effect.included_files = pp.included_files();
 			std::sort(effect.included_files.begin(), effect.included_files.end()); // Sort file names alphabetically
+
+			effect.preprocessed = preprocessed;
 		}
 	}
 	else
@@ -1913,7 +1915,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if (compiled && (preprocessed || source_cached))
+	if ((preprocessed || source_cached) && compiled)
 	{
 		if (permutation.assembly.empty())
 		{
@@ -2239,9 +2241,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					existing_technique != _techniques.end())
 			{
 				existing_technique->permutations.resize(effect.permutations.size());
-				existing_technique->permutations[permutation_index] = std::move(new_technique.permutations[0]);
+				if (existing_technique->permutations[permutation_index].created == false)
+					existing_technique->permutations[permutation_index] = std::move(new_technique.permutations[0]);
 
-				// Merge annotations
+				// Merge annotations (this can cause duplicated entries, but that's fine, 'annotation_as_*' will just always return the first one)
 				existing_technique->annotations.insert(existing_technique->annotations.end(), new_technique.annotations.begin(), new_technique.annotations.end());
 				continue;
 			}
@@ -2260,17 +2263,17 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	effect.compiled = compiled;
-	effect.preprocessed = preprocessed;
 
 	if (!errors.empty())
 		effect.errors = std::move(errors);
 
 	const std::chrono::high_resolution_clock::time_point time_load_finished = std::chrono::high_resolution_clock::now();
 
-	if (_reload_remaining_effects != 0 && _reload_remaining_effects != std::numeric_limits<size_t>::max())
+	if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+	{
+		assert(_reload_remaining_effects != 0);
 		_reload_remaining_effects--;
-	else
-		_reload_remaining_effects = 0; // Force effect initialization in 'update_effects'
+	}
 
 	if (compiled && (preprocessed || source_cached))
 	{
