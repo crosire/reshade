@@ -160,6 +160,8 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface
 		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
 		{
 			uint32_t subresource;
+			const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pSurface), &subresource);
+
 			reshade::api::subresource_box box;
 			reshade::api::subresource_data data;
 			data.data = pLockedRect->pBits;
@@ -168,7 +170,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface
 
 			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
 				device_proxy,
-				device_proxy->get_resource_from_view(to_handle(pSurface), &subresource),
+				resource,
 				subresource,
 				convert_rect_to_box(pRect, box),
 				reshade::d3d9::convert_access_flags(Flags),
@@ -186,11 +188,9 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurfa
 	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
 	{
 		uint32_t subresource;
+		const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pSurface), &subresource);
 
-		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
-			device_proxy,
-			device_proxy->get_resource_from_view(to_handle(pSurface), &subresource),
-			subresource);
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, resource, subresource);
 	}
 
 	return reshade::hooks::call(IDirect3DSurface9_UnlockRect, reshade::hooks::vtable_from_instance(pSurface) + 14)(pSurface);
@@ -206,6 +206,8 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3
 		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
 		{
 			uint32_t subresource;
+			const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
+
 			reshade::api::subresource_data data;
 			data.data = pLockedVolume->pBits;
 			data.row_pitch = pLockedVolume->RowPitch;
@@ -213,7 +215,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3
 
 			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
 				device_proxy,
-				device_proxy->get_resource_from_view(to_handle(pVolume), &subresource),
+				resource,
 				subresource,
 				reinterpret_cast<const reshade::api::subresource_box *>(pBox),
 				reshade::d3d9::convert_access_flags(Flags),
@@ -232,11 +234,9 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_UnlockBox(IDirect3DVolume9 *pVolume)
 	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
 	{
 		uint32_t subresource;
+		const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
 
-		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(
-			device_proxy,
-			device_proxy->get_resource_from_view(to_handle(pVolume), &subresource),
-			subresource);
+		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, resource, subresource);
 	}
 
 	return reshade::hooks::call(IDirect3DVolume9_UnlockBox, reshade::hooks::vtable_from_instance(pVolume) + 10)(pVolume);

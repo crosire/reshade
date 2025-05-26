@@ -39,18 +39,18 @@ namespace reshadefx
 		void add_include_path(const std::filesystem::path &path);
 
 		/// <summary>
-		/// Adds a new macro definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// Adds a new macro definition. This is equal to appending '#define name definition' to this preprocessor instance.
 		/// </summary>
 		/// <param name="name">Name of the macro to define.</param>
-		/// <param name="macro">Definition of the macro function or value.</param>
-		/// <returns></returns>
-		bool add_macro_definition(const std::string &name, const macro &macro);
+		/// <param name="definition">Definition of the macro function or value.</param>
+		/// <returns><see langword="true"/> if the macro did not exist, <see langword="false"/> otherwise.</returns>
+		bool add_macro_definition(const std::string &name, const macro &definition);
 		/// <summary>
-		/// Adds a new macro value definition. This is equal to appending '#define name macro' to this preprocessor instance.
+		/// Adds a new macro value definition. This is equal to appending '#define name value' to this preprocessor instance.
 		/// </summary>
 		/// <param name="name">Name of the macro to define.</param>
 		/// <param name="value">Value to define that macro to.</param>
-		/// <returns></returns>
+		/// <returns><see langword="true"/> if the macro did not exist, <see langword="false"/> otherwise.</returns>
 		bool add_macro_definition(const std::string &name, std::string value = "1")
 		{
 			return add_macro_definition(name, macro { std::move(value), {}, true });
@@ -139,8 +139,8 @@ namespace reshadefx
 		bool evaluate_identifier_as_macro();
 
 		bool is_defined(const std::string &name) const;
-		void expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments);
-		void create_macro_replacement_list(macro &macro);
+		void expand_macro(const std::string &name, const macro &definition, const std::vector<std::string> &arguments);
+		void create_macro_replacement_list(macro &definition);
 
 		std::string _output, _errors;
 

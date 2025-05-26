@@ -65,7 +65,7 @@ bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec)
 static std::filesystem::path make_relative_path(const std::filesystem::path &path)
 {
 	if (path.empty())
-		return path;
+		return std::filesystem::path();
 	// Use ReShade DLL directory as base for relative paths (see 'resolve_path')
 	std::filesystem::path proximate_path = path.lexically_proximate(g_reshade_base_path);
 	if (proximate_path.native().rfind(L"..", 0) != std::wstring::npos)
@@ -2340,7 +2340,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 
 		if (!create_texture(tex))
 		{
-			effect.errors += "Failed to create texture " + tex.unique_name + '.';
+			effect.errors += "error: " + tex.unique_name + ": failed to create texture";
 			return false;
 		}
 	}
@@ -2884,11 +2884,6 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		_device->update_descriptor_tables(static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data());
 
 	effect.created = true;
-
-#if 0 // TODO: This no longer works, since assembly may be needed to recreate effect after reloading to get preprocessor text
-	// Clear effect assembly now that it was consumed
-	permutation.assembly.clear();
-#endif
 
 	load_textures(effect_index);
 
@@ -3455,8 +3450,8 @@ void reshade::runtime::enable_technique(technique &tech)
 	// Queue effect file for initialization if it was not fully loaded yet
 	if (!tech.permutations[0].created &&
 		// Avoid adding the same effect multiple times to the queue if it contains multiple techniques that were enabled simultaneously
-		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech.effect_index, 0u)) == _reload_create_queue.cend())
-		_reload_create_queue.emplace_back(tech.effect_index, 0u);
+		std::find(_reload_create_queue.cbegin(), _reload_create_queue.cend(), std::make_pair(tech.effect_index, static_cast<size_t>(0u))) == _reload_create_queue.cend())
+		_reload_create_queue.emplace_back(tech.effect_index, static_cast<size_t>(0u));
 
 	if (status_changed) // Increase rendering reference count
 		_effects[tech.effect_index].rendering++;

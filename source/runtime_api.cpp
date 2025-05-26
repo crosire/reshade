@@ -1542,7 +1542,7 @@ void reshade::runtime::reload_effect_next_frame(const char *effect_name)
 {
 	if (effect_name == nullptr)
 	{
-		_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), 0u) };
+		_reload_required_effects = { std::make_pair(std::numeric_limits<size_t>::max(), static_cast<size_t>(0u)) };
 		return;
 	}
 
@@ -1554,8 +1554,8 @@ void reshade::runtime::reload_effect_next_frame(const char *effect_name)
 	{
 		const size_t effect_index = std::distance(_effects.cbegin(), it);
 
-		if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), 0u)) == _reload_required_effects.cend() &&
-			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, 0u)) == _reload_required_effects.cend())
-			_reload_required_effects.emplace_back(effect_index, 0u);
+		if (std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(std::numeric_limits<size_t>::max(), static_cast<size_t>(0u))) == _reload_required_effects.cend() &&
+			std::find(_reload_required_effects.cbegin(), _reload_required_effects.cend(), std::make_pair(effect_index, static_cast<size_t>(0u))) == _reload_required_effects.cend())
+			_reload_required_effects.emplace_back(effect_index, static_cast<size_t>(0u));
 	}
 }

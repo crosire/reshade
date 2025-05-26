@@ -119,20 +119,20 @@ void reshadefx::preprocessor::add_include_path(const std::filesystem::path &path
 	assert(!path.empty());
 	_include_paths.push_back(path);
 }
-bool reshadefx::preprocessor::add_macro_definition(const std::string &name, const macro &new_macro)
+bool reshadefx::preprocessor::add_macro_definition(const std::string &name, const macro &definition)
 {
 	assert(!name.empty());
-	const auto insert = _macros.emplace(name, new_macro);
+	const auto insert = _macros.emplace(name, definition);
 	if (insert.second)
 		return true;
 	// Allow redefinition of identical macros
-	const macro &existing_macro = insert.first->second;
+	const macro &existing_definition = insert.first->second;
 	return
-		existing_macro.replacement_list == new_macro.replacement_list &&
-		existing_macro.parameters == new_macro.parameters &&
-		existing_macro.is_predefined == new_macro.is_predefined &&
-		existing_macro.is_variadic == new_macro.is_variadic &&
-		existing_macro.is_function_like == new_macro.is_function_like;
+		existing_definition.replacement_list == definition.replacement_list &&
+		existing_definition.parameters == definition.parameters &&
+		existing_definition.is_predefined == definition.is_predefined &&
+		existing_definition.is_variadic == definition.is_variadic &&
+		existing_definition.is_function_like == definition.is_function_like;
 }
 
 bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
@@ -170,14 +170,14 @@ std::vector<std::filesystem::path> reshadefx::preprocessor::included_files() con
 }
 std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_macro_definitions() const
 {
-	std::vector<std::pair<std::string, std::string>> defines;
-	defines.reserve(_used_macros.size());
+	std::vector<std::pair<std::string, std::string>> definitions;
+	definitions.reserve(_used_macros.size());
 	for (const std::string &name : _used_macros)
-		if (const auto it = _macros.find(name);
+		if (const auto macro_it = _macros.find(name);
 			// Do not include function-like macros, since they are more likely to contain a complex replacement list
-			it != _macros.end() && !it->second.is_function_like)
-			defines.emplace_back(name, it->second.replacement_list);
-	return defines;
+			macro_it != _macros.end() && !macro_it->second.is_function_like)
+			definitions.emplace_back(name, macro_it->second.replacement_list);
+	return definitions;
 }
 
 void reshadefx::preprocessor::error(const location &location, const std::string &message)
@@ -547,7 +547,8 @@ void reshadefx::preprocessor::parse_ifdef()
 		level.skipping = !level.value;
 
 		// Only add to used macro list if this #ifdef is active and the macro was not defined before
-		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
+		if (const auto macro_it = _macros.find(_token.literal_as_string);
+			macro_it == _macros.end() || macro_it->second.is_predefined)
 			_used_macros.emplace(_token.literal_as_string);
 	}
 
@@ -574,7 +575,8 @@ void reshadefx::preprocessor::parse_ifndef()
 		level.skipping = !level.value;
 
 		// Only add to used macro list if this #ifndef is active and the macro was not defined before
-		if (const auto it = _macros.find(_token.literal_as_string); it == _macros.end() || it->second.is_predefined)
+		if (const auto macro_it = _macros.find(_token.literal_as_string);
+			macro_it == _macros.end() || macro_it->second.is_predefined)
 			_used_macros.emplace(_token.literal_as_string);
 	}
 
@@ -691,8 +693,11 @@ void reshadefx::preprocessor::parse_pragma()
 	if (pragma == "once")
 	{
 		// Clear file contents, so that future include statements simply push an empty string instead of these file contents again
-		if (const auto it = _file_cache.find(_output_location.source); it != _file_cache.end())
+		if (const auto it = _file_cache.find(_output_location.source);
+			it != _file_cache.end())
+		{
 			it->second.clear();
+		}
 		return;
 	}
 
@@ -743,7 +748,8 @@ void reshadefx::preprocessor::parse_include()
 		return error(_token.location, "recursive #include");
 
 	std::string input;
-	if (const auto it = _file_cache.find(file_path_string); it != _file_cache.end())
+	if (const auto it = _file_cache.find(file_path_string);
+		it != _file_cache.end())
 	{
 		input = it->second;
 	}
@@ -1132,8 +1138,8 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 		return true;
 	}
 
-	const auto it = _macros.find(_token.literal_as_string);
-	if (it == _macros.end())
+	const auto macro_it = _macros.find(_token.literal_as_string);
+	if (macro_it == _macros.end())
 		return false;
 
 	if (!_input_stack.empty())
@@ -1148,7 +1154,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 		return error(macro_location, "macro recursion too high"), false;
 
 	std::vector<std::string> arguments;
-	if (it->second.is_function_like)
+	if (macro_it->second.is_function_like)
 	{
 		if (!accept(tokenid::parenthesis_open))
 			return false; // Function like macro used without arguments, handle that like a normal identifier instead
@@ -1172,7 +1178,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 				// Consume all tokens of the argument
 				consume();
 
-				if (_token == tokenid::comma && parentheses_level == 0 && !(it->second.is_variadic && arguments.size() == it->second.parameters.size()))
+				if (_token == tokenid::comma && parentheses_level == 0 && !(macro_it->second.is_variadic && arguments.size() == macro_it->second.parameters.size()))
 					break; // Comma marks end of an argument (unless this is the last argument in a variadic macro invocation)
 				if (_token == tokenid::parenthesis_open)
 					parentheses_level++;
@@ -1197,7 +1203,7 @@ bool reshadefx::preprocessor::evaluate_identifier_as_macro()
 		}
 	}
 
-	expand_macro(it->first, it->second, arguments);
+	expand_macro(macro_it->first, macro_it->second, arguments);
 
 	return true;
 }
@@ -1212,34 +1218,34 @@ bool reshadefx::preprocessor::is_defined(const std::string &name) const
 		name == "__FILE_STEM__";
 }
 
-void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &macro, const std::vector<std::string> &arguments)
+void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &definition, const std::vector<std::string> &arguments)
 {
-	if (macro.replacement_list.empty())
+	if (definition.replacement_list.empty())
 		return;
 
 	// Verify argument count for function-like macros
-	if (arguments.size() < macro.parameters.size())
+	if (arguments.size() < definition.parameters.size())
 		return warning(_token.location, "not enough arguments for function-like macro invocation '" + name + "'");
-	if (arguments.size() > macro.parameters.size() && !macro.is_variadic)
+	if (arguments.size() > definition.parameters.size() && !definition.is_variadic)
 		return warning(_token.location, "too many arguments for function-like macro invocation '" + name + "'");
 
 	std::string input;
-	input.reserve(macro.replacement_list.size());
+	input.reserve(definition.replacement_list.size());
 
-	for (size_t offset = 0; offset < macro.replacement_list.size(); ++offset)
+	for (size_t offset = 0; offset < definition.replacement_list.size(); ++offset)
 	{
-		if (macro.replacement_list[offset] != macro_replacement_start)
+		if (definition.replacement_list[offset] != macro_replacement_start)
 		{
-			input += macro.replacement_list[offset];
+			input += definition.replacement_list[offset];
 			continue;
 		}
 
 		// This is a special replacement sequence
-		const char type = macro.replacement_list[++offset];
-		const char index = macro.replacement_list[++offset];
+		const char type = definition.replacement_list[++offset];
+		const char index = definition.replacement_list[++offset];
 		if (static_cast<size_t>(index) >= arguments.size())
 		{
-			if (macro.is_variadic)
+			if (definition.is_variadic)
 			{
 				// The concatenation operator has a special meaning when placed between a comma and a variable argument, deleting the preceding comma
 				if (type == macro_replacement_concat && input.back() == ',')
@@ -1285,10 +1291,10 @@ void reshadefx::preprocessor::expand_macro(const std::string &name, const macro 
 	_input_stack[_current_input_index].hidden_macros.insert(name);
 }
 
-void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
+void reshadefx::preprocessor::create_macro_replacement_list(macro &definition)
 {
 	// Since the number of parameters is encoded in the string, it may not exceed the available size of a char
-	if (macro.parameters.size() >= std::numeric_limits<unsigned char>::max())
+	if (definition.parameters.size() >= std::numeric_limits<unsigned char>::max())
 		return error(_token.location, "too many macro parameters");
 
 	// Ignore whitespace preceding the replacement list
@@ -1305,55 +1311,55 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 		case tokenid::hash:
 			if (accept(tokenid::hash, false))
 			{
-				if (macro.replacement_list.empty())
+				if (definition.replacement_list.empty())
 					return error(_token.location, "## cannot appear at start of macro expansion");
 				if (peek(tokenid::end_of_line))
 					return error(_token.location, "## cannot appear at end of macro expansion");
 
 				// Remove any whitespace preceding or following the concatenation operator (so "a ## b" becomes "ab")
-				if (macro.replacement_list.back() == ' ')
-					macro.replacement_list.pop_back();
+				if (definition.replacement_list.back() == ' ')
+					definition.replacement_list.pop_back();
 				accept(tokenid::space);
 
 				// Disable macro expansion for any argument preceding or following the ## token concatenation operator
-				if (macro.replacement_list.size() > 2 && macro.replacement_list[macro.replacement_list.size() - 2] == macro_replacement_argument)
-					macro.replacement_list[macro.replacement_list.size() - 2] = macro_replacement_concat;
+				if (definition.replacement_list.size() > 2 && definition.replacement_list[definition.replacement_list.size() - 2] == macro_replacement_argument)
+					definition.replacement_list[definition.replacement_list.size() - 2] = macro_replacement_concat;
 				next_concat = true;
 				continue;
 			}
-			if (macro.is_function_like)
+			if (definition.is_function_like)
 			{
 				if (!expect(tokenid::identifier))
 					return;
 
-				const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), _token.literal_as_string);
-				if (it == macro.parameters.end() && !(macro.is_variadic && _token.literal_as_string == "__VA_ARGS__"))
+				const auto it = std::find(definition.parameters.begin(), definition.parameters.end(), _token.literal_as_string);
+				if (it == definition.parameters.end() && !(definition.is_variadic && _token.literal_as_string == "__VA_ARGS__"))
 					return error(_token.location, "# must be followed by parameter name");
 
 				// Start a # stringize operator
-				macro.replacement_list += macro_replacement_start;
-				macro.replacement_list += macro_replacement_stringize;
-				macro.replacement_list += static_cast<char>(std::distance(macro.parameters.begin(), it));
+				definition.replacement_list += macro_replacement_start;
+				definition.replacement_list += macro_replacement_stringize;
+				definition.replacement_list += static_cast<char>(std::distance(definition.parameters.begin(), it));
 				next_concat = false;
 				continue;
 			}
 			break;
 		case tokenid::space:
 			// Collapse all whitespace down to a single space
-			macro.replacement_list += ' ';
+			definition.replacement_list += ' ';
 			continue;
 		case tokenid::minus:
 			// Special case to handle things like "#define NUM -1\n -NUM", which would otherwise result in "--1", making parsing fail
-			if (macro.replacement_list.empty())
-				macro.replacement_list += ' ';
+			if (definition.replacement_list.empty())
+				definition.replacement_list += ' ';
 			break;
 		case tokenid::identifier:
-			if (const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), _token.literal_as_string);
-				it != macro.parameters.end() || (macro.is_variadic && _token.literal_as_string == "__VA_ARGS__"))
+			if (const auto it = std::find(definition.parameters.begin(), definition.parameters.end(), _token.literal_as_string);
+				it != definition.parameters.end() || (definition.is_variadic && _token.literal_as_string == "__VA_ARGS__"))
 			{
-				macro.replacement_list += macro_replacement_start;
-				macro.replacement_list += static_cast<char>(next_concat ? macro_replacement_concat : macro_replacement_argument);
-				macro.replacement_list += static_cast<char>(std::distance(macro.parameters.begin(), it));
+				definition.replacement_list += macro_replacement_start;
+				definition.replacement_list += static_cast<char>(next_concat ? macro_replacement_concat : macro_replacement_argument);
+				definition.replacement_list += static_cast<char>(std::distance(definition.parameters.begin(), it));
 				next_concat = false;
 				continue;
 			}
@@ -1363,11 +1369,11 @@ void reshadefx::preprocessor::create_macro_replacement_list(macro &macro)
 			break;
 		}
 
-		macro.replacement_list += _current_token_raw_data;
+		definition.replacement_list += _current_token_raw_data;
 		next_concat = false;
 	}
 
 	// Trim whitespace following the replacement list
-	if (macro.replacement_list.size() && macro.replacement_list.back() == ' ')
-		macro.replacement_list.pop_back();
+	if (definition.replacement_list.size() && definition.replacement_list.back() == ' ')
+		definition.replacement_list.pop_back();
 }

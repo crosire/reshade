@@ -955,11 +955,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrc
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		uint32_t src_subresource;
-		reshade::api::subresource_box src_box;
 		const reshade::api::resource src_resource = get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
 		uint32_t dst_subresource;
-		reshade::api::subresource_box dst_box;
 		const reshade::api::resource dst_resource = get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
+
+		reshade::api::subresource_box src_box, dst_box;
 
 		if (pSrcRect != nullptr)
 		{
