@@ -311,29 +311,38 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path)
 		return;
 
 	// Ignore this call if unable to acquire the mutex to avoid possible deadlock
-	if (std::unique_lock<std::shared_mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock); lock.owns_lock())
-	{
-		const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-			[&loaded_path](const std::filesystem::path &path) {
-				// Skip export module if it was loaded somehow before/outside of 'ensure_export_module_loaded' below
-				if (path == s_export_hook_path)
-					return false;
-
-				// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
-				HMODULE delayed_handle = nullptr;
-				if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
-					return false;
-
-				reshade::log::message(reshade::log::level::info, "Installing delayed hooks for '%s' (Just loaded via LoadLibrary('%s')) ...", path.u8string().c_str(), loaded_path.u8string().c_str());
-
-				return install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
-			});
-
-		s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
-	}
-	else
+	std::unique_lock<std::shared_mutex> lock(s_delayed_hook_paths_mutex, std::try_to_lock);
+	if (!lock.owns_lock())
 	{
 		reshade::log::message(reshade::log::level::warning, "Ignoring LoadLibrary('%s') call to avoid possible deadlock.", loaded_path.u8string().c_str());
+		return;
+	}
+
+	if (const auto it = std::find_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
+			[loaded_target_name = loaded_path.has_extension() ? loaded_path.filename() : loaded_path.filename().replace_extension(L".dll")](const std::filesystem::path &path) {
+				const std::filesystem::path target_name = path.filename();
+				return _wcsicmp(target_name.c_str(), loaded_target_name.c_str()) == 0;
+			});
+		it != s_delayed_hook_paths.end())
+	{
+		const std::filesystem::path path = *it;
+
+		// Skip export module if it was loaded somehow before/outside of 'ensure_export_module_loaded' below
+		if (path == s_export_hook_path)
+			return;
+
+		// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
+		HMODULE delayed_handle = nullptr;
+		if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
+			return;
+
+		s_delayed_hook_paths.erase(it);
+
+		lock.unlock();
+
+		reshade::log::message(reshade::log::level::info, "Installing delayed hooks for '%s' (Just loaded via LoadLibrary('%s')) ...", path.u8string().c_str(), loaded_path.u8string().c_str());
+
+		install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
 	}
 }
 
@@ -514,9 +523,10 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 
 	// Compare module names and delay export hooks for later installation since we cannot call 'LoadLibrary' from this function (it is called from 'DLLMain', which does not allow this)
 	// Do a case insensitive comparison here to catch cases like "OPENGL32" refering to the same module as "opengl32.dll"
-	const std::filesystem::path target_name = target_path.stem();
-	const std::filesystem::path replacement_name = g_reshade_dll_path.stem();
-	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0 && (!g_reshade_dll_path.has_extension() || g_reshade_dll_path.extension() == L".dll"))
+	assert(target_path.extension() == L".dll");
+	const std::filesystem::path target_name = target_path.filename();
+	const std::filesystem::path replacement_name = g_reshade_dll_path.filename();
+	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0)
 	{
 		assert(target_path != g_reshade_dll_path);
 
