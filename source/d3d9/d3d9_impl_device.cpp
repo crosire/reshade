@@ -747,6 +747,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 			SUCCEEDED(surface->GetContainer(IID_PPV_ARGS(&resource))))
 			return to_handle(resource.get());
 	}
+#if 0
 	else if (com_ptr<IDirect3DVolume9> volume;
 		SUCCEEDED(object->QueryInterface(&volume)))
 	{
@@ -754,6 +755,7 @@ reshade::api::resource reshade::d3d9::device_impl::get_resource_from_view(api::r
 			SUCCEEDED(volume->GetContainer(IID_PPV_ARGS(&resource))))
 			return to_handle(resource.get());
 	}
+#endif
 
 	// If unable to get container, just return the resource directly
 	return to_handle(static_cast<IDirect3DResource9 *>(object));
@@ -826,13 +828,27 @@ reshade::api::resource_view_desc reshade::d3d9::device_impl::get_resource_view_d
 {
 	assert(view != 0);
 
-	// This does not work if the handle points to a 'IDirect3DVolume9' object (since that doesn't inherit from 'IDirect3DResource9')
-	const auto object = reinterpret_cast<IDirect3DResource9 *>(view.handle & ~1ull);
+	const auto object = reinterpret_cast<IUnknown *>(view.handle & ~1ull);
 
 	// Check whether the first bit in the handle is set, indicating whether this view is using a sRGB format
 	const bool is_srgb_format = (view.handle & 1ull) != 0;
 
-	switch (IDirect3DResource9_GetType(object))
+#if 0
+	// Check if the handle points to a 'IDirect3DVolume9' object (since that doesn't inherit from 'IDirect3DResource9')
+	if (com_ptr<IDirect3DVolume9> volume;
+		SUCCEEDED(object->QueryInterface(&volume)))
+	{
+		uint32_t subresource, levels;
+		get_resource_from_view(view, &subresource, &levels);
+
+		D3DVOLUME_DESC internal_desc;
+		volume->GetDesc(&internal_desc);
+
+		return api::resource_view_desc(api::format_to_default_typed(convert_format(internal_desc.Format), is_srgb_format), subresource % levels, 1, subresource / levels, 1);
+	}
+#endif
+
+	switch (IDirect3DResource9_GetType(static_cast<IDirect3DResource9 *>(object)))
 	{
 		case D3DRTYPE_SURFACE:
 		{
