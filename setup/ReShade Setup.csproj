@@ -65,11 +65,11 @@
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="Properties\App.xaml">
-      <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </ApplicationDefinition>
-    <Compile Include="Pages\SelectAddonsPage.xaml.cs">
-      <DependentUpon>SelectAddonsPage.xaml</DependentUpon>
+    <Compile Include="Properties\App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="Utilities\AeroGlass.cs" />
     <Compile Include="Utilities\FileOpenDialog.cs" />
@@ -79,6 +79,9 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Compile Include="Pages\SelectAddonsPage.xaml.cs">
+      <DependentUpon>SelectAddonsPage.xaml</DependentUpon>
+    </Compile>
     <Page Include="Pages\SelectApiPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

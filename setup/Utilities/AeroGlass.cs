@@ -10,7 +10,7 @@ namespace ReShade.Setup.Utilities
 	public static class AeroGlass
 	{
 		[StructLayout(LayoutKind.Sequential)]
-		private struct MARGINS
+		struct MARGINS
 		{
 			public int cxLeftWidth;
 			public int cxRightWidth;
@@ -19,7 +19,7 @@ namespace ReShade.Setup.Utilities
 		}
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-		private struct SHSTOCKICONINFO
+		struct SHSTOCKICONINFO
 		{
 			public uint cbSize;
 			public IntPtr hIcon;
@@ -30,20 +30,20 @@ namespace ReShade.Setup.Utilities
 		}
 
 		[DllImport("dwmapi.dll")]
-		private static extern int DwmIsCompositionEnabled(out bool enabled);
+		static extern int DwmIsCompositionEnabled(out bool enabled);
 		[DllImport("dwmapi.dll")]
-		private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
+		static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
 
 		[DllImport("user32.dll")]
-		private static extern int GetWindowLong(IntPtr hwnd, int index);
+		static extern int GetWindowLong(IntPtr hwnd, int index);
 		[DllImport("user32.dll")]
-		private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
+		static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
 		[DllImport("user32.dll")]
-		private static extern bool SetWindowPos(IntPtr hwnd, IntPtr hwndInsertAfter, int x, int y, int width, int height, uint flags);
+		static extern bool SetWindowPos(IntPtr hwnd, IntPtr hwndInsertAfter, int x, int y, int width, int height, uint flags);
 
 		[DllImport("user32.dll")]
-		private static extern IntPtr SendMessage(IntPtr hwnd, uint msg, ulong wParam, ulong lParam);
+		static extern IntPtr SendMessage(IntPtr hwnd, uint msg, ulong wParam, ulong lParam);
 
 		[DllImport("user32.dll")]
 		static extern int DestroyIcon(IntPtr hIcon);

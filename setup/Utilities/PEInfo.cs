@@ -20,7 +20,7 @@ namespace ReShade.Setup.Utilities
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		private struct LOADED_IMAGE
+		struct LOADED_IMAGE
 		{
 			public IntPtr ModuleName;
 			public IntPtr hFile;
@@ -40,14 +40,14 @@ namespace ReShade.Setup.Utilities
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		private struct IMAGE_NT_HEADERS
+		struct IMAGE_NT_HEADERS
 		{
 			public UInt32 Signature;
 			public IMAGE_FILE_HEADER FileHeader;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		private struct IMAGE_FILE_HEADER
+		struct IMAGE_FILE_HEADER
 		{
 			public BinaryType Machine;
 			public UInt16 NumberOfSections;
@@ -59,7 +59,7 @@ namespace ReShade.Setup.Utilities
 		}
 
 		[StructLayout(LayoutKind.Explicit)]
-		private struct IMAGE_IMPORT_DESCRIPTOR
+		struct IMAGE_IMPORT_DESCRIPTOR
 		{
 			[FieldOffset(0)]
 			public UInt32 Characteristics;
@@ -77,15 +77,15 @@ namespace ReShade.Setup.Utilities
 
 		[DllImport("imagehlp.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		private static extern bool MapAndLoad([In, MarshalAs(UnmanagedType.LPStr)] string imageName, [In, MarshalAs(UnmanagedType.LPStr)] string dllPath, [Out] out LOADED_IMAGE loadedImage, [In, MarshalAs(UnmanagedType.Bool)] bool dotDll, [In, MarshalAs(UnmanagedType.Bool)] bool readOnly);
+		static extern bool MapAndLoad([In, MarshalAs(UnmanagedType.LPStr)] string imageName, [In, MarshalAs(UnmanagedType.LPStr)] string dllPath, [Out] out LOADED_IMAGE loadedImage, [In, MarshalAs(UnmanagedType.Bool)] bool dotDll, [In, MarshalAs(UnmanagedType.Bool)] bool readOnly);
 		[DllImport("imagehlp.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		private static extern bool UnMapAndLoad([In] ref LOADED_IMAGE loadedImage);
+		static extern bool UnMapAndLoad([In] ref LOADED_IMAGE loadedImage);
 
 		[DllImport("dbghelp.dll", SetLastError = true)]
-		private static extern IntPtr ImageRvaToVa([In] IntPtr pNtHeaders, [In] IntPtr pBase, [In] uint rva, [In] IntPtr pLastRvaSection);
+		static extern IntPtr ImageRvaToVa([In] IntPtr pNtHeaders, [In] IntPtr pBase, [In] uint rva, [In] IntPtr pLastRvaSection);
 		[DllImport("dbghelp.dll", SetLastError = true)]
-		private static extern IntPtr ImageDirectoryEntryToData([In] IntPtr pBase, [In, MarshalAs(UnmanagedType.U1)] bool mappedAsImage, [In] ImageDirectory directoryEntry, [Out] out uint size);
+		static extern IntPtr ImageDirectoryEntryToData([In] IntPtr pBase, [In, MarshalAs(UnmanagedType.U1)] bool mappedAsImage, [In] ImageDirectory directoryEntry, [Out] out uint size);
 
 		[Flags]
 		public enum LoadLibraryFlags : UInt32
@@ -94,19 +94,19 @@ namespace ReShade.Setup.Utilities
 		}
 
 		[DllImport("kernel32.dll", SetLastError = true)]
-		private static extern IntPtr LoadLibraryEx([In] string lpFileName, [In] IntPtr hFile, [In] LoadLibraryFlags dwFlags);
+		static extern IntPtr LoadLibraryEx([In] string lpFileName, [In] IntPtr hFile, [In] LoadLibraryFlags dwFlags);
 		[DllImport("kernel32.dll", SetLastError = true)]
 		[return: MarshalAs(UnmanagedType.Bool)]
-		private static extern bool FreeLibrary([In] IntPtr hModule);
+		static extern bool FreeLibrary([In] IntPtr hModule);
 
 		[DllImport("kernel32.dll", SetLastError = true)]
-		private static extern IntPtr FindResource([In] IntPtr hModule, [In] string lpName, [In] string lpType);
+		static extern IntPtr FindResource([In] IntPtr hModule, [In] string lpName, [In] string lpType);
 		[DllImport("kernel32.dll", SetLastError = true)]
-		private static extern IntPtr LoadResource([In] IntPtr hModule, [In] IntPtr hResInfo);
+		static extern IntPtr LoadResource([In] IntPtr hModule, [In] IntPtr hResInfo);
 		[DllImport("kernel32.dll", SetLastError = true)]
-		private static extern IntPtr LockResource([In] IntPtr hResData);
+		static extern IntPtr LockResource([In] IntPtr hResData);
 		[DllImport("kernel32.dll", SetLastError = true)]
-		private static extern UInt32 SizeofResource([In] IntPtr hModule, [In] IntPtr hResInfo);
+		static extern UInt32 SizeofResource([In] IntPtr hModule, [In] IntPtr hResInfo);
 
 		// Adapted from http://stackoverflow.com/a/4696857/2055880
 		public PEInfo(string path)
