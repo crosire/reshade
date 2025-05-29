@@ -229,8 +229,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 		}
 		else // Do not hook object if we do not support the requested interface
 		{
+#if RESHADE_VERBOSE_LOG
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreateCommandQueue.", reshade::log::iid_to_string(riid).c_str());
-
+#endif
 			delete command_queue_proxy; // Delete instead of release to keep reference count untouched
 		}
 	}
@@ -821,10 +822,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreateCommittedResource.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -877,10 +880,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, U
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreatePlacedResource.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -927,10 +932,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreateReservedResource.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1057,10 +1064,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateQueryHeap(const D3D12_QUERY_HEAP_DE
 				});
 			}
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreateQueryHeap.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 #endif
 	}
 #if RESHADE_VERBOSE_LOG
@@ -1291,10 +1300,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device4::CreateCommittedResource1.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1349,10 +1360,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device4::CreateReservedResource1.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1519,10 +1532,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device8::CreateCommittedResource2.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1573,10 +1588,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device8::CreatePlacedResource1.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1651,8 +1668,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue1(const D3D12_COMMAND_Q
 		}
 		else // Do not hook object if we do not support the requested interface
 		{
+#if RESHADE_VERBOSE_LOG
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device9::CreateCommandQueue1.", reshade::log::iid_to_string(riid).c_str());
-
+#endif
 			delete command_queue_proxy; // Delete instead of release to keep reference count untouched
 		}
 	}
@@ -1707,10 +1725,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource3(const D3D12_HEAP
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device10::CreateCommittedResource3.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1762,10 +1782,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource2(ID3D12Heap *pHeap, 
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device10::CreatePlacedResource2.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
@@ -1814,10 +1836,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 			invoke_init_resource_event(desc, initial_state, resource);
 #endif
 		}
+#if RESHADE_VERBOSE_LOG
 		else
 		{
 			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device10::CreateReservedResource2.", reshade::log::iid_to_string(riid).c_str());
 		}
+#endif
 	}
 #if RESHADE_VERBOSE_LOG
 	else
