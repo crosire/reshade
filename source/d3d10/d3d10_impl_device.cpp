@@ -43,7 +43,7 @@ bool reshade::d3d10::device_impl::get_property(api::device_properties property, 
 		if (const auto dxgi_adapter = adapter_from_device(_orig))
 		{
 			LARGE_INTEGER umd_version = {};
-			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
+			dxgi_adapter->CheckInterfaceSupport(IID_IDXGIDevice, &umd_version);
 			*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
 			return true;
 		}

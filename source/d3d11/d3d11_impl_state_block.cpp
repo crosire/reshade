@@ -14,7 +14,7 @@ reshade::d3d11::state_block::state_block(com_ptr<ID3D11Device> device) :
 	if (SUCCEEDED(device->QueryInterface(&device1)))
 	{
 		const UINT flags = (device->GetCreationFlags() & D3D11_CREATE_DEVICE_SINGLETHREADED) ? D3D11_1_CREATE_DEVICE_CONTEXT_STATE_SINGLETHREADED : 0;
-		device1->CreateDeviceContextState(flags, &_device_feature_level, 1, D3D11_SDK_VERSION, __uuidof(ID3D11Device1), nullptr, &_state);
+		device1->CreateDeviceContextState(flags, &_device_feature_level, 1, D3D11_SDK_VERSION, IID_ID3D11Device1, nullptr, &_state);
 	}
 #endif
 }

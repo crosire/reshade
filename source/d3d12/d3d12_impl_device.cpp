@@ -125,40 +125,38 @@ reshade::d3d12::device_impl::~device_impl()
 
 bool reshade::d3d12::device_impl::get_property(api::device_properties property, void *data) const
 {
+	DXGI_ADAPTER_DESC adapter_desc;
+
 	switch (property)
 	{
 	case api::device_properties::api_version:
 		*static_cast<uint32_t *>(data) = D3D_FEATURE_LEVEL_12_0;
 		return true;
 	case api::device_properties::driver_version:
-		DXGI_ADAPTER_DESC temp_adapter_desc;
-		if (const auto dxgi_adapter = adapter_from_device(_orig, &temp_adapter_desc))
+		if (const auto dxgi_adapter = adapter_from_device(_orig, &adapter_desc))
 		{
 			LARGE_INTEGER umd_version = {};
-			dxgi_adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd_version);
+			dxgi_adapter->CheckInterfaceSupport(IID_IDXGIDevice, &umd_version);
 			*static_cast<uint32_t *>(data) = LOWORD(umd_version.LowPart) + (HIWORD(umd_version.LowPart) % 10) * 10000;
 			return true;
 		}
 		return false;
 	case api::device_properties::vendor_id:
-		if (DXGI_ADAPTER_DESC adapter_desc;
-			adapter_from_device(_orig, &adapter_desc))
+		if (adapter_from_device(_orig, &adapter_desc))
 		{
 			*static_cast<uint32_t *>(data) = adapter_desc.VendorId;
 			return true;
 		}
 		return false;
 	case api::device_properties::device_id:
-		if (DXGI_ADAPTER_DESC adapter_desc;
-			adapter_from_device(_orig, &adapter_desc))
+		if (adapter_from_device(_orig, &adapter_desc))
 		{
 			*static_cast<uint32_t *>(data) = adapter_desc.DeviceId;
 			return true;
 		}
 		return false;
 	case api::device_properties::description:
-		if (DXGI_ADAPTER_DESC adapter_desc;
-			adapter_from_device(_orig, &adapter_desc))
+		if (adapter_from_device(_orig, &adapter_desc))
 		{
 			static_assert(std::size(adapter_desc.Description) <= 256);
 			utf8::unchecked::utf16to8(adapter_desc.Description, adapter_desc.Description + std::size(adapter_desc.Description), static_cast<char *>(data));

@@ -80,7 +80,7 @@ namespace reshadefx
 		const std::string &output() const { return _output; }
 
 		/// <summary>
-		/// Gets a list of all included files.
+		/// Gets a list of paths to all the included files.
 		/// </summary>
 		std::vector<std::filesystem::path> included_files() const;
 
@@ -90,7 +90,7 @@ namespace reshadefx
 		std::vector<std::pair<std::string, std::string>> used_macro_definitions() const;
 
 		/// <summary>
-		/// Gets a list of pragma directives that occured.
+		/// Gets a list of "#pragma reshade" directives that where used.
 		/// </summary>
 		std::vector<std::pair<std::string, std::string>> used_pragma_directives() const { return _used_pragmas; }
 
@@ -151,15 +151,15 @@ namespace reshadefx
 		std::string _current_token_raw_data;
 		reshadefx::location _output_location;
 
-		std::vector<if_level> _if_stack;
-
 		unsigned short _recursion_count = 0;
 		std::unordered_set<std::string> _used_macros;
 		std::unordered_map<std::string, macro> _macros;
 
-		std::vector<std::filesystem::path> _include_paths;
-		std::unordered_map<std::string, std::string> _file_cache;
+		std::vector<if_level> _if_stack;
 
 		std::vector<std::pair<std::string, std::string>> _used_pragmas;
+
+		std::vector<std::filesystem::path> _include_paths;
+		std::unordered_map<std::string, std::string> _file_cache;
 	};
 }

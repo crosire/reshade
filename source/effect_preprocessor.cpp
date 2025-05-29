@@ -89,11 +89,11 @@ static bool read_file(const std::filesystem::path &path, std::string &file_data)
 	// Append a new line feed to the end of the input string to avoid issues with parsing
 	file_data.back() = '\n';
 
-	// Remove BOM (0xefbbbf means 0xfeff)
+	// Remove UTF-8 BOM (0xEFBBBF is the UTF-8 byte sequence for the character 0xFEFF)
 	if (file_data.size() >= 3 &&
-		static_cast<unsigned char>(file_data[0]) == 0xef &&
-		static_cast<unsigned char>(file_data[1]) == 0xbb &&
-		static_cast<unsigned char>(file_data[2]) == 0xbf)
+		static_cast<unsigned char>(file_data[0]) == 0xEF &&
+		static_cast<unsigned char>(file_data[1]) == 0xBB &&
+		static_cast<unsigned char>(file_data[2]) == 0xBF)
 		file_data.erase(0, 3);
 
 	return true;
@@ -146,7 +146,8 @@ bool reshadefx::preprocessor::append_file(const std::filesystem::path &path)
 bool reshadefx::preprocessor::append_string(std::string source_code, const std::filesystem::path &path)
 {
 	// Enforce all input strings to end with a line feed
-	assert(!source_code.empty() && source_code.back() == '\n');
+	if (source_code.empty() || source_code.back() != '\n')
+		return false;
 
 	// Only consider new errors added below for the success of this call
 	const size_t errors_offset = _errors.length();
@@ -173,10 +174,12 @@ std::vector<std::pair<std::string, std::string>> reshadefx::preprocessor::used_m
 	std::vector<std::pair<std::string, std::string>> definitions;
 	definitions.reserve(_used_macros.size());
 	for (const std::string &name : _used_macros)
-		if (const auto macro_it = _macros.find(name);
-			// Do not include function-like macros, since they are more likely to contain a complex replacement list
-			macro_it != _macros.end() && !macro_it->second.is_function_like)
+	{
+		const auto macro_it = _macros.find(name);
+		// Do not include function-like macros, since they are more likely to contain a complex replacement list
+		if (macro_it != _macros.end() && !macro_it->second.is_function_like)
 			definitions.emplace_back(name, macro_it->second.replacement_list);
+	}
 	return definitions;
 }
 
@@ -329,10 +332,14 @@ bool reshadefx::preprocessor::expect(tokenid tokid)
 		actual_token.location.source = _output_location.source;
 
 		if (actual_token == tokenid::end_of_line)
+		{
 			error(actual_token.location, "syntax error: unexpected new line");
+		}
 		else
-			error(actual_token.location, "syntax error: unexpected token '" +
-				_input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length) + '\'');
+		{
+			const std::string token_string = _input_stack[_next_input_index].lexer->input_string().substr(actual_token.offset, actual_token.length);
+			error(actual_token.location, "syntax error: unexpected token '" + token_string + '\'');
+		}
 
 		return false;
 	}
@@ -466,33 +473,34 @@ void reshadefx::preprocessor::parse_def()
 	if (_token.literal_as_string == "defined")
 		return warning(_token.location, "macro name 'defined' is reserved");
 
-	macro m;
 	const location location = std::move(_token.location);
+
+	macro definition;
 	const std::string macro_name = std::move(_token.literal_as_string);
 
 	// Only create function-like macro if the parenthesis follows the macro name without any whitespace between
 	if (accept(tokenid::parenthesis_open, false))
 	{
-		m.is_function_like = true;
+		definition.is_function_like = true;
 
 		while (accept(tokenid::identifier))
 		{
-			m.parameters.push_back(_token.literal_as_string);
+			definition.parameters.push_back(_token.literal_as_string);
 
 			if (!accept(tokenid::comma))
 				break;
 		}
 
 		if (accept(tokenid::ellipsis))
-			m.is_variadic = true;
+			definition.is_variadic = true;
 
 		if (!expect(tokenid::parenthesis_close))
 			return;
 	}
 
-	create_macro_replacement_list(m);
+	create_macro_replacement_list(definition);
 
-	if (!add_macro_definition(macro_name, m))
+	if (!add_macro_definition(macro_name, definition))
 		return error(location, "redefinition of '" + macro_name + "'");
 }
 void reshadefx::preprocessor::parse_undef()
@@ -693,10 +701,10 @@ void reshadefx::preprocessor::parse_pragma()
 	if (pragma == "once")
 	{
 		// Clear file contents, so that future include statements simply push an empty string instead of these file contents again
-		if (const auto it = _file_cache.find(_output_location.source);
-			it != _file_cache.end())
+		if (const auto file_it = _file_cache.find(_output_location.source);
+			file_it != _file_cache.end())
 		{
-			it->second.clear();
+			file_it->second.clear();
 		}
 		return;
 	}
@@ -744,14 +752,17 @@ void reshadefx::preprocessor::parse_include()
 
 	// Detect recursive include and abort to avoid infinite loop
 	if (std::find_if(_input_stack.begin(), _input_stack.end(),
-			[&file_path_string](const input_level &level) { return level.name == file_path_string; }) != _input_stack.end())
+			[&file_path_string](const input_level &level) {
+				return level.name == file_path_string;
+			}) != _input_stack.end())
 		return error(_token.location, "recursive #include");
 
 	std::string input;
-	if (const auto it = _file_cache.find(file_path_string);
-		it != _file_cache.end())
+
+	if (const auto file_it = _file_cache.find(file_path_string);
+		file_it != _file_cache.end())
 	{
-		input = it->second;
+		input = file_it->second;
 	}
 	else
 	{
@@ -1214,8 +1225,10 @@ bool reshadefx::preprocessor::is_defined(const std::string &name) const
 		// Check built-in macros as well
 		name == "__LINE__" ||
 		name == "__FILE__" ||
+		name == "__FILE_STEM__" ||
+		name == "__FILE_STEM_HASH__" ||
 		name == "__FILE_NAME__" ||
-		name == "__FILE_STEM__";
+		name == "__FILE_NAME_HASH__";
 }
 
 void reshadefx::preprocessor::expand_macro(const std::string &name, const macro &definition, const std::vector<std::string> &arguments)

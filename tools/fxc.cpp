@@ -42,10 +42,10 @@ Options:
 
 int main(int argc, char *argv[])
 {
-	const char *filename = nullptr;
-	const char *preprocess = nullptr;
-	const char *errorfile = nullptr;
-	const char *objectfile = nullptr;
+	const char *source_file = nullptr;
+	const char *preprocess_file = nullptr;
+	const char *error_file = nullptr;
+	const char *object_file = nullptr;
 	const char *buffer_width = "800";
 	const char *buffer_height = "600";
 	bool print_glsl = false;
@@ -72,16 +72,16 @@ int main(int argc, char *argv[])
 			}
 			if (0 == std::strcmp(arg, "--version"))
 			{
-				printf("%s\n", VERSION_STRING_PRODUCT);
+				std::cout << VERSION_STRING_PRODUCT << std::endl;
 				return 0;
 			}
 
 			if (0 == std::strcmp(arg, "-D"))
 			{
-				char *macro = argv[++i];
-				char *value = std::strchr(macro, '=');
+				char *name = argv[++i];
+				char *value = std::strchr(name, '=');
 				if (value) *value++ = '\0';
-				pp.add_macro_definition(macro, value ? value : "1");
+				pp.add_macro_definition(name, value ? value : "1");
 				continue;
 			}
 
@@ -107,11 +107,11 @@ int main(int argc, char *argv[])
 			if (i + 1 >= argc)
 				continue;
 			else if (0 == std::strcmp(arg, "-P"))
-				preprocess = argv[++i];
+				preprocess_file = argv[++i];
 			else if (0 == std::strcmp(arg, "-Fe"))
-				errorfile = argv[++i];
+				error_file = argv[++i];
 			else if (0 == std::strcmp(arg, "-Fo"))
-				objectfile = argv[++i];
+				object_file = argv[++i];
 			else if (0 == std::strcmp(arg, "--shader-model"))
 				shader_model = static_cast<unsigned int>(std::strtoul(argv[++i], nullptr, 10));
 			else if (0 == std::strcmp(arg, "--width"))
@@ -121,17 +121,17 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			if (filename != nullptr)
+			if (source_file != nullptr)
 			{
 				std::cout << "error: More than one input file specified" << std::endl;
 				return 1;
 			}
 
-			filename = arg;
+			source_file = arg;
 		}
 	}
 
-	if (filename == nullptr)
+	if (source_file == nullptr || (print_glsl && print_hlsl) || (print_glsl && object_file) || (print_hlsl && object_file))
 	{
 		print_usage(argv[0]);
 		return 1;
@@ -142,21 +142,21 @@ int main(int argc, char *argv[])
 	pp.add_macro_definition("BUFFER_RCP_WIDTH", "(1.0 / BUFFER_WIDTH)");
 	pp.add_macro_definition("BUFFER_RCP_HEIGHT", "(1.0 / BUFFER_HEIGHT)");
 
-	if (!pp.append_file(filename))
+	if (!pp.append_file(source_file))
 	{
-		if (errorfile == nullptr)
+		if (error_file == nullptr)
 			std::cout << pp.errors() << std::endl;
 		else
-			std::ofstream(errorfile) << pp.errors();
+			std::ofstream(error_file) << pp.errors();
 		return 1;
 	}
 
-	if (preprocess != nullptr)
+	if (preprocess_file != nullptr)
 	{
-		if (std::strcmp(preprocess, "-") == 0)
+		if (std::strcmp(preprocess_file, "-") == 0)
 			std::cout << pp.output() << std::endl;
 		else
-			std::ofstream(preprocess) << pp.output();
+			std::ofstream(preprocess_file) << pp.output();
 		return 0;
 	}
 
@@ -171,10 +171,10 @@ int main(int argc, char *argv[])
 	reshadefx::parser parser;
 	if (!parser.parse(pp.output(), backend.get()))
 	{
-		if (errorfile == nullptr)
+		if (error_file == nullptr)
 			std::cout << pp.errors() << parser.errors() << std::endl;
 		else
-			std::ofstream(errorfile) << pp.errors() << parser.errors();
+			std::ofstream(error_file) << pp.errors() << parser.errors();
 		return 1;
 	}
 
@@ -184,9 +184,9 @@ int main(int argc, char *argv[])
 	{
 		std::cout.write(code.data(), code.size()).flush();
 	}
-	else if (objectfile != nullptr)
+	else if (object_file != nullptr)
 	{
-		std::ofstream(objectfile, std::ios::binary).write(code.data(), code.size());
+		std::ofstream(object_file, std::ios::binary).write(code.data(), code.size());
 	}
 
 	return 0;
