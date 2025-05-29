@@ -6,14 +6,14 @@
 
 #if defined(IMGUI_VERSION_NUM)
 
-#if IMGUI_VERSION_NUM != 19180
-#error Unexpected ImGui version, please update the "imgui.h" header to version 19180!
+#if IMGUI_VERSION_NUM != 19191
+#error Unexpected ImGui version, please update the "imgui.h" header to version 19191!
 #endif
 
 // Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
 static_assert(sizeof(ImTextureID) == 8, "missing \"#define ImTextureID ImU64\" before \"#include <imgui.h>\"");
 
-struct imgui_function_table_19180
+struct imgui_function_table_19191
 {
 	ImGuiIO&(*GetIO)();
 	ImGuiStyle&(*GetStyle)();
@@ -139,7 +139,8 @@ struct imgui_function_table_19180
 	void(*Bullet)();
 	bool(*TextLink)(const char* label);
 	void(*TextLinkOpenURL)(const char* label, const char* url);
-	void(*Image)(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col);
+	void(*Image)(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1);
+	void(*ImageWithBg)(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& bg_col, const ImVec4& tint_col);
 	bool(*ImageButton)(const char* str_id, ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& bg_col, const ImVec4& tint_col);
 	bool(*BeginCombo)(const char* label, const char* preview_value, ImGuiComboFlags flags);
 	void(*EndCombo)();
@@ -443,7 +444,7 @@ struct imgui_function_table_19180
 
 };
 
-using imgui_function_table = imgui_function_table_19180;
+using imgui_function_table = imgui_function_table_19191;
 
 inline const imgui_function_table *&imgui_function_table_instance()
 {
@@ -585,7 +586,8 @@ namespace ImGui
 	inline void Bullet() { imgui_function_table_instance()->Bullet(); }
 	inline bool TextLink(const char* label) { return imgui_function_table_instance()->TextLink(label); }
 	inline void TextLinkOpenURL(const char* label, const char* url) { imgui_function_table_instance()->TextLinkOpenURL(label, url); }
-	inline void Image(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col) { imgui_function_table_instance()->Image(user_texture_id, image_size, uv0, uv1, tint_col, border_col); }
+	inline void Image(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1) { imgui_function_table_instance()->Image(user_texture_id, image_size, uv0, uv1); }
+	inline void ImageWithBg(ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& bg_col, const ImVec4& tint_col) { imgui_function_table_instance()->ImageWithBg(user_texture_id, image_size, uv0, uv1, bg_col, tint_col); }
 	inline bool ImageButton(const char* str_id, ImTextureID user_texture_id, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& bg_col, const ImVec4& tint_col) { return imgui_function_table_instance()->ImageButton(str_id, user_texture_id, image_size, uv0, uv1, bg_col, tint_col); }
 	inline bool BeginCombo(const char* label, const char* preview_value, ImGuiComboFlags flags) { return imgui_function_table_instance()->BeginCombo(label, preview_value, flags); }
 	inline void EndCombo() { imgui_function_table_instance()->EndCombo(); }

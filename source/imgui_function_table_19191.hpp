@@ -6,204 +6,24 @@
 
 #pragma once
 
-#include "imgui_function_table_19191.hpp"
+#include <imgui.h>
 
-using imgui_font_19180 = imgui_font_19191;
+using imgui_font_19191 = ImFont;
 
-using imgui_storage_19180 = imgui_storage_19191;
+using imgui_storage_19191 = ImGuiStorage;
 
-using imgui_list_clipper_19180 = imgui_list_clipper_19191;
+using imgui_list_clipper_19191 = ImGuiListClipper;
 
-using imgui_draw_list_19180 = imgui_draw_list_19191;
+using imgui_draw_list_19191 = ImDrawList;
 
-struct imgui_io_19180
+using imgui_io_19191 = ImGuiIO;
+
+using imgui_style_19191 = ImGuiStyle;
+
+struct imgui_function_table_19191
 {
-	ImGuiConfigFlags ConfigFlags;
-	ImGuiBackendFlags BackendFlags;
-	ImVec2 DisplaySize;
-	float DeltaTime;
-	float IniSavingRate;
-	const char *IniFilename;
-	const char *LogFilename;
-	void *UserData;
-
-	ImFontAtlas *Fonts;
-	float FontGlobalScale;
-	bool FontAllowUserScaling;
-	ImFont *FontDefault;
-	ImVec2 DisplayFramebufferScale;
-
-	bool ConfigNavSwapGamepadButtons;
-	bool ConfigNavMoveSetMousePos;
-	bool ConfigNavCaptureKeyboard;
-	bool ConfigNavEscapeClearFocusItem;
-	bool ConfigNavEscapeClearFocusWindow;
-	bool ConfigNavCursorVisibleAuto;
-	bool ConfigNavCursorVisibleAlways;
-
-	bool ConfigDockingNoSplit;
-	bool ConfigDockingWithShift;
-	bool ConfigDockingAlwaysTabBar;
-	bool ConfigDockingTransparentPayload;
-
-	bool ConfigViewportsNoAutoMerge;
-	bool ConfigViewportsNoTaskBarIcon;
-	bool ConfigViewportsNoDecoration;
-	bool ConfigViewportsNoDefaultParent;
-
-	bool MouseDrawCursor;
-	bool ConfigMacOSXBehaviors;
-	bool ConfigInputTrickleEventQueue;
-	bool ConfigInputTextCursorBlink;
-	bool ConfigInputTextEnterKeepActive;
-	bool ConfigDragClickToInputText;
-	bool ConfigWindowsResizeFromEdges;
-	bool ConfigWindowsMoveFromTitleBarOnly;
-	bool ConfigWindowsCopyContentsWithCtrlC;
-	bool ConfigScrollbarScrollByPage;
-	float ConfigMemoryCompactTimer;
-
-	float MouseDoubleClickTime;
-	float MouseDoubleClickMaxDist;
-	float MouseDragThreshold;
-	float KeyRepeatDelay;
-	float KeyRepeatRate;
-
-	bool ConfigErrorRecovery;
-	bool ConfigErrorRecoveryEnableAssert;
-	bool ConfigErrorRecoveryEnableDebugLog;
-	bool ConfigErrorRecoveryEnableTooltip;
-	bool ConfigDebugIsDebuggerPresent;
-	bool ConfigDebugHighlightIdConflicts;
-	bool ConfigDebugBeginReturnValueOnce;
-	bool ConfigDebugBeginReturnValueLoop;
-	bool ConfigDebugIgnoreFocusLoss;
-	bool ConfigDebugIniSettings;
-
-	const char *BackendPlatformName;
-	const char *BackendRendererName;
-	void *BackendPlatformUserData;
-	void *BackendRendererUserData;
-	void *BackendLanguageUserData;
-
-	bool WantCaptureMouse;
-	bool WantCaptureKeyboard;
-	bool WantTextInput;
-	bool WantSetMousePos;
-	bool WantSaveIniSettings;
-	bool NavActive;
-	bool NavVisible;
-	float Framerate;
-	int MetricsRenderVertices;
-	int MetricsRenderIndices;
-	int MetricsRenderWindows;
-	int MetricsActiveWindows;
-	ImVec2 MouseDelta;
-
-	ImGuiContext *Ctx;
-
-	ImVec2 MousePos;
-	bool MouseDown[5];
-	float MouseWheel;
-	float MouseWheelH;
-	ImGuiMouseSource MouseSource;
-	ImGuiID MouseHoveredViewport;
-	bool KeyCtrl;
-	bool KeyShift;
-	bool KeyAlt;
-	bool KeySuper;
-
-	ImGuiKeyChord KeyMods;
-	ImGuiKeyData KeysData[155];
-	bool WantCaptureMouseUnlessPopupClose;
-	ImVec2 MousePosPrev;
-	ImVec2 MouseClickedPos[5];
-	double MouseClickedTime[5];
-	bool MouseClicked[5];
-	bool MouseDoubleClicked[5];
-	ImU16 MouseClickedCount[5];
-	ImU16 MouseClickedLastCount[5];
-	bool MouseReleased[5];
-	double MouseReleasedTime[5];
-	bool MouseDownOwned[5];
-	bool MouseDownOwnedUnlessPopupClose[5];
-	bool MouseWheelRequestAxisSwap;
-	bool MouseCtrlLeftAsRightClick;
-	float MouseDownDuration[5];
-	float MouseDownDurationPrev[5];
-	ImVec2 MouseDragMaxDistanceAbs[5];
-	float MouseDragMaxDistanceSqr[5];
-	float PenPressure;
-	bool AppFocusLost;
-	bool AppAcceptingEvents;
-	ImWchar16 InputQueueSurrogate;
-	ImVector<ImWchar> InputQueueCharacters;
-};
-
-struct imgui_style_19180
-{
-	float Alpha;
-	float DisabledAlpha;
-	ImVec2 WindowPadding;
-	float WindowRounding;
-	float WindowBorderSize;
-	ImVec2 WindowMinSize;
-	ImVec2 WindowTitleAlign;
-	ImGuiDir WindowMenuButtonPosition;
-	float ChildRounding;
-	float ChildBorderSize;
-	float PopupRounding;
-	float PopupBorderSize;
-	ImVec2 FramePadding;
-	float FrameRounding;
-	float FrameBorderSize;
-	ImVec2 ItemSpacing;
-	ImVec2 ItemInnerSpacing;
-	ImVec2 CellPadding;
-	ImVec2 TouchExtraPadding;
-	float IndentSpacing;
-	float ColumnsMinSpacing;
-	float ScrollbarSize;
-	float ScrollbarRounding;
-	float GrabMinSize;
-	float GrabRounding;
-	float LogSliderDeadzone;
-	float TabRounding;
-	float TabBorderSize;
-	float TabMinWidthForCloseButton;
-	float TabBarBorderSize;
-	float TabBarOverlineSize;
-	float TableAngledHeadersAngle;
-	ImVec2 TableAngledHeadersTextAlign;
-	ImGuiDir ColorButtonPosition;
-	ImVec2 ButtonTextAlign;
-	ImVec2 SelectableTextAlign;
-	float SeparatorTextBorderSize;
-	ImVec2 SeparatorTextAlign;
-	ImVec2 SeparatorTextPadding;
-	ImVec2 DisplayWindowPadding;
-	ImVec2 DisplaySafeAreaPadding;
-	float DockingSeparatorSize;
-	float MouseCursorScale;
-	bool AntiAliasedLines;
-	bool AntiAliasedLinesUseTex;
-	bool AntiAliasedFill;
-	float CurveTessellationTol;
-	float CircleTessellationMaxError;
-
-	ImVec4 Colors[58];
-
-	float HoverStationaryDelay;
-	float HoverDelayShort;
-	float HoverDelayNormal;
-	ImGuiHoveredFlags HoverFlagsForTooltipMouse;
-	ImGuiHoveredFlags HoverFlagsForTooltipNav;
-};
-
-struct imgui_function_table_19180
-{
-	imgui_io_19180 &(*GetIO)();
-	imgui_style_19180 &(*GetStyle)();
+	imgui_io_19191 &(*GetIO)();
+	imgui_style_19191 &(*GetStyle)();
 	const char *(*GetVersion)();
 	bool(*Begin)(const char *name, bool *p_open, ImGuiWindowFlags flags);
 	void(*End)();
@@ -214,7 +34,7 @@ struct imgui_function_table_19180
 	bool(*IsWindowCollapsed)();
 	bool(*IsWindowFocused)(ImGuiFocusedFlags flags);
 	bool(*IsWindowHovered)(ImGuiHoveredFlags flags);
-	imgui_draw_list_19180 *(*GetWindowDrawList)();
+	imgui_draw_list_19191 *(*GetWindowDrawList)();
 	float(*GetWindowDpiScale)();
 	ImVec2(*GetWindowPos)();
 	ImVec2(*GetWindowSize)();
@@ -247,7 +67,7 @@ struct imgui_function_table_19180
 	void(*SetScrollHereY)(float center_y_ratio);
 	void(*SetScrollFromPosX)(float local_x, float center_x_ratio);
 	void(*SetScrollFromPosY)(float local_y, float center_y_ratio);
-	void(*PushFont)(imgui_font_19180 *font);
+	void(*PushFont)(imgui_font_19191 *font);
 	void(*PopFont)();
 	void(*PushStyleColor)(ImGuiCol idx, ImU32 col);
 	void(*PushStyleColor2)(ImGuiCol idx, const ImVec4 &col);
@@ -265,7 +85,7 @@ struct imgui_function_table_19180
 	float(*CalcItemWidth)();
 	void(*PushTextWrapPos)(float wrap_local_pos_x);
 	void(*PopTextWrapPos)();
-	imgui_font_19180 *(*GetFont)();
+	imgui_font_19191 *(*GetFont)();
 	float(*GetFontSize)();
 	ImVec2(*GetFontTexUvWhitePixel)();
 	ImU32(*GetColorU32)(ImGuiCol idx, float alpha_mul);
@@ -326,7 +146,8 @@ struct imgui_function_table_19180
 	void(*Bullet)();
 	bool(*TextLink)(const char *label);
 	void(*TextLinkOpenURL)(const char *label, const char *url);
-	void(*Image)(ImTextureID user_texture_id, const ImVec2 &image_size, const ImVec2 &uv0, const ImVec2 &uv1, const ImVec4 &tint_col, const ImVec4 &border_col);
+	void(*Image)(ImTextureID user_texture_id, const ImVec2 &image_size, const ImVec2 &uv0, const ImVec2 &uv1);
+	void(*ImageWithBg)(ImTextureID user_texture_id, const ImVec2 &image_size, const ImVec2 &uv0, const ImVec2 &uv1, const ImVec4 &bg_col, const ImVec4 &tint_col);
 	bool(*ImageButton)(const char *str_id, ImTextureID user_texture_id, const ImVec2 &image_size, const ImVec2 &uv0, const ImVec2 &uv1, const ImVec4 &bg_col, const ImVec4 &tint_col);
 	bool(*BeginCombo)(const char *label, const char *preview_value, ImGuiComboFlags flags);
 	void(*EndCombo)();
@@ -505,16 +326,16 @@ struct imgui_function_table_19180
 	ImVec2(*GetItemRectMin)();
 	ImVec2(*GetItemRectMax)();
 	ImVec2(*GetItemRectSize)();
-	imgui_draw_list_19180 *(*GetBackgroundDrawList)(ImGuiViewport *viewport);
-	imgui_draw_list_19180 *(*GetForegroundDrawList)(ImGuiViewport *viewport);
+	imgui_draw_list_19191 *(*GetBackgroundDrawList)(ImGuiViewport *viewport);
+	imgui_draw_list_19191 *(*GetForegroundDrawList)(ImGuiViewport *viewport);
 	bool(*IsRectVisible)(const ImVec2 &size);
 	bool(*IsRectVisible2)(const ImVec2 &rect_min, const ImVec2 &rect_max);
 	double(*GetTime)();
 	int(*GetFrameCount)();
 	ImDrawListSharedData *(*GetDrawListSharedData)();
 	const char *(*GetStyleColorName)(ImGuiCol idx);
-	void(*SetStateStorage)(imgui_storage_19180 *storage);
-	imgui_storage_19180 *(*GetStateStorage)();
+	void(*SetStateStorage)(imgui_storage_19191 *storage);
+	imgui_storage_19191 *(*GetStateStorage)();
 	ImVec2(*CalcTextSize)(const char *text, const char *text_end, bool hide_text_after_double_hash, float wrap_width);
 	ImVec4(*ColorConvertU32ToFloat4)(ImU32 in);
 	ImU32(*ColorConvertFloat4ToU32)(const ImVec4 &in);
@@ -553,81 +374,81 @@ struct imgui_function_table_19180
 	void(*GetAllocatorFunctions)(ImGuiMemAllocFunc *p_alloc_func, ImGuiMemFreeFunc *p_free_func, void **p_user_data);
 	void *(*MemAlloc)(size_t size);
 	void(*MemFree)(void *ptr);
-	int(*ImGuiStorage_GetInt)(const imgui_storage_19180 *_this, ImGuiID key, int default_val);
-	void(*ImGuiStorage_SetInt)(imgui_storage_19180 *_this, ImGuiID key, int val);
-	bool(*ImGuiStorage_GetBool)(const imgui_storage_19180 *_this, ImGuiID key, bool default_val);
-	void(*ImGuiStorage_SetBool)(imgui_storage_19180 *_this, ImGuiID key, bool val);
-	float(*ImGuiStorage_GetFloat)(const imgui_storage_19180 *_this, ImGuiID key, float default_val);
-	void(*ImGuiStorage_SetFloat)(imgui_storage_19180 *_this, ImGuiID key, float val);
-	void *(*ImGuiStorage_GetVoidPtr)(const imgui_storage_19180 *_this, ImGuiID key);
-	void(*ImGuiStorage_SetVoidPtr)(imgui_storage_19180 *_this, ImGuiID key, void *val);
-	int *(*ImGuiStorage_GetIntRef)(imgui_storage_19180 *_this, ImGuiID key, int default_val);
-	bool *(*ImGuiStorage_GetBoolRef)(imgui_storage_19180 *_this, ImGuiID key, bool default_val);
-	float *(*ImGuiStorage_GetFloatRef)(imgui_storage_19180 *_this, ImGuiID key, float default_val);
-	void **(*ImGuiStorage_GetVoidPtrRef)(imgui_storage_19180 *_this, ImGuiID key, void *default_val);
-	void(*ImGuiStorage_BuildSortByKey)(imgui_storage_19180 *_this);
-	void(*ImGuiStorage_SetAllInt)(imgui_storage_19180 *_this, int val);
-	void(*ConstructImGuiListClipper)(imgui_list_clipper_19180 *_this);
-	void(*DestructImGuiListClipper)(imgui_list_clipper_19180 *_this);
-	void(*ImGuiListClipper_Begin)(imgui_list_clipper_19180 *_this, int items_count, float items_height);
-	void(*ImGuiListClipper_End)(imgui_list_clipper_19180 *_this);
-	bool(*ImGuiListClipper_Step)(imgui_list_clipper_19180 *_this);
-	void(*ImGuiListClipper_IncludeItemsByIndex)(imgui_list_clipper_19180 *_this, int item_begin, int item_end);
-	void(*ImGuiListClipper_SeekCursorForItem)(imgui_list_clipper_19180 *_this, int item_index);
-	void(*ConstructImDrawList)(imgui_draw_list_19180 *_this, ImDrawListSharedData *shared_data);
-	void(*DestructImDrawList)(imgui_draw_list_19180 *_this);
-	void(*ImDrawList_PushClipRect)(imgui_draw_list_19180 *_this, const ImVec2 &clip_rect_min, const ImVec2 &clip_rect_max, bool intersect_with_current_clip_rect);
-	void(*ImDrawList_PushClipRectFullScreen)(imgui_draw_list_19180 *_this);
-	void(*ImDrawList_PopClipRect)(imgui_draw_list_19180 *_this);
-	void(*ImDrawList_PushTextureID)(imgui_draw_list_19180 *_this, ImTextureID texture_id);
-	void(*ImDrawList_PopTextureID)(imgui_draw_list_19180 *_this);
-	void(*ImDrawList_AddLine)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, ImU32 col, float thickness);
-	void(*ImDrawList_AddRect)(imgui_draw_list_19180 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness);
-	void(*ImDrawList_AddRectFilled)(imgui_draw_list_19180 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col, float rounding, ImDrawFlags flags);
-	void(*ImDrawList_AddRectFilledMultiColor)(imgui_draw_list_19180 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left);
-	void(*ImDrawList_AddQuad)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness);
-	void(*ImDrawList_AddQuadFilled)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col);
-	void(*ImDrawList_AddTriangle)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col, float thickness);
-	void(*ImDrawList_AddTriangleFilled)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col);
-	void(*ImDrawList_AddCircle)(imgui_draw_list_19180 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness);
-	void(*ImDrawList_AddCircleFilled)(imgui_draw_list_19180 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments);
-	void(*ImDrawList_AddNgon)(imgui_draw_list_19180 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness);
-	void(*ImDrawList_AddNgonFilled)(imgui_draw_list_19180 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments);
-	void(*ImDrawList_AddEllipse)(imgui_draw_list_19180 *_this, const ImVec2 &center, const ImVec2 &radius, ImU32 col, float rot, int num_segments, float thickness);
-	void(*ImDrawList_AddEllipseFilled)(imgui_draw_list_19180 *_this, const ImVec2 &center, const ImVec2 &radius, ImU32 col, float rot, int num_segments);
-	void(*ImDrawList_AddText)(imgui_draw_list_19180 *_this, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end);
-	void(*ImDrawList_AddText2)(imgui_draw_list_19180 *_this, imgui_font_19180 *font, float font_size, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end, float wrap_width, const ImVec4 *cpu_fine_clip_rect);
-	void(*ImDrawList_AddBezierCubic)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness, int num_segments);
-	void(*ImDrawList_AddBezierQuadratic)(imgui_draw_list_19180 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col, float thickness, int num_segments);
-	void(*ImDrawList_AddPolyline)(imgui_draw_list_19180 *_this, const ImVec2 *points, int num_points, ImU32 col, ImDrawFlags flags, float thickness);
-	void(*ImDrawList_AddConvexPolyFilled)(imgui_draw_list_19180 *_this, const ImVec2 *points, int num_points, ImU32 col);
-	void(*ImDrawList_AddConcavePolyFilled)(imgui_draw_list_19180 *_this, const ImVec2 *points, int num_points, ImU32 col);
-	void(*ImDrawList_AddImage)(imgui_draw_list_19180 *_this, ImTextureID user_texture_id, const ImVec2 &p_min, const ImVec2 &p_max, const ImVec2 &uv_min, const ImVec2 &uv_max, ImU32 col);
-	void(*ImDrawList_AddImageQuad)(imgui_draw_list_19180 *_this, ImTextureID user_texture_id, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, const ImVec2 &uv1, const ImVec2 &uv2, const ImVec2 &uv3, const ImVec2 &uv4, ImU32 col);
-	void(*ImDrawList_AddImageRounded)(imgui_draw_list_19180 *_this, ImTextureID user_texture_id, const ImVec2 &p_min, const ImVec2 &p_max, const ImVec2 &uv_min, const ImVec2 &uv_max, ImU32 col, float rounding, ImDrawFlags flags);
-	void(*ImDrawList_PathArcTo)(imgui_draw_list_19180 *_this, const ImVec2 &center, float radius, float a_min, float a_max, int num_segments);
-	void(*ImDrawList_PathArcToFast)(imgui_draw_list_19180 *_this, const ImVec2 &center, float radius, int a_min_of_12, int a_max_of_12);
-	void(*ImDrawList_PathEllipticalArcTo)(imgui_draw_list_19180 *_this, const ImVec2 &center, const ImVec2 &radius, float rot, float a_min, float a_max, int num_segments);
-	void(*ImDrawList_PathBezierCubicCurveTo)(imgui_draw_list_19180 *_this, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, int num_segments);
-	void(*ImDrawList_PathBezierQuadraticCurveTo)(imgui_draw_list_19180 *_this, const ImVec2 &p2, const ImVec2 &p3, int num_segments);
-	void(*ImDrawList_PathRect)(imgui_draw_list_19180 *_this, const ImVec2 &rect_min, const ImVec2 &rect_max, float rounding, ImDrawFlags flags);
-	void(*ImDrawList_AddCallback)(imgui_draw_list_19180 *_this, ImDrawCallback callback, void *userdata, size_t userdata_size);
-	void(*ImDrawList_AddDrawCmd)(imgui_draw_list_19180 *_this);
-	imgui_draw_list_19180 *(*ImDrawList_CloneOutput)(const imgui_draw_list_19180 *_this);
-	void(*ImDrawList_PrimReserve)(imgui_draw_list_19180 *_this, int idx_count, int vtx_count);
-	void(*ImDrawList_PrimUnreserve)(imgui_draw_list_19180 *_this, int idx_count, int vtx_count);
-	void(*ImDrawList_PrimRect)(imgui_draw_list_19180 *_this, const ImVec2 &a, const ImVec2 &b, ImU32 col);
-	void(*ImDrawList_PrimRectUV)(imgui_draw_list_19180 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &uv_a, const ImVec2 &uv_b, ImU32 col);
-	void(*ImDrawList_PrimQuadUV)(imgui_draw_list_19180 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &c, const ImVec2 &d, const ImVec2 &uv_a, const ImVec2 &uv_b, const ImVec2 &uv_c, const ImVec2 &uv_d, ImU32 col);
-	void(*ConstructImFont)(imgui_font_19180 *_this);
-	void(*DestructImFont)(imgui_font_19180 *_this);
-	const ImFontGlyph *(*ImFont_FindGlyph)(imgui_font_19180 *_this, ImWchar c);
-	const ImFontGlyph *(*ImFont_FindGlyphNoFallback)(imgui_font_19180 *_this, ImWchar c);
-	ImVec2(*ImFont_CalcTextSizeA)(imgui_font_19180 *_this, float size, float max_width, float wrap_width, const char *text_begin, const char *text_end, const char **remaining);
-	const char *(*ImFont_CalcWordWrapPositionA)(imgui_font_19180 *_this, float scale, const char *text, const char *text_end, float wrap_width);
-	void(*ImFont_RenderChar)(imgui_font_19180 *_this, imgui_draw_list_19180 *draw_list, float size, const ImVec2 &pos, ImU32 col, ImWchar c);
-	void(*ImFont_RenderText)(imgui_font_19180 *_this, imgui_draw_list_19180 *draw_list, float size, const ImVec2 &pos, ImU32 col, const ImVec4 &clip_rect, const char *text_begin, const char *text_end, float wrap_width, bool cpu_fine_clip);
+	int(*ImGuiStorage_GetInt)(const imgui_storage_19191 *_this, ImGuiID key, int default_val);
+	void(*ImGuiStorage_SetInt)(imgui_storage_19191 *_this, ImGuiID key, int val);
+	bool(*ImGuiStorage_GetBool)(const imgui_storage_19191 *_this, ImGuiID key, bool default_val);
+	void(*ImGuiStorage_SetBool)(imgui_storage_19191 *_this, ImGuiID key, bool val);
+	float(*ImGuiStorage_GetFloat)(const imgui_storage_19191 *_this, ImGuiID key, float default_val);
+	void(*ImGuiStorage_SetFloat)(imgui_storage_19191 *_this, ImGuiID key, float val);
+	void *(*ImGuiStorage_GetVoidPtr)(const imgui_storage_19191 *_this, ImGuiID key);
+	void(*ImGuiStorage_SetVoidPtr)(imgui_storage_19191 *_this, ImGuiID key, void *val);
+	int *(*ImGuiStorage_GetIntRef)(imgui_storage_19191 *_this, ImGuiID key, int default_val);
+	bool *(*ImGuiStorage_GetBoolRef)(imgui_storage_19191 *_this, ImGuiID key, bool default_val);
+	float *(*ImGuiStorage_GetFloatRef)(imgui_storage_19191 *_this, ImGuiID key, float default_val);
+	void **(*ImGuiStorage_GetVoidPtrRef)(imgui_storage_19191 *_this, ImGuiID key, void *default_val);
+	void(*ImGuiStorage_BuildSortByKey)(imgui_storage_19191 *_this);
+	void(*ImGuiStorage_SetAllInt)(imgui_storage_19191 *_this, int val);
+	void(*ConstructImGuiListClipper)(imgui_list_clipper_19191 *_this);
+	void(*DestructImGuiListClipper)(imgui_list_clipper_19191 *_this);
+	void(*ImGuiListClipper_Begin)(imgui_list_clipper_19191 *_this, int items_count, float items_height);
+	void(*ImGuiListClipper_End)(imgui_list_clipper_19191 *_this);
+	bool(*ImGuiListClipper_Step)(imgui_list_clipper_19191 *_this);
+	void(*ImGuiListClipper_IncludeItemsByIndex)(imgui_list_clipper_19191 *_this, int item_begin, int item_end);
+	void(*ImGuiListClipper_SeekCursorForItem)(imgui_list_clipper_19191 *_this, int item_index);
+	void(*ConstructImDrawList)(imgui_draw_list_19191 *_this, ImDrawListSharedData *shared_data);
+	void(*DestructImDrawList)(imgui_draw_list_19191 *_this);
+	void(*ImDrawList_PushClipRect)(imgui_draw_list_19191 *_this, const ImVec2 &clip_rect_min, const ImVec2 &clip_rect_max, bool intersect_with_current_clip_rect);
+	void(*ImDrawList_PushClipRectFullScreen)(imgui_draw_list_19191 *_this);
+	void(*ImDrawList_PopClipRect)(imgui_draw_list_19191 *_this);
+	void(*ImDrawList_PushTextureID)(imgui_draw_list_19191 *_this, ImTextureID texture_id);
+	void(*ImDrawList_PopTextureID)(imgui_draw_list_19191 *_this);
+	void(*ImDrawList_AddLine)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, ImU32 col, float thickness);
+	void(*ImDrawList_AddRect)(imgui_draw_list_19191 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness);
+	void(*ImDrawList_AddRectFilled)(imgui_draw_list_19191 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col, float rounding, ImDrawFlags flags);
+	void(*ImDrawList_AddRectFilledMultiColor)(imgui_draw_list_19191 *_this, const ImVec2 &p_min, const ImVec2 &p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left);
+	void(*ImDrawList_AddQuad)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness);
+	void(*ImDrawList_AddQuadFilled)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col);
+	void(*ImDrawList_AddTriangle)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col, float thickness);
+	void(*ImDrawList_AddTriangleFilled)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col);
+	void(*ImDrawList_AddCircle)(imgui_draw_list_19191 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness);
+	void(*ImDrawList_AddCircleFilled)(imgui_draw_list_19191 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments);
+	void(*ImDrawList_AddNgon)(imgui_draw_list_19191 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments, float thickness);
+	void(*ImDrawList_AddNgonFilled)(imgui_draw_list_19191 *_this, const ImVec2 &center, float radius, ImU32 col, int num_segments);
+	void(*ImDrawList_AddEllipse)(imgui_draw_list_19191 *_this, const ImVec2 &center, const ImVec2 &radius, ImU32 col, float rot, int num_segments, float thickness);
+	void(*ImDrawList_AddEllipseFilled)(imgui_draw_list_19191 *_this, const ImVec2 &center, const ImVec2 &radius, ImU32 col, float rot, int num_segments);
+	void(*ImDrawList_AddText)(imgui_draw_list_19191 *_this, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end);
+	void(*ImDrawList_AddText2)(imgui_draw_list_19191 *_this, imgui_font_19191 *font, float font_size, const ImVec2 &pos, ImU32 col, const char *text_begin, const char *text_end, float wrap_width, const ImVec4 *cpu_fine_clip_rect);
+	void(*ImDrawList_AddBezierCubic)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, ImU32 col, float thickness, int num_segments);
+	void(*ImDrawList_AddBezierQuadratic)(imgui_draw_list_19191 *_this, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, ImU32 col, float thickness, int num_segments);
+	void(*ImDrawList_AddPolyline)(imgui_draw_list_19191 *_this, const ImVec2 *points, int num_points, ImU32 col, ImDrawFlags flags, float thickness);
+	void(*ImDrawList_AddConvexPolyFilled)(imgui_draw_list_19191 *_this, const ImVec2 *points, int num_points, ImU32 col);
+	void(*ImDrawList_AddConcavePolyFilled)(imgui_draw_list_19191 *_this, const ImVec2 *points, int num_points, ImU32 col);
+	void(*ImDrawList_AddImage)(imgui_draw_list_19191 *_this, ImTextureID user_texture_id, const ImVec2 &p_min, const ImVec2 &p_max, const ImVec2 &uv_min, const ImVec2 &uv_max, ImU32 col);
+	void(*ImDrawList_AddImageQuad)(imgui_draw_list_19191 *_this, ImTextureID user_texture_id, const ImVec2 &p1, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, const ImVec2 &uv1, const ImVec2 &uv2, const ImVec2 &uv3, const ImVec2 &uv4, ImU32 col);
+	void(*ImDrawList_AddImageRounded)(imgui_draw_list_19191 *_this, ImTextureID user_texture_id, const ImVec2 &p_min, const ImVec2 &p_max, const ImVec2 &uv_min, const ImVec2 &uv_max, ImU32 col, float rounding, ImDrawFlags flags);
+	void(*ImDrawList_PathArcTo)(imgui_draw_list_19191 *_this, const ImVec2 &center, float radius, float a_min, float a_max, int num_segments);
+	void(*ImDrawList_PathArcToFast)(imgui_draw_list_19191 *_this, const ImVec2 &center, float radius, int a_min_of_12, int a_max_of_12);
+	void(*ImDrawList_PathEllipticalArcTo)(imgui_draw_list_19191 *_this, const ImVec2 &center, const ImVec2 &radius, float rot, float a_min, float a_max, int num_segments);
+	void(*ImDrawList_PathBezierCubicCurveTo)(imgui_draw_list_19191 *_this, const ImVec2 &p2, const ImVec2 &p3, const ImVec2 &p4, int num_segments);
+	void(*ImDrawList_PathBezierQuadraticCurveTo)(imgui_draw_list_19191 *_this, const ImVec2 &p2, const ImVec2 &p3, int num_segments);
+	void(*ImDrawList_PathRect)(imgui_draw_list_19191 *_this, const ImVec2 &rect_min, const ImVec2 &rect_max, float rounding, ImDrawFlags flags);
+	void(*ImDrawList_AddCallback)(imgui_draw_list_19191 *_this, ImDrawCallback callback, void *userdata, size_t userdata_size);
+	void(*ImDrawList_AddDrawCmd)(imgui_draw_list_19191 *_this);
+	imgui_draw_list_19191 *(*ImDrawList_CloneOutput)(const imgui_draw_list_19191 *_this);
+	void(*ImDrawList_PrimReserve)(imgui_draw_list_19191 *_this, int idx_count, int vtx_count);
+	void(*ImDrawList_PrimUnreserve)(imgui_draw_list_19191 *_this, int idx_count, int vtx_count);
+	void(*ImDrawList_PrimRect)(imgui_draw_list_19191 *_this, const ImVec2 &a, const ImVec2 &b, ImU32 col);
+	void(*ImDrawList_PrimRectUV)(imgui_draw_list_19191 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &uv_a, const ImVec2 &uv_b, ImU32 col);
+	void(*ImDrawList_PrimQuadUV)(imgui_draw_list_19191 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &c, const ImVec2 &d, const ImVec2 &uv_a, const ImVec2 &uv_b, const ImVec2 &uv_c, const ImVec2 &uv_d, ImU32 col);
+	void(*ConstructImFont)(imgui_font_19191 *_this);
+	void(*DestructImFont)(imgui_font_19191 *_this);
+	const ImFontGlyph *(*ImFont_FindGlyph)(imgui_font_19191 *_this, ImWchar c);
+	const ImFontGlyph *(*ImFont_FindGlyphNoFallback)(imgui_font_19191 *_this, ImWchar c);
+	ImVec2(*ImFont_CalcTextSizeA)(imgui_font_19191 *_this, float size, float max_width, float wrap_width, const char *text_begin, const char *text_end, const char **remaining);
+	const char *(*ImFont_CalcWordWrapPositionA)(imgui_font_19191 *_this, float scale, const char *text, const char *text_end, float wrap_width);
+	void(*ImFont_RenderChar)(imgui_font_19191 *_this, imgui_draw_list_19191 *draw_list, float size, const ImVec2 &pos, ImU32 col, ImWchar c);
+	void(*ImFont_RenderText)(imgui_font_19191 *_this, imgui_draw_list_19191 *draw_list, float size, const ImVec2 &pos, ImU32 col, const ImVec4 &clip_rect, const char *text_begin, const char *text_end, float wrap_width, bool cpu_fine_clip);
 
 };
 
-extern const imgui_function_table_19180 g_imgui_function_table_19180;
+extern const imgui_function_table_19191 g_imgui_function_table_19191;

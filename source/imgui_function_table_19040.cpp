@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON
+#if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON && RESHADE_GUI
 
 #include <new>
 #include "imgui_function_table_19040.hpp"
@@ -259,7 +259,7 @@ namespace
 		old_font.FallbackGlyph = new_font.FallbackGlyph;
 		old_font.ContainerAtlas = new_font.ContainerAtlas;
 		old_font.ConfigData = nullptr;
-		old_font.ConfigDataCount = new_font.ConfigDataCount;
+		old_font.ConfigDataCount = new_font.SourcesCount;
 		old_font.FallbackChar = new_font.FallbackChar;
 		old_font.EllipsisChar = new_font.EllipsisChar;
 		old_font.EllipsisCharCount = new_font.EllipsisCharCount;
@@ -279,10 +279,10 @@ namespace
 		new_font.FontSize = old_font.FontSize;
 		new_font.IndexLookup = old_font.IndexLookup;
 		new_font.Glyphs = old_font.Glyphs;
-		new_font.FallbackGlyph = old_font.FallbackGlyph;
+		new_font.FallbackGlyph = const_cast<ImFontGlyph *>(old_font.FallbackGlyph);
 		new_font.ContainerAtlas = old_font.ContainerAtlas;
-		new_font.ConfigData = nullptr;
-		new_font.ConfigDataCount = old_font.ConfigDataCount;
+		new_font.Sources = nullptr;
+		new_font.SourcesCount = old_font.ConfigDataCount;
 		new_font.FallbackChar = old_font.FallbackChar;
 		new_font.EllipsisChar = old_font.EllipsisChar;
 		new_font.EllipsisCharCount = old_font.EllipsisCharCount;

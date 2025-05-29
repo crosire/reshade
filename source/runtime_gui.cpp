@@ -2464,7 +2464,7 @@ void reshade::runtime::draw_gui_settings()
 			_imgui_context->IO.Fonts->TexReady = false;
 		}
 
-		if (_imgui_context->IO.Fonts->Fonts[0]->ConfigDataCount > 2 && // Latin font + main font + icon font
+		if (_imgui_context->IO.Fonts->Fonts[0]->SourcesCount > 2 && // Latin font + main font + icon font
 			imgui::font_input_box(_("Latin font"), "ProggyClean.ttf", _latin_font_path, _file_selection_path, _font_size))
 		{
 			modified = true;

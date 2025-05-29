@@ -302,31 +302,4 @@ void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime)
 	runtime->get_command_queue()->flush_immediate_command_list();
 }
 
-#if RESHADE_GUI
-
-#include "imgui_function_table_19180.hpp"
-#include "imgui_function_table_19040.hpp"
-#include "imgui_function_table_19000.hpp"
-#include "imgui_function_table_18971.hpp"
-#include "imgui_function_table_18600.hpp"
-
-extern "C" __declspec(dllexport) const void *ReShadeGetImGuiFunctionTable(uint32_t version)
-{
-	if (version == 19180)
-		return &g_imgui_function_table_19180;
-	if (version == 19040)
-		return &g_imgui_function_table_19040;
-	if (version >= 19000 && version < 19040)
-		return &g_imgui_function_table_19000;
-	if (version == 18971)
-		return &g_imgui_function_table_18971;
-	if (version == 18600)
-		return &g_imgui_function_table_18600;
-
-	reshade::log::message(reshade::log::level::error, "Failed to retrieve ImGui function table, because the requested ImGui version (%u) is not supported.", version);
-	return nullptr;
-}
-
-#endif
-
 #endif

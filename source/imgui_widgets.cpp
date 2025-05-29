@@ -987,7 +987,7 @@ void reshade::imgui::image_with_checkerboard_background(ImTextureID user_texture
 	}
 
 	// Add image on top
-	ImGui::Image(user_texture_id, size, ImVec2(0, 0), ImVec2(1, 1), ImColor(tint_col));
+	ImGui::ImageWithBg(user_texture_id, size, ImVec2(0, 0), ImVec2(1, 1), ImColor(), ImColor(tint_col));
 }
 
 void reshade::imgui::spinner(float value, float radius, float thickness)
