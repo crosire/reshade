@@ -313,28 +313,32 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_CO
 	{
 		assert(ppCommandList != nullptr);
 
-		const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
-
-		// Upgrade to the actual interface version requested here (and only hook graphics command lists)
-		if (command_list_proxy->check_and_upgrade_interface(riid))
+		// Ignore video command lists ('ID3D12VideoProcessCommandList', 'ID3D12VideoProcessCommandList', ...) in case they are created with the base 'ID3D12CommandList' interface
+		if (type >= D3D12_COMMAND_LIST_TYPE_DIRECT && type <= D3D12_COMMAND_LIST_TYPE_COPY)
 		{
-			*ppCommandList = command_list_proxy;
+			const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+
+			// Upgrade to the actual interface version requested here (and only hook graphics command lists)
+			if (command_list_proxy->check_and_upgrade_interface(riid))
+			{
+				*ppCommandList = command_list_proxy;
 
 #if RESHADE_ADDON
-			// Same implementation as in 'D3D12GraphicsCommandList::Reset'
-			reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
+				// Same implementation as in 'D3D12GraphicsCommandList::Reset'
+				reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
 #endif
 
 #if RESHADE_ADDON >= 2
-			if (pInitialState != nullptr)
-				reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(command_list_proxy, reshade::api::pipeline_stage::all, to_handle(pInitialState));
+				if (pInitialState != nullptr)
+					reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(command_list_proxy, reshade::api::pipeline_stage::all, to_handle(pInitialState));
 #endif
-		}
-		else // Do not hook object if we do not support the requested interface
-		{
-			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreateCommandList.", reshade::log::iid_to_string(riid).c_str());
+			}
+			else // Do not hook object if we do not support the requested interface
+			{
+				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device::CreateCommandList.", reshade::log::iid_to_string(riid).c_str());
 
-			delete command_list_proxy; // Delete instead of release to keep reference count untouched
+				delete command_list_proxy; // Delete instead of release to keep reference count untouched
+			}
 		}
 	}
 #if RESHADE_VERBOSE_LOG
@@ -1218,30 +1222,34 @@ HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS
 	return static_cast<ID3D12Device3 *>(_orig)->EnqueueMakeResident(Flags, NumObjects, ppObjects, pFenceToSignal, FenceValueToSignal);
 }
 
-HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT NodeMask, D3D12_COMMAND_LIST_TYPE Type, D3D12_COMMAND_LIST_FLAGS Flags, REFIID riid, void **ppCommandList)
+HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, D3D12_COMMAND_LIST_FLAGS flags, REFIID riid, void **ppCommandList)
 {
 	assert(_interface_version >= 4);
-	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(NodeMask, Type, Flags, riid, ppCommandList);
+	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(nodeMask, type, flags, riid, ppCommandList);
 	if (SUCCEEDED(hr))
 	{
 		assert(ppCommandList != nullptr);
 
-		const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
-
-		// Upgrade to the actual interface version requested here (and only hook graphics command lists)
-		if (command_list_proxy->check_and_upgrade_interface(riid))
+		// Ignore video command lists ('ID3D12VideoProcessCommandList', 'ID3D12VideoProcessCommandList', ...) in case they are created with the base 'ID3D12CommandList' interface
+		if (type >= D3D12_COMMAND_LIST_TYPE_DIRECT && type <= D3D12_COMMAND_LIST_TYPE_COPY)
 		{
-			*ppCommandList = command_list_proxy;
+			const auto command_list_proxy = new D3D12GraphicsCommandList(this, static_cast<ID3D12GraphicsCommandList *>(*ppCommandList));
+
+			// Upgrade to the actual interface version requested here (and only hook graphics command lists)
+			if (command_list_proxy->check_and_upgrade_interface(riid))
+			{
+				*ppCommandList = command_list_proxy;
 
 #if RESHADE_ADDON
-			reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
+				reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(command_list_proxy);
 #endif
-		}
-		else // Do not hook object if we do not support the requested interface or this is a compute command list
-		{
-			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device4::CreateCommandList1.", reshade::log::iid_to_string(riid).c_str());
+			}
+			else // Do not hook object if we do not support the requested interface or this is a compute command list
+			{
+				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device4::CreateCommandList1.", reshade::log::iid_to_string(riid).c_str());
 
-			delete command_list_proxy; // Delete instead of release to keep reference count untouched
+				delete command_list_proxy; // Delete instead of release to keep reference count untouched
+			}
 		}
 	}
 #if RESHADE_VERBOSE_LOG
