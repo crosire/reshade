@@ -177,7 +177,13 @@ namespace reshade
 		bool hidden = false;
 		bool enabled = false;
 		bool enabled_in_screenshot = true;
-		int64_t time_left = 0;
+
+		uint32_t query_base_index = 0;
+
+		 int64_t time_left = 0;
+
+		moving_average<uint64_t, 60> average_cpu_duration;
+		moving_average<uint64_t, 60> average_gpu_duration;
 
 		struct pass : reshadefx::pass
 		{
@@ -198,10 +204,6 @@ namespace reshade
 		};
 
 		std::vector<permutation> permutations;
-
-		uint32_t query_base_index = 0;
-		moving_average<uint64_t, 60> average_cpu_duration;
-		moving_average<uint64_t, 60> average_gpu_duration;
 	};
 
 	struct effect

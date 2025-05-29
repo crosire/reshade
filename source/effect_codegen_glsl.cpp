@@ -60,6 +60,14 @@ private:
 	bool _enable_16bit_types = false;
 	bool _flip_vert_y = false;
 
+	// Only write compatibility intrinsics to result if they are actually in use
+	bool _uses_fmod = false;
+	bool _uses_componentwise_or = false;
+	bool _uses_componentwise_and = false;
+	bool _uses_componentwise_cond = false;
+	bool _uses_control_flow_attributes = false;
+	bool _uses_derivative_control = false;
+
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	std::string _ubo_block;
@@ -69,14 +77,6 @@ private:
 	std::unordered_map<id, id> _remapped_sampler_variables;
 	std::unordered_map<std::string, uint32_t> _semantic_to_location;
 	std::vector<std::tuple<type, constant, id>> _constant_lookup;
-
-	// Only write compatibility intrinsics to result if they are actually in use
-	bool _uses_fmod = false;
-	bool _uses_componentwise_or = false;
-	bool _uses_componentwise_and = false;
-	bool _uses_componentwise_cond = false;
-	bool _uses_control_flow_attributes = false;
-	bool _uses_derivative_control = false;
 
 	std::string finalize_preamble() const
 	{

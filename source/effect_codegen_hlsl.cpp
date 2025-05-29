@@ -54,6 +54,10 @@ private:
 	bool _debug_info = false;
 	bool _uniforms_to_spec_constants = false;
 
+	// Only write compatibility intrinsics to result if they are actually in use
+	bool _uses_bitwise_cast = false;
+	bool _uses_bitwise_intrinsics = false;
+
 	std::unordered_map<id, std::string> _names;
 	std::unordered_map<id, std::string> _blocks;
 	std::string _cbuffer_block;
@@ -63,10 +67,6 @@ private:
 	std::string _remapped_semantics[15];
 	std::vector<std::tuple<type, constant, id>> _constant_lookup;
 	std::vector<sampler_binding> _sampler_lookup;
-
-	// Only write compatibility intrinsics to result if they are actually in use
-	bool _uses_bitwise_cast = false;
-	bool _uses_bitwise_intrinsics = false;
 
 	void optimize_bindings() override
 	{
