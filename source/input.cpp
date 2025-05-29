@@ -572,8 +572,10 @@ extern "C" BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMi
 
 		if (MsgWaitForMultipleObjects(1, &g_exit_event, FALSE, INFINITE, mask) != (WAIT_OBJECT_0 + 1))
 		{
-			std::memset(lpMsg, 0, sizeof(MSG)); // Clear message structure, so application does not process it
-			return -1;
+			// Clear message structure, so application does not process it
+			std::memset(lpMsg, 0, sizeof(MSG));
+			// Do not return an error (-1), since this causes WPF to throw an exception
+			return 1;
 		}
 	}
 #else
@@ -627,7 +629,7 @@ extern "C" BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMi
 		if (MsgWaitForMultipleObjects(1, &g_exit_event, FALSE, INFINITE, mask) != (WAIT_OBJECT_0 + 1))
 		{
 			std::memset(lpMsg, 0, sizeof(MSG));
-			return -1;
+			return 1;
 		}
 	}
 #else
