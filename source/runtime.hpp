@@ -260,6 +260,7 @@ namespace reshade
 		static unsigned int s_latest_version[3];
 
 		bool _is_initialized = false;
+		bool _preset_is_incomplete = false;
 		bool _preset_save_successful = true;
 		std::filesystem::path _config_path;
 
@@ -464,7 +465,6 @@ namespace reshade
 		bool _variable_editor_tabs = false;
 		bool _auto_save_preset = true;
 		bool _preset_is_modified = false;
-		bool _preset_is_incomplete = false;
 		bool _inherit_current_preset = false;
 		std::filesystem::path _template_preset_path;
 		bool _was_preprocessor_popup_edited = false;

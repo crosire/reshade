@@ -1704,10 +1704,10 @@ void reshade::runtime::draw_gui_home()
 
 			ImGui::BeginDisabled(!_preset_is_modified);
 
-			if (imgui::confirm_button(ICON_FK_UNDO, button_height, _("Do you really want to reset all techniques and values?")))
+			if (imgui::confirm_button(ICON_FK_UNDO, button_height, _("Do you really want to reset all effects?")))
 				reload_preset = true;
 
-			ImGui::SetItemTooltip(_("Reset all techniques and values to those of the current preset."));
+			ImGui::SetItemTooltip(_("Reset all effects to those of the current preset."));
 
 			ImGui::EndDisabled();
 
@@ -1730,7 +1730,7 @@ void reshade::runtime::draw_gui_home()
 		}
 
 		ImGui::SetItemTooltip(save_and_clean_preset ?
-			_("Clean up and save the current preset (removes all values for disabled techniques).") : _("Save the current preset."));
+			_("Clean up and save the current preset (removes all values for disabled effects).") : _("Save the current preset."));
 
 		ImGui::EndDisabled();
 
@@ -1848,7 +1848,7 @@ void reshade::runtime::draw_gui_home()
 
 		if (ImGui::BeginPopup("##presetincomplete"))
 		{
-			ImGui::TextColored(COLOR_RED, _("The selected preset uses unknown techniques. Please install all required effect files to the effect search paths."));
+			ImGui::TextColored(COLOR_RED, _("The selected preset uses unknown effects. Please install all required effect files!"));
 			ImGui::EndPopup();
 		}
 
@@ -1935,9 +1935,9 @@ void reshade::runtime::draw_gui_home()
 		if (_tutorial_index == 2)
 		{
 			tutorial_text = static_cast<std::string &&>(_(
-				"This is the list of effects. It contains all techniques exposed by effect files (.fx) found in the effect search paths specified in the settings.\n\n"
-				"Enter text in the \"Search\" box at the top to filter it and search for specific techniques.\n\n"
-				"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied (from top to bottom).\n"
+				"This is the list of effects. It contains all effects exposed by effect files (.fx) found in the effect search paths specified in the settings.\n\n"
+				"Enter text in the \"Search\" box at the top to filter it and search for specific effects.\n\n"
+				"Click on an effect to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied (from top to bottom).\n"
 				"Use the right mouse button and click on an item to open a context menu with additional options."));
 
 			ImGui::PushStyleColor(ImGuiCol_Border, COLOR_RED);
