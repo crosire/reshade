@@ -435,8 +435,8 @@ struct imgui_function_table_19191
 	void(*ImDrawList_PrimQuadUV)(ImDrawList *_this, const ImVec2& a, const ImVec2& b, const ImVec2& c, const ImVec2& d, const ImVec2& uv_a, const ImVec2& uv_b, const ImVec2& uv_c, const ImVec2& uv_d, ImU32 col);
 	void(*ConstructImFont)(ImFont *_this);
 	void(*DestructImFont)(ImFont *_this);
-	const ImFontGlyph*(*ImFont_FindGlyph)(ImFont *_this, ImWchar c);
-	const ImFontGlyph*(*ImFont_FindGlyphNoFallback)(ImFont *_this, ImWchar c);
+	ImFontGlyph*(*ImFont_FindGlyph)(ImFont *_this, ImWchar c);
+	ImFontGlyph*(*ImFont_FindGlyphNoFallback)(ImFont *_this, ImWchar c);
 	ImVec2(*ImFont_CalcTextSizeA)(ImFont *_this, float size, float max_width, float wrap_width, const char* text_begin, const char* text_end, const char** remaining);
 	const char*(*ImFont_CalcWordWrapPositionA)(ImFont *_this, float scale, const char* text, const char* text_end, float wrap_width);
 	void(*ImFont_RenderChar)(ImFont *_this, ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, ImWchar c);
@@ -891,8 +891,8 @@ inline void ImDrawList::PrimRectUV(const ImVec2& a, const ImVec2& b, const ImVec
 inline void ImDrawList::PrimQuadUV(const ImVec2& a, const ImVec2& b, const ImVec2& c, const ImVec2& d, const ImVec2& uv_a, const ImVec2& uv_b, const ImVec2& uv_c, const ImVec2& uv_d, ImU32 col) { imgui_function_table_instance()->ImDrawList_PrimQuadUV(this, a, b, c, d, uv_a, uv_b, uv_c, uv_d, col); }
 inline ImFont::ImFont() { imgui_function_table_instance()->ConstructImFont(this); }
 inline ImFont::~ImFont() { imgui_function_table_instance()->DestructImFont(this); }
-inline const ImFontGlyph* ImFont::FindGlyph(ImWchar c) { return imgui_function_table_instance()->ImFont_FindGlyph(this, c); }
-inline const ImFontGlyph* ImFont::FindGlyphNoFallback(ImWchar c) { return imgui_function_table_instance()->ImFont_FindGlyphNoFallback(this, c); }
+inline ImFontGlyph* ImFont::FindGlyph(ImWchar c) { return imgui_function_table_instance()->ImFont_FindGlyph(this, c); }
+inline ImFontGlyph* ImFont::FindGlyphNoFallback(ImWchar c) { return imgui_function_table_instance()->ImFont_FindGlyphNoFallback(this, c); }
 inline ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, const char* text_begin, const char* text_end, const char** remaining) { return imgui_function_table_instance()->ImFont_CalcTextSizeA(this, size, max_width, wrap_width, text_begin, text_end, remaining); }
 inline const char* ImFont::CalcWordWrapPositionA(float scale, const char* text, const char* text_end, float wrap_width) { return imgui_function_table_instance()->ImFont_CalcWordWrapPositionA(this, scale, text, text_end, wrap_width); }
 inline void ImFont::RenderChar(ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, ImWchar c) { imgui_function_table_instance()->ImFont_RenderChar(this, draw_list, size, pos, col, c); }
