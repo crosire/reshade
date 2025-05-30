@@ -442,8 +442,8 @@ struct imgui_function_table_19191
 	void(*ImDrawList_PrimQuadUV)(imgui_draw_list_19191 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &c, const ImVec2 &d, const ImVec2 &uv_a, const ImVec2 &uv_b, const ImVec2 &uv_c, const ImVec2 &uv_d, ImU32 col);
 	void(*ConstructImFont)(imgui_font_19191 *_this);
 	void(*DestructImFont)(imgui_font_19191 *_this);
-	const ImFontGlyph *(*ImFont_FindGlyph)(imgui_font_19191 *_this, ImWchar c);
-	const ImFontGlyph *(*ImFont_FindGlyphNoFallback)(imgui_font_19191 *_this, ImWchar c);
+	ImFontGlyph *(*ImFont_FindGlyph)(imgui_font_19191 *_this, ImWchar c);
+	ImFontGlyph *(*ImFont_FindGlyphNoFallback)(imgui_font_19191 *_this, ImWchar c);
 	ImVec2(*ImFont_CalcTextSizeA)(imgui_font_19191 *_this, float size, float max_width, float wrap_width, const char *text_begin, const char *text_end, const char **remaining);
 	const char *(*ImFont_CalcWordWrapPositionA)(imgui_font_19191 *_this, float scale, const char *text, const char *text_end, float wrap_width);
 	void(*ImFont_RenderChar)(imgui_font_19191 *_this, imgui_draw_list_19191 *draw_list, float size, const ImVec2 &pos, ImU32 col, ImWchar c);
