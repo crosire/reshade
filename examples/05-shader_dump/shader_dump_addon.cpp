@@ -14,6 +14,29 @@ using namespace reshade::api;
 
 constexpr uint32_t SPIRV_MAGIC = 0x07230203;
 
+static std::filesystem::path make_shader_file_path(uint32_t shader_hash, const wchar_t *extension)
+{
+	// Prepend executable directory to image files
+	wchar_t file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	std::filesystem::path path = file_prefix;
+	path = path.parent_path();
+	path /= RESHADE_ADDON_SHADER_SAVE_DIR;
+
+	// Ensure target directory exists
+	if (!std::filesystem::exists(path))
+		std::filesystem::create_directory(path);
+
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", shader_hash);
+
+	path /= hash_string;
+	path += extension;
+
+	return path;
+}
+
 static void save_shader_code(device_api device_type, const shader_desc &desc)
 {
 	if (desc.code_size == 0)
@@ -27,24 +50,9 @@ static void save_shader_code(device_api device_type, const shader_desc &desc)
 	else if (device_type == device_api::opengl)
 		extension = desc.code_size > 5 && std::strncmp(static_cast<const char *>(desc.code), "!!ARB", 5) == 0 ? L".txt" : L".glsl"; // OpenGL otherwise uses plain text ARB assembly language or GLSL
 
-	// Prepend executable directory to image files
-	wchar_t file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+	const std::filesystem::path file_path = make_shader_file_path(shader_hash, extension);
 
-	std::filesystem::path dump_path = file_prefix;
-	dump_path  = dump_path.parent_path();
-	dump_path /= RESHADE_ADDON_SHADER_SAVE_DIR;
-
-	if (std::filesystem::exists(dump_path) == false)
-		std::filesystem::create_directory(dump_path);
-
-	wchar_t hash_string[11];
-	swprintf_s(hash_string, L"0x%08X", shader_hash);
-
-	dump_path /= hash_string;
-	dump_path += extension;
-
-	std::ofstream file(dump_path, std::ios::binary);
+	std::ofstream file(file_path, std::ios::binary);
 	file.write(static_cast<const char *>(desc.code), desc.code_size);
 }
 

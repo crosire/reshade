@@ -14,6 +14,25 @@
 
 using namespace reshade::api;
 
+static std::filesystem::path make_texture_file_path(uint32_t texture_hash)
+{
+	// Prepend executable directory to image files
+	wchar_t file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	std::filesystem::path path = file_prefix;
+	path = path.parent_path();
+	path /= RESHADE_ADDON_TEXTURE_LOAD_DIR;
+
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", texture_hash);
+
+	path /= hash_string;
+	path += RESHADE_ADDON_TEXTURE_LOAD_FORMAT;
+
+	return path;
+}
+
 bool load_texture_image(const resource_desc &desc, subresource_data &data, std::vector<std::vector<uint8_t>> &data_to_delete)
 {
 #if RESHADE_ADDON_TEXTURE_LOAD_HASH_TEXMOD
@@ -31,26 +50,14 @@ bool load_texture_image(const resource_desc &desc, subresource_data &data, std::
 		format_slice_pitch(desc.texture.format, data.row_pitch, desc.texture.height));
 #endif
 
-	// Prepend executable directory to image files
-	wchar_t file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
-
-	std::filesystem::path replace_path = file_prefix;
-	replace_path  = replace_path.parent_path();
-	replace_path /= RESHADE_ADDON_TEXTURE_LOAD_DIR;
-
-	wchar_t hash_string[11];
-	swprintf_s(hash_string, L"0x%08X", hash);
-
-	replace_path /= hash_string;
-	replace_path += RESHADE_ADDON_TEXTURE_LOAD_FORMAT;
+	const std::filesystem::path file_path = make_texture_file_path(hash);
 
 	// Check if a replacement file for this texture hash exists and if so, overwrite the texture data with its contents
-	if (!std::filesystem::exists(replace_path))
+	if (!std::filesystem::exists(file_path))
 		return false;
 
 	int width = 0, height = 0, channels = 0;
-	stbi_uc *const rgba_pixel_data_p = stbi_load(replace_path.u8string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+	stbi_uc *const rgba_pixel_data_p = stbi_load(file_path.u8string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
 	if (rgba_pixel_data_p == nullptr)
 		return false;
 

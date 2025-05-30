@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01-framerate_limit", "01-framerate_limit\framerate_limit.vcxproj", "{03869F31-1377-4A09-8CD2-C84D66E2A13F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01-fps_limit", "01-fps_limit\fps_limit.vcxproj", "{03869F31-1377-4A09-8CD2-C84D66E2A13F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "02-freepie", "02-freepie\freepie.vcxproj", "{C5DD9078-0A8C-4463-87EA-ED1CA0774AF0}"
 EndProject

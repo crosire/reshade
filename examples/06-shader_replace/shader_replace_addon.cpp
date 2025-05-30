@@ -14,6 +14,25 @@ using namespace reshade::api;
 
 constexpr uint32_t SPIRV_MAGIC = 0x07230203;
 
+static std::filesystem::path make_shader_file_path(uint32_t shader_hash, const wchar_t *extension)
+{
+	// Prepend executable file name to image files
+	wchar_t file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	std::filesystem::path path = file_prefix;
+	path = path.parent_path();
+	path /= RESHADE_ADDON_SHADER_LOAD_DIR;
+
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", shader_hash);
+
+	path /= hash_string;
+	path += extension;
+
+	return path;
+}
+
 static thread_local std::vector<std::vector<uint8_t>> s_data_to_delete;
 
 static bool load_shader_code(device_api device_type, shader_desc &desc, std::vector<std::vector<uint8_t>> &data_to_delete)
@@ -29,28 +48,17 @@ static bool load_shader_code(device_api device_type, shader_desc &desc, std::vec
 	else if (device_type == device_api::opengl)
 		extension = desc.code_size > 5 && std::strncmp(static_cast<const char *>(desc.code), "!!ARB", 5) == 0 ? L".txt" : L".glsl"; // OpenGL otherwise uses plain text ARB assembly language or GLSL
 
-	// Prepend executable file name to image files
-	wchar_t file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
-
-	std::filesystem::path replace_path = file_prefix;
-	replace_path  = replace_path.parent_path();
-	replace_path /= RESHADE_ADDON_SHADER_LOAD_DIR;
-
-	wchar_t hash_string[11];
-	swprintf_s(hash_string, L"0x%08X", shader_hash);
-
-	replace_path /= hash_string;
-	replace_path += extension;
+	const std::filesystem::path file_path = make_shader_file_path(shader_hash, extension);
 
 	// Check if a replacement file for this shader hash exists and if so, overwrite the shader code with its contents
-	if (!std::filesystem::exists(replace_path))
+	if (!std::filesystem::exists(file_path))
 		return false;
 
-	std::ifstream file(replace_path, std::ios::binary);
+	std::ifstream file(file_path, std::ios::binary);
 	file.seekg(0, std::ios::end);
 	std::vector<uint8_t> shader_code(static_cast<size_t>(file.tellg()));
 	file.seekg(0, std::ios::beg).read(reinterpret_cast<char *>(shader_code.data()), shader_code.size());
+	file.close();
 
 	// Keep the shader code memory alive after returning from this 'create_pipeline' event callback
 	// It may only be freed after the 'init_pipeline' event was called for this pipeline

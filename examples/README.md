@@ -3,9 +3,9 @@ ReShade API Examples
 
 Detailed API documentation can be found at https://crosire.github.io/reshade-docs/index.html.
 
-## [01-framerate_limit](/examples/01-framerate_limit)
+## [01-fps_limit](/examples/01-fps_limit)
 
-Limits the framerate of an application to a specified FPS value.
+Limits the frame rate of an application to a specified FPS value.
 
 ## [02-freepie](/examples/02-freepie)
 

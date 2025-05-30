@@ -276,21 +276,21 @@ struct __declspec(uuid("CF2A5A7D-FF11-434F-AA7B-811A2935A8FE")) runtime_data
 
 static void on_init(effect_runtime *runtime)
 {
-	auto &data = *runtime->create_private_data<runtime_data>();
-	data.init(runtime->get_device(), runtime->get_command_queue());
+	const auto data = runtime->create_private_data<runtime_data>();
+	data->init(runtime->get_device(), runtime->get_command_queue());
 }
 static void on_destroy(effect_runtime *runtime)
 {
-	auto &data = *runtime->get_private_data<runtime_data>();
-	data.destroy(runtime->get_device());
+	const auto data = runtime->get_private_data<runtime_data>();
+	data->destroy(runtime->get_device());
 
 	runtime->destroy_private_data<runtime_data>();
 }
 
 static void on_present(effect_runtime *runtime)
 {
-	auto &data = *runtime->get_private_data<runtime_data>();
-	data.frame(runtime->get_command_queue()->get_immediate_command_list(), runtime->get_current_back_buffer());
+	const auto data = runtime->get_private_data<runtime_data>();
+	data->frame(runtime->get_command_queue()->get_immediate_command_list(), runtime->get_current_back_buffer());
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
@@ -303,9 +303,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 		// Get add-on directory path
 		{
-			TCHAR path[MAX_PATH] = TEXT("");
-			GetModuleFileName(hModule, path, ARRAYSIZE(path));
-			s_addon_path = path;
+			TCHAR module_path[MAX_PATH] = TEXT("");
+			GetModuleFileName(hModule, module_path, ARRAYSIZE(module_path));
+			s_addon_path = module_path;
 			s_addon_path = s_addon_path.parent_path();
 		}
 

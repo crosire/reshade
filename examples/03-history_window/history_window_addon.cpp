@@ -6,9 +6,9 @@
 
 #include <imgui.h>
 #include <reshade.hpp>
+#include <list>
 #include <vector>
 #include <string>
-#include <list>
 #include <algorithm>
 
 constexpr size_t HISTORY_LIMIT = 1000;
@@ -86,7 +86,7 @@ static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade:
 		break;
 	}
 
-	std::memcpy(after.as_uint, new_value, std::min(new_value_size, size_t(4 * 16)));
+	std::memcpy(after.as_uint, new_value, std::min(new_value_size, sizeof(after)));
 
 	if (std::memcmp(&before, &after, sizeof(after)) != 0)
 	{
@@ -103,7 +103,7 @@ static bool on_set_uniform_value(reshade::api::effect_runtime *runtime, reshade:
 			--ctx.history_pos;
 		}
 
-		if (auto front = ctx.histories.begin();
+		if (const auto front = ctx.histories.begin();
 			front != ctx.histories.end() &&
 			front->variable_handle.handle == variable.handle)
 		{

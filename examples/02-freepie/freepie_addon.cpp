@@ -88,7 +88,7 @@ static void update_uniform_variables(reshade::api::effect_runtime *runtime, resh
 	runtime->enumerate_uniform_variables(nullptr, [](reshade::api::effect_runtime *runtime, reshade::api::effect_uniform_variable variable) {
 		char source[32];
 		if (runtime->get_annotation_string_from_uniform_variable(variable, "source", source) &&
-			std::strcmp(source, "freepie") == 0)
+			std::strncmp(source, "freepie", std::size(source)) == 0)
 		{
 			int index = 0;
 			runtime->get_annotation_int_from_uniform_variable(variable, "index", &index, 1);

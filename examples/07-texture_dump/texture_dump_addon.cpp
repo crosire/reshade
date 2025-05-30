@@ -11,11 +11,11 @@ using namespace reshade::api;
 // See implementation in 'utils\save_texture_image.cpp'
 extern bool save_texture_image(const resource_desc &desc, const subresource_data &data);
 
-// There are multiple different ways textures can be initialized, so try and intercept them all
-// - Via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
-// - Via a direct update operation from host memory to the texture (common in D3D11): See 'on_update_texture' implementation below
-// - Via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_buffer_to_texture' implementation below
-// - Via mapping and writing to texture that is accessible in host memory (common in D3D9): See 'on_map_texture' and 'on_unmap_texture' implementation below
+// There are multiple different ways textures can be initialized, so try and intercept them all:
+// - via initial data provided during texture creation (e.g. for immutable textures, common in D3D11 and OpenGL): See 'on_init_texture' implementation below
+// - via a direct update operation from host memory to the texture (common in D3D11): See 'on_update_texture' implementation below
+// - via a copy operation from a buffer in host memory to the texture (common in D3D12 and Vulkan): See 'on_copy_buffer_to_texture' implementation below
+// - via mapping and writing to texture that is accessible in host memory (common in D3D9): See 'on_map_texture' and 'on_unmap_texture' implementation below
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
 {
@@ -50,49 +50,49 @@ static void on_init_texture(device *device, const resource_desc &desc, const sub
 
 	save_texture_image(desc, *initial_data);
 }
-static bool on_update_texture(device *device, const subresource_data &data, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
+static bool on_update_texture(device *device, const subresource_data &data, resource dest, uint32_t dest_subresource, const subresource_box *dest_box)
 {
-	if (dst_subresource != 0)
+	if (dest_subresource != 0)
 		return false; // Ignore updates to mipmap levels other than the base level
 
-	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if (!filter_texture(device, dst_desc, dst_box))
+	const resource_desc dest_desc = device->get_resource_desc(dest);
+	if (!filter_texture(device, dest_desc, dest_box))
 		return false;
 
-	save_texture_image(dst_desc, data);
+	save_texture_image(dest_desc, data);
 
 	return false;
 }
 
-static bool on_copy_buffer_to_texture(command_list *cmd_list, resource src, uint64_t src_offset, uint32_t row_length, uint32_t slice_height, resource dst, uint32_t dst_subresource, const subresource_box *dst_box)
+static bool on_copy_buffer_to_texture(command_list *cmd_list, resource source, uint64_t source_offset, uint32_t row_length, uint32_t slice_height, resource dest, uint32_t dest_subresource, const subresource_box *dest_box)
 {
-	if (dst_subresource != 0)
+	if (dest_subresource != 0)
 		return false; // Ignore copies to mipmap levels other than the base level
 
 	device *const device = cmd_list->get_device();
 
-	const resource_desc src_desc = device->get_resource_desc(src);
-	if (src_desc.heap != memory_heap::cpu_to_gpu && src_desc.heap != memory_heap::unknown)
+	const resource_desc source_desc = device->get_resource_desc(source);
+	if (source_desc.heap != memory_heap::cpu_to_gpu && source_desc.heap != memory_heap::unknown)
 		return false; // Ignore copies that are not from a buffer in host memory
 
-	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if (!filter_texture(device, dst_desc, dst_box))
+	const resource_desc dest_desc = device->get_resource_desc(dest);
+	if (!filter_texture(device, dest_desc, dest_box))
 		return false;
 
 	// Map source buffer to get the contents that will be copied into the target texture (this should succeed, since it was already checked that the buffer is in host memory)
 	if (void *mapped_ptr;
-		device->map_buffer_region(src, src_offset, ~0ull, map_access::read_only, &mapped_ptr))
+		device->map_buffer_region(source, source_offset, ~0ull, map_access::read_only, &mapped_ptr))
 	{
 		subresource_data mapped_data;
 		mapped_data.data = mapped_ptr;
-		mapped_data.row_pitch = format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : dst_desc.texture.width);
+		mapped_data.row_pitch = format_row_pitch(dest_desc.texture.format, row_length != 0 ? row_length : dest_desc.texture.width);
 		if (device->get_api() == device_api::d3d12) // Align row pitch to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT (256)
 			mapped_data.row_pitch = (mapped_data.row_pitch + 255) & ~255;
-		mapped_data.slice_pitch = format_slice_pitch(dst_desc.texture.format, mapped_data.row_pitch, slice_height != 0 ? slice_height : dst_desc.texture.height);
+		mapped_data.slice_pitch = format_slice_pitch(dest_desc.texture.format, mapped_data.row_pitch, slice_height != 0 ? slice_height : dest_desc.texture.height);
 
-		save_texture_image(dst_desc, mapped_data);
+		save_texture_image(dest_desc, mapped_data);
 
-		device->unmap_buffer_region(src);
+		device->unmap_buffer_region(source);
 	}
 
 	return false;

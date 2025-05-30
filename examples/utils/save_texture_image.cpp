@@ -18,6 +18,29 @@
 
 using namespace reshade::api;
 
+static std::filesystem::path make_texture_file_path(uint32_t texture_hash)
+{
+	// Prepend executable directory to image files
+	wchar_t file_prefix[MAX_PATH] = L"";
+	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+
+	std::filesystem::path path = file_prefix;
+	path = path.parent_path();
+	path /= RESHADE_ADDON_TEXTURE_SAVE_DIR;
+
+	// Ensure target directory exists
+	if (!std::filesystem::exists(path))
+		std::filesystem::create_directory(path);
+
+	wchar_t hash_string[11];
+	swprintf_s(hash_string, L"0x%08X", texture_hash);
+
+	path /= hash_string;
+	path += RESHADE_ADDON_TEXTURE_SAVE_FORMAT;
+
+	return path;
+}
+
 static void unpack_r5g6b5(uint16_t data, uint8_t rgb[3])
 {
 	uint32_t temp;
@@ -404,27 +427,12 @@ bool save_texture_image(const resource_desc &desc, const subresource_data &data)
 		return false;
 	}
 
-	// Prepend executable directory to image files
-	wchar_t file_prefix[MAX_PATH] = L"";
-	GetModuleFileNameW(nullptr, file_prefix, ARRAYSIZE(file_prefix));
+	const std::filesystem::path file_path = make_texture_file_path(hash);
 
-	std::filesystem::path dump_path = file_prefix;
-	dump_path  = dump_path.parent_path();
-	dump_path /= RESHADE_ADDON_TEXTURE_SAVE_DIR;
-
-	if (std::filesystem::exists(dump_path) == false)
-		std::filesystem::create_directory(dump_path);
-
-	wchar_t hash_string[11];
-	swprintf_s(hash_string, L"0x%08X", hash);
-
-	dump_path /= hash_string;
-	dump_path += RESHADE_ADDON_TEXTURE_SAVE_FORMAT;
-
-	if (dump_path.extension() == L".bmp")
-		return stbi_write_bmp(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
-	else if (dump_path.extension() == L".png")
-		return stbi_write_png(dump_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
+	if (file_path.extension() == L".bmp")
+		return stbi_write_bmp(file_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data()) != 0;
+	else if (file_path.extension() == L".png")
+		return stbi_write_png(file_path.u8string().c_str(), desc.texture.width, desc.texture.height, 4, rgba_pixel_data.data(), desc.texture.width * 4) != 0;
 	else
 		return false;
 }

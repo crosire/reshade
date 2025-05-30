@@ -52,35 +52,35 @@ static void on_after_create_texture(device *, const resource_desc &, const subre
 	s_data_to_delete.clear();
 }
 
-static bool on_copy_texture(command_list *cmd_list, resource src, uint32_t src_subresource, const subresource_box *, resource dst, uint32_t dst_subresource, const subresource_box *dst_box, filter_mode)
+static bool on_copy_texture(command_list *cmd_list, resource source, uint32_t source_subresource, const subresource_box *, resource dest, uint32_t dest_subresource, const subresource_box *dest_box, filter_mode)
 {
-	if (src_subresource != 0 || src_subresource != dst_subresource)
+	if (source_subresource != 0 || source_subresource != dest_subresource)
 		return false; // Ignore copies to mipmap levels other than the base level
 
 	device *const device = cmd_list->get_device();
 
-	const resource_desc src_desc = device->get_resource_desc(src);
-	if (src_desc.heap != memory_heap::cpu_to_gpu)
+	const resource_desc source_desc = device->get_resource_desc(source);
+	if (source_desc.heap != memory_heap::cpu_to_gpu)
 		return false; // Ignore copies that are not from a buffer in host memory
 
-	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if (!filter_texture(device, dst_desc, dst_box))
+	const resource_desc dest_desc = device->get_resource_desc(dest);
+	if (!filter_texture(device, dest_desc, dest_box))
 		return false;
 
 	bool replace = false;
 
 	subresource_data new_data;
-	if (device->map_texture_region(src, src_subresource, nullptr, map_access::read_only, &new_data))
+	if (device->map_texture_region(source, source_subresource, nullptr, map_access::read_only, &new_data))
 	{
-		replace = load_texture_image(dst_desc, new_data, s_data_to_delete);
+		replace = load_texture_image(dest_desc, new_data, s_data_to_delete);
 
-		device->unmap_texture_region(src, src_subresource);
+		device->unmap_texture_region(source, source_subresource);
 	}
 
 	if (replace)
 	{
 		// Update texture with the new data
-		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
+		device->update_texture_region(new_data, dest, dest_subresource, dest_box);
 
 		// Free the memory allocated via the 'load_texture_image' call above
 		s_data_to_delete.clear();
@@ -95,12 +95,12 @@ static bool on_update_texture(device *device, const subresource_data &data, reso
 	if (dst_subresource != 0)
 		return false; // Ignore updates to mipmap levels other than the base level
 
-	const resource_desc dst_desc = device->get_resource_desc(dst);
-	if (!filter_texture(device, dst_desc, dst_box))
+	const resource_desc dest_desc = device->get_resource_desc(dst);
+	if (!filter_texture(device, dest_desc, dst_box))
 		return false;
 
 	subresource_data new_data = data;
-	if (load_texture_image(dst_desc, new_data, s_data_to_delete))
+	if (load_texture_image(dest_desc, new_data, s_data_to_delete))
 	{
 		// Update texture with the new data
 		device->update_texture_region(new_data, dst, dst_subresource, dst_box);
