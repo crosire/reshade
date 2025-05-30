@@ -41,7 +41,7 @@ struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStenci
 	ULONG _ref = 1;
 
 	Direct3DDevice9 *const _device;
-	const D3DSURFACE_DESC _orig_desc;
+	const  D3DSURFACE_DESC _orig_desc;
 };
 
 #endif

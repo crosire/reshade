@@ -198,7 +198,7 @@ static std::string format_to_string(DXGI_FORMAT format)
 	}
 }
 
-static void dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, [[maybe_unused]] UINT &sync_interval)
+static bool dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, [[maybe_unused]] UINT &sync_interval)
 {
 	reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
@@ -221,10 +221,12 @@ static void dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 #if RESHADE_ADDON
-	modify_swapchain_desc(api, desc, sync_interval);
+	return modify_swapchain_desc(api, desc, sync_interval);
+#else
+	return false;
 #endif
 }
-static void dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, [[maybe_unused]] UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = nullptr, [[maybe_unused]] HWND window = nullptr)
+static bool dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, [[maybe_unused]] UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = nullptr, [[maybe_unused]] HWND window = nullptr)
 {
 	reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
@@ -257,7 +259,9 @@ static void dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
 #if RESHADE_ADDON
-	modify_swapchain_desc(api, desc, sync_interval, fullscreen_desc, window);
+	return modify_swapchain_desc(api, desc, sync_interval, fullscreen_desc, window);
+#else
+	return false;
 #endif
 }
 
@@ -314,7 +318,7 @@ reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &devi
 }
 
 template <typename T>
-static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, UINT sync_interval)
+static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] const DXGI_SWAP_CHAIN_DESC &orig_desc)
 {
 	DXGISwapChain *swapchain_proxy = nullptr;
 
@@ -359,8 +363,10 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 		reshade::log::message(reshade::log::level::debug, "Returning IDXGISwapChain%hu object %p (%p).", swapchain_proxy->_interface_version, swapchain_proxy, swapchain_proxy->_orig);
 #endif
 		swapchain = swapchain_proxy;
-
+#if RESHADE_ADDON
+		swapchain_proxy->_orig_desc = orig_desc;
 		swapchain_proxy->_sync_interval = sync_interval;
+#endif
 	}
 }
 
@@ -384,7 +390,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
-	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
+	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, ppSwapChain);
@@ -395,7 +401,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval);
+	DXGI_SWAP_CHAIN_DESC orig_desc = *pDesc;
+	if (!modified)
+		orig_desc.BufferCount = 0;
+	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, orig_desc);
 
 	return hr;
 }
@@ -425,7 +434,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		fullscreen_desc = *pFullscreenDesc;
 	else
 		fullscreen_desc.Windowed = TRUE;
-	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval, &fullscreen_desc, hWnd);
+	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval, &fullscreen_desc, hWnd);
 
 	// Space Engineers 2 does not set any usage flags, change default to at least include render target output support
 	if (0 == desc.BufferUsage && direct3d_version == reshade::api::device_api::d3d12)
@@ -440,7 +449,17 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval);
+	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+		DXGI_SWAP_CHAIN_DESC {
+			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
+			pDesc->SampleDesc,
+			pDesc->BufferUsage,
+			modified ? pDesc->BufferCount : 0,
+			hWnd,
+			pFullscreenDesc == nullptr || pFullscreenDesc->Windowed,
+			pDesc->SwapEffect,
+			pDesc->Flags
+		});
 
 	return hr;
 }
@@ -465,7 +484,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	// UWP applications cannot be set into fullscreen mode
-	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
+	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
@@ -476,7 +495,17 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval);
+	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+		DXGI_SWAP_CHAIN_DESC {
+			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
+			pDesc->SampleDesc,
+			pDesc->BufferUsage,
+			modified ? pDesc->BufferCount : 0,
+			nullptr,
+			TRUE,
+			pDesc->SwapEffect,
+			pDesc->Flags
+		});
 
 	return hr;
 }
@@ -501,7 +530,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
 	// Composition swap chains cannot be set into fullscreen mode
-	dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
+	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
@@ -512,7 +541,17 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval);
+	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+		DXGI_SWAP_CHAIN_DESC {
+			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
+			pDesc->SampleDesc,
+			pDesc->BufferUsage,
+			modified ? pDesc->BufferCount : 0,
+			nullptr,
+			TRUE,
+			pDesc->SwapEffect,
+			pDesc->Flags
+		});
 
 	return hr;
 }
