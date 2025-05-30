@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 
 namespace ReShade.Setup
 {
@@ -10,8 +11,11 @@ namespace ReShade.Setup
 
 		public App()
 		{
-			// The 'DefaultDllImportSearchPaths' assembly attribute does not cover DLLs loaded by the WPF runtime, so force it to load from the system directory via native call
-			SetDefaultDllDirectories(0x00000800 /* LOAD_LIBRARY_SEARCH_SYSTEM32 */);
+			if (Type.GetType("Mono.Runtime") == null)
+			{
+				// The 'DefaultDllImportSearchPaths' assembly attribute does not cover DLLs loaded by the WPF runtime, so force it to load from the system directory via native call
+				SetDefaultDllDirectories(0x00000800 /* LOAD_LIBRARY_SEARCH_SYSTEM32 */);
+			}
 		}
 	}
 }
