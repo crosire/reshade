@@ -301,9 +301,9 @@ void reshade::load_addons()
 			continue;
 		}
 
-		if (addon_info *const info = find_addon(module))
+		if (addon_info *const registered_info = find_addon(module))
 		{
-			info->external = false;
+			registered_info->external = false;
 		}
 		else
 		{
@@ -348,6 +348,14 @@ void reshade::unload_addons()
 
 		if (!FreeLibrary(module))
 			log::message(log::level::warning, "Failed to unload '%s' with error code %lu!", info.file.c_str(), GetLastError());
+
+		if (addon_info *const registered_info = find_addon(module))
+		{
+			log::message(log::level::warning, "Add-on \"%s\" was not unregistered!", registered_info->name.c_str());
+
+			// Make add-on external at this point, so that it is not removed, since a consecutive load must be able to find it
+			registered_info->external = true;
+		}
 	}
 #endif
 
