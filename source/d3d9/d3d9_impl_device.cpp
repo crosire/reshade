@@ -1936,13 +1936,6 @@ bool reshade::d3d9::device_impl::get_query_heap_results(api::query_heap heap, ui
 	{
 		if (impl->queries[first + i]->GetData(static_cast<uint8_t *>(results) + i * stride, stride, 0) != S_OK)
 			return false;
-
-		if (impl->type == api::query_type::timestamp)
-		{
-			assert(stride >= sizeof(uint64_t));
-			// D3D9 timestamp queries seem to always have a resolution of 10ns (D3DQUERYTYPE_TIMESTAMPFREQ returns 100000000), so convert that to nanoseconds for consistency with other APIs
-			*reinterpret_cast<uint64_t *>(static_cast<uint8_t *>(results) + i * stride) *= 10;
-		}
 	}
 
 	return true;
