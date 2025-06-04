@@ -4135,7 +4135,7 @@ IMPLEMENT_INTRINSIC_GLSL(atomicAnd, 1, {
 	})
 IMPLEMENT_INTRINSIC_HLSL(atomicAnd, 1, {
 	if (_shader_model >= 50)
-		code += "InterlockedAnd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
+		code += "0; InterlockedAnd(" + id_to_name(args[0].base) + '[' + id_to_name(args[1].base) + ']' + ", " + id_to_name(args[2].base) + ", " + id_to_name(res) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(atomicAnd, 1, {
 	const spv::Id ms_sample = emit_constant(0u);
