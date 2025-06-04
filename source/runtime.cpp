@@ -1490,7 +1490,11 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	if (permutation_index == 0 && (source_file != effect.source_file || source_hash != effect.source_hash))
 	{
 		if (effect.created)
+		{
+			if (_reload_remaining_effects != std::numeric_limits<size_t>::max())
+				_reload_remaining_effects--;
 			return false; // Cannot reset an effect that has not been destroyed
+		}
 
 		// Source hash has changed, reset effect and load from scratch, rather than updating
 		effect = {
