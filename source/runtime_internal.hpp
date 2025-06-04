@@ -195,6 +195,8 @@ namespace reshade
 			api::descriptor_table storage_table = {};
 			std::vector<api::resource> modified_resources;
 			std::vector<api::resource_view> generate_mipmap_views;
+
+			moving_average<uint64_t, 60> average_gpu_duration;
 		};
 
 		struct permutation

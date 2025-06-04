@@ -2668,6 +2668,9 @@ void reshade::runtime::draw_gui_statistics()
 			long_technique_name[technique_index] = (ImGui::GetItemRectSize().x + 10.0f) > (ImGui::GetWindowWidth() * 0.33333333f);
 			if (long_technique_name[technique_index])
 				ImGui::NewLine();
+
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
+				ImGui::Text("  pass %zu", pass_index);
 		}
 
 		ImGui::EndGroup();
@@ -2687,6 +2690,9 @@ void reshade::runtime::draw_gui_statistics()
 			if (tech.average_cpu_duration != 0)
 				ImGui::Text("%*.3f ms CPU", cpu_digits + 4, tech.average_cpu_duration * 1e-6f);
 			else
+				ImGui::NewLine();
+
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
 				ImGui::NewLine();
 		}
 
@@ -2709,6 +2715,16 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::Text("%*.3f ms GPU", gpu_digits + 4, tech.average_gpu_duration * 1e-6f);
 			else
 				ImGui::NewLine();
+
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
+			{
+				const reshade::technique::pass &pass = tech.permutations[0].passes[pass_index];
+
+				if (_gather_gpu_statistics && pass.average_gpu_duration != 0)
+					ImGui::Text("%*.3f ms GPU", gpu_digits + 4, pass.average_gpu_duration * 1e-6f);
+				else
+					ImGui::NewLine();
+			}
 		}
 
 		ImGui::EndGroup();

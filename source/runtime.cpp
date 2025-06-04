@@ -2355,13 +2355,6 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		spec_constants.push_back(id);
 	}
 
-	// Create optional query heap for time measurements
-	if (permutation_index == 0 &&
-		!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>(permutation.module.techniques.size() * 2 * 4), &effect.query_heap))
-	{
-		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
-	}
-
 	// Initialize bindings
 	const bool sampler_with_resource_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 
@@ -2415,6 +2408,13 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 			for (const reshadefx::storage_binding &binding : pass.storage_bindings)
 				uav_range.count = std::max(uav_range.count, binding.entry_point_binding + 1);
 		}
+	}
+
+	// Create optional query heap for time measurements
+	if (permutation_index == 0 &&
+		!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>((1 + total_pass_count) * 2 * 4), &effect.query_heap))
+	{
+		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
 	}
 
 	std::vector<api::descriptor_table_update> descriptor_writes;
@@ -2530,7 +2530,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	}
 
 	// Initialize techniques and passes
-	for (size_t tech_index = 0, pass_index_in_effect = 0, tech_index_in_effect = 0; tech_index < _techniques.size(); ++tech_index)
+	for (size_t tech_index = 0, pass_index_in_effect = 0, query_base_index = 0; tech_index < _techniques.size(); ++tech_index)
 	{
 		technique &tech = _techniques[tech_index];
 
@@ -2541,8 +2541,10 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 
 		// Offset index so that a query exists for each command frame and two subsequent ones are used for before/after stamps
 		if (permutation_index == 0)
-			tech.query_base_index = static_cast<uint32_t>(tech_index_in_effect * 2 * 4);
-		++tech_index_in_effect;
+		{
+			tech.query_base_index = static_cast<uint32_t>(query_base_index);
+			query_base_index += (1 + tech.permutations[0].passes.size()) * 2 * 4;
+		}
 
 		for (size_t pass_index = 0; pass_index < tech.permutations[permutation_index].passes.size(); ++pass_index, ++pass_index_in_effect)
 		{
@@ -4218,22 +4220,37 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 	const effect &effect = _effects[tech.effect_index];
 	const effect::permutation &permutation = effect.permutations[permutation_index];
 
-#if RESHADE_GUI
-	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0 && permutation_index == 0)
-	{
-		// Evaluate queries from oldest frame in queue
-		if (uint64_t timestamps[2];
-			_device->get_query_heap_results(effect.query_heap, tech.query_base_index + (_frame_count % 4) * 2, 2, timestamps, sizeof(uint64_t)))
-			tech.average_gpu_duration.append((timestamps[1] - timestamps[0]) * 1000000000ull / _timestamp_frequency);
+#ifndef NDEBUG
+	cmd_list->begin_debug_event(tech.name.c_str());
+#endif
 
-		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2);
+#if RESHADE_GUI
+	uint32_t query_base_index = 0;
+	const bool gather_gpu_statistics = _gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0 && permutation_index == 0;
+
+	if (gather_gpu_statistics)
+	{
+		const uint32_t query_count = static_cast<uint32_t>((1 + tech.permutations[0].passes.size()) * 2);
+		query_base_index = tech.query_base_index + (_frame_count % 4) * query_count;
+
+		// Evaluate queries from oldest frame in queue
+		if (temp_mem<uint64_t> timestamps(query_count);
+			_device->get_query_heap_results(effect.query_heap, query_base_index, query_count, timestamps.p, sizeof(uint64_t)))
+		{
+			const uint64_t tech_duration = timestamps[1] - timestamps[0];
+			tech.average_gpu_duration.append(tech_duration * 1'000'000'000ull / _timestamp_frequency);
+
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
+			{
+				const uint64_t pass_duration = timestamps[2 + pass_index * 2 + 1] - timestamps[2 + pass_index * 2];
+				tech.permutations[0].passes[pass_index].average_gpu_duration.append(pass_duration * 1'000'000'000ull / _timestamp_frequency);
+			}
+		}
+
+		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, query_base_index);
 	}
 
 	const std::chrono::high_resolution_clock::time_point time_technique_started = std::chrono::high_resolution_clock::now();
-#endif
-
-#ifndef NDEBUG
-	cmd_list->begin_debug_event(tech.name.c_str());
 #endif
 
 	// Update shader constants
@@ -4271,6 +4288,11 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 #ifndef NDEBUG
 		cmd_list->begin_debug_event((pass.name.empty() ? "Pass " + std::to_string(pass_index) : pass.name).c_str());
+#endif
+
+#if RESHADE_GUI
+		if (gather_gpu_statistics)
+			cmd_list->end_query(effect.query_heap, api::query_type::timestamp, query_base_index + static_cast<uint32_t>((1 + pass_index) * 2));
 #endif
 
 		const uint32_t num_barriers = static_cast<uint32_t>(pass.modified_resources.size());
@@ -4418,6 +4440,11 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			cmd_list->barrier(num_barriers, pass.modified_resources.data(), state_new.p, state_old.p);
 		}
 
+#if RESHADE_GUI
+		if (gather_gpu_statistics)
+			cmd_list->end_query(effect.query_heap, api::query_type::timestamp, query_base_index + static_cast<uint32_t>((1 + pass_index) * 2) + 1);
+#endif
+
 		// Generate mipmaps for modified resources
 		for (const api::resource_view modified_texture : pass.generate_mipmap_views)
 			cmd_list->generate_mipmaps(modified_texture);
@@ -4427,17 +4454,17 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 	}
 
-#ifndef NDEBUG
-	cmd_list->end_debug_event();
-#endif
-
 #if RESHADE_GUI
 	const std::chrono::high_resolution_clock::time_point time_technique_finished = std::chrono::high_resolution_clock::now();
 
 	tech.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 
-	if (_gather_gpu_statistics && _timestamp_frequency != 0 && effect.query_heap != 0 && permutation_index == 0)
-		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, tech.query_base_index + (_frame_count % 4) * 2 + 1);
+	if (gather_gpu_statistics)
+		cmd_list->end_query(effect.query_heap, api::query_type::timestamp, query_base_index + 1);
+#endif
+
+#ifndef NDEBUG
+	cmd_list->end_debug_event();
 #endif
 
 #if RESHADE_ADDON
