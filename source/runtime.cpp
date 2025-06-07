@@ -2416,7 +2416,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 
 	// Create optional query heap for time measurements
 	if (permutation_index == 0 &&
-		!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>((1 + total_pass_count) * 2 * 4), &effect.query_heap))
+		!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>((permutation.module.techniques.size() + total_pass_count) * 2 * 4), &effect.query_heap))
 	{
 		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
 	}
