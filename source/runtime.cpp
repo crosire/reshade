@@ -3301,6 +3301,9 @@ bool reshade::runtime::create_texture(texture &tex)
 	case reshadefx::texture_format::rgb10a2:
 		format = api::format::r10g10b10a2_unorm;
 		break;
+	case reshadefx::texture_format::rg11b10f:
+		format = api::format::r11g11b10_float;
+		break;
 	}
 
 	if (view_format == api::format::unknown)

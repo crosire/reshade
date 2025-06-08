@@ -1717,6 +1717,7 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 						{ "RGBA32U", uint32_t(texture_format::rgba32u) }, { "R32G32B32A32U", uint32_t(texture_format::rgba32u) },
 						{ "RGBA32F", uint32_t(texture_format::rgba32f) }, { "R32G32B32A32F", uint32_t(texture_format::rgba32f) },
 						{ "RGB10A2", uint32_t(texture_format::rgb10a2) }, { "R10G10B10A2", uint32_t(texture_format::rgb10a2) },
+						{ "RG11B10F", uint32_t(texture_format::rg11b10f) }, { "R11G11B10F", uint32_t(texture_format::rg11b10f) },
 					};
 
 					// Look up identifier in list of possible enumeration names

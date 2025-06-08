@@ -2768,6 +2768,8 @@ void reshade::runtime::draw_gui_statistics()
 				return { "RGBA32F", 16 };
 			case reshadefx::texture_format::rgb10a2:
 				return { "RGB10A2", 4 };
+			case reshadefx::texture_format::rg11b10f:
+				return { "RG11B10F", 4 };
 			}
 		};
 
