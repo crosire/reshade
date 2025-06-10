@@ -1075,14 +1075,16 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 			// Add remaining default arguments
 			for (size_t i = arguments.size(); i < parameters.size(); ++i)
 			{
+				assert(symbol.op == symbol_type::function);
+
 				const auto &param = symbol.function->parameter_list[i];
 				assert(param.has_default_value || !_errors.empty());
 
-				const codegen::id argument_value = _codegen->emit_constant(param.type, param.default_value);
-				parameters[i].reset_to_rvalue(param.location, argument_value, param.type);
+				const codegen::id temp_variable = _codegen->define_variable(param.location, param.type);
+				parameters[i].reset_to_lvalue(param.location, temp_variable, param.type);
 
-				// Keep track of whether the parameter is a constant for code generation (this makes the expression invalid for all other uses)
-				parameters[i].is_constant = true;
+				const codegen::id argument_value = _codegen->emit_constant(param.type, param.default_value);
+				_codegen->emit_store(parameters[i], argument_value);
 			}
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
