@@ -2309,7 +2309,8 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	if (!effect.compiled)
 		return false;
 
-	assert(!effect.created);
+	// Cannot create an effect that was not previously destroyed (ignore other permutations, since the value is already set by the default permutation)
+	assert(!effect.created || permutation_index != 0);
 
 	effect::permutation &permutation = effect.permutations[permutation_index];
 
