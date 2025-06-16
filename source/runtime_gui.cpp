@@ -2646,7 +2646,13 @@ void reshade::runtime::draw_gui_statistics()
 
 		ImGui::BeginGroup();
 
-		std::vector<bool> long_technique_name(_techniques.size());
+		size_t total_pass_count = 0;
+		for (const technique &tech : _techniques)
+			total_pass_count += tech.permutations[0].passes.size();
+		std::vector<bool> long_technique_name(_techniques.size() + total_pass_count);
+
+		total_pass_count = _techniques.size();
+
 		for (size_t technique_index : _technique_sorting)
 		{
 			const reshade::technique &tech = _techniques[technique_index];
@@ -2663,13 +2669,26 @@ void reshade::runtime::draw_gui_statistics()
 			if (long_technique_name[technique_index])
 				ImGui::NewLine();
 
-			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
-				ImGui::Text("  pass %zu", pass_index);
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index, ++total_pass_count)
+			{
+				const reshade::technique::pass &pass = tech.permutations[0].passes[pass_index];
+
+				if (pass.name.empty())
+					ImGui::Text("  pass %zu", pass_index);
+				else
+					ImGui::Text("  pass %zu %s", pass_index, pass.name.c_str());
+
+				long_technique_name[total_pass_count] = (ImGui::GetItemRectSize().x + 10.0f) > (ImGui::GetWindowWidth() * 0.66666666f);
+				if (long_technique_name[total_pass_count])
+					ImGui::NewLine();
+			}
 		}
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.33333333f);
 		ImGui::BeginGroup();
+
+		total_pass_count = _techniques.size();
 
 		for (size_t technique_index : _technique_sorting)
 		{
@@ -2686,13 +2705,20 @@ void reshade::runtime::draw_gui_statistics()
 			else
 				ImGui::NewLine();
 
-			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index, ++total_pass_count)
+			{
 				ImGui::NewLine();
+
+				if (long_technique_name[total_pass_count])
+					ImGui::NewLine();
+			}
 		}
 
 		ImGui::EndGroup();
 		ImGui::SameLine(ImGui::GetWindowWidth() * 0.66666666f);
 		ImGui::BeginGroup();
+
+		total_pass_count = _techniques.size();
 
 		for (size_t technique_index : _technique_sorting)
 		{
@@ -2710,9 +2736,12 @@ void reshade::runtime::draw_gui_statistics()
 			else
 				ImGui::NewLine();
 
-			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index)
+			for (size_t pass_index = 0; pass_index < tech.permutations[0].passes.size(); ++pass_index, ++total_pass_count)
 			{
 				const reshade::technique::pass &pass = tech.permutations[0].passes[pass_index];
+
+				if (long_technique_name[total_pass_count])
+					ImGui::NewLine();
 
 				if (_gather_gpu_statistics && pass.average_gpu_duration != 0)
 					ImGui::Text("%*.3f ms GPU", gpu_digits + 4, pass.average_gpu_duration * 1e-6f);
