@@ -101,6 +101,7 @@
     <Import Project="deps\Vulkan.props" />
     <Import Project="deps\Windows.props" />
     <Import Project="deps\sk_hdr_png.props" />
+    <Import Project="deps\jxl_simple.props" />
   </ImportGroup>
   <PropertyGroup>
     <ExecutablePath>tools;$(ExecutablePath)</ExecutablePath>
