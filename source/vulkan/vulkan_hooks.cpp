@@ -134,6 +134,9 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	// Core 1_1
 	HOOK_PROC(BindBufferMemory2);
 	HOOK_PROC(BindImageMemory2);
+	HOOK_PROC(CreateDescriptorUpdateTemplate);
+	HOOK_PROC(DestroyDescriptorUpdateTemplate);
+	HOOK_PROC(UpdateDescriptorSetWithTemplate);
 
 	// Core 1_2
 	HOOK_PROC(CmdDrawIndirectCount);
@@ -184,6 +187,7 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 #if RESHADE_ADDON >= 2
 	// VK_KHR_push_descriptor
 	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR,);
+	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplateKHR, );
 #endif
 
 #if RESHADE_ADDON

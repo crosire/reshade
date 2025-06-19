@@ -2080,3 +2080,100 @@ void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer
 	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectCountEXT, device_impl);
 	trampoline(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }
+void VKAPI_CALL vkCmdPushDescriptorSetWithTemplateKHR(
+	VkCommandBuffer commandBuffer,
+	VkDescriptorUpdateTemplate descriptorUpdateTemplate,
+	VkPipelineLayout layout,
+	uint32_t set,
+	const void *pData)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+	GET_DISPATCH_PTR_FROM(CmdPushDescriptorSetWithTemplateKHR, device_impl);
+
+#if RESHADE_ADDON >= 2
+	if (reshade::has_addon_event<reshade::addon_event::push_descriptors>())
+	{
+		auto it = device_impl->_descriptor_update_templates.find(descriptorUpdateTemplate);
+		if (it != device_impl->_descriptor_update_templates.end())
+		{
+			const VkDescriptorUpdateTemplateCreateInfo &template_info = it->second;
+			const VkDescriptorUpdateTemplateEntry *entries = template_info.pDescriptorUpdateEntries;
+			const uint32_t entry_count = template_info.descriptorUpdateEntryCount;
+
+			uint32_t max_descriptors = 0;
+			for (uint32_t i = 0; i < entry_count; ++i)
+				max_descriptors = std::max(max_descriptors, entries[i].descriptorCount);
+			temp_mem<uint64_t> descriptors(max_descriptors * 2);
+
+			reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+			const auto shader_stages = reshade::vulkan::convert_shader_stage(template_info.pipelineBindPoint);
+
+			// Push each entry as a separate update, matching vkCmdPushDescriptorSetKHR logic
+			for (uint32_t i = 0, j = 0; i < entry_count; ++i, j = 0)
+			{
+				const VkDescriptorUpdateTemplateEntry &entry = entries[i];
+
+				reshade::api::descriptor_table_update update;
+				update.table = { 0 };
+				update.binding = entry.dstBinding;
+				update.array_offset = entry.dstArrayElement;
+				update.count = entry.descriptorCount;
+				update.type = reshade::vulkan::convert_descriptor_type(entry.descriptorType);
+				update.descriptors = descriptors.p;
+
+				const char *base = static_cast<const char *>(pData) + entry.offset;
+
+				switch (entry.descriptorType)
+				{
+				case VK_DESCRIPTOR_TYPE_SAMPLER:
+					for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+						descriptors[j] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base)[k].sampler;
+					break;
+				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+					for (uint32_t k = 0; k < entry.descriptorCount; ++k, j += 2)
+						descriptors[j + 0] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base)[k].sampler,
+						descriptors[j + 1] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+					break;
+				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+					for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+						descriptors[j] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+					break;
+				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+				case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+					for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+						descriptors[j] = (uint64_t)reinterpret_cast<const VkBufferView *>(base)[k];
+					break;
+				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+					static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
+					update.descriptors = reinterpret_cast<const VkDescriptorBufferInfo *>(base);
+					break;
+				case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+					for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+						descriptors[j] = (uint64_t)reinterpret_cast<const VkAccelerationStructureKHR *>(base)[k];
+					break;
+				default:
+					update.count = 0;
+					update.descriptors = nullptr;
+					break;
+				}
+
+				// Shader stage is not specified in the template, so pass all_graphics as default
+				reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
+					cmd_impl,
+					shader_stages,
+					reshade::api::pipeline_layout { (uint64_t)layout },
+					set,
+					update);
+			}
+		}
+	}
+#endif
+
+	trampoline(commandBuffer, descriptorUpdateTemplate, layout, set, pData);
+}

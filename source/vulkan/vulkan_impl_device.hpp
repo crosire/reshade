@@ -166,6 +166,7 @@ namespace reshade::vulkan
 		const bool _conservative_rasterization_ext;
 		const bool _ray_tracing_ext;
 		const VkPhysicalDeviceFeatures _enabled_features;
+		std::unordered_map<VkDescriptorUpdateTemplate, VkDescriptorUpdateTemplateCreateInfo> _descriptor_update_templates;
 
 	private:
 		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);

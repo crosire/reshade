@@ -2500,3 +2500,19 @@ reshade::api::acceleration_structure_build_input reshade::vulkan::convert_accele
 
 	return build_input;
 }
+
+auto reshade::vulkan::convert_shader_stage(const VkPipelineBindPoint &bind_point) -> api::shader_stage
+{
+	switch (bind_point)
+	{
+	case VK_PIPELINE_BIND_POINT_GRAPHICS:
+		return api::shader_stage::all_graphics;
+	case VK_PIPELINE_BIND_POINT_COMPUTE:
+		return api::shader_stage::all_compute;
+	case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
+		return api::shader_stage::all_ray_tracing;
+	default:
+		assert(false);
+		return static_cast<api::shader_stage>(UINT32_MAX);
+	}
+}

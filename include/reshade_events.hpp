@@ -772,6 +772,7 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateUnorderedAccessView</description></item>
 		/// <item><description>ID3D12Device::CreateSampler</description></item>
 		/// <item><description>vkUpdateDescriptorSets</description></item>
+		/// <item><description>vkUpdateDescriptorSetWithTemplate</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, uint32_t count, const api::descriptor_table_update *updates)</c></para>
 		/// </summary>
@@ -1036,6 +1037,7 @@ namespace reshade
 		/// <item><description>glBindTextureUnit</description></item>
 		/// <item><description>glBindMultiTextureEXT</description></item>
 		/// <item><description>vkCmdPushDescriptorSetKHR</description></item>
+		/// <item><description>vkCmdPushDescriptorSetWithTemplateKHR</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &amp;update)</c></para>
 		/// </summary>
