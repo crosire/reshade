@@ -45,9 +45,7 @@ IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, W)
 #define IDirectInputDevice_GetDeviceState_Impl(vtable_index, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceState(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
 	{ \
-		static const auto trampoline = reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index); \
-		\
-		const HRESULT hr = trampoline(pDevice, cbData, lpvData); \
+		const HRESULT hr = reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
 		if (SUCCEEDED(hr)) \
 		{ \
 			DIDEVCAPS caps = { sizeof(caps) }; \
@@ -78,9 +76,7 @@ IDirectInputDevice_GetDeviceState_Impl(9, 7, W)
 #define IDirectInputDevice_GetDeviceData_Impl(vtable_index, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceData(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags) \
 	{ \
-		static const auto trampoline = reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index); \
-		\
-		HRESULT hr = trampoline(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+		HRESULT hr = reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
 		if (SUCCEEDED(hr) && \
 			(dwFlags & DIGDD_PEEK) == 0 && \
 			(rgdod != nullptr && *pdwInOut != 0)) \

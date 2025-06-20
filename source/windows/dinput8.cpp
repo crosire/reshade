@@ -14,9 +14,7 @@
 #define IDirectInputDevice8_GetDeviceState_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceState(IDirectInputDevice8##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
 	{ \
-		static const auto trampoline = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index); \
-		\
-		const HRESULT hr = trampoline(pDevice, cbData, lpvData); \
+		const HRESULT hr = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
 		if (SUCCEEDED(hr)) \
 		{ \
 			DIDEVCAPS caps = { sizeof(caps) }; \
@@ -45,9 +43,8 @@ IDirectInputDevice8_GetDeviceState_Impl(9, W)
 #define IDirectInputDevice8_GetDeviceData_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceData(IDirectInputDevice8##encoding *pDevice, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags) \
 	{ \
-		static const auto trampoline = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index); \
-		\
-		HRESULT hr = trampoline(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
+		/* Cannot cache the function pointer, as doing so crashes the Steam Overlay */ \
+		HRESULT hr = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceData, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbObjectData, rgdod, pdwInOut, dwFlags); \
 		if (SUCCEEDED(hr) && \
 			(dwFlags & DIGDD_PEEK) == 0 && \
 			(rgdod != nullptr && *pdwInOut != 0)) \
@@ -129,6 +126,5 @@ extern "C" HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, R
 
 extern "C" LPCDIDATAFORMAT WINAPI GetdfDIJoystick()
 {
-	static const auto trampoline = reshade::hooks::call(GetdfDIJoystick);
-	return trampoline();
+	return reshade::hooks::call(GetdfDIJoystick)();
 }
