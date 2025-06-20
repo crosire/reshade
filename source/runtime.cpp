@@ -1502,6 +1502,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			source_hash,
 			source_file.extension() == L".addonfx"
 		};
+
+		// Allocate the default permutation
+		effect.permutations.resize(1);
 	}
 
 	if (_effect_load_skipping && !force_load)
@@ -1524,8 +1527,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		}
 	}
 
-	if (permutation_index >= effect.permutations.size())
-		effect.permutations.resize(permutation_index + 1);
+	assert(permutation_index < effect.permutations.size());
 	effect::permutation &permutation = effect.permutations[permutation_index];
 
 	bool preprocessed = effect.preprocessed && permutation_index == 0;
@@ -3813,6 +3815,12 @@ void reshade::runtime::update_effects()
 
 		_reload_remaining_effects = 0;
 
+		// Sort list so that all default permutations are reloaded first (since that resets the entire effect), before other permutations
+		std::sort(_reload_required_effects.begin(), _reload_required_effects.end(),
+			[](const std::pair<size_t, size_t> &lhs, const std::pair<size_t, size_t> &rhs) {
+				return lhs.second < rhs.second || (lhs.second == rhs.second && lhs.first < rhs.first);
+			});
+
 		for (size_t i = 0; i < _reload_required_effects.size(); ++i)
 		{
 			const auto [effect_index, permutation_index] = _reload_required_effects[i];
@@ -3831,6 +3839,10 @@ void reshade::runtime::update_effects()
 			}
 			else
 			{
+				// This resize should only happen on the first non-default permutation, before launching threads that can access it
+				if (_effects[effect_index].permutations.size() < _effect_permutations.size())
+					_effects[effect_index].permutations.resize(_effect_permutations.size());
+
 				_reload_remaining_effects += 1;
 
 				_worker_threads.emplace_back([this, effect_index, permutation_index]() {
