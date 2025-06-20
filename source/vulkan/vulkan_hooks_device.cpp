@@ -608,6 +608,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetWithTemplateKHR);
 
+	// VK_KHR_descriptor_update_template
+	INIT_DISPATCH_PTR_ALTERNATIVE(CreateDescriptorUpdateTemplate, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(DestroyDescriptorUpdateTemplate, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(UpdateDescriptorSetWithTemplate, KHR);
+
 	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
 	INIT_DISPATCH_PTR_ALTERNATIVE(CreateRenderPass2, KHR);
 	INIT_DISPATCH_PTR_ALTERNATIVE(CmdBeginRenderPass2, KHR);
