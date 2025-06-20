@@ -320,14 +320,9 @@ void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const auto pipeline_stages =
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::pipeline_stage::all_compute :
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::pipeline_stage::all_graphics :
-		static_cast<reshade::api::pipeline_stage>(0); // Unknown pipeline bind point
-
 	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(
 		cmd_impl,
-		pipeline_stages,
+		reshade::vulkan::convert_pipeline_stages(pipelineBindPoint),
 		reshade::api::pipeline { (uint64_t)pipeline });
 #endif
 }
@@ -499,14 +494,9 @@ void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPipelin
 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	const auto shader_stages =
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
-		static_cast<reshade::api::shader_stage>(0); // Unknown pipeline bind point
-
 	reshade::invoke_addon_event<reshade::addon_event::bind_descriptor_tables>(
 		cmd_impl,
-		shader_stages,
+		reshade::vulkan::convert_shader_stages(pipelineBindPoint),
 		reshade::api::pipeline_layout { (uint64_t)layout },
 		firstSet, descriptorSetCount,
 		reinterpret_cast<const reshade::api::descriptor_table *>(pDescriptorSets));
@@ -1769,10 +1759,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 		max_descriptors = std::max(max_descriptors, pDescriptorWrites[i].descriptorCount);
 	temp_mem<uint64_t> descriptors(max_descriptors * 2);
 
-	const auto shader_stages =
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_COMPUTE ? reshade::api::shader_stage::all_compute :
-		pipelineBindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS ? reshade::api::shader_stage::all_graphics :
-		static_cast<reshade::api::shader_stage>(0); // Unknown pipeline bind point
+	const auto shader_stages = reshade::vulkan::convert_shader_stages(pipelineBindPoint);
 
 	for (uint32_t i = 0, j = 0; i < descriptorWriteCount; ++i, j = 0)
 	{
@@ -1855,7 +1842,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetWithTemplateKHR(VkCommandBuffer commandBuf
 		max_descriptors = std::max(max_descriptors, entry.descriptorCount);
 	temp_mem<uint64_t> descriptors(max_descriptors * 2);
 
-	const auto shader_stages = reshade::vulkan::convert_shader_stage(template_data->bind_point);
+	const auto shader_stages = reshade::vulkan::convert_shader_stages(template_data->bind_point);
 
 	for (uint32_t i = 0, j = 0; i < static_cast<uint32_t>(template_data->entries.size()); ++i, j = 0)
 	{

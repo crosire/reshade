@@ -2501,9 +2501,9 @@ reshade::api::acceleration_structure_build_input reshade::vulkan::convert_accele
 	return build_input;
 }
 
-auto reshade::vulkan::convert_shader_stage(const VkPipelineBindPoint &bind_point) -> api::shader_stage
+auto reshade::vulkan::convert_shader_stages(VkPipelineBindPoint value) -> api::shader_stage
 {
-	switch (bind_point)
+	switch (value)
 	{
 	case VK_PIPELINE_BIND_POINT_GRAPHICS:
 		return api::shader_stage::all_graphics;
@@ -2512,7 +2512,39 @@ auto reshade::vulkan::convert_shader_stage(const VkPipelineBindPoint &bind_point
 	case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
 		return api::shader_stage::all_ray_tracing;
 	default:
+		// Unknown pipeline bind point
 		assert(false);
-		return static_cast<api::shader_stage>(UINT32_MAX);
+		return static_cast<api::shader_stage>(0);
+	}
+}
+auto reshade::vulkan::convert_pipeline_stages(api::pipeline_stage value) -> VkPipelineBindPoint
+{
+	switch (value)
+	{
+	default:
+		assert(false);
+		[[fallthrough]];
+	case api::pipeline_stage::all_graphics:
+		return VK_PIPELINE_BIND_POINT_GRAPHICS;
+	case api::pipeline_stage::all_compute:
+		return VK_PIPELINE_BIND_POINT_COMPUTE;
+	case api::pipeline_stage::all_ray_tracing:
+		return VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
+	}
+}
+auto reshade::vulkan::convert_pipeline_stages(VkPipelineBindPoint value) -> api::pipeline_stage
+{
+	switch (value)
+	{
+	case VK_PIPELINE_BIND_POINT_GRAPHICS:
+		return api::pipeline_stage::all_graphics;
+	case VK_PIPELINE_BIND_POINT_COMPUTE:
+		return api::pipeline_stage::all_compute;
+	case VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR:
+		return api::pipeline_stage::all_ray_tracing;
+	default:
+		// Unknown pipeline bind point
+		assert(false);
+		return static_cast<api::pipeline_stage>(0);
 	}
 }

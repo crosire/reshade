@@ -359,9 +359,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline(api::pipeline_stage stage
 	// Cannot bind state to individual pipeline stages
 	assert(stages == api::pipeline_stage::all_compute || stages == api::pipeline_stage::all_graphics || stages == api::pipeline_stage::all_ray_tracing);
 
-	vk.CmdBindPipeline(_orig,
-		stages == api::pipeline_stage::all_ray_tracing ? VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR : stages == api::pipeline_stage::all_compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS,
-		(VkPipeline)pipeline.handle);
+	vk.CmdBindPipeline(_orig, convert_pipeline_stages(stages), (VkPipeline)pipeline.handle);
 }
 void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, const api::dynamic_state *states, const uint32_t *values)
 {

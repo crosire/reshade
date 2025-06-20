@@ -275,7 +275,9 @@ namespace reshade::vulkan
 	void convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, VkAccelerationStructureGeometryKHR &geometry, VkAccelerationStructureBuildRangeInfoKHR &range_info);
 	api::acceleration_structure_build_input convert_acceleration_structure_build_input(const VkAccelerationStructureGeometryKHR &geometry, const VkAccelerationStructureBuildRangeInfoKHR &range_info);
 
-	auto convert_shader_stage(const VkPipelineBindPoint &bind_point) -> api::shader_stage;
+	auto convert_shader_stages(VkPipelineBindPoint value) -> api::shader_stage;
+	auto convert_pipeline_stages(api::pipeline_stage value) -> VkPipelineBindPoint;
+	auto convert_pipeline_stages(VkPipelineBindPoint value) -> api::pipeline_stage;
 }
 
 template <typename T>
