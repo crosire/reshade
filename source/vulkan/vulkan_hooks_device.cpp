@@ -535,6 +535,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		INIT_DISPATCH_PTR(GetBufferMemoryRequirements2);
 		INIT_DISPATCH_PTR(GetImageMemoryRequirements2);
 		INIT_DISPATCH_PTR(GetDeviceQueue2);
+		INIT_DISPATCH_PTR(CreateDescriptorUpdateTemplate);
+		INIT_DISPATCH_PTR(DestroyDescriptorUpdateTemplate);
+		INIT_DISPATCH_PTR(UpdateDescriptorSetWithTemplate);
 	}
 
 	// Core 1_2
@@ -603,6 +606,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	// VK_KHR_push_descriptor
 	INIT_DISPATCH_PTR(CmdPushDescriptorSetKHR);
+	INIT_DISPATCH_PTR(CmdPushDescriptorSetWithTemplateKHR);
+
+	// VK_KHR_descriptor_update_template
+	INIT_DISPATCH_PTR_ALTERNATIVE(CreateDescriptorUpdateTemplate, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(DestroyDescriptorUpdateTemplate, KHR);
+	INIT_DISPATCH_PTR_ALTERNATIVE(UpdateDescriptorSetWithTemplate, KHR);
 
 	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
 	INIT_DISPATCH_PTR_ALTERNATIVE(CreateRenderPass2, KHR);
@@ -1122,7 +1131,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		image_data.create_info.sharingMode = create_info.imageSharingMode;
 		image_data.create_info.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-		// See also https://registry.khronos.org/vulkan/specs/latest/man/html/vkCreateSwapchainKHR.html#_description
+		// See https://registry.khronos.org/vulkan/specs/latest/man/html/vkCreateSwapchainKHR.html#_description
 		if ((create_info.flags & VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR) != 0)
 			image_data.create_info.flags |= VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT;
 		if ((create_info.flags & VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR) != 0)
@@ -2880,12 +2889,12 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 				{
 					assert(update.count == write_acceleration_structure->accelerationStructureCount);
 					update.descriptors = write_acceleration_structure->pAccelerationStructures;
+					break;
 				}
-				else
-				{
-					update.count = 0;
-					update.descriptors = nullptr;
-				}
+				[[fallthrough]];
+			default:
+				update.count = 0;
+				update.descriptors = nullptr;
 				break;
 			}
 		}
@@ -2918,6 +2927,117 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 #endif
 
 	trampoline(device, descriptorWriteCount, pDescriptorWrites, descriptorCopyCount, pDescriptorCopies);
+}
+
+VkResult VKAPI_CALL vkCreateDescriptorUpdateTemplate(VkDevice device, const VkDescriptorUpdateTemplateCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDescriptorUpdateTemplate *pDescriptorUpdateTemplate)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(CreateDescriptorUpdateTemplate, device_impl);
+
+	const VkResult result = trampoline(device, pCreateInfo, pAllocator, pDescriptorUpdateTemplate);
+	if (result < VK_SUCCESS)
+	{
+#if RESHADE_VERBOSE_LOG
+		reshade::log::message(reshade::log::level::warning, "vkCreateDescriptorUpdateTemplate failed with error code %d.", static_cast<int>(result));
+#endif
+		return result;
+	}
+
+#if RESHADE_ADDON >= 2
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE> &data = *device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE>(*pDescriptorUpdateTemplate);
+	data.bind_point = pCreateInfo->pipelineBindPoint;
+	data.entries.assign(pCreateInfo->pDescriptorUpdateEntries, pCreateInfo->pDescriptorUpdateEntries + pCreateInfo->descriptorUpdateEntryCount);
+#endif
+
+	return result;
+}
+void     VKAPI_CALL vkDestroyDescriptorUpdateTemplate(VkDevice device, VkDescriptorUpdateTemplate descriptorUpdateTemplate, const VkAllocationCallbacks *pAllocator)
+{
+	if (descriptorUpdateTemplate == VK_NULL_HANDLE)
+		return;
+
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(DestroyDescriptorUpdateTemplate, device_impl);
+
+#if RESHADE_ADDON >= 2
+	device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE>(descriptorUpdateTemplate);
+#endif
+
+	trampoline(device, descriptorUpdateTemplate, pAllocator);
+}
+
+void     VKAPI_CALL vkUpdateDescriptorSetWithTemplate(VkDevice device, VkDescriptorSet descriptorSet, VkDescriptorUpdateTemplate descriptorUpdateTemplate, const void *pData)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
+	GET_DISPATCH_PTR_FROM(UpdateDescriptorSetWithTemplate, device_impl);
+
+#if RESHADE_ADDON >= 2
+	if (reshade::has_addon_event<reshade::addon_event::update_descriptor_tables>())
+	{
+		const auto template_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE>(descriptorUpdateTemplate);
+
+		temp_mem<reshade::api::descriptor_table_update> updates(template_data->entries.size());
+
+		uint32_t max_descriptors = 0;
+		for (const VkDescriptorUpdateTemplateEntry &entry : template_data->entries)
+			max_descriptors += entry.descriptorCount;
+		temp_mem<uint64_t> descriptors(max_descriptors * 2);
+
+		for (uint32_t i = 0, j = 0; i < static_cast<uint32_t>(template_data->entries.size()); ++i)
+		{
+			const VkDescriptorUpdateTemplateEntry &entry = template_data->entries[i];
+
+			reshade::api::descriptor_table_update &update = updates[i];
+			update.table = { (uint64_t)descriptorSet };
+			update.binding = entry.dstBinding;
+			update.array_offset = entry.dstArrayElement;
+			update.count = entry.descriptorCount;
+			update.type = reshade::vulkan::convert_descriptor_type(entry.descriptorType);
+			update.descriptors = descriptors.p + j;
+
+			const void *const base = static_cast<const uint8_t *>(pData) + entry.offset;
+
+			switch (entry.descriptorType)
+			{
+			case VK_DESCRIPTOR_TYPE_SAMPLER:
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+					descriptors[j] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].sampler;
+				break;
+			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k, j += 2)
+					descriptors[j + 0] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].sampler,
+					descriptors[j + 1] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+				break;
+			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+					descriptors[j] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+				break;
+			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
+					descriptors[j] = (uint64_t)static_cast<const VkBufferView *>(base)[k];
+				break;
+			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				update.descriptors = static_cast<const VkDescriptorBufferInfo *>(base);
+				break;
+			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+				update.descriptors = static_cast<const VkAccelerationStructureKHR *>(base);
+				break;
+			default:
+				update.count = 0;
+				update.descriptors = nullptr;
+				break;
+			}
+		}
+
+		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_tables>(device_impl, static_cast<uint32_t>(template_data->entries.size()), updates.p))
+			return;
+	}
+#endif
+
+	trampoline(device, descriptorSet, descriptorUpdateTemplate, pData);
 }
 
 VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFramebufferCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkFramebuffer *pFramebuffer)

@@ -150,6 +150,15 @@ namespace reshade::vulkan
 	};
 
 	template <>
+	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE>
+	{
+		using Handle = VkDescriptorUpdateTemplate;
+
+		VkPipelineBindPoint bind_point;
+		std::vector<VkDescriptorUpdateTemplateEntry> entries;
+	};
+
+	template <>
 	struct object_data<VK_OBJECT_TYPE_QUERY_POOL>
 	{
 		using Handle = VkQueryPool;
@@ -265,6 +274,8 @@ namespace reshade::vulkan
 
 	void convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, VkAccelerationStructureGeometryKHR &geometry, VkAccelerationStructureBuildRangeInfoKHR &range_info);
 	api::acceleration_structure_build_input convert_acceleration_structure_build_input(const VkAccelerationStructureGeometryKHR &geometry, const VkAccelerationStructureBuildRangeInfoKHR &range_info);
+
+	auto convert_shader_stage(const VkPipelineBindPoint &bind_point) -> api::shader_stage;
 }
 
 template <typename T>
