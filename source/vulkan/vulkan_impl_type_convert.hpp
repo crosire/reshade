@@ -150,6 +150,15 @@ namespace reshade::vulkan
 	};
 
 	template <>
+	struct object_data<VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE>
+	{
+		using Handle = VkDescriptorUpdateTemplate;
+
+		VkPipelineBindPoint bind_point;
+		std::vector<VkDescriptorUpdateTemplateEntry> entries;
+	};
+
+	template <>
 	struct object_data<VK_OBJECT_TYPE_QUERY_POOL>
 	{
 		using Handle = VkQueryPool;
