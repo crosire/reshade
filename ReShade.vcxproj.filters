@@ -279,6 +279,9 @@
     <ClCompile Include="source\dxgi\dxgi_device.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
+    <ClCompile Include="source\dxgi\dxgi_factory.cpp">
+      <Filter>hooks\dxgi</Filter>
+    </ClCompile>
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
@@ -621,6 +624,9 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_device.hpp">
+      <Filter>hooks\dxgi</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dxgi\dxgi_factory.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">

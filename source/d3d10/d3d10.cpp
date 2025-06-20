@@ -4,6 +4,7 @@
  */
 
 #include "d3d10_device.hpp"
+#include "dxgi/dxgi_factory.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
@@ -149,7 +150,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 
 		reshade::log::message(reshade::log::level::info, "Calling IDXGIFactory::CreateSwapChain:");
 
-		hr = factory->CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
+		hr = DXGIFactory(factory.get()).CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
 	}
 
 #if RESHADE_ADDON >= 2
