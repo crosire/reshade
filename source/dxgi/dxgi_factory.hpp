@@ -10,13 +10,6 @@
 struct DECLSPEC_UUID("019778d4-a03a-7af4-b889-e92362d20238") DXGIFactory final : IDXGIFactory7
 {
 	DXGIFactory(IDXGIFactory *original);
-	DXGIFactory(IDXGIFactory1 *original);
-	DXGIFactory(IDXGIFactory2 *original);
-	DXGIFactory(IDXGIFactory3 *original);
-	DXGIFactory(IDXGIFactory4 *original);
-	DXGIFactory(IDXGIFactory5 *original);
-	DXGIFactory(IDXGIFactory6 *original);
-	DXGIFactory(IDXGIFactory7 *original);
 	~DXGIFactory();
 
 	DXGIFactory(const DXGIFactory &) = delete;
@@ -42,23 +35,23 @@ struct DECLSPEC_UUID("019778d4-a03a-7af4-b889-e92362d20238") DXGIFactory final :
 	#pragma endregion
 	#pragma region IDXGIFactory1
 	HRESULT STDMETHODCALLTYPE EnumAdapters1(UINT Adapter, IDXGIAdapter1 **ppAdapter) override;
-	BOOL STDMETHODCALLTYPE IsCurrent(void) override;
+	BOOL    STDMETHODCALLTYPE IsCurrent() override;
 	#pragma endregion
 	#pragma region IDXGIFactory2
-	BOOL STDMETHODCALLTYPE IsWindowedStereoEnabled(void) override;
+	BOOL    STDMETHODCALLTYPE IsWindowedStereoEnabled(void) override;
 	HRESULT STDMETHODCALLTYPE CreateSwapChainForHwnd(IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) override;
 	HRESULT STDMETHODCALLTYPE CreateSwapChainForCoreWindow(IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) override;
 	HRESULT STDMETHODCALLTYPE GetSharedResourceAdapterLuid(HANDLE hResource, LUID *pLuid) override;
 	HRESULT STDMETHODCALLTYPE RegisterStereoStatusWindow(HWND WindowHandle, UINT wMsg, DWORD *pdwCookie) override;
 	HRESULT STDMETHODCALLTYPE RegisterStereoStatusEvent(HANDLE hEvent, DWORD *pdwCookie) override;
-	void STDMETHODCALLTYPE UnregisterStereoStatus(DWORD dwCookie) override;
+	void    STDMETHODCALLTYPE UnregisterStereoStatus(DWORD dwCookie) override;
 	HRESULT STDMETHODCALLTYPE RegisterOcclusionStatusWindow(HWND WindowHandle, UINT wMsg, DWORD *pdwCookie) override;
 	HRESULT STDMETHODCALLTYPE RegisterOcclusionStatusEvent(HANDLE hEvent, DWORD *pdwCookie) override;
-	void STDMETHODCALLTYPE UnregisterOcclusionStatus(DWORD dwCookie) override;
+	void    STDMETHODCALLTYPE UnregisterOcclusionStatus(DWORD dwCookie) override;
 	HRESULT STDMETHODCALLTYPE CreateSwapChainForComposition(IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) override;
 	#pragma endregion
 	#pragma region IDXGIFactory3
-	UINT STDMETHODCALLTYPE GetCreationFlags(void) override;
+	UINT    STDMETHODCALLTYPE GetCreationFlags() override;
 	#pragma region
 	#pragma region IDXGIFactory4
 	HRESULT STDMETHODCALLTYPE EnumAdapterByLuid(LUID AdapterLuid, REFIID riid, void **ppvAdapter) override;

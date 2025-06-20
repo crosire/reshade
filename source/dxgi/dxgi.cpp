@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "dxgi_swapchain.hpp"
 #include "dxgi_factory.hpp"
+#include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
@@ -18,7 +18,6 @@ extern bool is_windows7();
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
 
-
 extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 #if RESHADE_VERBOSE_LOG
@@ -31,10 +30,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 }
 extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
-	// External hooks may want to create a DXGI factory and rewrite the vtables
-	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
-
+	reshade::log::message(reshade::log::level::info, "Redirecting CreateDXGIFactory1(riid = %s, ppFactory = %p) ...", reshade::log::iid_to_string(riid).c_str(), ppFactory);
 
 	const HRESULT hr = reshade::hooks::call(CreateDXGIFactory1)(riid, ppFactory);
 	if (FAILED(hr))
@@ -42,6 +38,10 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
+
+	// External hooks may create a DXGI factory and rewrite the vtable
+	if (g_in_dxgi_runtime)
+		return hr;
 
 	// The returned factory should alway implement the 'IDXGIFactory' base interface
 	const auto factory = static_cast<IDXGIFactory *>(*ppFactory);
@@ -67,14 +67,9 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 
 	return hr;
-
 }
 extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory)
 {
-	// External hooks may want to create a DXGI factory and rewrite the vtables (eg: Nvidia Smooth Motion)
-	if (g_in_dxgi_runtime)
-		return reshade::hooks::call(CreateDXGIFactory2)(Flags, riid, ppFactory);
-
 	// Possible interfaces:
 	//   IDXGIFactory  {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
 	//   IDXGIFactory1 {770AAE78-F26F-4DBA-A829-253C83D1B387}
@@ -105,12 +100,15 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
 
 	const HRESULT hr = trampoline(Flags, riid, ppFactory);
-
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
+
+	// External hooks may create a DXGI factory and rewrite the vtable (e.g. NVIDIA Smooth Motion)
+	if (g_in_dxgi_runtime)
+		return hr;
 
 	// The returned factory should alway implement the 'IDXGIFactory' base interface
 	const auto factory = static_cast<IDXGIFactory *>(*ppFactory);

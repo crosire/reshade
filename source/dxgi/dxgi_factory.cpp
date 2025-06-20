@@ -5,118 +5,15 @@
 
 #include "dxgi_factory.hpp"
 #include "dxgi_swapchain.hpp"
-#include "dll_log.hpp"
-#include "com_utils.hpp"
-#include "addon_manager.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
+#include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
+#include "com_utils.hpp"
+#include "addon_manager.hpp"
 
- // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
+// Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
-
-DXGIFactory::DXGIFactory(IDXGIFactory  *original) :
-	_orig(original),
-	_interface_version(0)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory1 *original) :
-	_orig(original),
-	_interface_version(1)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory2 *original) :
-	_orig(original),
-	_interface_version(2)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory3 *original) :
-	_orig(original),
-	_interface_version(3)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory4 *original) :
-	_orig(original),
-	_interface_version(4)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory5 *original) :
-	_orig(original),
-	_interface_version(5)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory6 *original) :
-	_orig(original),
-	_interface_version(6)
-{
-	assert(_orig != nullptr);
-}
-
-DXGIFactory::DXGIFactory(IDXGIFactory7 *original) :
-	_orig(original),
-	_interface_version(7)
-{
-	assert(_orig != nullptr);
-}
-DXGIFactory::~DXGIFactory()
-{
-	
-}
-
-bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
-{
-	if (riid == __uuidof(this) ||
-		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDXGIObject) ||
-		riid == __uuidof(IDXGIDeviceSubObject))
-		return true;
-
-	static constexpr IID iid_lookup[] = {
-		__uuidof(IDXGIFactory),
-		__uuidof(IDXGIFactory1),
-		__uuidof(IDXGIFactory2),
-		__uuidof(IDXGIFactory3),
-		__uuidof(IDXGIFactory4),
-		__uuidof(IDXGIFactory5),
-		__uuidof(IDXGIFactory6),
-		__uuidof(IDXGIFactory7),
-	};
-
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
-	{
-		if (riid != iid_lookup[version])
-			continue;
-
-		if (version > _interface_version)
-		{
-			IUnknown *new_interface = nullptr;
-			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
-				return false;
-#if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIFactory%hu object %p to IDXGIFactory%hu.", _interface_version, this, version);
-#endif
-			_orig->Release();
-			_orig = static_cast<IDXGIFactory *>(new_interface);
-			_interface_version = version;
-		}
-
-		return true;
-	}
-
-	return false;
-}
 
 #if RESHADE_ADDON
 static auto floating_point_to_rational(float value) -> DXGI_RATIONAL
@@ -337,14 +234,14 @@ static bool dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device
 	reshade::log::message(reshade::log::level::info, "  | Height                                  |"                                " %-39u |", desc.Height);
 	if (fullscreen_desc != nullptr)
 	{
-		reshade::log::message(reshade::log::level::info, "  | RefreshRate                             |"              " %-19u"          " %-19u |", fullscreen_desc->RefreshRate.Numerator, fullscreen_desc->RefreshRate.Denominator);
+	reshade::log::message(reshade::log::level::info, "  | RefreshRate                             |"              " %-19u"          " %-19u |", fullscreen_desc->RefreshRate.Numerator, fullscreen_desc->RefreshRate.Denominator);
 	}
 	reshade::log::message(reshade::log::level::info, "  | Format                                  |"                                " %-39s |", format_to_string(desc.Format).c_str());
 	reshade::log::message(reshade::log::level::info, "  | Stereo                                  |"                                " %-39s |", desc.Stereo ? "TRUE" : "FALSE");
 	if (fullscreen_desc != nullptr)
 	{
-		reshade::log::message(reshade::log::level::info, "  | ScanlineOrdering                        |"                                " %-39d |", static_cast<int>(fullscreen_desc->ScanlineOrdering));
-		reshade::log::message(reshade::log::level::info, "  | Scaling                                 |"                                " %-39d |", static_cast<int>(fullscreen_desc->Scaling));
+	reshade::log::message(reshade::log::level::info, "  | ScanlineOrdering                        |"                                " %-39d |", static_cast<int>(fullscreen_desc->ScanlineOrdering));
+	reshade::log::message(reshade::log::level::info, "  | Scaling                                 |"                                " %-39d |", static_cast<int>(fullscreen_desc->Scaling));
 	}
 	reshade::log::message(reshade::log::level::info, "  | SampleCount                             |"                                " %-39u |", desc.SampleDesc.Count);
 	reshade::log::message(reshade::log::level::info, "  | SampleQuality                           |"                                " %-39d |", static_cast<int>(desc.SampleDesc.Quality));
@@ -352,7 +249,7 @@ static bool dump_and_modify_swapchain_desc([[maybe_unused]] reshade::api::device
 	reshade::log::message(reshade::log::level::info, "  | BufferCount                             |"                                " %-39u |", desc.BufferCount);
 	if (fullscreen_desc != nullptr)
 	{
-		reshade::log::message(reshade::log::level::info, "  | Windowed                                |"                                " %-39s |", fullscreen_desc->Windowed ? "TRUE" : "FALSE");
+	reshade::log::message(reshade::log::level::info, "  | Windowed                                |"                                " %-39s |", fullscreen_desc->Windowed ? "TRUE" : "FALSE");
 	}
 	reshade::log::message(reshade::log::level::info, "  | SwapEffect                              |"                                " %-39d |", static_cast<int>(desc.SwapEffect));
 	reshade::log::message(reshade::log::level::info, "  | AlphaMode                               |"                                " %-39d |", static_cast<int>(desc.AlphaMode));
@@ -471,6 +368,58 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 	}
 }
 
+DXGIFactory::DXGIFactory(IDXGIFactory *original) :
+	_orig(original),
+	_interface_version(0)
+{
+	assert(_orig != nullptr);
+}
+DXGIFactory::~DXGIFactory()
+{
+}
+
+bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
+{
+	if (riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(IDXGIObject))
+		return true;
+
+	static constexpr IID iid_lookup[] = {
+		__uuidof(IDXGIFactory),
+		__uuidof(IDXGIFactory1),
+		__uuidof(IDXGIFactory2),
+		__uuidof(IDXGIFactory3),
+		__uuidof(IDXGIFactory4),
+		__uuidof(IDXGIFactory5),
+		__uuidof(IDXGIFactory6),
+		__uuidof(IDXGIFactory7),
+	};
+
+	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	{
+		if (riid != iid_lookup[version])
+			continue;
+
+		if (version > _interface_version)
+		{
+			IUnknown *new_interface = nullptr;
+			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
+				return false;
+#if RESHADE_VERBOSE_LOG
+			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIFactory%hu object %p to IDXGIFactory%hu.", _interface_version, this, version);
+#endif
+			_orig->Release();
+			_orig = static_cast<IDXGIFactory *>(new_interface);
+			_interface_version = version;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 HRESULT STDMETHODCALLTYPE DXGIFactory::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
@@ -537,20 +486,16 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters(UINT Adapter, IDXGIAdapter *
 {
 	return _orig->EnumAdapters(Adapter, ppAdapter);
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::MakeWindowAssociation(HWND WindowHandle, UINT Flags)
 {
 	return _orig->MakeWindowAssociation(WindowHandle, Flags);
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::GetWindowAssociation(HWND *pWindowHandle)
 {
 	return _orig->GetWindowAssociation(pWindowHandle);
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChain(IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
 {
-
 	if (g_in_dxgi_runtime)
 		return _orig->CreateSwapChain(pDevice, pDesc, ppSwapChain);
 
@@ -584,10 +529,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChain(IUnknown *pDevice, DXGI_S
 	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, orig_desc);
 
 	return hr;
-
-	
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSoftwareAdapter(HMODULE Module, IDXGIAdapter **ppAdapter)
 {
 	return _orig->CreateSoftwareAdapter(Module, ppAdapter);
@@ -598,14 +540,13 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters1(UINT Adapter, IDXGIAdapter1
 	assert(_interface_version >= 1);
 	return static_cast<IDXGIFactory1 *>(_orig)->EnumAdapters1(Adapter, ppAdapter);
 }
-
-BOOL STDMETHODCALLTYPE DXGIFactory::IsCurrent(void)
+BOOL    STDMETHODCALLTYPE DXGIFactory::IsCurrent()
 {
 	assert(_interface_version >= 1);
 	return static_cast<IDXGIFactory1 *>(_orig)->IsCurrent();
 }
 
-BOOL STDMETHODCALLTYPE DXGIFactory::IsWindowedStereoEnabled(void)
+BOOL    STDMETHODCALLTYPE DXGIFactory::IsWindowedStereoEnabled(void)
 {
 	assert(_interface_version >= 2);
 	return static_cast<IDXGIFactory2 *>(_orig)->IsWindowedStereoEnabled();
@@ -662,12 +603,8 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForHwnd(IUnknown *pDevice,
 			pDesc->Flags
 		});
 
-
 	return hr;
-
-	
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForCoreWindow(IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
 	assert(_interface_version >= 2);
@@ -713,10 +650,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForCoreWindow(IUnknown *pD
 		});
 
 	return hr;
-
-	
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::GetSharedResourceAdapterLuid(HANDLE hResource, LUID *pLuid)
 {
 	assert(_interface_version >= 2);
@@ -732,8 +666,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::RegisterStereoStatusEvent(HANDLE hEvent, 
 	assert(_interface_version >= 2);
 	return static_cast<IDXGIFactory2 *>(_orig)->RegisterStereoStatusEvent(hEvent, pdwCookie);
 }
-
-void STDMETHODCALLTYPE DXGIFactory::UnregisterStereoStatus(DWORD dwCookie)
+void    STDMETHODCALLTYPE DXGIFactory::UnregisterStereoStatus(DWORD dwCookie)
 {
 	assert(_interface_version >= 2);
 	static_cast<IDXGIFactory2 *>(_orig)->UnregisterStereoStatus(dwCookie);
@@ -748,17 +681,14 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::RegisterOcclusionStatusEvent(HANDLE hEven
 	assert(_interface_version >= 2);
 	return static_cast<IDXGIFactory2 *>(_orig)->RegisterOcclusionStatusEvent(hEvent, pdwCookie);
 }
-
-void STDMETHODCALLTYPE DXGIFactory::UnregisterOcclusionStatus(DWORD dwCookie)
+void    STDMETHODCALLTYPE DXGIFactory::UnregisterOcclusionStatus(DWORD dwCookie)
 {
 	assert(_interface_version >= 2);
 	static_cast<IDXGIFactory2 *>(_orig)->UnregisterOcclusionStatus(dwCookie);
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForComposition(IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
 	assert(_interface_version >= 2);
-
 
 	if (g_in_dxgi_runtime)
 		return static_cast<IDXGIFactory2 *>(_orig)->CreateSwapChainForComposition(pDevice, pDesc, pRestrictToOutput, ppSwapChain);
@@ -801,10 +731,9 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForComposition(IUnknown *p
 		});
 
 	return hr;
-
 }
 
-UINT STDMETHODCALLTYPE DXGIFactory::GetCreationFlags(void)
+UINT    STDMETHODCALLTYPE DXGIFactory::GetCreationFlags()
 {
 	assert(_interface_version >= 3);
 	return static_cast<IDXGIFactory3 *>(_orig)->GetCreationFlags();
@@ -815,7 +744,6 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapterByLuid(LUID AdapterLuid, REFII
 	assert(_interface_version >= 4);
 	return static_cast<IDXGIFactory4 *>(_orig)->EnumAdapterByLuid(AdapterLuid, riid, ppvAdapter);
 }
-
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumWarpAdapter(REFIID riid, void **ppvAdapter)
 {
 	assert(_interface_version >= 4);
@@ -824,8 +752,8 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumWarpAdapter(REFIID riid, void **ppvAd
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::CheckFeatureSupport(DXGI_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize)
 {
-		assert(_interface_version >= 5);
-		return static_cast<IDXGIFactory5 *>(_orig)->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize);
+	assert(_interface_version >= 5);
+	return static_cast<IDXGIFactory5 *>(_orig)->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapterByGpuPreference(UINT Adapter, DXGI_GPU_PREFERENCE GpuPreference, REFIID riid, void **ppvAdapter)
@@ -839,10 +767,8 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::RegisterAdaptersChangedEvent(HANDLE hEven
 	assert(_interface_version >= 7);
 	return static_cast<IDXGIFactory7 *>(_orig)->RegisterAdaptersChangedEvent(hEvent, pdwCookie);
 }
-
-HRESULT  STDMETHODCALLTYPE DXGIFactory::UnregisterAdaptersChangedEvent(DWORD dwCookie)
+HRESULT STDMETHODCALLTYPE DXGIFactory::UnregisterAdaptersChangedEvent(DWORD dwCookie)
 {
 	assert(_interface_version >= 7);
 	return static_cast<IDXGIFactory7 *>(_orig)->UnregisterAdaptersChangedEvent(dwCookie);
 }
-
