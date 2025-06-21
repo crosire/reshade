@@ -780,6 +780,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	// Keep track of legacy contexts here instead of in 'wglCreateLayerContext' because some drivers call the latter from within their 'wglCreateContextAttribsARB' implementation
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
+
 		s_legacy_contexts.emplace(hglrc);
 	}
 
@@ -878,7 +879,11 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
-		s_shared_contexts.emplace(hglrc, hShareContext);
+
+		if (compatibility)
+			s_legacy_contexts.emplace(hglrc);
+
+		s_shared_contexts[hglrc] = hShareContext;
 
 		if (hShareContext != nullptr)
 		{
@@ -916,7 +921,8 @@ extern "C" HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 	}
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
-		s_shared_contexts.emplace(hglrc, nullptr);
+
+		s_shared_contexts[hglrc] = nullptr;
 	}
 
 	return hglrc;
@@ -1054,6 +1060,7 @@ extern "C" BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 	}
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
+
 		s_shared_contexts[hglrc2] = hglrc1;
 	}
 
@@ -1340,6 +1347,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
+
 		s_pbuffer_device_contexts.insert(hdc);
 	}
 
@@ -1359,6 +1367,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	}
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
+
 		s_pbuffer_device_contexts.erase(hdc);
 	}
 
