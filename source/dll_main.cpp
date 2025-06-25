@@ -292,6 +292,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 				}
 
+				// Register Windows Multimedia module in case it was used to load ReShade (but ignore otherwise)
+				if (_wcsicmp(module_name.c_str(), L"winmm") == 0)
+					reshade::hooks::register_module(get_system_path() / L"winmm.dll");
+
+
 #if RESHADE_ADDON == 1
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_NETWORK_HOOK", nullptr, 0))
 				{
