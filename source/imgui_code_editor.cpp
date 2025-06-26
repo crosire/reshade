@@ -123,7 +123,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		if (_select_beg != _select_end)
 			_search_text[get_selected_text().copy(_search_text, sizeof(_search_text) - 1)] = '\0';
 
-		_search_window_open = ImGui::IsKeyPressed(ImGuiKey_H) ? 2 /* search + replace */ : 1 /* search */;
+		_search_window_open = ImGui::IsKeyPressed(ImGuiKey_H) && !_readonly ? 2 /* search + replace */ : 1 /* search */;
 	}
 	else if (_search_window_open < 0)
 	{
@@ -159,12 +159,12 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Y))
 			redo();
 		else if (!ctrl && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
-			if (alt && !shift) // Alt + Up moves the current line one up
+			if (alt && !shift && !_readonly) // Alt + Up moves the current line one up
 				move_lines_up();
 			else
 				move_up(1, shift);
 		else if (!ctrl && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
-			if (alt && !shift) // Alt + Down moves the current line one down
+			if (alt && !shift && !_readonly) // Alt + Down moves the current line one down
 				move_lines_down();
 			else
 				move_down(1, shift);
@@ -186,9 +186,9 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 				move_bottom(shift);
 			else
 				move_end(shift);
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Delete))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Delete) && !_readonly)
 			delete_next();
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Backspace))
+		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Backspace) && !_readonly)
 			delete_previous();
 		else if (!alt && ImGui::IsKeyPressed(ImGuiKey_Insert))
 			if (ctrl)
@@ -205,12 +205,13 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			clipboard_cut();
 		else if (ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_A))
 			select_all();
-		else if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Enter))
-			insert_character('\n', true);
-		else
-			for (ImWchar c : io.InputQueueCharacters)
-				if (c != 0 && (isprint(c) || isspace(c)))
-					insert_character(static_cast<char>(c), true);
+		else if (!_readonly)
+			if (!ctrl && !shift && !alt && ImGui::IsKeyPressed(ImGuiKey_Enter))
+				insert_character('\n', true);
+			else
+				for (ImWchar c : io.InputQueueCharacters)
+					if (c != 0 && (isprint(c) || isspace(c)))
+						insert_character(static_cast<char>(c), true);
 	}
 
 	// Handle mouse input
@@ -792,9 +793,6 @@ void reshade::imgui::code_editor::insert_text(const std::string_view text)
 }
 void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 {
-	if (_readonly)
-		return;
-
 	undo_record u;
 
 	if (has_selection())
@@ -1003,9 +1001,6 @@ std::string reshade::imgui::code_editor::get_selected_text() const
 
 void reshade::imgui::code_editor::undo(unsigned int steps)
 {
-	if (_readonly)
-		return;
-
 	// Reset selection
 	_select_beg = _cursor_pos;
 	_select_end = _cursor_pos;
@@ -1037,9 +1032,6 @@ void reshade::imgui::code_editor::undo(unsigned int steps)
 }
 void reshade::imgui::code_editor::redo(unsigned int steps)
 {
-	if (_readonly)
-		return;
-
 	// Reset selection
 	_select_beg = _cursor_pos;
 	_select_end = _cursor_pos;
@@ -1082,8 +1074,7 @@ void reshade::imgui::code_editor::record_undo(undo_record &&record)
 
 void reshade::imgui::code_editor::delete_next()
 {
-	if (_readonly)
-		return;
+	assert(!_readonly);
 
 	if (has_selection())
 	{
@@ -1134,8 +1125,7 @@ void reshade::imgui::code_editor::delete_next()
 }
 void reshade::imgui::code_editor::delete_previous()
 {
-	if (_readonly)
-		return;
+	assert(!_readonly);
 
 	if (has_selection())
 	{
@@ -1189,8 +1179,7 @@ void reshade::imgui::code_editor::delete_previous()
 }
 void reshade::imgui::code_editor::delete_selection()
 {
-	if (_readonly)
-		return;
+	assert(!_readonly);
 
 	if (!has_selection())
 		return;
@@ -1242,9 +1231,6 @@ void reshade::imgui::code_editor::delete_selection()
 }
 void reshade::imgui::code_editor::delete_lines(size_t first_line, size_t last_line)
 {
-	if (_readonly)
-		return;
-
 	// Move all error markers after the deleted lines down
 	std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 	errors.reserve(_errors.size());
@@ -1286,6 +1272,10 @@ void reshade::imgui::code_editor::clipboard_cut()
 		return;
 
 	clipboard_copy();
+
+	if (_readonly)
+		return;
+
 	delete_selection();
 }
 void reshade::imgui::code_editor::clipboard_paste()
@@ -1620,7 +1610,9 @@ void reshade::imgui::code_editor::move_end(bool selection)
 }
 void reshade::imgui::code_editor::move_lines_up()
 {
-	if (_select_beg.line == 0 || _readonly)
+	assert(!_readonly);
+
+	if (_select_beg.line == 0)
 		return;
 
 	for (size_t line = _select_beg.line; line <= _select_end.line; ++line)
@@ -1632,7 +1624,9 @@ void reshade::imgui::code_editor::move_lines_up()
 }
 void reshade::imgui::code_editor::move_lines_down()
 {
-	if (_select_end.line + 1 >= _lines.size() || _readonly)
+	assert(!_readonly);
+
+	if (_select_end.line + 1 >= _lines.size())
 		return;
 
 	for (size_t line = _select_end.line; line >= _select_beg.line && line < _lines.size(); --line)
@@ -2031,4 +2025,14 @@ void reshade::imgui::code_editor::colorize()
 			_lines[line][column++].col = col;
 		}
 	}
+}
+
+void reshade::imgui::code_editor::colorize(const text_pos &beg, const text_pos &end, color col)
+{
+	for (size_t l = beg.line; l <= end.line && l < _lines.size(); ++l)
+		for (size_t k = (l == beg.line ? beg.column : 0); k < _lines[l].size() && (l != end.line || k < end.column); ++k)
+			_lines[l][k].col = col;
+
+	_colorize_line_beg = std::numeric_limits<size_t>::max();
+	_colorize_line_end = 0;
 }

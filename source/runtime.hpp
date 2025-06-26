@@ -505,9 +505,8 @@ namespace reshade
 
 		#pragma region Overlay Log
 		char _log_filter[32] = {};
-		bool _log_wordwrap = false;
 		uintmax_t _last_log_size;
-		std::vector<std::string> _log_lines;
+		imgui::code_editor _log_editor;
 		#pragma endregion
 
 		#pragma region Overlay Code Editor
