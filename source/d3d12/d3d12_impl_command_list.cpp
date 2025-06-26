@@ -769,7 +769,7 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 
 	assert(src != 0 && dst != 0);
 	// Blit between different region dimensions is not supported
-	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
+	assert(dst_box == nullptr || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
 	D3D12_RESOURCE_DESC src_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
 	D3D12_RESOURCE_DESC dst_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();

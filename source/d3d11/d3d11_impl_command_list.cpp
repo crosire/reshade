@@ -703,7 +703,7 @@ void reshade::d3d11::device_context_impl::copy_texture_region(api::resource src,
 {
 	assert(src != 0 && dst != 0);
 	// Blit between different region dimensions is not supported
-	assert((src_box == nullptr && dst_box == nullptr) || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
+	assert(dst_box == nullptr || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
 	_orig->CopySubresourceRegion(
 		reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, dst_box != nullptr ? dst_box->left : 0, dst_box != nullptr ? dst_box->top : 0, dst_box != nullptr ? dst_box->front : 0,
