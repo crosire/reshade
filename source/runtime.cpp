@@ -4275,7 +4275,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 	// Update shader constants
 	if (void *mapped_uniform_data;
-		effect.cb != 0 && _device->map_buffer_region(effect.cb, 0, std::numeric_limits<uint64_t>::max(), api::map_access::write_discard, &mapped_uniform_data))
+		effect.cb != 0 && _device->map_buffer_region(effect.cb, 0, effect.uniform_data_storage.size(), api::map_access::write_discard, &mapped_uniform_data))
 	{
 		std::memcpy(mapped_uniform_data, effect.uniform_data_storage.data(), effect.uniform_data_storage.size());
 		_device->unmap_buffer_region(effect.cb);
