@@ -213,7 +213,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMOD
 extern void init_device_proxy_for_d3d9on12(Direct3DDevice9 *device_proxy);
 
 template <typename T>
-static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_software_rendering)
+static void init_device_proxy(T *&device, D3DDEVTYPE device_type, HWND device_window, bool use_software_rendering)
 {
 	// Enable software vertex processing if the application requested a software device
 	if (use_software_rendering)
@@ -222,6 +222,13 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, bool use_softw
 	if (device_type == D3DDEVTYPE_NULLREF)
 	{
 		reshade::log::message(reshade::log::level::warning, "Skipping device because the device type is 'D3DDEVTYPE_NULLREF'.");
+		return;
+	}
+
+	// Some video applications create a non-displaying device targeting the desktop window
+	if (GetDesktopWindow() == device_window)
+	{
+		reshade::log::message(reshade::log::level::warning, "Skipping device because the focus window is the desktop window.");
 		return;
 	}
 
@@ -324,7 +331,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (SUCCEEDED(hr))
 	{
-		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : hFocusWindow, use_software_rendering);
 	}
 	else
 	{
@@ -396,7 +403,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (SUCCEEDED(hr))
 	{
-		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, use_software_rendering);
+		init_device_proxy(*ppReturnedDeviceInterface, DeviceType, (pp.hDeviceWindow != nullptr) ? pp.hDeviceWindow : hFocusWindow, use_software_rendering);
 	}
 	else
 	{

@@ -56,7 +56,7 @@ std::shared_ptr<reshade::input> reshade::input::register_window(window_handle wi
 	GetWindowThreadProcessId(static_cast<HWND>(window), &process_id);
 	if (process_id != GetCurrentProcessId())
 	{
-		reshade::log::message(reshade::log::level::warning, "Cannot capture input for window %p created by a different process.", window);
+		reshade::log::message(reshade::log::level::warning, "Cannot capture input for window %p created by a different process (%lu).", window, process_id);
 		return nullptr;
 	}
 
