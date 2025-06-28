@@ -275,7 +275,7 @@ static bool uninstall_internal(const char *name, reshade::hook &hook, hook_metho
 	return true;
 }
 
-static reshade::hook find_internal(reshade::hook::address target, reshade::hook::address replacement)
+static named_hook find_internal(reshade::hook::address target, reshade::hook::address replacement)
 {
 	assert(target != nullptr || replacement != nullptr);
 
@@ -294,7 +294,7 @@ static reshade::hook find_internal(reshade::hook::address target, reshade::hook:
 				(target == nullptr || hook.target == target);
 		});
 
-	return it != s_hooks.cend() ? static_cast<const reshade::hook &>(*it) : reshade::hook {};
+	return it != s_hooks.cend() ? *it : named_hook {};
 }
 
 #ifndef RESHADE_TEST_APPLICATION
@@ -443,7 +443,7 @@ bool reshade::hooks::install(const char *name, hook::address target, hook::addre
 
 	assert(replacement != nullptr);
 
-	hook hook = find_internal(nullptr, replacement);
+	named_hook hook = find_internal(nullptr, replacement);
 	// If the hook was already installed, make sure it was installed for the same target function
 	if (hook.installed())
 		return target == hook.target;
@@ -459,7 +459,7 @@ bool reshade::hooks::install(const char *name, hook::address vtable[], size_t vt
 {
 	assert(vtable != nullptr && replacement != nullptr);
 
-	hook hook = find_internal(&vtable[vtable_index], replacement);
+	named_hook hook = find_internal(&vtable[vtable_index], replacement);
 	// Check if the hook was already installed to this virtual function table
 	if (hook.installed())
 		// It may happen that some other third party (like NVIDIA Streamline) replaced the virtual function table entry since it was originally installed, just ignore that
@@ -476,14 +476,14 @@ void reshade::hooks::uninstall()
 	log::message(log::level::info, "Uninstalling %zu hook(s) ...", s_hooks.size());
 
 	// Disable all hooks in a single batch job
-	for (named_hook &hook_info : s_hooks)
-		hook_info.disable();
+	for (named_hook &hook : s_hooks)
+		hook.disable();
 
 	hook::apply_queued_actions();
 
 	// Afterwards uninstall and remove all hooks from the list
-	for (named_hook &hook_info : s_hooks)
-		uninstall_internal(hook_info.name, hook_info, hook_info.method);
+	for (named_hook &hook : s_hooks)
+		uninstall_internal(hook.name, hook, hook.method);
 
 	s_hooks.clear();
 
