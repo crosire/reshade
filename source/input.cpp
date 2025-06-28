@@ -499,7 +499,7 @@ void reshade::input::block_mouse_cursor_warping(bool enable)
 	{
 		ClipCursor_trampoline(nullptr);
 	}
-	else if ((s_last_clip_cursor.right - s_last_clip_cursor.left) != 0 && (s_last_clip_cursor.bottom - s_last_clip_cursor.top) != 0)
+	else if (_block_cursor_warping && (s_last_clip_cursor.right - s_last_clip_cursor.left) != 0 && (s_last_clip_cursor.bottom - s_last_clip_cursor.top) != 0)
 	{
 		// Restore previous clipping rectangle when not blocking mouse input
 		ClipCursor_trampoline(&s_last_clip_cursor);
