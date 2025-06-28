@@ -3811,8 +3811,6 @@ void reshade::runtime::update_effects()
 
 	if (!is_loading() && !_is_in_preset_transition && !_reload_required_effects.empty())
 	{
-		save_current_preset(); // Save preset preprocessor definitions (careful to not do this during a preset transition)
-
 		_reload_remaining_effects = 0;
 
 		// Sort list so that all default permutations are reloaded first (since that resets the entire effect), before other permutations
