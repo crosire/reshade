@@ -18,8 +18,8 @@ using reshade::d3d9::to_handle;
 extern thread_local bool g_in_d3d9_runtime;
 extern thread_local bool g_in_dxgi_runtime;
 
-extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window);
-extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window);
+extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
+extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
 
 const reshade::api::subresource_box *convert_rect_to_box(const RECT *rect, reshade::api::subresource_box &box)
 {
@@ -955,11 +955,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrc
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		uint32_t src_subresource;
-		const reshade::api::resource src_resource = get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
-		uint32_t dst_subresource;
-		const reshade::api::resource dst_resource = get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
+		const reshade::api::resource src_resource =
+			get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
+		reshade::api::subresource_box src_box;
 
-		reshade::api::subresource_box src_box, dst_box;
+		uint32_t dst_subresource;
+		const reshade::api::resource dst_resource =
+			get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
+		reshade::api::subresource_box dst_box;
 
 		if (pSrcRect != nullptr)
 		{
@@ -1001,9 +1004,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		uint32_t src_subresource;
-		const reshade::api::resource src_resource = get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
+		const reshade::api::resource src_resource =
+			get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
 		uint32_t dst_subresource;
-		const reshade::api::resource dst_resource = get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
+		const reshade::api::resource dst_resource =
+			get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, dst_subresource, nullptr, reshade::api::filter_mode::min_mag_mip_point))
 			return D3D_OK;
@@ -1043,14 +1048,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSu
 		pSrcSurface->GetDesc(&desc);
 
 		uint32_t src_subresource;
-		const reshade::api::resource src_resource = get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
+		const reshade::api::resource src_resource =
+			get_resource_from_view(to_handle(pSrcSurface), &src_subresource);
+		reshade::api::subresource_box src_box;
+
 		uint32_t dst_subresource;
-		const reshade::api::resource dst_resource = get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
+		const reshade::api::resource dst_resource =
+			get_resource_from_view(to_handle(pDstSurface), &dst_subresource);
+		reshade::api::subresource_box dst_box;
 
 		if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 		{
-			reshade::api::subresource_box src_box, dst_box;
-
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
 					src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
 					dst_resource, dst_subresource, convert_rect_to_box(pDstRect, dst_box),
@@ -1059,8 +1067,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSu
 		}
 		else
 		{
-			reshade::api::subresource_box src_box;
-
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
 					src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
 					dst_resource, dst_subresource, static_cast<uint32_t>(pDstRect != nullptr ? pDstRect->left : 0), static_cast<uint32_t>(pDstRect != nullptr ? pDstRect->top : 0), 0,

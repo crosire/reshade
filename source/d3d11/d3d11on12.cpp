@@ -41,7 +41,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	temp_mem<IUnknown *> command_queues(NumQueues);
 	for (UINT i = 0; i < NumQueues; ++i)
 	{
-		assert(ppCommandQueues[i] != nullptr);
+		assert(ppCommandQueues != nullptr && ppCommandQueues[i] != nullptr);
 
 		if (com_ptr<D3D12CommandQueue> command_queue_proxy;
 			SUCCEEDED(ppCommandQueues[i]->QueryInterface(&command_queue_proxy)))

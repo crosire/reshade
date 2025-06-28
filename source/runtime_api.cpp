@@ -1150,9 +1150,9 @@ void reshade::runtime::set_preprocessor_definition_for_effect(const char *effect
 
 			if (const auto preset_definitions_it = _preset_preprocessor_definitions.find({});
 				preset_definitions_it != _preset_preprocessor_definitions.end() && !preset_definitions_it->second.empty())
-				preset.set("", "PreprocessorDefinitions", preset_definitions_it->second);
+				preset.set({}, "PreprocessorDefinitions", preset_definitions_it->second);
 			else
-				preset.remove_key("", "PreprocessorDefinitions");
+				preset.remove_key({}, "PreprocessorDefinitions");
 		}
 		if ((scope_mask_updated & GLOBAL_SCOPE_FLAG) != 0)
 		{

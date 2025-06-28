@@ -374,9 +374,6 @@ DXGIFactory::DXGIFactory(IDXGIFactory *original) :
 {
 	assert(_orig != nullptr);
 }
-DXGIFactory::~DXGIFactory()
-{
-}
 
 bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
 {

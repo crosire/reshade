@@ -10,7 +10,6 @@
 struct DECLSPEC_UUID("019778d4-a03a-7af4-b889-e92362d20238") DXGIFactory final : IDXGIFactory7
 {
 	DXGIFactory(IDXGIFactory *original);
-	~DXGIFactory();
 
 	DXGIFactory(const DXGIFactory &) = delete;
 	DXGIFactory &operator=(const DXGIFactory &) = delete;

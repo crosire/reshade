@@ -2674,9 +2674,9 @@ void reshade::runtime::draw_gui_statistics()
 				const reshade::technique::pass &pass = tech.permutations[0].passes[pass_index];
 
 				if (pass.name.empty())
-					ImGui::Text("  pass %zu", pass_index);
+					ImGui::Text("  pass %-2zu", pass_index);
 				else
-					ImGui::Text("  pass %zu %s", pass_index, pass.name.c_str());
+					ImGui::Text("  pass %-2zu %s", pass_index, pass.name.c_str());
 
 				long_technique_name[total_pass_count] = (ImGui::GetItemRectSize().x + 10.0f) > (ImGui::GetWindowWidth() * 0.66666666f);
 				if (long_technique_name[total_pass_count])

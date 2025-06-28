@@ -160,7 +160,8 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface
 		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
 		{
 			uint32_t subresource;
-			const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pSurface), &subresource);
+			const reshade::api::resource resource =
+				device_proxy->get_resource_from_view(to_handle(pSurface), &subresource);
 
 			reshade::api::subresource_box box;
 			reshade::api::subresource_data data;
@@ -188,7 +189,8 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_UnlockRect(IDirect3DSurface9 *pSurfa
 	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pSurface))
 	{
 		uint32_t subresource;
-		const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pSurface), &subresource);
+		const reshade::api::resource resource =
+			device_proxy->get_resource_from_view(to_handle(pSurface), &subresource);
 
 		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, resource, subresource);
 	}
@@ -206,7 +208,8 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3
 		if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
 		{
 			uint32_t subresource;
-			const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
+			const reshade::api::resource resource =
+				device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
 
 			reshade::api::subresource_data data;
 			data.data = pLockedVolume->pBits;
@@ -234,7 +237,8 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_UnlockBox(IDirect3DVolume9 *pVolume)
 	if (const auto device_proxy = get_private_pointer_d3d9<Direct3DDevice9>(pVolume))
 	{
 		uint32_t subresource;
-		const reshade::api::resource resource = device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
+		const reshade::api::resource resource =
+			device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
 
 		reshade::invoke_addon_event<reshade::addon_event::unmap_texture_region>(device_proxy, resource, subresource);
 	}

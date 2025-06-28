@@ -194,7 +194,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 	}
 #endif
 }
-void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, [[maybe_unused]] HWND focus_window)
+void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window)
 {
 	dump_and_modify_present_parameters(pp, d3d, adapter_index, focus_window);
 
@@ -297,7 +297,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	{
 		// Upgrade Direct3D 9 to Direct3D 9Ex
 		trampoline =
-			[](IDirect3D9 *, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface) {
+			[](IDirect3D9 *, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface) -> HRESULT {
 				assert(g_in_d3d9_runtime);
 				com_ptr<IDirect3D9Ex> d3dex;
 				if (FAILED(Direct3DCreate9Ex(D3D_SDK_VERSION, &d3dex)))
@@ -339,7 +339,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	}
 
 #if RESHADE_ADDON
-	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the one from above again
+	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the reference added above again
 	reshade::unload_addons();
 #endif
 
@@ -373,7 +373,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 #endif
 #if RESHADE_ADDON >= 2
 	uint32_t api_version = 0x9100;
-	reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d9, api_version);
+	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d9, api_version))
+	{
+		assert(api_version > 0x9000);
+	}
 #endif
 
 	D3DDISPLAYMODEEX fullscreen_mode = { sizeof(fullscreen_mode) };
@@ -411,7 +414,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	}
 
 #if RESHADE_ADDON
-	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the one from above again
+	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the reference added above again
 	reshade::unload_addons();
 #endif
 
