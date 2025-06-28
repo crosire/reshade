@@ -323,7 +323,10 @@ bool reshade::imgui::search_input_box(char *filter, int filter_size, float width
 
 	const bool show_clear_button = filter[0] != '\0';
 
-	ImGui::SetNextItemWidth(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0001f));
+	if (0.0f == width)
+		width = ImGui::GetContentRegionAvail().x;
+
+	ImGui::SetNextItemWidth(width - (show_clear_button ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x : 0.0f));
 	if (ImGui::InputTextWithHint("##filter", _("Search") + " " ICON_FK_SEARCH, filter, filter_size, ImGuiInputTextFlags_AutoSelectAll))
 		res = true;
 
