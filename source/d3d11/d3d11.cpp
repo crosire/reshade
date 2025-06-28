@@ -58,13 +58,16 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 #endif
 
 #if RESHADE_ADDON >= 2
-	reshade::load_addons();
-
-	uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
-	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d11, api_version))
+	if (ppDevice != nullptr)
 	{
-		FeatureLevels = 1;
-		pFeatureLevels = reinterpret_cast<const D3D_FEATURE_LEVEL *>(&api_version);
+		reshade::load_addons();
+
+		uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
+		if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d11, api_version))
+		{
+			FeatureLevels = 1;
+			pFeatureLevels = reinterpret_cast<const D3D_FEATURE_LEVEL *>(&api_version);
+		}
 	}
 #endif
 
@@ -77,7 +80,8 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	if (FAILED(hr))
 	{
 #if RESHADE_ADDON >= 2
-		reshade::unload_addons();
+		if (ppDevice != nullptr)
+			reshade::unload_addons();
 #endif
 		reshade::log::message(reshade::log::level::warning, "D3D11CreateDeviceAndSwapChain failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
@@ -92,10 +96,6 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr && ppImmediateContext == nullptr);
-
-#if RESHADE_ADDON >= 2
-		reshade::unload_addons();
-#endif
 		return hr;
 	}
 

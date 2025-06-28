@@ -30,12 +30,15 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 		pAdapter, MinimumFeatureLevel, reshade::log::iid_to_string(riid).c_str(), ppDevice);
 
 #if RESHADE_ADDON >= 2
-	reshade::load_addons();
-
-	uint32_t api_version = static_cast<uint32_t>(MinimumFeatureLevel);
-	if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d12, api_version))
+	if (ppDevice != nullptr)
 	{
-		MinimumFeatureLevel = static_cast<D3D_FEATURE_LEVEL>(api_version);
+		reshade::load_addons();
+
+		uint32_t api_version = static_cast<uint32_t>(MinimumFeatureLevel);
+		if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d12, api_version))
+		{
+			MinimumFeatureLevel = static_cast<D3D_FEATURE_LEVEL>(api_version);
+		}
 	}
 #endif
 
@@ -46,19 +49,15 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 	if (FAILED(hr))
 	{
 #if RESHADE_ADDON >= 2
-		reshade::unload_addons();
+		if (ppDevice != nullptr)
+			reshade::unload_addons();
 #endif
 		reshade::log::message(reshade::log::level::warning, "D3D12CreateDevice failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
 
 	if (ppDevice == nullptr)
-	{
-#if RESHADE_ADDON >= 2
-		reshade::unload_addons();
-#endif
 		return hr;
-	}
 
 	// The returned device should alway implement the 'ID3D12Device' base interface
 	const auto device = static_cast<ID3D12Device *>(*ppDevice);
