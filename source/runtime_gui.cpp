@@ -3446,6 +3446,9 @@ void reshade::runtime::draw_variable_editor()
 			{
 				if (ImGui::BeginTabItem(type.name.c_str()))
 				{
+					if (&type.modified == &preset_modified)
+						ImGui::BeginDisabled(!_auto_save_preset);
+
 					for (auto it = type.definitions.begin(); it != type.definitions.end();)
 					{
 						char name[128];
@@ -3489,6 +3492,9 @@ void reshade::runtime::draw_variable_editor()
 					ImGui::SameLine(0, content_region_width - button_size);
 					if (ImGui::Button(ICON_FK_PLUS, ImVec2(button_size, 0)))
 						type.definitions.emplace_back();
+
+					if (&type.modified == &preset_modified)
+						ImGui::EndDisabled();
 
 					ImGui::EndTabItem();
 				}
