@@ -29,9 +29,13 @@ static auto adapter_from_device(ID3D12Device *device, DXGI_ADAPTER_DESC *adapter
 {
 	const auto dxgi_module = GetModuleHandleW(L"dxgi.dll");
 	assert(dxgi_module != nullptr);
-	const auto CreateDXGIFactory1_orig = reinterpret_cast<decltype(&CreateDXGIFactory1)>(GetProcAddress(dxgi_module, "CreateDXGIFactory1"));
+	auto CreateDXGIFactory1_orig = reinterpret_cast<decltype(&CreateDXGIFactory1)>(GetProcAddress(dxgi_module, "CreateDXGIFactory1"));
+	if (reshade::hooks::is_hooked(CreateDXGIFactory1_orig))
+		CreateDXGIFactory1_orig = reshade::hooks::call<decltype(&CreateDXGIFactory1)>(nullptr, CreateDXGIFactory1_orig);
 	assert(CreateDXGIFactory1_orig != nullptr);
-	const auto CreateDXGIFactory2_orig = reinterpret_cast<decltype(&CreateDXGIFactory2)>(GetProcAddress(dxgi_module, "CreateDXGIFactory2"));
+	auto CreateDXGIFactory2_orig = reinterpret_cast<decltype(&CreateDXGIFactory2)>(GetProcAddress(dxgi_module, "CreateDXGIFactory2"));
+	if (reshade::hooks::is_hooked(CreateDXGIFactory2_orig))
+		CreateDXGIFactory2_orig = reshade::hooks::call<decltype(&CreateDXGIFactory2)>(nullptr, CreateDXGIFactory2_orig);
 	assert(CreateDXGIFactory2_orig != nullptr || is_windows7());
 
 	const LUID luid = device->GetAdapterLuid();
