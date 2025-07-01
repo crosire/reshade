@@ -2900,7 +2900,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 					});
 				assert(storage_texture != _textures.cend());
 
-				const api::resource_view uav = storage_texture->uav[permutation.module.storages[binding.index].level];
+				const api::resource_view &uav = storage_texture->uav[permutation.module.storages[binding.index].level];
 				assert(uav != 0 && storage_texture->semantic.empty());
 
 				{
