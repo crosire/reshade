@@ -2339,6 +2339,9 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 		return api::primitive_topology::quad_list;
 	case 0x0008 /* GL_QUAD_STRIP */:
 		return api::primitive_topology::quad_strip;
+	case 0x0009 /* GL_POLYGON */:
+		// Valid to draw a single, convex polygon between 'glBegin' and 'glEnd', but does not translate well
+		return api::primitive_topology::undefined;
 	case GL_PATCHES:
 		// This needs to be adjusted externally based on 'GL_PATCH_VERTICES'
 		return api::primitive_topology::patch_list_01_cp;
