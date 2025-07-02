@@ -429,7 +429,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 
 	if (dst_object == 0)
 	{
-		if (src_target == GL_FRAMEBUFFER_DEFAULT)
+		if (dst_target == GL_FRAMEBUFFER_DEFAULT)
 			gl.GetIntegerv(GL_DRAW_BUFFER, reinterpret_cast<GLint *>(&dst_object));
 		else
 			gl.GetIntegerv(reshade::opengl::get_binding_for_target(dst_target), reinterpret_cast<GLint *>(&dst_object));
