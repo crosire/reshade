@@ -1086,7 +1086,8 @@ void reshade::runtime::load_current_preset()
 					return technique.name == name;
 				}) == _techniques.end())
 		{
-			log::message(log::level::warning, "Preset '%s' uses unknown technique '%*s'.", _current_preset_path.u8string().c_str(), technique_name.size(), technique_name.data());
+			if (_reload_remaining_effects == 0)
+				log::message(log::level::warning, "Preset '%s' uses unknown technique '%*s'.", _current_preset_path.u8string().c_str(), technique_name.size(), technique_name.data());
 			_preset_is_incomplete = true;
 		}
 	}
