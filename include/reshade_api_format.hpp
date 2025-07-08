@@ -306,7 +306,7 @@ namespace reshade { namespace api
 		case format::bc3_typeless:
 		case format::bc3_unorm:
 		case format::bc3_unorm_srgb:
-			return format::bc2_typeless;
+			return format::bc3_typeless;
 		case format::bc4_typeless:
 		case format::bc4_unorm:
 		case format::bc4_snorm:
