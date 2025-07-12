@@ -2902,7 +2902,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 
 	reshade::api::pipeline_layout_param *param_data = params.data();
 
-	if (param_count != 0 && (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, param_count, param_data) || modified))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(this, param_count, param_data) || modified)
 	{
 		reshade::api::pipeline_layout layout;
 		hr = device_impl::create_pipeline_layout(param_count, param_data, &layout, flags) ? S_OK : E_FAIL;
@@ -2913,7 +2913,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 		hr = _orig->CreateRootSignature(node_mask, blob, blob_size, IID_PPV_ARGS(&root_signature));
 	}
 
-	if (SUCCEEDED(hr) && param_count != 0)
+	if (SUCCEEDED(hr))
 	{
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, param_count, param_data, to_handle(root_signature));
 
