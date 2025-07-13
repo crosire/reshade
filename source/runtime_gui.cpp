@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+ /*
+ * Modify by GitHub@DuolaD
+ * Copyright (C) 2025 DuolaD
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 #if RESHADE_GUI
 
 #include "runtime.hpp"
@@ -178,11 +184,22 @@ void reshade::runtime::build_font_atlas()
 	else
 	if (language.find("zh") == 0)
 	{
-		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
-
-		_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
-		if (!std::filesystem::exists(_default_font_path, ec))
-			_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc"; // SimSun
+		// Determine whether it is traditional Chinese (zh-HK, zh-TW, zh-Hant, etc.)
+		if (language.find("zh-HK") == 0 || language.find("zh-TW") == 0 || language.find("zh-Hant") == 0)
+		{
+			glyph_ranges = atlas->GetGlyphRangesChineseFull();
+			// Microsoft Zhenghei, supports Traditional Chinese
+			_default_font_path = L"C:\\Windows\\Fonts\\msjh.ttc";
+			if (!std::filesystem::exists(_default_font_path, ec))
+				_default_font_path = L"C:\\Windows\\Fonts\\mingliu.ttc"; 
+		}
+		else // Simplified Chinese
+		{
+			glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
+			_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+			if (!std::filesystem::exists(_default_font_path, ec))
+				_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc"; 
+		}
 	}
 	else
 #endif
