@@ -846,7 +846,7 @@ static void on_execute_secondary(command_list *cmd_list, command_list *secondary
 	}
 }
 
-static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *)
+static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *, uint32_t *, uint32_t *)
 {
 	device *const device = swapchain->get_device();
 	generic_depth_device_data *const device_data = device->get_private_data<generic_depth_device_data>();

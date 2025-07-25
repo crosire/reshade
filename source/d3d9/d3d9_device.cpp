@@ -2260,7 +2260,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	{
 		assert(!_implicit_swapchain->_was_still_drawing_last_frame);
 
-		_implicit_swapchain->on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+		_implicit_swapchain->on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, &dwFlags);
 	}
 
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);

@@ -102,7 +102,9 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	if (_back_buffers[0] != nullptr)
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
+		uint32_t flags = Flags;
+		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr, nullptr, &flags);
+		Flags = static_cast<D3D12_DOWNLEVEL_PRESENT_FLAGS>(flags);
 #endif
 
 		reshade::present_effect_runtime(this);

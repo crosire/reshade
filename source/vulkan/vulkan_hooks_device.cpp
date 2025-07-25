@@ -1386,7 +1386,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			display_present_info != nullptr ? &source_rect : nullptr,
 			display_present_info != nullptr ? &dest_rect : nullptr,
 			dirty_rect_count,
-			dirty_rect_count != 0 ? dirty_rects.p : nullptr);
+			dirty_rect_count != 0 ? dirty_rects.p : nullptr,
+			nullptr,
+			nullptr);
 #endif
 
 		reshade::present_effect_runtime(swapchain_impl);
