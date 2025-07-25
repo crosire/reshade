@@ -347,7 +347,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
-	DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
+	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
 	{
 		g_in_dxgi_runtime = true;
 		DXGI_SWAP_CHAIN_DESC desc = {};
@@ -602,8 +602,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 #endif
 		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
-	DXGI_COLOR_SPACE_TYPE prev_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	UINT prev_color_space_size = sizeof(prev_color_space);
+	const DXGI_COLOR_SPACE_TYPE prev_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+	const UINT prev_color_space_size = sizeof(prev_color_space);
 	_orig->GetPrivateData(SKID_SwapChainColorSpace, &prev_color_space_size, &prev_color_space);
 
 	if (ColorSpace != prev_color_space)
@@ -638,7 +638,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
-	DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
+	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
 	{
 		g_in_dxgi_runtime = true;
 		HWND hwnd = nullptr;
