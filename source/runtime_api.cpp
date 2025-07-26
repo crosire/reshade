@@ -1015,7 +1015,7 @@ void reshade::runtime::set_technique_state(api::effect_technique handle, bool en
 
 #if RESHADE_ADDON
 	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
+	// _is_in_api_call = true;
 #endif
 
 	if (enabled)
