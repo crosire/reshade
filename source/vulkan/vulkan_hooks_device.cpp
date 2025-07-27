@@ -1331,6 +1331,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	else
 		queue_impl->_mutex.lock();
 
+	bool skip_present = false;
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
 		reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
@@ -1380,7 +1381,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			};
 		}
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(
+		skip_present |= reshade::invoke_addon_event<reshade::addon_event::present>(
 			queue_impl,
 			swapchain_impl,
 			display_present_info != nullptr ? &source_rect : nullptr,
@@ -1426,11 +1427,15 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	device_impl->advance_transient_descriptor_pool();
 
-	GET_DISPATCH_PTR_FROM(QueuePresentKHR, device_impl);
-	assert(!g_in_dxgi_runtime);
-	g_in_dxgi_runtime = true;
-	const VkResult result = trampoline(queue, &present_info);
-	g_in_dxgi_runtime = false;
+	VkResult result = VK_SUCCESS;
+	if (!skip_present)
+	{
+		GET_DISPATCH_PTR_FROM(QueuePresentKHR, device_impl);
+		assert(!g_in_dxgi_runtime);
+		g_in_dxgi_runtime = true;
+		result = trampoline(queue, &present_info);
+		g_in_dxgi_runtime = false;
+	}
 
 	if (present_from_secondary_queue)
 		device_impl->_primary_graphics_queue->_mutex.unlock();

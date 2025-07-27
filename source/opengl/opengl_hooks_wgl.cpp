@@ -312,7 +312,7 @@ public:
 		UNREFERENCED_PARAMETER(resize);
 #endif
 	}
-	void on_present(reshade::opengl::device_context_impl *context)
+	bool on_present(reshade::opengl::device_context_impl *context)
 	{
 		RECT window_rect = {};
 		GetClientRect(static_cast<HWND>(get_hwnd()), &window_rect);
@@ -323,7 +323,7 @@ public:
 		if (width == 0 || height == 0)
 		{
 			on_reset(false);
-			return;
+			return false;
 		}
 
 		// Do not use default FBO description of device to compare, since it may be shared and changed repeatedly by multiple swap chains
@@ -342,11 +342,13 @@ public:
 			_init_effect_runtime = false;
 		}
 
+		bool skip_present = false;
+
 #if RESHADE_ADDON
 		// Behave as if immediate command list is flushed
 		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(context, context);
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(context, this, nullptr, nullptr, 0, nullptr, nullptr, nullptr);
+		skip_present = reshade::invoke_addon_event<reshade::addon_event::present>(context, this, nullptr, nullptr, 0, nullptr, nullptr, nullptr);
 #endif
 
 		// Assume that the correct OpenGL context is still current here
@@ -358,6 +360,8 @@ public:
 			if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
 				OutputDebugStringA(message), OutputDebugStringA("\n");
 #endif
+
+		return skip_present;
 	}
 
 private:
@@ -1389,7 +1393,10 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 			swapchain_it != s_opengl_swapchains.end())
 		{
 			const auto swapchain = *swapchain_it;
-			swapchain->on_present(g_opengl_context);
+			if (swapchain->on_present(g_opengl_context))
+			{
+				return TRUE; // Pretend it was successful
+			}
 		}
 	}
 

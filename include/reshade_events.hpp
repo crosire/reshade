@@ -1598,11 +1598,12 @@ namespace reshade
 		/// <item><description>IVRCompositor::Submit</description></item>
 		/// <item><description>xrEndFrame</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects, uint32_t* sync_interval, uint32_t* flags)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects, uint32_t* sync_interval, uint32_t* flags)</c></para>
 		/// </summary>
 		/// <remarks>
 		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/> (which indicates the swap chain is presented in its entirety).
 		/// The <see cref="sync_interval"/> and <see cref="flags"/> parameters can be edited but are per API (DXGI exclusive) and might otherwise be <see langword="nullptr"/>.
+		/// To prevent this from being executed (outside of VR APIs), return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
 		present,
 
@@ -1861,7 +1862,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_command_list, void, api::command_queue *queue, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects, uint32_t *sync_interval, uint32_t *flags);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, bool, api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects, uint32_t *sync_interval, uint32_t *flags);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::set_fullscreen_state, bool, api::swapchain *swapchain, bool fullscreen, void *hmonitor);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_present, void, api::effect_runtime *runtime);

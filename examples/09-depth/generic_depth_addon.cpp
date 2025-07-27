@@ -846,7 +846,7 @@ static void on_execute_secondary(command_list *cmd_list, command_list *secondary
 	}
 }
 
-static void on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *, uint32_t *, uint32_t *)
+static bool on_present(command_queue *, swapchain *swapchain, const rect *, const rect *, uint32_t, const rect *, uint32_t *, uint32_t *)
 {
 	device *const device = swapchain->get_device();
 	generic_depth_device_data *const device_data = device->get_private_data<generic_depth_device_data>();
@@ -865,11 +865,11 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 
 	// Only update device list if there are any depth-stencils, otherwise this may be a second present call (at which point 'reset_on_present' already cleared out the queue list in the first present call)
 	if (queue_state.counters_per_used_depth_stencil.empty())
-		return;
+		return false;
 
 	// Also skip update when there has been very little activity (special case for emulators like PCSX2 which may present more often than they render a frame)
 	if (queue_state.counters_per_used_depth_stencil.size() == 1 && queue_state.counters_per_used_depth_stencil.begin()->second.total_stats.drawcalls <= 8)
-		return;
+		return false;
 
 	device_data->frame_index++;
 
@@ -917,6 +917,8 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 
 		++it;
 	}
+
+	return false;
 }
 
 static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_list, resource_view, resource_view)
