@@ -45,12 +45,18 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
-	RECT window_rect = {};
-	GetClientRect(internal_desc.OutputWindow, &window_rect);
-	if (internal_desc.BufferDesc.Width == 0)
+	const bool use_window_size = internal_desc.BufferDesc.Width == 0 || internal_desc.BufferDesc.Height == 0;
+	if (use_window_size)
+	{
+		RECT window_rect = {};
+		// If either the width or height are zero, then the swapchain will be sized to the current window/screen size (which doesn't mean it will follow later window size changes).
+		// Note that this could return 0 in edges cases (especially if fullscreen mode is enabled), in that case, the swapchain creation or resize might fail,
+		// so ideally we should fall back on the screen resolution.
+		GetClientRect(internal_desc.OutputWindow, &window_rect);
 		desc.back_buffer.texture.width = window_rect.right;
-	if (internal_desc.BufferDesc.Height == 0)
 		desc.back_buffer.texture.height = window_rect.bottom;
+		assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
+	}
 
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
 		desc.back_buffer.usage |= reshade::api::resource_usage::shader_resource;
@@ -62,6 +68,7 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
 
 	desc.back_buffer_count = internal_desc.BufferCount;
+	assert(desc.back_buffer_count != 0);
 	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
 	desc.present_flags = internal_desc.Flags;
 	desc.fullscreen_state = internal_desc.Windowed == FALSE;
@@ -109,14 +116,17 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
-	if (window != nullptr)
+	const bool use_window_size = internal_desc.Width == 0 || internal_desc.Height == 0;
+	if (window != nullptr && use_window_size)
 	{
 		RECT window_rect = {};
+		// If either the width or height are zero, then the swapchain will be sized to the current window/screen size (which doesn't mean it will follow later window size changes).
+		// Note that this could return 0 in edges cases (especially if fullscreen mode is enabled), in that case, the swapchain creation or resize might fail,
+		// so ideally we should fall back on the screen resolution.
 		GetClientRect(window, &window_rect);
-		if (internal_desc.Width == 0)
-			desc.back_buffer.texture.width = window_rect.right;
-		if (internal_desc.Height == 0)
-			desc.back_buffer.texture.height = window_rect.bottom;
+		desc.back_buffer.texture.width = window_rect.right;
+		desc.back_buffer.texture.height = window_rect.bottom;
+		assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
 	}
 
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
@@ -129,6 +139,7 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 		desc.back_buffer.usage |= reshade::api::resource_usage::unordered_access;
 
 	desc.back_buffer_count = internal_desc.BufferCount;
+	assert(desc.back_buffer_count != 0);
 	desc.present_mode = static_cast<uint32_t>(internal_desc.SwapEffect);
 	desc.present_flags = internal_desc.Flags;
 
@@ -363,11 +374,19 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 #if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::debug, "Returning IDXGISwapChain%hu object %p (%p).", swapchain_proxy->_interface_version, swapchain_proxy, swapchain_proxy->_orig);
 #endif
-		swapchain = swapchain_proxy;
 #if RESHADE_ADDON
 		swapchain_proxy->_orig_desc = orig_desc;
+		// Fill up the size from the swap chain if it was inferred from the window size
+		if (orig_desc.BufferDesc.Width == 0 || orig_desc.BufferDesc.Height == 0)
+		{
+			DXGI_SWAP_CHAIN_DESC desc = {};
+			swapchain->GetDesc(&desc);
+			swapchain_proxy->_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
+			swapchain_proxy->_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
+		}
 		swapchain_proxy->_sync_interval = sync_interval;
 #endif
+		swapchain = swapchain_proxy;
 	}
 }
 
@@ -411,6 +430,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFacto
 	}
 
 	DXGI_SWAP_CHAIN_DESC orig_desc = *pDesc;
+	// Disable using the original desc
 	if (!modified)
 		orig_desc.BufferCount = 0;
 	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, orig_desc);
@@ -469,6 +489,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
+			// Disable using the original desc
 			modified ? pDesc->BufferCount : 0,
 			hWnd,
 			pFullscreenDesc == nullptr || pFullscreenDesc->Windowed,
@@ -521,6 +542,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
+			// Disable using the original desc
 			modified ? pDesc->BufferCount : 0,
 			nullptr,
 			TRUE,
@@ -573,6 +595,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
+			// Disable using the original desc
 			modified ? pDesc->BufferCount : 0,
 			nullptr,
 			TRUE,
