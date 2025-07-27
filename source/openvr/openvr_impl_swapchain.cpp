@@ -255,7 +255,7 @@ bool reshade::openvr::swapchain_impl::on_vr_submit(vr::EVREye eye, api::resource
 
 #if RESHADE_ADDON
 	const reshade::api::rect eye_rect = get_eye_rect(eye);
-	invoke_addon_event<reshade::addon_event::present>(_graphics_queue, this, &eye_rect, &eye_rect, 0, nullptr);
+	invoke_addon_event<reshade::addon_event::present>(_graphics_queue, this, &eye_rect, &eye_rect, 0, nullptr, nullptr, nullptr);
 #endif
 
 	if (eye == vr::Eye_Right)
