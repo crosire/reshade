@@ -4,6 +4,7 @@
  */
 
 #include "dxgi_swapchain.hpp"
+#include "dxgi_factory.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d10/d3d10_impl_swapchain.hpp"
 #include "d3d11/d3d11_device.hpp"
@@ -13,6 +14,8 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
+#include "com_ptr.hpp"
+#include "com_utils.hpp"
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
 
@@ -235,8 +238,41 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDat
 	return _orig->GetPrivateData(Name, pDataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetParent(REFIID riid, void **ppParent)
-{
-	return _orig->GetParent(riid, ppParent);
+{	
+	HRESULT hr = _orig->GetParent(riid, ppParent);
+	if (hr == S_OK)
+	{
+		IUnknown *const parent_unknown = static_cast<IUnknown *>(*ppParent);
+		com_ptr<IDXGIFactory> factory;
+		if (SUCCEEDED(parent_unknown->QueryInterface(&factory)))
+		{
+			auto factory_proxy = get_private_pointer_d3dx<DXGIFactory>(factory.get());
+			if (factory_proxy == nullptr)
+			{
+				factory_proxy = new DXGIFactory(factory.get());
+			}
+			else
+			{
+				factory_proxy->_ref++;
+			}
+			if (factory_proxy->check_and_upgrade_interface(riid))
+			{
+#if RESHADE_VERBOSE_LOG
+				reshade::log::message(
+					reshade::log::level::debug,
+					"DXGISwapChain::GetParent returning IDXGIFactory%hu object %p (%p).",
+					factory_proxy->_interface_version, factory_proxy, factory_proxy->_orig);
+#endif
+				*ppParent = factory_proxy;
+			}
+			else // Do not hook object if we do not support the requested interface
+			{
+				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in DXGISwapChain::GetParent.", reshade::log::iid_to_string(riid).c_str());
+				delete factory_proxy; // Delete instead of release to keep reference count untouched
+			}
+		}
+	}
+	return hr;
 }
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)

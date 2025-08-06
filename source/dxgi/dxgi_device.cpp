@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include "dxgi_adapter.hpp"
 #include "dxgi_device.hpp"
 #include "dll_log.hpp"
+#include "com_utils.hpp"
+#include "com_ptr.hpp"
 
 DXGIDevice::DXGIDevice(IDXGIDevice1 *original) :
 	_orig(original),
@@ -54,12 +57,60 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetParent(REFIID riid, void **ppParent)
 {
-	return _orig->GetParent(riid, ppParent);
+	HRESULT hr = _orig->GetParent(riid, ppParent);
+	if (hr == S_OK)
+	{
+		IUnknown *const parent_unknown = static_cast<IUnknown *>(*ppParent);
+		if (com_ptr<IDXGIAdapter> adapter;
+			SUCCEEDED(parent_unknown->QueryInterface(&adapter)))
+		{
+			auto adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter.get());
+			if (adapter_proxy == nullptr)
+			{
+				adapter_proxy = new DXGIAdapter(adapter.get());
+			}
+			else
+			{
+				adapter_proxy->_ref++;
+			}
+
+			if (adapter_proxy->check_and_upgrade_interface(riid))
+			{
+#if RESHADE_VERBOSE_LOG
+				reshade::log::message(reshade::log::level::debug, "DXGIDevice::GetParent returning IDXGIAdapter%hu object %p (%p).", adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
+#endif
+
+				*ppParent = adapter_proxy;
+			}
+			else // Do not hook object if we do not support the requested interface
+			{
+				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in DXGIDevice::GetParent.", reshade::log::iid_to_string(riid).c_str());
+
+				delete adapter_proxy; // Delete instead of release to keep reference count untouched
+			}
+		}
+	}
+	return hr;
 }
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetAdapter(IDXGIAdapter **pAdapter)
 {
-	return _orig->GetAdapter(pAdapter);
+	HRESULT hr = _orig->GetAdapter(pAdapter);
+	if (hr == S_OK)
+	{
+		IDXGIAdapter *const adapter = *pAdapter;
+		auto adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter);
+		if (adapter_proxy == nullptr)
+		{
+			adapter_proxy = new DXGIAdapter(adapter);
+		}
+		else
+		{
+			adapter_proxy->_ref++;
+		}
+		*pAdapter = adapter_proxy;
+	}
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::CreateSurface(const DXGI_SURFACE_DESC *pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE *pSharedResource, IDXGISurface **ppSurface)
 {
