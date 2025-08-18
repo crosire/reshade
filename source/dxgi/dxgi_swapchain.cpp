@@ -319,7 +319,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
 #if RESHADE_ADDON
-	if (_orig_desc.BufferDesc.Width != 0 && _orig_desc.BufferDesc.Height != 0 && _orig_desc.BufferCount != 0)
+	if (_orig_desc.BufferCount != 0)
 	{
 		assert(pDesc != nullptr);
 
@@ -347,18 +347,23 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
+	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
 	{
 		g_in_dxgi_runtime = true;
 		DXGI_SWAP_CHAIN_DESC desc = {};
 		_orig->GetDesc(&desc);
 		g_in_dxgi_runtime = was_in_dxgi_runtime;
 
-		if (BufferCount != 0)
-			desc.BufferCount = BufferCount;
+		// Forcefully restore the parameters that are willingly left to their previous value to the original value we cached, not the last one overriden by the addon, as that's not what the application expects
+		if (BufferCount == 0)
+			BufferCount = _orig_desc.BufferCount;
+		if (NewFormat == DXGI_FORMAT_UNKNOWN)
+			NewFormat = _orig_desc.BufferDesc.Format;
+
+		desc.BufferCount = _orig_desc.BufferCount = BufferCount;
 		desc.BufferDesc.Width = _orig_desc.BufferDesc.Width = Width;
 		desc.BufferDesc.Height = _orig_desc.BufferDesc.Height = Height;
-		if (NewFormat != DXGI_FORMAT_UNKNOWN)
-			desc.BufferDesc.Format = _orig_desc.BufferDesc.Format = NewFormat;
+		desc.BufferDesc.Format = _orig_desc.BufferDesc.Format = NewFormat;
 		desc.Flags = _orig_desc.Flags = SwapChainFlags;
 
 		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval))
@@ -371,6 +376,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			NewFormat = desc.BufferDesc.Format;
 			SwapChainFlags = desc.Flags;
 		}
+		// Disable using the original desc
 		else
 		{
 			_orig_desc.BufferCount = 0;
@@ -380,6 +386,19 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr) && (Width == 0 || Height == 0))
+	{
+		DXGI_SWAP_CHAIN_DESC desc = {};
+		_orig->GetDesc(&desc);
+		_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
+		_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
+	}
+	else if (FAILED(hr))
+	{
+		_orig_desc = prev_orig_desc;
+	}
+#endif
 	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
@@ -423,14 +442,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 	assert(_interface_version >= 1);
 
 #if RESHADE_ADDON
-	if (_orig_desc.BufferDesc.Width != 0 && _orig_desc.BufferDesc.Height != 0 && _orig_desc.BufferCount != 0)
+	if (_orig_desc.BufferCount != 0)
 	{
 		assert(pDesc != nullptr);
 
 		pDesc->Width = _orig_desc.BufferDesc.Width;
 		pDesc->Height = _orig_desc.BufferDesc.Height;
 		pDesc->Format = _orig_desc.BufferDesc.Format;
-		pDesc->Stereo = FALSE;
+		pDesc->Stereo = FALSE; // For now we don't carry this information
 		pDesc->SampleDesc = _orig_desc.SampleDesc;
 		pDesc->BufferUsage = _orig_desc.BufferUsage;
 		pDesc->BufferCount = _orig_desc.BufferCount;
@@ -621,6 +640,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
+	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
 	{
 		g_in_dxgi_runtime = true;
 		HWND hwnd = nullptr;
@@ -632,12 +652,16 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		_orig->GetFullscreenState(&fullscreen, nullptr);
 		g_in_dxgi_runtime = was_in_dxgi_runtime;
 
+		// Forcefully restore the parameters that are willingly left to their previous value to the original value we cached, not the last one overriden by the addon, as that's not what the application expects
 		if (BufferCount != 0)
-			desc.BufferCount = BufferCount;
+			BufferCount = _orig_desc.BufferCount;
+		if (NewFormat == DXGI_FORMAT_UNKNOWN)
+			NewFormat = _orig_desc.BufferDesc.Format;
+
+		desc.BufferCount = _orig_desc.BufferCount = BufferCount;
 		desc.Width = _orig_desc.BufferDesc.Width = Width;
 		desc.Height = _orig_desc.BufferDesc.Height = Height;
-		if (NewFormat != DXGI_FORMAT_UNKNOWN)
-			desc.Format = _orig_desc.BufferDesc.Format = NewFormat;
+		desc.Format = _orig_desc.BufferDesc.Format = NewFormat;
 		desc.Flags = _orig_desc.Flags = SwapChainFlags;
 
 		fullscreen_desc.Windowed = !fullscreen;
@@ -652,6 +676,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			NewFormat = desc.Format;
 			SwapChainFlags = desc.Flags;
 		}
+		// Disable using the original desc
 		else
 		{
 			_orig_desc.BufferCount = 0;
@@ -671,6 +696,19 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, NewFormat, SwapChainFlags, pCreationNodeMask, present_queues.p);
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr) && (Width == 0 || Height == 0))
+	{
+		DXGI_SWAP_CHAIN_DESC desc = {};
+		_orig->GetDesc(&desc);
+		_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
+		_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
+	}
+	else if (FAILED(hr))
+	{
+		_orig_desc = prev_orig_desc;
+	}
+#endif
 	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
