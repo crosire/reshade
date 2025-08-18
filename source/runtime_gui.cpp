@@ -178,11 +178,21 @@ void reshade::runtime::build_font_atlas()
 	else
 	if (language.find("zh") == 0)
 	{
-		glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
-
-		_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
-		if (!std::filesystem::exists(_default_font_path, ec))
-			_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc"; // SimSun
+		// Traditional Chinese (zh-HK, zh-TW, zh-Hant, ...)
+		if (language.find("zh-HK") == 0 || language.find("zh-TW") == 0 || language.find("zh-Hant") == 0)
+		{
+			glyph_ranges = atlas->GetGlyphRangesChineseFull();
+			_default_font_path = L"C:\\Windows\\Fonts\\msjh.ttc"; // Microsoft JhengHei
+			if (!std::filesystem::exists(_default_font_path, ec))
+				_default_font_path = L"C:\\Windows\\Fonts\\mingliu.ttc"; 
+		}
+		else // Simplified Chinese (zh-CN, zh-SG, ...)
+		{
+			glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
+			_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
+			if (!std::filesystem::exists(_default_font_path, ec))
+				_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc"; 
+		}
 	}
 	else
 #endif
