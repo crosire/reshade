@@ -319,7 +319,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
 #if RESHADE_ADDON
-	if (_orig_desc.BufferCount != 0)
+	if (_desc_modified)
 	{
 		assert(pDesc != nullptr);
 
@@ -368,7 +368,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval))
 		{
-			_orig_desc.BufferCount = desc.BufferCount;
+			_desc_modified = true;
 
 			BufferCount = desc.BufferCount;
 			Width = desc.BufferDesc.Width;
@@ -376,10 +376,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			NewFormat = desc.BufferDesc.Format;
 			SwapChainFlags = desc.Flags;
 		}
-		// Disable using the original desc
 		else
 		{
-			_orig_desc.BufferCount = 0;
+			_desc_modified = false;
 		}
 	}
 #endif
@@ -442,7 +441,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 	assert(_interface_version >= 1);
 
 #if RESHADE_ADDON
-	if (_orig_desc.BufferCount != 0)
+	if (_desc_modified)
 	{
 		assert(pDesc != nullptr);
 
@@ -668,7 +667,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval, &fullscreen_desc, hwnd))
 		{
-			_orig_desc.BufferCount = desc.BufferCount;
+			_desc_modified = true;
 
 			BufferCount = desc.BufferCount;
 			Width = desc.Width;
@@ -676,10 +675,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			NewFormat = desc.Format;
 			SwapChainFlags = desc.Flags;
 		}
-		// Disable using the original desc
 		else
 		{
-			_orig_desc.BufferCount = 0;
+			_desc_modified = false;
 		}
 	}
 #endif
