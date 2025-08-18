@@ -3060,7 +3060,10 @@ void reshade::runtime::load_textures(size_t effect_index)
 
 		void *pixels = nullptr;
 		int width = 0, height = 1, depth = 1, channels = 0;
-		const bool is_floating_point_format = (tex.format == reshadefx::texture_format::r32f || tex.format == reshadefx::texture_format::rg32f || tex.format == reshadefx::texture_format::rgba32f);
+		const bool is_floating_point_format =
+			tex.format == reshadefx::texture_format::r32f ||
+			tex.format == reshadefx::texture_format::rg32f ||
+			tex.format == reshadefx::texture_format::rgba32f;
 
 		if (FILE *const file = _wfsopen(source_path.c_str(), L"rb", SH_DENYNO))
 		{
