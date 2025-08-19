@@ -330,7 +330,7 @@ reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &devi
 }
 
 template <typename T>
-static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] const DXGI_SWAP_CHAIN_DESC &orig_desc)
+static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] const DXGI_SWAP_CHAIN_DESC &orig_desc, [[maybe_unused]] bool desc_modified)
 {
 	DXGISwapChain *swapchain_proxy = nullptr;
 
@@ -384,6 +384,7 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 			swapchain_proxy->_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
 			swapchain_proxy->_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
 		}
+		swapchain_proxy->_desc_modified = desc_modified;
 		swapchain_proxy->_sync_interval = sync_interval;
 #endif
 		swapchain = swapchain_proxy;
@@ -429,11 +430,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFacto
 		return hr;
 	}
 
-	DXGI_SWAP_CHAIN_DESC orig_desc = *pDesc;
-	// Disable using the original desc
-	if (!modified)
-		orig_desc.BufferCount = 0;
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, orig_desc);
+	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, *pDesc, modified);
 
 	return hr;
 }
@@ -489,13 +486,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
-			// Disable using the original desc
-			modified ? pDesc->BufferCount : 0,
+			pDesc->BufferCount,
 			hWnd,
 			pFullscreenDesc == nullptr || pFullscreenDesc->Windowed,
 			pDesc->SwapEffect,
 			pDesc->Flags
-		});
+		},
+		modified);
 
 	return hr;
 }
@@ -542,13 +539,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
-			// Disable using the original desc
-			modified ? pDesc->BufferCount : 0,
+			pDesc->BufferCount,
 			nullptr,
 			TRUE,
 			pDesc->SwapEffect,
 			pDesc->Flags
-		});
+		},
+		modified);
 
 	return hr;
 }
@@ -595,13 +592,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
-			// Disable using the original desc
-			modified ? pDesc->BufferCount : 0,
+			pDesc->BufferCount,
 			nullptr,
 			TRUE,
 			pDesc->SwapEffect,
 			pDesc->Flags
-		});
+		},
+		modified);
 
 	return hr;
 }
