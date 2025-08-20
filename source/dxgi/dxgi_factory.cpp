@@ -37,6 +37,7 @@ bool DXGIFactory::check_and_proxy_interface(REFIID riid, void **object)
 		else
 		{
 			factory_proxy = new DXGIFactory(factory);
+			factory_proxy->_temporary = true;
 		}
 
 		factory->Release();
@@ -84,7 +85,8 @@ bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIFactory%hu object %p to IDXGIFactory%hu.", _interface_version, this, version);
+			if (!_temporary)
+				reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIFactory%hu object %p to IDXGIFactory%hu.", _interface_version, this, version);
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGIFactory *>(new_interface);
@@ -127,13 +129,15 @@ ULONG   STDMETHODCALLTYPE DXGIFactory::Release()
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
+	const bool temporary = _temporary;
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Destroying IDXGIFactory%hu object %p (%p).", interface_version, this, orig);
+	if (!temporary)
+		reshade::log::message(reshade::log::level::debug, "Destroying IDXGIFactory%hu object %p (%p).", interface_version, this, orig);
 #endif
 	delete this;
 
 	const ULONG ref_orig = orig->Release();
-	if (ref_orig != 0) // Verify internal reference count
+	if (!temporary && ref_orig != 0) // Verify internal reference count
 		reshade::log::message(reshade::log::level::warning, "Reference count for IDXGIFactory%hu object %p (%p) is inconsistent (%lu).", interface_version, this, orig, ref_orig);
 	return 0;
 }

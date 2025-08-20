@@ -75,4 +75,5 @@ struct DECLSPEC_UUID("E1688933-5520-4A9A-8791-CBE1E71520B8") DXGIOutput final : 
 	IDXGIOutput *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version = 0;
+	bool _temporary = false;
 };

@@ -62,4 +62,5 @@ struct DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final :
 	IDXGIAdapter *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version;
+	bool _temporary = false;
 };

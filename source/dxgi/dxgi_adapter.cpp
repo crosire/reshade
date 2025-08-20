@@ -47,6 +47,7 @@ bool DXGIAdapter::check_and_proxy_interface(REFIID riid, void **object)
 		else
 		{
 			adapter_proxy = new DXGIAdapter(adapter);
+			adapter_proxy->_temporary = true;
 		}
 
 		adapter->Release();
@@ -91,7 +92,8 @@ bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIAdapter%hu object %p to IDXGIAdapter%hu.", _interface_version, this, version);
+			if (!_temporary)
+				reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIAdapter%hu object %p to IDXGIAdapter%hu.", _interface_version, this, version);
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGIAdapter *>(new_interface);
@@ -135,13 +137,15 @@ ULONG   STDMETHODCALLTYPE DXGIAdapter::Release()
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
+	const bool temporary = _temporary;
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Destroying IDXGIAdapter%hu object %p (%p).", interface_version, this, orig);
+	if (!temporary)
+		reshade::log::message(reshade::log::level::debug, "Destroying IDXGIAdapter%hu object %p (%p).", interface_version, this, orig);
 #endif
 	delete this;
 
 	const ULONG ref_orig = orig->Release();
-	if (ref_orig != 0)
+	if (!temporary && ref_orig != 0)
 		reshade::log::message(reshade::log::level::warning, "Reference count for IDXGIAdapter%hu object %p (%p) is inconsistent (%lu).", interface_version, this, orig, ref_orig);
 	return 0;
 }
@@ -222,7 +226,7 @@ void STDMETHODCALLTYPE DXGIAdapter::UnregisterHardwareContentProtectionTeardownS
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryVideoMemoryInfo(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, DXGI_QUERY_VIDEO_MEMORY_INFO *pVideoMemoryInfo)
 {
-	assert(_interface_version >= 3);
+	// assert(_interface_version >= 3); // Grand Theft Auto V Enhanced Edition incorrectly calls this on a 'IDXGIAdapter' object
 	return static_cast<IDXGIAdapter3 *>(_orig)->QueryVideoMemoryInfo(NodeIndex, MemorySegmentGroup, pVideoMemoryInfo);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::SetVideoMemoryReservation(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, UINT64 Reservation)
