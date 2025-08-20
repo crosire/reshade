@@ -6,9 +6,8 @@
 #pragma once
 
 #include <dxgi1_6.h>
-#include <mutex>
 
-struct DECLSPEC_UUID("e1688933-5520-4a9a-8791-cbe1e71520b8") DXGIOutput final : IDXGIOutput6
+struct DECLSPEC_UUID("E1688933-5520-4A9A-8791-CBE1E71520B8") DXGIOutput final : IDXGIOutput6
 {
 	DXGIOutput(IDXGIOutput *original);
 	~DXGIOutput();
@@ -31,9 +30,9 @@ struct DECLSPEC_UUID("e1688933-5520-4a9a-8791-cbe1e71520b8") DXGIOutput final : 
 	HRESULT STDMETHODCALLTYPE GetDesc(DXGI_OUTPUT_DESC *pDesc) override;
 	HRESULT STDMETHODCALLTYPE GetDisplayModeList(DXGI_FORMAT EnumFormat, UINT Flags, UINT *pNumModes, DXGI_MODE_DESC *pDesc) override;
 	HRESULT STDMETHODCALLTYPE FindClosestMatchingMode(const DXGI_MODE_DESC *pModeToMatch, DXGI_MODE_DESC *pClosestMatch, IUnknown *pConcernedDevice) override;
-	HRESULT STDMETHODCALLTYPE WaitForVBlank(void) override;
+	HRESULT STDMETHODCALLTYPE WaitForVBlank() override;
 	HRESULT STDMETHODCALLTYPE TakeOwnership(IUnknown *pDevice, BOOL Exclusive) override;
-	void STDMETHODCALLTYPE ReleaseOwnership(void) override;
+	void    STDMETHODCALLTYPE ReleaseOwnership() override;
 	HRESULT STDMETHODCALLTYPE GetGammaControlCapabilities(DXGI_GAMMA_CONTROL_CAPABILITIES *pGammaCaps) override;
 	HRESULT STDMETHODCALLTYPE SetGammaControl(const DXGI_GAMMA_CONTROL *pArray) override;
 	HRESULT STDMETHODCALLTYPE GetGammaControl(DXGI_GAMMA_CONTROL *pArray) override;
@@ -48,7 +47,7 @@ struct DECLSPEC_UUID("e1688933-5520-4a9a-8791-cbe1e71520b8") DXGIOutput final : 
 	HRESULT STDMETHODCALLTYPE DuplicateOutput(IUnknown *pDevice, IDXGIOutputDuplication **ppOutputDuplication) override;
 	#pragma endregion
 	#pragma region IDXGIOutput2
-	BOOL STDMETHODCALLTYPE SupportsOverlays(void) override;
+	BOOL    STDMETHODCALLTYPE SupportsOverlays() override;
 	#pragma endregion
 	#pragma region IDXGIOutput3
 	HRESULT STDMETHODCALLTYPE CheckOverlaySupport(DXGI_FORMAT EnumFormat, IUnknown *pConcernedDevice, UINT *pFlags) override;
@@ -66,8 +65,14 @@ struct DECLSPEC_UUID("e1688933-5520-4a9a-8791-cbe1e71520b8") DXGIOutput final : 
 
 	bool check_and_upgrade_interface(REFIID riid);
 
+	static bool check_and_proxy_interface(REFIID riid, void **object);
+	template <typename T>
+	static bool check_and_proxy_interface(T **object)
+	{
+		return check_and_proxy_interface(__uuidof(**object), reinterpret_cast<void **>(object));
+	}
+
 	IDXGIOutput *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version = 0;
-
 };

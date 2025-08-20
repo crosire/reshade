@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "dxgi_swapchain.hpp"
 #include "dxgi_factory.hpp"
+#include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
 #include "d3d10/d3d10_impl_swapchain.hpp"
 #include "d3d11/d3d11_device.hpp"
@@ -14,8 +14,6 @@
 #include "d3d12/d3d12_command_queue.hpp"
 #include "d3d12/d3d12_impl_swapchain.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
-#include "com_ptr.hpp"
-#include "com_utils.hpp"
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
 
@@ -44,8 +42,9 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	_direct3d_device->AddRef();
 
+	// Add proxy object to the private data of the swap chain, so that it can be retrieved again when only the original swap chain is available
 	DXGISwapChain *const swapchain_proxy = this;
-	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, device);
 	on_init(false);
@@ -62,7 +61,7 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 	_direct3d_device->AddRef();
 
 	DXGISwapChain *const swapchain_proxy = this;
-	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, device);
 	on_init(false);
@@ -79,7 +78,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	_direct3d_device->AddRef();
 
 	DXGISwapChain *const swapchain_proxy = this;
-	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, device->_immediate_context);
 	on_init(false);
@@ -96,7 +95,7 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 	_direct3d_device->AddRef();
 
 	DXGISwapChain *const swapchain_proxy = this;
-	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, device->_immediate_context);
 	on_init(false);
@@ -118,7 +117,7 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 		_direct3d_command_queue_per_back_buffer[i] = _direct3d_command_queue;
 
 	DXGISwapChain *const swapchain_proxy = this;
-	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, command_queue);
 	on_init(false);
@@ -128,6 +127,7 @@ DXGISwapChain::~DXGISwapChain()
 	on_reset(false);
 	reshade::destroy_effect_runtime(_impl);
 
+	// Remove pointer to this proxy object from the private data of the swap chain (in case the swap chain unexpectedly survives)
 	_orig->SetPrivateData(__uuidof(DXGISwapChain), 0, nullptr);
 
 	// Destroy effect runtime first to release all internal references to device objects
@@ -256,39 +256,22 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDat
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetParent(REFIID riid, void **ppParent)
 {	
-	HRESULT hr = _orig->GetParent(riid, ppParent);
-	if (hr == S_OK)
+	const HRESULT hr = _orig->GetParent(riid, ppParent);
+	if (SUCCEEDED(hr))
 	{
-		IUnknown *const parent_unknown = static_cast<IUnknown *>(*ppParent);
-		com_ptr<IDXGIFactory> factory;
-		if (SUCCEEDED(parent_unknown->QueryInterface(&factory)))
+		if (DXGIFactory::check_and_proxy_interface(riid, ppParent))
 		{
-			auto factory_proxy = get_private_pointer_d3dx<DXGIFactory>(factory.get());
-			if (factory_proxy == nullptr)
-			{
-				factory_proxy = new DXGIFactory(factory.get());
-			}
-			else
-			{
-				factory_proxy->_ref++;
-			}
-			if (factory_proxy->check_and_upgrade_interface(riid))
-			{
 #if RESHADE_VERBOSE_LOG
-				reshade::log::message(
-					reshade::log::level::debug,
-					"DXGISwapChain::GetParent returning IDXGIFactory%hu object %p (%p).",
-					factory_proxy->_interface_version, factory_proxy, factory_proxy->_orig);
+			const auto factory_proxy = static_cast<DXGIFactory *>(*ppParent);
+			reshade::log::message(reshade::log::level::debug, "IDXGISwapChain::GetParent returning IDXGIFactory%hu object %p (%p).", factory_proxy->_interface_version, factory_proxy, factory_proxy->_orig);
 #endif
-				*ppParent = factory_proxy;
-			}
-			else // Do not hook object if we do not support the requested interface
-			{
-				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in DXGISwapChain::GetParent.", reshade::log::iid_to_string(riid).c_str());
-				delete factory_proxy; // Delete instead of release to keep reference count untouched
-			}
+		}
+		else
+		{
+			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGISwapChain::GetParent.", reshade::log::iid_to_string(riid).c_str());
 		}
 	}
+
 	return hr;
 }
 
@@ -407,10 +390,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		_orig->GetDesc(&desc);
 		g_in_dxgi_runtime = was_in_dxgi_runtime;
 
-		// Forcefully restore the parameters that are willingly left to their previous value to the original value we cached, not the last one overriden by the addon, as that's not what the application expects
-		if (BufferCount == 0)
+		// Restore default parameters to tho original values, rather than leaving them at the last values potentially overriden by an add-on
+		if (0 == BufferCount)
 			BufferCount = _orig_desc.BufferCount;
-		if (NewFormat == DXGI_FORMAT_UNKNOWN)
+		if (DXGI_FORMAT_UNKNOWN == NewFormat)
 			NewFormat = _orig_desc.BufferDesc.Format;
 
 		desc.BufferCount = _orig_desc.BufferCount = BufferCount;
@@ -438,31 +421,34 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
-#if RESHADE_ADDON
-	if (SUCCEEDED(hr) && (Width == 0 || Height == 0))
-	{
-		DXGI_SWAP_CHAIN_DESC desc = {};
-		_orig->GetDesc(&desc);
-		_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
-		_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
-	}
-	else if (FAILED(hr))
-	{
-		_orig_desc = prev_orig_desc;
-	}
-#endif
 	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
+		if (Width == 0 || Height == 0)
+		{
+			DXGI_SWAP_CHAIN_DESC desc = {};
+			_orig->GetDesc(&desc);
+
+			_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
+			_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
+		}
+#endif
 		on_init(true);
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL) // Ignore invalid call errors since the device is still in a usable state afterwards
 	{
+#if RESHADE_ADDON
+		_orig_desc = prev_orig_desc;
+#endif
 		reshade::log::message(reshade::log::level::warning, "IDXGISwapChain::ResizeBuffers failed with error code DXGI_ERROR_INVALID_CALL.");
 		on_init(true);
 	}
 	else
 	{
+#if RESHADE_ADDON
+		_orig_desc = prev_orig_desc;
+#endif
 		reshade::log::message(reshade::log::level::error, "IDXGISwapChain::ResizeBuffers failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 	}
 
@@ -668,10 +654,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
 	g_in_dxgi_runtime = false;
+
 	if (SUCCEEDED(hr))
-	{
 		_orig->SetPrivateData(SKID_SwapChainColorSpace, sizeof(ColorSpace), &ColorSpace);
-	}
 
 	if (ColorSpace != prev_color_space)
 		on_init(true);
@@ -704,10 +689,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		_orig->GetFullscreenState(&fullscreen, nullptr);
 		g_in_dxgi_runtime = was_in_dxgi_runtime;
 
-		// Forcefully restore the parameters that are willingly left to their previous value to the original value we cached, not the last one overriden by the addon, as that's not what the application expects
-		if (BufferCount != 0)
+		// Restore default parameters to tho original values, rather than leaving them at the last values potentially overriden by an add-on
+		if (0 == BufferCount)
 			BufferCount = _orig_desc.BufferCount;
-		if (NewFormat == DXGI_FORMAT_UNKNOWN)
+		if (DXGI_FORMAT_UNKNOWN == NewFormat)
 			NewFormat = _orig_desc.BufferDesc.Format;
 
 		desc.BufferCount = _orig_desc.BufferCount = BufferCount;
@@ -747,31 +732,34 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, NewFormat, SwapChainFlags, pCreationNodeMask, present_queues.p);
-#if RESHADE_ADDON
-	if (SUCCEEDED(hr) && (Width == 0 || Height == 0))
-	{
-		DXGI_SWAP_CHAIN_DESC desc = {};
-		_orig->GetDesc(&desc);
-		_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
-		_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
-	}
-	else if (FAILED(hr))
-	{
-		_orig_desc = prev_orig_desc;
-	}
-#endif
 	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
+		if (Width == 0 || Height == 0)
+		{
+			DXGI_SWAP_CHAIN_DESC desc = {};
+			_orig->GetDesc(&desc);
+
+			_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
+			_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
+		}
+#endif
 		on_init(true);
 	}
 	else if (hr == DXGI_ERROR_INVALID_CALL)
 	{
+#if RESHADE_ADDON
+		_orig_desc = prev_orig_desc;
+#endif
 		reshade::log::message(reshade::log::level::warning, "IDXGISwapChain3::ResizeBuffers1 failed with error code DXGI_ERROR_INVALID_CALL.");
 		on_init(true);
 	}
 	else
 	{
+#if RESHADE_ADDON
+		_orig_desc = prev_orig_desc;
+#endif
 		reshade::log::message(reshade::log::level::error, "IDXGISwapChain3::ResizeBuffers1 failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 	}
 

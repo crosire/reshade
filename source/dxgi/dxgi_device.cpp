@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "dxgi_adapter.hpp"
 #include "dxgi_device.hpp"
+#include "dxgi_adapter.hpp"
 #include "dll_log.hpp"
-#include "com_utils.hpp"
-#include "com_ptr.hpp"
 
 DXGIDevice::DXGIDevice(IDXGIDevice1 *original) :
 	_orig(original),
@@ -57,59 +55,33 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetParent(REFIID riid, void **ppParent)
 {
-	HRESULT hr = _orig->GetParent(riid, ppParent);
-	if (hr == S_OK)
+	const HRESULT hr = _orig->GetParent(riid, ppParent);
+	if (SUCCEEDED(hr))
 	{
-		IUnknown *const parent_unknown = static_cast<IUnknown *>(*ppParent);
-		if (com_ptr<IDXGIAdapter> adapter;
-			SUCCEEDED(parent_unknown->QueryInterface(&adapter)))
+		if (DXGIAdapter::check_and_proxy_interface(riid, ppParent))
 		{
-			auto adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter.get());
-			if (adapter_proxy == nullptr)
-			{
-				adapter_proxy = new DXGIAdapter(adapter.get());
-			}
-			else
-			{
-				adapter_proxy->_ref++;
-			}
-
-			if (adapter_proxy->check_and_upgrade_interface(riid))
-			{
 #if RESHADE_VERBOSE_LOG
-				reshade::log::message(reshade::log::level::debug, "DXGIDevice::GetParent returning IDXGIAdapter%hu object %p (%p).", adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
+			const auto adapter_proxy = static_cast<DXGIAdapter *>(*ppParent);
+			reshade::log::message(reshade::log::level::debug, "IDXGIDevice::GetParent returning IDXGIAdapter%hu object %p (%p).", adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
 #endif
-
-				*ppParent = adapter_proxy;
-			}
-			else // Do not hook object if we do not support the requested interface
-			{
-				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in DXGIDevice::GetParent.", reshade::log::iid_to_string(riid).c_str());
-
-				delete adapter_proxy; // Delete instead of release to keep reference count untouched
-			}
+		}
+		else
+		{
+			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGIDevice::GetParent.", reshade::log::iid_to_string(riid).c_str());
 		}
 	}
+
 	return hr;
 }
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetAdapter(IDXGIAdapter **pAdapter)
 {
-	HRESULT hr = _orig->GetAdapter(pAdapter);
-	if (hr == S_OK)
+	const HRESULT hr = _orig->GetAdapter(pAdapter);
+	if (SUCCEEDED(hr))
 	{
-		IDXGIAdapter *const adapter = *pAdapter;
-		auto adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter);
-		if (adapter_proxy == nullptr)
-		{
-			adapter_proxy = new DXGIAdapter(adapter);
-		}
-		else
-		{
-			adapter_proxy->_ref++;
-		}
-		*pAdapter = adapter_proxy;
+		DXGIAdapter::check_and_proxy_interface(pAdapter);
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::CreateSurface(const DXGI_SURFACE_DESC *pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE *pSharedResource, IDXGISurface **ppSurface)

@@ -6,13 +6,8 @@
 #pragma once
 
 #include <dxgi1_6.h>
-#include <mutex>
 
-struct D3D10Device;
-struct D3D11Device;
-struct D3D12CommandQueue;
-
-struct DECLSPEC_UUID("f978e25f-2217-49e0-a893-cdafd6ee48b5") DXGIAdapter final : IDXGIAdapter4
+struct DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final : IDXGIAdapter4
 {
 	DXGIAdapter(IDXGIAdapter  *original);
 	DXGIAdapter(IDXGIAdapter1 *original);
@@ -45,11 +40,11 @@ struct DECLSPEC_UUID("f978e25f-2217-49e0-a893-cdafd6ee48b5") DXGIAdapter final :
 	#pragma endregion
 	#pragma region IDXGIAdapter3
 	HRESULT STDMETHODCALLTYPE RegisterHardwareContentProtectionTeardownStatusEvent(HANDLE hEvent, DWORD *pdwCookie) override;
-	void STDMETHODCALLTYPE UnregisterHardwareContentProtectionTeardownStatus(DWORD dwCookie) override;
+	void    STDMETHODCALLTYPE UnregisterHardwareContentProtectionTeardownStatus(DWORD dwCookie) override;
 	HRESULT STDMETHODCALLTYPE QueryVideoMemoryInfo(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, DXGI_QUERY_VIDEO_MEMORY_INFO *pVideoMemoryInfo) override;
 	HRESULT STDMETHODCALLTYPE SetVideoMemoryReservation(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, UINT64 Reservation) override;
 	HRESULT STDMETHODCALLTYPE RegisterVideoMemoryBudgetChangeNotificationEvent(HANDLE hEvent, DWORD *pdwCookie) override;
-	void STDMETHODCALLTYPE UnregisterVideoMemoryBudgetChangeNotification(DWORD dwCookie) override;
+	void    STDMETHODCALLTYPE UnregisterVideoMemoryBudgetChangeNotification(DWORD dwCookie) override;
 	#pragma endregion
 	#pragma region IDXGIAdapter4
 	HRESULT STDMETHODCALLTYPE GetDesc3(DXGI_ADAPTER_DESC3 *pDesc) override;
@@ -57,9 +52,14 @@ struct DECLSPEC_UUID("f978e25f-2217-49e0-a893-cdafd6ee48b5") DXGIAdapter final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
+	static bool check_and_proxy_interface(REFIID riid, void **object);
+	template <typename T>
+	static bool check_and_proxy_interface(T **object)
+	{
+		return check_and_proxy_interface(__uuidof(**object), reinterpret_cast<void **>(object));
+	}
+
 	IDXGIAdapter *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version;
-#if RESHADE_ADDON
-#endif
 };

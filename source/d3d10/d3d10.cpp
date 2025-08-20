@@ -150,11 +150,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 
 		reshade::log::message(reshade::log::level::info, "Calling IDXGIFactory::CreateSwapChain:");
 
-#ifdef RESHADE_IDXGIFACTORY_VTABLE
 		hr = IDXGIFactory_CreateSwapChain_Impl(factory.get(), device, pSwapChainDesc, ppSwapChain);
-#else
-		hr = DXGIFactory(factory.get()).CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
-#endif
 	}
 
 #if RESHADE_ADDON >= 2

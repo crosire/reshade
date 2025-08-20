@@ -7,9 +7,7 @@
 
 #include <dxgi1_6.h>
 
-#define RESHADE_IDXGIFACTORY_VTABLE
-
-struct DECLSPEC_UUID("019778d4-a03a-7af4-b889-e92362d20238") DXGIFactory final : IDXGIFactory7
+struct DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final : IDXGIFactory7
 {
 	DXGIFactory(IDXGIFactory *original);
 	~DXGIFactory();
@@ -40,7 +38,7 @@ struct DECLSPEC_UUID("019778d4-a03a-7af4-b889-e92362d20238") DXGIFactory final :
 	BOOL    STDMETHODCALLTYPE IsCurrent() override;
 	#pragma endregion
 	#pragma region IDXGIFactory2
-	BOOL    STDMETHODCALLTYPE IsWindowedStereoEnabled(void) override;
+	BOOL    STDMETHODCALLTYPE IsWindowedStereoEnabled() override;
 	HRESULT STDMETHODCALLTYPE CreateSwapChainForHwnd(IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) override;
 	HRESULT STDMETHODCALLTYPE CreateSwapChainForCoreWindow(IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) override;
 	HRESULT STDMETHODCALLTYPE GetSharedResourceAdapterLuid(HANDLE hResource, LUID *pLuid) override;
@@ -72,12 +70,13 @@ struct DECLSPEC_UUID("019778d4-a03a-7af4-b889-e92362d20238") DXGIFactory final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
+	static bool check_and_proxy_interface(REFIID riid, void **object);
+
 	IDXGIFactory *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version;
 };
 
-#ifdef RESHADE_IDXGIFACTORY_VTABLE
 extern HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain,
 	HRESULT (STDMETHODCALLTYPE *trampoline)(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain) = nullptr);
 
@@ -87,4 +86,3 @@ extern HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl
 	HRESULT (STDMETHODCALLTYPE *trampoline)(IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) = nullptr);
 extern HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain,
 	HRESULT (STDMETHODCALLTYPE *trampoline)(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) = nullptr);
-#endif

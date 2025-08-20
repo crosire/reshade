@@ -1,18 +1,17 @@
 /*
- * Copyright (C) 2014 Patrick Mours
+ * Copyright (C) 2025 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include <cassert>
-#include "dxgi_adapter.hpp"
-#include "dxgi_factory.hpp"
 #include "dxgi_output.hpp"
+#include "dxgi_factory.hpp"
+#include "dxgi_adapter.hpp"
 #include "dll_log.hpp"
-#include "com_ptr.hpp"
 #include "com_utils.hpp"
 
-DXGIAdapter::DXGIAdapter(IDXGIAdapter *original)
-	: _orig(original), _interface_version(0)
+DXGIAdapter::DXGIAdapter(IDXGIAdapter  *original) :
+	_orig(original),
+	_interface_version(0)
 {
 	assert(_orig != nullptr);
 
@@ -20,19 +19,50 @@ DXGIAdapter::DXGIAdapter(IDXGIAdapter *original)
 	DXGIAdapter *const adapter_proxy = this;
 	_orig->SetPrivateData(__uuidof(DXGIAdapter), sizeof(adapter_proxy), &adapter_proxy);
 }
-
-DXGIAdapter::DXGIAdapter(IDXGIAdapter1 *original)
-	: _orig(original), _interface_version(1)
+DXGIAdapter::DXGIAdapter(IDXGIAdapter1 *original) :
+	_orig(original),
+	_interface_version(1)
 {
 	assert(_orig != nullptr);
-	// Add proxy object to the private data of the adapter, so that it can be retrieved again when only the original adapter is available
+
 	DXGIAdapter *const adapter_proxy = this;
 	_orig->SetPrivateData(__uuidof(DXGIAdapter), sizeof(adapter_proxy), &adapter_proxy);
 }
-
 DXGIAdapter::~DXGIAdapter()
 {
-	_orig->SetPrivateData(__uuidof(DXGIAdapter), 0, nullptr); // Remove proxy object from the private data of the adapter
+	// Remove pointer to this proxy object from the private data of the adapter
+	_orig->SetPrivateData(__uuidof(DXGIAdapter), 0, nullptr);
+}
+
+bool DXGIAdapter::check_and_proxy_interface(REFIID riid, void **object)
+{
+	IDXGIAdapter *adapter = nullptr;
+	if (SUCCEEDED(static_cast<IUnknown *>(*object)->QueryInterface(&adapter)))
+	{
+		DXGIAdapter *adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter);
+		if (adapter_proxy)
+		{
+			adapter_proxy->_ref++;
+		}
+		else
+		{
+			adapter_proxy = new DXGIAdapter(adapter);
+		}
+
+		adapter->Release();
+
+		if (adapter_proxy->check_and_upgrade_interface(riid))
+		{
+			*object = adapter_proxy;
+			return true;
+		}
+		else // Do not hook object if we do not support the requested interface
+		{
+			delete adapter_proxy; // Delete instead of release to keep reference count untouched
+		}
+	}
+
+	return false;
 }
 
 bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
@@ -43,11 +73,11 @@ bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
 		return true;
 
 	static constexpr IID iid_lookup[] = {
-		__uuidof(IDXGIAdapter),  // 2411e7e1-12ac-4ccf-bd14-9798e8534dc0
-		__uuidof(IDXGIAdapter1), // 29038f61-3839-4626-91fd-086879011a05
-		__uuidof(IDXGIAdapter2), // 0AA1AE0A-FA0E-4B84-8644-E05FF8E5ACB5
-		__uuidof(IDXGIAdapter3), // 645967A4-1392-4310-A798-8053CE3E93FD
-		__uuidof(IDXGIAdapter4), // 3c8d99d1-4fbf-4181-a82c-af66bf7bd24e
+		__uuidof(IDXGIAdapter),  // {2411E7E1-12AC-4CCF-BD14-9798E8534dC0}
+		__uuidof(IDXGIAdapter1), // {29038F61-3839-4626-91FD-086879011A05}
+		__uuidof(IDXGIAdapter2), // {0AA1AE0A-FA0E-4B84-8644-E05FF8E5ACB5}
+		__uuidof(IDXGIAdapter3), // {645967A4-1392-4310-A798-8053CE3E93FD}
+		__uuidof(IDXGIAdapter4), // {3C8D99D1-4FBF-4181-A82C-AF66BF7BD24E}
 	};
 
 	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -67,8 +97,10 @@ bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
 			_orig = static_cast<IDXGIAdapter *>(new_interface);
 			_interface_version = version;
 		}
+
 		return true;
 	}
+
 	return false;
 }
 
@@ -77,20 +109,22 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryInterface(REFIID riid, void **ppvObj
 {
 	if (ppvObj == nullptr)
 		return E_POINTER;
+
 	if (check_and_upgrade_interface(riid))
 	{
-		AddRef(); // Bump reference count to emulate QueryInterface
+		AddRef();
 		*ppvObj = this;
 		return S_OK;
 	}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
-ULONG STDMETHODCALLTYPE DXGIAdapter::AddRef()
+ULONG   STDMETHODCALLTYPE DXGIAdapter::AddRef()
 {
 	_orig->AddRef();
 	return InterlockedIncrement(&_ref);
 }
-ULONG STDMETHODCALLTYPE DXGIAdapter::Release()
+ULONG   STDMETHODCALLTYPE DXGIAdapter::Release()
 {
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
@@ -98,12 +132,14 @@ ULONG STDMETHODCALLTYPE DXGIAdapter::Release()
 		_orig->Release();
 		return ref;
 	}
+
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Destroying IDXGIAdapter%hu object %p (%p).", interface_version, this, orig);
 #endif
 	delete this;
+
 	const ULONG ref_orig = orig->Release();
 	if (ref_orig != 0)
 		reshade::log::message(reshade::log::level::warning, "Reference count for IDXGIAdapter%hu object %p (%p) is inconsistent (%lu).", interface_version, this, orig, ref_orig);
@@ -124,59 +160,33 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::GetPrivateData(REFGUID Name, UINT *pDataS
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetParent(REFIID riid, void **ppParent)
 {
-	HRESULT hr = _orig->GetParent(riid, ppParent);
-	if (hr == S_OK)
+	const HRESULT hr = _orig->GetParent(riid, ppParent);
+	if (SUCCEEDED(hr))
 	{
-		IUnknown *const parent_unknown = static_cast<IUnknown *>(*ppParent);
-		if (com_ptr<IDXGIFactory> factory;
-			SUCCEEDED(parent_unknown->QueryInterface(&factory)))
+		if (DXGIFactory::check_and_proxy_interface(riid, ppParent))
 		{
-			auto factory_proxy = get_private_pointer_d3dx<DXGIFactory>(factory.get());
-			if (factory_proxy == nullptr)
-			{
-				factory_proxy = new DXGIFactory(factory.get());
-			}
-			else
-			{
-				factory_proxy->_ref++;
-			}
-
-			if (factory_proxy->check_and_upgrade_interface(riid))
-			{
 #if RESHADE_VERBOSE_LOG
-				reshade::log::message(reshade::log::level::debug, "DXGIAdapter::GetParent returning IDXGIFactory%hu object %p (%p).", factory_proxy->_interface_version, factory_proxy, factory_proxy->_orig);
+			const auto factory_proxy = static_cast<DXGIFactory *>(*ppParent);
+			reshade::log::message(reshade::log::level::debug, "IDXGIAdapter::GetParent returning IDXGIFactory%hu object %p (%p).", factory_proxy->_interface_version, factory_proxy, factory_proxy->_orig);
 #endif
-
-				*ppParent = factory_proxy;
-			}
-			else // Do not hook object if we do not support the requested interface
-			{
-				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in DXGIAdapter::GetParent.", reshade::log::iid_to_string(riid).c_str());
-
-				delete factory_proxy; // Delete instead of release to keep reference count untouched
-			}
+		}
+		else
+		{
+			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGIAdapter::GetParent.", reshade::log::iid_to_string(riid).c_str());
 		}
 	}
+
 	return hr;
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::EnumOutputs(UINT Output, IDXGIOutput **ppOutput)
 {
-	HRESULT hr = _orig->EnumOutputs(Output, ppOutput);
-	if (hr == S_OK)
+	const HRESULT hr = _orig->EnumOutputs(Output, ppOutput);
+	if (SUCCEEDED(hr))
 	{
-		IDXGIOutput *const output = *ppOutput;
-		auto output_proxy = get_private_pointer_d3dx<DXGIOutput>(output);
-		if (output_proxy == nullptr)
-		{
-			output_proxy = new DXGIOutput(output);
-		}
-		else
-		{
-			output_proxy->_ref++;
-		}
-		*ppOutput = output_proxy;
+		DXGIOutput::check_and_proxy_interface(ppOutput);
 	}
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc(DXGI_ADAPTER_DESC *pDesc)
@@ -187,16 +197,19 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::CheckInterfaceSupport(REFGUID InterfaceNa
 {
 	return _orig->CheckInterfaceSupport(InterfaceName, pUMDVersion);
 }
+
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc1(DXGI_ADAPTER_DESC1 *pDesc)
 {
 	assert(_interface_version >= 1);
 	return static_cast<IDXGIAdapter1 *>(_orig)->GetDesc1(pDesc);
 }
+
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc2(DXGI_ADAPTER_DESC2 *pDesc)
 {
 	assert(_interface_version >= 2);
 	return static_cast<IDXGIAdapter2 *>(_orig)->GetDesc2(pDesc);
 }
+
 HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterHardwareContentProtectionTeardownStatusEvent(HANDLE hEvent, DWORD *pdwCookie)
 {
 	assert(_interface_version >= 3);
@@ -222,11 +235,12 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterVideoMemoryBudgetChangeNotificati
 	assert(_interface_version >= 3);
 	return static_cast<IDXGIAdapter3 *>(_orig)->RegisterVideoMemoryBudgetChangeNotificationEvent(hEvent, pdwCookie);
 }
-void STDMETHODCALLTYPE DXGIAdapter::UnregisterVideoMemoryBudgetChangeNotification(DWORD dwCookie)
+void    STDMETHODCALLTYPE DXGIAdapter::UnregisterVideoMemoryBudgetChangeNotification(DWORD dwCookie)
 {
 	assert(_interface_version >= 3);
 	static_cast<IDXGIAdapter3 *>(_orig)->UnregisterVideoMemoryBudgetChangeNotification(dwCookie);
 }
+
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc3(DXGI_ADAPTER_DESC3 *pDesc)
 {
 	assert(_interface_version >= 4);

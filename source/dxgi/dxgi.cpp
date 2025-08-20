@@ -18,8 +18,6 @@ extern bool is_windows7();
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
 
-#ifdef RESHADE_IDXGIFACTORY_VTABLE
-
 #if RESHADE_ADDON
 static auto floating_point_to_rational(float value) -> DXGI_RATIONAL
 {
@@ -47,16 +45,15 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
-	const bool use_window_size = internal_desc.BufferDesc.Width == 0 || internal_desc.BufferDesc.Height == 0;
-	if (use_window_size)
+	// If either the width or height are zero, then the swap chain will be sized to the current window size
+	if (internal_desc.BufferDesc.Width == 0 || internal_desc.BufferDesc.Height == 0)
 	{
 		RECT window_rect = {};
-		// If either the width or height are zero, then the swapchain will be sized to the current window/screen size (which doesn't mean it will follow later window size changes).
-		// Note that this could return 0 in edges cases (especially if fullscreen mode is enabled), in that case, the swapchain creation or resize might fail,
-		// so ideally we should fall back on the screen resolution.
 		GetClientRect(internal_desc.OutputWindow, &window_rect);
+
 		desc.back_buffer.texture.width = window_rect.right;
 		desc.back_buffer.texture.height = window_rect.bottom;
+
 		assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
 	}
 
@@ -118,16 +115,15 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
 	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
 
-	const bool use_window_size = internal_desc.Width == 0 || internal_desc.Height == 0;
-	if (window != nullptr && use_window_size)
+	// If either the width or height are zero, then the swap chain will be sized to the current window size
+	if (window != nullptr && (internal_desc.Width == 0 || internal_desc.Height == 0))
 	{
 		RECT window_rect = {};
-		// If either the width or height are zero, then the swapchain will be sized to the current window/screen size (which doesn't mean it will follow later window size changes).
-		// Note that this could return 0 in edges cases (especially if fullscreen mode is enabled), in that case, the swapchain creation or resize might fail,
-		// so ideally we should fall back on the screen resolution.
 		GetClientRect(window, &window_rect);
+
 		desc.back_buffer.texture.width = window_rect.right;
 		desc.back_buffer.texture.height = window_rect.bottom;
+
 		assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
 	}
 
@@ -332,7 +328,7 @@ reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &devi
 }
 
 template <typename T>
-static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] const DXGI_SWAP_CHAIN_DESC &orig_desc, [[maybe_unused]] bool desc_modified)
+static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] DXGI_SWAP_CHAIN_DESC orig_desc, [[maybe_unused]] bool desc_modified)
 {
 	DXGISwapChain *swapchain_proxy = nullptr;
 
@@ -373,21 +369,24 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 
 	if (swapchain_proxy != nullptr)
 	{
-#if RESHADE_VERBOSE_LOG
-		reshade::log::message(reshade::log::level::debug, "Returning IDXGISwapChain%hu object %p (%p).", swapchain_proxy->_interface_version, swapchain_proxy, swapchain_proxy->_orig);
-#endif
 #if RESHADE_ADDON
-		swapchain_proxy->_orig_desc = orig_desc;
-		// Fill up the size from the swap chain if it was inferred from the window size
+		// Update actual swap chain size
 		if (orig_desc.BufferDesc.Width == 0 || orig_desc.BufferDesc.Height == 0)
 		{
 			DXGI_SWAP_CHAIN_DESC desc = {};
 			swapchain->GetDesc(&desc);
-			swapchain_proxy->_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
-			swapchain_proxy->_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
+
+			orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
+			orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
 		}
-		swapchain_proxy->_desc_modified = desc_modified;
+
 		swapchain_proxy->_sync_interval = sync_interval;
+		swapchain_proxy->_orig_desc = orig_desc;
+		swapchain_proxy->_desc_modified = desc_modified;
+#endif
+
+#if RESHADE_VERBOSE_LOG
+		reshade::log::message(reshade::log::level::debug, "Returning IDXGISwapChain%hu object %p (%p).", swapchain_proxy->_interface_version, swapchain_proxy, swapchain_proxy->_orig);
 #endif
 		swapchain = swapchain_proxy;
 	}
@@ -493,8 +492,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 			pFullscreenDesc == nullptr || pFullscreenDesc->Windowed,
 			pDesc->SwapEffect,
 			pDesc->Flags
-		},
-		modified);
+		}, modified);
 
 	return hr;
 }
@@ -546,8 +544,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 			TRUE,
 			pDesc->SwapEffect,
 			pDesc->Flags
-		},
-		modified);
+		}, modified);
 
 	return hr;
 }
@@ -599,13 +596,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 			TRUE,
 			pDesc->SwapEffect,
 			pDesc->Flags
-		},
-		modified);
+		}, modified);
 
 	return hr;
 }
-
-#endif // RESHADE_IDXGIFACTORY_VTABLE
 
 extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
@@ -633,7 +627,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (g_in_dxgi_runtime)
 	{
-#ifdef RESHADE_IDXGIFACTORY_VTABLE
+#if 0
 		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
 		// Check for DXGI 1.2 support and install 'IDXGIFactory2' hooks if it exists
@@ -648,9 +642,8 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 #if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory);
 #endif
-#else // RESHADE_IDXGIFACTORY_VTABLE
+#else
 		// External hooks may create a DXGI factory and rewrite the vtable
-		return hr;
 #endif
 	}
 	else
@@ -709,9 +702,6 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	// It is crucial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
 	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
 
-	HRESULT hr = E_NOINTERFACE;
-
-#ifdef RESHADE_IDXGIFACTORY_VTABLE
 	// Upgrade factory interface to the highest available at creation, to ensure the virtual function table cannot be replaced afterwards during 'QueryInterface'
 	static constexpr IID iid_lookup[] = {
 		__uuidof(IDXGIFactory),
@@ -723,6 +713,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 		__uuidof(IDXGIFactory6),
 		__uuidof(IDXGIFactory7),
 	};
+	HRESULT hr = E_NOINTERFACE;
 	if (std::find(std::begin(iid_lookup), std::end(iid_lookup), riid) == std::end(iid_lookup) || !g_in_dxgi_runtime)
 	{
 		hr = trampoline(Flags, riid, ppFactory); // Fall back in case of unknown interface version
@@ -733,9 +724,6 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 			if (SUCCEEDED(hr = trampoline(Flags, *it, ppFactory)) || *it == riid)
 				break;
 	}
-#else
-	hr = trampoline(Flags, riid, ppFactory);
-#endif
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
@@ -747,7 +735,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 
 	if (g_in_dxgi_runtime)
 	{
-#ifdef RESHADE_IDXGIFACTORY_VTABLE
+#if 0
 		// Install vtable hooks in case this is called internally for D3D10/D3D11, so that applications querying the factory from a D3D10/11 device still get their swap chain creation call redirected
 		// It may happen that some other third party (like NVIDIA Smooth Motion) hooks functions in the vtable hooks too though, so prefer proxy otherwise, to ensure ReShade gets called first
 		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
@@ -766,7 +754,6 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 #endif
 #else
 		// External hooks may create a DXGI factory and rewrite the vtable (e.g. NVIDIA Smooth Motion)
-		return hr;
 #endif
 	}
 	else

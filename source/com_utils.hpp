@@ -27,9 +27,9 @@ __forceinline U *get_private_pointer_d3d9(T *object)
 	return result;
 }
 
- /// <summary>
- /// Registers a <paramref name="callback"/> with the specified <paramref name="object"/> that is called when the object is being destroyed.
- /// </summary>
+/// <summary>
+/// Registers a <paramref name="callback"/> with the specified <paramref name="object"/> that is called when the object is being destroyed.
+/// </summary>
 template <typename T, typename L>
 inline void register_destruction_callback_d3dx(T *object, L &&callback)
 {
