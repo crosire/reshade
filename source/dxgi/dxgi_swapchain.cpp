@@ -44,6 +44,9 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original) :
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	_direct3d_device->AddRef();
 
+	DXGISwapChain *const swapchain_proxy = this;
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+
 	reshade::create_effect_runtime(_impl, device);
 	on_init(false);
 }
@@ -57,6 +60,9 @@ DXGISwapChain::DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original) :
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
+
+	DXGISwapChain *const swapchain_proxy = this;
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, device);
 	on_init(false);
@@ -72,6 +78,9 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original) :
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
 
+	DXGISwapChain *const swapchain_proxy = this;
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+
 	reshade::create_effect_runtime(_impl, device->_immediate_context);
 	on_init(false);
 }
@@ -85,6 +94,9 @@ DXGISwapChain::DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original) :
 {
 	assert(_orig != nullptr && _direct3d_device != nullptr);
 	_direct3d_device->AddRef();
+
+	DXGISwapChain *const swapchain_proxy = this;
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
 
 	reshade::create_effect_runtime(_impl, device->_immediate_context);
 	on_init(false);
@@ -105,6 +117,9 @@ DXGISwapChain::DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *
 	for (size_t i = 0; i < std::size(_direct3d_command_queue_per_back_buffer); ++i)
 		_direct3d_command_queue_per_back_buffer[i] = _direct3d_command_queue;
 
+	DXGISwapChain *const swapchain_proxy = this;
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(this), &swapchain_proxy);
+
 	reshade::create_effect_runtime(_impl, command_queue);
 	on_init(false);
 }
@@ -112,6 +127,8 @@ DXGISwapChain::~DXGISwapChain()
 {
 	on_reset(false);
 	reshade::destroy_effect_runtime(_impl);
+
+	_orig->SetPrivateData(__uuidof(DXGISwapChain), 0, nullptr);
 
 	// Destroy effect runtime first to release all internal references to device objects
 	switch (_direct3d_version)
