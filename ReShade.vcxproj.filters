@@ -438,6 +438,12 @@
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
+    <ClCompile Include="source\dxgi\dxgi_adapter.cpp">
+      <Filter>hooks\dxgi</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dxgi\dxgi_output.cpp">
+      <Filter>hooks\dxgi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\reshade.hpp">
@@ -745,6 +751,12 @@
     </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_impl_type_convert.hpp">
       <Filter>api\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dxgi\dxgi_adapter.hpp">
+      <Filter>hooks\dxgi</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dxgi\dxgi_output.hpp">
+      <Filter>hooks\dxgi</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

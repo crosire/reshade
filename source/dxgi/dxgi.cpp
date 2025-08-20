@@ -18,6 +18,8 @@ extern bool is_windows7();
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
 
+#ifdef RESHADE_IDXGIFACTORY_VTABLE
+
 #if RESHADE_ADDON
 static auto floating_point_to_rational(float value) -> DXGI_RATIONAL
 {
@@ -603,6 +605,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 	return hr;
 }
 
+#endif // RESHADE_IDXGIFACTORY_VTABLE
+
 extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 #if RESHADE_VERBOSE_LOG
@@ -629,6 +633,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (g_in_dxgi_runtime)
 	{
+#ifdef RESHADE_IDXGIFACTORY_VTABLE
 		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
 		// Check for DXGI 1.2 support and install 'IDXGIFactory2' hooks if it exists
@@ -642,6 +647,10 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 #if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory);
+#endif
+#else // RESHADE_IDXGIFACTORY_VTABLE
+		// External hooks may create a DXGI factory and rewrite the vtable
+		return hr;
 #endif
 	}
 	else
@@ -700,6 +709,9 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	// It is crucial that ReShade hooks this after the Steam overlay already hooked it, so that ReShade is called first and the Steam overlay is called through the trampoline below
 	// This is because the Steam overlay only hooks the swap chain creation functions when the vtable entries for them still point to the original functions, it will no longer do so once ReShade replaced them ("... points to another module, skipping hooks" in GameOverlayRenderer.log)
 
+	HRESULT hr = E_NOINTERFACE;
+
+#ifdef RESHADE_IDXGIFACTORY_VTABLE
 	// Upgrade factory interface to the highest available at creation, to ensure the virtual function table cannot be replaced afterwards during 'QueryInterface'
 	static constexpr IID iid_lookup[] = {
 		__uuidof(IDXGIFactory),
@@ -711,7 +723,6 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 		__uuidof(IDXGIFactory6),
 		__uuidof(IDXGIFactory7),
 	};
-	HRESULT hr = E_NOINTERFACE;
 	if (std::find(std::begin(iid_lookup), std::end(iid_lookup), riid) == std::end(iid_lookup) || !g_in_dxgi_runtime)
 	{
 		hr = trampoline(Flags, riid, ppFactory); // Fall back in case of unknown interface version
@@ -722,7 +733,9 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 			if (SUCCEEDED(hr = trampoline(Flags, *it, ppFactory)) || *it == riid)
 				break;
 	}
-
+#else
+	hr = trampoline(Flags, riid, ppFactory);
+#endif
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
@@ -732,10 +745,11 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	// The returned factory should alway implement the 'IDXGIFactory' base interface
 	const auto factory = static_cast<IDXGIFactory *>(*ppFactory);
 
-	// Install vtable hooks in case this is called internally for D3D10/D3D11, so that applications querying the factory from a D3D10/11 device still get their swap chain creation call redirected
-	// It may happen that some other third party (like NVIDIA Smooth Motion) hooks functions in the vtable hooks too though, so prefer proxy otherwise, to ensure ReShade gets called first
 	if (g_in_dxgi_runtime)
 	{
+#ifdef RESHADE_IDXGIFACTORY_VTABLE
+		// Install vtable hooks in case this is called internally for D3D10/D3D11, so that applications querying the factory from a D3D10/11 device still get their swap chain creation call redirected
+		// It may happen that some other third party (like NVIDIA Smooth Motion) hooks functions in the vtable hooks too though, so prefer proxy otherwise, to ensure ReShade gets called first
 		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
 		// Check for DXGI 1.2 support and install 'IDXGIFactory2' hooks if it exists
@@ -749,6 +763,10 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 
 #if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory);
+#endif
+#else
+		// External hooks may create a DXGI factory and rewrite the vtable (e.g. NVIDIA Smooth Motion)
+		return hr;
 #endif
 	}
 	else
