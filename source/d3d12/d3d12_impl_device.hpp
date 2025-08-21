@@ -153,9 +153,9 @@ namespace reshade::d3d12
 		mutable std::shared_mutex _resource_mutex;
 #if RESHADE_ADDON >= 2
 		concurrency::concurrent_vector<D3D12DescriptorHeap *> _descriptor_heaps;
-		std::map<UINT64, std::pair<UINT64, D3D12DescriptorHeap *>> _heap_gpu_ranges; // start -> {end, heap*}
 		mutable std::shared_mutex _heap_gpu_ranges_mutex;
-		std::map<D3D12_GPU_VIRTUAL_ADDRESS, std::tuple<UINT64, ID3D12Resource *, bool>> _buffer_gpu_addresses;
+		std::map<UINT64, std::pair<UINT64, D3D12DescriptorHeap *>> _heap_gpu_ranges; // start -> { end, heap }
+		std::map<D3D12_GPU_VIRTUAL_ADDRESS, std::tuple<UINT64, ID3D12Resource *, bool>> _buffer_gpu_addresses; // address -> { size, resource, acceleration_structure }
 #endif
 		std::unordered_map<SIZE_T, std::pair<ID3D12Resource *, api::resource_view_desc>> _views;
 
