@@ -187,10 +187,7 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::EnumOutputs(UINT Output, IDXGIOutput **pp
 {
 	const HRESULT hr = _orig->EnumOutputs(Output, ppOutput);
 	if (SUCCEEDED(hr))
-	{
 		DXGIOutput::check_and_proxy_interface(ppOutput);
-	}
-
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc(DXGI_ADAPTER_DESC *pDesc)

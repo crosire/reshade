@@ -163,10 +163,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters(UINT Adapter, IDXGIAdapter *
 {
 	const HRESULT hr = _orig->EnumAdapters(Adapter, ppAdapter);
 	if (SUCCEEDED(hr))
-	{
 		DXGIAdapter::check_and_proxy_interface(ppAdapter);
-	}
-
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIFactory::MakeWindowAssociation(HWND WindowHandle, UINT Flags)
@@ -188,10 +185,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSoftwareAdapter(HMODULE Module, IDX
 {
 	const HRESULT hr = _orig->CreateSoftwareAdapter(Module, ppAdapter);
 	if (SUCCEEDED(hr))
-	{
 		DXGIAdapter::check_and_proxy_interface(ppAdapter);
-	}
-
 	return hr;
 }
 
@@ -200,10 +194,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters1(UINT Adapter, IDXGIAdapter1
 	assert(_interface_version >= 1);
 	const HRESULT hr = static_cast<IDXGIFactory1 *>(_orig)->EnumAdapters1(Adapter, ppAdapter);
 	if (SUCCEEDED(hr))
-	{
 		DXGIAdapter::check_and_proxy_interface(ppAdapter);
-	}
-
 	return hr;
 }
 BOOL    STDMETHODCALLTYPE DXGIFactory::IsCurrent()

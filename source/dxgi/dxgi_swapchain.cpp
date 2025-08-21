@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
+#include "dxgi_output.hpp"
 #include "dxgi_factory.hpp"
 #include "dxgi_swapchain.hpp"
 #include "d3d10/d3d10_device.hpp"
@@ -323,6 +324,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDX
 		"Redirecting IDXGISwapChain::SetFullscreenState(this = %p, Fullscreen = %s, pTarget = %p) ...",
 		this, Fullscreen ? "TRUE" : "FALSE", pTarget);
 
+	if (com_ptr<DXGIOutput> output_proxy;
+		pTarget != nullptr &&
+		SUCCEEDED(pTarget->QueryInterface(IID_PPV_ARGS(&output_proxy))))
+		pTarget = output_proxy->_orig;
+
 #if RESHADE_ADDON
 	_current_fullscreen_state = -1;
 
@@ -354,8 +360,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 	{
 		if (pFullscreen != nullptr)
 			*pFullscreen = _current_fullscreen_state;
+
 		if (ppTarget != nullptr)
-			_orig->GetContainingOutput(ppTarget);
+		{
+			*ppTarget = nullptr;
+			// Only set to a pointer to the output target when the mode is fullscreen
+			if (_current_fullscreen_state != 0)
+				GetContainingOutput(ppTarget);
+		}
+
 		return S_OK;
 	}
 #endif
@@ -364,6 +377,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->GetFullscreenState(pFullscreen, ppTarget);
 	g_in_dxgi_runtime = was_in_dxgi_runtime;
+
+	if (SUCCEEDED(hr) && ppTarget != nullptr && *ppTarget != nullptr)
+		DXGIOutput::check_and_proxy_interface(ppTarget);
+
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
@@ -478,7 +495,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNew
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetContainingOutput(IDXGIOutput **ppOutput)
 {
-	return _orig->GetContainingOutput(ppOutput);
+	const HRESULT hr = _orig->GetContainingOutput(ppOutput);
+	if (SUCCEEDED(hr))
+		DXGIOutput::check_and_proxy_interface(ppOutput);
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFrameStatistics(DXGI_FRAME_STATISTICS *pStats)
 {
@@ -561,7 +581,10 @@ BOOL    STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput)
 {
 	assert(_interface_version >= 1);
-	return static_cast<IDXGISwapChain1 *>(_orig)->GetRestrictToOutput(ppRestrictToOutput);
+	const HRESULT hr = static_cast<IDXGISwapChain1 *>(_orig)->GetRestrictToOutput(ppRestrictToOutput);
+	if (SUCCEEDED(hr))
+		DXGIOutput::check_and_proxy_interface(ppRestrictToOutput);
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetBackgroundColor(const DXGI_RGBA *pColor)
 {

@@ -78,10 +78,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::GetAdapter(IDXGIAdapter **pAdapter)
 {
 	const HRESULT hr = _orig->GetAdapter(pAdapter);
 	if (SUCCEEDED(hr))
-	{
 		DXGIAdapter::check_and_proxy_interface(pAdapter);
-	}
-
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::CreateSurface(const DXGI_SURFACE_DESC *pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE *pSharedResource, IDXGISurface **ppSurface)
