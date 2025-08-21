@@ -287,7 +287,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 					reshade::hooks::register_module(L"user32.dll");
 
-					// Always register DirectInput 1-8 module (to overwrite cooperative level)
 					reshade::hooks::register_module(get_system_path() / L"dinput.dll");
 					reshade::hooks::register_module(get_system_path() / L"dinput8.dll");
 				}

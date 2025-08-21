@@ -11,36 +11,6 @@
 #include "hook_manager.hpp"
 #include "input.hpp"
 
-#define IDirectInputDevice_SetCooperativeLevel_Impl(vtable_index, device_interface_version, encoding) \
-	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel(IDirectInputDevice##device_interface_version##encoding *pDevice, HWND hwnd, DWORD dwFlags) \
-	{ \
-		reshade::log::message(reshade::log::level::info, "Redirecting IDirectInputDevice::SetCooperativeLevel(this = %p, hwnd = %p, dwFlags = %#x) ...", pDevice, hwnd, dwFlags); \
-		\
-		if (dwFlags & DISCL_EXCLUSIVE) \
-		{ \
-			DIDEVCAPS caps = { sizeof(caps) }; \
-			pDevice->GetCapabilities(&caps); \
-			\
-			if (LOBYTE(caps.dwDevType) == DIDEVTYPE_MOUSE || \
-				LOBYTE(caps.dwDevType) == DIDEVTYPE_KEYBOARD) \
-			{ \
-				/* Need to remove exclusive flag, otherwise DirectInput will block input window messages and input.cpp will not receive input anymore */ \
-				dwFlags = (dwFlags & ~DISCL_EXCLUSIVE) | DISCL_NONEXCLUSIVE; \
-				\
-				reshade::log::message(reshade::log::level::info, "> Replacing flags with %#x.", dwFlags); \
-			} \
-		} \
-		\
-		return reshade::hooks::call(IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, hwnd, dwFlags); \
-	}
-
-IDirectInputDevice_SetCooperativeLevel_Impl(13,  , A)
-IDirectInputDevice_SetCooperativeLevel_Impl(13,  , W)
-IDirectInputDevice_SetCooperativeLevel_Impl(13, 2, A)
-IDirectInputDevice_SetCooperativeLevel_Impl(13, 2, W)
-IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, A)
-IDirectInputDevice_SetCooperativeLevel_Impl(13, 7, W)
-
 // It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
 #define IDirectInputDevice_GetDeviceState_Impl(vtable_index, device_interface_version, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice##device_interface_version##encoding##_GetDeviceState(IDirectInputDevice##device_interface_version##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
@@ -125,7 +95,6 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 		{ \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceData)); \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel)); \
 		} \
 		else \
 		{ \
@@ -146,7 +115,6 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 		{ \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceData)); \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::SetCooperativeLevel", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 13, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_SetCooperativeLevel)); \
 		} \
 		else \
 		{ \
