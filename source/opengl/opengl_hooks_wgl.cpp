@@ -120,8 +120,8 @@ class wgl_device : public reshade::opengl::device_impl, public reshade::opengl::
 	friend class wgl_swapchain;
 
 public:
-	wgl_device(HDC initial_hdc, HGLRC hglrc, bool compatibility_context) :
-		device_impl(initial_hdc, hglrc, compatibility_context),
+	wgl_device(HDC initial_hdc, HGLRC hglrc, GL3WGetProcAddressProc get_proc_address, bool compatibility_context) :
+		device_impl(initial_hdc, hglrc, get_proc_address, compatibility_context),
 		device_context_impl(this, hglrc)
 	{
 #if RESHADE_ADDON
@@ -1149,6 +1149,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		const auto device = new wgl_device(
 			hdc, shared_hglrc,
+			reinterpret_cast<GL3WGetProcAddressProc>(reshade::hooks::call(wglGetProcAddress)),
 			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
 			// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
 			legacy_context);

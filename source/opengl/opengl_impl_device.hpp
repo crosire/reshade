@@ -17,7 +17,7 @@ namespace reshade::opengl
 		friend class device_context_impl;
 
 	public:
-		device_impl(HDC initial_hdc, HGLRC shared_hglrc, bool compatibility_context = false);
+		device_impl(HDC initial_hdc, HGLRC shared_hglrc, GL3WGetProcAddressProc get_proc_address, bool compatibility_context = false);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::opengl; }

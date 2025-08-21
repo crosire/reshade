@@ -14,7 +14,7 @@
 
 #define gl gl3wProcs.gl
 
-reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, bool compatibility_context) :
+reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, GL3WGetProcAddressProc get_proc_address, bool compatibility_context) :
 	api_object_impl(shared_hglrc),
 	_compatibility_context(compatibility_context)
 {
@@ -58,12 +58,8 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, b
 	if (pfd.dwFlags & PFD_STEREO)
 		_default_fbo_desc.texture.depth_or_layers = 2;
 
-	const auto opengl_module = GetModuleHandleW(L"opengl32.dll");
-	assert(opengl_module != nullptr);
-	const auto wglGetProcAddress = reinterpret_cast<PROC(WINAPI *)(LPCSTR lpszProc)>(GetProcAddress(opengl_module, "wglGetProcAddress"));
-	assert(wglGetProcAddress != nullptr);
-	const auto wglGetPixelFormatAttribivARB = reinterpret_cast<BOOL(WINAPI *)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)>(wglGetProcAddress("wglGetPixelFormatAttribivARB"));
-	if (wglGetPixelFormatAttribivARB != nullptr)
+	if (const auto wglGetPixelFormatAttribivARB = reinterpret_cast<BOOL(WINAPI *)(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)>(
+			get_proc_address("wglGetPixelFormatAttribivARB")))
 	{
 		int attrib_names[1] = { 0x2042 /* WGL_SAMPLES_ARB */ }, attrib_values[1] = {};
 		if (wglGetPixelFormatAttribivARB(initial_hdc, _pixel_format, 0, 1, attrib_names, attrib_values))

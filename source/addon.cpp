@@ -226,7 +226,7 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 
 		gl3wInit();
 
-		const auto device_impl = new reshade::opengl::device_impl(hdc, static_cast<HGLRC>(opaque_device));
+		const auto device_impl = new reshade::opengl::device_impl(hdc, static_cast<HGLRC>(opaque_device), gl3wGetProcAddress);
 		swapchain_impl = new reshade::opengl::swapchain_impl(device_impl, hdc);
 		graphics_queue_impl = new reshade::opengl::device_context_impl(device_impl, static_cast<HGLRC>(opaque_device));
 		break;
