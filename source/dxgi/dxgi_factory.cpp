@@ -223,7 +223,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForHwnd(IUnknown *pDevice,
 	return IDXGIFactory2_CreateSwapChainForHwnd_Impl(this, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain,
 		[](IDXGIFactory2 *pFactory, IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) -> HRESULT {
 			return static_cast<IDXGIFactory2 *>(static_cast<DXGIFactory *>(pFactory)->_orig)->CreateSwapChainForHwnd(pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
-	});
+		});
 }
 HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForCoreWindow(IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
@@ -231,7 +231,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForCoreWindow(IUnknown *pD
 	return IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(this, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain,
 		[](IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) -> HRESULT {
 			return static_cast<IDXGIFactory2 *>(static_cast<DXGIFactory *>(pFactory)->_orig)->CreateSwapChainForCoreWindow(pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
-	});
+		});
 }
 HRESULT STDMETHODCALLTYPE DXGIFactory::GetSharedResourceAdapterLuid(HANDLE hResource, LUID *pLuid)
 {
@@ -274,7 +274,7 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChainForComposition(IUnknown *p
 	return IDXGIFactory2_CreateSwapChainForComposition_Impl(this, pDevice, pDesc, pRestrictToOutput, ppSwapChain,
 		[](IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain) -> HRESULT {
 			return static_cast<IDXGIFactory2 *>(static_cast<DXGIFactory *>(pFactory)->_orig)->CreateSwapChainForComposition(pDevice, pDesc, pRestrictToOutput, ppSwapChain);
-	});
+		});
 }
 
 UINT    STDMETHODCALLTYPE DXGIFactory::GetCreationFlags()
