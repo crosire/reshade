@@ -12,6 +12,130 @@
 #include <cstring> // std::memcpy, std::strcmp, std::strncmp, std::strncpy
 #include <algorithm> // std::copy_n, std::fill_n, std::max
 
+#define RESHADE_OPENGL_IMPORT_WITH_VULKAN 1
+
+#include <GL/gl3wext.h>
+#if RESHADE_OPENGL_IMPORT_WITH_VULKAN
+#include <vulkan/vulkan_core.h>
+using VmaAllocation = void *;
+using VmaPool = void *;
+#include "vulkan/vulkan_impl_type_convert.hpp"
+
+// There is no API in OpenGL to query the memory size of a resource, but that information is necessary to import an external resource
+// To solve this, temporarily initialize Vulkan and use it to query the memory requirements instead
+static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc)
+{
+	GLubyte device_luid[8] = {};
+	glGetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, device_luid);
+
+	const auto vulkan_module = LoadLibraryW(L"vulkan-1.dll");
+	if (vulkan_module == nullptr)
+	{
+		reshade::log::message(reshade::log::level::error, "Failed to load Vulkan!");
+		return 0;
+	}
+
+	GLuint64 import_size = 0;
+
+	const auto get_device_proc_addr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(GetProcAddress(vulkan_module, "vkGetDeviceProcAddr"));
+	const auto get_instance_proc_addr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetProcAddress(vulkan_module, "vkGetInstanceProcAddr"));
+	if (get_instance_proc_addr != nullptr && get_device_proc_addr != nullptr)
+	{
+		// Create temporary Vulkan instance
+		const auto create_vulkan_instance = reinterpret_cast<PFN_vkCreateInstance>(get_instance_proc_addr(nullptr, "vkCreateInstance"));
+
+		VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+		app_info.apiVersion = VK_API_VERSION_1_3;
+		app_info.pApplicationName = "ReShade";
+		VkInstanceCreateInfo instance_create_info = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+		instance_create_info.pApplicationInfo = &app_info;
+
+		VkInstance instance = VK_NULL_HANDLE;
+		if (create_vulkan_instance != nullptr &&
+			create_vulkan_instance(&instance_create_info, nullptr, &instance) == VK_SUCCESS)
+		{
+			const auto destroy_vulkan_instance = reinterpret_cast<PFN_vkDestroyInstance>(get_instance_proc_addr(instance, "vkDestroyInstance"));
+			assert(destroy_vulkan_instance != nullptr);
+			const auto enum_physical_devices = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(get_instance_proc_addr(instance, "vkEnumeratePhysicalDevices"));
+			assert(enum_physical_devices != nullptr);
+			const auto get_physical_device_properties = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(get_instance_proc_addr(instance, "vkGetPhysicalDeviceProperties2"));
+			assert(get_physical_device_properties != nullptr);
+
+			// Find the same physical device used by the OpenGL context
+			uint32_t num_physical_devices = 0;
+			enum_physical_devices(instance, &num_physical_devices, nullptr);
+			std::vector<VkPhysicalDevice> physical_devices(num_physical_devices);
+			enum_physical_devices(instance, &num_physical_devices, physical_devices.data());
+
+			VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+			for (uint32_t i = 0; i < num_physical_devices; ++i)
+			{
+				VkPhysicalDeviceProperties2 props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+				VkPhysicalDeviceIDProperties id_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
+				props.pNext = &id_props;
+				get_physical_device_properties(physical_devices[i], &props);
+
+				if (id_props.deviceLUIDValid && std::memcmp(id_props.deviceLUID, device_luid, 8) == 0)
+				{
+					physical_device = physical_devices[i];
+					break;
+				}
+			}
+
+			// Create temporary Vulkan device
+			const auto create_vulkan_device = reinterpret_cast<PFN_vkCreateDevice>(get_instance_proc_addr(instance, "vkCreateDevice"));
+
+			float queue_priority = 0.0f;
+			VkDeviceQueueCreateInfo queue_info { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+			queue_info.queueFamilyIndex = 0;
+			queue_info.queueCount = 1;
+			queue_info.pQueuePriorities = &queue_priority;
+
+			VkDeviceCreateInfo device_create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+			device_create_info.queueCreateInfoCount = 1; // VK_KHR_maintenance9 makes this unnecessary, but is not yet widely supported
+			device_create_info.pQueueCreateInfos = &queue_info;
+
+			VkDevice device = VK_NULL_HANDLE;
+			if (physical_device != VK_NULL_HANDLE &&
+				create_vulkan_device != nullptr &&
+				create_vulkan_device(physical_device, &device_create_info, nullptr, &device) == VK_SUCCESS)
+			{
+				const auto destroy_vulkan_device = reinterpret_cast<PFN_vkDestroyDevice>(get_instance_proc_addr(instance, "vkDestroyDevice"));
+				assert(destroy_vulkan_device != nullptr);
+				const auto get_image_memory_requirements = reinterpret_cast<PFN_vkGetDeviceImageMemoryRequirements>(get_device_proc_addr(device, "vkGetDeviceImageMemoryRequirements"));
+				assert(get_image_memory_requirements != nullptr);
+
+				VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+				reshade::vulkan::convert_resource_desc(desc, create_info);
+
+				VkDeviceImageMemoryRequirements requirements_info { VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS };
+				requirements_info.pCreateInfo = &create_info;
+				VkMemoryRequirements2 requirements { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+				get_image_memory_requirements(device, &requirements_info, &requirements);
+
+				import_size = requirements.memoryRequirements.size;
+
+				destroy_vulkan_device(device, nullptr);
+			}
+			else
+			{
+				reshade::log::message(reshade::log::level::error, "Failed to create temporary Vulkan device!");
+			}
+
+			destroy_vulkan_instance(instance, nullptr);
+		}
+		else
+		{
+			reshade::log::message(reshade::log::level::error, "Failed to create temporary Vulkan instance!");
+		}
+	}
+
+	FreeLibrary(vulkan_module);
+
+	return import_size;
+}
+#endif
+
 #define gl gl3wProcs.gl
 
 reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, GL3WGetProcAddressProc get_proc_address, bool compatibility_context) :
@@ -68,6 +192,8 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, G
 				_default_fbo_desc.texture.samples = static_cast<uint16_t>(attrib_values[0]);
 		}
 	}
+
+	gl3wInitExtMemoryObject(get_proc_address);
 
 	// Check whether this context supports Direct State Access
 	_supports_dsa = gl3wIsSupported(4, 5);
@@ -379,7 +505,7 @@ void reshade::opengl::device_impl::destroy_sampler(api::sampler sampler)
 	gl.DeleteSamplers(1, &object);
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_resource, HANDLE * /*shared_handle*/)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_resource, HANDLE *shared_handle)
 {
 	*out_resource = { 0 };
 
@@ -448,7 +574,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		return false;
 	}
 
-#if 0
 	GLenum shared_handle_type = GL_NONE;
 	if ((desc.flags & api::resource_flags::shared) != 0)
 	{
@@ -463,10 +588,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		else
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
 	}
-#else
-	if ((desc.flags & api::resource_flags::shared) != 0)
-		return false;
-#endif
 
 	GLuint object = 0;
 	GLuint prev_binding = 0;
@@ -489,19 +610,17 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		GLbitfield storage_flags = GL_NONE;
 		convert_resource_desc(desc, buffer_size, storage_flags);
 
-#if 0
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
-			gl.CreateMemoryObjectsEXT(1, &mem);
-			gl.ImportMemoryWin32HandleEXT(mem, buffer_size, shared_handle_type, *shared_handle);
+			glCreateMemoryObjectsEXT(1, &mem);
+			glImportMemoryWin32HandleEXT(mem, buffer_size, shared_handle_type, *shared_handle);
 
-			gl.BufferStorageMemEXT(target, buffer_size, mem, 0);
+			glBufferStorageMemEXT(target, buffer_size, mem, 0);
 
-			gl.DeleteMemoryObjectsEXT(1, &mem);
+			glDeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
-#endif
 		{
 			// Upload of initial data is using 'glBufferSubData', which requires the dynamic storage flag
 			if (initial_data != nullptr)
@@ -549,33 +668,40 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
 
-#if 0
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
-			gl.CreateMemoryObjectsEXT(1, &mem);
+			glCreateMemoryObjectsEXT(1, &mem);
 
+#if RESHADE_OPENGL_IMPORT_WITH_VULKAN
+			GLuint64 import_size = get_resource_import_size(desc);
+			// Fall back to naive calculation if querying the actual resource size was not successful
+			if (import_size == 0)
+#else
 			GLuint64 import_size = 0;
-			for (uint32_t level = 0, width = desc.texture.width, height = desc.texture.height; level < levels; ++level, width /= 2, height /= 2)
-				import_size += api::format_slice_pitch(desc.texture.format, api::format_row_pitch(desc.texture.format, width), height);
-			import_size *= desc.texture.depth_or_layers;
+#endif
+			{
+				for (uint32_t level = 0, width = desc.texture.width, height = desc.texture.height; level < levels; ++level, width /= 2, height /= 2)
+					import_size += api::format_slice_pitch(desc.texture.format, api::format_row_pitch(desc.texture.format, width), height);
+				import_size *= desc.texture.depth_or_layers;
+			}
 
-			gl.ImportMemoryWin32HandleEXT(mem, import_size, shared_handle_type, *shared_handle);
+			glImportMemoryWin32HandleEXT(mem, import_size, shared_handle_type, *shared_handle);
 
 			switch (target)
 			{
 			case GL_TEXTURE_1D:
 			case GL_TEXTURE_1D_ARRAY:
-				gl.TexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, depth_or_layers, mem, 0);
+				glTexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, depth_or_layers, mem, 0);
 				break;
 			case GL_TEXTURE_CUBE_MAP:
 				assert(depth_or_layers == 6);
 				[[fallthrough]];
 			case GL_TEXTURE_2D:
-				gl.TexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, desc.texture.height, mem, 0);
+				glTexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, desc.texture.height, mem, 0);
 				break;
 			case GL_TEXTURE_2D_MULTISAMPLE:
-				gl.TexStorageMem2DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, GL_FALSE, mem, 0);
+				glTexStorageMem2DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, GL_FALSE, mem, 0);
 				break;
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
 				assert((depth_or_layers % 6) == 0);
@@ -583,17 +709,16 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				[[fallthrough]];
 			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_3D:
-				gl.TexStorageMem3DEXT(target, levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, mem, 0);
+				glTexStorageMem3DEXT(target, levels, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, mem, 0);
 				break;
 			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-				gl.TexStorageMem3DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, GL_FALSE, mem, 0);
+				glTexStorageMem3DMultisampleEXT(target, desc.texture.samples, internal_format, desc.texture.width, desc.texture.height, depth_or_layers, GL_FALSE, mem, 0);
 				break;
 			}
 
-			gl.DeleteMemoryObjectsEXT(1, &mem);
+			glDeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
-#endif
 		{
 			switch (target)
 			{

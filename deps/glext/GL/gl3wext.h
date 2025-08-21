@@ -1,0 +1,26 @@
+#include <GL/glext.h>
+
+PFNGLGETUNSIGNEDBYTEVEXTPROC glGetUnsignedBytevEXT = nullptr;
+PFNGLCREATEMEMORYOBJECTSEXTPROC glCreateMemoryObjectsEXT = nullptr;
+PFNGLDELETEMEMORYOBJECTSEXTPROC glDeleteMemoryObjectsEXT = nullptr;
+PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC glImportMemoryWin32HandleEXT = nullptr;
+PFNGLIMPORTMEMORYWIN32NAMEEXTPROC glImportMemoryWin32NameEXT = nullptr;
+PFNGLBUFFERSTORAGEMEMEXTPROC glBufferStorageMemEXT = nullptr;
+PFNGLTEXSTORAGEMEM2DEXTPROC glTexStorageMem2DEXT = nullptr;
+PFNGLTEXSTORAGEMEM3DEXTPROC glTexStorageMem3DEXT = nullptr;
+PFNGLTEXSTORAGEMEM2DMULTISAMPLEEXTPROC glTexStorageMem2DMultisampleEXT = nullptr;
+PFNGLTEXSTORAGEMEM3DMULTISAMPLEEXTPROC glTexStorageMem3DMultisampleEXT = nullptr;
+
+void gl3wInitExtMemoryObject(GL3WGetProcAddressProc proc)
+{
+	glGetUnsignedBytevEXT = (PFNGLGETUNSIGNEDBYTEVEXTPROC)proc("glGetUnsignedBytevEXT");
+	glCreateMemoryObjectsEXT = (PFNGLCREATEMEMORYOBJECTSEXTPROC)proc("glCreateMemoryObjectsEXT");
+	glDeleteMemoryObjectsEXT = (PFNGLDELETEMEMORYOBJECTSEXTPROC)proc("glDeleteMemoryObjectsEXT");
+	glImportMemoryWin32HandleEXT = (PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC)proc("glImportMemoryWin32HandleEXT");
+	glImportMemoryWin32NameEXT = (PFNGLIMPORTMEMORYWIN32NAMEEXTPROC)proc("glImportMemoryWin32NameEXT");
+	glBufferStorageMemEXT = (PFNGLBUFFERSTORAGEMEMEXTPROC)proc("glBufferStorageMemEXT");
+	glTexStorageMem2DEXT = (PFNGLTEXSTORAGEMEM2DEXTPROC)proc("glTexStorageMem2DEXT");
+	glTexStorageMem3DEXT = (PFNGLTEXSTORAGEMEM3DEXTPROC)proc("glTexStorageMem3DEXT");
+	glTexStorageMem2DMultisampleEXT = (PFNGLTEXSTORAGEMEM2DMULTISAMPLEEXTPROC)proc("glTexStorageMem2DMultisampleEXT");
+	glTexStorageMem3DMultisampleEXT = (PFNGLTEXSTORAGEMEM3DMULTISAMPLEEXTPROC)proc("glTexStorageMem3DMultisampleEXT");
+}

@@ -12,6 +12,12 @@
 
 #define vk _device_impl->_dispatch_table
 
+template <typename T>
+inline void hash_combine(size_t &seed, const T &v)
+{
+	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 static void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info)
 {
 	subresource_info.aspectMask = reshade::vulkan::aspect_flags_from_format(create_info.format);
