@@ -682,6 +682,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	INIT_DISPATCH_PTR_ALTERNATIVE(GetPrivateData, EXT);
 	INIT_DISPATCH_PTR_ALTERNATIVE(SetPrivateData, EXT);
 
+	// VK_EXT_multi_draw
+	INIT_DISPATCH_PTR(CmdDrawMultiEXT);
+	INIT_DISPATCH_PTR(CmdDrawMultiIndexedEXT);
+
 	// VK_KHR_acceleration_structure
 	INIT_DISPATCH_PTR(CreateAccelerationStructureKHR);
 	INIT_DISPATCH_PTR(DestroyAccelerationStructureKHR);

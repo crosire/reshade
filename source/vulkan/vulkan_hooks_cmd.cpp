@@ -1957,6 +1957,37 @@ void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
 	trampoline(commandBuffer, queryPool, query, index);
 }
 
+void VKAPI_CALL vkCmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawInfoEXT *pVertexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	for (uint32_t i = 0; i < drawCount; ++i)
+		if (reshade::invoke_addon_event<reshade::addon_event::draw>(cmd_impl, pVertexInfo[i].vertexCount, instanceCount, pVertexInfo[i].firstVertex, firstInstance))
+			return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdDrawMultiEXT, device_impl);
+	trampoline(commandBuffer, drawCount, pVertexInfo, instanceCount, firstInstance, stride);
+}
+void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawIndexedInfoEXT *pIndexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride, const int32_t *pVertexOffset)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	for (uint32_t i = 0; i < drawCount; ++i)
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(cmd_impl, pIndexInfo[i].indexCount, instanceCount, pIndexInfo[i].firstIndex, pVertexOffset != nullptr ? *pVertexOffset : pIndexInfo[i].vertexOffset, firstInstance))
+			return;
+#endif
+
+	GET_DISPATCH_PTR_FROM(CmdDrawMultiIndexedEXT, device_impl);
+	trampoline(commandBuffer, drawCount, pIndexInfo, instanceCount, firstInstance, stride, pVertexOffset);
+}
+
 void VKAPI_CALL vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos)
 {
 	assert(pInfos != nullptr && ppBuildRangeInfos != nullptr);

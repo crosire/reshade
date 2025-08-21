@@ -243,6 +243,10 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	HOOK_PROC_OPTIONAL(AcquireFullScreenExclusiveModeEXT,);
 	HOOK_PROC_OPTIONAL(ReleaseFullScreenExclusiveModeEXT,);
 
+	// VK_EXT_multi_draw
+	HOOK_PROC_OPTIONAL(CmdDrawMultiEXT,);
+	HOOK_PROC_OPTIONAL(CmdDrawMultiIndexedEXT,);
+
 	// VK_KHR_acceleration_structure
 	HOOK_PROC_OPTIONAL(CreateAccelerationStructureKHR,);
 	HOOK_PROC_OPTIONAL(DestroyAccelerationStructureKHR,);
