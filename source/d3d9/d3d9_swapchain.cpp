@@ -130,7 +130,10 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 	{
 		assert(!_was_still_drawing_last_frame);
 
-		on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+		if (on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, &dwFlags))
+		{
+			return S_OK; // Pretend it was successful
+		}
 	}
 
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -236,22 +239,28 @@ void Direct3DSwapChain9::on_reset(bool resize)
 	_is_initialized = false;
 }
 
-void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
+bool Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region, DWORD *flags)
 {
 	assert(_is_initialized);
 
+	bool skip_present = false;
 	if (SUCCEEDED(_device->_orig->BeginScene()))
 	{
 		_hwnd = window_override;
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(
+		static_assert(sizeof(DWORD) == sizeof(uint32_t));
+		uint32_t *cast_flags = reinterpret_cast<uint32_t *>(flags);
+
+		skip_present = reshade::invoke_addon_event<reshade::addon_event::present>(
 			_device,
 			this,
 			reinterpret_cast<const reshade::api::rect *>(source_rect),
 			reinterpret_cast<const reshade::api::rect *>(dest_rect),
 			dirty_region != nullptr ? dirty_region->rdh.nCount : 0,
-			dirty_region != nullptr ? reinterpret_cast<const reshade::api::rect *>(dirty_region->Buffer) : nullptr);
+			dirty_region != nullptr ? reinterpret_cast<const reshade::api::rect *>(dirty_region->Buffer) : nullptr,
+			nullptr,
+			cast_flags);
 #endif
 
 		// Only call into the effect runtime if the entire surface is presented, to avoid partial updates messing up effects and the GUI
@@ -262,6 +271,7 @@ void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] co
 
 		_device->_orig->EndScene();
 	}
+	return skip_present;
 }
 
 void Direct3DSwapChain9::handle_device_loss(HRESULT hr)

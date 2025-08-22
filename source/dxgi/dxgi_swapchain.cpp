@@ -297,7 +297,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	on_present(Flags);
+	if (on_present(SyncInterval, Flags))
+	{
+		return S_OK; // Pretend it was successful
+	}
 
 #if RESHADE_ADDON
 	if (_sync_interval != UINT_MAX)
@@ -556,7 +559,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
-	on_present(PresentFlags, pPresentParameters);
+	if (on_present(SyncInterval, PresentFlags, pPresentParameters))
+	{
+		return S_OK; // Pretend it was successful
+	}
 
 #if RESHADE_ADDON
 	if (_sync_interval != UINT_MAX)
@@ -902,16 +908,16 @@ void DXGISwapChain::on_reset(bool resize)
 	_is_initialized = false;
 }
 
-void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
+bool DXGISwapChain::on_present(UINT &sync_interval, UINT &flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)
 {
 	// Some D3D11 games test presentation for timing and composition purposes
 	// These calls are not rendering related, but rather a status request for the D3D runtime and as such should be ignored
 	if ((flags & DXGI_PRESENT_TEST) != 0)
-		return;
+		return false;
 
 	// Also skip when the same frame is presented multiple times
 	if ((flags & DXGI_PRESENT_DO_NOT_WAIT) != 0 && _was_still_drawing_last_frame)
-		return;
+		return false;
 	assert(!_was_still_drawing_last_frame);
 
 	assert(_is_initialized);
@@ -921,6 +927,7 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	// In case of D3D12, also synchronize access to the command queue while events are invoked and the immediate command list may be accessed
 	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == reshade::api::device_api::d3d12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
+	bool skip_preset = false;
 	switch (_direct3d_version)
 	{
 	case reshade::api::device_api::d3d10:
@@ -930,13 +937,15 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
 			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)));
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(
+		skip_preset = reshade::invoke_addon_event<reshade::addon_event::present>(
 			static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)),
 			_impl,
 			nullptr,
 			nullptr,
 			params != nullptr ? params->DirtyRectsCount : 0,
-			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
+			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr,
+			&sync_interval,
+			&flags);
 #endif
 		reshade::present_effect_runtime(_impl);
 		break;
@@ -946,30 +955,35 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
 			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context);
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(
+		skip_preset = reshade::invoke_addon_event<reshade::addon_event::present>(
 			static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
 			_impl,
 			nullptr,
 			nullptr,
 			params != nullptr ? params->DirtyRectsCount : 0,
-			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
+			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr,
+			&sync_interval,
+			&flags);
 #endif
 		reshade::present_effect_runtime(_impl);
 		break;
 	case reshade::api::device_api::d3d12:
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(
+		skip_preset = reshade::invoke_addon_event<reshade::addon_event::present>(
 			static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
 			_impl,
 			nullptr,
 			nullptr,
 			params != nullptr ? params->DirtyRectsCount : 0,
-			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr);
+			params != nullptr ? reinterpret_cast<const reshade::api::rect *>(params->pDirtyRects) : nullptr,
+			&sync_interval,
+			&flags);
 #endif
 		reshade::present_effect_runtime(_impl);
 		static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->flush_immediate_command_list();
 		break;
 	}
+	return skip_preset;
 }
 
 void DXGISwapChain::handle_device_loss(HRESULT hr)

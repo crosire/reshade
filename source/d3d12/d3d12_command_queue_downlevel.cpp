@@ -98,11 +98,15 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 		}
 	}
 
+	bool skip_present = false;
+
 	// Do not call 'present' event before 'init_swapchain' event
 	if (_back_buffers[0] != nullptr)
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
+		uint32_t flags = Flags;
+		skip_present = reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr, nullptr, &flags);
+		Flags = static_cast<D3D12_DOWNLEVEL_PRESENT_FLAGS>(flags);
 #endif
 
 		reshade::present_effect_runtime(this);
@@ -111,6 +115,11 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	}
 
 	lock.unlock();
+
+	if (skip_present)
+	{
+		return S_OK; // Pretend it was successful
+	}
 
 	// Get original command list pointer from proxy object
 	if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
