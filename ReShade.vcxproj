@@ -745,6 +745,7 @@
     <ClInclude Include="source\lockfree_linear_map.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
+    <ClInclude Include="source\opengl\opengl_hooks_wgl.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device_context.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_state_block.hpp" />

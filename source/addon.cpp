@@ -42,7 +42,7 @@ void ReShadeGetBasePath(char *path, size_t *size)
 
 bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
 {
-	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
+	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();
@@ -86,7 +86,7 @@ void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime
 }
 void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
 {
-	ini_file &config = (runtime != nullptr) ? ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
+	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
 	const std::string section_string = section != nullptr ? section : std::string();
 	const std::string key_string = key != nullptr ? key : std::string();

@@ -15,11 +15,6 @@
 
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
-#define GET_DISPATCH_PTR_FROM(name, data) \
-	assert((data) != nullptr); \
-	PFN_vk##name trampoline = (data)->_dispatch_table.name; \
-	assert(trampoline != nullptr)
-
 #if RESHADE_ADDON
 static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
 {
@@ -265,7 +260,7 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(BeginCommandBuffer, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(BeginCommandBuffer, device_impl);
 	const VkResult result = trampoline(commandBuffer, pBeginInfo);
 #if RESHADE_VERBOSE_LOG
 	if (result < VK_SUCCESS)
@@ -296,7 +291,7 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(cmd_impl);
 #endif
 
-	GET_DISPATCH_PTR_FROM(EndCommandBuffer, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(EndCommandBuffer, device_impl);
 	const VkResult result = trampoline(commandBuffer);
 #if RESHADE_VERBOSE_LOG
 	if (result < VK_SUCCESS)
@@ -311,7 +306,7 @@ void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer commandBuffer, VkPipelineBindP
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBindPipeline, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBindPipeline, device_impl);
 	trampoline(commandBuffer, pipelineBindPoint, pipeline);
 
 #if RESHADE_ADDON >= 2
@@ -331,7 +326,7 @@ void VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint32_t firstVi
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetViewport, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetViewport, device_impl);
 	trampoline(commandBuffer, firstViewport, viewportCount, pViewports);
 
 #if RESHADE_ADDON
@@ -357,7 +352,7 @@ void VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32_t firstSci
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetScissor, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetScissor, device_impl);
 	trampoline(commandBuffer, firstScissor, scissorCount, pScissors);
 
 #if RESHADE_ADDON
@@ -383,7 +378,7 @@ void VKAPI_CALL vkCmdSetDepthBias(VkCommandBuffer commandBuffer, float depthBias
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetDepthBias, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetDepthBias, device_impl);
 	trampoline(commandBuffer, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor);
 
 #if RESHADE_ADDON >= 2
@@ -402,7 +397,7 @@ void VKAPI_CALL vkCmdSetBlendConstants(VkCommandBuffer commandBuffer, const floa
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetBlendConstants, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetBlendConstants, device_impl);
 	trampoline(commandBuffer, blendConstants);
 
 #if RESHADE_ADDON >= 2
@@ -427,7 +422,7 @@ void VKAPI_CALL vkCmdSetStencilCompareMask(VkCommandBuffer commandBuffer, VkSten
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetStencilCompareMask, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetStencilCompareMask, device_impl);
 	trampoline(commandBuffer, faceMask, compareMask);
 
 #if RESHADE_ADDON >= 2
@@ -446,7 +441,7 @@ void VKAPI_CALL vkCmdSetStencilWriteMask(VkCommandBuffer commandBuffer, VkStenci
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetStencilWriteMask, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetStencilWriteMask, device_impl);
 	trampoline(commandBuffer, faceMask, writeMask);
 
 #if RESHADE_ADDON >= 2
@@ -465,7 +460,7 @@ void VKAPI_CALL vkCmdSetStencilReference(VkCommandBuffer commandBuffer, VkStenci
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdSetStencilReference, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdSetStencilReference, device_impl);
 	trampoline(commandBuffer, faceMask, reference);
 
 #if RESHADE_ADDON >= 2
@@ -485,7 +480,7 @@ void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer, VkPipelin
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBindDescriptorSets, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBindDescriptorSets, device_impl);
 	trampoline(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 
 #if RESHADE_ADDON >= 2
@@ -507,7 +502,7 @@ void VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer buf
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBindIndexBuffer, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBindIndexBuffer, device_impl);
 	trampoline(commandBuffer, buffer, offset, indexType);
 
 #if RESHADE_ADDON >= 2
@@ -524,7 +519,7 @@ void VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer, uint32_t f
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBindVertexBuffers, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBindVertexBuffers, device_impl);
 	trampoline(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets);
 
 #if RESHADE_ADDON >= 2
@@ -549,7 +544,7 @@ void VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount, u
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDraw, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDraw, device_impl);
 	trampoline(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 void VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
@@ -563,7 +558,7 @@ void VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCo
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawIndexed, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawIndexed, device_impl);
 	trampoline(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 void VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -577,7 +572,7 @@ void VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawIndirect, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawIndirect, device_impl);
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
 }
 void VKAPI_CALL vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -591,7 +586,7 @@ void VKAPI_CALL vkCmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawIndexedIndirect, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawIndexedIndirect, device_impl);
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
 }
 void VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
@@ -605,7 +600,7 @@ void VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCount
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDispatch, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDispatch, device_impl);
 	trampoline(commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 void VKAPI_CALL vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset)
@@ -619,14 +614,14 @@ void VKAPI_CALL vkCmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer bu
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDispatchIndirect, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDispatchIndirect, device_impl);
 	trampoline(commandBuffer, buffer, offset);
 }
 
 void VKAPI_CALL vkCmdCopyBuffer(VkCommandBuffer commandBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferCopy *pRegions)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyBuffer, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyBuffer, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
@@ -654,7 +649,7 @@ void VKAPI_CALL vkCmdCopyBuffer(VkCommandBuffer commandBuffer, VkBuffer srcBuffe
 void VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageCopy *pRegions)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyImage, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyImage, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
@@ -700,7 +695,7 @@ void VKAPI_CALL vkCmdCopyImage(VkCommandBuffer commandBuffer, VkImage srcImage, 
 void VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageBlit *pRegions, VkFilter filter)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdBlitImage, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBlitImage, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
@@ -745,7 +740,7 @@ void VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcImage, 
 void VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkBufferImageCopy *pRegions)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyBufferToImage, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyBufferToImage, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>())
@@ -781,7 +776,7 @@ void VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer s
 void VKAPI_CALL vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy *pRegions)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyImageToBuffer, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyImageToBuffer, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_to_buffer>())
@@ -859,7 +854,7 @@ void VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage imag
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdClearColorImage, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdClearColorImage, device_impl);
 	trampoline(commandBuffer, image, imageLayout, pColor, rangeCount, pRanges);
 }
 void VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange *pRanges)
@@ -911,13 +906,13 @@ void VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkIma
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdClearDepthStencilImage, device_impl);
 	trampoline(commandBuffer, image, imageLayout, pDepthStencil, rangeCount, pRanges);
 }
 void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount, const VkClearAttachment *pAttachments, uint32_t rectCount, const VkClearRect *pRects)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdClearAttachments, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdClearAttachments, device_impl);
 
 #if RESHADE_ADDON
 	if (reshade::has_addon_event<reshade::addon_event::clear_depth_stencil_view>() ||
@@ -975,7 +970,7 @@ void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
 void VKAPI_CALL vkCmdResolveImage(VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve *pRegions)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdResolveImage, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdResolveImage, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
@@ -1020,7 +1015,7 @@ void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, VkPipelineSt
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdPipelineBarrier, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPipelineBarrier, device_impl);
 	trampoline(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 
 #if RESHADE_ADDON >= 2
@@ -1079,7 +1074,7 @@ void VKAPI_CALL vkCmdBeginQuery(VkCommandBuffer commandBuffer, VkQueryPool query
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdBeginQuery, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBeginQuery, device_impl);
 	trampoline(commandBuffer, queryPool, query, flags);
 }
 void VKAPI_CALL vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query)
@@ -1097,7 +1092,7 @@ void VKAPI_CALL vkCmdEndQuery(VkCommandBuffer commandBuffer, VkQueryPool queryPo
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdEndQuery, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdEndQuery, device_impl);
 	trampoline(commandBuffer, queryPool, query);
 }
 void VKAPI_CALL vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t query)
@@ -1115,7 +1110,7 @@ void VKAPI_CALL vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, VkPipelineSta
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdWriteTimestamp, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdWriteTimestamp, device_impl);
 	trampoline(commandBuffer, pipelineStage, queryPool, query);
 }
 
@@ -1144,7 +1139,7 @@ void VKAPI_CALL vkCmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQuery
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdCopyQueryPoolResults, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyQueryPoolResults, device_impl);
 	trampoline(commandBuffer, queryPool, firstQuery, queryCount, dstBuffer, dstOffset, stride, flags);
 }
 
@@ -1152,7 +1147,7 @@ void VKAPI_CALL vkCmdPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayo
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdPushConstants, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushConstants, device_impl);
 	trampoline(commandBuffer, layout, stageFlags, offset, size, pValues);
 
 #if RESHADE_ADDON >= 2
@@ -1191,7 +1186,7 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	cmd_impl->_is_in_render_pass = true;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdBeginRenderPass, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBeginRenderPass, device_impl);
 	trampoline(commandBuffer, pRenderPassBegin, contents);
 }
 void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContents contents)
@@ -1210,7 +1205,7 @@ void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
 	invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdNextSubpass, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdNextSubpass, device_impl);
 	trampoline(commandBuffer, contents);
 }
 void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
@@ -1234,7 +1229,7 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	cmd_impl->_is_in_render_pass = false;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdEndRenderPass, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdEndRenderPass, device_impl);
 	trampoline(commandBuffer);
 }
 
@@ -1256,7 +1251,7 @@ void VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t com
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdExecuteCommands, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdExecuteCommands, device_impl);
 	trampoline(commandBuffer, commandBufferCount, pCommandBuffers);
 }
 
@@ -1271,7 +1266,7 @@ void VKAPI_CALL vkCmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer b
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawIndirectCount, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawIndirectCount, device_impl);
 	trampoline(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }
 void VKAPI_CALL vkCmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
@@ -1285,7 +1280,7 @@ void VKAPI_CALL vkCmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkB
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawIndexedIndirectCount, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawIndexedIndirectCount, device_impl);
 	trampoline(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }
 
@@ -1307,7 +1302,7 @@ void VKAPI_CALL vkCmdBeginRenderPass2(VkCommandBuffer commandBuffer, const VkRen
 	cmd_impl->_is_in_render_pass = true;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdBeginRenderPass2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBeginRenderPass2, device_impl);
 	trampoline(commandBuffer, pRenderPassBegin, pSubpassBeginInfo);
 }
 void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpassBeginInfo *pSubpassBeginInfo, const VkSubpassEndInfo *pSubpassEndInfo)
@@ -1326,7 +1321,7 @@ void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpass
 	invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdNextSubpass2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdNextSubpass2, device_impl);
 	trampoline(commandBuffer, pSubpassBeginInfo, pSubpassEndInfo);
 }
 void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpassEndInfo *pSubpassEndInfo)
@@ -1350,7 +1345,7 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 	cmd_impl->_is_in_render_pass = false;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdEndRenderPass2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdEndRenderPass2, device_impl);
 	trampoline(commandBuffer, pSubpassEndInfo);
 }
 
@@ -1358,7 +1353,7 @@ void VKAPI_CALL vkCmdPipelineBarrier2(VkCommandBuffer commandBuffer, const VkDep
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdPipelineBarrier2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPipelineBarrier2, device_impl);
 	trampoline(commandBuffer, pDependencyInfo);
 
 #if RESHADE_ADDON >= 2
@@ -1419,14 +1414,14 @@ void VKAPI_CALL vkCmdWriteTimestamp2(VkCommandBuffer commandBuffer, VkPipelineSt
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdWriteTimestamp2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdWriteTimestamp2, device_impl);
 	trampoline(commandBuffer, stage, queryPool, query);
 }
 
 void VKAPI_CALL vkCmdCopyBuffer2(VkCommandBuffer commandBuffer, const VkCopyBufferInfo2 *pCopyBufferInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyBuffer2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyBuffer2, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
@@ -1458,7 +1453,7 @@ void VKAPI_CALL vkCmdCopyBuffer2(VkCommandBuffer commandBuffer, const VkCopyBuff
 void VKAPI_CALL vkCmdCopyImage2(VkCommandBuffer commandBuffer, const VkCopyImageInfo2 *pCopyImageInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyImage2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyImage2, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
@@ -1508,7 +1503,7 @@ void VKAPI_CALL vkCmdCopyImage2(VkCommandBuffer commandBuffer, const VkCopyImage
 void VKAPI_CALL vkCmdCopyBufferToImage2(VkCommandBuffer commandBuffer, const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyBufferToImage2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyBufferToImage2, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_to_texture>())
@@ -1548,7 +1543,7 @@ void VKAPI_CALL vkCmdCopyBufferToImage2(VkCommandBuffer commandBuffer, const VkC
 void VKAPI_CALL vkCmdCopyImageToBuffer2(VkCommandBuffer commandBuffer, const VkCopyImageToBufferInfo2 *pCopyImageToBufferInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdCopyImageToBuffer2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyImageToBuffer2, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_to_buffer>())
@@ -1588,7 +1583,7 @@ void VKAPI_CALL vkCmdCopyImageToBuffer2(VkCommandBuffer commandBuffer, const VkC
 void VKAPI_CALL vkCmdBlitImage2(VkCommandBuffer commandBuffer, const VkBlitImageInfo2 *pBlitImageInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdBlitImage2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBlitImage2, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
@@ -1637,7 +1632,7 @@ void VKAPI_CALL vkCmdBlitImage2(VkCommandBuffer commandBuffer, const VkBlitImage
 void VKAPI_CALL vkCmdResolveImage2(VkCommandBuffer commandBuffer, const VkResolveImageInfo2 *pResolveImageInfo)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdResolveImage2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdResolveImage2, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::resolve_texture_region>())
@@ -1694,7 +1689,7 @@ void VKAPI_CALL vkCmdBeginRendering(VkCommandBuffer commandBuffer, const VkRende
 	cmd_impl->_is_in_render_pass = true;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdBeginRendering, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBeginRendering, device_impl);
 	trampoline(commandBuffer, pRenderingInfo);
 }
 void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
@@ -1712,7 +1707,7 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 	cmd_impl->_is_in_render_pass = false;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdEndRendering, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdEndRendering, device_impl);
 	trampoline(commandBuffer);
 }
 
@@ -1720,7 +1715,7 @@ void VKAPI_CALL vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t 
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBindVertexBuffers2, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBindVertexBuffers2, device_impl);
 	trampoline(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets, pSizes, pStrides);
 
 #if RESHADE_ADDON >= 2
@@ -1745,7 +1740,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdPushDescriptorSetKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushDescriptorSetKHR, device_impl);
 	trampoline(commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount, pDescriptorWrites);
 
 #if RESHADE_ADDON >= 2
@@ -1826,7 +1821,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetWithTemplateKHR(VkCommandBuffer commandBuf
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdPushDescriptorSetWithTemplateKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushDescriptorSetWithTemplateKHR, device_impl);
 	trampoline(commandBuffer, descriptorUpdateTemplate, layout, set, pData);
 
 #if RESHADE_ADDON >= 2
@@ -1906,7 +1901,7 @@ void VKAPI_CALL vkCmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuff
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBindTransformFeedbackBuffersEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBindTransformFeedbackBuffersEXT, device_impl);
 	trampoline(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets, pSizes);
 
 #if RESHADE_ADDON >= 2
@@ -1935,7 +1930,7 @@ void VKAPI_CALL vkCmdBeginQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQuery
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdBeginQueryIndexedEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBeginQueryIndexedEXT, device_impl);
 	trampoline(commandBuffer, queryPool, query, flags, index);
 }
 void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t query, uint32_t index)
@@ -1953,7 +1948,7 @@ void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
 	}
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdEndQueryIndexedEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdEndQueryIndexedEXT, device_impl);
 	trampoline(commandBuffer, queryPool, query, index);
 }
 
@@ -1969,7 +1964,7 @@ void VKAPI_CALL vkCmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCo
 			return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawMultiEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawMultiEXT, device_impl);
 	trampoline(commandBuffer, drawCount, pVertexInfo, instanceCount, firstInstance, stride);
 }
 void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawIndexedInfoEXT *pIndexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride, const int32_t *pVertexOffset)
@@ -1984,7 +1979,7 @@ void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t
 			return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawMultiIndexedEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawMultiIndexedEXT, device_impl);
 	trampoline(commandBuffer, drawCount, pIndexInfo, instanceCount, firstInstance, stride, pVertexOffset);
 }
 
@@ -1993,7 +1988,7 @@ void VKAPI_CALL vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffe
 	assert(pInfos != nullptr && ppBuildRangeInfos != nullptr);
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
-	GET_DISPATCH_PTR_FROM(CmdBuildAccelerationStructuresKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBuildAccelerationStructuresKHR, device_impl);
 
 #if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::build_acceleration_structure>())
@@ -2035,7 +2030,7 @@ void VKAPI_CALL vkCmdBuildAccelerationStructuresIndirectKHR(VkCommandBuffer comm
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdBuildAccelerationStructuresIndirectKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdBuildAccelerationStructuresIndirectKHR, device_impl);
 	trampoline(commandBuffer, infoCount, pInfos, pIndirectDeviceAddresses, pIndirectStrides, ppMaxPrimitiveCounts);
 }
 
@@ -2056,7 +2051,7 @@ void VKAPI_CALL vkCmdCopyAccelerationStructureKHR(VkCommandBuffer commandBuffer,
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdCopyAccelerationStructureKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdCopyAccelerationStructureKHR, device_impl);
 	trampoline(commandBuffer, pInfo);
 }
 void VKAPI_CALL vkCmdWriteAccelerationStructuresPropertiesKHR(VkCommandBuffer commandBuffer, uint32_t accelerationStructureCount, const VkAccelerationStructureKHR *pAccelerationStructures, VkQueryType queryType, VkQueryPool queryPool, uint32_t firstQuery)
@@ -2076,7 +2071,7 @@ void VKAPI_CALL vkCmdWriteAccelerationStructuresPropertiesKHR(VkCommandBuffer co
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdWriteAccelerationStructuresPropertiesKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdWriteAccelerationStructuresPropertiesKHR, device_impl);
 	trampoline(commandBuffer, accelerationStructureCount, pAccelerationStructures, queryType, queryPool, firstQuery);
 }
 
@@ -2110,14 +2105,14 @@ void VKAPI_CALL vkCmdTraceRaysKHR(VkCommandBuffer commandBuffer, const VkStrided
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdTraceRaysKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdTraceRaysKHR, device_impl);
 	trampoline(commandBuffer, pRaygenShaderBindingTable, pMissShaderBindingTable, pHitShaderBindingTable, pCallableShaderBindingTable, width, height, depth);
 }
 void VKAPI_CALL vkCmdTraceRaysIndirectKHR(VkCommandBuffer commandBuffer, const VkStridedDeviceAddressRegionKHR *pRaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pMissShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pHitShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pCallableShaderBindingTable, VkDeviceAddress indirectDeviceAddress)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	GET_DISPATCH_PTR_FROM(CmdTraceRaysIndirectKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdTraceRaysIndirectKHR, device_impl);
 	trampoline(commandBuffer, pRaygenShaderBindingTable, pMissShaderBindingTable, pHitShaderBindingTable, pCallableShaderBindingTable, indirectDeviceAddress);
 }
 void VKAPI_CALL vkCmdTraceRaysIndirect2KHR(VkCommandBuffer commandBuffer, VkDeviceAddress indirectDeviceAddress)
@@ -2131,7 +2126,7 @@ void VKAPI_CALL vkCmdTraceRaysIndirect2KHR(VkCommandBuffer commandBuffer, VkDevi
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdTraceRaysIndirect2KHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdTraceRaysIndirect2KHR, device_impl);
 	trampoline(commandBuffer, indirectDeviceAddress);
 }
 
@@ -2146,7 +2141,7 @@ void VKAPI_CALL vkCmdDrawMeshTasksEXT(VkCommandBuffer commandBuffer, uint32_t gr
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawMeshTasksEXT, device_impl);
 	trampoline(commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 void VKAPI_CALL vkCmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -2160,7 +2155,7 @@ void VKAPI_CALL vkCmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkB
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectEXT, device_impl);
 	trampoline(commandBuffer, buffer, offset, drawCount, stride);
 }
 void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
@@ -2174,6 +2169,6 @@ void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer
 		return;
 #endif
 
-	GET_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectCountEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdDrawMeshTasksIndirectCountEXT, device_impl);
 	trampoline(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }

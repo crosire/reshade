@@ -2403,7 +2403,7 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 			state_exp.add_cast_operation({ type::t_uint, 1, 1 });
 			const unsigned int value = state_exp.constant.as_uint[0];
 
-#define SET_STATE_VALUE_INDEXED(name, info_name, value) \
+#define IMPLEMENT_STATE_VALUE_INDEXED(name, info_name, value) \
 	else if (constexpr size_t name##_len = sizeof(#name) - 1; state_name.compare(0, name##_len, #name) == 0 && \
 		(state_name.size() == name##_len || (state_name[name##_len] >= '0' && state_name[name##_len] < ('0' + static_cast<char>(std::size(info.info_name)))))) \
 	{ \
@@ -2418,17 +2418,17 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 				info.generate_mipmaps = (value != 0);
 			else if (state_name == "ClearRenderTargets")
 				info.clear_render_targets = (value != 0);
-			SET_STATE_VALUE_INDEXED(BlendEnable, blend_enable, value != 0)
-			SET_STATE_VALUE_INDEXED(SrcBlend, source_color_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(SrcBlendAlpha, source_alpha_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(BlendOp, color_blend_op, static_cast<blend_op>(value))
-			SET_STATE_VALUE_INDEXED(DestBlend, dest_color_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(DestBlendAlpha, dest_alpha_blend_factor, static_cast<blend_factor>(value))
-			SET_STATE_VALUE_INDEXED(BlendOpAlpha, alpha_blend_op, static_cast<blend_op>(value))
+			IMPLEMENT_STATE_VALUE_INDEXED(BlendEnable, blend_enable, value != 0)
+			IMPLEMENT_STATE_VALUE_INDEXED(SrcBlend, source_color_blend_factor, static_cast<blend_factor>(value))
+			IMPLEMENT_STATE_VALUE_INDEXED(SrcBlendAlpha, source_alpha_blend_factor, static_cast<blend_factor>(value))
+			IMPLEMENT_STATE_VALUE_INDEXED(BlendOp, color_blend_op, static_cast<blend_op>(value))
+			IMPLEMENT_STATE_VALUE_INDEXED(DestBlend, dest_color_blend_factor, static_cast<blend_factor>(value))
+			IMPLEMENT_STATE_VALUE_INDEXED(DestBlendAlpha, dest_alpha_blend_factor, static_cast<blend_factor>(value))
+			IMPLEMENT_STATE_VALUE_INDEXED(BlendOpAlpha, alpha_blend_op, static_cast<blend_op>(value))
 			else if (state_name == "SRGBWriteEnable")
 				info.srgb_write_enable = (value != 0);
-			SET_STATE_VALUE_INDEXED(ColorWriteMask, render_target_write_mask, value & 0xFF)
-			SET_STATE_VALUE_INDEXED(RenderTargetWriteMask, render_target_write_mask, value & 0xFF)
+			IMPLEMENT_STATE_VALUE_INDEXED(ColorWriteMask, render_target_write_mask, value & 0xFF)
+			IMPLEMENT_STATE_VALUE_INDEXED(RenderTargetWriteMask, render_target_write_mask, value & 0xFF)
 			else if (state_name == "StencilEnable")
 				info.stencil_enable = (value != 0);
 			else if (state_name == "StencilReadMask" || state_name == "StencilMask")
@@ -2458,7 +2458,7 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 			else
 				error(state_location, 3004, "unrecognized pass state '" + state_name + '\'');
 
-#undef SET_STATE_VALUE_INDEXED
+#undef IMPLEMENT_STATE_VALUE_INDEXED
 		}
 
 		if (!expect(';'))

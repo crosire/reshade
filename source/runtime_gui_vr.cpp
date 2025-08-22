@@ -300,7 +300,7 @@ void reshade::runtime::draw_gui_vr()
 
 	ImGui::SetCurrentContext(backup_context);
 
-	vr::Texture_t texture;
+	vr::Texture_t texture = {};
 	texture.eColorSpace = vr::ColorSpace_Auto;
 	union
 	{

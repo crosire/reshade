@@ -14,9 +14,6 @@
 #include <atomic>
 #include <shared_mutex>
 
-class ini_file;
-namespace reshadefx { struct sampler_desc; }
-
 namespace reshade
 {
 	struct effect;
@@ -178,11 +175,11 @@ namespace reshade
 		void save_config() const;
 
 		void load_current_preset();
-		void save_current_preset(ini_file &preset) const;
+		void save_current_preset(class ini_file &preset) const;
 
 		bool switch_to_next_preset(std::filesystem::path filter_path, bool reversed = false);
 
-		bool load_effect(const std::filesystem::path &source_file, const ini_file &preset, size_t effect_index, size_t permutation_index, bool force_load = false, bool preprocess_required = false);
+		bool load_effect(const std::filesystem::path &source_file, const class ini_file &preset, size_t effect_index, size_t permutation_index, bool force_load = false, bool preprocess_required = false);
 		bool create_effect(size_t effect_index, size_t permutation_index);
 		void destroy_effect(size_t effect_index, bool unload = true);
 
@@ -396,8 +393,8 @@ namespace reshade
 		void deinit_gui_vr();
 		void build_font_atlas();
 
-		void load_config_gui(const ini_file &config);
-		void save_config_gui(ini_file &config) const;
+		void load_config_gui(const class ini_file &config);
+		void save_config_gui(class ini_file &config) const;
 
 		void load_custom_style();
 		void save_custom_style() const;

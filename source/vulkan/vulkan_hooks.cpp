@@ -12,268 +12,268 @@
 extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
-#define HOOK_PROC(name) \
+#define RESHADE_VULKAN_HOOK_PROC(name) \
 	if (0 == std::strcmp(pName, "vk" #name)) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
-#define HOOK_PROC_OPTIONAL(name, suffix) \
+#define RESHADE_VULKAN_HOOK_PROC_OPTIONAL(name, suffix) \
 	if (0 == std::strcmp(pName, "vk" #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
 
 PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
-	HOOK_PROC(DestroyDevice);
+	RESHADE_VULKAN_HOOK_PROC(DestroyDevice);
 
 	// Core 1_0
 #if RESHADE_ADDON
-	HOOK_PROC(QueueSubmit);
-	HOOK_PROC(BindBufferMemory);
-	HOOK_PROC(BindImageMemory);
-	HOOK_PROC(CreateQueryPool);
-	HOOK_PROC(DestroyQueryPool);
+	RESHADE_VULKAN_HOOK_PROC(QueueSubmit);
+	RESHADE_VULKAN_HOOK_PROC(BindBufferMemory);
+	RESHADE_VULKAN_HOOK_PROC(BindImageMemory);
+	RESHADE_VULKAN_HOOK_PROC(CreateQueryPool);
+	RESHADE_VULKAN_HOOK_PROC(DestroyQueryPool);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(GetQueryPoolResults);
+	RESHADE_VULKAN_HOOK_PROC(GetQueryPoolResults);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CreateBuffer);
-	HOOK_PROC(DestroyBuffer);
-	HOOK_PROC(CreateBufferView);
-	HOOK_PROC(DestroyBufferView);
-	HOOK_PROC(CreateImage);
-	HOOK_PROC(DestroyImage);
-	HOOK_PROC(CreateImageView);
-	HOOK_PROC(DestroyImageView);
+	RESHADE_VULKAN_HOOK_PROC(CreateBuffer);
+	RESHADE_VULKAN_HOOK_PROC(DestroyBuffer);
+	RESHADE_VULKAN_HOOK_PROC(CreateBufferView);
+	RESHADE_VULKAN_HOOK_PROC(DestroyBufferView);
+	RESHADE_VULKAN_HOOK_PROC(CreateImage);
+	RESHADE_VULKAN_HOOK_PROC(DestroyImage);
+	RESHADE_VULKAN_HOOK_PROC(CreateImageView);
+	RESHADE_VULKAN_HOOK_PROC(DestroyImageView);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(CreateShaderModule);
-	HOOK_PROC(DestroyShaderModule);
-	HOOK_PROC(CreateGraphicsPipelines);
-	HOOK_PROC(CreateComputePipelines);
-	HOOK_PROC(DestroyPipeline);
-	HOOK_PROC(CreatePipelineLayout);
-	HOOK_PROC(DestroyPipelineLayout);
+	RESHADE_VULKAN_HOOK_PROC(CreateShaderModule);
+	RESHADE_VULKAN_HOOK_PROC(DestroyShaderModule);
+	RESHADE_VULKAN_HOOK_PROC(CreateGraphicsPipelines);
+	RESHADE_VULKAN_HOOK_PROC(CreateComputePipelines);
+	RESHADE_VULKAN_HOOK_PROC(DestroyPipeline);
+	RESHADE_VULKAN_HOOK_PROC(CreatePipelineLayout);
+	RESHADE_VULKAN_HOOK_PROC(DestroyPipelineLayout);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CreateSampler);
-	HOOK_PROC(DestroySampler);
+	RESHADE_VULKAN_HOOK_PROC(CreateSampler);
+	RESHADE_VULKAN_HOOK_PROC(DestroySampler);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(CreateDescriptorSetLayout);
-	HOOK_PROC(DestroyDescriptorSetLayout);
-	HOOK_PROC(CreateDescriptorPool);
-	HOOK_PROC(DestroyDescriptorPool);
-	HOOK_PROC(ResetDescriptorPool);
-	HOOK_PROC(AllocateDescriptorSets);
-	HOOK_PROC(FreeDescriptorSets);
-	HOOK_PROC(UpdateDescriptorSets);
+	RESHADE_VULKAN_HOOK_PROC(CreateDescriptorSetLayout);
+	RESHADE_VULKAN_HOOK_PROC(DestroyDescriptorSetLayout);
+	RESHADE_VULKAN_HOOK_PROC(CreateDescriptorPool);
+	RESHADE_VULKAN_HOOK_PROC(DestroyDescriptorPool);
+	RESHADE_VULKAN_HOOK_PROC(ResetDescriptorPool);
+	RESHADE_VULKAN_HOOK_PROC(AllocateDescriptorSets);
+	RESHADE_VULKAN_HOOK_PROC(FreeDescriptorSets);
+	RESHADE_VULKAN_HOOK_PROC(UpdateDescriptorSets);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CreateFramebuffer);
-	HOOK_PROC(DestroyFramebuffer);
-	HOOK_PROC(CreateRenderPass);
-	HOOK_PROC(DestroyRenderPass);
+	RESHADE_VULKAN_HOOK_PROC(CreateFramebuffer);
+	RESHADE_VULKAN_HOOK_PROC(DestroyFramebuffer);
+	RESHADE_VULKAN_HOOK_PROC(CreateRenderPass);
+	RESHADE_VULKAN_HOOK_PROC(DestroyRenderPass);
 
-	HOOK_PROC(AllocateCommandBuffers);
-	HOOK_PROC(FreeCommandBuffers);
-	HOOK_PROC(BeginCommandBuffer);
-	HOOK_PROC(EndCommandBuffer);
+	RESHADE_VULKAN_HOOK_PROC(AllocateCommandBuffers);
+	RESHADE_VULKAN_HOOK_PROC(FreeCommandBuffers);
+	RESHADE_VULKAN_HOOK_PROC(BeginCommandBuffer);
+	RESHADE_VULKAN_HOOK_PROC(EndCommandBuffer);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(CmdBindPipeline);
+	RESHADE_VULKAN_HOOK_PROC(CmdBindPipeline);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CmdSetViewport);
-	HOOK_PROC(CmdSetScissor);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetViewport);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetScissor);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(CmdSetDepthBias);
-	HOOK_PROC(CmdSetBlendConstants);
-	HOOK_PROC(CmdSetStencilCompareMask);
-	HOOK_PROC(CmdSetStencilWriteMask);
-	HOOK_PROC(CmdSetStencilReference);
-	HOOK_PROC(CmdBindDescriptorSets);
-	HOOK_PROC(CmdBindIndexBuffer);
-	HOOK_PROC(CmdBindVertexBuffers);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetDepthBias);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetBlendConstants);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetStencilCompareMask);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetStencilWriteMask);
+	RESHADE_VULKAN_HOOK_PROC(CmdSetStencilReference);
+	RESHADE_VULKAN_HOOK_PROC(CmdBindDescriptorSets);
+	RESHADE_VULKAN_HOOK_PROC(CmdBindIndexBuffer);
+	RESHADE_VULKAN_HOOK_PROC(CmdBindVertexBuffers);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CmdDraw);
-	HOOK_PROC(CmdDrawIndexed);
-	HOOK_PROC(CmdDrawIndirect);
-	HOOK_PROC(CmdDrawIndexedIndirect);
-	HOOK_PROC(CmdDispatch);
-	HOOK_PROC(CmdDispatchIndirect);
+	RESHADE_VULKAN_HOOK_PROC(CmdDraw);
+	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndexed);
+	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndirect);
+	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndexedIndirect);
+	RESHADE_VULKAN_HOOK_PROC(CmdDispatch);
+	RESHADE_VULKAN_HOOK_PROC(CmdDispatchIndirect);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(CmdCopyBuffer);
-	HOOK_PROC(CmdCopyImage);
-	HOOK_PROC(CmdBlitImage);
-	HOOK_PROC(CmdCopyBufferToImage);
-	HOOK_PROC(CmdCopyImageToBuffer);
+	RESHADE_VULKAN_HOOK_PROC(CmdCopyBuffer);
+	RESHADE_VULKAN_HOOK_PROC(CmdCopyImage);
+	RESHADE_VULKAN_HOOK_PROC(CmdBlitImage);
+	RESHADE_VULKAN_HOOK_PROC(CmdCopyBufferToImage);
+	RESHADE_VULKAN_HOOK_PROC(CmdCopyImageToBuffer);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CmdClearColorImage);
-	HOOK_PROC(CmdClearDepthStencilImage);
-	HOOK_PROC(CmdClearAttachments);
+	RESHADE_VULKAN_HOOK_PROC(CmdClearColorImage);
+	RESHADE_VULKAN_HOOK_PROC(CmdClearDepthStencilImage);
+	RESHADE_VULKAN_HOOK_PROC(CmdClearAttachments);
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC(CmdResolveImage);
-	HOOK_PROC(CmdPipelineBarrier);
-	HOOK_PROC(CmdBeginQuery);
-	HOOK_PROC(CmdEndQuery);
-	HOOK_PROC(CmdWriteTimestamp);
-	HOOK_PROC(CmdCopyQueryPoolResults);
-	HOOK_PROC(CmdPushConstants);
+	RESHADE_VULKAN_HOOK_PROC(CmdResolveImage);
+	RESHADE_VULKAN_HOOK_PROC(CmdPipelineBarrier);
+	RESHADE_VULKAN_HOOK_PROC(CmdBeginQuery);
+	RESHADE_VULKAN_HOOK_PROC(CmdEndQuery);
+	RESHADE_VULKAN_HOOK_PROC(CmdWriteTimestamp);
+	RESHADE_VULKAN_HOOK_PROC(CmdCopyQueryPoolResults);
+	RESHADE_VULKAN_HOOK_PROC(CmdPushConstants);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC(CmdBeginRenderPass);
-	HOOK_PROC(CmdNextSubpass);
-	HOOK_PROC(CmdEndRenderPass);
-	HOOK_PROC(CmdExecuteCommands);
+	RESHADE_VULKAN_HOOK_PROC(CmdBeginRenderPass);
+	RESHADE_VULKAN_HOOK_PROC(CmdNextSubpass);
+	RESHADE_VULKAN_HOOK_PROC(CmdEndRenderPass);
+	RESHADE_VULKAN_HOOK_PROC(CmdExecuteCommands);
 
 	// Core 1_1
-	HOOK_PROC(BindBufferMemory2);
-	HOOK_PROC(BindImageMemory2);
-	HOOK_PROC(CreateDescriptorUpdateTemplate);
-	HOOK_PROC(DestroyDescriptorUpdateTemplate);
-	HOOK_PROC(UpdateDescriptorSetWithTemplate);
+	RESHADE_VULKAN_HOOK_PROC(BindBufferMemory2);
+	RESHADE_VULKAN_HOOK_PROC(BindImageMemory2);
+	RESHADE_VULKAN_HOOK_PROC(CreateDescriptorUpdateTemplate);
+	RESHADE_VULKAN_HOOK_PROC(DestroyDescriptorUpdateTemplate);
+	RESHADE_VULKAN_HOOK_PROC(UpdateDescriptorSetWithTemplate);
 
 	// Core 1_2
-	HOOK_PROC(CmdDrawIndirectCount);
-	HOOK_PROC(CmdDrawIndexedIndirectCount);
-	HOOK_PROC(CreateRenderPass2);
-	HOOK_PROC(CmdBeginRenderPass2);
-	HOOK_PROC(CmdNextSubpass2);
-	HOOK_PROC(CmdEndRenderPass2);
+	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndirectCount);
+	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndexedIndirectCount);
+	RESHADE_VULKAN_HOOK_PROC(CreateRenderPass2);
+	RESHADE_VULKAN_HOOK_PROC(CmdBeginRenderPass2);
+	RESHADE_VULKAN_HOOK_PROC(CmdNextSubpass2);
+	RESHADE_VULKAN_HOOK_PROC(CmdEndRenderPass2);
 #endif
 
 	// Core 1_3
 #if RESHADE_ADDON >= 2
-	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2,);
-	HOOK_PROC_OPTIONAL(CmdWriteTimestamp2,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdWriteTimestamp2, );
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC_OPTIONAL(QueueSubmit2,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(QueueSubmit2, );
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC_OPTIONAL(CmdCopyBuffer2,);
-	HOOK_PROC_OPTIONAL(CmdCopyImage2,);
-	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2,);
-	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2,);
-	HOOK_PROC_OPTIONAL(CmdBlitImage2,);
-	HOOK_PROC_OPTIONAL(CmdResolveImage2,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyBuffer2, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyImage2, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBlitImage2, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdResolveImage2, );
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC_OPTIONAL(CmdBeginRendering,);
-	HOOK_PROC_OPTIONAL(CmdEndRendering,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginRendering, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRendering, );
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, );
 #endif
 
 	// VK_KHR_swapchain
-	HOOK_PROC(CreateSwapchainKHR);
-	HOOK_PROC(DestroySwapchainKHR);
-	HOOK_PROC(AcquireNextImageKHR);
-	HOOK_PROC(QueuePresentKHR);
-	HOOK_PROC(AcquireNextImage2KHR);
+	RESHADE_VULKAN_HOOK_PROC(CreateSwapchainKHR);
+	RESHADE_VULKAN_HOOK_PROC(DestroySwapchainKHR);
+	RESHADE_VULKAN_HOOK_PROC(AcquireNextImageKHR);
+	RESHADE_VULKAN_HOOK_PROC(QueuePresentKHR);
+	RESHADE_VULKAN_HOOK_PROC(AcquireNextImage2KHR);
 
 #if RESHADE_ADDON
 	// VK_KHR_dynamic_rendering
-	HOOK_PROC_OPTIONAL(CmdBeginRendering, KHR);
-	HOOK_PROC_OPTIONAL(CmdEndRendering, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginRendering, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRendering, KHR);
 #endif
 
 #if RESHADE_ADDON >= 2
 	// VK_KHR_push_descriptor
-	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR,);
-	HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplateKHR,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplateKHR, );
 
 	// VK_KHR_descriptor_update_template
-	HOOK_PROC_OPTIONAL(CreateDescriptorUpdateTemplate, KHR);
-	HOOK_PROC_OPTIONAL(DestroyDescriptorUpdateTemplate, KHR);
-	HOOK_PROC_OPTIONAL(UpdateDescriptorSetWithTemplate, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateDescriptorUpdateTemplate, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(DestroyDescriptorUpdateTemplate, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(UpdateDescriptorSetWithTemplate, KHR);
 #endif
 
 #if RESHADE_ADDON
 	// VK_KHR_create_renderpass2
-	HOOK_PROC_OPTIONAL(CreateRenderPass2, KHR);
-	HOOK_PROC_OPTIONAL(CmdBeginRenderPass2, KHR);
-	HOOK_PROC_OPTIONAL(CmdNextSubpass2, KHR);
-	HOOK_PROC_OPTIONAL(CmdEndRenderPass2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateRenderPass2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginRenderPass2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdNextSubpass2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRenderPass2, KHR);
 
 	// VK_KHR_bind_memory2
-	HOOK_PROC_OPTIONAL(BindBufferMemory2, KHR);
-	HOOK_PROC_OPTIONAL(BindImageMemory2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(BindBufferMemory2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(BindImageMemory2, KHR);
 
 	// VK_KHR_draw_indirect_count
-	HOOK_PROC_OPTIONAL(CmdDrawIndirectCount, KHR);
-	HOOK_PROC_OPTIONAL(CmdDrawIndexedIndirectCount, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawIndirectCount, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawIndexedIndirectCount, KHR);
 #endif
 
 #if RESHADE_ADDON >= 2
 	// VK_KHR_synchronization2
-	HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, KHR);
-	HOOK_PROC_OPTIONAL(CmdWriteTimestamp2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdWriteTimestamp2, KHR);
 #endif
 #if RESHADE_ADDON
-	HOOK_PROC_OPTIONAL(QueueSubmit2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(QueueSubmit2, KHR);
 #endif
 
 #if RESHADE_ADDON >= 2
 	// VK_KHR_copy_commands2
-	HOOK_PROC_OPTIONAL(CmdCopyBuffer2, KHR);
-	HOOK_PROC_OPTIONAL(CmdCopyImage2, KHR);
-	HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2, KHR);
-	HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2, KHR);
-	HOOK_PROC_OPTIONAL(CmdBlitImage2, KHR);
-	HOOK_PROC_OPTIONAL(CmdResolveImage2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyBuffer2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyImage2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBlitImage2, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdResolveImage2, KHR);
 
 	// VK_EXT_transform_feedback
-	HOOK_PROC_OPTIONAL(CmdBindTransformFeedbackBuffersEXT,);
-	HOOK_PROC_OPTIONAL(CmdBeginQueryIndexedEXT,);
-	HOOK_PROC_OPTIONAL(CmdEndQueryIndexedEXT,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindTransformFeedbackBuffersEXT, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginQueryIndexedEXT, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndQueryIndexedEXT, );
 
 	// VK_EXT_extended_dynamic_state
-	HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, EXT);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, EXT);
 #endif
 
 #if RESHADE_ADDON
 	// VK_EXT_full_screen_exclusive
-	HOOK_PROC_OPTIONAL(AcquireFullScreenExclusiveModeEXT,);
-	HOOK_PROC_OPTIONAL(ReleaseFullScreenExclusiveModeEXT,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(AcquireFullScreenExclusiveModeEXT, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(ReleaseFullScreenExclusiveModeEXT, );
 
 	// VK_EXT_multi_draw
-	HOOK_PROC_OPTIONAL(CmdDrawMultiEXT,);
-	HOOK_PROC_OPTIONAL(CmdDrawMultiIndexedEXT,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMultiEXT, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMultiIndexedEXT, );
 
 	// VK_KHR_acceleration_structure
-	HOOK_PROC_OPTIONAL(CreateAccelerationStructureKHR,);
-	HOOK_PROC_OPTIONAL(DestroyAccelerationStructureKHR,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateAccelerationStructureKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(DestroyAccelerationStructureKHR, );
 #endif
 #if RESHADE_ADDON >= 2
-	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresKHR,);
-	HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresIndirectKHR,);
-	HOOK_PROC_OPTIONAL(CmdCopyAccelerationStructureKHR,);
-	HOOK_PROC_OPTIONAL(CmdWriteAccelerationStructuresPropertiesKHR,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresIndirectKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyAccelerationStructureKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdWriteAccelerationStructuresPropertiesKHR, );
 
 	// VK_KHR_ray_tracing_pipeline
-	HOOK_PROC_OPTIONAL(CmdTraceRaysKHR,);
-	HOOK_PROC_OPTIONAL(CreateRayTracingPipelinesKHR,);
-	HOOK_PROC_OPTIONAL(CmdTraceRaysIndirectKHR,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdTraceRaysKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateRayTracingPipelinesKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdTraceRaysIndirectKHR, );
 
 	// VK_KHR_ray_tracing_maintenance1
-	HOOK_PROC_OPTIONAL(CmdTraceRaysIndirect2KHR,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdTraceRaysIndirect2KHR, );
 
 	// VK_EXT_mesh_shader
-	HOOK_PROC_OPTIONAL(CmdDrawMeshTasksEXT,);
-	HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectEXT,);
-	HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectCountEXT,);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMeshTasksEXT, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectEXT, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectCountEXT, );
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
 	// See https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md#layer-conventions-and-rules
-	HOOK_PROC(GetDeviceProcAddr);
+	RESHADE_VULKAN_HOOK_PROC(GetDeviceProcAddr);
 
 #ifdef RESHADE_TEST_APPLICATION
 	static const auto trampoline = reshade::hooks::call(vkGetDeviceProcAddr);
@@ -289,23 +289,23 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
 {
 	// Core 1_0
-	HOOK_PROC(CreateInstance);
-	HOOK_PROC(DestroyInstance);
-	HOOK_PROC(CreateDevice);
-	HOOK_PROC(DestroyDevice);
+	RESHADE_VULKAN_HOOK_PROC(CreateInstance);
+	RESHADE_VULKAN_HOOK_PROC(DestroyInstance);
+	RESHADE_VULKAN_HOOK_PROC(CreateDevice);
+	RESHADE_VULKAN_HOOK_PROC(DestroyDevice);
 
 	// Core 1_3
-	HOOK_PROC(GetPhysicalDeviceToolProperties);
+	RESHADE_VULKAN_HOOK_PROC(GetPhysicalDeviceToolProperties);
 
 	// VK_KHR_surface
-	HOOK_PROC(CreateWin32SurfaceKHR);
-	HOOK_PROC(DestroySurfaceKHR);
+	RESHADE_VULKAN_HOOK_PROC(CreateWin32SurfaceKHR);
+	RESHADE_VULKAN_HOOK_PROC(DestroySurfaceKHR);
 
 	// VK_EXT_tooling_info
-	HOOK_PROC(GetPhysicalDeviceToolPropertiesEXT);
+	RESHADE_VULKAN_HOOK_PROC(GetPhysicalDeviceToolPropertiesEXT);
 
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
-	HOOK_PROC(GetInstanceProcAddr);
+	RESHADE_VULKAN_HOOK_PROC(GetInstanceProcAddr);
 
 #ifdef RESHADE_TEST_APPLICATION
 	static const auto trampoline = reshade::hooks::call(vkGetInstanceProcAddr);

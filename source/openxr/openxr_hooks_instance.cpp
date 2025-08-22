@@ -10,12 +10,6 @@
 
 lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
 
-#define GET_DISPATCH_PTR(name) \
-	PFN_xr##name trampoline = g_openxr_instances.at(instance).name; \
-	assert(trampoline != nullptr)
-#define INIT_DISPATCH_PTR(name) \
-	reinterpret_cast<PFN_xr##name>(get_instance_proc(instance, "xr" #name, reinterpret_cast<PFN_xrVoidFunction *>(&dispatch_table.name)))
-
 XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreateInfo, const XrApiLayerCreateInfo *pApiLayerInfo, XrInstance *pInstance)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting xrCreateApiLayerInstance(pCreateInfo = %p, pApiLayerInfo = %p, pInstance = %p) ...", pCreateInfo, pApiLayerInfo, pInstance);
@@ -62,16 +56,16 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 	dispatch_table.GetInstanceProcAddr = get_instance_proc;
 
 	// Core 1_0
-	INIT_DISPATCH_PTR(DestroyInstance);
-	INIT_DISPATCH_PTR(CreateSession);
-	INIT_DISPATCH_PTR(DestroySession);
-	INIT_DISPATCH_PTR(EnumerateViewConfigurations);
-	INIT_DISPATCH_PTR(CreateSwapchain);
-	INIT_DISPATCH_PTR(DestroySwapchain);
-	INIT_DISPATCH_PTR(EnumerateSwapchainImages);
-	INIT_DISPATCH_PTR(AcquireSwapchainImage);
-	INIT_DISPATCH_PTR(ReleaseSwapchainImage);
-	INIT_DISPATCH_PTR(EndFrame);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(DestroyInstance);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(CreateSession);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(DestroySession);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(EnumerateViewConfigurations);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(CreateSwapchain);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(DestroySwapchain);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(EnumerateSwapchainImages);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(AcquireSwapchainImage);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(ReleaseSwapchainImage);
+	RESHADE_OPENXR_INIT_DISPATCH_PTR(EndFrame);
 
 	g_openxr_instances.emplace(instance, openxr_dispatch_table { dispatch_table, instance });
 
@@ -86,7 +80,7 @@ XrResult XRAPI_CALL xrDestroyInstance(XrInstance instance)
 	reshade::log::message(reshade::log::level::info, "Redirecting xrDestroyInstance(instance = %" PRIx64 ") ...", instance);
 
 	// Get function pointer before removing it next
-	GET_DISPATCH_PTR(DestroyInstance);
+	RESHADE_OPENXR_GET_DISPATCH_PTR(DestroyInstance);
 
 	// Remove instance dispatch table since this instance is being destroyed
 	g_openxr_instances.erase(instance);

@@ -144,8 +144,9 @@ void reshade::runtime::build_font_atlas()
 	atlas->Clear();
 
 	std::error_code ec;
-	const ImWchar *glyph_ranges = nullptr;
+	const ImWchar *glyph_ranges = atlas->GetGlyphRangesDefault();
 	std::filesystem::path resolved_font_path;
+	_default_font_path.clear();
 
 #if RESHADE_LOCALIZATION
 	std::string language = _selected_language;
@@ -166,7 +167,8 @@ void reshade::runtime::build_font_atlas()
 		// Morisawa BIZ UDGothic Regular, available since Windows 10 October 2018 Update (1809) Build 17763.1
 		_default_font_path = L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
 		if (!std::filesystem::exists(_default_font_path, ec))
-			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc"; // MS Gothic
+			// MS Gothic
+			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc";
 	}
 	else
 	if (language.find("ko") == 0)
@@ -178,29 +180,28 @@ void reshade::runtime::build_font_atlas()
 	else
 	if (language.find("zh") == 0)
 	{
+		// Simplified Chinese (zh-CN, zh-SG, ...)
+		if (language.find("HK") == std::string::npos && language.find("TW") == std::string::npos && language.find("Hant") == std::string::npos)
+		{
+			glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
+
+			// Microsoft YaHei
+			_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc";
+			if (!std::filesystem::exists(_default_font_path, ec))
+				_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc";
+		}
 		// Traditional Chinese (zh-HK, zh-TW, zh-Hant, ...)
-		if (language.find("zh-HK") == 0 || language.find("zh-TW") == 0 || language.find("zh-Hant") == 0)
+		else
 		{
 			glyph_ranges = atlas->GetGlyphRangesChineseFull();
-			_default_font_path = L"C:\\Windows\\Fonts\\msjh.ttc"; // Microsoft JhengHei
+
+			// Microsoft JhengHei
+			_default_font_path = L"C:\\Windows\\Fonts\\msjh.ttc";
 			if (!std::filesystem::exists(_default_font_path, ec))
 				_default_font_path = L"C:\\Windows\\Fonts\\mingliu.ttc"; 
 		}
-		else // Simplified Chinese (zh-CN, zh-SG, ...)
-		{
-			glyph_ranges = GetGlyphRangesChineseSimplifiedGB2312();
-			_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc"; // Microsoft YaHei
-			if (!std::filesystem::exists(_default_font_path, ec))
-				_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc"; 
-		}
 	}
-	else
 #endif
-	{
-		glyph_ranges = atlas->GetGlyphRangesDefault();
-
-		_default_font_path.clear();
-	}
 
 	const auto add_font_from_file = [atlas](std::filesystem::path &font_path, ImFontConfig cfg, const ImWchar *glyph_ranges, std::error_code &ec) -> bool {
 		if (font_path.empty())

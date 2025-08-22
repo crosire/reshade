@@ -78,7 +78,7 @@ std::filesystem::path get_base_path(bool default_to_target_executable_path = fal
 	std::filesystem::path result;
 
 	// Cannot use global config here yet, since it uses base path for look up, so look at config file next to target executable instead
-	if (ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", result) &&
+	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", result) &&
 		resolve_env_path(result))
 		return result;
 
@@ -149,7 +149,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			g_reshade_base_path = get_base_path(default_base_to_target_executable_path);
 
-			const ini_file &config = reshade::global_config();
+			const reshade::ini_file &config = reshade::global_config();
 
 			// When ReShade is not loaded by proxy, only actually load when a configuration file exists for the target executable
 			// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application

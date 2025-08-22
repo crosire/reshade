@@ -689,6 +689,9 @@
     <ClInclude Include="source\opengl\opengl_hooks.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
+    <ClInclude Include="source\opengl\opengl_hooks_wgl.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
     <ClInclude Include="source\opengl\opengl_impl_device.hpp">
       <Filter>api\opengl</Filter>
     </ClInclude>

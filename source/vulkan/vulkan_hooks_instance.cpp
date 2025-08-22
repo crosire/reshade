@@ -14,12 +14,6 @@
 lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surface_windows;
 
-#define GET_DISPATCH_PTR(name, object) \
-	PFN_vk##name trampoline = g_vulkan_instances.at(dispatch_key_from_handle(object)).name; \
-	assert(trampoline != nullptr)
-#define INIT_DISPATCH_PTR(name) \
-	dispatch_table.name = reinterpret_cast<PFN_vk##name>(get_instance_proc(instance, "vk" #name))
-
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateInstance(pCreateInfo = %p, pAllocator = %p, pInstance = %p) ...", pCreateInfo, pAllocator, pInstance);
@@ -155,32 +149,32 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	dispatch_table.GetPhysicalDeviceProcAddr = get_physical_device_proc;
 
 	// Core 1_0
-	INIT_DISPATCH_PTR(DestroyInstance);
-	INIT_DISPATCH_PTR(EnumeratePhysicalDevices);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceFeatures);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceFormatProperties);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceProperties);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceQueueFamilyProperties);
-	INIT_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(DestroyInstance);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(EnumeratePhysicalDevices);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceFeatures);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceFormatProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceQueueFamilyProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(EnumerateDeviceExtensionProperties);
 
 	// Core 1_1
-	INIT_DISPATCH_PTR(GetPhysicalDeviceProperties2);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
-	INIT_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceProperties2);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceMemoryProperties2);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceExternalBufferProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceExternalSemaphoreProperties);
 
 	// Core 1_3
-	INIT_DISPATCH_PTR(GetPhysicalDeviceToolProperties);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceToolProperties);
 
 	// VK_KHR_surface
-	INIT_DISPATCH_PTR(DestroySurfaceKHR);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR);
 
 	// VK_KHR_win32_surface
-	INIT_DISPATCH_PTR(CreateWin32SurfaceKHR);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(CreateWin32SurfaceKHR);
 
 	// VK_EXT_tooling_info
-	INIT_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT);
+	RESHADE_VULKAN_INIT_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT);
 
 	g_vulkan_instances.emplace(dispatch_key_from_handle(instance), instance_dispatch_table { dispatch_table, instance, app_info.apiVersion });
 
@@ -195,7 +189,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroyInstance(instance = %p, pAllocator = %p) ...", instance, pAllocator);
 
 	// Get function pointer before removing it next
-	GET_DISPATCH_PTR(DestroyInstance, instance);
+	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(DestroyInstance, instance);
 
 	// Remove instance dispatch table since this instance is being destroyed
 	g_vulkan_instances.erase(dispatch_key_from_handle(instance));
@@ -211,7 +205,7 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateWin32SurfaceKHR(instance = %p, pCreateInfo = %p, pAllocator = %p, pSurface = %p) ...", instance, pCreateInfo, pAllocator, pSurface);
 
-	GET_DISPATCH_PTR(CreateWin32SurfaceKHR, instance);
+	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(CreateWin32SurfaceKHR, instance);
 	const VkResult result = trampoline(instance, pCreateInfo, pAllocator, pSurface);
 	if (result != VK_SUCCESS)
 	{
@@ -230,7 +224,7 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 	g_vulkan_surface_windows.erase(surface);
 
-	GET_DISPATCH_PTR(DestroySurfaceKHR, instance);
+	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);
 }
 
@@ -273,13 +267,13 @@ static VkResult get_physical_device_tool_properties(VkPhysicalDevice physicalDev
 
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolProperties(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolProperties *pToolProperties)
 {
-	GET_DISPATCH_PTR(GetPhysicalDeviceToolProperties, physicalDevice);
+	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceToolProperties, physicalDevice);
 
 	return get_physical_device_tool_properties(physicalDevice, pToolCount, pToolProperties, trampoline);
 }
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
 {
-	GET_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
+	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
 
 	return get_physical_device_tool_properties(physicalDevice, pToolCount, pToolProperties, trampoline);
 }

@@ -59,7 +59,7 @@ bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec)
 		return false;
 	// A non-existent path is valid for a new preset
 	// Otherwise ensure the file has a technique list, which should make it a preset
-	return !resolve_path(path, ec) || ini_file::load_cache(path).has({}, "Techniques");
+	return !resolve_path(path, ec) || reshade::ini_file::load_cache(path).has({}, "Techniques");
 }
 
 static std::filesystem::path make_relative_path(const std::filesystem::path &path)

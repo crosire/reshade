@@ -8,6 +8,7 @@
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
 #include "opengl_hooks.hpp" // Fix name clashes with gl3w
+#include "opengl_hooks_wgl.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
@@ -19,88 +20,6 @@
 #include <algorithm> // std::any_of, std::find_if
 
 #define gl gl3wProcs.gl
-
-struct wgl_attribute
-{
-	enum
-	{
-		// Pixel format attributes
-
-		WGL_NUMBER_PIXEL_FORMATS_ARB = 0x2000,
-		WGL_DRAW_TO_WINDOW_ARB = 0x2001,
-		WGL_DRAW_TO_BITMAP_ARB = 0x2002,
-		WGL_ACCELERATION_ARB = 0x2003,
-		WGL_NEED_PALETTE_ARB = 0x2004,
-		WGL_NEED_SYSTEM_PALETTE_ARB = 0x2005,
-		WGL_SWAP_LAYER_BUFFERS_ARB = 0x2006,
-		WGL_SWAP_METHOD_ARB = 0x2007,
-		WGL_NUMBER_OVERLAYS_ARB = 0x2008,
-		WGL_NUMBER_UNDERLAYS_ARB = 0x2009,
-		WGL_TRANSPARENT_ARB = 0x200A,
-		WGL_TRANSPARENT_RED_VALUE_ARB = 0x2037,
-		WGL_TRANSPARENT_GREEN_VALUE_ARB = 0x2038,
-		WGL_TRANSPARENT_BLUE_VALUE_ARB = 0x2039,
-		WGL_TRANSPARENT_ALPHA_VALUE_ARB = 0x203A,
-		WGL_TRANSPARENT_INDEX_VALUE_ARB = 0x203B,
-		WGL_SHARE_DEPTH_ARB = 0x200C,
-		WGL_SHARE_STENCIL_ARB = 0x200D,
-		WGL_SHARE_ACCUM_ARB = 0x200E,
-		WGL_SUPPORT_GDI_ARB = 0x200F,
-		WGL_SUPPORT_OPENGL_ARB = 0x2010,
-		WGL_DOUBLE_BUFFER_ARB = 0x2011,
-		WGL_STEREO_ARB = 0x2012,
-		WGL_PIXEL_TYPE_ARB = 0x2013,
-		WGL_COLOR_BITS_ARB = 0x2014,
-		WGL_RED_BITS_ARB = 0x2015,
-		WGL_RED_SHIFT_ARB = 0x2016,
-		WGL_GREEN_BITS_ARB = 0x2017,
-		WGL_GREEN_SHIFT_ARB = 0x2018,
-		WGL_BLUE_BITS_ARB = 0x2019,
-		WGL_BLUE_SHIFT_ARB = 0x201A,
-		WGL_ALPHA_BITS_ARB = 0x201B,
-		WGL_ALPHA_SHIFT_ARB = 0x201C,
-		WGL_ACCUM_BITS_ARB = 0x201D,
-		WGL_ACCUM_RED_BITS_ARB = 0x201E,
-		WGL_ACCUM_GREEN_BITS_ARB = 0x201F,
-		WGL_ACCUM_BLUE_BITS_ARB = 0x2020,
-		WGL_ACCUM_ALPHA_BITS_ARB = 0x2021,
-		WGL_DEPTH_BITS_ARB = 0x2022,
-		WGL_STENCIL_BITS_ARB = 0x2023,
-		WGL_AUX_BUFFERS_ARB = 0x2024,
-		WGL_DRAW_TO_PBUFFER_ARB = 0x202D,
-		WGL_SAMPLE_BUFFERS_ARB = 0x2041,
-		WGL_SAMPLES_ARB = 0x2042,
-		WGL_BIND_TO_TEXTURE_RGB_ARB = 0x2070,
-		WGL_BIND_TO_TEXTURE_RGBA_ARB = 0x2071,
-		WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB = 0x20A9,
-
-		WGL_NO_ACCELERATION_ARB = 0x2025,
-		WGL_GENERIC_ACCELERATION_ARB = 0x2026,
-		WGL_FULL_ACCELERATION_ARB = 0x2027,
-		WGL_SWAP_EXCHANGE_ARB = 0x2028,
-		WGL_SWAP_COPY_ARB = 0x2029,
-		WGL_SWAP_UNDEFINED_ARB = 0x202A,
-		WGL_TYPE_RGBA_ARB = 0x202B,
-		WGL_TYPE_COLORINDEX_ARB = 0x202C,
-
-		// Context creation attributes
-
-		WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091,
-		WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092,
-		WGL_CONTEXT_LAYER_PLANE_ARB = 0x2093,
-		WGL_CONTEXT_FLAGS_ARB = 0x2094,
-		WGL_CONTEXT_PROFILE_MASK_ARB = 0x9126,
-
-		WGL_CONTEXT_DEBUG_BIT_ARB = 0x0001,
-		WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB = 0x0002,
-		WGL_CONTEXT_CORE_PROFILE_BIT_ARB = 0x00000001,
-		WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB = 0x00000002,
-	};
-
-	int name, value;
-};
-
-DECLARE_HANDLE(HPBUFFERARB);
 
 static bool s_hooks_installed = false;
 static std::shared_mutex s_global_mutex;
@@ -1682,231 +1601,231 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	if (!s_hooks_installed)
 	{
 #if 1
-	#define HOOK_PROC(name) \
+	#define RESHADE_OPENGL_HOOK_PROC(name) \
 		reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
 #else
 	// This does not work because the hooks are not registered and thus 'reshade::hooks::call' will fail
-	#define HOOK_PROC(name) \
+	#define RESHADE_OPENGL_HOOK_PROC(name) \
 		if (0 == std::strcmp(lpszProc, #name)) \
 			return reinterpret_cast<PROC>(name)
 #endif
 
 #if RESHADE_ADDON
 #ifdef GL_VERSION_1_2
-		HOOK_PROC(glTexImage3D);
-		HOOK_PROC(glTexSubImage3D);
-		HOOK_PROC(glCopyTexSubImage3D);
-		HOOK_PROC(glDrawRangeElements);
+		RESHADE_OPENGL_HOOK_PROC(glTexImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glTexSubImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glCopyTexSubImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glDrawRangeElements);
 #endif
 #ifdef GL_VERSION_1_3
-		HOOK_PROC(glCompressedTexImage1D);
-		HOOK_PROC(glCompressedTexImage2D);
-		HOOK_PROC(glCompressedTexImage3D);
-		HOOK_PROC(glCompressedTexSubImage1D);
-		HOOK_PROC(glCompressedTexSubImage2D);
-		HOOK_PROC(glCompressedTexSubImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTexImage1D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTexImage2D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTexImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTexSubImage1D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTexSubImage2D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTexSubImage3D);
 #endif
 #ifdef GL_VERSION_1_4
-		HOOK_PROC(glBlendFuncSeparate);
-		HOOK_PROC(glBlendColor);
-		HOOK_PROC(glBlendEquation);
-		HOOK_PROC(glMultiDrawArrays);
-		HOOK_PROC(glMultiDrawElements);
+		RESHADE_OPENGL_HOOK_PROC(glBlendFuncSeparate);
+		RESHADE_OPENGL_HOOK_PROC(glBlendColor);
+		RESHADE_OPENGL_HOOK_PROC(glBlendEquation);
+		RESHADE_OPENGL_HOOK_PROC(glMultiDrawArrays);
+		RESHADE_OPENGL_HOOK_PROC(glMultiDrawElements);
 #endif
 #ifdef GL_VERSION_1_5
-		HOOK_PROC(glDeleteBuffers);
-		HOOK_PROC(glBufferData);
-		HOOK_PROC(glBufferSubData);
-		HOOK_PROC(glMapBuffer);
-		HOOK_PROC(glUnmapBuffer);
-		HOOK_PROC(glBindBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glDeleteBuffers);
+		RESHADE_OPENGL_HOOK_PROC(glBufferData);
+		RESHADE_OPENGL_HOOK_PROC(glBufferSubData);
+		RESHADE_OPENGL_HOOK_PROC(glMapBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glUnmapBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glBindBuffer);
 #endif
 #ifdef GL_VERSION_2_0
-		HOOK_PROC(glDeleteProgram);
-		HOOK_PROC(glLinkProgram);
-		HOOK_PROC(glShaderSource);
-		HOOK_PROC(glUseProgram);
-		HOOK_PROC(glBlendEquationSeparate);
-		HOOK_PROC(glStencilFuncSeparate);
-		HOOK_PROC(glStencilOpSeparate);
-		HOOK_PROC(glStencilMaskSeparate);
-		HOOK_PROC(glUniform1f);
-		HOOK_PROC(glUniform2f);
-		HOOK_PROC(glUniform3f);
-		HOOK_PROC(glUniform4f);
-		HOOK_PROC(glUniform1i);
-		HOOK_PROC(glUniform2i);
-		HOOK_PROC(glUniform3i);
-		HOOK_PROC(glUniform4i);
-		HOOK_PROC(glUniform1fv);
-		HOOK_PROC(glUniform2fv);
-		HOOK_PROC(glUniform3fv);
-		HOOK_PROC(glUniform4fv);
-		HOOK_PROC(glUniform1iv);
-		HOOK_PROC(glUniform2iv);
-		HOOK_PROC(glUniform3iv);
-		HOOK_PROC(glUniform4iv);
-		HOOK_PROC(glUniformMatrix2fv);
-		HOOK_PROC(glUniformMatrix3fv);
-		HOOK_PROC(glUniformMatrix4fv);
-		HOOK_PROC(glVertexAttribPointer);
+		RESHADE_OPENGL_HOOK_PROC(glDeleteProgram);
+		RESHADE_OPENGL_HOOK_PROC(glLinkProgram);
+		RESHADE_OPENGL_HOOK_PROC(glShaderSource);
+		RESHADE_OPENGL_HOOK_PROC(glUseProgram);
+		RESHADE_OPENGL_HOOK_PROC(glBlendEquationSeparate);
+		RESHADE_OPENGL_HOOK_PROC(glStencilFuncSeparate);
+		RESHADE_OPENGL_HOOK_PROC(glStencilOpSeparate);
+		RESHADE_OPENGL_HOOK_PROC(glStencilMaskSeparate);
+		RESHADE_OPENGL_HOOK_PROC(glUniform1f);
+		RESHADE_OPENGL_HOOK_PROC(glUniform2f);
+		RESHADE_OPENGL_HOOK_PROC(glUniform3f);
+		RESHADE_OPENGL_HOOK_PROC(glUniform4f);
+		RESHADE_OPENGL_HOOK_PROC(glUniform1i);
+		RESHADE_OPENGL_HOOK_PROC(glUniform2i);
+		RESHADE_OPENGL_HOOK_PROC(glUniform3i);
+		RESHADE_OPENGL_HOOK_PROC(glUniform4i);
+		RESHADE_OPENGL_HOOK_PROC(glUniform1fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform2fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform3fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform4fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform1iv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform2iv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform3iv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform4iv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix2fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix3fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix4fv);
+		RESHADE_OPENGL_HOOK_PROC(glVertexAttribPointer);
 #endif
 #ifdef GL_VERSION_2_1
-		HOOK_PROC(glUniformMatrix2x3fv);
-		HOOK_PROC(glUniformMatrix3x2fv);
-		HOOK_PROC(glUniformMatrix2x4fv);
-		HOOK_PROC(glUniformMatrix4x2fv);
-		HOOK_PROC(glUniformMatrix3x4fv);
-		HOOK_PROC(glUniformMatrix4x3fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix2x3fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix3x2fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix2x4fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix4x2fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix3x4fv);
+		RESHADE_OPENGL_HOOK_PROC(glUniformMatrix4x3fv);
 #endif
 #ifdef GL_VERSION_3_0
-		HOOK_PROC(glMapBufferRange);
-		HOOK_PROC(glDeleteRenderbuffers);
-		HOOK_PROC(glFramebufferTexture1D);
-		HOOK_PROC(glFramebufferTexture2D);
-		HOOK_PROC(glFramebufferTexture3D);
-		HOOK_PROC(glFramebufferTextureLayer);
-		HOOK_PROC(glFramebufferRenderbuffer);
-		HOOK_PROC(glRenderbufferStorage);
-		HOOK_PROC(glRenderbufferStorageMultisample);
-		HOOK_PROC(glClearBufferiv);
-		HOOK_PROC(glClearBufferuiv);
-		HOOK_PROC(glClearBufferfv);
-		HOOK_PROC(glClearBufferfi);
-		HOOK_PROC(glBlitFramebuffer);
-		HOOK_PROC(glGenerateMipmap);
-		HOOK_PROC(glBindBufferBase);
-		HOOK_PROC(glBindBufferRange);
-		HOOK_PROC(glBindFramebuffer);
-		HOOK_PROC(glBindVertexArray);
-		HOOK_PROC(glUniform1ui);
-		HOOK_PROC(glUniform2ui);
-		HOOK_PROC(glUniform3ui);
-		HOOK_PROC(glUniform4ui);
-		HOOK_PROC(glUniform1uiv);
-		HOOK_PROC(glUniform2uiv);
-		HOOK_PROC(glUniform3uiv);
-		HOOK_PROC(glUniform4uiv);
-		HOOK_PROC(glDeleteVertexArrays);
-		HOOK_PROC(glVertexAttribIPointer);
+		RESHADE_OPENGL_HOOK_PROC(glMapBufferRange);
+		RESHADE_OPENGL_HOOK_PROC(glDeleteRenderbuffers);
+		RESHADE_OPENGL_HOOK_PROC(glFramebufferTexture1D);
+		RESHADE_OPENGL_HOOK_PROC(glFramebufferTexture2D);
+		RESHADE_OPENGL_HOOK_PROC(glFramebufferTexture3D);
+		RESHADE_OPENGL_HOOK_PROC(glFramebufferTextureLayer);
+		RESHADE_OPENGL_HOOK_PROC(glFramebufferRenderbuffer);
+		RESHADE_OPENGL_HOOK_PROC(glRenderbufferStorage);
+		RESHADE_OPENGL_HOOK_PROC(glRenderbufferStorageMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glClearBufferiv);
+		RESHADE_OPENGL_HOOK_PROC(glClearBufferuiv);
+		RESHADE_OPENGL_HOOK_PROC(glClearBufferfv);
+		RESHADE_OPENGL_HOOK_PROC(glClearBufferfi);
+		RESHADE_OPENGL_HOOK_PROC(glBlitFramebuffer);
+		RESHADE_OPENGL_HOOK_PROC(glGenerateMipmap);
+		RESHADE_OPENGL_HOOK_PROC(glBindBufferBase);
+		RESHADE_OPENGL_HOOK_PROC(glBindBufferRange);
+		RESHADE_OPENGL_HOOK_PROC(glBindFramebuffer);
+		RESHADE_OPENGL_HOOK_PROC(glBindVertexArray);
+		RESHADE_OPENGL_HOOK_PROC(glUniform1ui);
+		RESHADE_OPENGL_HOOK_PROC(glUniform2ui);
+		RESHADE_OPENGL_HOOK_PROC(glUniform3ui);
+		RESHADE_OPENGL_HOOK_PROC(glUniform4ui);
+		RESHADE_OPENGL_HOOK_PROC(glUniform1uiv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform2uiv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform3uiv);
+		RESHADE_OPENGL_HOOK_PROC(glUniform4uiv);
+		RESHADE_OPENGL_HOOK_PROC(glDeleteVertexArrays);
+		RESHADE_OPENGL_HOOK_PROC(glVertexAttribIPointer);
 #endif
 #ifdef GL_VERSION_3_1
-		HOOK_PROC(glTexBuffer);
-		HOOK_PROC(glCopyBufferSubData);
-		HOOK_PROC(glDrawArraysInstanced);
-		HOOK_PROC(glDrawElementsInstanced);
+		RESHADE_OPENGL_HOOK_PROC(glTexBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glCopyBufferSubData);
+		RESHADE_OPENGL_HOOK_PROC(glDrawArraysInstanced);
+		RESHADE_OPENGL_HOOK_PROC(glDrawElementsInstanced);
 #endif
 #ifdef GL_VERSION_3_2
-		HOOK_PROC(glFramebufferTexture);
-		HOOK_PROC(glTexImage2DMultisample);
-		HOOK_PROC(glTexImage3DMultisample);
-		HOOK_PROC(glDrawElementsBaseVertex);
-		HOOK_PROC(glDrawRangeElementsBaseVertex);
-		HOOK_PROC(glDrawElementsInstancedBaseVertex);
-		HOOK_PROC(glMultiDrawElementsBaseVertex);
+		RESHADE_OPENGL_HOOK_PROC(glFramebufferTexture);
+		RESHADE_OPENGL_HOOK_PROC(glTexImage2DMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glTexImage3DMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glDrawElementsBaseVertex);
+		RESHADE_OPENGL_HOOK_PROC(glDrawRangeElementsBaseVertex);
+		RESHADE_OPENGL_HOOK_PROC(glDrawElementsInstancedBaseVertex);
+		RESHADE_OPENGL_HOOK_PROC(glMultiDrawElementsBaseVertex);
 #endif
 #ifdef GL_VERSION_4_0
-		HOOK_PROC(glDrawArraysIndirect);
-		HOOK_PROC(glDrawElementsIndirect);
+		RESHADE_OPENGL_HOOK_PROC(glDrawArraysIndirect);
+		RESHADE_OPENGL_HOOK_PROC(glDrawElementsIndirect);
 #endif
 #ifdef GL_VERSION_4_1
-		HOOK_PROC(glScissorArrayv);
-		HOOK_PROC(glScissorIndexed);
-		HOOK_PROC(glScissorIndexedv);
-		HOOK_PROC(glViewportArrayv);
-		HOOK_PROC(glViewportIndexedf);
-		HOOK_PROC(glViewportIndexedfv);
-		HOOK_PROC(glVertexAttribLPointer);
+		RESHADE_OPENGL_HOOK_PROC(glScissorArrayv);
+		RESHADE_OPENGL_HOOK_PROC(glScissorIndexed);
+		RESHADE_OPENGL_HOOK_PROC(glScissorIndexedv);
+		RESHADE_OPENGL_HOOK_PROC(glViewportArrayv);
+		RESHADE_OPENGL_HOOK_PROC(glViewportIndexedf);
+		RESHADE_OPENGL_HOOK_PROC(glViewportIndexedfv);
+		RESHADE_OPENGL_HOOK_PROC(glVertexAttribLPointer);
 #endif
 #ifdef GL_VERSION_4_2
-		HOOK_PROC(glTexStorage1D);
-		HOOK_PROC(glTexStorage2D);
-		HOOK_PROC(glTexStorage3D);
-		HOOK_PROC(glBindImageTexture);
-		HOOK_PROC(glDrawArraysInstancedBaseInstance);
-		HOOK_PROC(glDrawElementsInstancedBaseInstance);
-		HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
+		RESHADE_OPENGL_HOOK_PROC(glTexStorage1D);
+		RESHADE_OPENGL_HOOK_PROC(glTexStorage2D);
+		RESHADE_OPENGL_HOOK_PROC(glTexStorage3D);
+		RESHADE_OPENGL_HOOK_PROC(glBindImageTexture);
+		RESHADE_OPENGL_HOOK_PROC(glDrawArraysInstancedBaseInstance);
+		RESHADE_OPENGL_HOOK_PROC(glDrawElementsInstancedBaseInstance);
+		RESHADE_OPENGL_HOOK_PROC(glDrawElementsInstancedBaseVertexBaseInstance);
 #endif
 #ifdef GL_VERSION_4_3
-		HOOK_PROC(glTextureView);
-		HOOK_PROC(glTexBufferRange);
-		HOOK_PROC(glTexStorage2DMultisample);
-		HOOK_PROC(glTexStorage3DMultisample);
-		HOOK_PROC(glCopyImageSubData);
-		HOOK_PROC(glBindVertexBuffer);
-		HOOK_PROC(glDispatchCompute);
-		HOOK_PROC(glDispatchComputeIndirect);
-		HOOK_PROC(glMultiDrawArraysIndirect);
-		HOOK_PROC(glMultiDrawElementsIndirect);
+		RESHADE_OPENGL_HOOK_PROC(glTextureView);
+		RESHADE_OPENGL_HOOK_PROC(glTexBufferRange);
+		RESHADE_OPENGL_HOOK_PROC(glTexStorage2DMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glTexStorage3DMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glCopyImageSubData);
+		RESHADE_OPENGL_HOOK_PROC(glBindVertexBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glDispatchCompute);
+		RESHADE_OPENGL_HOOK_PROC(glDispatchComputeIndirect);
+		RESHADE_OPENGL_HOOK_PROC(glMultiDrawArraysIndirect);
+		RESHADE_OPENGL_HOOK_PROC(glMultiDrawElementsIndirect);
 #endif
 #ifdef GL_VERSION_4_4
-		HOOK_PROC(glBufferStorage);
-		HOOK_PROC(glBindBuffersBase);
-		HOOK_PROC(glBindBuffersRange);
-		HOOK_PROC(glBindTextures);
-		HOOK_PROC(glBindImageTextures);
-		HOOK_PROC(glBindVertexBuffers);
+		RESHADE_OPENGL_HOOK_PROC(glBufferStorage);
+		RESHADE_OPENGL_HOOK_PROC(glBindBuffersBase);
+		RESHADE_OPENGL_HOOK_PROC(glBindBuffersRange);
+		RESHADE_OPENGL_HOOK_PROC(glBindTextures);
+		RESHADE_OPENGL_HOOK_PROC(glBindImageTextures);
+		RESHADE_OPENGL_HOOK_PROC(glBindVertexBuffers);
 #endif
 #ifdef GL_VERSION_4_5
-		HOOK_PROC(glTextureBuffer);
-		HOOK_PROC(glTextureBufferRange);
-		HOOK_PROC(glNamedBufferData);
-		HOOK_PROC(glNamedBufferStorage);
-		HOOK_PROC(glTextureStorage1D);
-		HOOK_PROC(glTextureStorage2D);
-		HOOK_PROC(glTextureStorage2DMultisample);
-		HOOK_PROC(glTextureStorage3D);
-		HOOK_PROC(glTextureStorage3DMultisample);
-		HOOK_PROC(glNamedBufferSubData);
-		HOOK_PROC(glTextureSubImage1D);
-		HOOK_PROC(glTextureSubImage2D);
-		HOOK_PROC(glTextureSubImage3D);
-		HOOK_PROC(glCompressedTextureSubImage1D);
-		HOOK_PROC(glCompressedTextureSubImage2D);
-		HOOK_PROC(glCompressedTextureSubImage3D);
-		HOOK_PROC(glCopyTextureSubImage1D);
-		HOOK_PROC(glCopyTextureSubImage2D);
-		HOOK_PROC(glCopyTextureSubImage3D);
-		HOOK_PROC(glMapNamedBuffer);
-		HOOK_PROC(glMapNamedBufferRange);
-		HOOK_PROC(glUnmapNamedBuffer);
-		HOOK_PROC(glCopyNamedBufferSubData);
-		HOOK_PROC(glNamedRenderbufferStorage);
-		HOOK_PROC(glNamedRenderbufferStorageMultisample);
-		HOOK_PROC(glClearNamedFramebufferiv);
-		HOOK_PROC(glClearNamedFramebufferuiv);
-		HOOK_PROC(glClearNamedFramebufferfv);
-		HOOK_PROC(glClearNamedFramebufferfi);
-		HOOK_PROC(glBlitNamedFramebuffer);
-		HOOK_PROC(glGenerateTextureMipmap);
-		HOOK_PROC(glBindTextureUnit);
+		RESHADE_OPENGL_HOOK_PROC(glTextureBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glTextureBufferRange);
+		RESHADE_OPENGL_HOOK_PROC(glNamedBufferData);
+		RESHADE_OPENGL_HOOK_PROC(glNamedBufferStorage);
+		RESHADE_OPENGL_HOOK_PROC(glTextureStorage1D);
+		RESHADE_OPENGL_HOOK_PROC(glTextureStorage2D);
+		RESHADE_OPENGL_HOOK_PROC(glTextureStorage2DMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glTextureStorage3D);
+		RESHADE_OPENGL_HOOK_PROC(glTextureStorage3DMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glNamedBufferSubData);
+		RESHADE_OPENGL_HOOK_PROC(glTextureSubImage1D);
+		RESHADE_OPENGL_HOOK_PROC(glTextureSubImage2D);
+		RESHADE_OPENGL_HOOK_PROC(glTextureSubImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTextureSubImage1D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTextureSubImage2D);
+		RESHADE_OPENGL_HOOK_PROC(glCompressedTextureSubImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glCopyTextureSubImage1D);
+		RESHADE_OPENGL_HOOK_PROC(glCopyTextureSubImage2D);
+		RESHADE_OPENGL_HOOK_PROC(glCopyTextureSubImage3D);
+		RESHADE_OPENGL_HOOK_PROC(glMapNamedBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glMapNamedBufferRange);
+		RESHADE_OPENGL_HOOK_PROC(glUnmapNamedBuffer);
+		RESHADE_OPENGL_HOOK_PROC(glCopyNamedBufferSubData);
+		RESHADE_OPENGL_HOOK_PROC(glNamedRenderbufferStorage);
+		RESHADE_OPENGL_HOOK_PROC(glNamedRenderbufferStorageMultisample);
+		RESHADE_OPENGL_HOOK_PROC(glClearNamedFramebufferiv);
+		RESHADE_OPENGL_HOOK_PROC(glClearNamedFramebufferuiv);
+		RESHADE_OPENGL_HOOK_PROC(glClearNamedFramebufferfv);
+		RESHADE_OPENGL_HOOK_PROC(glClearNamedFramebufferfi);
+		RESHADE_OPENGL_HOOK_PROC(glBlitNamedFramebuffer);
+		RESHADE_OPENGL_HOOK_PROC(glGenerateTextureMipmap);
+		RESHADE_OPENGL_HOOK_PROC(glBindTextureUnit);
 #endif
 
 		// GL_ARB_vertex_program / GL_ARB_fragment_program
-		HOOK_PROC(glBindProgramARB);
-		HOOK_PROC(glProgramStringARB);
-		HOOK_PROC(glDeleteProgramsARB);
+		RESHADE_OPENGL_HOOK_PROC(glBindProgramARB);
+		RESHADE_OPENGL_HOOK_PROC(glProgramStringARB);
+		RESHADE_OPENGL_HOOK_PROC(glDeleteProgramsARB);
 
 		// GL_EXT_framebuffer_object
-		HOOK_PROC(glBindFramebufferEXT);
+		RESHADE_OPENGL_HOOK_PROC(glBindFramebufferEXT);
 
 		// GL_EXT_direct_state_access
-		HOOK_PROC(glBindMultiTextureEXT);
+		RESHADE_OPENGL_HOOK_PROC(glBindMultiTextureEXT);
 #endif
 
 		// WGL_ARB_create_context
-		HOOK_PROC(wglCreateContextAttribsARB);
+		RESHADE_OPENGL_HOOK_PROC(wglCreateContextAttribsARB);
 
 		// WGL_ARB_pbuffer
-		HOOK_PROC(wglCreatePbufferARB);
-		HOOK_PROC(wglDestroyPbufferARB);
-		HOOK_PROC(wglGetPbufferDCARB);
-		HOOK_PROC(wglReleasePbufferDCARB);
+		RESHADE_OPENGL_HOOK_PROC(wglCreatePbufferARB);
+		RESHADE_OPENGL_HOOK_PROC(wglDestroyPbufferARB);
+		RESHADE_OPENGL_HOOK_PROC(wglGetPbufferDCARB);
+		RESHADE_OPENGL_HOOK_PROC(wglReleasePbufferDCARB);
 
 		// WGL_ARB_pixel_format
-		HOOK_PROC(wglChoosePixelFormatARB);
-		HOOK_PROC(wglGetPixelFormatAttribivARB);
-		HOOK_PROC(wglGetPixelFormatAttribfvARB);
+		RESHADE_OPENGL_HOOK_PROC(wglChoosePixelFormatARB);
+		RESHADE_OPENGL_HOOK_PROC(wglGetPixelFormatAttribivARB);
+		RESHADE_OPENGL_HOOK_PROC(wglGetPixelFormatAttribfvARB);
 
 		// Install all OpenGL hooks in a single batch job
 		reshade::hook::apply_queued_actions();

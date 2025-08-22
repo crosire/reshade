@@ -48,6 +48,7 @@ void reshade::input::register_window_with_raw_input(window_handle window, bool n
 
 	if (!insert.second) insert.first->second |= flags;
 }
+
 std::shared_ptr<reshade::input> reshade::input::register_window(window_handle window)
 {
 	assert(window != nullptr);
