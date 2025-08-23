@@ -35,6 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
+#include "hide_hdr.hpp"
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -1028,6 +1029,11 @@ void reshade::runtime::save_config() const
 #if RESHADE_GUI
 	save_config_gui(config);
 #endif
+}
+
+void reshade::runtime::set_hide_hdr(bool enabled)
+{
+	reshade::hide_hdr = enabled ? 1 : 0;
 }
 
 void reshade::runtime::load_current_preset()

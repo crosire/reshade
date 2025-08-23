@@ -169,6 +169,9 @@ namespace reshade
 
 		void set_color_space(api::color_space color_space) final;
 
+		// Allow add-ons to enable/disable HDR masking at runtime
+		void set_hide_hdr(bool enabled) final;
+
 		void reload_effect_next_frame(const char *effect_name) final;
 
 	private:

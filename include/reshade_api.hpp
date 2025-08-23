@@ -795,6 +795,13 @@ namespace reshade { namespace api
 		virtual void set_color_space(color_space color_space) = 0;
 
 		/// <summary>
+		/// Enables or disables HDR hiding behavior in the underlying runtime.
+		/// When enabled, ReShade will mask HDR capabilities from D3D11 applications.
+		/// </summary>
+		/// <param name="enabled">Set to true to hide HDR, or false to restore normal behavior.</param>
+		virtual void set_hide_hdr(bool enabled) = 0;
+
+		/// <summary>
 		/// Resets the value of the specified uniform <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
