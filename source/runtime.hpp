@@ -440,7 +440,10 @@ namespace reshade
 
 		bool _is_font_scaling = false;
 		bool _no_font_scaling = false;
-		bool _block_input_next_frame = false;
+		bool _block_input_next_frame = false;		
+		bool _block_mouse_input = false;
+		bool _block_keyboard_input = false;
+		bool _block_mouse_cursor_warping = false;
 		unsigned int _overlay_key_data[4];
 		unsigned int _fps_key_data[4] = {};
 		unsigned int _frametime_key_data[4] = {};

@@ -917,10 +917,10 @@ void reshade::runtime::draw_gui()
 		)
 	{
 		if (_input != nullptr)
-		{
-			_input->block_mouse_input(false);
-			_input->block_keyboard_input(false);
-			_input->block_mouse_cursor_warping(false);
+		{			
+			_input->block_mouse_input(_block_mouse_input);
+			_input->block_keyboard_input(_block_keyboard_input);
+			_input->block_mouse_cursor_warping(_block_mouse_cursor_warping);
 		}
 		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
