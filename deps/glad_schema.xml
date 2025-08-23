@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ProjectSchemaDefinitions xmlns="http://schemas.microsoft.com/build/2009/properties" xmlns:sys="clr-namespace:System;assembly=mscorlib">
+  <Rule Name="Glad" PageTemplate="generic" DisplayName="Glad Generator" Order="7">
+    <Rule.Categories>
+      <Category Name="API" DisplayName="API" />
+      <Category Name="Global" DisplayName="Global" />
+    </Rule.Categories>
+    <Rule.DataSource>
+      <DataSource Persistence="ProjectFile" Label="" />
+    </Rule.DataSource>
+    <StringProperty Name="GladGLVersion" DisplayName="OpenGL Version" Description="Specifies the OpenGL API version in format gl:profile=version." Category="API" />
+    <StringListProperty Name="GladGLExtensions" DisplayName="OpenGL Extensions" Description="Specifies the OpenGL extensions to include." Category="API" />
+    <StringProperty Name="GladWGLVersion" DisplayName="WGL Version" Description="Specifies the WGL API version in format wgl=version." Category="API" />
+    <StringListProperty Name="GladWGLExtensions" DisplayName="WGL Extensions" Description="Specifies the WGL extensions to include." Category="API" />
+    <StringProperty Name="GladVulkanVersion" DisplayName="Vulkan Version" Description="Specifies the Vulkan API version in format vk=version." Category="API" />
+    <StringListProperty Name="GladVulkanExtensions" DisplayName="Vulkan Extensions" Description="Specifies the Vulkan extensions to include." Category="API" />
+    <BoolProperty Name="GladQuiet" DisplayName="Quiet" Description="Disables logging (--quiet)." Category="Global" Switch="--quiet" />
+    <BoolProperty Name="GladReproducible" DisplayName="Reproducible" Description="Makes the build reproducible by not fetching the latest specification from Khronos (--reproducible)." Category="Global" Switch="--reproducible" />
+  </Rule>
+</ProjectSchemaDefinitions>
