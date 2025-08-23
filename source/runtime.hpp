@@ -87,6 +87,11 @@ namespace reshade
 
 		void block_input_next_frame() final;
 
+	// Input blocking API
+	virtual void block_mouse_input(bool enable) final;
+	virtual void block_keyboard_input(bool enable) final;
+	virtual void block_mouse_cursor_warping(bool enable) final;
+
 		void enumerate_uniform_variables(const char *effect_name, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data) final;
 
 		api::effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const final;
@@ -436,6 +441,11 @@ namespace reshade
 		bool _is_font_scaling = false;
 		bool _no_font_scaling = false;
 		bool _block_input_next_frame = false;
+		
+		// Input blocking state
+		bool _block_mouse_input = false;
+		bool _block_keyboard_input = false;
+		bool _block_mouse_cursor_warping = false;
 		unsigned int _overlay_key_data[4];
 		unsigned int _fps_key_data[4] = {};
 		unsigned int _frametime_key_data[4] = {};

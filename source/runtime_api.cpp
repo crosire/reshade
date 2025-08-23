@@ -64,6 +64,21 @@ void reshade::runtime::block_input_next_frame()
 #endif
 }
 
+void reshade::runtime::block_mouse_input(bool enable)
+{
+	_block_mouse_input = enable;
+}
+
+void reshade::runtime::block_keyboard_input(bool enable)
+{
+	_block_keyboard_input = enable;
+}
+
+void reshade::runtime::block_mouse_cursor_warping(bool enable)
+{
+	_block_mouse_cursor_warping = enable;
+}
+
 void reshade::runtime::enumerate_uniform_variables(const char *effect_name_in, void(*callback)(effect_runtime *runtime, api::effect_uniform_variable variable, void *user_data), void *user_data)
 {
 	if (is_loading())

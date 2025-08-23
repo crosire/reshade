@@ -48,6 +48,11 @@ RESHADE_API_LIBRARY_DECL bool ReShadeCreateEffectRuntime(reshade::api::device_ap
 RESHADE_API_LIBRARY_DECL void ReShadeDestroyEffectRuntime(reshade::api::effect_runtime *runtime);
 RESHADE_API_LIBRARY_DECL void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime);
 
+// Input blocking API
+RESHADE_API_LIBRARY_DECL void ReShadeBlockMouseInput(reshade::api::effect_runtime *runtime, bool enable);
+RESHADE_API_LIBRARY_DECL void ReShadeBlockKeyboardInput(reshade::api::effect_runtime *runtime, bool enable);
+RESHADE_API_LIBRARY_DECL void ReShadeBlockMouseCursorWarping(reshade::api::effect_runtime *runtime, bool enable);
+
 #else
 
 // Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
@@ -417,10 +422,63 @@ namespace reshade
 #if defined(RESHADE_API_LIBRARY)
 		ReShadeUpdateAndPresentEffectRuntime(runtime);
 #else
-		static const auto func = reinterpret_cast<void(*)(reshade::api::effect_runtime *)>(
+		static const auto func = reinterpret_cast<void(*)(api::effect_runtime *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUpdateAndPresentEffectRuntime"));
 		if (func != nullptr)
 			func(runtime);
 #endif
 	}
+
+	/// <summary>
+	/// Sets whether mouse input should be blocked from reaching the application.
+	/// </summary>
+	/// <param name="runtime">Effect runtime to control input blocking for.</param>
+	/// <param name="enable">Whether to enable mouse input blocking.</param>
+	inline void block_mouse_input(api::effect_runtime *runtime, bool enable)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		ReShadeBlockMouseInput(runtime, enable);
+#else
+		static const auto func = reinterpret_cast<void(*)(api::effect_runtime *, bool)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeBlockMouseInput"));
+		if (func != nullptr)
+			func(runtime, enable);
+#endif
+	}
+
+	/// <summary>
+	/// Sets whether keyboard input should be blocked from reaching the application.
+	/// </summary>
+	/// <param name="runtime">Effect runtime to control input blocking for.</param>
+	/// <param name="enable">Whether to enable keyboard input blocking.</param>
+	inline void block_keyboard_input(api::effect_runtime *runtime, bool enable)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		ReShadeBlockKeyboardInput(runtime, enable);
+#else
+		static const auto func = reinterpret_cast<void(*)(api::effect_runtime *, bool)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeBlockKeyboardInput"));
+		if (func != nullptr)
+			func(runtime, enable);
+#endif
+	}
+
+	/// <summary>
+	/// Sets whether mouse cursor warping should be blocked.
+	/// </summary>
+	/// <param name="runtime">Effect runtime to control input blocking for.</param>
+	/// <param name="enable">Whether to enable mouse cursor warping blocking.</param>
+	inline void block_mouse_cursor_warping(api::effect_runtime *runtime, bool enable)
+	{
+#if defined(RESHADE_API_LIBRARY)
+		ReShadeBlockMouseCursorWarping(runtime, enable);
+#else
+		static const auto func = reinterpret_cast<void(*)(api::effect_runtime *, bool)>(
+			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeBlockMouseCursorWarping"));
+		if (func != nullptr)
+			func(runtime, enable);
+#endif
+	}
+
+
 }

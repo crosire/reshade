@@ -812,5 +812,23 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="path">File path to the preset to save to.</param>
 		virtual void export_current_preset(const char *path) const = 0;
+
+		/// <summary>
+		/// Sets whether mouse input should be blocked from reaching the application.
+		/// </summary>
+		/// <param name="enable">Whether to enable mouse input blocking.</param>
+		virtual void block_mouse_input(bool enable) = 0;
+
+		/// <summary>
+		/// Sets whether keyboard input should be blocked from reaching the application.
+		/// </summary>
+		/// <param name="enable">Whether to enable keyboard input blocking.</param>
+		virtual void block_keyboard_input(bool enable) = 0;
+
+		/// <summary>
+		/// Sets whether mouse cursor warping should be blocked.
+		/// </summary>
+		/// <param name="enable">Whether to enable mouse cursor warping blocking.</param>
+		virtual void block_mouse_cursor_warping(bool enable) = 0;
 	};
 } }
