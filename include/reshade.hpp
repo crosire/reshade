@@ -48,11 +48,6 @@ RESHADE_API_LIBRARY_DECL bool ReShadeCreateEffectRuntime(reshade::api::device_ap
 RESHADE_API_LIBRARY_DECL void ReShadeDestroyEffectRuntime(reshade::api::effect_runtime *runtime);
 RESHADE_API_LIBRARY_DECL void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime);
 
-// Input blocking API
-RESHADE_API_LIBRARY_DECL void ReShadeBlockMouseInput(reshade::api::effect_runtime *runtime, bool enable);
-RESHADE_API_LIBRARY_DECL void ReShadeBlockKeyboardInput(reshade::api::effect_runtime *runtime, bool enable);
-RESHADE_API_LIBRARY_DECL void ReShadeBlockMouseCursorWarping(reshade::api::effect_runtime *runtime, bool enable);
-
 #else
 
 // Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
@@ -422,7 +417,7 @@ namespace reshade
 #if defined(RESHADE_API_LIBRARY)
 		ReShadeUpdateAndPresentEffectRuntime(runtime);
 #else
-		static const auto func = reinterpret_cast<void(*)(api::effect_runtime *)>(
+		static const auto func = reinterpret_cast<void(*)(reshade::api::effect_runtime *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUpdateAndPresentEffectRuntime"));
 		if (func != nullptr)
 			func(runtime);
