@@ -550,39 +550,39 @@ void reshade::runtime::load_custom_style()
 	case 1:
 		ImGui::StyleColorsLight(&_imgui_context->Style);
 		break;
-	case 2:
-		colors[ImGuiCol_Text] = ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f);
-		colors[ImGuiCol_TextDisabled] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.58f);
-		colors[ImGuiCol_WindowBg] = ImVec4(0.117647f, 0.117647f, 0.117647f, 1.00f);
-		colors[ImGuiCol_ChildBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.00f);
-		colors[ImGuiCol_Border] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.30f);
-		colors[ImGuiCol_FrameBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 1.00f);
-		colors[ImGuiCol_FrameBgHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.470588f);
-		colors[ImGuiCol_FrameBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.588235f);
-		colors[ImGuiCol_TitleBg] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.45f);
-		colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.35f);
-		colors[ImGuiCol_TitleBgActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.58f);
-		colors[ImGuiCol_MenuBarBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 0.57f);
-		colors[ImGuiCol_ScrollbarBg] = ImVec4(0.156863f, 0.156863f, 0.156863f, 1.00f);
-		colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.31f);
-		colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
-		colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
-		colors[ImGuiCol_PopupBg] = ImVec4(0.117647f, 0.117647f, 0.117647f, 0.92f);
-		colors[ImGuiCol_CheckMark] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.80f);
-		colors[ImGuiCol_SliderGrab] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.784314f);
-		colors[ImGuiCol_SliderGrabActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
-		colors[ImGuiCol_Button] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.44f);
-		colors[ImGuiCol_ButtonHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.86f);
-		colors[ImGuiCol_ButtonActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
-		colors[ImGuiCol_Header] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.76f);
-		colors[ImGuiCol_HeaderHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.86f);
-		colors[ImGuiCol_HeaderActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
-		colors[ImGuiCol_Separator] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.32f);
-		colors[ImGuiCol_SeparatorHovered] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.78f);
-		colors[ImGuiCol_SeparatorActive] = ImVec4(0.862745f, 0.862745f, 0.862745f, 1.00f);
-		colors[ImGuiCol_ResizeGrip] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.20f);
-		colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.78f);
-		colors[ImGuiCol_ResizeGripActive] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
+	case 2: // Cute Yellow Gaming Theme
+		colors[ImGuiCol_Text] = ImVec4(1.0f, 0.9f, 0.7f, 1.00f); // Warm cream text
+		colors[ImGuiCol_TextDisabled] = ImVec4(1.0f, 0.9f, 0.7f, 0.58f);
+		colors[ImGuiCol_WindowBg] = ImVec4(0.169f, 0.094f, 0.063f, 1.00f); // Dark brown background
+		colors[ImGuiCol_ChildBg] = ImVec4(0.2f, 0.12f, 0.08f, 0.00f);
+		colors[ImGuiCol_Border] = ImVec4(1.0f, 0.84f, 0.2f, 0.35f); // Golden border
+		colors[ImGuiCol_FrameBg] = ImVec4(0.25f, 0.15f, 0.1f, 1.00f); // Darker brown frame
+		colors[ImGuiCol_FrameBgHovered] = ImVec4(1.0f, 0.8f, 0.2f, 0.47f); // Bright yellow hover
+		colors[ImGuiCol_FrameBgActive] = ImVec4(1.0f, 0.8f, 0.2f, 0.59f);
+		colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.65f, 0.0f, 0.45f); // Orange title
+		colors[ImGuiCol_TitleBgCollapsed] = ImVec4(1.0f, 0.65f, 0.0f, 0.35f);
+		colors[ImGuiCol_TitleBgActive] = ImVec4(1.0f, 0.65f, 0.0f, 0.58f);
+		colors[ImGuiCol_MenuBarBg] = ImVec4(0.25f, 0.15f, 0.1f, 0.57f);
+		colors[ImGuiCol_ScrollbarBg] = ImVec4(0.25f, 0.15f, 0.1f, 1.00f);
+		colors[ImGuiCol_ScrollbarGrab] = ImVec4(1.0f, 0.8f, 0.2f, 0.31f); // Yellow scrollbar
+		colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(1.0f, 0.8f, 0.2f, 0.78f);
+		colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(1.0f, 0.8f, 0.2f, 1.00f);
+		colors[ImGuiCol_PopupBg] = ImVec4(0.169f, 0.094f, 0.063f, 0.92f);
+		colors[ImGuiCol_CheckMark] = ImVec4(1.0f, 0.84f, 0.2f, 0.80f); // Golden checkmark
+		colors[ImGuiCol_SliderGrab] = ImVec4(1.0f, 0.8f, 0.2f, 0.78f);
+		colors[ImGuiCol_SliderGrabActive] = ImVec4(1.0f, 0.8f, 0.2f, 1.00f);
+		colors[ImGuiCol_Button] = ImVec4(1.0f, 0.8f, 0.2f, 0.44f); // Yellow buttons
+		colors[ImGuiCol_ButtonHovered] = ImVec4(1.0f, 0.8f, 0.2f, 0.86f);
+		colors[ImGuiCol_ButtonActive] = ImVec4(1.0f, 0.65f, 0.0f, 1.00f); // Orange when pressed
+		colors[ImGuiCol_Header] = ImVec4(1.0f, 0.8f, 0.2f, 0.76f);
+		colors[ImGuiCol_HeaderHovered] = ImVec4(1.0f, 0.8f, 0.2f, 0.86f);
+		colors[ImGuiCol_HeaderActive] = ImVec4(1.0f, 0.65f, 0.0f, 1.00f);
+		colors[ImGuiCol_Separator] = ImVec4(1.0f, 0.84f, 0.2f, 0.32f);
+		colors[ImGuiCol_SeparatorHovered] = ImVec4(1.0f, 0.84f, 0.2f, 0.78f);
+		colors[ImGuiCol_SeparatorActive] = ImVec4(1.0f, 0.84f, 0.2f, 1.00f);
+		colors[ImGuiCol_ResizeGrip] = ImVec4(1.0f, 0.8f, 0.2f, 0.20f);
+		colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.0f, 0.8f, 0.2f, 0.78f);
+		colors[ImGuiCol_ResizeGripActive] = ImVec4(1.0f, 0.8f, 0.2f, 1.00f);
 		colors[ImGuiCol_Tab] = colors[ImGuiCol_Button];
 		colors[ImGuiCol_TabSelected] = colors[ImGuiCol_ButtonActive];
 		colors[ImGuiCol_TabSelectedOverline] = colors[ImGuiCol_ButtonActive];
@@ -591,12 +591,12 @@ void reshade::runtime::load_custom_style()
 		colors[ImGuiCol_TabDimmedSelected] = ImLerp(colors[ImGuiCol_TabSelected], colors[ImGuiCol_TitleBg], 0.40f);
 		colors[ImGuiCol_TabDimmedSelectedOverline] = colors[ImGuiCol_TabDimmedSelected];
 		colors[ImGuiCol_DockingPreview] = colors[ImGuiCol_Header] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
-		colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-		colors[ImGuiCol_PlotLines] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.63f);
-		colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
-		colors[ImGuiCol_PlotHistogram] = ImVec4(0.862745f, 0.862745f, 0.862745f, 0.63f);
-		colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.392157f, 0.588235f, 0.941176f, 1.00f);
-		colors[ImGuiCol_TextSelectedBg] = ImVec4(0.392157f, 0.588235f, 0.941176f, 0.43f);
+		colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.4f, 0.25f, 0.1f, 1.00f); // Lighter brown
+		colors[ImGuiCol_PlotLines] = ImVec4(1.0f, 0.9f, 0.7f, 0.63f);
+		colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.0f, 0.8f, 0.2f, 1.00f);
+		colors[ImGuiCol_PlotHistogram] = ImVec4(1.0f, 0.9f, 0.7f, 0.63f);
+		colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.0f, 0.8f, 0.2f, 1.00f);
+		colors[ImGuiCol_TextSelectedBg] = ImVec4(1.0f, 0.8f, 0.2f, 0.43f);
 		break;
 	case 5:
 		colors[ImGuiCol_Text] = ImColor(0xff969483);
@@ -3097,8 +3097,8 @@ void reshade::runtime::draw_gui_about()
 
 	ImGui::PushTextWrapPos();
 
-	ImGui::TextUnformatted(_("정렬을 위해 따로 정렬이 커스텀한 리쉐이드입니다."));
-	ImGui::TextUnformatted(_("This project makes use of several open source libraries, licenses of which are listed below:"));
+	ImGui::TextUnformatted(_("This is a reshade that is customized for JeongRyeol."));
+	ImGui::TextUnformatted(_("If you have any other questions, please contact Discord lovecat._.holic"));
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
 	{
