@@ -1669,6 +1669,7 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 				const D3D12_DESCRIPTOR_HEAP_TYPE type = heap_impl->_orig->GetDesc().Type;
 				*offset = static_cast<uint32_t>((handle_gpu.ptr - heap_impl->_orig_base_gpu_handle.ptr) / _descriptor_handle_size[type]) + binding;
 			}
+			return;
 		}
 	}
 #else
