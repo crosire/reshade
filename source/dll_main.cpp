@@ -8,8 +8,10 @@
 #include "ini_file.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
+#include "hwid_verification.hpp"
 #include <Windows.h>
 #include <Psapi.h>
+#include <intrin.h>
 #ifndef NDEBUG
 #include <DbgHelp.h>
 
@@ -206,6 +208,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				g_target_executable_path.u8string().c_str(),
 #endif
 				static_cast<unsigned int>(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
+
+			// Hardware ID verification
+			std::string current_hwid = reshade::hwid::generate_hwid();
+			reshade::log::message(reshade::log::level::info, "Current HWID: %s", current_hwid.c_str());
+			
+			if (!reshade::hwid::is_authorized()) {
+				reshade::log::message(reshade::log::level::error, "Hardware not authorized! Current HWID: %s", current_hwid.c_str());
+				MessageBoxA(nullptr, 
+					("ReShade License Error\n\nThis version of ReShade is licensed for specific hardware only.\nYour HWID: " + current_hwid).c_str(),
+					"ReShade Authorization Failed", 
+					MB_OK | MB_ICONERROR);
+				return FALSE;
+			}
+			
+			reshade::log::message(reshade::log::level::info, "Hardware authorization successful.");
 
 			// Check if another ReShade instance was already loaded into the process
 			if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
