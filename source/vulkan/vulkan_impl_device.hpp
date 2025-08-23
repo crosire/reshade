@@ -7,7 +7,7 @@
 
 #include <glad/vulkan.h>
 #pragma warning(push)
-#pragma warning(disable: 4100 4127 4324 4505 4189) // Disable a bunch of warnings thrown by VMA code
+#pragma warning(disable: 4100 4324 4189) // Disable a bunch of warnings thrown by VMA code
 #define VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
