@@ -3097,8 +3097,8 @@ void reshade::runtime::draw_gui_about()
 
 	ImGui::PushTextWrapPos();
 
-	ImGui::TextUnformatted(_("This is a reshade that is customized for JeongRyeol."));
-	ImGui::TextUnformatted(_("If you have any other questions, please contact Discord lovecat._.holic"));
+	ImGui::TextUnformatted("This is a reshade that is customized for JeongRyeol.");
+	ImGui::TextUnformatted("If you have any other questions, please contact Discord lovecat._.holic");
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
 	{
