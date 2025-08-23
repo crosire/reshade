@@ -1594,7 +1594,7 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 #if 1
 	#define RESHADE_OPENGL_HOOK_PROC(name) \
-		reshade::hooks::install(#name, reinterpret_cast<reshade::hook::address>(trampoline(#name)), reinterpret_cast<reshade::hook::address>(name), true)
+		reshade::hooks::install(#name, trampoline(#name), &name, true)
 #else
 	// This does not work because the hooks are not registered and thus 'reshade::hooks::call' will fail
 	#define RESHADE_OPENGL_HOOK_PROC(name) \

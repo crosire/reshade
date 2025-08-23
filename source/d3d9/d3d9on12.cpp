@@ -78,7 +78,7 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9On12(UINT SDKVersion, D3D9ON12_ARGS
 		return nullptr;
 	}
 
-	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
+	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(res), 16, &IDirect3D9_CreateDevice);
 
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Returning IDirect3D9 object %p.", res);
@@ -129,8 +129,8 @@ extern "C"     HRESULT WINAPI Direct3DCreate9On12Ex(UINT SDKVersion, D3D9ON12_AR
 
 	assert(ppOutputInterface != nullptr);
 
-	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(*ppOutputInterface), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
-	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppOutputInterface), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
+	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(*ppOutputInterface), 16, &IDirect3D9_CreateDevice);
+	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppOutputInterface), 20, &IDirect3D9Ex_CreateDeviceEx);
 
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Returning IDirect3D9Ex object %p.", *ppOutputInterface);

@@ -492,6 +492,7 @@ void reshade::hooks::uninstall()
 	{
 		const auto ntdll_module = GetModuleHandleW(L"ntdll.dll");
 		assert(ntdll_module != nullptr);
+
 		const auto LdrUnregisterDllNotification = reinterpret_cast<LONG(NTAPI *)(PVOID Cookie)>(GetProcAddress(ntdll_module, "LdrUnregisterDllNotification"));
 		if (LdrUnregisterDllNotification != nullptr)
 			LdrUnregisterDllNotification(s_dll_notification_cookie);
@@ -518,6 +519,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	{
 		const auto ntdll_module = GetModuleHandleW(L"ntdll.dll");
 		assert(ntdll_module != nullptr);
+
 		const auto LdrRegisterDllNotification = reinterpret_cast<LONG (NTAPI *)(ULONG Flags, FARPROC NotificationFunction, PVOID Context, PVOID *Cookie)>(GetProcAddress(ntdll_module, "LdrRegisterDllNotification"));
 		if (LdrRegisterDllNotification == nullptr ||
 			// The Steam overlay is using 'LoadLibrary' hooks, so always use them too if it is used, to ensure that ReShade installs hooks after the Steam overlay already did so

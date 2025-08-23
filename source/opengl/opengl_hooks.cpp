@@ -841,7 +841,7 @@ extern "C" void APIENTRY glEnable(GLenum cap)
 		reshade::api::dynamic_state state = { reshade::api::dynamic_state::unknown };
 		switch (cap)
 		{
-		case 0x0BC0 /* GL_ALPHA_TEST */:
+		case GL_ALPHA_TEST:
 			state = reshade::api::dynamic_state::alpha_test_enable;
 			break;
 		case GL_BLEND:
@@ -898,7 +898,7 @@ extern "C" void APIENTRY glDisable(GLenum cap)
 		reshade::api::dynamic_state state = reshade::api::dynamic_state::unknown;
 		switch (cap)
 		{
-		case 0x0BC0 /* GL_ALPHA_TEST */:
+		case GL_ALPHA_TEST:
 			state = reshade::api::dynamic_state::alpha_test_enable;
 			break;
 		case GL_BLEND:

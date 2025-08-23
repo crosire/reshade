@@ -174,7 +174,6 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 #endif
 	return VK_SUCCESS;
 }
-
 void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks *pAllocator)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroyInstance(instance = %p, pAllocator = %p) ...", instance, pAllocator);
@@ -208,7 +207,6 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 
 	return VK_SUCCESS;
 }
-
 void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroySurfaceKHR(instance = %p, surface = %p, pAllocator = %) ...", instance, surface, pAllocator);

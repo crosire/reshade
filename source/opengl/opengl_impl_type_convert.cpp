@@ -143,7 +143,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_ONE;
 			return GL_R16;
 		}
-		return 0x8042 /* GL_LUMINANCE16 */;
+		return GL_LUMINANCE16;
 
 	case api::format::r16g16_typeless:
 	case api::format::r16g16_float:
@@ -169,7 +169,7 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 			swizzle_mask[3] = GL_GREEN;
 			return GL_RG16;
 		}
-		return 0x8048 /* GL_LUMINANCE16_ALPHA16 */;
+		return GL_LUMINANCE16_ALPHA16;
 
 	case api::format::r16g16b16_typeless:
 	case api::format::r16g16b16_float:
@@ -324,10 +324,10 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 		internal_format != 4 &&
 		internal_format != GL_RED &&
 		internal_format != GL_ALPHA &&
-		internal_format != 0x1909 /* GL_LUMINANCE */ &&
-		internal_format != 0x8049 /* GL_INTENSITY */ &&
+		internal_format != GL_LUMINANCE &&
+		internal_format != GL_INTENSITY &&
 		internal_format != GL_RG &&
-		internal_format != 0x190A /* GL_LUMINANCE_ALPHA */ &&
+		internal_format != GL_LUMINANCE_ALPHA &&
 		internal_format != GL_RGB &&
 		internal_format != GL_RGBA &&
 		internal_format != GL_STENCIL_INDEX &&
@@ -356,7 +356,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_R8I:
 		return api::format::r8_sint;
 	case GL_LUMINANCE8_EXT: // { R, R, R, 1 }
-	case 0x804B /* GL_INTENSITY8 */: // { R, R, R, R }
+	case GL_INTENSITY8: // { R, R, R, R }
 		return api::format::l8_unorm;
 	case GL_ALPHA8_EXT:
 		return api::format::a8_unorm;
@@ -428,8 +428,8 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_ALPHA16F_EXT:
 		return api::format::a16_float;
 #endif
-	case 0x8042 /* GL_LUMINANCE16 */: // { R, R, R, 1 }
-	case 0x804D /* GL_INTENSITY16 */: // { R, R, R, R }
+	case GL_LUMINANCE16: // { R, R, R, 1 }
+	case GL_INTENSITY16: // { R, R, R, R }
 		return api::format::l16_unorm;
 
 	case GL_RG16F:
@@ -452,7 +452,7 @@ auto reshade::opengl::convert_format(GLenum internal_format, const GLint swizzle
 	case GL_LUMINANCE_ALPHA16F_EXT:
 		return api::format::l16a16_float;
 #endif
-	case 0x8048 /* GL_LUMINANCE16_ALPHA16 */: // { R, R, R, G }
+	case GL_LUMINANCE16_ALPHA16: // { R, R, R, G }
 		return api::format::l16a16_unorm;
 
 	case GL_RGB16F:
@@ -1072,8 +1072,8 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			assert(false);
 			return api::format::unknown;
 		}
-	case 0x1909 /* GL_LUMINANCE */:
-	case 0x8049 /* GL_INTENSITY */:
+	case GL_LUMINANCE:
+	case GL_INTENSITY:
 		switch (type)
 		{
 		case GL_UNSIGNED_BYTE:
@@ -1124,7 +1124,7 @@ auto reshade::opengl::convert_upload_format(GLenum format, GLenum type) -> api::
 			assert(false);
 			return api::format::unknown;
 		}
-	case 0x190A /* GL_LUMINANCE_ALPHA */:
+	case GL_LUMINANCE_ALPHA:
 		switch (type)
 		{
 		case GL_UNSIGNED_BYTE:
@@ -1512,28 +1512,28 @@ auto reshade::opengl::convert_sized_internal_format(GLenum internal_format, GLen
 	{
 	case 1:
 		if (format == GL_ALPHA)
-			return 0x803C /* GL_ALPHA8 */;
-		if (format == 0x1909 /* GL_LUMINANCE */)
-			return 0x8040 /* GL_LUMINANCE8 */;
-		if (format == 0x8049 /* GL_INTENSITY */)
-			return 0x804B /* GL_INTENSITY8 */;
+			return GL_ALPHA8;
+		if (format == GL_LUMINANCE)
+			return GL_LUMINANCE8;
+		if (format == GL_INTENSITY)
+			return GL_INTENSITY8;
 		[[fallthrough]];
 	case GL_RED:
 		return GL_R8;
 	case GL_ALPHA:
-		return 0x803C /* GL_ALPHA8 */;
-	case 0x1909 /* GL_LUMINANCE */:
-		return 0x8040 /* GL_LUMINANCE8 */;
-	case 0x8049 /* GL_INTENSITY */:
-		return 0x804B /* GL_INTENSITY8 */;
+		return GL_ALPHA8;
+	case GL_LUMINANCE:
+		return GL_LUMINANCE8;
+	case GL_INTENSITY:
+		return GL_INTENSITY8;
 	case 2:
-		if (format == 0x190A /* GL_LUMINANCE_ALPHA */) // Used by Penumbra: Overture
-			return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
+		if (format == GL_LUMINANCE_ALPHA) // Used by Penumbra: Overture
+			return GL_LUMINANCE8_ALPHA8;
 		[[fallthrough]];
 	case GL_RG:
 		return GL_RG8;
-	case 0x190A /* GL_LUMINANCE_ALPHA */:
-		return 0x8045 /* GL_LUMINANCE8_ALPHA8 */;
+	case GL_LUMINANCE_ALPHA:
+		return GL_LUMINANCE8_ALPHA8;
 	case 3:
 	case GL_RGB:
 		return GL_RGB8;
@@ -2337,9 +2337,9 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 		return api::primitive_topology::triangle_strip_adj;
 	case GL_QUADS:
 		return api::primitive_topology::quad_list;
-	case 0x0008 /* GL_QUAD_STRIP */:
+	case GL_QUAD_STRIP:
 		return api::primitive_topology::quad_strip;
-	case 0x0009 /* GL_POLYGON */:
+	case GL_POLYGON:
 		// Valid to draw a single, convex polygon between 'glBegin' and 'glEnd', but does not translate well
 		return api::primitive_topology::undefined;
 	case GL_PATCHES:
@@ -2366,7 +2366,7 @@ GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value
 	case api::primitive_topology::quad_list:
 		return GL_QUADS;
 	case api::primitive_topology::quad_strip:
-		return 0x0008 /* GL_QUAD_STRIP */;
+		return GL_QUAD_STRIP;
 	case api::primitive_topology::line_list_adj:
 		return GL_LINES_ADJACENCY;
 	case api::primitive_topology::line_strip_adj:

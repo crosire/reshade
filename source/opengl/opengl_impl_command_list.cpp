@@ -413,7 +413,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 
 	// Always disable alpha test in case the application set that (fixes broken GUI rendering in Quake)
 	if (_device_impl->_compatibility_context)
-		gl.Disable(0x0BC0 /* GL_ALPHA_TEST */);
+		gl.Disable(GL_ALPHA_TEST);
 
 	const auto pipeline_object = reinterpret_cast<pipeline_impl *>(pipeline.handle);
 
@@ -567,7 +567,7 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 		switch (states[i])
 		{
 		case api::dynamic_state::alpha_test_enable:
-			glEnableOrDisable(0x0BC0 /* GL_ALPHA_TEST */, values[i]);
+			glEnableOrDisable(GL_ALPHA_TEST, values[i]);
 			break;
 		case api::dynamic_state::srgb_write_enable:
 			glEnableOrDisable(GL_FRAMEBUFFER_SRGB, values[i]);

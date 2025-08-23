@@ -11,7 +11,6 @@
 #define VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
-
 #include "reshade_api_object_impl.hpp"
 #include <shared_mutex>
 #include <unordered_map>

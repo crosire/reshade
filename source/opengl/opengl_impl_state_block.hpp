@@ -16,8 +16,8 @@ namespace reshade::opengl
 	public:
 		explicit state_block(device_impl *device);
 
-		void capture(bool compatibility);
-		void apply(bool compatibility) const;
+		void capture();
+		void apply() const;
 
 	private:
 		device_impl *const _device_impl;

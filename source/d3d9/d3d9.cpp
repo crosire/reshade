@@ -80,12 +80,17 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 
 	if (pp.Windowed)
 	{
-		RECT window_rect = {};
-		GetClientRect(window, &window_rect);
-		if (pp.BackBufferWidth == 0)
+		// If either the width or height are zero, then the swap chain will be sized to the current window size
+		if (pp.BackBufferWidth == 0 || pp.BackBufferHeight == 0)
+		{
+			RECT window_rect = {};
+			GetClientRect(window, &window_rect);
+
 			desc.back_buffer.texture.width = window_rect.right;
-		if (pp.BackBufferHeight == 0)
 			desc.back_buffer.texture.height = window_rect.bottom;
+
+			assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
+		}
 
 		if (D3DDISPLAYMODE current_mode;
 			pp.BackBufferFormat == D3DFMT_UNKNOWN &&
@@ -95,7 +100,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 		}
 	}
 
-	desc.back_buffer_count = pp.BackBufferCount;
+	desc.back_buffer_count = pp.BackBufferCount != 0 ? pp.BackBufferCount : 1;
 	desc.present_mode = pp.SwapEffect;
 	desc.present_flags = pp.Flags;
 	desc.fullscreen_state = pp.Windowed == FALSE;
@@ -112,10 +117,8 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 	else if ((pp.PresentationInterval & D3DPRESENT_INTERVAL_FOUR) != 0)
 		desc.sync_interval = 4;
 	else
-	{
-		assert(pp.PresentationInterval == D3DPRESENT_INTERVAL_DEFAULT);
+		assert(pp.PresentationInterval == D3DPRESENT_INTERVAL_DEFAULT),
 		desc.sync_interval = UINT32_MAX;
-	}
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(reshade::api::device_api::d3d9, desc, window))
 	{
@@ -440,7 +443,7 @@ extern "C" IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 		return nullptr;
 	}
 
-	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
+	reshade::hooks::install("IDirect3D9::CreateDevice", reshade::hooks::vtable_from_instance(res), 16, &IDirect3D9_CreateDevice);
 
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Returning IDirect3D9 object %p.", res);
@@ -469,8 +472,8 @@ extern "C"     HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **
 
 	assert(ppD3D != nullptr);
 
-	reshade::hooks::install("IDirect3D9Ex::CreateDevice", reshade::hooks::vtable_from_instance(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
-	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
+	reshade::hooks::install("IDirect3D9Ex::CreateDevice", reshade::hooks::vtable_from_instance(*ppD3D), 16, &IDirect3D9_CreateDevice);
+	reshade::hooks::install("IDirect3D9Ex::CreateDeviceEx", reshade::hooks::vtable_from_instance(*ppD3D), 20, &IDirect3D9Ex_CreateDeviceEx);
 
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Returning IDirect3D9Ex object %p.", *ppD3D);

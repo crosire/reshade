@@ -87,8 +87,8 @@ IDirectInputDevice8_GetDeviceData_Impl(10, W)
 		const HRESULT hr = reshade::hooks::call(IDirectInput8##encoding##_CreateDevice, reshade::hooks::vtable_from_instance(pDI) + vtable_index)(pDI, rguid, lplpDirectInputDevice, pUnkOuter); \
 		if (SUCCEEDED(hr)) \
 		{ \
-			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice8##encoding##_GetDeviceState)); \
-			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice8##encoding##_GetDeviceData)); \
+			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 9, &IDirectInputDevice8##encoding##_GetDeviceState); \
+			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 10, &IDirectInputDevice8##encoding##_GetDeviceData); \
 		} \
 		else \
 		{ \
@@ -117,9 +117,9 @@ extern "C" HRESULT WINAPI DirectInput8Create(HINSTANCE hinst, DWORD dwVersion, R
 	IUnknown *const factory = static_cast<IUnknown *>(*ppvOut);
 
 	if (riidltf == IID_IDirectInput8W)
-		reshade::hooks::install("IDirectInput8W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput8W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput8W_CreateDevice));
+		reshade::hooks::install("IDirectInput8W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput8W *>(factory)), 3, &IDirectInput8W_CreateDevice);
 	if (riidltf == IID_IDirectInput8A)
-		reshade::hooks::install("IDirectInput8A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput8A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput8A_CreateDevice));
+		reshade::hooks::install("IDirectInput8A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput8A *>(factory)), 3, &IDirectInput8A_CreateDevice);
 
 	return hr;
 }

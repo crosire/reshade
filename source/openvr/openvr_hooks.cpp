@@ -538,12 +538,13 @@ extern "C" void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterfaceV
 		if (const auto vrclient_module = GetModuleHandleW(L"vrclient_x64.dll"))
 #endif
 		{
-			if (const auto vrclient_factory = reinterpret_cast<void *(VR_CALLTYPE *)(const char *pInterfaceName, int *pReturnCode)>(GetProcAddress(vrclient_module, "VRClientCoreFactory")))
+			vr::IVRClientCore *vrclient_core = nullptr;
+
+			const auto vrclient_core_factory = reinterpret_cast<vr::IVRClientCore *(VR_CALLTYPE *)(const char *pInterfaceName, int *pReturnCode)>(GetProcAddress(vrclient_module, "VRClientCoreFactory"));
+			if ((vrclient_core_factory != nullptr) &&
+				(vrclient_core = vrclient_core_factory(vr::IVRClientCore_Version, reinterpret_cast<int *>(peError))) != nullptr)
 			{
-				if (const auto vrclient_core = static_cast<vr::IVRClientCore *>(vrclient_factory(vr::IVRClientCore_Version, reinterpret_cast<int *>(peError))))
-				{
-					return vrclient_core->GetGenericInterface(pchInterfaceVersion, peError);
-				}
+				return vrclient_core->GetGenericInterface(pchInterfaceVersion, peError);
 			}
 		}
 
@@ -562,22 +563,24 @@ extern "C" void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterfaceV
 		compositor_version == 0 && interface_instance != nullptr &&
 		std::sscanf(pchInterfaceVersion, "IVRCompositor_%u", &compositor_version) != 0)
 	{
+		const auto compositor_instance = static_cast<vr::IVRCompositor *>(interface_instance);
+
 		// There is a new internal 'IVRCompositor_29' with changed vtable layout, skip this for now
 		if (compositor_version > 28)
 			compositor_version = 0;
 
 		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
 		if (compositor_version >= 12)
-			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 5, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_012));
+			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 5, &IVRCompositor_Submit_012);
 		else if (compositor_version >= 9)
-			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 4, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_009));
+			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 4, &IVRCompositor_Submit_009);
 		else if (compositor_version == 8)
-			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_008));
+			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_Submit_008);
 		else if (compositor_version == 7)
-			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_Submit_007));
+			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_Submit_007);
 
 		if (compositor_version == 28)
-			reshade::hooks::install("IVRCompositor::SubmitWithArrayIndex", reshade::hooks::vtable_from_instance(static_cast<vr::IVRCompositor *>(interface_instance)), 6, reinterpret_cast<reshade::hook::address>(&IVRCompositor_SubmitWithArrayIndex_028));
+			reshade::hooks::install("IVRCompositor::SubmitWithArrayIndex", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_SubmitWithArrayIndex_028);
 	}
 
 	return interface_instance;

@@ -93,8 +93,8 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 		const HRESULT hr = reshade::hooks::call(IDirectInput##factory_interface_version##encoding##_CreateDevice, reshade::hooks::vtable_from_instance(pDI) + vtable_index)(pDI, rguid, lplpDirectInputDevice, pUnkOuter); \
 		if (SUCCEEDED(hr)) \
 		{ \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceData)); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 9, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceState); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 10, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceData); \
 		} \
 		else \
 		{ \
@@ -113,8 +113,8 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 		const HRESULT hr = reshade::hooks::call(IDirectInput##factory_interface_version##encoding##_CreateDeviceEx, reshade::hooks::vtable_from_instance(pDI) + vtable_index)(pDI, rguid, riid, ppvOut, pUnkOuter); \
 		if (SUCCEEDED(hr)) \
 		{ \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 9, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceState)); \
-			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 10, reinterpret_cast<reshade::hook::address>(&IDirectInputDevice##device_interface_version##encoding##_GetDeviceData)); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 9, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceState); \
+			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut)), 10, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceData); \
 		} \
 		else \
 		{ \
@@ -139,7 +139,7 @@ extern "C" HRESULT WINAPI DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, L
 	const HRESULT hr = reshade::hooks::call(DirectInputCreateA)(hinst, dwVersion, ppDI, punkOuter);
 	if (SUCCEEDED(hr))
 	{
-		reshade::hooks::install("IDirectInputA::CreateDevice", reshade::hooks::vtable_from_instance(*ppDI), 3, reinterpret_cast<reshade::hook::address>(&IDirectInputA_CreateDevice));
+		reshade::hooks::install("IDirectInputA::CreateDevice", reshade::hooks::vtable_from_instance(*ppDI), 3, &IDirectInputA_CreateDevice);
 	}
 	else
 	{
@@ -156,7 +156,7 @@ extern "C" HRESULT WINAPI DirectInputCreateW(HINSTANCE hinst, DWORD dwVersion, L
 	const HRESULT hr = reshade::hooks::call(DirectInputCreateW)(hinst, dwVersion, ppDI, punkOuter);
 	if (SUCCEEDED(hr))
 	{
-		reshade::hooks::install("IDirectInputW::CreateDevice", reshade::hooks::vtable_from_instance(*ppDI), 3, reinterpret_cast<reshade::hook::address>(&IDirectInputW_CreateDevice));
+		reshade::hooks::install("IDirectInputW::CreateDevice", reshade::hooks::vtable_from_instance(*ppDI), 3, &IDirectInputW_CreateDevice);
 	}
 	else
 	{
@@ -183,23 +183,23 @@ extern "C" HRESULT WINAPI DirectInputCreateEx(HINSTANCE hinst, DWORD dwVersion, 
 	IUnknown *const factory = static_cast<IUnknown *>(*ppvOut);
 
 	if (riidltf == IID_IDirectInputA)
-		reshade::hooks::install("IDirectInputA::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInputA *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInputA_CreateDevice));
+		reshade::hooks::install("IDirectInputA::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInputA *>(factory)), 3, &IDirectInputA_CreateDevice);
 	if (riidltf == IID_IDirectInputW)
-		reshade::hooks::install("IDirectInputW::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInputW *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInputW_CreateDevice));
+		reshade::hooks::install("IDirectInputW::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInputW *>(factory)), 3, &IDirectInputW_CreateDevice);
 	if (riidltf == IID_IDirectInput2A)
-		reshade::hooks::install("IDirectInput2A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput2A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput2A_CreateDevice));
+		reshade::hooks::install("IDirectInput2A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput2A *>(factory)), 3, &IDirectInput2A_CreateDevice);
 	if (riidltf == IID_IDirectInput2W)
-		reshade::hooks::install("IDirectInput2W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput2W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput2W_CreateDevice));
+		reshade::hooks::install("IDirectInput2W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput2W *>(factory)), 3, &IDirectInput2W_CreateDevice);
 
 	if (riidltf == IID_IDirectInput7A)
 	{
-		reshade::hooks::install("IDirectInput7A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7A *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput7A_CreateDevice));
-		reshade::hooks::install("IDirectInput7A::CreateDeviceEx", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7A *>(factory)), 9, reinterpret_cast<reshade::hook::address>(&IDirectInput7A_CreateDeviceEx));
+		reshade::hooks::install("IDirectInput7A::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7A *>(factory)), 3, &IDirectInput7A_CreateDevice);
+		reshade::hooks::install("IDirectInput7A::CreateDeviceEx", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7A *>(factory)), 9, &IDirectInput7A_CreateDeviceEx);
 	}
 	if (riidltf == IID_IDirectInput7W)
 	{
-		reshade::hooks::install("IDirectInput7W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7W *>(factory)), 3, reinterpret_cast<reshade::hook::address>(&IDirectInput7W_CreateDevice));
-		reshade::hooks::install("IDirectInput7W::CreateDeviceEx", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7W *>(factory)), 9, reinterpret_cast<reshade::hook::address>(&IDirectInput7W_CreateDeviceEx));
+		reshade::hooks::install("IDirectInput7W::CreateDevice", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7W *>(factory)), 3, &IDirectInput7W_CreateDevice);
+		reshade::hooks::install("IDirectInput7W::CreateDeviceEx", reshade::hooks::vtable_from_instance(static_cast<IDirectInput7W *>(factory)), 9, &IDirectInput7W_CreateDeviceEx);
 	}
 
 	return hr;
