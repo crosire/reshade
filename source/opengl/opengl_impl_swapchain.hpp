@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <GL/gl3w.h>
+#include <glad/wgl.h>
 #include "reshade_api_object_impl.hpp"
 
 namespace reshade::opengl

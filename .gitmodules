@@ -7,9 +7,10 @@
 [submodule "stb"]
 	path = deps/stb
 	url = https://github.com/nothings/stb.git
-[submodule "gl3w"]
-	path = deps/gl3w
-	url = https://github.com/skaslev/gl3w.git
+[submodule "glad"]
+	path = deps/glad
+	url = https://github.com/Dav1dde/glad
+	branch = glad2
 [submodule "utfcpp"]
 	path = deps/utfcpp
 	url = https://github.com/nemtrif/utfcpp.git
@@ -20,9 +21,6 @@
 [submodule "vma"]
 	path = deps/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-[submodule "vulkan"]
-	path = deps/vulkan
-	url = https://github.com/KhronosGroup/Vulkan-Headers.git
 [submodule "fpng"]
 	path = deps/fpng
 	url = https://github.com/richgel999/fpng

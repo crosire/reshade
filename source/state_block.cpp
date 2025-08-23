@@ -24,7 +24,7 @@ void reshade::api::create_state_block(api::device *device, state_block *out_stat
 		*out_state_block = { reinterpret_cast<uintptr_t>(new d3d11::state_block(reinterpret_cast<ID3D11Device *>(device->get_native()))) };
 		break;
 	case api::device_api::opengl:
-		*out_state_block = { reinterpret_cast<uintptr_t>(new opengl::state_block()) };
+		*out_state_block = { reinterpret_cast<uintptr_t>(new opengl::state_block(static_cast<opengl::device_impl *>(device))) };
 		break;
 	default:
 		*out_state_block = { 0 };

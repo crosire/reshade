@@ -17,57 +17,42 @@ reshade::vulkan::device_impl::device_impl(
 	VkPhysicalDevice physical_device,
 	VkInstance instance,
 	uint32_t api_version,
-	const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
-	bool push_descriptors_ext,
-	bool dynamic_rendering_ext,
-	bool timeline_semaphore_ext,
-	bool custom_border_color_ext,
-	bool extended_dynamic_state_ext,
-	bool conservative_rasterization_ext,
-	bool ray_tracing_ext) :
+	const GladVulkanContext &dispatch_table, const VkPhysicalDeviceFeatures &enabled_features) :
 	api_object_impl(device),
 	_physical_device(physical_device),
-	_dispatch_table(device_table),
-	_instance_dispatch_table(instance_table),
-	_push_descriptor_ext(push_descriptors_ext),
-	_dynamic_rendering_ext(dynamic_rendering_ext),
-	_timeline_semaphore_ext(timeline_semaphore_ext),
-	_custom_border_color_ext(custom_border_color_ext),
-	_extended_dynamic_state_ext(extended_dynamic_state_ext),
-	_conservative_rasterization_ext(conservative_rasterization_ext),
-	_ray_tracing_ext(ray_tracing_ext),
+	_dispatch_table(dispatch_table),
 	_enabled_features(enabled_features)
 {
 	{	VmaVulkanFunctions functions;
-		functions.vkGetPhysicalDeviceProperties = instance_table.GetPhysicalDeviceProperties;
-		functions.vkGetPhysicalDeviceMemoryProperties = instance_table.GetPhysicalDeviceMemoryProperties;
-		functions.vkAllocateMemory = device_table.AllocateMemory;
-		functions.vkFreeMemory = device_table.FreeMemory;
-		functions.vkMapMemory = device_table.MapMemory;
-		functions.vkUnmapMemory = device_table.UnmapMemory;
-		functions.vkFlushMappedMemoryRanges = device_table.FlushMappedMemoryRanges;
-		functions.vkInvalidateMappedMemoryRanges = device_table.InvalidateMappedMemoryRanges;
-		functions.vkBindBufferMemory = device_table.BindBufferMemory;
-		functions.vkBindImageMemory = device_table.BindImageMemory;
-		functions.vkGetBufferMemoryRequirements = device_table.GetBufferMemoryRequirements;
-		functions.vkGetImageMemoryRequirements = device_table.GetImageMemoryRequirements;
-		functions.vkCreateBuffer = device_table.CreateBuffer;
-		functions.vkDestroyBuffer = device_table.DestroyBuffer;
-		functions.vkCreateImage = device_table.CreateImage;
-		functions.vkDestroyImage = device_table.DestroyImage;
-		functions.vkCmdCopyBuffer = device_table.CmdCopyBuffer;
+		functions.vkGetPhysicalDeviceProperties = dispatch_table.GetPhysicalDeviceProperties;
+		functions.vkGetPhysicalDeviceMemoryProperties = dispatch_table.GetPhysicalDeviceMemoryProperties;
+		functions.vkAllocateMemory = dispatch_table.AllocateMemory;
+		functions.vkFreeMemory = dispatch_table.FreeMemory;
+		functions.vkMapMemory = dispatch_table.MapMemory;
+		functions.vkUnmapMemory = dispatch_table.UnmapMemory;
+		functions.vkFlushMappedMemoryRanges = dispatch_table.FlushMappedMemoryRanges;
+		functions.vkInvalidateMappedMemoryRanges = dispatch_table.InvalidateMappedMemoryRanges;
+		functions.vkBindBufferMemory = dispatch_table.BindBufferMemory;
+		functions.vkBindImageMemory = dispatch_table.BindImageMemory;
+		functions.vkGetBufferMemoryRequirements = dispatch_table.GetBufferMemoryRequirements;
+		functions.vkGetImageMemoryRequirements = dispatch_table.GetImageMemoryRequirements;
+		functions.vkCreateBuffer = dispatch_table.CreateBuffer;
+		functions.vkDestroyBuffer = dispatch_table.DestroyBuffer;
+		functions.vkCreateImage = dispatch_table.CreateImage;
+		functions.vkDestroyImage = dispatch_table.DestroyImage;
+		functions.vkCmdCopyBuffer = dispatch_table.CmdCopyBuffer;
 #if VMA_VULKAN_VERSION >= 1001000
-		functions.vkGetBufferMemoryRequirements2KHR = device_table.GetBufferMemoryRequirements2;
-		functions.vkGetImageMemoryRequirements2KHR = device_table.GetImageMemoryRequirements2;
-		functions.vkBindBufferMemory2KHR = device_table.BindBufferMemory2;
-		functions.vkBindImageMemory2KHR = device_table.BindImageMemory2;
-		functions.vkGetPhysicalDeviceMemoryProperties2KHR = instance_table.GetPhysicalDeviceMemoryProperties2;
+		functions.vkGetBufferMemoryRequirements2KHR = dispatch_table.GetBufferMemoryRequirements2;
+		functions.vkGetImageMemoryRequirements2KHR = dispatch_table.GetImageMemoryRequirements2;
+		functions.vkBindBufferMemory2KHR = dispatch_table.BindBufferMemory2;
+		functions.vkBindImageMemory2KHR = dispatch_table.BindImageMemory2;
+		functions.vkGetPhysicalDeviceMemoryProperties2KHR = dispatch_table.GetPhysicalDeviceMemoryProperties2;
 #endif
 #if VMA_VULKAN_VERSION >= 1003000
-		functions.vkGetDeviceBufferMemoryRequirements = device_table.GetDeviceBufferMemoryRequirements;
-		functions.vkGetDeviceImageMemoryRequirements = device_table.GetDeviceImageMemoryRequirements;
+		functions.vkGetDeviceBufferMemoryRequirements = dispatch_table.GetDeviceBufferMemoryRequirements;
+		functions.vkGetDeviceImageMemoryRequirements = dispatch_table.GetDeviceImageMemoryRequirements;
 #endif
-		functions.vkGetMemoryWin32HandleKHR = device_table.GetMemoryWin32HandleKHR;
+		functions.vkGetMemoryWin32HandleKHR = dispatch_table.GetMemoryWin32HandleKHR;
 
 		VmaAllocatorCreateInfo create_info = {};
 		create_info.physicalDevice = physical_device;
@@ -77,9 +62,9 @@ reshade::vulkan::device_impl::device_impl(
 		create_info.instance = instance;
 		create_info.vulkanApiVersion = api_version;
 
-		if (ray_tracing_ext)
+		if (vk.KHR_acceleration_structure)
 			create_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-		if (vk.GetMemoryWin32HandleKHR != nullptr)
+		if (vk.KHR_external_memory_win32)
 			create_info.flags |= VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT;
 
 		vmaCreateAllocator(&create_info, &_alloc);
@@ -105,7 +90,7 @@ reshade::vulkan::device_impl::device_impl(
 		}
 	}
 
-	if (!_push_descriptor_ext)
+	if (!vk.KHR_push_descriptor)
 	{
 		for (uint32_t i = 0; i < 4; ++i)
 		{
@@ -152,7 +137,7 @@ bool reshade::vulkan::device_impl::get_property(api::device_properties property,
 {
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_tracing_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &ray_tracing_props };
-	_instance_dispatch_table.GetPhysicalDeviceProperties2(_physical_device, &device_props);
+	vk.GetPhysicalDeviceProperties2(_physical_device, &device_props);
 
 	switch (property)
 	{
@@ -213,7 +198,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::fill_mode_non_solid:
 		return _enabled_features.fillModeNonSolid;
 	case api::device_caps::conservative_rasterization:
-		return _conservative_rasterization_ext;
+		return vk.EXT_conservative_rasterization;
 	case api::device_caps::bind_render_targets_and_depth_stencil:
 		return false;
 	case api::device_caps::multi_viewport:
@@ -221,7 +206,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::partial_push_constant_updates:
 		return true;
 	case api::device_caps::partial_push_descriptor_updates:
-		return _push_descriptor_ext;
+		return vk.KHR_push_descriptor;
 	case api::device_caps::draw_instanced:
 		return true;
 	case api::device_caps::draw_or_dispatch_indirect:
@@ -244,7 +229,7 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		external_buffer_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
 
 		VkExternalBufferProperties external_buffer_properties { VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES };
-		_instance_dispatch_table.GetPhysicalDeviceExternalBufferProperties(_physical_device, &external_buffer_info, &external_buffer_properties);
+		vk.GetPhysicalDeviceExternalBufferProperties(_physical_device, &external_buffer_info, &external_buffer_properties);
 		return (external_buffer_properties.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
 	}
 	case api::device_caps::shared_resource_nt_handle:
@@ -253,19 +238,19 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		external_buffer_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
 		VkExternalBufferProperties external_buffer_properties { VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES };
-		_instance_dispatch_table.GetPhysicalDeviceExternalBufferProperties(_physical_device, &external_buffer_info, &external_buffer_properties);
+		vk.GetPhysicalDeviceExternalBufferProperties(_physical_device, &external_buffer_info, &external_buffer_properties);
 		return (external_buffer_properties.externalMemoryProperties.externalMemoryFeatures & (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
 	}
 	case api::device_caps::resolve_depth_stencil:
 		// VK_KHR_dynamic_rendering has VK_KHR_depth_stencil_resolve as a dependency
-		return _dynamic_rendering_ext;
+		return vk.KHR_dynamic_rendering;
 	case api::device_caps::shared_fence:
 	{
 		VkPhysicalDeviceExternalSemaphoreInfo external_semaphore_info { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO };
 		external_semaphore_info.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
 
 		VkExternalSemaphoreProperties external_semaphore_properties { VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES };
-		_instance_dispatch_table.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
+		vk.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
 		return (external_semaphore_properties.externalSemaphoreFeatures & (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT);
 	}
 	case api::device_caps::shared_fence_nt_handle:
@@ -274,13 +259,13 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		external_semaphore_info.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 
 		VkExternalSemaphoreProperties external_semaphore_properties { VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES };
-		_instance_dispatch_table.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
+		vk.GetPhysicalDeviceExternalSemaphoreProperties(_physical_device, &external_semaphore_info, &external_semaphore_properties);
 		return (external_semaphore_properties.externalSemaphoreFeatures & (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT)) == (VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT);
 	}
 	case api::device_caps::amplification_and_mesh_shader:
-		return vk.CmdDrawMeshTasksEXT != nullptr;
+		return vk.EXT_mesh_shader;
 	case api::device_caps::ray_tracing:
-		return _ray_tracing_ext;
+		return vk.KHR_ray_tracing_pipeline && vk.KHR_acceleration_structure;
 	default:
 		return false;
 	}
@@ -293,7 +278,7 @@ bool reshade::vulkan::device_impl::check_format_support(api::format format, api:
 
 	VkFormatProperties props;
 	props.optimalTilingFeatures = 0;
-	_instance_dispatch_table.GetPhysicalDeviceFormatProperties(_physical_device, vk_format, &props);
+	vk.GetPhysicalDeviceFormatProperties(_physical_device, vk_format, &props);
 
 	if ((usage & api::resource_usage::depth_stencil) != 0 && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
 		return false;
@@ -318,8 +303,7 @@ bool reshade::vulkan::device_impl::create_sampler(const api::sampler_desc &desc,
 	create_info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 
 	VkSamplerCustomBorderColorCreateInfoEXT border_color_info;
-	if (_custom_border_color_ext && (
-		desc.border_color[0] != 0.0f || desc.border_color[1] != 0.0f || desc.border_color[2] != 0.0f || desc.border_color[3] != 0.0f))
+	if (vk.EXT_custom_border_color && (desc.border_color[0] != 0.0f || desc.border_color[1] != 0.0f || desc.border_color[2] != 0.0f || desc.border_color[3] != 0.0f))
 	{
 		border_color_info = { VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT };
 
@@ -1573,7 +1557,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info;
 		if (rasterizer_desc.conservative_rasterization != 0)
 		{
-			if (!_conservative_rasterization_ext)
+			if (!vk.EXT_conservative_rasterization)
 				goto exit_failure;
 
 			conservative_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
@@ -1628,7 +1612,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		}
 
 		VkPipelineRenderingCreateInfo dynamic_rendering_info;
-		if (_dynamic_rendering_ext)
+		if (vk.KHR_dynamic_rendering)
 		{
 			dynamic_rendering_info = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
 			dynamic_rendering_info.pNext = create_info.pNext;
@@ -1847,7 +1831,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 		create_info.pBindings = internal_bindings.data();
 
-		if (push_descriptors && _push_descriptor_ext)
+		if (push_descriptors && vk.KHR_push_descriptor)
 			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 
 		if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
@@ -2216,7 +2200,7 @@ bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fen
 {
 	*out_fence = { 0 };
 
-	if (!_timeline_semaphore_ext)
+	if (!vk.KHR_timeline_semaphore)
 		return false;
 
 	VkSemaphoreTypeCreateInfo type_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO };
@@ -2369,7 +2353,7 @@ bool reshade::vulkan::device_impl::get_pipeline_shader_group_handles(api::pipeli
 
 void reshade::vulkan::device_impl::advance_transient_descriptor_pool()
 {
-	if (_push_descriptor_ext)
+	if (vk.KHR_push_descriptor)
 		return;
 
 	// This assumes that no other thread is currently allocating from the transient descriptor pool

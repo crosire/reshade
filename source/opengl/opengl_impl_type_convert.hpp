@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <GL/glcorearb.h>
+#include <glad/wgl.h>
 #include "reshade_api_pipeline.hpp"
 #include <vector>
 #include <limits>
@@ -14,8 +14,6 @@ namespace reshade::opengl
 {
 	struct pipeline_impl
 	{
-		void apply(api::pipeline_stage stages) const;
-
 		GLuint program;
 
 		std::vector<api::input_element> input_elements;

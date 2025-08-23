@@ -90,7 +90,7 @@ IDR_MIPMAP_CS           RCDATA                  "shaders\\mipmap_cs_5_0.cso"
 
 IDR_MIPMAP_CS_GLSL      RCDATA                  "shaders\\mipmap_cs_430.glsl"
 
-IDR_LICENSE_GL3W        RCDATA                  "..\\deps\\gl3w\\UNLICENSE"
+IDR_LICENSE_GLAD        RCDATA                  "..\\deps\\glad\\LICENSE"
 
 IDR_LICENSE_IMGUI       RCDATA                  "..\\deps\\imgui\\LICENSE.txt"
 
@@ -109,8 +109,6 @@ IDR_LICENSE_STB         RCDATA                  "..\\deps\\stb\\LICENSE"
 IDR_LICENSE_UTFCPP      RCDATA                  "..\\deps\\utfcpp\\LICENSE"
 
 IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
-
-IDR_LICENSE_VULKAN      RCDATA                  "..\\deps\\vulkan\\LICENSE.md"
 #endif
 
 #endif    // Neutral (Default) resources

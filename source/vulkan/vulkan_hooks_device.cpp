@@ -16,12 +16,29 @@
 #include <cstring> // std::strcmp, std::strncmp
 #include <algorithm> // std::fill_n, std::find_if, std::min, std::sort, std::unique
 
+struct VkLayerDeviceLink
+{
+	VkLayerDeviceLink *pNext;
+	PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
+	PFN_vkGetDeviceProcAddr pfnNextGetDeviceProcAddr;
+};
+
+struct VkLayerDeviceCreateInfo
+{
+	VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO
+	const void *pNext;
+	VkLayerFunction function;
+	union {
+		VkLayerDeviceLink *pLayerInfo;
+	} u;
+};
+
 // Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel, Optimus or layered DXGI swapchain
 extern thread_local bool g_in_dxgi_runtime;
 
+extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surfaces;
+extern lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
-extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
-extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surface_windows;
 
 #if RESHADE_ADDON
 static void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
@@ -68,16 +85,17 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
-	const instance_dispatch_table &instance_dispatch = g_vulkan_instances.at(dispatch_key_from_handle(physicalDevice));
-	assert(instance_dispatch.instance != VK_NULL_HANDLE);
+	const vulkan_instance &instance = g_vulkan_instances.at(dispatch_key_from_handle(physicalDevice));
+	assert(instance.handle != VK_NULL_HANDLE);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
+	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
 	PFN_vkCreateDevice trampoline = nullptr;
-	PFN_vkGetDeviceProcAddr get_device_proc = nullptr;
-	PFN_vkGetInstanceProcAddr get_instance_proc = nullptr;
+	PFN_vkGetDeviceProcAddr get_device_proc_addr = nullptr;
+	PFN_vkGetInstanceProcAddr get_instance_proc_addr = nullptr;
 
 	if (link_info != nullptr)
 	{
@@ -86,9 +104,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		assert(link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr != nullptr);
 
 		// Look up functions in layer info
-		get_device_proc = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
-		get_instance_proc = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = reinterpret_cast<PFN_vkCreateDevice>(get_instance_proc(instance_dispatch.instance, "vkCreateDevice"));
+		get_device_proc_addr = link_info->u.pLayerInfo->pfnNextGetDeviceProcAddr;
+		get_instance_proc_addr = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
+		trampoline = reinterpret_cast<PFN_vkCreateDevice>(get_instance_proc_addr(instance.handle, "vkCreateDevice"));
 
 		// Advance the link info for the next element on the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;
@@ -97,8 +115,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	else
 	{
 		trampoline = reshade::hooks::call(vkCreateDevice);
-		get_device_proc = reshade::hooks::call(vkGetDeviceProcAddr);
-		get_instance_proc = reshade::hooks::call(vkGetInstanceProcAddr);
+		get_device_proc_addr = reshade::hooks::call(vkGetDeviceProcAddr);
+		get_instance_proc_addr = reshade::hooks::call(vkGetInstanceProcAddr);
 	}
 #endif
 
@@ -109,9 +127,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->ppEnabledExtensionNames[i]);
 
-	const auto enum_queue_families = instance_dispatch.GetPhysicalDeviceQueueFamilyProperties;
+	const auto enum_queue_families = instance.dispatch_table.GetPhysicalDeviceQueueFamilyProperties;
 	assert(enum_queue_families != nullptr);
-	const auto enum_device_extensions = instance_dispatch.EnumerateDeviceExtensionProperties;
+	const auto enum_device_extensions = instance.dispatch_table.EnumerateDeviceExtensionProperties;
 	assert(enum_device_extensions != nullptr);
 
 	uint32_t num_queue_families = 0;
@@ -212,23 +230,23 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
 		// Enable extensions that ReShade requires
-		if (instance_dispatch.api_version < VK_API_VERSION_1_3 && !add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
+		if (instance.api_version < VK_API_VERSION_1_3 && !add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
 
 		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
 
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
-		dynamic_rendering_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+		dynamic_rendering_ext = instance.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
-		if (dynamic_rendering_ext && instance_dispatch.api_version < VK_API_VERSION_1_3)
+		if (dynamic_rendering_ext && instance.api_version < VK_API_VERSION_1_3)
 		{
 			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
 			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
 		}
-		timeline_semaphore_ext = instance_dispatch.api_version >= VK_API_VERSION_1_2 || add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
+		timeline_semaphore_ext = instance.api_version >= VK_API_VERSION_1_2 || add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
-		extended_dynamic_state_ext = instance_dispatch.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+		extended_dynamic_state_ext = instance.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
 
@@ -276,7 +294,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
 	{
-		assert(instance_dispatch.api_version >= VK_API_VERSION_1_3);
+		assert(instance.api_version >= VK_API_VERSION_1_3);
 
 		create_info.pNext = &private_data_info;
 
@@ -311,7 +329,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
 	{
-		assert(instance_dispatch.api_version >= VK_API_VERSION_1_2);
+		assert(instance.api_version >= VK_API_VERSION_1_2);
 
 		// Force enable timeline semaphore support (used for effect runtime present/graphics queue synchronization in case of present from compute, e.g. in Indiana Jones and the Great Circle and DOOM Eternal)
 		const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
@@ -407,326 +425,113 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		return result;
 	}
 
-	VkDevice device = *pDevice;
+	struct vulkan_device
+	{
+		VkDevice handle;
+		PFN_vkGetDeviceProcAddr get_proc_addr;
+		VkInstance instance_handle;
+		PFN_vkGetInstanceProcAddr get_instance_proc_addr;
+		GladVulkanContext dispatch_table;
+	};
+
 	// Initialize the device dispatch table
-	VkLayerDispatchTable dispatch_table = {};
-	dispatch_table.GetDeviceProcAddr = get_device_proc;
+	vulkan_device device = { *pDevice, get_device_proc_addr, instance.handle, get_instance_proc_addr, instance.dispatch_table };
 
-	// Core 1_0
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyDevice);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetDeviceQueue);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueueSubmit);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueueWaitIdle);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DeviceWaitIdle);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(AllocateMemory);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(FreeMemory);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(MapMemory);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(UnmapMemory);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(FlushMappedMemoryRanges);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(InvalidateMappedMemoryRanges);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(BindBufferMemory);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(BindImageMemory);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetBufferMemoryRequirements);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetImageMemoryRequirements);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateFence);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyFence);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(ResetFences);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetFenceStatus);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(WaitForFences);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateSemaphore);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroySemaphore);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateQueryPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyQueryPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetQueryPoolResults);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateBufferView);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyBufferView);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetImageSubresourceLayout);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateImageView);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyImageView);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateShaderModule);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyShaderModule);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateGraphicsPipelines);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateComputePipelines);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyPipeline);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreatePipelineLayout);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyPipelineLayout);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateSampler);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroySampler);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateDescriptorSetLayout);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyDescriptorSetLayout);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateDescriptorPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyDescriptorPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(ResetDescriptorPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(AllocateDescriptorSets);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(FreeDescriptorSets);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(UpdateDescriptorSets);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateFramebuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyFramebuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateRenderPass);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyRenderPass);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateCommandPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyCommandPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(ResetCommandPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(AllocateCommandBuffers);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(FreeCommandBuffers);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(BeginCommandBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(EndCommandBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(ResetCommandBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBindPipeline);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetViewport);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetScissor);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetDepthBias);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetBlendConstants);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetStencilCompareMask);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetStencilWriteMask);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetStencilReference);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBindDescriptorSets);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBindIndexBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBindVertexBuffers);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDraw);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawIndexed);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawIndirect);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawIndexedIndirect);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDispatch);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDispatchIndirect);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBlitImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyBufferToImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyImageToBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdUpdateBuffer);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdClearColorImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdClearDepthStencilImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdClearAttachments);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdResolveImage);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdPipelineBarrier);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBeginQuery);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdEndQuery);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdResetQueryPool);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdWriteTimestamp);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyQueryPoolResults);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdPushConstants);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBeginRenderPass);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdNextSubpass);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdEndRenderPass);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdExecuteCommands);
+	gladLoadVulkanContextUserPtr(&device.dispatch_table, physicalDevice,
+		[](void *user, const char *name) -> GLADapiproc {
+			const auto &device = *static_cast<const vulkan_device *>(user);
+			// Need to distinguish between instance and device functions somehow
+			if ((strcmp(name, "vkGetDeviceProcAddr") != 0) &&
+				(strcmp(name, "vkGetInstanceProcAddr") != 0) &&
+				(strcmp(name, "vkCreateDevice") != 0) &&
+				(strcmp(name, "vkCreateInstance") != 0) &&
+				(strcmp(name, "vkDestroyInstance") != 0) &&
+				(strcmp(name, "vkCreateDebugUtilsMessengerEXT") != 0) &&
+				(strcmp(name, "vkDestroyDebugUtilsMessengerEXT") != 0) &&
+				(strcmp(name, "vkSubmitDebugUtilsMessageEXT") != 0) &&
+				(strstr(name, "Properties") == nullptr || strstr(name, "AccelerationStructures") != nullptr || strstr(name, "Handle") != nullptr) &&
+				(strstr(name, "Surface") == nullptr || strstr(name, "DeviceGroupSurface") != nullptr) &&
+				(strstr(name, "PhysicalDevice") == nullptr))
+				return reinterpret_cast<GLADapiproc>(device.get_proc_addr(device.handle, name));
+			else
+				return reinterpret_cast<GLADapiproc>(device.get_instance_proc_addr(device.instance_handle, name));
+		}, &device);
 
-	// Core 1_1
-	if (instance_dispatch.api_version >= VK_API_VERSION_1_1)
+	device.dispatch_table.GetDeviceProcAddr = get_device_proc_addr;
+	device.dispatch_table.GetInstanceProcAddr = get_instance_proc_addr;
+
+	device.dispatch_table.KHR_push_descriptor &= push_descriptor_ext ? 1 : 0;
+	device.dispatch_table.KHR_dynamic_rendering &= dynamic_rendering_ext ? 1 : 0;
+	device.dispatch_table.KHR_timeline_semaphore &= timeline_semaphore_ext ? 1 : 0;
+	device.dispatch_table.EXT_custom_border_color &= custom_border_color_ext ? 1 : 0;
+	device.dispatch_table.EXT_extended_dynamic_state &= extended_dynamic_state_ext ? 1 : 0;
+	device.dispatch_table.EXT_conservative_rasterization &= conservative_rasterization_ext ? 1 : 0;
+	device.dispatch_table.KHR_ray_tracing_pipeline &= ray_tracing_ext ? 1 : 0;
+	device.dispatch_table.KHR_acceleration_structure &= ray_tracing_ext ? 1 : 0;
+
+	if (instance.api_version < VK_API_VERSION_1_2)
 	{
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(BindBufferMemory2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(BindImageMemory2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetBufferMemoryRequirements2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetImageMemoryRequirements2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetDeviceQueue2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateDescriptorUpdateTemplate);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyDescriptorUpdateTemplate);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(UpdateDescriptorSetWithTemplate);
-	}
+		device.dispatch_table.CreateRenderPass2 = device.dispatch_table.CreateRenderPass2KHR;
+		device.dispatch_table.CmdBeginRenderPass2 = device.dispatch_table.CmdBeginRenderPass2KHR;
+		device.dispatch_table.CmdNextSubpass2 = device.dispatch_table.CmdNextSubpass2KHR;
+		device.dispatch_table.CmdEndRenderPass2 = device.dispatch_table.CmdEndRenderPass2KHR;
 
-	// Core 1_2
-	if (instance_dispatch.api_version >= VK_API_VERSION_1_2)
+		device.dispatch_table.CmdDrawIndirectCount = device.dispatch_table.CmdDrawIndirectCountKHR;
+		device.dispatch_table.CmdDrawIndexedIndirectCount = device.dispatch_table.CmdDrawIndexedIndirectCountKHR;
+
+		device.dispatch_table.GetSemaphoreCounterValue = device.dispatch_table.GetSemaphoreCounterValueKHR;
+		device.dispatch_table.WaitSemaphores = device.dispatch_table.WaitSemaphoresKHR;
+		device.dispatch_table.SignalSemaphore = device.dispatch_table.SignalSemaphoreKHR;
+
+		device.dispatch_table.GetBufferDeviceAddress = device.dispatch_table.GetBufferDeviceAddressKHR;
+	}
+	if (instance.api_version < VK_API_VERSION_1_3)
 	{
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawIndirectCount);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawIndexedIndirectCount);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateRenderPass2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBeginRenderPass2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdNextSubpass2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdEndRenderPass2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetSemaphoreCounterValue);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(WaitSemaphores);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(SignalSemaphore);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetBufferDeviceAddress);
+		device.dispatch_table.CmdBeginRendering = device.dispatch_table.CmdBeginRenderingKHR;
+		device.dispatch_table.CmdEndRendering = device.dispatch_table.CmdEndRenderingKHR;
+
+		device.dispatch_table.CmdPipelineBarrier2 = device.dispatch_table.CmdPipelineBarrier2KHR;
+		device.dispatch_table.CmdWriteTimestamp2 = device.dispatch_table.CmdWriteTimestamp2KHR;
+		device.dispatch_table.QueueSubmit2 = device.dispatch_table.QueueSubmit2KHR;
+
+		device.dispatch_table.CmdCopyBuffer2 = device.dispatch_table.CmdCopyBuffer2KHR;
+		device.dispatch_table.CmdCopyImage2 = device.dispatch_table.CmdCopyImage2KHR;
+		device.dispatch_table.CmdCopyBufferToImage2 = device.dispatch_table.CmdCopyBufferToImage2KHR;
+		device.dispatch_table.CmdCopyImageToBuffer2 = device.dispatch_table.CmdCopyImageToBuffer2KHR;
+		device.dispatch_table.CmdBlitImage2 = device.dispatch_table.CmdBlitImage2KHR;
+		device.dispatch_table.CmdResolveImage2 = device.dispatch_table.CmdResolveImage2KHR;
+
+		device.dispatch_table.CmdSetCullMode = device.dispatch_table.CmdSetCullModeEXT;
+		device.dispatch_table.CmdSetFrontFace = device.dispatch_table.CmdSetFrontFaceEXT;
+		device.dispatch_table.CmdSetPrimitiveTopology = device.dispatch_table.CmdSetPrimitiveTopologyEXT;
+		device.dispatch_table.CmdSetViewportWithCount = device.dispatch_table.CmdSetViewportWithCountEXT;
+		device.dispatch_table.CmdSetScissorWithCount = device.dispatch_table.CmdSetScissorWithCountEXT;
+		device.dispatch_table.CmdBindVertexBuffers2 = device.dispatch_table.CmdBindVertexBuffers2EXT;
+		device.dispatch_table.CmdSetDepthTestEnable = device.dispatch_table.CmdSetDepthTestEnableEXT;
+		device.dispatch_table.CmdSetDepthWriteEnable = device.dispatch_table.CmdSetDepthWriteEnableEXT;
+		device.dispatch_table.CmdSetDepthCompareOp = device.dispatch_table.CmdSetDepthCompareOpEXT;
+		device.dispatch_table.CmdSetDepthBoundsTestEnable = device.dispatch_table.CmdSetDepthBoundsTestEnableEXT;
+		device.dispatch_table.CmdSetStencilTestEnable = device.dispatch_table.CmdSetStencilTestEnableEXT;
+		device.dispatch_table.CmdSetStencilOp = device.dispatch_table.CmdSetStencilOpEXT;
+
+		device.dispatch_table.CreatePrivateDataSlot = device.dispatch_table.CreatePrivateDataSlotEXT;
+		device.dispatch_table.DestroyPrivateDataSlot = device.dispatch_table.DestroyPrivateDataSlotEXT;
+		device.dispatch_table.GetPrivateData = device.dispatch_table.GetPrivateDataEXT;
+		device.dispatch_table.SetPrivateData = device.dispatch_table.SetPrivateDataEXT;
 	}
-
-	// Core 1_3
-	if (instance_dispatch.api_version >= VK_API_VERSION_1_3)
-	{
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreatePrivateDataSlot);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyPrivateDataSlot);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetPrivateData);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(SetPrivateData);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdPipelineBarrier2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdWriteTimestamp2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueueSubmit2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyBuffer2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyImage2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyBufferToImage2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyImageToBuffer2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBlitImage2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdResolveImage2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBeginRendering);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdEndRendering);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetCullMode);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetFrontFace);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetPrimitiveTopology);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetViewportWithCount);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetScissorWithCount);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBindVertexBuffers2);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetDepthTestEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetDepthWriteEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetDepthCompareOp);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetDepthBoundsTestEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetStencilTestEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetStencilOp);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetRasterizerDiscardEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetDepthBiasEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetPrimitiveRestartEnable);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetDeviceBufferMemoryRequirements);
-		RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetDeviceImageMemoryRequirements);
-	}
-
-	// VK_KHR_swapchain
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateSwapchainKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroySwapchainKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetSwapchainImagesKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(AcquireNextImageKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueuePresentKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(AcquireNextImage2KHR);
-
-	// VK_KHR_dynamic_rendering
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdBeginRendering, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdEndRendering, KHR);
-
-	// VK_KHR_push_descriptor
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdPushDescriptorSetKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdPushDescriptorSetWithTemplateKHR);
-
-	// VK_KHR_descriptor_update_template
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CreateDescriptorUpdateTemplate, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(DestroyDescriptorUpdateTemplate, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(UpdateDescriptorSetWithTemplate, KHR);
-
-	// VK_KHR_create_renderpass2 (try the KHR version if the core version does not exist)
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CreateRenderPass2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdBeginRenderPass2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdNextSubpass2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdEndRenderPass2, KHR);
-
-	// VK_KHR_bind_memory2
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(BindBufferMemory2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(BindImageMemory2, KHR);
-
-	// VK_KHR_draw_indirect_count
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdDrawIndirectCount, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdDrawIndexedIndirectCount, KHR);
-
-	// VK_KHR_timeline_semaphore
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(GetSemaphoreCounterValue, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(WaitSemaphores, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(SignalSemaphore, KHR);
-
-	// VK_KHR_buffer_device_address
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(GetBufferDeviceAddress, KHR);
-
-	// VK_KHR_synchronization2
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdPipelineBarrier2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdWriteTimestamp2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(QueueSubmit2, KHR);
-
-	// VK_KHR_copy_commands2
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdCopyBuffer2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdCopyImage2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdCopyBufferToImage2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdCopyImageToBuffer2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdBlitImage2, KHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdResolveImage2, KHR);
-
-	// VK_EXT_transform_feedback
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBindTransformFeedbackBuffersEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBeginQueryIndexedEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdEndQueryIndexedEXT);
-
-	// VK_EXT_debug_utils
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(SetDebugUtilsObjectNameEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueueBeginDebugUtilsLabelEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueueEndDebugUtilsLabelEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(QueueInsertDebugUtilsLabelEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBeginDebugUtilsLabelEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdEndDebugUtilsLabelEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdInsertDebugUtilsLabelEXT);
-
-	// VK_EXT_extended_dynamic_state
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetCullMode, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetFrontFace, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetPrimitiveTopology, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetViewportWithCount, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetScissorWithCount, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdBindVertexBuffers2, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthTestEnable, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthWriteEnable, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthCompareOp, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetDepthBoundsTestEnable, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetStencilTestEnable, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CmdSetStencilOp, EXT);
-
-	// VK_EXT_private_data (try the EXT version if the core version does not exist)
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(CreatePrivateDataSlot, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(DestroyPrivateDataSlot, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(GetPrivateData, EXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR_ALTERNATIVE(SetPrivateData, EXT);
-
-	// VK_EXT_multi_draw
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawMultiEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawMultiIndexedEXT);
-
-	// VK_KHR_acceleration_structure
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateAccelerationStructureKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(DestroyAccelerationStructureKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBuildAccelerationStructuresKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdBuildAccelerationStructuresIndirectKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdCopyAccelerationStructureKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetAccelerationStructureDeviceAddressKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdWriteAccelerationStructuresPropertiesKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetAccelerationStructureBuildSizesKHR);
-
-	// VK_KHR_ray_tracing_pipeline
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdTraceRaysKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CreateRayTracingPipelinesKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetRayTracingShaderGroupHandlesKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdTraceRaysIndirectKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdSetRayTracingPipelineStackSizeKHR);
-
-	// VK_KHR_ray_tracing_maintenance1
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdTraceRaysIndirect2KHR);
-
-	// VK_EXT_mesh_shader
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawMeshTasksEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawMeshTasksIndirectEXT);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(CmdDrawMeshTasksIndirectCountEXT);
-
-	// VK_KHR_external_memory_win32
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetMemoryWin32HandleKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetMemoryWin32HandlePropertiesKHR);
-
-	// VK_KHR_external_semaphore_win32
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(ImportSemaphoreWin32HandleKHR);
-	RESHADE_VULKAN_INIT_DEVICE_DISPATCH_PTR(GetSemaphoreWin32HandleKHR);
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
-		device,
+		device.handle,
 		physicalDevice,
-		instance_dispatch.instance,
-		instance_dispatch.api_version,
-		static_cast<const VkLayerInstanceDispatchTable &>(instance_dispatch),
-		dispatch_table,
-		enabled_features,
-		push_descriptor_ext,
-		dynamic_rendering_ext,
-		timeline_semaphore_ext,
-		custom_border_color_ext,
-		extended_dynamic_state_ext,
-		conservative_rasterization_ext,
-		ray_tracing_ext);
+		instance.handle,
+		instance.api_version,
+		device.dispatch_table,
+		enabled_features);
 
-	if (!g_vulkan_devices.emplace(dispatch_key_from_handle(device), device_impl))
+	if (!g_vulkan_devices.emplace(dispatch_key_from_handle(device.handle), device_impl))
 	{
-		reshade::log::message(reshade::log::level::warning, "Failed to register Vulkan device %p.", device);
+		reshade::log::message(reshade::log::level::warning, "Failed to register Vulkan device %p.", device.handle);
 	}
 
 #if RESHADE_ADDON
@@ -749,12 +554,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			VkQueue queue = VK_NULL_HANDLE;
 			// According to the spec, 'vkGetDeviceQueue' must only be used to get queues where 'VkDeviceQueueCreateInfo::flags' is set to zero, so use 'vkGetDeviceQueue2' instead
-			dispatch_table.GetDeviceQueue2(device, &queue_info, &queue);
+			device.dispatch_table.GetDeviceQueue2(device.handle, &queue_info, &queue);
 			assert(VK_NULL_HANDLE != queue);
 
 			// Subsequent layers (like the validation layer or the Steam overlay) expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
 			// This applies to 'vkGetDeviceQueue', 'vkGetDeviceQueue2' and 'vkAllocateCommandBuffers' (functions that return dispatchable objects)
-			*reinterpret_cast<void **>(queue) = *reinterpret_cast<void **>(device);
+			*reinterpret_cast<void **>(queue) = *reinterpret_cast<void **>(device.handle);
 
 			const auto queue_impl = new reshade::vulkan::object_data<VK_OBJECT_TYPE_QUEUE>(
 				device_impl,
@@ -777,7 +582,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Returning Vulkan device %p.", device);
+	reshade::log::message(reshade::log::level::debug, "Returning Vulkan device %p.", device.handle);
 #endif
 	return result;
 }
@@ -972,7 +777,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 	// Look up window handle from surface
-	const HWND hwnd = g_vulkan_surface_windows.at(create_info.surface);
+	const HWND hwnd = g_vulkan_surfaces.at(create_info.surface);
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
@@ -1901,8 +1706,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		const VkGraphicsPipelineCreateInfo &create_info = pCreateInfos[i];
 
 		reshade::api::pipeline_flags flags;
-		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfoKHR>(
-				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR))
+		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(
+				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO))
 		{
 			flags = reshade::vulkan::convert_pipeline_flags(flags_info->flags);
 		}
@@ -2155,8 +1960,8 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		const VkComputePipelineCreateInfo &create_info = pCreateInfos[i];
 
 		reshade::api::pipeline_flags flags;
-		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfoKHR>(
-				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR))
+		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(
+				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO))
 		{
 			flags = reshade::vulkan::convert_pipeline_flags(flags_info->flags);
 		}
@@ -2236,8 +2041,8 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 		const VkRayTracingPipelineCreateInfoKHR &create_info = pCreateInfos[i];
 
 		reshade::api::pipeline_flags flags;
-		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfoKHR>(
-				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO_KHR))
+		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(
+				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO))
 		{
 			flags = reshade::vulkan::convert_pipeline_flags(flags_info->flags);
 		}

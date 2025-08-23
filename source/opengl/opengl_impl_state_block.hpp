@@ -5,19 +5,23 @@
 
 #pragma once
 
-#include <GL/gl3w.h>
+#include <glad/gl.h>
 
 namespace reshade::opengl
 {
+	class device_impl;
+
 	class state_block
 	{
 	public:
-		state_block();
+		explicit state_block(device_impl *device);
 
 		void capture(bool compatibility);
 		void apply(bool compatibility) const;
 
 	private:
+		device_impl *const _device_impl;
+
 		GLint _copy_read = 0;
 		GLint _copy_write = 0;
 

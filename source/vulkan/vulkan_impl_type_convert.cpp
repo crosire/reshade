@@ -4,7 +4,6 @@
  */
 
 #include "vulkan_hooks.hpp"
-#include "vulkan_impl_device.hpp"
 #include "vulkan_impl_type_convert.hpp"
 #include <algorithm> // std::copy_n, std::fill_n, std::find_if
 
@@ -673,7 +672,7 @@ auto reshade::vulkan::convert_image_layout_to_usage(VkImageLayout layout) -> api
 	case VK_IMAGE_LAYOUT_PREINITIALIZED:
 		return api::resource_usage::cpu_access;
 	case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-	case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
+	// case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
 		return api::resource_usage::present;
 	}
 }
@@ -889,7 +888,7 @@ void reshade::vulkan::convert_usage_to_buffer_usage_flags(api::resource_usage us
 	else
 		buffer_flags &= ~VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 }
-void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags2KHR buffer_flags, api::resource_usage &usage)
+void reshade::vulkan::convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags2 buffer_flags, api::resource_usage &usage)
 {
 	using namespace reshade;
 
@@ -1370,15 +1369,11 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	desc.buffer.size = create_info.size;
 	desc.buffer.stride = 0;
 
-	if (const auto usage_flags_info = find_in_structure_chain<VkBufferUsageFlags2CreateInfoKHR>(
-			create_info.pNext, VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO_KHR))
-	{
-		convert_buffer_usage_flags_to_usage(usage_flags_info->usage, desc.usage);
-	}
-	else
-	{
-		convert_buffer_usage_flags_to_usage(create_info.usage, desc.usage);
-	}
+	VkBufferUsageFlags2 usage = create_info.usage;
+	if (const auto usage_flags_info = find_in_structure_chain<VkBufferUsageFlags2CreateInfo>(
+			create_info.pNext, VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO))
+		usage = usage_flags_info->usage;
+	convert_buffer_usage_flags_to_usage(usage, desc.usage);
 
 	if (const auto external_memory_info = find_in_structure_chain<VkExternalMemoryBufferCreateInfo>(
 			create_info.pNext, VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO))
@@ -2332,13 +2327,8 @@ auto reshade::vulkan::convert_pipeline_flags(api::pipeline_flags value) -> VkPip
 
 	return result;
 }
-auto reshade::vulkan::convert_pipeline_flags(VkPipelineCreateFlags2KHR value) -> api::pipeline_flags
+auto reshade::vulkan::convert_pipeline_flags(VkPipelineCreateFlags2 value) -> api::pipeline_flags
 {
-	static_assert(
-		VK_PIPELINE_CREATE_LIBRARY_BIT_KHR == VK_PIPELINE_CREATE_2_LIBRARY_BIT_KHR &&
-		VK_PIPELINE_CREATE_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR == VK_PIPELINE_CREATE_2_RAY_TRACING_SKIP_TRIANGLES_BIT_KHR &&
-		VK_PIPELINE_CREATE_RAY_TRACING_SKIP_AABBS_BIT_KHR == VK_PIPELINE_CREATE_2_RAY_TRACING_SKIP_AABBS_BIT_KHR);
-
 	api::pipeline_flags result = api::pipeline_flags::none;
 	if ((value & VK_PIPELINE_CREATE_LIBRARY_BIT_KHR) != 0)
 		result |= api::pipeline_flags::library;

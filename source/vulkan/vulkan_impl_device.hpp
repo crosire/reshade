@@ -5,11 +5,11 @@
 
 #pragma once
 
+#include <glad/vulkan.h>
 #pragma warning(push)
 #pragma warning(disable: 4100 4127 4324 4505 4189) // Disable a bunch of warnings thrown by VMA code
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
-#include <vk_layer_dispatch_table.h>
 
 #include "reshade_api_object_impl.hpp"
 #include <shared_mutex>
@@ -31,14 +31,7 @@ namespace reshade::vulkan
 			VkPhysicalDevice physical_device,
 			VkInstance instance,
 			uint32_t api_version,
-			const VkLayerInstanceDispatchTable &instance_table, const VkLayerDispatchTable &device_table, const VkPhysicalDeviceFeatures &enabled_features,
-			bool push_descriptors_ext = false,
-			bool dynamic_rendering_ext = false,
-			bool timeline_semaphore_ext = false,
-			bool custom_border_color_ext = false,
-			bool extended_dynamic_state_ext = false,
-			bool conservative_rasterization_ext = false,
-			bool ray_tracing_ext = false);
+			const GladVulkanContext &dispatch_table, const VkPhysicalDeviceFeatures &enabled_features);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }
@@ -151,20 +144,11 @@ namespace reshade::vulkan
 		}
 
 		const VkPhysicalDevice _physical_device;
-		const VkLayerDispatchTable _dispatch_table;
-		const VkLayerInstanceDispatchTable _instance_dispatch_table;
-
 		command_queue_impl *_primary_graphics_queue = nullptr;
 		uint32_t _primary_graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
 		std::vector<command_queue_impl *> _queues;
 
-		const bool _push_descriptor_ext;
-		const bool _dynamic_rendering_ext;
-		const bool _timeline_semaphore_ext;
-		const bool _custom_border_color_ext;
-		const bool _extended_dynamic_state_ext;
-		const bool _conservative_rasterization_ext;
-		const bool _ray_tracing_ext;
+		const GladVulkanContext _dispatch_table;
 		const VkPhysicalDeviceFeatures _enabled_features;
 
 	private:

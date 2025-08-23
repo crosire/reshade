@@ -9,7 +9,7 @@
 #include "lockfree_linear_map.hpp"
 #include <cstring> // std::strcmp
 
-extern lockfree_linear_map<void *, instance_dispatch_table, 16> g_vulkan_instances;
+extern lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #define RESHADE_VULKAN_HOOK_PROC(name) \
@@ -313,20 +313,30 @@ PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const c
 	if (instance == VK_NULL_HANDLE)
 		return nullptr;
 
-	const auto trampoline = g_vulkan_instances.at(dispatch_key_from_handle(instance)).GetInstanceProcAddr;
+	const auto trampoline = g_vulkan_instances.at(dispatch_key_from_handle(instance)).dispatch_table.GetInstanceProcAddr;
 #endif
 	return trampoline(instance, pName);
 }
 
+struct VkNegotiateLayerInterface
+{
+	enum VkNegotiateLayerStructType sType;
+	void *pNext;
+	uint32_t loaderLayerInterfaceVersion;
+	PFN_vkGetInstanceProcAddr pfnGetInstanceProcAddr;
+	PFN_vkGetDeviceProcAddr pfnGetDeviceProcAddr;
+	PFN_vkGetInstanceProcAddr pfnGetPhysicalDeviceProcAddr;
+};
+
 VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
 {
 	if (pVersionStruct == nullptr ||
-		pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)
+		pVersionStruct->sType != 1 /* LAYER_NEGOTIATE_INTERFACE_STRUCT */)
 		return VK_ERROR_INITIALIZATION_FAILED;
 
-	pVersionStruct->loaderLayerInterfaceVersion = CURRENT_LOADER_LAYER_INTERFACE_VERSION;
-	pVersionStruct->pfnGetDeviceProcAddr = vkGetDeviceProcAddr;
+	pVersionStruct->loaderLayerInterfaceVersion = 2; // Version 2 added 'vkNegotiateLoaderLayerInterfaceVersion'
 	pVersionStruct->pfnGetInstanceProcAddr = vkGetInstanceProcAddr;
+	pVersionStruct->pfnGetDeviceProcAddr = vkGetDeviceProcAddr;
 	pVersionStruct->pfnGetPhysicalDeviceProcAddr = nullptr;
 
 	return VK_SUCCESS;

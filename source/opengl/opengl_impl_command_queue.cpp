@@ -7,7 +7,7 @@
 #include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-#define gl gl3wProcs.gl
+#define gl _device_impl->_dispatch_table
 
 reshade::opengl::device_context_impl::device_context_impl(device_impl *device, HGLRC hglrc) :
 	api_object_impl(hglrc),

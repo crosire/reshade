@@ -14,7 +14,7 @@ namespace reshade::vulkan
 		friend class device_impl;
 
 	public:
-		command_list_impl(device_impl *device, VkCommandBuffer cmd_list);
+		command_list_impl(device_impl *device, VkCommandBuffer cmd_buffer);
 
 		api::device *get_device() final;
 
@@ -81,8 +81,8 @@ namespace reshade::vulkan
 	{
 		using Handle = VkCommandBuffer;
 
-		object_data(device_impl *device, VkCommandBuffer cmd_list) :
-			command_list_impl(device, cmd_list) {}
+		object_data(device_impl *device, VkCommandBuffer cmd_buffer) :
+			command_list_impl(device, cmd_buffer) {}
 
 #if RESHADE_ADDON
 		using command_list_impl::_is_in_render_pass;

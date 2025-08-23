@@ -11,7 +11,7 @@
 #include "addon_manager.hpp"
 #include <cstring> // std::memset, std::strlen
 
-#define gl gl3wProcs.gl
+#define gl static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device())->_dispatch_table
 
 // Initialize thread local variable in this translation unit, to avoid the compiler generating calls to '__dyn_tls_on_demand_init' on every use in the frequently called functions below
 thread_local reshade::opengl::device_context_impl *g_opengl_context = nullptr;
@@ -3254,6 +3254,22 @@ void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, G
 #endif
 
 #ifdef GL_VERSION_4_0
+struct DrawArraysIndirectCommand
+{
+	GLuint count;
+	GLuint primcount;
+	GLuint first;
+	GLuint baseinstance;
+};
+struct DrawElementsIndirectCommand
+{
+	GLuint count;
+	GLuint primcount;
+	GLuint firstindex;
+	GLuint basevertex;
+	GLuint baseinstance;
+};
+
 void APIENTRY glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 {
 #if RESHADE_ADDON

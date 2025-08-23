@@ -3,23 +3,7 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include <GL/gl3w.h>
-
-struct DrawArraysIndirectCommand
-{
-	GLuint count;
-	GLuint primcount;
-	GLuint first;
-	GLuint baseinstance;
-};
-struct DrawElementsIndirectCommand
-{
-	GLuint count;
-	GLuint primcount;
-	GLuint firstindex;
-	GLuint basevertex;
-	GLuint baseinstance;
-};
+#include <glad/wgl.h>
 
 #undef glBindBuffer
 extern "C" void APIENTRY glBindBuffer(GLenum target, GLuint buffer);

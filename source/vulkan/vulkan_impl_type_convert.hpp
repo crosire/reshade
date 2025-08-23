@@ -5,9 +5,16 @@
 
 #pragma once
 
+#include <glad/vulkan.h>
+#include "reshade_api_pipeline.hpp"
 #include <vector>
 #include <unordered_map>
 #include <limits>
+
+#ifndef AMD_VULKAN_MEMORY_ALLOCATOR_H
+using VmaAllocation = void *;
+using VmaPool = void *;
+#endif
 
 namespace reshade::vulkan
 {
@@ -194,7 +201,7 @@ namespace reshade::vulkan
 	auto convert_access_to_usage(VkAccessFlags2 flags) -> api::resource_usage;
 	auto convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage;
 	void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, api::resource_usage &usage);
-	void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags2KHR buffer_flags, api::resource_usage &usage);
+	void convert_buffer_usage_flags_to_usage(const VkBufferUsageFlags2 buffer_flags, api::resource_usage &usage);
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
@@ -262,7 +269,7 @@ namespace reshade::vulkan
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
 
 	auto convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags;
-	auto convert_pipeline_flags(VkPipelineCreateFlags2KHR value) -> api::pipeline_flags;
+	auto convert_pipeline_flags(VkPipelineCreateFlags2 value) -> api::pipeline_flags;
 	auto convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR;
 	auto convert_shader_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::shader_group_type;
 	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR;

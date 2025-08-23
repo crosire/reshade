@@ -15,7 +15,7 @@
 #define IDR_MIPMAP_CS                   111
 #define IDR_MIPMAP_CS_GLSL              112
 #define IDB_MAIN_ICON                   600
-#define IDR_LICENSE_GL3W                701
+#define IDR_LICENSE_GLAD                701
 #define IDR_LICENSE_IMGUI               702
 #define IDR_LICENSE_MINHOOK             703
 #define IDR_LICENSE_OPENVR              704
@@ -25,7 +25,6 @@
 #define IDR_LICENSE_STB                 708
 #define IDR_LICENSE_UTFCPP              709
 #define IDR_LICENSE_VMA                 710
-#define IDR_LICENSE_VULKAN              711
 
 // Next default values for new objects
 // 

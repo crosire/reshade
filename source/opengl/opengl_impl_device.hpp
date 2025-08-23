@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <GL/gl3w.h>
+#include <glad/wgl.h>
 #include "reshade_api_object_impl.hpp"
 #include <atomic>
 #include <unordered_map>
@@ -17,7 +17,7 @@ namespace reshade::opengl
 		friend class device_context_impl;
 
 	public:
-		device_impl(HDC initial_hdc, HGLRC shared_hglrc, GL3WGetProcAddressProc get_proc_address, bool compatibility_context = false);
+		device_impl(HDC initial_hdc, HGLRC shared_hglrc, const GladGLContext &dispatch_table, bool compatibility_context = false);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::opengl; }
@@ -57,6 +57,7 @@ namespace reshade::opengl
 		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
 		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
 
+		bool create_shader(GLenum type, const reshade::api::shader_desc &desc, GLuint &out_shader);
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobjecte_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline) final;
 		void destroy_pipeline(api::pipeline pipeline) final;
 
@@ -90,6 +91,8 @@ namespace reshade::opengl
 		void get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const final;
 
 		bool get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *out_handles) final;
+
+		const GladGLContext _dispatch_table;
 
 	protected:
 		// Cached context information for quick access

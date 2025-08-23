@@ -26,8 +26,8 @@ static void convert_subresource(uint32_t subresource, const VkImageCreateInfo &c
 	subresource_info.layerCount = 1;
 }
 
-reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_list) :
-	api_object_impl(cmd_list),
+reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_buffer) :
+	api_object_impl(cmd_buffer),
 	_device_impl(device)
 {
 }
@@ -95,8 +95,8 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 			barrier.size = VK_WHOLE_SIZE;
 		}
 
-		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features, _device_impl->_ray_tracing_ext);
-		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features, _device_impl->_ray_tracing_ext);
+		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features, vk.KHR_ray_tracing_pipeline);
+		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features, vk.KHR_ray_tracing_pipeline);
 	}
 
 	assert(src_stage_mask != 0 && dst_stage_mask != 0);
@@ -109,7 +109,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 	_has_commands = true;
 	_is_in_render_pass = true;
 
-	if (_device_impl->_dynamic_rendering_ext)
+	if (vk.KHR_dynamic_rendering)
 	{
 		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
 		rendering_info.renderArea.extent.width = std::numeric_limits<uint32_t>::max();
@@ -343,7 +343,7 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 	assert(_has_commands);
 	_is_in_render_pass = false;
 
-	if (_device_impl->_dynamic_rendering_ext)
+	if (vk.KHR_dynamic_rendering)
 	{
 		vk.CmdEndRendering(_orig);
 	}
@@ -398,49 +398,49 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
 			break;
 		case api::dynamic_state::cull_mode:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetCullMode(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::front_counter_clockwise:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetFrontFace(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::primitive_topology:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetPrimitiveTopology(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::depth_enable:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetDepthTestEnable(_orig, values[i]);
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::depth_write_mask:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetDepthWriteEnable(_orig, values[i]);
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::depth_func:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetDepthCompareOp(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::stencil_enable:
-			if (_device_impl->_extended_dynamic_state_ext)
+			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetStencilTestEnable(_orig, values[i]);
 			else
 				assert(false);
 			break;
 		case api::dynamic_state::ray_tracing_pipeline_stack_size:
-			if (_device_impl->_ray_tracing_ext)
+			if (vk.KHR_ray_tracing_pipeline)
 				vk.CmdSetRayTracingPipelineStackSizeKHR(_orig, values[i]);
 			else
 				assert(false);
@@ -543,7 +543,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		break;
 	}
 
-	if (_device_impl->_push_descriptor_ext)
+	if (vk.KHR_push_descriptor)
 	{
 		if ((stages & api::shader_stage::all_compute) != 0)
 		{
@@ -1002,7 +1002,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	}
 	else
 	{
-		if (!_device_impl->_dynamic_rendering_ext || _is_in_render_pass ||
+		if (!vk.KHR_dynamic_rendering || _is_in_render_pass ||
 			src_data->default_view == VK_NULL_HANDLE || dst_data->default_view == VK_NULL_HANDLE)
 		{
 			assert(false);
@@ -1047,7 +1047,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		{
 			VkPhysicalDeviceDepthStencilResolveProperties resolve_properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
 			VkPhysicalDeviceProperties2 properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_properties };
-			_device_impl->_instance_dispatch_table.GetPhysicalDeviceProperties2(_device_impl->_physical_device, &properties);
+			vk.GetPhysicalDeviceProperties2(_device_impl->_physical_device, &properties);
 
 			// Prefer average depth resolve mode when supported
 			if (resolve_properties.supportedDepthResolveModes & VK_RESOLVE_MODE_AVERAGE_BIT)

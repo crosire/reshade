@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include "opengl_impl_device.hpp"
 #include "opengl_impl_state_block.hpp"
 
-#define gl gl3wProcs.gl
+#define gl _device_impl->_dispatch_table
 
 #define glEnableOrDisable(cap, enable) \
 	if (enable) { \
@@ -15,7 +16,8 @@
 		gl.Disable(cap); \
 	}
 
-reshade::opengl::state_block::state_block()
+reshade::opengl::state_block::state_block(device_impl *device) :
+	_device_impl(device)
 {
 }
 
