@@ -7,7 +7,7 @@
 #include "lockfree_linear_map.hpp"
 #include <cstring> // std::strcmp
 
-extern lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
+extern lockfree_linear_map<XrInstance, openxr_instance, 16> g_openxr_instances;
 
 #define RESHADE_OPENXR_HOOK_PROC(name) \
 	if (0 == std::strcmp(pName, "xr" #name)) { \
@@ -30,6 +30,6 @@ XrResult XRAPI_CALL xrGetInstanceProcAddr(XrInstance instance, const char *pName
 	if (instance == XR_NULL_HANDLE)
 		return XR_ERROR_HANDLE_INVALID;
 
-	const auto trampoline = g_openxr_instances.at(instance).GetInstanceProcAddr;
+	const auto trampoline = g_openxr_instances.at(instance).dispatch_table.GetInstanceProcAddr;
 	return trampoline(instance, pName, pFunction);
 }

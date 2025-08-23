@@ -8,7 +8,7 @@
 #include "lockfree_linear_map.hpp"
 #include <openxr/openxr_loader_negotiation.h>
 
-lockfree_linear_map<XrInstance, openxr_dispatch_table, 16> g_openxr_instances;
+lockfree_linear_map<XrInstance, openxr_instance, 16> g_openxr_instances;
 
 XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreateInfo, const XrApiLayerCreateInfo *pApiLayerInfo, XrInstance *pInstance)
 {
@@ -50,27 +50,26 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 		return result;
 	}
 
-	XrInstance instance = *pInstance;
 	// Initialize the instance dispatch table
-	XrGeneratedDispatchTable dispatch_table = {};
-	dispatch_table.GetInstanceProcAddr = get_instance_proc;
+	openxr_instance instance = { *pInstance };
+	instance.dispatch_table.GetInstanceProcAddr = get_instance_proc;
 
 	// Core 1_0
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(DestroyInstance);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(CreateSession);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(DestroySession);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(EnumerateViewConfigurations);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(CreateSwapchain);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(DestroySwapchain);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(EnumerateSwapchainImages);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(AcquireSwapchainImage);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(ReleaseSwapchainImage);
-	RESHADE_OPENXR_INIT_DISPATCH_PTR(EndFrame);
+	get_instance_proc(instance.handle, "xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.DestroyInstance));
+	get_instance_proc(instance.handle, "xrCreateSession", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.CreateSession));
+	get_instance_proc(instance.handle, "xrDestroySession", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.DestroySession));
+	get_instance_proc(instance.handle, "xrEnumerateViewConfigurations", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.EnumerateViewConfigurations));
+	get_instance_proc(instance.handle, "xrCreateSwapchain", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.CreateSwapchain));
+	get_instance_proc(instance.handle, "xrDestroySwapchain", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.DestroySwapchain));
+	get_instance_proc(instance.handle, "xrEnumerateSwapchainImages", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.EnumerateSwapchainImages));
+	get_instance_proc(instance.handle, "xrAcquireSwapchainImage", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.AcquireSwapchainImage));
+	get_instance_proc(instance.handle, "xrReleaseSwapchainImage", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.ReleaseSwapchainImage));
+	get_instance_proc(instance.handle, "xrEndFrame", reinterpret_cast<PFN_xrVoidFunction *>(&instance.dispatch_table.EndFrame));
 
-	g_openxr_instances.emplace(instance, openxr_dispatch_table { dispatch_table, instance });
+	g_openxr_instances.emplace(instance.handle, instance);
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Returning OpenXR instance %" PRIx64 ".", instance);
+	reshade::log::message(reshade::log::level::debug, "Returning OpenXR instance %" PRIx64 ".", instance.handle);
 #endif
 	return result;
 }

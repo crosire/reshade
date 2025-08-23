@@ -7,11 +7,6 @@
 
 #include <xr_generated_dispatch_table_core.h>
 
-struct openxr_dispatch_table : public XrGeneratedDispatchTable
-{
-	XrInstance instance;
-};
-
 template <typename T>
 static const T *find_in_structure_chain(const void *structure_chain, XrStructureType type)
 {
@@ -21,13 +16,16 @@ static const T *find_in_structure_chain(const void *structure_chain, XrStructure
 	return next;
 }
 
+struct openxr_instance
+{
+	XrInstance handle;
+	XrGeneratedDispatchTable dispatch_table;
+};
+
 #define RESHADE_OPENXR_GET_DISPATCH_PTR(name) \
-	PFN_xr##name trampoline = g_openxr_instances.at(instance).name; \
+	PFN_xr##name trampoline = g_openxr_instances.at(instance).dispatch_table.name; \
 	assert(trampoline != nullptr)
 #define RESHADE_OPENXR_GET_DISPATCH_PTR_FROM(name, data) \
 	assert((data) != nullptr); \
 	PFN_xr##name trampoline = (data)->name; \
 	assert(trampoline != nullptr)
-
-#define RESHADE_OPENXR_INIT_DISPATCH_PTR(name) \
-	reinterpret_cast<PFN_xr##name>(get_instance_proc(instance, "xr" #name, reinterpret_cast<PFN_xrVoidFunction *>(&dispatch_table.name)))

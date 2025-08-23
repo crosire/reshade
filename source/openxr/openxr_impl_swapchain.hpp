@@ -6,7 +6,6 @@
 #pragma once
 
 #include "reshade_api_object_impl.hpp"
-#include <Unknwn.h>
 #include <openxr/openxr.h>
 
 namespace reshade::openxr
