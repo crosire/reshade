@@ -2534,13 +2534,15 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 
 	if ((flags & api::fence_flags::shared) != 0)
 	{
+		if (!gl.EXT_semaphore || !gl.EXT_semaphore_win32)
+			return false;
+
 		// Only import is supported
 		if (shared_handle == nullptr || *shared_handle == nullptr)
 			return false;
 
-#if 0
 		GLuint object = 0;
-		glGenSemaphoresEXT(1, &object);
+		gl.GenSemaphoresEXT(1, &object);
 
 		GLenum shared_handle_type;
 		if ((flags & api::fence_flags::shared_nt_handle) != 0)
@@ -2548,13 +2550,10 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 		else
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
 
-		glImportSemaphoreWin32HandleEXT(object, shared_handle_type, *shared_handle);
+		gl.ImportSemaphoreWin32HandleEXT(object, shared_handle_type, *shared_handle);
 
-		*out_fence = (0xFFFFFFFFull << 40) | object;
+		*out_fence = { (0xFFFFFFFFull << 40) | object };
 		return true;
-#else
-		return false;
-#endif
 	}
 
 	fence_impl *const impl = new fence_impl();
@@ -2568,10 +2567,12 @@ void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
-#if 0
+		if (!gl.EXT_semaphore)
+			return;
+
 		const GLuint object = fence.handle & 0xFFFFFFFF;
-		glDeleteSemaphoresEXT(1, &object);
-#endif
+
+		gl.DeleteSemaphoresEXT(1, &object);
 		return;
 	}
 
@@ -2590,16 +2591,14 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
-#if 0
+		if (!gl.EXT_semaphore)
+			return 0;
+
 		const GLuint object = fence.handle & 0xFFFFFFFF;
 
 		GLuint64 value = 0;
-		glGetSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
+		gl.GetSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
 		return value;
-#else
-		assert(false);
-		return 0;
-#endif
 	}
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
@@ -2620,31 +2619,23 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
-	{
 		return false;
-	}
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value > impl->current_value)
 		return false;
 
-	const GLsync &sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
-	if (sync_object != 0)
-	{
-		const GLenum res = gl.ClientWaitSync(sync_object, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
-		return res == GL_ALREADY_SIGNALED || res == GL_CONDITION_SATISFIED;
-	}
-	else
-	{
+	const GLsync sync_object = impl->sync_objects[value % std::size(impl->sync_objects)];
+	if (sync_object == 0)
 		return false;
-	}
+
+	const GLenum sync_result = gl.ClientWaitSync(sync_object, GL_SYNC_FLUSH_COMMANDS_BIT, timeout);
+	return sync_result == GL_ALREADY_SIGNALED || sync_result == GL_CONDITION_SATISFIED;
 }
 bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
 {
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
-	{
 		return false;
-	}
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value < impl->current_value)
