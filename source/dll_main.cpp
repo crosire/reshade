@@ -8,6 +8,7 @@
 #include "ini_file.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
+#include "hide_hdr.hpp"
 #include <Windows.h>
 #include <Psapi.h>
 #ifndef NDEBUG
@@ -124,12 +125,17 @@ std::filesystem::path get_module_path(HMODULE module)
 
 #ifndef RESHADE_TEST_APPLICATION
 
+// Provide storage for the global flag
+namespace reshade { int hide_hdr = 0; }
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
 	switch (fdwReason)
 	{
 		case DLL_PROCESS_ATTACH:
 		{
+			// Default hide_hdr to 0 unless overridden elsewhere
+			reshade::hide_hdr = 1;
 			// Do NOT call 'DisableThreadLibraryCalls', since we are linking against the static CRT, which requires the thread notifications to work properly
 			// It does not do anything when static TLS is used anyway, which is the case (see https://docs.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-disablethreadlibrarycalls)
 			g_module_handle = hModule;

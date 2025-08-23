@@ -17,6 +17,7 @@
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
+#include "hide_hdr.hpp"
 
 #if RESHADE_ADDON
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
@@ -651,6 +652,19 @@ UINT    STDMETHODCALLTYPE DXGISwapChain::GetCurrentBackBufferIndex()
 HRESULT STDMETHODCALLTYPE DXGISwapChain::CheckColorSpaceSupport(DXGI_COLOR_SPACE_TYPE ColorSpace, UINT *pColorSpaceSupport)
 {
 	assert(_interface_version >= 3);
+	if (reshade::hide_hdr != 0 && _direct3d_version == reshade::api::device_api::d3d11)
+	{
+		switch (ColorSpace)
+		{
+		case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+		case DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020:
+			if (pColorSpaceSupport != nullptr)
+				*pColorSpaceSupport = 0;
+			return S_OK;
+		default:
+			break;
+		}
+	}
 	return static_cast<IDXGISwapChain3 *>(_orig)->CheckColorSpaceSupport(ColorSpace, pColorSpaceSupport);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE ColorSpace)
@@ -688,6 +702,18 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 
 	assert(_interface_version >= 3);
 	assert(!g_in_dxgi_runtime);
+	if (reshade::hide_hdr != 0 && _direct3d_version == reshade::api::device_api::d3d11)
+	{
+		switch (ColorSpace)
+		{
+		case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+		case DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020:
+			// Pretend success but keep SDR to avoid toggling HDR pathways in games
+			return S_OK;
+		default:
+			break;
+		}
+	}
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
 	g_in_dxgi_runtime = false;
