@@ -62,7 +62,7 @@ reshade::vulkan::device_impl::device_impl(
 		create_info.instance = instance;
 		create_info.vulkanApiVersion = api_version;
 
-		if (vk.KHR_acceleration_structure)
+		if (vk.KHR_buffer_device_address)
 			create_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 		if (vk.KHR_external_memory_win32)
 			create_info.flags |= VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT;

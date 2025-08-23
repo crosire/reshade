@@ -16,23 +16,6 @@
 #include <cstring> // std::strcmp, std::strncmp
 #include <algorithm> // std::fill_n, std::find_if, std::min, std::sort, std::unique
 
-struct VkLayerDeviceLink
-{
-	VkLayerDeviceLink *pNext;
-	PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
-	PFN_vkGetDeviceProcAddr pfnNextGetDeviceProcAddr;
-};
-
-struct VkLayerDeviceCreateInfo
-{
-	VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO
-	const void *pNext;
-	VkLayerFunction function;
-	union {
-		VkLayerDeviceLink *pLayerInfo;
-	} u;
-};
-
 // Set during Vulkan device creation and presentation, to avoid hooking internal D3D devices created e.g. by NVIDIA Ansel, Optimus or layered DXGI swapchain
 extern thread_local bool g_in_dxgi_runtime;
 
@@ -85,12 +68,27 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	assert(pCreateInfo != nullptr && pDevice != nullptr);
 
+	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
+	struct VkLayerDeviceLink
+	{
+		VkLayerDeviceLink *pNext;
+		PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
+		PFN_vkGetDeviceProcAddr pfnNextGetDeviceProcAddr;
+	};
+	struct VkLayerDeviceCreateInfo
+	{
+		VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO
+		const void *pNext;
+		VkLayerFunction function;
+		union {
+			VkLayerDeviceLink *pLayerInfo;
+		} u;
+	};
+
+	const auto link_info = find_layer_info<VkLayerDeviceCreateInfo>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
+
 	const vulkan_instance &instance = g_vulkan_instances.at(dispatch_key_from_handle(physicalDevice));
 	assert(instance.handle != VK_NULL_HANDLE);
-
-	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerDeviceCreateInfo *const link_info = find_layer_info<VkLayerDeviceCreateInfo>(
-		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
 	PFN_vkCreateDevice trampoline = nullptr;
@@ -174,6 +172,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool extended_dynamic_state_ext = false;
 	bool conservative_rasterization_ext = false;
 	bool ray_tracing_ext = false;
+	bool buffer_device_address_ext = false;
 
 	// Check if the device is used for presenting
 	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
@@ -255,11 +254,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			add_extension(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME, false) &&
 			add_extension(VK_KHR_SPIRV_1_4_EXTENSION_NAME, false) &&
 			add_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, false) &&
-			add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, false) &&
 			add_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, false) &&
 			add_extension(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, false) &&
 			add_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, false) &&
 			add_extension(VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME, false);
+		buffer_device_address_ext = ray_tracing_ext && add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, false);
 #endif
 	}
 
@@ -267,6 +266,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());
 	create_info.ppEnabledExtensionNames = enabled_extensions.data();
 
+	#pragma region Patch the enabled features
 	// Patch the enabled features
 	if (features2 != nullptr)
 		// This is evil, because overwriting application memory, but whatever (RenderDoc does this too)
@@ -275,18 +275,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		create_info.pEnabledFeatures = &enabled_features;
 
 	// Enable private data feature
-	VkDevicePrivateDataCreateInfo private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO };
-	private_data_info.pNext = create_info.pNext;
+	VkDevicePrivateDataCreateInfo private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO, create_info.pNext };
 	private_data_info.privateDataSlotRequestCount = 1;
-
-	// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
-	if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
-	{
-		if (existing_memory_model_features->vulkanMemoryModel)
-			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
-	}
-
 	VkPhysicalDevicePrivateDataFeatures private_data_feature;
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature;
 	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_feature;
@@ -300,13 +290,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		dynamic_rendering_ext = existing_vulkan_13_features->dynamicRendering;
 
-		// Force enable private data in Vulkan 1.3, again, evil =)
+		// Forcefully enable private data in Vulkan 1.3, again, evil =)
 		const_cast<VkPhysicalDeviceVulkan13Features *>(existing_vulkan_13_features)->privateData = VK_TRUE;
 	}
 	else
 	{
-		private_data_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
-		private_data_feature.pNext = &private_data_info;
+		private_data_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES, &private_data_info };
 		private_data_feature.privateData = VK_TRUE;
 
 		create_info.pNext = &private_data_feature;
@@ -318,8 +307,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 		else if (dynamic_rendering_ext)
 		{
-			dynamic_rendering_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
-			dynamic_rendering_feature.pNext = const_cast<void *>(create_info.pNext);
+			dynamic_rendering_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, const_cast<void *>(create_info.pNext) };
 			dynamic_rendering_feature.dynamicRendering = VK_TRUE;
 
 			create_info.pNext = &dynamic_rendering_feature;
@@ -343,12 +331,19 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 		else if (timeline_semaphore_ext)
 		{
-			timeline_semaphore_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES };
-			timeline_semaphore_feature.pNext = const_cast<void *>(create_info.pNext);
+			timeline_semaphore_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, const_cast<void *>(create_info.pNext) };
 			timeline_semaphore_feature.timelineSemaphore = VK_TRUE;
 
 			create_info.pNext = &timeline_semaphore_feature;
 		}
+	}
+
+	// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
+	if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
+		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
+	{
+		if (existing_memory_model_features->vulkanMemoryModel)
+			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
 	}
 
 	// Optionally enable custom border color feature
@@ -360,8 +355,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (custom_border_color_ext)
 	{
-		custom_border_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
-		custom_border_feature.pNext = const_cast<void *>(create_info.pNext);
+		custom_border_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT, const_cast<void *>(create_info.pNext) };
 		custom_border_feature.customBorderColors = VK_TRUE;
 		custom_border_feature.customBorderColorWithoutFormat = VK_TRUE;
 
@@ -377,8 +371,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (extended_dynamic_state_ext)
 	{
-		extended_dynamic_state_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
-		extended_dynamic_state_feature.pNext = const_cast<void *>(create_info.pNext);
+		extended_dynamic_state_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, const_cast<void *>(create_info.pNext) };
 		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
 
 		create_info.pNext = &extended_dynamic_state_feature;
@@ -387,7 +380,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// Optionally enable ray tracing feature
 	VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_feature;
 	VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_feature;
-	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_feature;
 	if (const auto existing_ray_tracing_features = find_in_structure_chain<VkPhysicalDeviceRayTracingPipelineFeaturesKHR>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR))
 	{
@@ -395,24 +387,31 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (ray_tracing_ext)
 	{
-		ray_tracing_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
-		ray_tracing_feature.pNext = const_cast<void *>(create_info.pNext);
+		ray_tracing_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, const_cast<void *>(create_info.pNext) };
 		ray_tracing_feature.rayTracingPipeline = VK_TRUE;
 
 		create_info.pNext = &ray_tracing_feature;
 
-		acceleration_structure_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
-		acceleration_structure_feature.pNext = const_cast<void *>(create_info.pNext);
+		acceleration_structure_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR, const_cast<void *>(create_info.pNext) };
 		acceleration_structure_feature.accelerationStructure = VK_TRUE;
 
 		create_info.pNext = &acceleration_structure_feature;
+	}
 
-		buffer_device_address_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
-		buffer_device_address_feature.pNext = const_cast<void *>(create_info.pNext);
+	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_feature;
+	if (const auto existing_buffer_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
+	{
+		buffer_device_address_ext = existing_buffer_address_features->bufferDeviceAddress;
+	}
+	else if (buffer_device_address_ext)
+	{
+		buffer_device_address_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, const_cast<void *>(create_info.pNext) };
 		buffer_device_address_feature.bufferDeviceAddress = VK_TRUE;
 
 		create_info.pNext = &buffer_device_address_feature;
 	}
+	#pragma endregion
 
 	// Continue calling down the chain
 	assert(!g_in_dxgi_runtime);
@@ -424,15 +423,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		reshade::log::message(reshade::log::level::warning, "vkCreateDevice failed with error code %d.", static_cast<int>(result));
 		return result;
 	}
-
-	struct vulkan_device
-	{
-		VkDevice handle;
-		PFN_vkGetDeviceProcAddr get_proc_addr;
-		VkInstance instance_handle;
-		PFN_vkGetInstanceProcAddr get_instance_proc_addr;
-		GladVulkanContext dispatch_table;
-	};
 
 	// Initialize the device dispatch table
 	vulkan_device device = { *pDevice, get_device_proc_addr, instance.handle, get_instance_proc_addr, instance.dispatch_table };
@@ -468,6 +458,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	device.dispatch_table.EXT_conservative_rasterization &= conservative_rasterization_ext ? 1 : 0;
 	device.dispatch_table.KHR_ray_tracing_pipeline &= ray_tracing_ext ? 1 : 0;
 	device.dispatch_table.KHR_acceleration_structure &= ray_tracing_ext ? 1 : 0;
+	device.dispatch_table.KHR_buffer_device_address &= buffer_device_address_ext ? 1 : 0;
 
 	if (instance.api_version < VK_API_VERSION_1_2)
 	{
@@ -808,8 +799,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 	else
 	{
-		fullscreen_info = { VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT };
-		fullscreen_info.pNext = const_cast<void *>(create_info.pNext);
+		fullscreen_info = { VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT, const_cast<void *>(create_info.pNext) };
 		fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT;
 	}
 
@@ -946,7 +936,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	if (fullscreen_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT)
 	{
-		if (const auto fullscreen_win32_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveWin32InfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT))
+		if (const auto fullscreen_win32_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveWin32InfoEXT>(
+				create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT))
 			swapchain_impl->hmonitor = fullscreen_win32_info->hmonitor;
 
 		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->hmonitor);

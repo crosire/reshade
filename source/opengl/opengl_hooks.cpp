@@ -237,7 +237,7 @@ public:
 		// Default parent target to the same target as the new texture view
 		GLenum orig_texture_target = target;
 		// 'glTextureView' is available since OpenGL 4.3, so no guarantee that 'glGetTextureParameteriv' exists, since it was introduced in OpenGL 4.5
-		if (gl.GetTextureParameteriv != nullptr)
+		if (gl.VERSION_4_5)
 			gl.GetTextureParameteriv(orig_texture, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&orig_texture_target));
 
 		if (object == 0)
@@ -1170,7 +1170,7 @@ extern "C" void APIENTRY glScissor(GLint left, GLint bottom, GLsizei width, GLsi
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl.ClipControl != nullptr)
+		if (gl.VERSION_4_5)
 			gl.GetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
@@ -3356,7 +3356,7 @@ void APIENTRY glScissorArrayv(GLuint first, GLsizei count, const GLint *v)
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl.ClipControl != nullptr)
+		if (gl.VERSION_4_5)
 			gl.GetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		temp_mem<reshade::api::rect> rect_data(count);
@@ -3392,7 +3392,7 @@ void APIENTRY glScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei w
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl.ClipControl != nullptr)
+		if (gl.VERSION_4_5)
 			gl.GetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
@@ -3425,7 +3425,7 @@ void APIENTRY glScissorIndexedv(GLuint index, const GLint *v)
 		reshade::has_addon_event<reshade::addon_event::bind_scissor_rects>())
 	{
 		GLint clip_origin = GL_LOWER_LEFT;
-		if (gl.ClipControl != nullptr)
+		if (gl.VERSION_4_5)
 			gl.GetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 		reshade::api::rect rect_data;
@@ -3575,7 +3575,7 @@ void APIENTRY glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboo
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
 		GLint target = GL_TEXTURE;
-		if (gl.GetTextureParameteriv != nullptr)
+		if (gl.VERSION_4_5)
 			gl.GetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
 
 		const reshade::api::resource_view descriptor_data = reshade::opengl::make_resource_view_handle(target, texture);
@@ -4025,7 +4025,7 @@ void APIENTRY glBindTextures(GLuint first, GLsizei count, const GLuint *textures
 			for (GLsizei i = 0; i < count; ++i)
 			{
 				GLint target = GL_TEXTURE;
-				if (gl.GetTextureParameteriv != nullptr)
+				if (gl.VERSION_4_5)
 					gl.GetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
 
 				descriptor_data[i].view = reshade::opengl::make_resource_view_handle(target, textures[i]);
@@ -4062,7 +4062,7 @@ void APIENTRY glBindImageTextures(GLuint first, GLsizei count, const GLuint *tex
 			for (GLsizei i = 0; i < count; ++i)
 			{
 				GLint target = GL_TEXTURE;
-				if (gl.GetTextureParameteriv != nullptr)
+				if (gl.VERSION_4_5)
 					gl.GetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
 
 				descriptor_data[i] = reshade::opengl::make_resource_view_handle(target, textures[i]);

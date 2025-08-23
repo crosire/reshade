@@ -11,23 +11,6 @@
 #include <cstring> // std::strncmp, std::strncpy
 #include <algorithm> // std::find_if
 
-struct VkLayerInstanceLink
-{
-	VkLayerInstanceLink *pNext;
-	PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
-	PFN_vkGetInstanceProcAddr pfnNextGetPhysicalDeviceProcAddr;
-};
-
-struct VkLayerInstanceCreateInfo
-{
-	VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
-	const void *pNext;
-	VkLayerFunction function;
-	union {
-		VkLayerInstanceLink *pLayerInfo;
-	} u;
-};
-
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surfaces;
 lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 
@@ -38,8 +21,23 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	VkLayerInstanceCreateInfo *const link_info = find_layer_info<VkLayerInstanceCreateInfo>(
-		pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
+	struct VkLayerInstanceLink
+	{
+		VkLayerInstanceLink *pNext;
+		PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
+		PFN_vkGetInstanceProcAddr pfnNextGetPhysicalDeviceProcAddr;
+	};
+	struct VkLayerInstanceCreateInfo
+	{
+		VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
+		const void *pNext;
+		VkLayerFunction function;
+		union {
+			VkLayerInstanceLink *pLayerInfo;
+		} u;
+	};
+
+	const auto link_info = find_layer_info<VkLayerInstanceCreateInfo>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
 	PFN_vkCreateInstance trampoline = nullptr;

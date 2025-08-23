@@ -13,6 +13,22 @@ enum VkLayerFunction
 	VK_LAYER_LINK_INFO = 0,
 };
 
+struct VkLayerInstanceLink
+{
+	VkLayerInstanceLink *pNext;
+	PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
+	PFN_vkGetInstanceProcAddr pfnNextGetPhysicalDeviceProcAddr;
+};
+struct VkLayerInstanceCreateInfo
+{
+	VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
+	const void *pNext;
+	VkLayerFunction function;
+	union {
+		VkLayerInstanceLink *pLayerInfo;
+	} u;
+};
+
 template <typename T>
 inline T *find_layer_info(const void *structure_chain, VkStructureType type, VkLayerFunction function)
 {
@@ -38,6 +54,15 @@ inline void *const dispatch_key_from_handle(const void *dispatch_handle)
 	// This ensures that all objects of a specific level (device or instance) will use the same dispatch table
 	return *(void **)dispatch_handle;
 }
+
+struct vulkan_device
+{
+	VkDevice handle;
+	PFN_vkGetDeviceProcAddr get_proc_addr;
+	VkInstance instance_handle;
+	PFN_vkGetInstanceProcAddr get_instance_proc_addr;
+	GladVulkanContext dispatch_table;
+};
 
 struct vulkan_instance
 {

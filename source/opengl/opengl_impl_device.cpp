@@ -30,13 +30,14 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 
 	GLuint64 import_size = 0;
 
-	GladVulkanContext vk = {};
+	GladVulkanContext vk;
 	vk.GetDeviceProcAddr = reinterpret_cast<PFN_vkGetDeviceProcAddr>(GetProcAddress(vulkan_module, "vkGetDeviceProcAddr"));
 	vk.GetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(GetProcAddress(vulkan_module, "vkGetInstanceProcAddr"));
 
 	if (vk.GetInstanceProcAddr != nullptr && vk.GetDeviceProcAddr != nullptr)
 	{
 		vk.CreateInstance = reinterpret_cast<PFN_vkCreateInstance>(vk.GetInstanceProcAddr(nullptr, "vkCreateInstance"));
+		assert(vk.CreateInstance != nullptr);
 
 		// Create temporary Vulkan instance
 		VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
@@ -46,8 +47,7 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 		instance_create_info.pApplicationInfo = &app_info;
 
 		VkInstance instance = VK_NULL_HANDLE;
-		if (vk.CreateInstance != nullptr &&
-			vk.CreateInstance(&instance_create_info, nullptr, &instance) == VK_SUCCESS)
+		if (vk.CreateInstance(&instance_create_info, nullptr, &instance) == VK_SUCCESS)
 		{
 			vk.DestroyInstance = reinterpret_cast<PFN_vkDestroyInstance>(vk.GetInstanceProcAddr(instance, "vkDestroyInstance"));
 			assert(vk.DestroyInstance != nullptr);
@@ -55,7 +55,6 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 			assert(vk.EnumeratePhysicalDevices != nullptr);
 			vk.GetPhysicalDeviceProperties2 = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2>(vk.GetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2"));
 			assert(vk.GetPhysicalDeviceProperties2 != nullptr);
-			vk.CreateDevice = reinterpret_cast<PFN_vkCreateDevice>(vk.GetInstanceProcAddr(instance, "vkCreateDevice"));
 
 			// Find the same physical device used by the OpenGL context
 			uint32_t num_physical_devices = 0;
@@ -78,42 +77,65 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 				}
 			}
 
-			// Create temporary Vulkan device
-			float queue_priority = 0.0f;
-			VkDeviceQueueCreateInfo queue_info { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
-			queue_info.queueFamilyIndex = 0;
-			queue_info.queueCount = 1;
-			queue_info.pQueuePriorities = &queue_priority;
-
-			VkDeviceCreateInfo device_create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
-			device_create_info.queueCreateInfoCount = 1; // VK_KHR_maintenance9 makes this unnecessary, but is not yet widely supported
-			device_create_info.pQueueCreateInfos = &queue_info;
-
-			VkDevice device = VK_NULL_HANDLE;
-			if (physical_device != VK_NULL_HANDLE &&
-				vk.CreateDevice != nullptr &&
-				vk.CreateDevice(physical_device, &device_create_info, nullptr, &device) == VK_SUCCESS)
+			if (physical_device != VK_NULL_HANDLE)
 			{
-				vk.DestroyDevice = reinterpret_cast<PFN_vkDestroyDevice>(vk.GetDeviceProcAddr(device, "vkDestroyDevice"));
-				assert(vk.DestroyDevice != nullptr);
-				vk.GetDeviceImageMemoryRequirements = reinterpret_cast<PFN_vkGetDeviceImageMemoryRequirements>(vk.GetDeviceProcAddr(device, "vkGetDeviceImageMemoryRequirements"));
-				assert(vk.GetDeviceImageMemoryRequirements != nullptr);
+				vk.GetPhysicalDeviceFeatures2 = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2>(vk.GetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2"));
+				assert(vk.GetPhysicalDeviceFeatures2 != nullptr);
+				vk.CreateDevice = reinterpret_cast<PFN_vkCreateDevice>(vk.GetInstanceProcAddr(instance, "vkCreateDevice"));
+				assert(vk.CreateDevice != nullptr);
 
-				VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-				reshade::vulkan::convert_resource_desc(desc, create_info);
+				VkPhysicalDeviceFeatures2 features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+				VkPhysicalDeviceMaintenance9FeaturesKHR maintenance9_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR };
+				features.pNext = &maintenance9_features;
+				vk.GetPhysicalDeviceFeatures2(physical_device, &features);
 
-				VkDeviceImageMemoryRequirements requirements_info { VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS };
-				requirements_info.pCreateInfo = &create_info;
-				VkMemoryRequirements2 requirements { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
-				vk.GetDeviceImageMemoryRequirements(device, &requirements_info, &requirements);
+				// Create temporary Vulkan device
+				float queue_priority = 0.0f;
+				VkDeviceQueueCreateInfo queue_info;
 
-				import_size = requirements.memoryRequirements.size;
+				VkDeviceCreateInfo device_create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+				if (maintenance9_features.maintenance9)
+				{
+					static constexpr char *maintenance9_name = VK_KHR_MAINTENANCE_9_EXTENSION_NAME;
 
-				vk.DestroyDevice(device, nullptr);
-			}
-			else
-			{
-				reshade::log::message(reshade::log::level::error, "Failed to create temporary Vulkan device!");
+					device_create_info.pNext = &maintenance9_features;
+					device_create_info.enabledExtensionCount = 1;
+					device_create_info.ppEnabledExtensionNames = &maintenance9_name;
+				}
+				else
+				{
+					queue_info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+					queue_info.queueCount = 1;
+					queue_info.pQueuePriorities = &queue_priority;
+
+					device_create_info.queueCreateInfoCount = 1;
+					device_create_info.pQueueCreateInfos = &queue_info;
+				}
+
+				VkDevice device = VK_NULL_HANDLE;
+				if (vk.CreateDevice(physical_device, &device_create_info, nullptr, &device) == VK_SUCCESS)
+				{
+					vk.DestroyDevice = reinterpret_cast<PFN_vkDestroyDevice>(vk.GetDeviceProcAddr(device, "vkDestroyDevice"));
+					assert(vk.DestroyDevice != nullptr);
+					vk.GetDeviceImageMemoryRequirements = reinterpret_cast<PFN_vkGetDeviceImageMemoryRequirements>(vk.GetDeviceProcAddr(device, "vkGetDeviceImageMemoryRequirements"));
+					assert(vk.GetDeviceImageMemoryRequirements != nullptr);
+
+					VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+					reshade::vulkan::convert_resource_desc(desc, create_info);
+
+					VkDeviceImageMemoryRequirements requirements_info { VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS };
+					requirements_info.pCreateInfo = &create_info;
+					VkMemoryRequirements2 requirements { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+					vk.GetDeviceImageMemoryRequirements(device, &requirements_info, &requirements);
+
+					import_size = requirements.memoryRequirements.size;
+
+					vk.DestroyDevice(device, nullptr);
+				}
+				else
+				{
+					reshade::log::message(reshade::log::level::error, "Failed to create temporary Vulkan device!");
+				}
 			}
 
 			vk.DestroyInstance(instance, nullptr);
@@ -1447,7 +1469,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 
 			if (target == GL_TEXTURE)
 			{
-				if (gl.GetTextureParameteriv != nullptr)
+				if (gl.VERSION_4_5)
 					gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 				else
 					target = GL_TEXTURE_2D; // Assume this is a 2D texture attachment if it cannot be queried

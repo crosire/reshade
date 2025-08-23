@@ -106,7 +106,7 @@ void reshade::opengl::state_block::capture(bool compatibility)
 	gl.GetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, &_stencil_op_depth_fail);
 	gl.GetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, &_stencil_op_depth_pass);
 
-	if (gl.ClipControl != nullptr)
+	if (gl.VERSION_4_5)
 	{
 		gl.GetIntegerv(GL_CLIP_ORIGIN, &_clip_origin);
 		gl.GetIntegerv(GL_CLIP_DEPTH_MODE, &_clip_depthmode);
@@ -193,7 +193,7 @@ void reshade::opengl::state_block::apply(bool compatibility) const
 	gl.StencilOp(_stencil_op_fail, _stencil_op_depth_fail, _stencil_op_depth_pass);
 	gl.StencilFunc(_stencil_func, _stencil_reference_value, _stencil_read_mask);
 
-	if (gl.ClipControl != nullptr)
+	if (gl.VERSION_4_5)
 	{
 		gl.ClipControl(_clip_origin, _clip_depthmode);
 	}

@@ -425,7 +425,7 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 	if ((stages & api::pipeline_stage::output_merger) != 0)
 	{
 		// Set clip space to something consistent
-		if (gl.ClipControl != nullptr)
+		if (gl.VERSION_4_5)
 			gl.ClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
 
 		glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, pipeline_object->sample_alpha_to_coverage);
@@ -946,7 +946,7 @@ void reshade::opengl::device_context_impl::bind_viewports(uint32_t first, uint32
 void reshade::opengl::device_context_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {
 	GLint clip_origin = GL_LOWER_LEFT;
-	if (gl.ClipControl != nullptr)
+	if (gl.VERSION_4_5)
 		gl.GetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 
 	for (uint32_t i = 0; i < count; ++i)
