@@ -784,9 +784,64 @@ void reshade::imgui::code_editor::clear_text()
 }
 void reshade::imgui::code_editor::insert_text(const std::string_view text)
 {
+	undo_record u;
+	if (!_readonly)
+	{
+		u.added = text;
+		u.added_beg = _cursor_pos;
+	}
+
+	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line);
+
 	// Insert all characters of the text
 	for (auto it = text.begin(); it < text.end();)
-		insert_character(utf8::unchecked::next(it), false);
+	{
+		const uint32_t c = utf8::unchecked::next(it);
+
+		// New line feed requires insertion of a new line
+		if (c == '\n')
+		{
+			// Move all error markers after the new line one up
+			std::unordered_map<size_t, std::pair<std::string, bool>> errors;
+			errors.reserve(_errors.size());
+			for (std::pair<const size_t, std::pair<std::string, bool>> &i : _errors)
+				errors.insert({ i.first >= _cursor_pos.line + 1 ? i.first + 1 : i.first, std::move(i.second) });
+			_errors = std::move(errors);
+
+			std::vector<glyph> &new_line = *_lines.emplace(_lines.begin() + _cursor_pos.line + 1);
+			std::vector<glyph> &line = _lines[_cursor_pos.line];
+
+			new_line.insert(new_line.end(), line.begin() + _cursor_pos.column, line.end());
+			line.erase(line.begin() + _cursor_pos.column, line.begin() + line.size());
+
+			_cursor_pos.line++;
+			_cursor_pos.column = 0;
+		}
+		else if (c != '\r') // Ignore carriage return
+		{
+			std::vector<glyph> &line = _lines[_cursor_pos.line];
+
+			if (_overwrite && _cursor_pos.column < line.size())
+				line[_cursor_pos.column] = { c, color_default };
+			else
+				line.insert(line.begin() + _cursor_pos.column, { c, color_default });
+
+			_cursor_pos.column++;
+		}
+	}
+
+	if (!_readonly)
+	{
+		u.added_end = _cursor_pos;
+		record_undo(std::move(u));
+	}
+
+	// Reset cursor animation
+	_cursor_anim = 0;
+
+	_scroll_to_cursor = true;
+
+	_colorize_line_end = std::max(_colorize_line_end, _cursor_pos.line + 1);
 
 	// Move cursor to end of inserted text
 	select(_cursor_pos, _cursor_pos);
@@ -896,8 +951,11 @@ void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 	assert(!_lines.empty());
 
 	u.added.clear();
-	utf8::unchecked::append(c, std::back_inserter(u.added));
-	u.added_beg = _cursor_pos;
+	if (!_readonly)
+	{
+		utf8::unchecked::append(c, std::back_inserter(u.added));
+		u.added_beg = _cursor_pos;
+	}
 
 	// Colorize additional 10 lines above and below to better catch multi-line constructs
 	_colorize_line_beg = std::min(_colorize_line_beg, _cursor_pos.line - std::min(_cursor_pos.line, static_cast<size_t>(10)));
@@ -921,7 +979,8 @@ void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 			for (size_t i = 0; i < line.size() && std::isblank(line[i].c); ++i)
 			{
 				new_line.push_back(line[i]);
-				utf8::unchecked::append(line[i].c, std::back_inserter(u.added));
+				if (!_readonly)
+					utf8::unchecked::append(line[i].c, std::back_inserter(u.added));
 			}
 		}
 		const size_t indentation = new_line.size();
@@ -944,8 +1003,11 @@ void reshade::imgui::code_editor::insert_character(uint32_t c, bool auto_indent)
 		_cursor_pos.column++;
 	}
 
-	u.added_end = _cursor_pos;
-	record_undo(std::move(u));
+	if (!_readonly)
+	{
+		u.added_end = _cursor_pos;
+		record_undo(std::move(u));
+	}
 
 	// Reset cursor animation
 	_cursor_anim = 0;
@@ -1007,6 +1069,7 @@ void reshade::imgui::code_editor::undo(unsigned int steps)
 	_interactive_beg = _cursor_pos;
 	_interactive_end = _cursor_pos;
 
+	assert(!_undo_operation_active);
 	_undo_operation_active = true;
 
 	while (can_undo() && steps-- > 0)
@@ -1038,6 +1101,7 @@ void reshade::imgui::code_editor::redo(unsigned int steps)
 	_interactive_beg = _cursor_pos;
 	_interactive_end = _cursor_pos;
 
+	assert(!_undo_operation_active);
 	_undo_operation_active = true;
 
 	while (can_redo() && steps-- > 0)
@@ -1064,7 +1128,7 @@ void reshade::imgui::code_editor::redo(unsigned int steps)
 
 void reshade::imgui::code_editor::record_undo(undo_record &&record)
 {
-	if (_undo_operation_active)
+	if (_undo_operation_active || _readonly)
 		return;
 
 	_undo.resize(_undo_index); // Remove all undo records after the current one
