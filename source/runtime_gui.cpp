@@ -1567,6 +1567,7 @@ void reshade::runtime::draw_gui()
 
 		_input->block_mouse_input(block_mouse_input);
 		_input->block_keyboard_input(block_keyboard_input);
+		_input->block_mouse_cursor_warping(_show_overlay || _block_input_next_frame || block_mouse_input);
 	}
 
 	if (ImDrawData *const draw_data = ImGui::GetDrawData();
