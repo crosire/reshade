@@ -1597,6 +1597,10 @@ bool reshadefx::parser::parse_variable(type type, std::string name, bool global)
 		// Variables without a semantic may have an optional initializer
 		if (accept('='))
 		{
+			// The precise qualifier propagates to operations that contribute to the value assigned to the qualified variable
+			if (type.has(type::q_precise))
+				initializer.type.qualifiers |= type::q_precise;
+
 			if (!parse_expression_assignment(initializer))
 				return false;
 

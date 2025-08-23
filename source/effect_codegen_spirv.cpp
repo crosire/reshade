@@ -2097,6 +2097,9 @@ private:
 		spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type));
 		inst.add(val); // Operand
 
+		if (res_type.has(type::q_precise))
+			add_decoration(inst, spv::DecorationNoContraction);
+
 		return inst;
 	}
 	id   emit_binary_op(const location &loc, tokenid op, const type &res_type, const type &exp_type, id lhs, id rhs) override
@@ -2219,19 +2222,17 @@ private:
 
 			return inst;
 		}
-		else
-		{
-			spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type));
-			inst.add(lhs); // Operand 1
-			inst.add(rhs); // Operand 2
 
-			if (res_type.has(type::q_precise))
-				add_decoration(inst, spv::DecorationNoContraction);
-			if (!_enable_16bit_types && res_type.precision() < 32)
-				add_decoration(inst, spv::DecorationRelaxedPrecision);
+		spirv_instruction &inst = add_instruction(spv_op, convert_type(res_type));
+		inst.add(lhs); // Operand 1
+		inst.add(rhs); // Operand 2
 
-			return inst;
-		}
+		if (res_type.has(type::q_precise))
+			add_decoration(inst, spv::DecorationNoContraction);
+		if (!_enable_16bit_types && res_type.precision() < 32)
+			add_decoration(inst, spv::DecorationRelaxedPrecision);
+
+		return inst;
 	}
 	id   emit_ternary_op(const location &loc, tokenid op, const type &res_type, id condition, id true_value, id false_value) override
 	{

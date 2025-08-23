@@ -609,6 +609,8 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 {
 	location location = _token_next.location;
 
+	const bool precise = exp.type.has(type::q_precise);
+
 	// Check if a prefix operator exists
 	if (accept_unary_op())
 	{
@@ -731,6 +733,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				break;
 
 			expression &element_exp = elements.emplace_back();
+			// Propagate precise qualifier to elements
+			if (precise)
+				element_exp.type.qualifiers |= type::q_precise;
 
 			// Parse the argument expression
 			if (!parse_expression_assignment(element_exp))
@@ -855,6 +860,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				return false;
 
 			expression &argument_exp = arguments.emplace_back();
+			// Propagate precise qualifier to arguments
+			if (precise)
+				argument_exp.type.qualifiers |= type::q_precise;
 
 			// Parse the argument expression
 			if (!parse_expression_assignment(argument_exp))
@@ -970,6 +978,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					return false;
 
 				expression &argument_exp = arguments.emplace_back();
+				// Propagate precise qualifier to arguments
+				if (precise)
+					argument_exp.type.qualifiers |= type::q_precise;
 
 				// Parse the argument expression
 				if (!parse_expression_assignment(argument_exp))
@@ -1086,6 +1097,9 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 				const codegen::id argument_value = _codegen->emit_constant(param.type, param.default_value);
 				_codegen->emit_store(parameters[i], argument_value);
 			}
+
+			if (precise)
+				symbol.type.qualifiers |= type::q_precise;
 
 			// Check if the call resolving found an intrinsic or function and invoke the corresponding code
 			const codegen::id result = (symbol.op == symbol_type::function) ?
@@ -1452,11 +1466,18 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		}
 	}
 
+	// The evaluation of a r-value is affected by precise if the result is consumed by a l-value qualified as precise
+	const bool is_rvalue = !exp.is_lvalue;
+	if (is_rvalue && precise)
+		exp.type.qualifiers |= type::q_precise;
+
 	return true;
 }
 
 bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned int left_precedence)
 {
+	const bool precise = lhs_exp.type.has(type::q_precise);
+
 	// Parse left hand side of the expression
 	if (!parse_expression_unary(lhs_exp))
 		return false;
@@ -1493,8 +1514,12 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned i
 				_codegen->enter_block(rhs_block);
 			}
 #endif
-			// Parse the right hand side of the binary operation
 			expression rhs_exp;
+			// Propagate precise qualifier to the right hand side
+			if (precise)
+				rhs_exp.type.qualifiers |= type::q_precise;
+
+			// Parse the right hand side of the binary operation
 			if (!parse_expression_multary(rhs_exp, right_precedence))
 				return false;
 
@@ -1628,8 +1653,13 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned i
 
 			_codegen->enter_block(true_block);
 #endif
-			// Parse the first part of the right hand side of the ternary operation
+
 			expression true_exp;
+			// Propagate precise qualifier to the right hand side
+			if (lhs_exp.type.has(type::q_precise))
+				true_exp.type.qualifiers |= type::q_precise;
+
+			// Parse the first part of the right hand side of the ternary operation
 			if (!parse_expression(true_exp))
 				return false;
 
@@ -1641,8 +1671,13 @@ bool reshadefx::parser::parse_expression_multary(expression &lhs_exp, unsigned i
 			_codegen->set_block(0);
 			_codegen->enter_block(false_block);
 #endif
-			// Parse the second part of the right hand side of the ternary operation
+
 			expression false_exp;
+			// Propagate precise qualifier to the right hand side
+			if (lhs_exp.type.has(type::q_precise))
+				false_exp.type.qualifiers |= type::q_precise;
+
+			// Parse the second part of the right hand side of the ternary operation
 			if (!parse_expression_assignment(false_exp))
 				return false;
 
@@ -1722,9 +1757,13 @@ bool reshadefx::parser::parse_expression_assignment(expression &lhs_exp)
 		// Remember the operator token before parsing the expression that follows it
 		const tokenid op = _token.id;
 
+		expression rhs_exp;
+		// Propagate precise qualifier to the right hand side
+		if (lhs_exp.type.has(type::q_precise))
+			rhs_exp.type.qualifiers |= type::q_precise;
+
 		// Parse right hand side of the assignment expression
 		// This may be another assignment expression to support chains like "a = b = c = 0;"
-		expression rhs_exp;
 		if (!parse_expression_assignment(rhs_exp))
 			return false;
 
