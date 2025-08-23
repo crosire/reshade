@@ -126,7 +126,7 @@ std::filesystem::path get_module_path(HMODULE module)
 #ifndef RESHADE_TEST_APPLICATION
 
 // Provide storage for the global flag
-namespace reshade { int hide_hdr = 0; }
+namespace reshade { int hide_hdr = 1; }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {

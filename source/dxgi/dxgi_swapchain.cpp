@@ -652,7 +652,7 @@ UINT    STDMETHODCALLTYPE DXGISwapChain::GetCurrentBackBufferIndex()
 HRESULT STDMETHODCALLTYPE DXGISwapChain::CheckColorSpaceSupport(DXGI_COLOR_SPACE_TYPE ColorSpace, UINT *pColorSpaceSupport)
 {
 	assert(_interface_version >= 3);
-	if (reshade::hide_hdr != 0 && _direct3d_version == reshade::api::device_api::d3d11)
+	if (reshade::hide_hdr != 0)
 	{
 		switch (ColorSpace)
 		{
@@ -702,7 +702,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 
 	assert(_interface_version >= 3);
 	assert(!g_in_dxgi_runtime);
-	if (reshade::hide_hdr != 0 && _direct3d_version == reshade::api::device_api::d3d11)
+	if (reshade::hide_hdr != 0)
 	{
 		switch (ColorSpace)
 		{
