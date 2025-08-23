@@ -647,6 +647,8 @@ void reshade::runtime::on_present()
 
 	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
 		save_screenshot("Overlay");
+
+	_block_input_next_frame = false;
 #endif
 
 	// All screenshots were created at this point, so reset request

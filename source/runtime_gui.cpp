@@ -907,7 +907,6 @@ void reshade::runtime::draw_gui()
 #endif
 
 	_ignore_shortcuts = false;
-	_block_input_next_frame = false;
 	_gather_gpu_statistics = false;
 	_effects_expanded_state &= 2;
 
@@ -919,9 +918,9 @@ void reshade::runtime::draw_gui()
 	{
 		if (_input != nullptr)
 		{
-			_input->block_mouse_input(false);
-			_input->block_keyboard_input(false);
-			_input->block_mouse_cursor_warping(false);
+			_input->block_mouse_input(_block_input_next_frame);
+			_input->block_keyboard_input(_block_input_next_frame);
+			_input->block_mouse_cursor_warping(_block_input_next_frame);
 		}
 		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
