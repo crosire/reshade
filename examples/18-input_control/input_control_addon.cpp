@@ -55,9 +55,9 @@ static void on_reshade_present(reshade::api::effect_runtime *runtime)
 		}
 	}
 
-	reshade::block_mouse_input(runtime, s_block_mouse_input);
-	reshade::block_keyboard_input(runtime, s_block_keyboard_input);
-	reshade::block_mouse_cursor_warping(runtime, s_block_mouse_cursor_warping);
+	runtime->block_mouse_input(s_block_mouse_input);
+	runtime->block_keyboard_input(s_block_keyboard_input);
+	runtime->block_mouse_cursor_warping(s_block_mouse_cursor_warping);
 }
 
 static void draw_settings(reshade::api::effect_runtime *runtime)
@@ -88,9 +88,9 @@ static void draw_settings(reshade::api::effect_runtime *runtime)
 			s_block_keyboard_input = s_block_keyboard_input_manual;
 			s_block_mouse_cursor_warping = s_block_mouse_cursor_warping_manual;
 			
-			reshade::block_mouse_input(runtime, s_block_mouse_input);
-			reshade::block_keyboard_input(runtime, s_block_keyboard_input);
-			reshade::block_mouse_cursor_warping(runtime, s_block_mouse_cursor_warping);
+			runtime->block_mouse_input(s_block_mouse_input);
+			runtime->block_keyboard_input(s_block_keyboard_input);
+			runtime->block_mouse_cursor_warping(s_block_mouse_cursor_warping);
 		}
 	}
 	ImGui::SetItemTooltip("Automatically blocks all input when the game window loses focus");
@@ -112,7 +112,7 @@ static void draw_settings(reshade::api::effect_runtime *runtime)
 		if (!s_auto_disable_in_background || s_game_is_foreground)
 		{
 			s_block_mouse_input = s_block_mouse_input_manual;
-			reshade::block_mouse_input(runtime, s_block_mouse_input);
+			runtime->block_mouse_input(s_block_mouse_input);
 		}
 	}
 	
@@ -123,7 +123,7 @@ static void draw_settings(reshade::api::effect_runtime *runtime)
 		if (!s_auto_disable_in_background || s_game_is_foreground)
 		{
 			s_block_keyboard_input = s_block_keyboard_input_manual;
-			reshade::block_keyboard_input(runtime, s_block_keyboard_input);
+			runtime->block_keyboard_input(s_block_keyboard_input);
 		}
 	}
 	
@@ -134,7 +134,7 @@ static void draw_settings(reshade::api::effect_runtime *runtime)
 		if (!s_auto_disable_in_background || s_game_is_foreground)
 		{
 			s_block_mouse_cursor_warping = s_block_mouse_cursor_warping_manual;
-			reshade::block_mouse_cursor_warping(runtime, s_block_mouse_cursor_warping);
+			runtime->block_mouse_cursor_warping(s_block_mouse_cursor_warping);
 		}
 	}
 	

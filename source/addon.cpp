@@ -302,23 +302,4 @@ void ReShadeUpdateAndPresentEffectRuntime(reshade::api::effect_runtime *runtime)
 	runtime->get_command_queue()->flush_immediate_command_list();
 }
 
-// Input blocking API
-void ReShadeBlockMouseInput(reshade::api::effect_runtime *runtime, bool enable)
-{
-	if (runtime != nullptr)
-		static_cast<reshade::runtime *>(runtime)->block_mouse_input(enable);
-}
-
-void ReShadeBlockKeyboardInput(reshade::api::effect_runtime *runtime, bool enable)
-{
-	if (runtime != nullptr)
-		static_cast<reshade::runtime *>(runtime)->block_keyboard_input(enable);
-}
-
-void ReShadeBlockMouseCursorWarping(reshade::api::effect_runtime *runtime, bool enable)
-{
-	if (runtime != nullptr)
-		static_cast<reshade::runtime *>(runtime)->block_mouse_cursor_warping(enable);
-}
-
 #endif

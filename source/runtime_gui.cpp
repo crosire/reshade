@@ -918,9 +918,9 @@ void reshade::runtime::draw_gui()
 	{
 		if (_input != nullptr)
 		{
-			_input->block_mouse_input(_block_mouse_input);
-			_input->block_keyboard_input(_block_keyboard_input);
-			_input->block_mouse_cursor_warping(_block_mouse_cursor_warping);
+			_input->block_mouse_input(false);
+			_input->block_keyboard_input(false);
+			_input->block_mouse_cursor_warping(false);
 		}
 		return; // Early-out to avoid costly ImGui calls when no GUI elements are on the screen
 	}
@@ -1564,6 +1564,8 @@ void reshade::runtime::draw_gui()
 	if (_input != nullptr)
 	{
 		const bool block_input = _input_processing_mode != 0 && (_show_overlay || _block_input_next_frame);
+		const bool block_mouse_input = block_input && (imgui_io.WantCaptureMouse || _input_processing_mode == 2);
+		const bool block_keyboard_input = block_input && (imgui_io.WantCaptureKeyboard || _input_processing_mode == 2);
 
 		_input->block_mouse_input(block_mouse_input);
 		_input->block_keyboard_input(block_keyboard_input);

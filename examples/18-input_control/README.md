@@ -34,13 +34,13 @@ This feature exposes Reshade's keyboard/mouse input blocking API's already used 
 static void on_reshade_present(reshade::api::effect_runtime *runtime)
 {
     // Block mouse input
-    reshade::block_mouse_input(runtime, true);
+    runtime->block_mouse_input(true);
     
     // Block keyboard input
-    reshade::block_keyboard_input(runtime, true);
+    runtime->block_keyboard_input(true);
     
     // Block mouse cursor warping
-    reshade::block_mouse_cursor_warping(runtime, true);
+    runtime->block_mouse_cursor_warping(true);
 }
 
 ## Testing
