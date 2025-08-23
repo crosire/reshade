@@ -1133,7 +1133,7 @@ void reshade::runtime::draw_gui()
 		}
 		else
 		{
-			ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
+			ImGui::TextUnformatted("정렬 커스텀 개인 리쉐이드");
 
 			if ((s_latest_version[0] > VERSION_MAJOR) ||
 				(s_latest_version[0] == VERSION_MAJOR && s_latest_version[1] > VERSION_MINOR) ||
@@ -1146,7 +1146,7 @@ void reshade::runtime::draw_gui()
 			}
 			else
 			{
-				ImGui::Text(_("Visit %s for news, updates, effects and discussion."), "https://reshade.me");
+				ImGui::Text("%s 링크의 디스코드에 방문하여 새로운 소식을 확인하세요", "https://discord.gg/fpuFRwyRYR");
 			}
 
 			ImGui::Spacing();
@@ -1189,7 +1189,7 @@ void reshade::runtime::draw_gui()
 				}
 				else
 				{
-					const std::string label = _("Press '%s' to open the configuration overlay.");
+					const std::string label = "'%s' 키를 눌러 커스텀 오버레이를 여세요";
 					const size_t key_offset = label.find("%s");
 
 					ImGui::TextUnformatted(label.c_str(), label.c_str() + key_offset);
@@ -3088,10 +3088,10 @@ void reshade::runtime::draw_gui_log()
 }
 void reshade::runtime::draw_gui_about()
 {
-	ImGui::TextUnformatted("ReShade " VERSION_STRING_PRODUCT);
+	ImGui::TextUnformatted("JeongRyeol Custom ReShade v1.0");
 
-	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("https://reshade.me").x, ImGui::GetStyle().ItemSpacing.x);
-	ImGui::TextLinkOpenURL("https://reshade.me");
+	ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("https://discord.gg/fpuFRwyRYR").x, ImGui::GetStyle().ItemSpacing.x);
+	ImGui::TextLinkOpenURL("https://discord.gg/fpuFRwyRYR");
 
 	ImGui::Separator();
 
@@ -3102,7 +3102,7 @@ void reshade::runtime::draw_gui_about()
 
 	if (ImGui::CollapsingHeader("ReShade", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_RESHADE);
+		const resoㄱrces::data_resource resource = resources::load_data_resource(IDR_LICENSE_RESHADE);
 		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 	if (ImGui::CollapsingHeader("MinHook"))
