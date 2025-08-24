@@ -304,6 +304,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 		SyncInterval = _sync_interval;
 #endif
 
+	// If an add-on forces SyncInterval > 0, ensure tearing is not requested during Present
+	if (SyncInterval > 0)
+		Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
@@ -562,6 +566,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	if (_sync_interval != UINT_MAX)
 		SyncInterval = _sync_interval;
 #endif
+
+	// If an add-on forces SyncInterval > 0, ensure tearing is not requested during Present1
+	if (SyncInterval > 0)
+		PresentFlags &= ~DXGI_PRESENT_ALLOW_TEARING;
 
 	assert(_interface_version >= 1);
 	assert(!g_in_dxgi_runtime);
