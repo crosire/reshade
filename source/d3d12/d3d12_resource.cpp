@@ -66,7 +66,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 				to_handle(pResource),
 				0,
 				std::numeric_limits<uint64_t>::max(),
-				reshade::api::map_access::read_write,
+				pReadRange != nullptr && pReadRange->End <= pReadRange->Begin ? reshade::api::map_access::write_only : reshade::api::map_access::read_write,
 				ppData);
 		}
 		else if (ppData != nullptr)
@@ -84,7 +84,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 				to_handle(pResource),
 				Subresource,
 				nullptr,
-				reshade::api::map_access::read_write,
+				pReadRange != nullptr && pReadRange->End <= pReadRange->Begin ? reshade::api::map_access::write_only : reshade::api::map_access::read_write,
 				&data);
 
 			*ppData = data.data;
@@ -96,7 +96,7 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 				to_handle(pResource),
 				Subresource,
 				nullptr,
-				reshade::api::map_access::read_write,
+				pReadRange != nullptr && pReadRange->End <= pReadRange->Begin ? reshade::api::map_access::write_only : reshade::api::map_access::read_write,
 				nullptr);
 		}
 	}
