@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "*"
   pull_request:
     branches:
       - main
@@ -56,3 +58,28 @@ jobs:
         with:
           name: ReShade Setup
           path: './bin/AnyCPU/Release/ReShade Setup.exe'
+
+      - name: Publish Unstable Release
+        if: github.event_name == 'push' && github.ref_type != 'tag'
+        uses: crowbarmaster/GH-Automatic-Releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: continuous
+          prerelease: true
+          title: "ReShade Unstable"
+          files: |
+            ./bin/Win32/Release/ReShade32.dll
+            ./bin/x64/Release/ReShade64.dll
+            ./bin/AnyCPU/Release/ReShade Setup.exe
+
+      - name: Publish Stable Release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        uses: crowbarmaster/GH-Automatic-Releases@latest
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          automatic_release_tag: ${{ github.ref_name }}
+          files: |
+            ./bin/Win32/Release/ReShade32.dll
+            ./bin/x64/Release/ReShade64.dll
+            ./bin/AnyCPU/Release/ReShade Setup.exe
