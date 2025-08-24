@@ -37,6 +37,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "16-swapchain_override", "16
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "17-screenshot_to_clipboard", "17-screenshot_to_clipboard\screenshot_to_clipboard.vcxproj", "{FA7C3430-EB2D-448E-B802-0976890021C1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "19-set_hide_hdr", "19-set_hide_hdr\set_hide_hdr.vcxproj", "{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -165,6 +167,14 @@ Global
 		{FA7C3430-EB2D-448E-B802-0976890021C1}.Release|Win32.Build.0 = Release|Win32
 		{FA7C3430-EB2D-448E-B802-0976890021C1}.Release|x64.ActiveCfg = Release|x64
 		{FA7C3430-EB2D-448E-B802-0976890021C1}.Release|x64.Build.0 = Release|x64
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Debug|Win32.ActiveCfg = Debug|Win32
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Debug|Win32.Build.0 = Debug|Win32
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Debug|x64.ActiveCfg = Debug|x64
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Debug|x64.Build.0 = Debug|x64
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Release|Win32.ActiveCfg = Release|Win32
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Release|Win32.Build.0 = Release|Win32
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Release|x64.ActiveCfg = Release|x64
+		{33D7E8D2-7F71-4B8B-8D99-7D9E6C5ACB22}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
