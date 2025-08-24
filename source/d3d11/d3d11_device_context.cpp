@@ -693,33 +693,68 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 	assert(pDstResource != nullptr);
 
 #if RESHADE_ADDON >= 2
-	if (reshade::has_addon_event<reshade::addon_event::update_buffer_region>() ||
-		reshade::has_addon_event<reshade::addon_event::update_texture_region>())
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{
-		D3D11_RESOURCE_DIMENSION type;
-		pDstResource->GetType(&type);
-
-		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+		if (reshade::has_addon_event<reshade::addon_event::update_buffer_region>() ||
+			reshade::has_addon_event<reshade::addon_event::update_texture_region>())
 		{
-			assert(DstSubresource == 0);
+			D3D11_RESOURCE_DIMENSION type;
+			pDstResource->GetType(&type);
 
-			if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
-					_device,
-					pSrcData,
-					to_handle(pDstResource),
-					pDstBox != nullptr ? pDstBox->left : 0,
-					pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
-				return;
+			if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+			{
+				assert(DstSubresource == 0);
+
+				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
+						_device,
+						pSrcData,
+						to_handle(pDstResource),
+						pDstBox != nullptr ? pDstBox->left : 0,
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+					return;
+			}
+			else
+			{
+				if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(
+						_device,
+						reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
+						to_handle(pDstResource),
+						DstSubresource,
+						reinterpret_cast<const reshade::api::subresource_box *>(pDstBox)))
+					return;
+			}
 		}
-		else
+	}
+	else
+	{
+		if (reshade::has_addon_event<reshade::addon_event::update_buffer_region_command>() ||
+			reshade::has_addon_event<reshade::addon_event::update_texture_region_command>())
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(
-					_device,
-					reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
-					to_handle(pDstResource),
-					DstSubresource,
-					reinterpret_cast<const reshade::api::subresource_box *>(pDstBox)))
-				return;
+			D3D11_RESOURCE_DIMENSION type;
+			pDstResource->GetType(&type);
+
+			if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+			{
+				assert(DstSubresource == 0);
+
+				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region_command>(
+						this,
+						pSrcData,
+						to_handle(pDstResource),
+						pDstBox != nullptr ? pDstBox->left : 0,
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+					return;
+			}
+			else
+			{
+				if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region_command>(
+						this,
+						reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
+						to_handle(pDstResource),
+						DstSubresource,
+						reinterpret_cast<const reshade::api::subresource_box *>(pDstBox)))
+					return;
+			}
 		}
 	}
 #endif
@@ -1235,33 +1270,68 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 	assert(pDstResource != nullptr);
 
 #if RESHADE_ADDON >= 2
-	if (reshade::has_addon_event<reshade::addon_event::update_buffer_region>() ||
-		reshade::has_addon_event<reshade::addon_event::update_texture_region>())
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
 	{
-		D3D11_RESOURCE_DIMENSION type;
-		pDstResource->GetType(&type);
-
-		if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+		if (reshade::has_addon_event<reshade::addon_event::update_buffer_region>() ||
+			reshade::has_addon_event<reshade::addon_event::update_texture_region>())
 		{
-			assert(DstSubresource == 0);
+			D3D11_RESOURCE_DIMENSION type;
+			pDstResource->GetType(&type);
 
-			if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
-					_device,
-					pSrcData,
-					to_handle(pDstResource),
-					pDstBox != nullptr ? pDstBox->left : 0,
-					pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
-				return;
+			if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+			{
+				assert(DstSubresource == 0);
+
+				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
+						_device,
+						pSrcData,
+						to_handle(pDstResource),
+						pDstBox != nullptr ? pDstBox->left : 0,
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+					return;
+			}
+			else
+			{
+				if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(
+						_device,
+						reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
+						to_handle(pDstResource),
+						DstSubresource,
+						reinterpret_cast<const reshade::api::subresource_box *>(pDstBox)))
+					return;
+			}
 		}
-		else
+	}
+	else
+	{
+		if (reshade::has_addon_event<reshade::addon_event::update_buffer_region_command>() ||
+			reshade::has_addon_event<reshade::addon_event::update_texture_region_command>())
 		{
-			if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(
-					_device,
-					reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
-					to_handle(pDstResource),
-					DstSubresource,
-					reinterpret_cast<const reshade::api::subresource_box *>(pDstBox)))
-				return;
+			D3D11_RESOURCE_DIMENSION type;
+			pDstResource->GetType(&type);
+
+			if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
+			{
+				assert(DstSubresource == 0);
+
+				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region_command>(
+						this,
+						pSrcData,
+						to_handle(pDstResource),
+						pDstBox != nullptr ? pDstBox->left : 0,
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : SrcRowPitch))
+					return;
+			}
+			else
+			{
+				if (reshade::invoke_addon_event<reshade::addon_event::update_texture_region_command>(
+						this,
+						reshade::api::subresource_data { const_cast<void *>(pSrcData), SrcRowPitch, SrcDepthPitch },
+						to_handle(pDstResource),
+						DstSubresource,
+						reinterpret_cast<const reshade::api::subresource_box *>(pDstBox)))
+					return;
+			}
 		}
 	}
 #endif

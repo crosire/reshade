@@ -2066,6 +2066,15 @@ void reshade::opengl::device_context_impl::query_acceleration_structures(uint32_
 	assert(false);
 }
 
+void reshade::opengl::device_context_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
+{
+	_device_impl->update_buffer_region(data, dest, dest_offset, size);
+}
+void reshade::opengl::device_context_impl::update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box)
+{
+	_device_impl->update_texture_region(data, dest, dest_subresource, dest_box);
+}
+
 void reshade::opengl::device_context_impl::begin_debug_event(const char *label, const float[4])
 {
 	assert(label != nullptr);

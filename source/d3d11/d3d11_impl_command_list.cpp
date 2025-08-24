@@ -787,6 +787,21 @@ void reshade::d3d11::device_context_impl::query_acceleration_structures(uint32_t
 	assert(false);
 }
 
+void reshade::d3d11::device_context_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
+{
+	assert(dest != 0);
+
+	const D3D11_BOX box = { static_cast<UINT>(dest_offset), 0, 0, static_cast<UINT>(dest_offset + size), 1, 1 };
+
+	_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dest.handle), 0, dest_offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
+}
+void reshade::d3d11::device_context_impl::update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box)
+{
+	assert(dest != 0);
+
+	_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dest.handle), dest_subresource, reinterpret_cast<const D3D11_BOX *>(dest_box), data.data, data.row_pitch, data.slice_pitch);
+}
+
 void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])
 {
 	assert(label != nullptr);

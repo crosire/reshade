@@ -266,6 +266,9 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 		return vk.EXT_mesh_shader;
 	case api::device_caps::ray_tracing:
 		return vk.KHR_ray_tracing_pipeline && vk.KHR_acceleration_structure;
+	case api::device_caps::update_buffer_region_command:
+		return true;
+	case api::device_caps::update_texture_region_command:
 	default:
 		return false;
 	}

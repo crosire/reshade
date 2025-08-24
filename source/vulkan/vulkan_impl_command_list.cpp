@@ -1405,6 +1405,17 @@ void reshade::vulkan::command_list_impl::query_acceleration_structures(uint32_t 
 	vk.CmdWriteAccelerationStructuresPropertiesKHR(_orig, count, reinterpret_cast<const VkAccelerationStructureKHR *>(acceleration_structures), convert_query_type(type), (VkQueryPool)heap.handle, first);
 }
 
+void reshade::vulkan::command_list_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
+{
+	_has_commands = true;
+
+	vk.CmdUpdateBuffer(_orig, (VkBuffer)dest.handle, dest_offset, size, data);
+}
+void reshade::vulkan::command_list_impl::update_texture_region(const api::subresource_data &, api::resource, uint32_t, const api::subresource_box *)
+{
+	assert(false);
+}
+
 void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, const float color[4])
 {
 	assert(label != nullptr);

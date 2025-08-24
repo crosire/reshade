@@ -186,6 +186,16 @@ namespace reshade { namespace api
 		/// If this feature is not present, <see cref="resource_view_type::acceleration_structure"/>, <see cref="command_list::dispatch_rays"/>, <see cref="command_list::copy_acceleration_structure"/>, <see cref="command_list::build_acceleration_structure"/> and <see cref="command_list::query_acceleration_structures"/> must not be used.
 		/// </summary>
 		ray_tracing,
+		/// <summary>
+		/// Specifies whether deferred buffer updates can be used.
+		/// If this feature is not present, <see cref="command_list::update_buffer_region"/> must not be used.
+		/// </summary>
+		update_buffer_region_command,
+		/// <summary>
+		/// Specifies whether deferred texture updates can be used.
+		/// If this feature is not present, <see cref="command_list::update_texture_region"/> must not be used.
+		/// </summary>
+		update_texture_region_command,
 	};
 
 	/// <summary>
@@ -412,7 +422,7 @@ namespace reshade { namespace api
 		virtual void unmap_texture_region(resource resource, uint32_t subresource) = 0;
 
 		/// <summary>
-		/// Uploads data to a buffer resource.
+		/// Uploads data to a buffer resource immediately.
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
 		/// <param name="resource">Buffer resource to upload to.</param>
@@ -420,7 +430,7 @@ namespace reshade { namespace api
 		/// <param name="size">Number of bytes to upload.</param>
 		virtual void update_buffer_region(const void *data, resource resource, uint64_t offset, uint64_t size) = 0;
 		/// <summary>
-		/// Uploads data to a texture resource.
+		/// Uploads data to a texture resource immediately.
 		/// </summary>
 		/// <param name="data">Pointer to the data to upload.</param>
 		/// <param name="resource">Texture resource to upload to.</param>
@@ -813,7 +823,7 @@ namespace reshade { namespace api
 		/// <param name="max_sizes">Optional pointer to an array of size values, one for each buffer. Can be <see langword="nullptr"/> or have elements set to UINT64_MAX to use the entire buffer.</param>
 		/// <param name="counter_buffers">Pointer to the first element of an array of counter buffer resources. These resources must have been created with the <see cref="resource_usage::stream_output"/> usage.</param>
 		/// <param name="counter_offsets">Pointer to the first element of an array of counter offset values, one for each counter buffer. Each offset is the number of bytes from the start of the counter buffer to the first element to write to.</param>
-		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *counter_buffers, const uint64_t *counter_offsets) = 0;
+		virtual void bind_stream_output_buffers(uint32_t first, uint32_t count, const resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const resource *counter_buffers, const uint64_t *counter_offsets) = 0;
 
 		/// <summary>
 		/// Draws non-indexed primitives.
@@ -1104,7 +1114,7 @@ namespace reshade { namespace api
 		/// <param name="source">Acceleration structure to read data from when <paramref name="mode"/> is <see cref="acceleration_structure_build_mode::update"/>, otherwise zero.</param>
 		/// <param name="dest">Acceleration structure to write data to.</param>
 		/// <param name="mode">Choose between building a new or updating an existing acceleration structure.</param>
-		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, resource_view source, resource_view dest, acceleration_structure_build_mode mode) = 0;
+		virtual void build_acceleration_structure(acceleration_structure_type type, acceleration_structure_build_flags flags, uint32_t input_count, const acceleration_structure_build_input *inputs, resource scratch, uint64_t scratch_offset, resource_view source, resource_view dest, acceleration_structure_build_mode mode) = 0;
 
 		/// <summary>
 		/// Queries acceleration structure size parameters.
@@ -1116,6 +1126,31 @@ namespace reshade { namespace api
 		/// <param name="type">Type of the acceleration structure query.</param>
 		/// <param name="first">Index of the first query in the query heap to write the result to.</param>
 		virtual void query_acceleration_structures(uint32_t count, const resource_view *acceleration_structures, query_heap heap, query_type type, uint32_t first) = 0;
+
+		/// <summary>
+		/// Uploads data to a buffer resource when the command list is executed.
+		/// </summary>
+		/// <remarks>
+		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
+		/// <seealso cref="device_caps::update_buffer_region_command"/>
+		/// <param name="data">Pointer to the data to upload.</param>
+		/// <param name="dest">Buffer resource to upload to.</param>
+		/// <param name="dest_offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
+		/// <param name="size">Number of bytes to upload.</param>
+		virtual void update_buffer_region(const void *data, resource dest, uint64_t dest_offset, uint64_t size) = 0;
+		/// <summary>
+		/// Uploads data to a texture resource when the command list is executed.
+		/// </summary>
+		/// <remarks>
+		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
+		/// <seealso cref="device_caps::update_texture_region_command"/>
+		/// <param name="data">Pointer to the data to upload.</param>
+		/// <param name="dest">Texture resource to upload to.</param>
+		/// <param name="dest_subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
+		/// <param name="dest_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to.</param>
+		virtual void update_texture_region(const subresource_data &data, resource dest, uint32_t dest_subresource, const subresource_box *dest_box = nullptr) = 0;
 	};
 
 	/// <summary>

@@ -52,7 +52,9 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	case addon_event::map_texture_region: return "map_texture_region";
 	case addon_event::unmap_texture_region: return "unmap_texture_region";
 	case addon_event::update_buffer_region: return "update_buffer_region";
+	case addon_event::update_buffer_region_command: return "update_buffer_region_command";
 	case addon_event::update_texture_region: return "update_texture_region";
+	case addon_event::update_texture_region_command: return "update_texture_region_command";
 	case addon_event::init_pipeline: return "init_pipeline";
 	case addon_event::create_pipeline: return "create_pipeline";
 	case addon_event::destroy_pipeline: return "destroy_pipeline";

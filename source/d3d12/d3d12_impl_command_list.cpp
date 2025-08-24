@@ -1205,6 +1205,15 @@ void reshade::d3d12::command_list_impl::query_acceleration_structures(uint32_t c
 	}
 }
 
+void reshade::d3d12::command_list_impl::update_buffer_region(const void *, api::resource, uint64_t, uint64_t)
+{
+	assert(false);
+}
+void reshade::d3d12::command_list_impl::update_texture_region(const api::subresource_data &, api::resource, uint32_t, const api::subresource_box *)
+{
+	assert(false);
+}
+
 void reshade::d3d12::command_list_impl::begin_debug_event(const char *label, const float color[4])
 {
 	assert(label != nullptr);

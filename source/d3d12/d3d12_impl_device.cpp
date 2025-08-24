@@ -246,6 +246,8 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options, sizeof(options))))
 			return options.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
 		return false;
+	case api::device_caps::update_buffer_region_command:
+	case api::device_caps::update_texture_region_command:
 	default:
 		return false;
 	}

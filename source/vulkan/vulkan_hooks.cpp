@@ -110,6 +110,7 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	RESHADE_VULKAN_HOOK_PROC(CmdBlitImage);
 	RESHADE_VULKAN_HOOK_PROC(CmdCopyBufferToImage);
 	RESHADE_VULKAN_HOOK_PROC(CmdCopyImageToBuffer);
+	RESHADE_VULKAN_HOOK_PROC(CmdUpdateBuffer);
 #endif
 #if RESHADE_ADDON
 	RESHADE_VULKAN_HOOK_PROC(CmdClearColorImage);
