@@ -425,30 +425,51 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 
 	// Initialize the device dispatch table
-	vulkan_device device = { *pDevice, get_device_proc_addr, instance.handle, get_instance_proc_addr, instance.dispatch_table };
+	vulkan_device device = { *pDevice, instance.handle, instance.dispatch_table };
+	device.dispatch_table.GetDeviceProcAddr = get_device_proc_addr;
+	device.dispatch_table.GetInstanceProcAddr = get_instance_proc_addr;
 
 	gladLoadVulkanContextUserPtr(&device.dispatch_table, physicalDevice,
 		[](void *user, const char *name) -> GLADapiproc {
 			const auto &device = *static_cast<const vulkan_device *>(user);
-			// Need to distinguish between instance and device functions somehow
-			if ((strcmp(name, "vkGetDeviceProcAddr") != 0) &&
-				(strcmp(name, "vkGetInstanceProcAddr") != 0) &&
-				(strcmp(name, "vkCreateDevice") != 0) &&
-				(strcmp(name, "vkCreateInstance") != 0) &&
-				(strcmp(name, "vkDestroyInstance") != 0) &&
-				(strcmp(name, "vkCreateDebugUtilsMessengerEXT") != 0) &&
-				(strcmp(name, "vkDestroyDebugUtilsMessengerEXT") != 0) &&
-				(strcmp(name, "vkSubmitDebugUtilsMessageEXT") != 0) &&
-				(strstr(name, "Properties") == nullptr || strstr(name, "AccelerationStructures") != nullptr || strstr(name, "Handle") != nullptr) &&
-				(strstr(name, "Surface") == nullptr || strstr(name, "DeviceGroupSurface") != nullptr) &&
-				(strstr(name, "PhysicalDevice") == nullptr))
-				return reinterpret_cast<GLADapiproc>(device.get_proc_addr(device.handle, name));
-			else
-				return reinterpret_cast<GLADapiproc>(device.get_instance_proc_addr(device.instance_handle, name));
-		}, &device);
 
-	device.dispatch_table.GetDeviceProcAddr = get_device_proc_addr;
-	device.dispatch_table.GetInstanceProcAddr = get_instance_proc_addr;
+			// Do not load existing instance function pointers anew
+			if (0 == std::strcmp(name, "vkGetDeviceProcAddr"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.GetDeviceProcAddr);
+			if (0 == std::strcmp(name, "vkGetInstanceProcAddr"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.GetInstanceProcAddr);
+
+			if (0 == std::strcmp(name, "vkEnumerateInstanceVersion"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceVersion);
+
+			if (0 == std::strcmp(name, "vkEnumerateDeviceLayerProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateDeviceLayerProperties);
+			if (0 == std::strcmp(name, "vkEnumerateInstanceLayerProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceLayerProperties);
+			if (0 == std::strcmp(name, "vkEnumerateDeviceExtensionProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateDeviceExtensionProperties);
+			if (0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceExtensionProperties);
+
+			if (0 == std::strcmp(name, "vkEnumeratePhysicalDevices"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumeratePhysicalDevices);
+			if (0 == std::strcmp(name, "vkEnumeratePhysicalDeviceGroups"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumeratePhysicalDeviceGroups);
+
+			if (0 == std::strcmp(name, "vkCreateDevice") ||
+				0 == std::strcmp(name, "vkCreateInstance") ||
+				0 == std::strcmp(name, "vkDestroyInstance") ||
+				0 == std::strcmp(name, "vkSubmitDebugUtilsMessageEXT") ||
+				0 == std::strcmp(name, "vkCreateDebugUtilsMessengerEXT") ||
+				0 == std::strcmp(name, "vkDestroyDebugUtilsMessengerEXT") ||
+				(std::strstr(name, "Properties") != nullptr && std::strstr(name, "AccelerationStructures") == nullptr && std::strstr(name, "Handle") == nullptr) ||
+				(std::strstr(name, "Surface") != nullptr && std::strstr(name, "DeviceGroupSurface") == nullptr) ||
+				(std::strstr(name, "PhysicalDevice") != nullptr))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.GetInstanceProcAddr(device.instance_handle, name));
+
+			const PFN_vkVoidFunction device_proc_address = device.dispatch_table.GetDeviceProcAddr(device.handle, name);
+			return reinterpret_cast<GLADapiproc>(device_proc_address);
+		}, &device);
 
 	device.dispatch_table.KHR_push_descriptor &= push_descriptor_ext ? 1 : 0;
 	device.dispatch_table.KHR_dynamic_rendering &= dynamic_rendering_ext ? 1 : 0;

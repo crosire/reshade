@@ -58,17 +58,14 @@ inline void *const dispatch_key_from_handle(const void *dispatch_handle)
 struct vulkan_device
 {
 	VkDevice handle;
-	PFN_vkGetDeviceProcAddr get_proc_addr;
 	VkInstance instance_handle;
-	PFN_vkGetInstanceProcAddr get_instance_proc_addr;
 	GladVulkanContext dispatch_table;
 };
 
 struct vulkan_instance
 {
 	VkInstance handle;
-	PFN_vkGetInstanceProcAddr get_proc_addr;
-	uint32_t api_version;
+	const uint32_t api_version;
 	GladVulkanContext dispatch_table;
 };
 

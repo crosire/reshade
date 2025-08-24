@@ -690,21 +690,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		gladLoadVulkanContextUserPtr(&vk, physical_device,
 			[](void *user, const char *name) -> GLADapiproc {
 				const auto &vulkan_instance_and_device = *static_cast<const vulkan_instance_and_device_type *>(user);
-				// Need to distinguish between instance and device functions somehow
-				if ((strcmp(name, "vkGetDeviceProcAddr") != 0) &&
-					(strcmp(name, "vkGetInstanceProcAddr") != 0) &&
-					(strcmp(name, "vkCreateDevice") != 0) &&
-					(strcmp(name, "vkCreateInstance") != 0) &&
-					(strcmp(name, "vkDestroyInstance") != 0) &&
-					(strcmp(name, "vkCreateDebugUtilsMessengerEXT") != 0) &&
-					(strcmp(name, "vkDestroyDebugUtilsMessengerEXT") != 0) &&
-					(strcmp(name, "vkSubmitDebugUtilsMessageEXT") != 0) &&
-					(strstr(name, "Properties") == nullptr || strstr(name, "AccelerationStructures") != nullptr || strstr(name, "Handle") != nullptr) &&
-					(strstr(name, "Surface") == nullptr || strstr(name, "DeviceGroupSurface") != nullptr) &&
-					(strstr(name, "PhysicalDevice") == nullptr))
-					return reinterpret_cast<GLADapiproc>(vkGetDeviceProcAddr(vulkan_instance_and_device.device_handle, name));
-				else
+
+				// Need to distinguish between instance and device functions
+				if (0 == std::strcmp(name, "vkGetDeviceProcAddr") ||
+					0 == std::strcmp(name, "vkGetInstanceProcAddr") ||
+					0 == std::strcmp(name, "vkCreateDevice") ||
+					0 == std::strcmp(name, "vkCreateInstance") ||
+					0 == std::strcmp(name, "vkDestroyInstance") ||
+					0 == std::strcmp(name, "vkSubmitDebugUtilsMessageEXT") ||
+					0 == std::strcmp(name, "vkCreateDebugUtilsMessengerEXT") ||
+					0 == std::strcmp(name, "vkDestroyDebugUtilsMessengerEXT") ||
+					(std::strstr(name, "Properties") != nullptr && std::strstr(name, "AccelerationStructures") == nullptr && std::strstr(name, "Handle") == nullptr) ||
+					(std::strstr(name, "Surface") != nullptr && std::strstr(name, "DeviceGroupSurface") == nullptr) ||
+					(std::strstr(name, "PhysicalDevice") != nullptr))
 					return reinterpret_cast<GLADapiproc>(vkGetInstanceProcAddr(vulkan_instance_and_device.instance_handle, name));
+
+				const PFN_vkVoidFunction device_proc_address = vkGetDeviceProcAddr(vulkan_instance_and_device.device_handle, name);
+				return reinterpret_cast<GLADapiproc>(device_proc_address);
 			}, &vulkan_instance_and_device);
 
 		{	VkWin32SurfaceCreateInfoKHR create_info { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };

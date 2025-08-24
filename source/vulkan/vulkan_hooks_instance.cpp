@@ -157,15 +157,23 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	}
 
 	// Initialize the instance dispatch table
-	vulkan_instance instance = { *pInstance, get_instance_proc_addr, app_info.apiVersion };
+	vulkan_instance instance = { *pInstance, app_info.apiVersion };
+	instance.dispatch_table.GetInstanceProcAddr = get_instance_proc_addr;
+	instance.dispatch_table.EnumerateInstanceExtensionProperties = enum_instance_extensions;
 
 	gladLoadVulkanContextUserPtr(&instance.dispatch_table, VK_NULL_HANDLE,
 		[](void *user, const char *name) -> GLADapiproc {
 			const auto &instance = *static_cast<const vulkan_instance *>(user);
-			return reinterpret_cast<GLADapiproc>(instance.get_proc_addr(instance.handle, name));
-		}, &instance);
 
-	instance.dispatch_table.GetInstanceProcAddr = get_instance_proc_addr;
+			// Do not load existing function pointers anew
+			if (0 == std::strcmp(name, "vkGetInstanceProcAddr"))
+				return reinterpret_cast<GLADapiproc>(instance.dispatch_table.GetInstanceProcAddr);
+			if (0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties"))
+				return reinterpret_cast<GLADapiproc>(instance.dispatch_table.EnumerateInstanceExtensionProperties);
+
+			const PFN_vkVoidFunction instance_proc_address = instance.dispatch_table.GetInstanceProcAddr(instance.handle, name);
+			return reinterpret_cast<GLADapiproc>(instance_proc_address);
+		}, &instance);
 
 	g_vulkan_instances.emplace(dispatch_key_from_handle(instance.handle), instance);
 
