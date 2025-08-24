@@ -5043,14 +5043,8 @@ void reshade::runtime::destroy_imgui_resources()
 bool reshade::runtime::open_overlay(bool open, api::input_source source)
 {
 #if RESHADE_ADDON
-	if (!_is_in_api_call)
-	{
-		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_open_overlay>(this, open, source);
-		_is_in_api_call = false;
-		if (skip)
-			return false;
-	}
+	if (invoke_addon_event<addon_event::reshade_open_overlay>(this, open, source))
+		return false;
 #endif
 
 	_show_overlay = open;

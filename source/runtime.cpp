@@ -3448,14 +3448,8 @@ void reshade::runtime::enable_technique(technique &tech)
 		return; // Cannot enable techniques that failed to compile
 
 #if RESHADE_ADDON
-	if (!is_loading() && !_is_in_api_call)
-	{
-		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, true);
-		_is_in_api_call = false;
-		if (skip)
-			return;
-	}
+	if (!is_loading() && invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, true))
+		return;
 #endif
 
 	const bool status_changed = !tech.enabled;
@@ -3476,14 +3470,8 @@ void reshade::runtime::disable_technique(technique &tech)
 	assert(tech.effect_index < _effects.size());
 
 #if RESHADE_ADDON
-	if (!is_loading() && !_is_in_api_call)
-	{
-		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, false);
-		_is_in_api_call = false;
-		if (skip)
-			return;
-	}
+	if (!is_loading() && invoke_addon_event<addon_event::reshade_set_technique_state>(this, api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, false))
+		return;
 #endif
 
 	const bool status_changed = tech.enabled;
@@ -3505,7 +3493,7 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 			}));
 
 #if RESHADE_ADDON
-	if (!is_loading() && !_is_in_api_call)
+	if (!is_loading())
 	{
 		std::vector<api::effect_technique> techniques(technique_indices.size());
 		std::transform(technique_indices.cbegin(), technique_indices.cend(), techniques.begin(),
@@ -3513,10 +3501,7 @@ void reshade::runtime::reorder_techniques(std::vector<size_t> &&technique_indice
 				return api::effect_technique { reinterpret_cast<uint64_t>(&_techniques[technique_index]) };
 			});
 
-		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_reorder_techniques>(this, techniques.size(), techniques.data());
-		_is_in_api_call = false;
-		if (skip)
+		if (invoke_addon_event<addon_event::reshade_reorder_techniques>(this, techniques.size(), techniques.data()))
 			return;
 
 		for (size_t i = 0; i < techniques.size(); i++)
@@ -4497,12 +4482,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 #endif
 
 #if RESHADE_ADDON
-	if (_is_in_api_call)
-		return;
-
-	_is_in_api_call = true;
 	invoke_addon_event<addon_event::reshade_render_technique>(const_cast<runtime *>(this), api::effect_technique { reinterpret_cast<uintptr_t>(&tech) }, cmd_list, back_buffer_rtv, back_buffer_rtv_srgb);
-	_is_in_api_call = false;
 #endif
 }
 
@@ -4791,14 +4771,8 @@ template <> void reshade::runtime::get_uniform_value<uint32_t>(const uniform &va
 void reshade::runtime::set_uniform_value_data(uniform &variable, const uint8_t *data, size_t size, size_t base_index)
 {
 #if RESHADE_ADDON
-	if (!is_loading() && !_is_in_api_call)
-	{
-		_is_in_api_call = true;
-		const bool skip = invoke_addon_event<addon_event::reshade_set_uniform_value>(this, api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) }, data, size);
-		_is_in_api_call = false;
-		if (skip)
-			return;
-	}
+	if (!is_loading() && invoke_addon_event<addon_event::reshade_set_uniform_value>(this, api::effect_uniform_variable { reinterpret_cast<uintptr_t>(&variable) }, data, size))
+		return;
 #endif
 
 	size = std::min(size, static_cast<size_t>(variable.size));

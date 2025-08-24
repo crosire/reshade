@@ -248,7 +248,6 @@ namespace reshade
 		bool _is_vr = false;
 
 #if RESHADE_ADDON
-		bool _is_in_api_call = false;
 		bool _is_in_present_call = false;
 #endif
 

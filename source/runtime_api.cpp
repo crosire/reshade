@@ -336,16 +336,7 @@ void reshade::runtime::reset_uniform_value(api::effect_uniform_variable handle)
 	if (variable == nullptr)
 		return;
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	reset_uniform_value(*variable);
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 
 void reshade::runtime::get_uniform_value_bool(api::effect_uniform_variable handle, bool *values, size_t count, size_t array_index) const
@@ -399,16 +390,7 @@ void reshade::runtime::set_uniform_value_bool(api::effect_uniform_variable handl
 	if (variable == nullptr)
 		return;
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	set_uniform_value(*variable, values, count, array_index);
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 void reshade::runtime::set_uniform_value_float(api::effect_uniform_variable handle, const float *values, size_t count, size_t array_index)
 {
@@ -416,16 +398,7 @@ void reshade::runtime::set_uniform_value_float(api::effect_uniform_variable hand
 	if (variable == nullptr)
 		return;
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	set_uniform_value(*variable, values, count, array_index);
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 void reshade::runtime::set_uniform_value_int(api::effect_uniform_variable handle, const int32_t *values, size_t count, size_t array_index)
 {
@@ -433,16 +406,7 @@ void reshade::runtime::set_uniform_value_int(api::effect_uniform_variable handle
 	if (variable == nullptr)
 		return;
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	set_uniform_value(*variable, values, count, array_index);
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 void reshade::runtime::set_uniform_value_uint(api::effect_uniform_variable handle, const uint32_t *values, size_t count, size_t array_index)
 {
@@ -450,16 +414,7 @@ void reshade::runtime::set_uniform_value_uint(api::effect_uniform_variable handl
 	if (variable == nullptr)
 		return;
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	set_uniform_value(*variable, values, count, array_index);
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 
 void reshade::runtime::enumerate_texture_variables(const char *effect_name_in, void(*callback)(effect_runtime *runtime, api::effect_texture_variable variable, void *user_data), void *user_data)
@@ -1013,19 +968,10 @@ void reshade::runtime::set_technique_state(api::effect_technique handle, bool en
 	if (tech == nullptr)
 		return;
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	if (enabled)
 		enable_technique(*tech);
 	else
 		disable_technique(*tech);
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 
 constexpr int EFFECT_SCOPE_FLAG = 0b001;
@@ -1355,16 +1301,11 @@ void reshade::runtime::render_technique(api::effect_technique handle, api::comma
 		capture_state(cmd_list, _app_state);
 
 	invoke_addon_event<addon_event::reshade_begin_effects>(this, cmd_list, rtv, rtv_srgb);
-
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
 #endif
 
 	render_technique(*tech, cmd_list, back_buffer_resource, rtv, rtv_srgb, permutation_index);
 
 #if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-
 	invoke_addon_event<addon_event::reshade_finish_effects>(this, cmd_list, rtv, rtv_srgb);
 
 	if (!_is_in_present_call)
@@ -1481,16 +1422,7 @@ void reshade::runtime::reorder_techniques(size_t count, const api::effect_techni
 		technique_indices[i] = _technique_sorting[k];
 	}
 
-#if RESHADE_ADDON
-	const bool was_is_in_api_call = _is_in_api_call;
-	_is_in_api_call = true;
-#endif
-
 	reorder_techniques(std::move(technique_indices));
-
-#if RESHADE_ADDON
-	_is_in_api_call = was_is_in_api_call;
-#endif
 }
 
 #if RESHADE_GUI == 0

@@ -88,6 +88,7 @@ namespace reshade { namespace api
 		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
 		/// This call may modify current state on the command list (pipeline, render targets, descriptor tables, ...), so it may be necessary for an add-on to backup and restore state around it if the application does not bind all state again afterwards already.
 		/// Calling this with <paramref name="rtv"/> set to zero will cause nothing to be rendered, but uniform variables to still be updated.
+		/// Calling this triggers a <see cref="addon_event::reshade_begin_effects" /> and <see cref="addon_event::reshade_finish_effects" /> event.
 		/// </remarks>
 		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
 		/// <param name="rtv">Render target view to use for passes that write to the back buffer with <c>SRGBWriteEnabled</c> state set to <see langword="false"/> (this should be a render target view of the target resource, created with a non-sRGB format variant).</param>
@@ -171,12 +172,12 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Finds a specific uniform variable in the loaded effects and returns a handle to it.
 		/// </summary>
-		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
-		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
-		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
 		/// <remarks>
 		/// This will not find uniform variables when performance mode is enabled, since in that case uniform variables are replaced with constants during effect compilation.
 		/// </remarks>
+		/// <param name="effect_name">File name of the effect file the variable is declared in, or <see langword="nullptr"/> to search in all loaded effects.</param>
+		/// <param name="variable_name">Name of the uniform variable declaration to find.</param>
+		/// <returns>Opaque handle to the uniform variable, or zero in case it was not found.</returns>
 		virtual effect_uniform_variable find_uniform_variable(const char *effect_name, const char *variable_name) const = 0;
 
 		/// <summary>
@@ -295,14 +296,15 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as boolean values.
 		/// </summary>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// Calling this triggers a <see cref="addon_event::reshade_set_uniform_value" /> event.
+		/// </remarks>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		/// <param name="values">Pointer to an array of booleans that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>
-		/// Setting the uniform value will not automatically save the current preset.
-		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
-		/// </remarks>
 		virtual void set_uniform_value_bool(effect_uniform_variable variable, const bool *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of boolean values.
@@ -320,14 +322,15 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as floating-point values.
 		/// </summary>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// Calling this triggers a <see cref="addon_event::reshade_set_uniform_value" /> event.
+		/// </remarks>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		/// <param name="values">Pointer to an array of floating-points that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>
-		/// Setting the uniform value will not automatically save the current preset.
-		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
-		/// </remarks>
 		virtual void set_uniform_value_float(effect_uniform_variable variable, const float *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of floating-point values.
@@ -345,14 +348,15 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as signed integer values.
 		/// </summary>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// Calling this triggers a <see cref="addon_event::reshade_set_uniform_value" /> event.
+		/// </remarks>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		/// <param name="values">Pointer to an array of signed integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>
-		/// Setting the uniform value will not automatically save the current preset.
-		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
-		/// </remarks>
 		virtual void set_uniform_value_int(effect_uniform_variable variable, const int32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of signed integer values.
@@ -370,14 +374,15 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as unsigned integer values.
 		/// </summary>
+		///	<remarks>
+		/// Setting the uniform value will not automatically save the current preset.
+		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
+		/// Calling this triggers a <see cref="addon_event::reshade_set_uniform_value" /> event.
+		/// </remarks>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		/// <param name="values">Pointer to an array of unsigned integers that are used to update this uniform variable.</param>
 		/// <param name="count">Number of values to write.</param>
 		/// <param name="array_index">Array offset to start writing values to when this uniform variable is an array variable.</param>
-		///	<remarks>
-		/// Setting the uniform value will not automatically save the current preset.
-		/// To make sure the current preset with the changed value is saved to disk, explicitly call <see cref="save_current_preset"/>.
-		/// </remarks>
 		virtual void set_uniform_value_uint(effect_uniform_variable variable, const uint32_t *values, size_t count, size_t array_index = 0) = 0;
 		/// <summary>
 		/// Sets the value of the specified uniform <paramref name="variable"/> as a vector of unsigned integer values.
@@ -622,6 +627,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Enables or disables the specified <paramref name="technique"/>.
 		/// </summary>
+		/// <remarks>
+		/// Calling this triggers a <see cref="addon_event::reshade_set_technique_state" /> event.
+		/// </remarks>
 		/// <param name="technique">Opaque handle to the technique.</param>
 		/// <param name="enabled">Set to <see langword="true"/> to enable the technique, or <see langword="false"/> to disable it.</param>
 		virtual void set_technique_state(effect_technique technique, bool enabled) = 0;
@@ -654,6 +662,7 @@ namespace reshade { namespace api
 		/// The width and height of the specified render target should match those used to render all other effects!
 		/// The resource the render target views point to has to be in the <see cref="resource_usage::render_target"/> state.
 		/// This call may modify current state on the command list (pipeline, render targets, descriptor tables, ...), so it may be necessary for an add-on to backup and restore state around it if the application does not bind all state again afterwards already.
+		/// Calling this triggers a <see cref="addon_event::reshade_render_technique" /> event.
 		/// </remarks>
 		/// <param name="technique">Opaque handle to the technique.</param>
 		/// <param name="cmd_list">Command list to add effect rendering commands to.</param>
@@ -668,6 +677,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Enables or disables all effects.
 		/// </summary>
+		/// <remarks>
+		/// Calling this triggers a <see cref="addon_event::reshade_set_effects_state" /> event.
+		/// </remarks>
 		/// <param name="enabled">Set to <see langword="true"/> to enable effects, or <see langword="false"/> to disable them.</param>
 		virtual void set_effects_state(bool enabled) = 0;
 
@@ -686,12 +698,18 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Saves the currently active preset and then switches to the specified new preset.
 		/// </summary>
+		/// <remarks>
+		/// Calling this triggers a <see cref="addon_event::reshade_set_current_preset_path" /> event.
+		/// </remarks>
 		/// <param name="path">File path to the preset to switch to.</param>
 		virtual void set_current_preset_path(const char *path) = 0;
 
 		/// <summary>
 		/// Changes the rendering order of loaded techniques to that of the specified technique list.
 		/// </summary>
+		/// <remarks>
+		/// Calling this triggers a <see cref="addon_event::reshade_reorder_techniques" /> event.
+		/// </remarks>
 		/// <param name="count">Number of handles in the technique list.</param>
 		/// <param name="techniques">Array of techniques in the order they should be rendered in.</param>
 		virtual void reorder_techniques(size_t count, const effect_technique *techniques) = 0;
@@ -784,6 +802,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Open or close the ReShade overlay.
 		/// </summary>
+		/// <remarks>
+		/// Calling this triggers a <see cref="addon_event::reshade_open_overlay" /> event.
+		/// </remarks>
 		/// <param name="open">Requested overlay state.</param>
 		/// <param name="source">Source of this request.</param>
 		/// <returns><see langword="true"/> if the overlay state was changed, <see langword="false"/> otherwise.</returns>
@@ -797,6 +818,9 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Resets the value of the specified uniform <paramref name="variable"/>.
 		/// </summary>
+		/// <remarks>
+		/// Calling this triggers a <see cref="addon_event::reshade_set_uniform_value" /> event.
+		/// </remarks>
 		/// <param name="variable">Opaque handle to the uniform variable.</param>
 		virtual void reset_uniform_value(effect_uniform_variable variable) = 0;
 
