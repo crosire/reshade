@@ -765,7 +765,7 @@ static void on_bind_depth_stencil(command_list *cmd_list, uint32_t, const resour
 static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, const float *depth, const uint8_t *, uint32_t, const rect *)
 {
 	// Ignore clears that do not affect the depth buffer (stencil clears)
-	if (depth != nullptr)
+	if (dsv != 0 && depth != nullptr)
 	{
 		auto &state = *cmd_list->get_private_data<state_tracking>();
 
