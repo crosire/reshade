@@ -99,14 +99,8 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 		sync_interval = desc.sync_interval;
 
 		// If an add-on forces SyncInterval > 0, make sure tearing capability is not requested on the swapchain
-#if defined(DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)
 		if (sync_interval != UINT_MAX && sync_interval > 0)
 			internal_desc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-#else
-		// 0x00000800 is DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-		if (sync_interval != UINT_MAX && sync_interval > 0)
-			internal_desc.Flags &= ~0x00000800u;
-#endif
 
 		return true;
 	}
@@ -182,14 +176,8 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 		sync_interval = desc.sync_interval;
 
 		// If an add-on forces SyncInterval > 0, make sure tearing capability is not requested on the swapchain
-#if defined(DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)
 		if (sync_interval != UINT_MAX && sync_interval > 0)
 			internal_desc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-#else
-		// 0x00000800 is DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-		if (sync_interval != UINT_MAX && sync_interval > 0)
-			internal_desc.Flags &= ~0x00000800u;
-#endif
 
 		if (fullscreen_desc != nullptr)
 		{
