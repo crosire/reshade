@@ -24,7 +24,9 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 	const VkImageView *attachments = nullptr;
 
 	// Attachments may optionally be provided directly, rather than through the framebuffer object, when VK_KHR_imageless_framebuffer is used
-	if (const auto attachment_begin_info = find_in_structure_chain<VkRenderPassAttachmentBeginInfo>(begin_info, VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO))
+	if (const auto attachment_begin_info =
+			find_in_structure_chain<VkRenderPassAttachmentBeginInfo>(
+				begin_info, VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO))
 	{
 		attachments = attachment_begin_info->pAttachments;
 		assert(subpass.num_color_attachments <= attachment_begin_info->attachmentCount);
@@ -256,6 +258,14 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 				// Framebuffer is not known and therefore cannot provide any attachment information
 				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr);
 			}
+		}
+		else if (const auto rendering_info =
+			find_in_structure_chain<VkCommandBufferInheritanceRenderingInfo>(
+				inheritance_info.pNext, VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO))
+		{
+			cmd_impl->_is_in_render_pass = true;
+
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr);
 		}
 	}
 #endif
@@ -938,6 +948,8 @@ void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
 	{
 		const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+		assert(cmd_impl->_is_in_render_pass);
+
 		temp_mem<reshade::api::rect> rect_data(rectCount);
 		for (uint32_t i = 0; i < rectCount; ++i)
 		{
@@ -1193,6 +1205,7 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(!cmd_impl->_is_in_render_pass);
 	assert(cmd_impl->current_render_pass == VK_NULL_HANDLE);
 
 	cmd_impl->current_subpass = 0;
@@ -1214,6 +1227,7 @@ void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->_is_in_render_pass);
 	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
@@ -1233,6 +1247,7 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->_is_in_render_pass);
 	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
@@ -1309,6 +1324,7 @@ void VKAPI_CALL vkCmdBeginRenderPass2(VkCommandBuffer commandBuffer, const VkRen
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(!cmd_impl->_is_in_render_pass);
 	assert(cmd_impl->current_render_pass == VK_NULL_HANDLE);
 
 	cmd_impl->current_subpass = 0;
@@ -1330,6 +1346,7 @@ void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpass
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->_is_in_render_pass);
 	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
@@ -1349,6 +1366,7 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(cmd_impl->_is_in_render_pass);
 	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
@@ -1702,6 +1720,8 @@ void VKAPI_CALL vkCmdBeginRendering(VkCommandBuffer commandBuffer, const VkRende
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	assert(!cmd_impl->_is_in_render_pass);
+
 	invoke_begin_render_pass_event(cmd_impl, pRenderingInfo);
 
 	cmd_impl->_is_in_render_pass = true;
@@ -1716,6 +1736,8 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	assert(cmd_impl->_is_in_render_pass);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
@@ -1813,7 +1835,9 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 			update.descriptors = write.pBufferInfo;
 			break;
 		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-			if (const auto write_acceleration_structure = find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(write.pNext, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR))
+			if (const auto write_acceleration_structure =
+					find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(
+						write.pNext, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR))
 			{
 				assert(update.count == write_acceleration_structure->accelerationStructureCount);
 				update.descriptors = write_acceleration_structure->pAccelerationStructures;
