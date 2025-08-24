@@ -5,7 +5,7 @@ PROJECT_LOGO           = ./res/main_icon_small.png
 INPUT                  = ./include ./REFERENCE.md
 EXCLUDE                = ./include/imgui.h ./include/reshade_overlay.hpp
 FILE_PATTERNS          = *.c *.cpp *.h *.hpp *.inl
-EXCLUDE_SYMBOLS        = addon_event_traits
+EXCLUDE_SYMBOLS        = reshade::internal addon_event_traits
 USE_MDFILE_AS_MAINPAGE = ./REFERENCE.md
 
 OUTPUT_DIRECTORY       = ./build
