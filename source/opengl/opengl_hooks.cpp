@@ -301,7 +301,8 @@ private:
 
 static void destroy_resource_or_view(GLenum target, GLuint object)
 {
-	if (!g_opengl_context || (!reshade::has_addon_event<reshade::addon_event::destroy_resource>() && !reshade::has_addon_event<reshade::addon_event::destroy_resource_view>()))
+	if (!reshade::has_addon_event<reshade::addon_event::destroy_resource>() &&
+		!reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
 		return;
 
 	const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
@@ -309,7 +310,7 @@ static void destroy_resource_or_view(GLenum target, GLuint object)
 	if (target != GL_BUFFER)
 	{
 		// Get actual texture target from the texture object
-		if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+		if (target == GL_TEXTURE && gl.VERSION_4_5)
 			gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
 		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, reshade::opengl::make_resource_view_handle(target, object));
@@ -407,7 +408,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	}
 	else
 	{
-		if (src_target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+		if (src_target == GL_TEXTURE && gl.VERSION_4_5)
 			gl.GetTextureParameteriv(src_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&src_target));
 	}
 
@@ -421,7 +422,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 	}
 	else
 	{
-		if (dst_target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+		if (dst_target == GL_TEXTURE && gl.VERSION_4_5)
 			gl.GetTextureParameteriv(dst_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&dst_target));
 	}
 
@@ -492,7 +493,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 	const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
 	// Get actual texture target from the texture object
-	if (target == GL_TEXTURE && gl.GetTextureParameteriv != nullptr)
+	if (target == GL_TEXTURE && gl.VERSION_4_5)
 		gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
 
 	// Get object from current binding in case it was not specified
@@ -1225,9 +1226,10 @@ extern "C" void APIENTRY glDepthRange(GLclampd zNear, GLclampd zFar)
 extern "C" void APIENTRY glDeleteTextures(GLsizei n, const GLuint *textures)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < n; ++i)
-		if (gl.IsTexture(textures[i]))
-			destroy_resource_or_view(GL_TEXTURE, textures[i]);
+	if (g_opengl_context)
+		for (GLsizei i = 0; i < n; ++i)
+			if (gl.IsTexture(textures[i]))
+				destroy_resource_or_view(GL_TEXTURE, textures[i]);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDeleteTextures);
@@ -1650,9 +1652,10 @@ void APIENTRY glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type
 void APIENTRY glDeleteBuffers(GLsizei n, const GLuint *buffers)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < n; ++i)
-		if (gl.IsBuffer(buffers[i]))
-			destroy_resource_or_view(GL_BUFFER, buffers[i]);
+	if (g_opengl_context)
+		for (GLsizei i = 0; i < n; ++i)
+			if (gl.IsBuffer(buffers[i]))
+				destroy_resource_or_view(GL_BUFFER, buffers[i]);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDeleteBuffers);
@@ -2469,9 +2472,10 @@ void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean tran
 void APIENTRY glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers)
 {
 #if RESHADE_ADDON
-	for (GLsizei i = 0; i < n; ++i)
-		if (gl.IsRenderbuffer(renderbuffers[i]))
-			destroy_resource_or_view(GL_RENDERBUFFER, renderbuffers[i]);
+	if (g_opengl_context)
+		for (GLsizei i = 0; i < n; ++i)
+			if (gl.IsRenderbuffer(renderbuffers[i]))
+				destroy_resource_or_view(GL_RENDERBUFFER, renderbuffers[i]);
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDeleteRenderbuffers);
