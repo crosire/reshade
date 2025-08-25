@@ -436,7 +436,55 @@ VR_Interface_Impl(IVRCompositor, Submit, 5, 012, {
 	}
 }, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
 
+VR_Interface_Impl(IVRCompositor, Submit, 6, 029, {
+	if (pTexture == nullptr || pTexture->handle == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
+
+	const auto submit_lambda = [&](vr::EVREye eye, const vr::Texture_t *texture, const vr::VRTextureBounds_t *bounds, uint32_t, vr::EVRSubmitFlags flags) {
+		return VR_Interface_Call(eye, texture, bounds, flags);
+	};
+
+	switch (pTexture->eType)
+	{
+	case vr::TextureType_DirectX:
+		return on_vr_submit_d3d11(pThis, eEye, pTexture, pBounds, static_cast<uint32_t>(eEye), nSubmitFlags, submit_lambda);
+	case vr::TextureType_DirectX12:
+		return on_vr_submit_d3d12(pThis, eEye, pTexture, pBounds, static_cast<uint32_t>(eEye), nSubmitFlags, submit_lambda);
+	case vr::TextureType_OpenGL:
+		return on_vr_submit_opengl(pThis, eEye, pTexture, pBounds, static_cast<uint32_t>(eEye), nSubmitFlags, submit_lambda);
+	case vr::TextureType_Vulkan:
+		return on_vr_submit_vulkan(pThis, eEye, pTexture, pBounds, static_cast<uint32_t>(eEye), nSubmitFlags, submit_lambda);
+	default:
+		assert(false);
+		return vr::VRCompositorError_InvalidTexture;
+	}
+}, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
+
 VR_Interface_Impl(IVRCompositor, SubmitWithArrayIndex, 6, 028, {
+	if (pTexture == nullptr || pTexture->handle == nullptr)
+		return vr::VRCompositorError_InvalidTexture;
+
+	const auto submit_lambda = [&](vr::EVREye eye, const vr::Texture_t *texture, const vr::VRTextureBounds_t *bounds, uint32_t layer, vr::EVRSubmitFlags flags) {
+		return VR_Interface_Call(eye, texture, layer, bounds, flags);
+	};
+
+	switch (pTexture->eType)
+	{
+	case vr::TextureType_DirectX:
+		return on_vr_submit_d3d11(pThis, eEye, pTexture, pBounds, unTextureArrayIndex, nSubmitFlags, submit_lambda);
+	case vr::TextureType_DirectX12:
+		return on_vr_submit_d3d12(pThis, eEye, pTexture, pBounds, unTextureArrayIndex, nSubmitFlags, submit_lambda);
+	case vr::TextureType_OpenGL:
+		return on_vr_submit_opengl(pThis, eEye, pTexture, pBounds, unTextureArrayIndex, nSubmitFlags, submit_lambda);
+	case vr::TextureType_Vulkan:
+		return on_vr_submit_vulkan(pThis, eEye, pTexture, pBounds, unTextureArrayIndex, nSubmitFlags, submit_lambda);
+	default:
+		assert(false);
+		return vr::VRCompositorError_InvalidTexture;
+	}
+}, vr::EVRCompositorError, vr::EVREye eEye, const vr::Texture_t *pTexture, uint32_t unTextureArrayIndex, const vr::VRTextureBounds_t *pBounds, vr::EVRSubmitFlags nSubmitFlags)
+
+VR_Interface_Impl(IVRCompositor, SubmitWithArrayIndex, 7, 029, {
 	if (pTexture == nullptr || pTexture->handle == nullptr)
 		return vr::VRCompositorError_InvalidTexture;
 
@@ -565,21 +613,25 @@ extern "C" void *   VR_CALLTYPE VR_GetGenericInterface(const char *pchInterfaceV
 	{
 		const auto compositor_instance = static_cast<vr::IVRCompositor *>(interface_instance);
 
-		// There is a new internal 'IVRCompositor_29' with changed vtable layout, skip this for now
-		if (compositor_version > 28)
+		// Skip unknown interface versions, in case they have a changed virtual function table layout
+		if (compositor_version > 29)
 			compositor_version = 0;
 
-		// The 'IVRCompositor::Submit' function definition has been stable and has had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
-		if (compositor_version >= 12)
+		/**/ if (compositor_version == 29)
+			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_Submit_029);
+		// The 'IVRCompositor::Submit' function definition was stable and had the same virtual function table index since the OpenVR 1.0 release (which was at 'IVRCompositor_015')
+		else if (compositor_version >= 12)
 			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 5, &IVRCompositor_Submit_012);
-		else if (compositor_version >= 9)
+		else if (compositor_version >=  9)
 			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 4, &IVRCompositor_Submit_009);
-		else if (compositor_version == 8)
+		else if (compositor_version ==  8)
 			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_Submit_008);
-		else if (compositor_version == 7)
+		else if (compositor_version ==  7)
 			reshade::hooks::install("IVRCompositor::Submit", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_Submit_007);
 
-		if (compositor_version == 28)
+		/**/ if (compositor_version == 29)
+			reshade::hooks::install("IVRCompositor::SubmitWithArrayIndex", reshade::hooks::vtable_from_instance(compositor_instance), 7, &IVRCompositor_SubmitWithArrayIndex_029);
+		else if (compositor_version == 28)
 			reshade::hooks::install("IVRCompositor::SubmitWithArrayIndex", reshade::hooks::vtable_from_instance(compositor_instance), 6, &IVRCompositor_SubmitWithArrayIndex_028);
 	}
 
