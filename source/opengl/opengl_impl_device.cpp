@@ -225,17 +225,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, c
 		}
 	}
 
-#ifndef NDEBUG
-	const auto debug_message_callback = [](unsigned int /*source*/, unsigned int type, unsigned int /*id*/, unsigned int /*severity*/, int /*length*/, const char *message, const void * /*userParam*/) {
-		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
-			OutputDebugStringA(message), OutputDebugStringA("\n");
-	};
-
-	gl.Enable(GL_DEBUG_OUTPUT);
-	gl.Enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	gl.DebugMessageCallback(debug_message_callback, nullptr);
-#endif
-
 	// Some games use fixed resource names, which can clash with the ones ReShade generates below, since most implementations will return values linearly
 	// Reserve a configurable range of resource names in old OpenGL games (which will use a compatibility context) to work around this
 	// - Call of Duty uses buffer and texture names in range 0-1500

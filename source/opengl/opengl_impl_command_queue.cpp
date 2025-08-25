@@ -15,6 +15,16 @@ reshade::opengl::device_context_impl::device_context_impl(device_impl *device, H
 	_default_fbo_width(device->_default_fbo_desc.texture.width),
 	_default_fbo_height(device->_default_fbo_desc.texture.height)
 {
+#ifndef NDEBUG
+	const auto debug_message_callback = [](unsigned int /* source */, unsigned int type, unsigned int /* id */, unsigned int /* severity */, int /* length */, const char *message, const void * /* userParam */) {
+		if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
+			OutputDebugStringA(message), OutputDebugStringA("\n");
+	};
+
+	gl.Enable(GL_DEBUG_OUTPUT);
+	gl.Enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	gl.DebugMessageCallback(debug_message_callback, nullptr);
+#endif
 }
 reshade::opengl::device_context_impl::~device_context_impl()
 {

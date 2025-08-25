@@ -271,15 +271,6 @@ public:
 		// Assume that the correct OpenGL context is still current here
 		reshade::present_effect_runtime(this);
 
-#ifndef NDEBUG
-		const GladGLContext &dispatch_table = static_cast<reshade::opengl::device_impl *>(get_device())->_dispatch_table;
-
-		GLenum type = GL_NONE; char message[512] = "";
-		while (dispatch_table.GetDebugMessageLog(1, 512, nullptr, &type, nullptr, nullptr, nullptr, message))
-			if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
-				OutputDebugStringA(message), OutputDebugStringA("\n");
-#endif
-
 		return true;
 	}
 
