@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <xr_generated_dispatch_table_core.h>
 
 template <typename T>

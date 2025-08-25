@@ -2091,7 +2091,7 @@ bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipelin
 	return false;
 }
 
-void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bool acceleration_structure)
+void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, [[maybe_unused]] bool acceleration_structure)
 {
 	assert(resource != nullptr);
 
@@ -2109,8 +2109,6 @@ void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, bo
 				std::tuple<UINT64, ID3D12Resource *, bool >({ desc.Width, resource, acceleration_structure }));
 		}
 	}
-#else
-	UNREFERENCED_PARAMETER(acceleration_structure);
 #endif
 }
 void reshade::d3d12::device_impl::unregister_resource(ID3D12Resource *resource)

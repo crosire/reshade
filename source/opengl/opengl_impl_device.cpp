@@ -96,7 +96,7 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 				VkDeviceCreateInfo device_create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 				if (maintenance9_features.maintenance9)
 				{
-					static constexpr char *maintenance9_name = VK_KHR_MAINTENANCE_9_EXTENSION_NAME;
+					static const char *maintenance9_name = VK_KHR_MAINTENANCE_9_EXTENSION_NAME;
 
 					device_create_info.pNext = &maintenance9_features;
 					device_create_info.enabledExtensionCount = 1;

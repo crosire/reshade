@@ -6,7 +6,6 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include "opengl_hooks.hpp" // Fix name clashes with glad
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
 

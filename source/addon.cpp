@@ -44,11 +44,8 @@ bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 {
 	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
-	const std::string section_string = section != nullptr ? section : std::string();
-	const std::string key_string = key != nullptr ? key : std::string();
-
 	std::vector<std::string> elements;
-	config.get(section_string, key_string, elements);
+	config.get(section != nullptr ? section : std::string(), key != nullptr ? key : std::string(), elements);
 
 	if (size != nullptr || value != nullptr)
 	{
@@ -88,31 +85,29 @@ void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const
 {
 	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
-	const std::string section_string = section != nullptr ? section : std::string();
-	const std::string key_string = key != nullptr ? key : std::string();
-
-	if (value == nullptr)
+	if (value != nullptr)
 	{
-		config.remove_key(section_string, key_string);
-		return;
-	}
-
-	std::vector<std::string> elements;
-	for (size_t i = 0, k = 0; i < size; i++)
-	{
-		if (k >= elements.size())
-			elements.resize(k + 1);
-
-		if (value[i] == '\0')
+		std::vector<std::string> elements;
+		for (size_t i = 0, k = 0; i < size; i++)
 		{
-			k++;
-			continue;
+			if (k >= elements.size())
+				elements.resize(k + 1);
+
+			if (value[i] == '\0')
+			{
+				k++;
+				continue;
+			}
+
+			elements[k] += value[i];
 		}
 
-		elements[k] += value[i];
+		config.set(section != nullptr ? section : std::string(), key != nullptr ? key : std::string(), elements);
 	}
-
-	config.set(section_string, key_string, elements);
+	else
+	{
+		config.remove_key(section != nullptr ? section : std::string(), key != nullptr ? key : std::string());
+	}
 }
 
 #include "d3d9/d3d9_impl_device.hpp"

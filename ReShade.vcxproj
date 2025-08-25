@@ -634,7 +634,7 @@
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp" />
     <ClCompile Include="source\openxr\openxr_hooks.cpp" />
     <ClCompile Include="source\openxr\openxr_hooks_instance.cpp" />
-    <ClCompile Include="source\openxr\openxr_hooks_session.cpp" />
+    <ClCompile Include="source\openxr\openxr_hooks_swapchain.cpp" />
     <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp" />
     <ClCompile Include="source\platform_utils.cpp" />
     <ClCompile Include="source\runtime.cpp" />
@@ -745,7 +745,6 @@
     <ClInclude Include="source\lockfree_linear_map.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl_hooks.hpp" />
-    <ClInclude Include="source\opengl\opengl_hooks_wgl.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_device_context.hpp" />
     <ClInclude Include="source\opengl\opengl_impl_state_block.hpp" />

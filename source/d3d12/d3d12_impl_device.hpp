@@ -130,7 +130,7 @@ namespace reshade::d3d12
 		}
 
 	protected:
-		void register_resource(ID3D12Resource *resource, bool acceleration_structure);
+		void register_resource(ID3D12Resource *resource, [[maybe_unused]] bool acceleration_structure);
 		void unregister_resource(ID3D12Resource *resource);
 
 		void register_resource_view(D3D12_CPU_DESCRIPTOR_HANDLE handle, ID3D12Resource *resource, api::resource_view_desc desc);

@@ -404,7 +404,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
 #if RESHADE_ADDON
-	if (_desc_modified)
+	if (_is_desc_modified)
 	{
 		assert(pDesc != nullptr);
 
@@ -453,7 +453,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval))
 		{
-			_desc_modified = true;
+			_is_desc_modified = true;
 
 			BufferCount = desc.BufferCount;
 			Width = desc.BufferDesc.Width;
@@ -463,7 +463,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		}
 		else
 		{
-			_desc_modified = false;
+			_is_desc_modified = false;
 		}
 	}
 #endif
@@ -532,7 +532,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 	assert(_interface_version >= 1);
 
 #if RESHADE_ADDON
-	if (_desc_modified)
+	if (_is_desc_modified)
 	{
 		assert(pDesc != nullptr);
 
@@ -778,7 +778,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 		if (modify_swapchain_desc(_direct3d_version, desc, _sync_interval, &fullscreen_desc, hwnd))
 		{
-			_desc_modified = true;
+			_is_desc_modified = true;
 
 			BufferCount = desc.BufferCount;
 			Width = desc.Width;
@@ -788,7 +788,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		}
 		else
 		{
-			_desc_modified = false;
+			_is_desc_modified = false;
 		}
 	}
 #endif
@@ -890,7 +890,7 @@ private:
 	BOOL was_protected = FALSE;
 };
 
-void DXGISwapChain::on_init(bool resize)
+void DXGISwapChain::on_init([[maybe_unused]] bool resize)
 {
 	assert(!_is_initialized);
 
@@ -908,19 +908,18 @@ void DXGISwapChain::on_init(bool resize)
 	{
 		DXGI_OUTPUT_DESC output_desc = {};
 		output->GetDesc(&output_desc);
+
 		hmonitor = output_desc.Monitor;
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(_impl, fullscreen != FALSE, hmonitor);
-#else
-	UNREFERENCED_PARAMETER(resize);
 #endif
 
 	reshade::init_effect_runtime(_impl);
 
 	_is_initialized = true;
 }
-void DXGISwapChain::on_reset(bool resize)
+void DXGISwapChain::on_reset([[maybe_unused]] bool resize)
 {
 	if (!_is_initialized)
 		return;
@@ -931,8 +930,6 @@ void DXGISwapChain::on_reset(bool resize)
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl, resize);
-#else
-	UNREFERENCED_PARAMETER(resize);
 #endif
 
 	_is_initialized = false;

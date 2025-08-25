@@ -7,8 +7,7 @@
 #include "opengl_impl_device_context.hpp"
 #include "opengl_impl_swapchain.hpp"
 #include "opengl_impl_type_convert.hpp"
-#include "opengl_hooks.hpp" // Fix name clashes with glad
-#include "opengl_hooks_wgl.hpp"
+#include "opengl_hooks.hpp"
 #include "dll_log.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
@@ -18,8 +17,6 @@
 #include <unordered_set>
 #include <cstring> // std::strcmp
 #include <algorithm> // std::any_of, std::find_if
-
-#define gl _dispatch_table
 
 static bool s_hooks_installed = false;
 static std::shared_mutex s_global_mutex;
@@ -43,6 +40,8 @@ public:
 		device_impl(initial_hdc, hglrc, dispatch_table, compatibility_context),
 		device_context_impl(this, hglrc)
 	{
+#define gl _dispatch_table
+
 #if RESHADE_ADDON
 		reshade::load_addons();
 
@@ -98,7 +97,7 @@ public:
 	{
 		reshade::api::resource_desc desc = device_impl::get_resource_desc(resource);
 
-		if (g_opengl_context != nullptr && (resource.handle >> 40) == GL_FRAMEBUFFER_DEFAULT)
+		if ((resource.handle >> 40) == GL_FRAMEBUFFER_DEFAULT && g_opengl_context != nullptr)
 		{
 			// While each swap chain will use the same pixel format, the dimensions may differ, so pull them from the current context
 			desc.texture.width = g_opengl_context->_default_fbo_width;
@@ -205,7 +204,7 @@ public:
 			device->_default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
 #endif
 	}
-	void on_reset(bool resize)
+	void on_reset([[maybe_unused]] bool resize)
 	{
 		if (_last_width == 0 && _last_height == 0)
 			return;
@@ -227,8 +226,6 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, default_rtv);
 
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
-#else
-		UNREFERENCED_PARAMETER(resize);
 #endif
 	}
 	bool on_present(reshade::opengl::device_context_impl *context)
@@ -319,14 +316,14 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 
 	return format;
 }
-		   BOOL  WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
+BOOL             WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	reshade::log::message(
 		reshade::log::level::info,
 		"Redirecting wglChoosePixelFormatARB(hdc = %p, piAttribIList = %p, pfAttribFList = %p, nMaxFormats = %u, piFormats = %p, nNumFormats = %p) ...",
 		hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats);
 
-	bool layerplanes = false, doublebuffered = false;
+	bool layer_planes = false, double_buffered = false;
 
 	reshade::log::message(reshade::log::level::info,"> Dumping attributes:");
 	reshade::log::message(reshade::log::level::info,"  +-----------------------------------------+-----------------------------------------+");
@@ -347,18 +344,18 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 			reshade::log::message(reshade::log::level::info, "  | WGL_ACCELERATION_ARB                    | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		case WGL_SWAP_LAYER_BUFFERS_ARB:
-			layerplanes = layerplanes || attrib[1] != FALSE;
+			layer_planes = layer_planes || attrib[1] != FALSE;
 			reshade::log::message(reshade::log::level::info, "  | WGL_SWAP_LAYER_BUFFERS_ARB              | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case WGL_SWAP_METHOD_ARB:
 			reshade::log::message(reshade::log::level::info, "  | WGL_SWAP_METHOD_ARB                     | %-#39x |", static_cast<unsigned int>(attrib[1]));
 			break;
 		case WGL_NUMBER_OVERLAYS_ARB:
-			layerplanes = layerplanes || attrib[1] != 0;
+			layer_planes = layer_planes || attrib[1] != 0;
 			reshade::log::message(reshade::log::level::info, "  | WGL_NUMBER_OVERLAYS_ARB                 | %-39d |", attrib[1]);
 			break;
 		case WGL_NUMBER_UNDERLAYS_ARB:
-			layerplanes = layerplanes || attrib[1] != 0;
+			layer_planes = layer_planes || attrib[1] != 0;
 			reshade::log::message(reshade::log::level::info, "  | WGL_NUMBER_UNDERLAYS_ARB                | %-39d |", attrib[1]);
 			break;
 		case WGL_SUPPORT_GDI_ARB:
@@ -368,7 +365,7 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 			reshade::log::message(reshade::log::level::info, "  | WGL_SUPPORT_OPENGL_ARB                  | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case WGL_DOUBLE_BUFFER_ARB:
-			doublebuffered = attrib[1] != FALSE;
+			double_buffered = attrib[1] != FALSE;
 			reshade::log::message(reshade::log::level::info, "  | WGL_DOUBLE_BUFFER_ARB                   | %-39s |", attrib[1] != FALSE ? "TRUE" : "FALSE");
 			break;
 		case WGL_STEREO_ARB:
@@ -423,11 +420,11 @@ extern "C" int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTO
 
 	reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
 
-	if (layerplanes)
+	if (layer_planes)
 	{
 		reshade::log::message(reshade::log::level::warning, "Layered OpenGL contexts are not supported.");
 	}
-	else if (!doublebuffered)
+	else if (!double_buffered)
 	{
 		reshade::log::message(reshade::log::level::warning, "Single buffered OpenGL contexts are not supported.");
 	}
@@ -458,7 +455,7 @@ extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 	static const auto trampoline = reshade::hooks::call(wglGetPixelFormat);
 	return trampoline(hdc);
 }
-		   BOOL  WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
+BOOL             WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -469,7 +466,7 @@ extern "C" int   WINAPI wglGetPixelFormat(HDC hdc)
 
 	return reshade::hooks::call(wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, piValues);
 }
-		   BOOL  WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
+BOOL             WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	if (iLayerPlane != 0)
 	{
@@ -510,9 +507,9 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 		desc.back_buffer.texture.height = window_rect.bottom;
 	}
 
-	if (pfd.dwFlags & PFD_DOUBLEBUFFER)
+	if ((pfd.dwFlags & PFD_DOUBLEBUFFER) != 0)
 		desc.back_buffer_count = 2;
-	if (pfd.dwFlags & PFD_STEREO)
+	if ((pfd.dwFlags & PFD_STEREO) != 0)
 		desc.back_buffer.texture.depth_or_layers = 2;
 
 	if (s_hooks_installed && reshade::hooks::call(wglGetPixelFormatAttribivARB) != nullptr)
@@ -703,7 +700,7 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 #endif
 	return hglrc;
 }
-		   HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
+HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
 	reshade::log::message(
 		reshade::log::level::info,
@@ -713,10 +710,10 @@ extern "C" HGLRC WINAPI wglCreateContext(HDC hdc)
 	int attribs[8 * 2] = {};
 	int i = 0, major = 1, minor = 0, flags = 0, compatibility = false;
 
-	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5 * 2; attrib += 2, i += 2)
+	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5 * 2; attrib += 2)
 	{
-		attribs[i + 0] = attrib[0];
-		attribs[i + 1] = attrib[1];
+		attribs[i++] = attrib[0];
+		attribs[i++] = attrib[1];
 
 		switch (attrib[0])
 		{
@@ -853,7 +850,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		if (const auto it = s_opengl_contexts.find(hglrc);
 			it != s_opengl_contexts.end())
 		{
-			const auto device = static_cast<wgl_device *>(it->second->get_device());
+			wgl_device *const device = static_cast<wgl_device *>(it->second->get_device());
 
 			if (it->second != device)
 			{
@@ -872,7 +869,9 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			else
 			{
 				if (std::any_of(s_opengl_contexts.begin(), s_opengl_contexts.end(),
-						[hglrc, device](const std::pair<HGLRC, reshade::opengl::device_context_impl *> &context_info) { return context_info.first != hglrc && device == context_info.second->get_device(); }))
+						[hglrc, device](const std::pair<HGLRC, reshade::opengl::device_context_impl *> &context_info) {
+							return context_info.first != hglrc && device == context_info.second->get_device();
+						}))
 				{
 					reshade::log::message(reshade::log::level::warning, "Another context referencing the context being destroyed still exists! Application may crash.");
 				}
@@ -900,7 +899,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 					// Delete any swap chains referencing this device
 					for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
 					{
-						const auto swapchain = *swapchain_it;
+						wgl_swapchain *const swapchain = *swapchain_it;
 
 						if (device == swapchain->get_device())
 						{
@@ -1140,8 +1139,8 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 	}
 
-	unsigned int width = 0;
-	unsigned int height = 0;
+	unsigned int width;
+	unsigned int height;
 	if (hwnd != nullptr)
 	{
 		RECT window_rect = {};
@@ -1183,7 +1182,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 	return trampoline();
 }
 
-	 HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
+HPBUFFERARB      WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, int iHeight, const int *piAttribList)
 {
 	reshade::log::message(
 		reshade::log::level::info,
@@ -1228,7 +1227,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 #endif
 	return hpbuffer;
 }
-		   BOOL  WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
+BOOL             WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting wglDestroyPbufferARB(hPbuffer = %p) ...", hPbuffer);
 
@@ -1240,7 +1239,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 
 	return TRUE;
 }
-		   HDC   WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
+HDC              WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting wglGetPbufferDCARB(hPbuffer = %p) ...", hPbuffer);
 
@@ -1261,7 +1260,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 #endif
 	return hdc;
 }
-		   int   WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
+int              WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting wglReleasePbufferDCARB(hPbuffer = %p) ...", hPbuffer);
 
@@ -1282,6 +1281,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
 	wgl_swapchain *swapchain = nullptr;
+
 	if (g_opengl_context != nullptr)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
@@ -1316,6 +1316,7 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
+#if RESHADE_VERBOSE_LOG
 		int plane_index = 0;
 		if (i >= WGL_SWAP_UNDERLAY1)
 		{
@@ -1330,7 +1331,6 @@ extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 			plane_index = +static_cast<int>(bit_index);
 		}
 
-#if RESHADE_VERBOSE_LOG
 		reshade::log::message(reshade::log::level::info, "Redirecting wglSwapLayerBuffers(hdc = %p, i = %x) ...", hdc, i);
 		reshade::log::message(reshade::log::level::warning, "Access to layer plane at index %d is unsupported.", plane_index);
 #endif
@@ -1388,6 +1388,7 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
 	if (lpszProc == nullptr)
 		return nullptr;
+
 #if RESHADE_ADDON
 	// Redirect some old extension functions to their modern variants in core OpenGL
 	#pragma region GL_ARB_draw_instanced
@@ -1467,127 +1468,128 @@ extern "C" PROC  WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	const PROC proc_address = trampoline(lpszProc);
 	if (proc_address == nullptr)
 		return nullptr;
-	else if (0 == std::strcmp(lpszProc, "glBindTexture"))
+
+	if (0 == std::strcmp(lpszProc, "glBindTexture"))
 		return reinterpret_cast<PROC>(glBindTexture);
-	else if (0 == std::strcmp(lpszProc, "glBlendFunc"))
+	if (0 == std::strcmp(lpszProc, "glBlendFunc"))
 		return reinterpret_cast<PROC>(glBlendFunc);
-	else if (0 == std::strcmp(lpszProc, "glClear"))
+	if (0 == std::strcmp(lpszProc, "glClear"))
 		return reinterpret_cast<PROC>(glClear);
-	else if (0 == std::strcmp(lpszProc, "glClearColor"))
+	if (0 == std::strcmp(lpszProc, "glClearColor"))
 		return reinterpret_cast<PROC>(glClearColor);
-	else if (0 == std::strcmp(lpszProc, "glClearDepth"))
+	if (0 == std::strcmp(lpszProc, "glClearDepth"))
 		return reinterpret_cast<PROC>(glClearDepth);
-	else if (0 == std::strcmp(lpszProc, "glClearStencil"))
+	if (0 == std::strcmp(lpszProc, "glClearStencil"))
 		return reinterpret_cast<PROC>(glClearStencil);
-	else if (0 == std::strcmp(lpszProc, "glCopyTexImage1D"))
+	if (0 == std::strcmp(lpszProc, "glCopyTexImage1D"))
 		return reinterpret_cast<PROC>(glCopyTexImage1D);
-	else if (0 == std::strcmp(lpszProc, "glCopyTexImage2D"))
+	if (0 == std::strcmp(lpszProc, "glCopyTexImage2D"))
 		return reinterpret_cast<PROC>(glCopyTexImage2D);
-	else if (0 == std::strcmp(lpszProc, "glCopyTexSubImage1D"))
+	if (0 == std::strcmp(lpszProc, "glCopyTexSubImage1D"))
 		return reinterpret_cast<PROC>(glCopyTexSubImage1D);
-	else if (0 == std::strcmp(lpszProc, "glCopyTexSubImage2D"))
+	if (0 == std::strcmp(lpszProc, "glCopyTexSubImage2D"))
 		return reinterpret_cast<PROC>(glCopyTexSubImage2D);
-	else if (0 == std::strcmp(lpszProc, "glCullFace"))
+	if (0 == std::strcmp(lpszProc, "glCullFace"))
 		return reinterpret_cast<PROC>(glCullFace);
-	else if (0 == std::strcmp(lpszProc, "glDeleteTextures"))
+	if (0 == std::strcmp(lpszProc, "glDeleteTextures"))
 		return reinterpret_cast<PROC>(glDeleteTextures);
-	else if (0 == std::strcmp(lpszProc, "glDepthFunc"))
+	if (0 == std::strcmp(lpszProc, "glDepthFunc"))
 		return reinterpret_cast<PROC>(glDepthFunc);
-	else if (0 == std::strcmp(lpszProc, "glDepthMask"))
+	if (0 == std::strcmp(lpszProc, "glDepthMask"))
 		return reinterpret_cast<PROC>(glDepthMask);
-	else if (0 == std::strcmp(lpszProc, "glDepthRange"))
+	if (0 == std::strcmp(lpszProc, "glDepthRange"))
 		return reinterpret_cast<PROC>(glDepthRange);
-	else if (0 == std::strcmp(lpszProc, "glDisable"))
+	if (0 == std::strcmp(lpszProc, "glDisable"))
 		return reinterpret_cast<PROC>(glDisable);
-	else if (0 == std::strcmp(lpszProc, "glDrawArrays"))
+	if (0 == std::strcmp(lpszProc, "glDrawArrays"))
 		return reinterpret_cast<PROC>(glDrawArrays);
-	else if (0 == std::strcmp(lpszProc, "glDrawBuffer"))
+	if (0 == std::strcmp(lpszProc, "glDrawBuffer"))
 		return reinterpret_cast<PROC>(glDrawBuffer);
-	else if (0 == std::strcmp(lpszProc, "glDrawElements"))
+	if (0 == std::strcmp(lpszProc, "glDrawElements"))
 		return reinterpret_cast<PROC>(glDrawElements);
-	else if (0 == std::strcmp(lpszProc, "glEnable"))
+	if (0 == std::strcmp(lpszProc, "glEnable"))
 		return reinterpret_cast<PROC>(glEnable);
-	else if (0 == std::strcmp(lpszProc, "glFinish"))
+	if (0 == std::strcmp(lpszProc, "glFinish"))
 		return reinterpret_cast<PROC>(glFinish);
-	else if (0 == std::strcmp(lpszProc, "glFlush"))
+	if (0 == std::strcmp(lpszProc, "glFlush"))
 		return reinterpret_cast<PROC>(glFlush);
-	else if (0 == std::strcmp(lpszProc, "glFrontFace"))
+	if (0 == std::strcmp(lpszProc, "glFrontFace"))
 		return reinterpret_cast<PROC>(glFrontFace);
-	else if (0 == std::strcmp(lpszProc, "glGenTextures"))
+	if (0 == std::strcmp(lpszProc, "glGenTextures"))
 		return reinterpret_cast<PROC>(glGenTextures);
-	else if (0 == std::strcmp(lpszProc, "glGetBooleanv"))
+	if (0 == std::strcmp(lpszProc, "glGetBooleanv"))
 		return reinterpret_cast<PROC>(glGetBooleanv);
-	else if (0 == std::strcmp(lpszProc, "glGetDoublev"))
+	if (0 == std::strcmp(lpszProc, "glGetDoublev"))
 		return reinterpret_cast<PROC>(glGetDoublev);
-	else if (0 == std::strcmp(lpszProc, "glGetFloatv"))
+	if (0 == std::strcmp(lpszProc, "glGetFloatv"))
 		return reinterpret_cast<PROC>(glGetFloatv);
-	else if (0 == std::strcmp(lpszProc, "glGetIntegerv"))
+	if (0 == std::strcmp(lpszProc, "glGetIntegerv"))
 		return reinterpret_cast<PROC>(glGetIntegerv);
-	else if (0 == std::strcmp(lpszProc, "glGetError"))
+	if (0 == std::strcmp(lpszProc, "glGetError"))
 		return reinterpret_cast<PROC>(glGetError);
-	else if (0 == std::strcmp(lpszProc, "glGetPointerv"))
+	if (0 == std::strcmp(lpszProc, "glGetPointerv"))
 		return reinterpret_cast<PROC>(glGetPointerv);
-	else if (0 == std::strcmp(lpszProc, "glGetString"))
+	if (0 == std::strcmp(lpszProc, "glGetString"))
 		return reinterpret_cast<PROC>(glGetString);
-	else if (0 == std::strcmp(lpszProc, "glGetTexImage"))
+	if (0 == std::strcmp(lpszProc, "glGetTexImage"))
 		return reinterpret_cast<PROC>(glGetTexImage);
-	else if (0 == std::strcmp(lpszProc, "glGetTexLevelParameterfv"))
+	if (0 == std::strcmp(lpszProc, "glGetTexLevelParameterfv"))
 		return reinterpret_cast<PROC>(glGetTexLevelParameterfv);
-	else if (0 == std::strcmp(lpszProc, "glGetTexLevelParameteriv"))
+	if (0 == std::strcmp(lpszProc, "glGetTexLevelParameteriv"))
 		return reinterpret_cast<PROC>(glGetTexLevelParameteriv);
-	else if (0 == std::strcmp(lpszProc, "glGetTexParameterfv"))
+	if (0 == std::strcmp(lpszProc, "glGetTexParameterfv"))
 		return reinterpret_cast<PROC>(glGetTexParameterfv);
-	else if (0 == std::strcmp(lpszProc, "glGetTexParameteriv"))
+	if (0 == std::strcmp(lpszProc, "glGetTexParameteriv"))
 		return reinterpret_cast<PROC>(glGetTexParameteriv);
-	else if (0 == std::strcmp(lpszProc, "glHint"))
+	if (0 == std::strcmp(lpszProc, "glHint"))
 		return reinterpret_cast<PROC>(glHint);
-	else if (0 == std::strcmp(lpszProc, "glIsEnabled"))
+	if (0 == std::strcmp(lpszProc, "glIsEnabled"))
 		return reinterpret_cast<PROC>(glIsEnabled);
-	else if (0 == std::strcmp(lpszProc, "glIsTexture"))
+	if (0 == std::strcmp(lpszProc, "glIsTexture"))
 		return reinterpret_cast<PROC>(glIsTexture);
-	else if (0 == std::strcmp(lpszProc, "glLineWidth"))
+	if (0 == std::strcmp(lpszProc, "glLineWidth"))
 		return reinterpret_cast<PROC>(glLineWidth);
-	else if (0 == std::strcmp(lpszProc, "glLogicOp"))
+	if (0 == std::strcmp(lpszProc, "glLogicOp"))
 		return reinterpret_cast<PROC>(glLogicOp);
-	else if (0 == std::strcmp(lpszProc, "glPixelStoref"))
+	if (0 == std::strcmp(lpszProc, "glPixelStoref"))
 		return reinterpret_cast<PROC>(glPixelStoref);
-	else if (0 == std::strcmp(lpszProc, "glPixelStorei"))
+	if (0 == std::strcmp(lpszProc, "glPixelStorei"))
 		return reinterpret_cast<PROC>(glPixelStorei);
-	else if (0 == std::strcmp(lpszProc, "glPointSize"))
+	if (0 == std::strcmp(lpszProc, "glPointSize"))
 		return reinterpret_cast<PROC>(glPointSize);
-	else if (0 == std::strcmp(lpszProc, "glPolygonMode"))
+	if (0 == std::strcmp(lpszProc, "glPolygonMode"))
 		return reinterpret_cast<PROC>(glPolygonMode);
-	else if (0 == std::strcmp(lpszProc, "glPolygonOffset"))
+	if (0 == std::strcmp(lpszProc, "glPolygonOffset"))
 		return reinterpret_cast<PROC>(glPolygonOffset);
-	else if (0 == std::strcmp(lpszProc, "glReadBuffer"))
+	if (0 == std::strcmp(lpszProc, "glReadBuffer"))
 		return reinterpret_cast<PROC>(glReadBuffer);
-	else if (0 == std::strcmp(lpszProc, "glReadPixels"))
+	if (0 == std::strcmp(lpszProc, "glReadPixels"))
 		return reinterpret_cast<PROC>(glReadPixels);
-	else if (0 == std::strcmp(lpszProc, "glScissor"))
+	if (0 == std::strcmp(lpszProc, "glScissor"))
 		return reinterpret_cast<PROC>(glScissor);
-	else if (0 == std::strcmp(lpszProc, "glStencilFunc"))
+	if (0 == std::strcmp(lpszProc, "glStencilFunc"))
 		return reinterpret_cast<PROC>(glStencilFunc);
-	else if (0 == std::strcmp(lpszProc, "glStencilMask"))
+	if (0 == std::strcmp(lpszProc, "glStencilMask"))
 		return reinterpret_cast<PROC>(glStencilMask);
-	else if (0 == std::strcmp(lpszProc, "glStencilOp"))
+	if (0 == std::strcmp(lpszProc, "glStencilOp"))
 		return reinterpret_cast<PROC>(glStencilOp);
-	else if (0 == std::strcmp(lpszProc, "glTexImage1D"))
+	if (0 == std::strcmp(lpszProc, "glTexImage1D"))
 		return reinterpret_cast<PROC>(glTexImage1D);
-	else if (0 == std::strcmp(lpszProc, "glTexImage2D"))
+	if (0 == std::strcmp(lpszProc, "glTexImage2D"))
 		return reinterpret_cast<PROC>(glTexImage2D);
-	else if (0 == std::strcmp(lpszProc, "glTexParameterf"))
+	if (0 == std::strcmp(lpszProc, "glTexParameterf"))
 		return reinterpret_cast<PROC>(glTexParameterf);
-	else if (0 == std::strcmp(lpszProc, "glTexParameterfv"))
+	if (0 == std::strcmp(lpszProc, "glTexParameterfv"))
 		return reinterpret_cast<PROC>(glTexParameterfv);
-	else if (0 == std::strcmp(lpszProc, "glTexParameteri"))
+	if (0 == std::strcmp(lpszProc, "glTexParameteri"))
 		return reinterpret_cast<PROC>(glTexParameteri);
-	else if (0 == std::strcmp(lpszProc, "glTexParameteriv"))
+	if (0 == std::strcmp(lpszProc, "glTexParameteriv"))
 		return reinterpret_cast<PROC>(glTexParameteriv);
-	else if (0 == std::strcmp(lpszProc, "glTexSubImage1D"))
+	if (0 == std::strcmp(lpszProc, "glTexSubImage1D"))
 		return reinterpret_cast<PROC>(glTexSubImage1D);
-	else if (0 == std::strcmp(lpszProc, "glTexSubImage2D"))
+	if (0 == std::strcmp(lpszProc, "glTexSubImage2D"))
 		return reinterpret_cast<PROC>(glTexSubImage2D);
-	else if (0 == std::strcmp(lpszProc, "glViewport"))
+	if (0 == std::strcmp(lpszProc, "glViewport"))
 		return reinterpret_cast<PROC>(glViewport);
 
 	if (!s_hooks_installed)

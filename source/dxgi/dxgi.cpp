@@ -396,7 +396,7 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 
 		swapchain_proxy->_sync_interval = sync_interval;
 		swapchain_proxy->_orig_desc = orig_desc;
-		swapchain_proxy->_desc_modified = desc_modified;
+		swapchain_proxy->_is_desc_modified = desc_modified;
 #endif
 
 #if RESHADE_VERBOSE_LOG

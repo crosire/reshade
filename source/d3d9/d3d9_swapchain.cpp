@@ -178,7 +178,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX 
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetDisplayModeEx(pMode, pRotation);
 }
 
-void Direct3DSwapChain9::on_init(bool resize)
+void Direct3DSwapChain9::on_init([[maybe_unused]] bool resize)
 {
 	assert(!_is_initialized);
 
@@ -199,15 +199,13 @@ void Direct3DSwapChain9::on_init(bool resize)
 		to_handle(_back_buffer.get()));
 
 	reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(this, pp.Windowed == FALSE, nullptr);
-#else
-	UNREFERENCED_PARAMETER(resize);
 #endif
 
 	reshade::init_effect_runtime(this);
 
 	_is_initialized = true;
 }
-void Direct3DSwapChain9::on_reset(bool resize)
+void Direct3DSwapChain9::on_reset([[maybe_unused]] bool resize)
 {
 	// May be called without a previous call to 'on_init' if a device reset had failed
 	if (!_is_initialized)
@@ -219,8 +217,6 @@ void Direct3DSwapChain9::on_reset(bool resize)
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(_device, to_handle(_back_buffer.get()));
 
 	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
-#else
-	UNREFERENCED_PARAMETER(resize);
 #endif
 
 	_back_buffer.reset();

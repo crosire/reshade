@@ -13,22 +13,6 @@ enum VkLayerFunction
 	VK_LAYER_LINK_INFO = 0,
 };
 
-struct VkLayerInstanceLink
-{
-	VkLayerInstanceLink *pNext;
-	PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
-	PFN_vkGetInstanceProcAddr pfnNextGetPhysicalDeviceProcAddr;
-};
-struct VkLayerInstanceCreateInfo
-{
-	VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
-	const void *pNext;
-	VkLayerFunction function;
-	union {
-		VkLayerInstanceLink *pLayerInfo;
-	} u;
-};
-
 template <typename T>
 inline T *find_layer_info(const void *structure_chain, VkStructureType type, VkLayerFunction function)
 {
@@ -77,10 +61,8 @@ struct vulkan_instance
 	PFN_vk##name trampoline = g_vulkan_instances.at(dispatch_key_from_handle(object)).dispatch_table.name; \
 	assert(trampoline != nullptr)
 
-
 extern "C" PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName);
 extern "C" PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName);
-
 
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance);
 void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCallbacks *pAllocator);
@@ -91,7 +73,6 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolProperties(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolProperties *pToolProperties);
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties);
-
 
 VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice);
 void     VKAPI_CALL vkDestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator);

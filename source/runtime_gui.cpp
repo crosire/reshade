@@ -3163,7 +3163,7 @@ void reshade::runtime::draw_gui_log()
 					_log_editor.insert_text(line);
 
 					imgui::code_editor::color col = imgui::code_editor::color_default;
-					     if (line.find("ERROR |") != std::string_view::npos)
+					/**/ if (line.find("ERROR |") != std::string_view::npos)
 						col = imgui::code_editor::color_error_marker;
 					else if (line.find("WARN  |") != std::string_view::npos)
 						col = imgui::code_editor::color_warning_marker;

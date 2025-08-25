@@ -472,7 +472,7 @@ extern "C" uint32_t VR_CALLTYPE VR_GetInitToken()
 	return trampoline != nullptr ? trampoline() : vr::VRToken();
 }
 
-extern "C" void *   VR_CALLTYPE VR_Init(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType) // Export used before OpenVR 0.9.17
+extern "C" void *   VR_CALLTYPE VR_Init(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType) // Export used before OpenVR 0.9.17, after which it was changed to 'VR_InitInternal'
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting VR_Init(eApplicationType = %d) ...", static_cast<int>(eApplicationType));
 
@@ -489,7 +489,7 @@ extern "C" void *   VR_CALLTYPE VR_Init(vr::EVRInitError *peError, vr::EVRApplic
 	return interface_instance;
 }
 
-extern "C" uint32_t VR_CALLTYPE VR_InitInternal(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType) // Export used before OpenVR 1.0.10
+extern "C" uint32_t VR_CALLTYPE VR_InitInternal(vr::EVRInitError *peError, vr::EVRApplicationType eApplicationType) // Export used before OpenVR 1.0.10, after which it was changed to 'VR_InitInternal2'
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting VR_InitInternal(eApplicationType = %d) ...", static_cast<int>(eApplicationType));
 
@@ -507,7 +507,7 @@ extern "C" uint32_t VR_CALLTYPE VR_InitInternal2(vr::EVRInitError *peError, vr::
 	return vr::VRToken() = reshade::hooks::call(VR_InitInternal2)(peError, eApplicationType, pStartupInfo);
 }
 
-extern "C" void     VR_CALLTYPE VR_Shutdown() // Export used before OpenVR 0.9.17
+extern "C" void     VR_CALLTYPE VR_Shutdown() // Export used before OpenVR 0.9.17, after which it was changed to 'VR_ShutdownInternal'
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting VR_Shutdown() ...");
 
