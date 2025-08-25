@@ -1259,7 +1259,7 @@ namespace reshade { namespace api
 
 		/// <summary>
 		/// Swap chain creation flags.
-		/// <para>Depending on the graphics API this can be a 'D3DPRESENT', 'DXGI_PRESENT', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
+		/// <para>Depending on the graphics API this can be a 'D3DPRESENT', 'DXGI_SWAP_CHAIN_FLAG', 'PFD_*' or 'VkSwapchainCreateFlagsKHR' value.</para>
 		/// </summary>
 		uint32_t present_flags = 0;
 
