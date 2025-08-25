@@ -302,11 +302,23 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 #if RESHADE_ADDON
 	if (_sync_interval != UINT_MAX)
 	{
-		SyncInterval = _sync_interval;
+		// If an add-on allows tearing, force it on when possible (application is not in fullscreen exclusive mode)
+		if (_sync_interval == 0x10000000)
+		{
+			SyncInterval = 0;
 
-		// If an add-on forces VSync, ensure tearing is not requested
-		if (_sync_interval > 0)
-			Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+			if (BOOL fullscreen = FALSE;
+				SUCCEEDED(_orig->GetFullscreenState(&fullscreen, nullptr)) && !fullscreen)
+				Flags |= DXGI_PRESENT_ALLOW_TEARING;
+		}
+		else
+		{
+			SyncInterval = _sync_interval;
+
+			// If an add-on forces VSync, ensure tearing is not requested
+			if (_sync_interval > 0)
+				Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+		}
 	}
 #endif
 
@@ -567,11 +579,23 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 #if RESHADE_ADDON
 	if (_sync_interval != UINT_MAX)
 	{
-		SyncInterval = _sync_interval;
+		// If an add-on allows tearing, force it on when possible (application is not in fullscreen exclusive mode)
+		if (_sync_interval == 0x10000000)
+		{
+			SyncInterval = 0;
 
-		// If an add-on forces VSync, ensure tearing is not requested
-		if (_sync_interval > 0)
-			PresentFlags &= ~DXGI_PRESENT_ALLOW_TEARING;
+			if (BOOL fullscreen = FALSE;
+				SUCCEEDED(_orig->GetFullscreenState(&fullscreen, nullptr)) && !fullscreen)
+				PresentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+		}
+		else
+		{
+			SyncInterval = _sync_interval;
+
+			// If an add-on forces VSync, ensure tearing is not requested
+			if (_sync_interval > 0)
+				PresentFlags &= ~DXGI_PRESENT_ALLOW_TEARING;
+		}
 	}
 #endif
 

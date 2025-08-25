@@ -101,6 +101,9 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 		// If an add-on forces VSync, make sure tearing capability is not requested on the swap chain
 		if (sync_interval != UINT_MAX && sync_interval > 0)
 			internal_desc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+		// If an add-on allows tearing, set special value to indicate to swap chain that presents should happen with DXGI_PRESENT_FLAG_ALLOW_TEARING
+		if ((internal_desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && sync_interval == 0)
+			sync_interval = 0x10000000;
 
 		return true;
 	}
@@ -178,6 +181,9 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 		// If an add-on forces VSync, make sure tearing capability is not requested on the swap chain
 		if (sync_interval != UINT_MAX && sync_interval > 0)
 			internal_desc.Flags &= ~DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+		// If an add-on allows tearing, set special value to indicate to swap chain that presents should happen with DXGI_PRESENT_FLAG_ALLOW_TEARING
+		if ((internal_desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && sync_interval == 0)
+			sync_interval = 0x10000000;
 
 		if (fullscreen_desc != nullptr)
 		{
