@@ -117,5 +117,14 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 		SUCCEEDED(pOpenCommandList->QueryInterface(&command_list_proxy)))
 		pOpenCommandList = command_list_proxy->_orig;
 
-	return _orig->Present(pOpenCommandList, pSourceTex2D, hWindow, Flags);
+	const HRESULT hr = _orig->Present(pOpenCommandList, pSourceTex2D, hWindow, Flags);
+
+#if RESHADE_ADDON
+	if (SUCCEEDED(hr) && _back_buffers[0] != nullptr)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::finish_present>(_parent_queue, this);
+	}
+#endif
+
+	return hr;
 }

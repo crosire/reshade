@@ -123,15 +123,7 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	// Skip when no presentation is requested
-	if (((dwFlags & D3DPRESENT_DONOTFLIP) == 0) &&
-		// Also skip when the same frame is presented multiple times
-		((dwFlags & D3DPRESENT_DONOTWAIT) == 0 || !_was_still_drawing_last_frame))
-	{
-		assert(!_was_still_drawing_last_frame);
-
-		on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-	}
+	on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
@@ -236,8 +228,17 @@ void Direct3DSwapChain9::on_reset(bool resize)
 	_is_initialized = false;
 }
 
-void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region)
+void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region, DWORD flags)
 {
+	// Skip when no presentation is requested
+	if ((flags & D3DPRESENT_DONOTFLIP) != 0)
+		return;
+
+	// Also skip when the same frame is presented multiple times
+	if ((flags & D3DPRESENT_DONOTWAIT) != 0 && _was_still_drawing_last_frame)
+		return;
+	assert(!_was_still_drawing_last_frame);
+
 	assert(_is_initialized);
 
 	if (SUCCEEDED(_device->_orig->BeginScene()))
@@ -274,4 +275,10 @@ void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
 		reshade::log::message(reshade::log::level::error, "Device was lost with %s!", reshade::log::hr_to_string(hr).c_str());
 		// Do not clean up resources, since application has to call 'IDirect3DDevice9::Reset' anyway, which will take care of that
 	}
+#if RESHADE_ADDON
+	else if (!_was_still_drawing_last_frame)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::finish_present>(_device, this);
+	}
+#endif
 }

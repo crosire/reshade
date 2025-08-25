@@ -1636,6 +1636,21 @@ namespace reshade
 		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/> (which indicates the swap chain is presented in its entirety).
 		/// </remarks>
 		present,
+		/// <summary>
+		/// Called after successful presentation, from:
+		/// <list type="bullet">
+		/// <item><description>IDirect3DDevice9::Present</description></item>
+		/// <item><description>IDirect3DDevice9Ex::PresentEx</description></item>
+		/// <item><description>IDirect3DSwapChain9::Present</description></item>
+		/// <item><description>IDXGISwapChain::Present</description></item>
+		/// <item><description>IDXGISwapChain3::Present1</description></item>
+		/// <item><description>ID3D12CommandQueueDownlevel::Present</description></item>
+		/// <item><description>wglSwapBuffers</description></item>
+		/// <item><description>vkQueuePresentKHR</description></item>
+		/// </list>
+		/// <para>Callback function signature: <c>void (api::command_queue *queue, api::swapchain *swapchain)</c></para>
+		/// </summary>
+		finish_present = 100,
 
 		/// <summary>
 		/// Called before:
@@ -1772,7 +1787,7 @@ namespace reshade
 		reshade_overlay_technique,
 
 #if RESHADE_ADDON
-		max = 100 // Last value used internally by ReShade to determine number of events in this enum
+		max = 101 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 
@@ -1896,6 +1911,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::finish_present, void, api::command_queue *queue, api::swapchain *swapchain);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::set_fullscreen_state, bool, api::swapchain *swapchain, bool fullscreen, void *hmonitor);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_present, void, api::effect_runtime *runtime);

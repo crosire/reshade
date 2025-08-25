@@ -109,6 +109,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	case addon_event::execute_command_list: return "execute_command_list";
 	case addon_event::execute_secondary_command_list: return "execute_secondary_command_list";
 	case addon_event::present: return "present";
+	case addon_event::finish_present: return "finish_present";
 	case addon_event::set_fullscreen_state: return "set_fullscreen_state";
 	case addon_event::reshade_present: return "reshade_present";
 	case addon_event::reshade_begin_effects: return "reshade_begin_effects";

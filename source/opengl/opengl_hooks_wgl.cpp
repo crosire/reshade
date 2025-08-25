@@ -231,7 +231,7 @@ public:
 		UNREFERENCED_PARAMETER(resize);
 #endif
 	}
-	void on_present(reshade::opengl::device_context_impl *context)
+	bool on_present(reshade::opengl::device_context_impl *context)
 	{
 		RECT window_rect = {};
 		GetClientRect(static_cast<HWND>(get_hwnd()), &window_rect);
@@ -242,7 +242,7 @@ public:
 		if (width == 0 || height == 0)
 		{
 			on_reset(false);
-			return;
+			return false;
 		}
 
 		// Do not use default FBO description of device to compare, since it may be shared and changed repeatedly by multiple swap chains
@@ -279,6 +279,8 @@ public:
 			if (type == GL_DEBUG_TYPE_ERROR || type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
 				OutputDebugStringA(message), OutputDebugStringA("\n");
 #endif
+
+		return true;
 	}
 
 private:
@@ -1288,6 +1290,7 @@ extern "C" HGLRC WINAPI wglGetCurrentContext()
 
 extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 {
+	wgl_swapchain *swapchain = nullptr;
 	if (g_opengl_context != nullptr)
 	{
 		const std::shared_lock<std::shared_mutex> lock(s_global_mutex);
@@ -1300,8 +1303,8 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 				});
 			swapchain_it != s_opengl_swapchains.end())
 		{
-			const auto swapchain = *swapchain_it;
-			swapchain->on_present(g_opengl_context);
+			if ((*swapchain_it)->on_present(g_opengl_context))
+				swapchain = *swapchain_it;
 		}
 	}
 
@@ -1310,6 +1313,12 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 	g_in_dxgi_runtime = true;
 	const BOOL result = trampoline(hdc);
 	g_in_dxgi_runtime = false;
+
+#if RESHADE_ADDON
+	if (result && swapchain != nullptr)
+		reshade::invoke_addon_event<reshade::addon_event::finish_present>(g_opengl_context, swapchain);
+#endif
+
 	return result;
 }
 extern "C" BOOL  WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)

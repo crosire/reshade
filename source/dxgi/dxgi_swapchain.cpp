@@ -301,12 +301,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 
 #if RESHADE_ADDON
 	if (_sync_interval != UINT_MAX)
+	{
 		SyncInterval = _sync_interval;
-#endif
 
-	// If an add-on forces SyncInterval > 0, ensure tearing is not requested during Present
-	if (SyncInterval > 0)
-		Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+		// If an add-on forces VSync, ensure tearing is not requested
+		if (_sync_interval > 0)
+			Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
+	}
+#endif
 
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
@@ -564,12 +566,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 
 #if RESHADE_ADDON
 	if (_sync_interval != UINT_MAX)
+	{
 		SyncInterval = _sync_interval;
-#endif
 
-	// If an add-on forces SyncInterval > 0, ensure tearing is not requested during Present1
-	if (SyncInterval > 0)
-		PresentFlags &= ~DXGI_PRESENT_ALLOW_TEARING;
+		// If an add-on forces VSync, ensure tearing is not requested
+		if (_sync_interval > 0)
+			PresentFlags &= ~DXGI_PRESENT_ALLOW_TEARING;
+	}
+#endif
 
 	assert(_interface_version >= 1);
 	assert(!g_in_dxgi_runtime);
@@ -1007,4 +1011,21 @@ void DXGISwapChain::handle_device_loss(HRESULT hr)
 			reshade::log::message(reshade::log::level::error, "> Device removal reason is %s.", reshade::log::hr_to_string(reason).c_str());
 		}
 	}
+#if RESHADE_ADDON
+	else if (!_was_still_drawing_last_frame)
+	{
+		switch (_direct3d_version)
+		{
+		case reshade::api::device_api::d3d10:
+			reshade::invoke_addon_event<reshade::addon_event::finish_present>(static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device)), _impl);
+			break;
+		case reshade::api::device_api::d3d11:
+			reshade::invoke_addon_event<reshade::addon_event::finish_present>(static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context, _impl);
+			break;
+		case reshade::api::device_api::d3d12:
+			reshade::invoke_addon_event<reshade::addon_event::finish_present>(static_cast<D3D12CommandQueue *>(_direct3d_command_queue), _impl);
+			break;
+		}
+	}
+#endif
 }

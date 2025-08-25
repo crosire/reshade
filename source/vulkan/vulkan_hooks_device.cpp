@@ -1239,6 +1239,18 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	const VkResult result = trampoline(queue, &present_info);
 	g_in_dxgi_runtime = false;
 
+#if RESHADE_ADDON
+	if (result >= VK_SUCCESS && reshade::has_addon_event<reshade::addon_event::finish_present>())
+	{
+		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
+		{
+			reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
+
+			reshade::invoke_addon_event<reshade::addon_event::finish_present>(queue_impl, swapchain_impl);
+		}
+	}
+#endif
+
 	if (present_from_secondary_queue)
 		device_impl->_primary_graphics_queue->_mutex.unlock();
 	queue_impl->_mutex.unlock();
