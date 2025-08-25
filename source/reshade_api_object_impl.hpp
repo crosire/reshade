@@ -12,7 +12,7 @@
 namespace reshade::api
 {
 	template <typename T, typename... api_object_base>
-	class api_object_impl : public api_object_base...
+	class __declspec(novtable) api_object_impl : public api_object_base...
 	{
 		static_assert(sizeof(T) <= sizeof(uint64_t));
 
