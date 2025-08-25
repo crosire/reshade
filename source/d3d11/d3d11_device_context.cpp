@@ -847,10 +847,26 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 #if RESHADE_ADDON
 	// Use secondary command list event here, since this may be called on deferred contexts as well
 	reshade::invoke_addon_event<reshade::addon_event::execute_secondary_command_list>(this, command_list_proxy);
+
+	// Emit RENDERSUBMIT_START/END for immediate context execution path. For deferred contexts this represents submission to immediate.
+	const bool is_immediate = (this == _device->_immediate_context);
+	if (is_immediate)
+	{
+		const uint64_t ts_begin = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+		reshade::invoke_addon_event<reshade::addon_event::latency_rendersubmit_start>(this, nullptr, ts_begin);
+	}
 #endif
 
 	// Get original command list pointer from proxy object and execute with it
 	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
+
+#if RESHADE_ADDON
+	if (is_immediate)
+	{
+		const uint64_t ts_end = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+		reshade::invoke_addon_event<reshade::addon_event::latency_rendersubmit_end>(this, nullptr, ts_end);
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
 {

@@ -9,6 +9,7 @@
 #include "d3d12_command_queue_downlevel.hpp"
 #include "dll_log.hpp"
 #include "addon_manager.hpp"
+#include <chrono>
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
 	command_queue_impl(device, original),
@@ -168,6 +169,14 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
 	std::unique_lock<std::recursive_mutex> lock(_mutex);
 
+#if RESHADE_ADDON
+	// Emit RENDERSUBMIT_START marker at the beginning of a batch submission
+	{
+		const uint64_t ts_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+		reshade::invoke_addon_event<reshade::addon_event::latency_rendersubmit_start>(this, nullptr, ts_ns);
+	}
+#endif
+
 	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; ++i)
 	{
@@ -195,6 +204,14 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 	lock.unlock();
 
 	_orig->ExecuteCommandLists(NumCommandLists, command_lists.p);
+
+#if RESHADE_ADDON
+	// Emit RENDERSUBMIT_END marker after submission was kicked to the queue
+	{
+		const uint64_t ts_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+		reshade::invoke_addon_event<reshade::addon_event::latency_rendersubmit_end>(this, nullptr, ts_ns);
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
 {

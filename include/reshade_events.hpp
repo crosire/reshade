@@ -1637,6 +1637,15 @@ namespace reshade
 		/// </remarks>
 		present,
 
+		// Latency marker callbacks (experimental): allow addons to observe timestamps
+		// These mirror NVIDIA Reflex marker semantics
+		//latency_simulation_start ,
+		//latency_simulation_end ,
+		latency_rendersubmit_start = 100,
+		latency_rendersubmit_end = 101,
+		latency_present_start = 102,
+		latency_present_end = 103,
+
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
@@ -1772,7 +1781,7 @@ namespace reshade
 		reshade_overlay_technique,
 
 #if RESHADE_ADDON
-		max = 100 // Last value used internally by ReShade to determine number of events in this enum
+		max = 104 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 
@@ -1898,6 +1907,14 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::set_fullscreen_state, bool, api::swapchain *swapchain, bool fullscreen, void *hmonitor);
 
+	// Latency marker callbacks
+	//RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::latency_simulation_start, void, api::command_queue *queue, api::swapchain *swapchain, uint64_t timestamp_ns);
+	//RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::latency_simulation_end, void, api::command_queue *queue, api::swapchain *swapchain, uint64_t timestamp_ns);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::latency_rendersubmit_start, void, api::command_queue *queue, api::swapchain *swapchain, uint64_t timestamp_ns);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::latency_rendersubmit_end, void, api::command_queue *queue, api::swapchain *swapchain, uint64_t timestamp_ns);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::latency_present_start, void, api::command_queue *queue, api::swapchain *swapchain, uint64_t timestamp_ns);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::latency_present_end, void, api::command_queue *queue, api::swapchain *swapchain, uint64_t timestamp_ns);
+	
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_present, void, api::effect_runtime *runtime);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_begin_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_finish_effects, void, api::effect_runtime *runtime, api::command_list *cmd_list, api::resource_view rtv, api::resource_view rtv_srgb);

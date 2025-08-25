@@ -17,6 +17,7 @@
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
+#include <chrono>
 
 #if RESHADE_ADDON
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
@@ -297,6 +298,29 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
+#if RESHADE_ADDON
+	// Emit PRESENT_START latency marker before ReShade present handling
+	if (_is_initialized)
+	{
+		const uint64_t ts_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+		switch (_direct3d_version)
+		{
+		case reshade::api::device_api::d3d10:
+		case reshade::api::device_api::d3d11:
+			reshade::invoke_addon_event<reshade::addon_event::latency_present_start>(
+				static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
+				_impl,
+				ts_ns);
+			break;
+		case reshade::api::device_api::d3d12:
+			reshade::invoke_addon_event<reshade::addon_event::latency_present_start>(
+				static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
+				_impl,
+				ts_ns);
+			break;
+		}
+	}
+#endif
 	on_present(Flags);
 
 #if RESHADE_ADDON
@@ -312,6 +336,30 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
 	g_in_dxgi_runtime = false;
+
+#if RESHADE_ADDON
+	// Emit PRESENT_END latency marker right after present returns
+	if (_is_initialized)
+	{
+		const uint64_t ts_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+		switch (_direct3d_version)
+		{
+		case reshade::api::device_api::d3d10:
+		case reshade::api::device_api::d3d11:
+			reshade::invoke_addon_event<reshade::addon_event::latency_present_end>(
+				static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context,
+				_impl,
+				ts_ns);
+			break;
+		case reshade::api::device_api::d3d12:
+			reshade::invoke_addon_event<reshade::addon_event::latency_present_end>(
+				static_cast<D3D12CommandQueue *>(_direct3d_command_queue),
+				_impl,
+				ts_ns);
+			break;
+		}
+	}
+#endif
 
 	handle_device_loss(hr);
 
