@@ -825,15 +825,15 @@ void reshade::runtime::on_present()
 		}
 	}
 
+	// Apply previous state from application
+	apply_state(cmd_list, _app_state);
+
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_present>(this);
 
 	_is_in_present_call = false;
 #endif
 	_effects_rendered_this_frame = false;
-
-	// Apply previous state from application
-	apply_state(cmd_list, _app_state);
 
 	// Update input status
 	if (_primary_input_handler && _input != nullptr)
