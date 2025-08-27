@@ -357,7 +357,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 
-	_implicit_swapchain->handle_device_loss(hr);
+	_implicit_swapchain->on_finish_present(hr);
 
 	return hr;
 }
@@ -2277,7 +2277,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
-	_implicit_swapchain->handle_device_loss(hr);
+	_implicit_swapchain->on_finish_present(hr);
 
 	return hr;
 }

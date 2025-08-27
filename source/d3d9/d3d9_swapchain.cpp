@@ -127,7 +127,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
-	handle_device_loss(hr);
+	on_finish_present(hr);
 
 	return hr;
 }
@@ -261,7 +261,7 @@ void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] co
 	}
 }
 
-void Direct3DSwapChain9::handle_device_loss(HRESULT hr)
+void Direct3DSwapChain9::on_finish_present(HRESULT hr)
 {
 	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
 
