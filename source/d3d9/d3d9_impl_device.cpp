@@ -241,6 +241,9 @@ bool reshade::d3d9::device_impl::check_format_support(api::format format, api::r
 
 	DWORD d3d_usage = 0;
 	convert_resource_usage_to_d3d_usage(usage, d3d_usage);
+	if (format != api::format_to_default_typed(format, 0) &&
+		format == api::format_to_default_typed(format, 1))
+		d3d_usage |= D3DUSAGE_QUERY_SRGBREAD | D3DUSAGE_QUERY_SRGBWRITE;
 
 	const D3DFORMAT d3d_format = convert_format(format);
 	return d3d_format != D3DFMT_UNKNOWN && SUCCEEDED(_d3d->CheckDeviceFormat(_cp.AdapterOrdinal, _cp.DeviceType, D3DFMT_X8R8G8B8, d3d_usage, D3DRTYPE_TEXTURE, d3d_format));
