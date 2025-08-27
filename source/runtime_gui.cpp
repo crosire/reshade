@@ -916,7 +916,7 @@ void reshade::runtime::draw_gui()
 #endif
 		)
 	{
-		if (_input != nullptr)
+		if (_primary_input_handler && _input != nullptr)
 		{
 			_input->block_mouse_input(_block_input_next_frame);
 			_input->block_keyboard_input(_block_input_next_frame);
@@ -1561,7 +1561,7 @@ void reshade::runtime::draw_gui()
 	// Render ImGui widgets and windows
 	ImGui::Render();
 
-	if (_input != nullptr)
+	if (_primary_input_handler && _input != nullptr)
 	{
 		const bool block_input = _input_processing_mode != 0 && (_show_overlay || _block_input_next_frame);
 		const bool block_mouse_input = block_input && (imgui_io.WantCaptureMouse || _input_processing_mode == 2);

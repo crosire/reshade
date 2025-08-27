@@ -261,6 +261,7 @@ namespace reshade
 
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
+		bool _primary_input_handler = false;
 		std::shared_ptr<class input> _input;
 		std::shared_ptr<class input_gamepad> _input_gamepad;
 
