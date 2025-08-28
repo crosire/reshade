@@ -1297,8 +1297,9 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 		const bool selected = item.resource == data.selected_depth_stencil;
 		const bool candidate =
-			(s_format_filtering == 0 || check_depth_format(item.desc.texture.format)) &&
-			(s_aspect_ratio_heuristic == aspect_ratio_heuristic::none || check_aspect_ratio(static_cast<float>(item.desc.texture.width), static_cast<float>(item.desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height)));
+			!(item.snapshot.total_stats.drawcalls == 0 || (item.snapshot.total_stats.vertices <= 3 && item.snapshot.total_stats.drawcalls_indirect == 0)) &&
+			!(s_format_filtering != 0 && !check_depth_format(item.desc.texture.format)) &&
+			!(s_aspect_ratio_heuristic != aspect_ratio_heuristic::none && !check_aspect_ratio(static_cast<float>(item.desc.texture.width), static_cast<float>(item.desc.texture.height), static_cast<float>(frame_width), static_cast<float>(frame_height)));
 
 		char label[21];
 		std::snprintf(label, std::size(label), "%c 0x%016llx", (selected ? '>' : ' '), item.resource.handle);
