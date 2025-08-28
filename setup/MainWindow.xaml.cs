@@ -1233,12 +1233,15 @@ In that event here are some steps you can try to resolve this:
 
 				if (compatibilityIni.HasValue(executableName, "DepthCopyBeforeClears") ||
 					compatibilityIni.HasValue(executableName, "DepthCopyAtClearIndex") ||
+					compatibilityIni.HasValue(executableName, "DrawStatsHeuristic") ||
 					compatibilityIni.HasValue(executableName, "UseAspectRatioHeuristics"))
 				{
 					config.SetValue("DEPTH", "DepthCopyBeforeClears",
 						compatibilityIni.GetString(executableName, "DepthCopyBeforeClears", "0"));
 					config.SetValue("DEPTH", "DepthCopyAtClearIndex",
 						compatibilityIni.GetString(executableName, "DepthCopyAtClearIndex", "0"));
+					config.SetValue("DEPTH", "DrawStatsHeuristic",
+						compatibilityIni.GetString(executableName, "DrawStatsHeuristic", "0"));
 					config.SetValue("DEPTH", "UseAspectRatioHeuristics",
 						compatibilityIni.GetString(executableName, "UseAspectRatioHeuristics", "1"));
 				}
