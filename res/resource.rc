@@ -133,6 +133,7 @@ IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
 #include "lang_ru-RU.rc2"
 #include "lang_zh-CN.rc2"
 #include "lang_zh-HK.rc2"
+#include "lang_pt-BR.rc2"
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
