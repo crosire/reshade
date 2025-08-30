@@ -321,6 +321,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 		}
 	}
 #endif
+	#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::present_flags>(&Flags);
+	#endif
 
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
