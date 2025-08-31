@@ -851,6 +851,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 
 	// Get original command list pointer from proxy object and execute with it
 	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
+
+#if RESHADE_ADDON
+	if (!RestoreContextState)
+	{
+		reshade::invoke_addon_event<reshade::addon_event::reset_command_list>(this);
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
 {
