@@ -1,12 +1,12 @@
 /////////////////////////////////////////////////////////////////////////////
-// Recursos em Português (Brasil)
+// Portuguese (Brazil) resources
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_POR)
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_PTB)
 LANGUAGE 22, 1
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// Tabela de Strings
+// String Table
 //
 
 STRINGTABLE
@@ -39,7 +39,7 @@ BEGIN
 46542 "Preset anterior"
 52128 "Próximo preset"
 33659 "Abrir pasta no explorer"
-16638 "Auto Save ativado"
+16638 "Auto Save ativ."
 1761 "Auto Save"
 55927 "Salve o preset atual automaticamente a cada modificação."
 47329 "Você realmente deseja resetar todos os efeitos?"
@@ -84,17 +84,17 @@ BEGIN
 40696 "Preset de inicialização"
 25226 "Quando não estiver vazio, resetar o preset atual para este arquivo durante recarregamentos."
 37235 "Caminhos de pesquisa de efeitos"
-16540 "Lista de caminhos de diretórios para serem pesquisados por arquivos de efeitos (.fx).\nCaminhos que terminam em \"\\**\" são pesquisados recursivamente."
+16540 "Lista de caminhos de diretórios para serem pesquisados por arquivos de efeitos (.fx).\nCaminhos que terminam em ""\\**"" são pesquisados recursivamente."
 54466 "Caminhos de pesquisa de texturas"
-46747 "Lista de caminhos de diretórios para serem pesquisados por arquivos de imagem usados como fonte para texturas.\nCaminhos que terminam em \"\\**\" são pesquisados recursivamente."
+46747 "Lista de caminhos de diretórios para serem pesquisados por arquivos de imagem usados como fonte para texturas.\nCaminhos que terminam em ""\\**"" são pesquisados recursivamente."
 24012 "Carregar apenas efeitos ativados"
 25062 "Limpar cache de efeitos"
-14824 "Limpar cache de efeitos localizado em \"%s\"."
+14824 "Limpar cache de efeitos localizado em ""%s""."
 39477 "Capturas de tela"
 34032 "Tecla de captura de tela"
 8134 "Caminho da captura de tela"
 25098 "Nome da captura de tela"
-30328 "Macros que você pode adicionar e que são resolvidas durante o salvamento:\n  %%AppName%%         Nome do aplicativo (%s)\n  %%PresetName%%      Nome do arquivo sem extensão do arquivo de preset atual (%s)\n  %%BeforeAfter%%     Termo que descreve o momento em que a captura de tela foi feita ('Antes', 'Depois' ou 'Sobreposição')\n  %%Date%%            Data atual no formato '%s'\n  %%DateYear%%        Componente de ano da data atual\n  %%DateMonth%%       Componente de mês da data atual\n  %%DateDay%%         Componente de dia da data atual\n  %%Time%%            Hora atual no formato '%s'\n  %%TimeHour%%        Componente de hora da hora atual\n  %%TimeMinute%%      Componente de minuto da hora atual\n  %%TimeSecond%%      Componente de segundo da hora atual\n  %%TimeMS%%          Fração de milissegundos da hora atual\n  %%Count%%           Número de capturas de tela feitas nesta sessão\n"
+30328 "Macros que você pode adicionar e que são resolvidas durante o salvamento:\n  %%AppName%%         Nome do aplicativo (%s)\n  %%PresetName%%      Nome do arquivo sem extensão do arquivo de preset atual (%s)\n  %%BeforeAfter%%     Termo que descreve o momento em que a captura de tela foi feita ('Before', 'After' ou 'Overlay')\n  %%Date%%            Data atual no formato '%s'\n  %%DateYear%%        Componente de ano da data atual\n  %%DateMonth%%       Componente de mês da data atual\n  %%DateDay%%         Componente de dia da data atual\n  %%Time%%            Hora atual no formato '%s'\n  %%TimeHour%%        Componente de hora da hora atual\n  %%TimeMinute%%      Componente de minuto da hora atual\n  %%TimeSecond%%      Componente de segundo da hora atual\n  %%TimeMS%%          Fração de milissegundos da hora atual\n  %%Count%%           Número de capturas de tela feitas nesta sessão\n"
 4289 "Qualidade HDR PNG"
 24896 "Formato da captura de tela"
 3555 "Qualidade JPEG"
@@ -107,7 +107,7 @@ BEGIN
 8229 "Comando pós-salvamento"
 60010 "Executável ou script chamado após salvar uma captura de tela.\nIsso pode ser usado para realizar um processamento adicional na imagem (por exemplo, comprimindo-a com um otimizador de imagem)."
 8195 "Argumentos do comando pós-salvamento"
-37967 "Macros que você pode adicionar e que são resolvidas durante a execução do comando:\n  %%AppName%%         Nome do aplicativo (%s)\n  %%PresetName%%      Nome do arquivo sem extensão do arquivo de preset atual (%s)\n  %%BeforeAfter%%     Termo que descreve o momento em que a captura de tela foi feita ('Antes', 'Depois' ou 'Sobreposição')\n  %%Date%%            Data atual no formato '%s'\n  %%DateYear%%        Componente de ano da data atual\n  %%DateMonth%%       Componente de mês da data atual\n  %%DateDay%%         Componente de dia da data atual\n  %%Time%%            Hora atual no formato '%s'\n  %%TimeHour%%        Componente de hora da hora atual\n  %%TimeMinute%%      Componente de minuto da hora atual\n  %%TimeSecond%%      Componente de segundo da hora atual\n  %%TimeMS%%          Fração de milissegundos da hora atual\n  %%TargetPath%%      Caminho completo do arquivo da captura de tela (%s)\n  %%TargetDir%%       Caminho completo do diretório da captura de tela (%s)\n  %%TargetFileName%%  Nome do arquivo da captura de tela (%s)\n  %%TargetExt%%       Extensão do arquivo da captura de tela (%s)\n  %%TargetName%%      Nome do arquivo sem extensão da captura de tela (%s)\n  %%Count%%           Número de capturas de tela feitas nesta sessão\n"
+37967 "Macros que você pode adicionar e que são resolvidas durante a execução do comando:\n  %%AppName%%         Nome do aplicativo (%s)\n  %%PresetName%%      Nome do arquivo sem extensão do arquivo de preset atual (%s)\n  %%BeforeAfter%%     Termo que descreve o momento em que a captura de tela foi feita ('Before', 'After' ou 'Overlay')\n  %%Date%%            Data atual no formato '%s'\n  %%DateYear%%        Componente de ano da data atual\n  %%DateMonth%%       Componente de mês da data atual\n  %%DateDay%%         Componente de dia da data atual\n  %%Time%%            Hora atual no formato '%s'\n  %%TimeHour%%        Componente de hora da hora atual\n  %%TimeMinute%%      Componente de minuto da hora atual\n  %%TimeSecond%%      Componente de segundo da hora atual\n  %%TimeMS%%          Fração de milissegundos da hora atual\n  %%TargetPath%%      Caminho completo do arquivo da captura de tela (%s)\n  %%TargetDir%%       Caminho completo do diretório da captura de tela (%s)\n  %%TargetFileName%%  Nome do arquivo da captura de tela (%s)\n  %%TargetExt%%       Extensão do arquivo da captura de tela (%s)\n  %%TargetName%%      Nome do arquivo sem extensão da captura de tela (%s)\n  %%Count%%           Número de capturas de tela feitas nesta sessão\n"
 19318 "Diretório de trabalho do comando pós-salvamento"
 39535 "Ocultar a janela do comando pós-salvamento"
 58617 "Sobreposição & Estilo"
@@ -200,5 +200,5 @@ BEGIN
 
 END
 
-#endif    // Recursos em Português (Brasil)
+#endif    // Portuguese (Brazil) resources
 /////////////////////////////////////////////////////////////////////////////
