@@ -100,6 +100,13 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		return S_OK;
 	}
 
+	if (riid == ID_IDeviceChildParent)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	// Unimplemented interfaces:
 	//   ID3D11VideoContext  {61F21C45-3C0E-4a74-9CEA-67100D9AD5E4}
 	//   ID3D11VideoContext1 {A7F026DA-A5F8-4487-A564-15E34357651E}

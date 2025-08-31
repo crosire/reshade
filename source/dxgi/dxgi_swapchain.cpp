@@ -205,6 +205,13 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 		return S_OK;
 	}
 
+	if (riid == ID_IDeviceChildParent)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	if (riid == SKID_IUnwrappedDXGISwapChain)
 	{
 		// Pass through, in case the original object is already proxied by another third party

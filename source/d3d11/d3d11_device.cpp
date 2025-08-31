@@ -141,6 +141,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	if (riid == ID_IDeviceChildParent)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	if (riid == __uuidof(ID3D11On12Device) ||
 		riid == __uuidof(ID3D11On12Device1) ||
 		riid == __uuidof(ID3D11On12Device2))
