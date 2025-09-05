@@ -48,6 +48,13 @@ HRESULT STDMETHODCALLTYPE D3D11CommandList::QueryInterface(REFIID riid, void **p
 		return S_OK;
 	}
 
+	if (riid == ID_IDeviceChildParent)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D11CommandList::AddRef()

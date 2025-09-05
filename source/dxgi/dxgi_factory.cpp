@@ -5,6 +5,7 @@
 
 #include "dxgi_factory.hpp"
 #include "dxgi_adapter.hpp"
+#include "dxgi_device.hpp"
 #include "dll_log.hpp"
 #include "com_utils.hpp"
 
@@ -108,6 +109,13 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::QueryInterface(REFIID riid, void **ppvObj
 	{
 		AddRef();
 		*ppvObj = this;
+		return S_OK;
+	}
+
+	if (riid == ID_IDeviceChildParent)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
 		return S_OK;
 	}
 

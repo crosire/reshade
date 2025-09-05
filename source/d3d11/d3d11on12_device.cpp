@@ -72,6 +72,13 @@ HRESULT STDMETHODCALLTYPE D3D11On12Device::QueryInterface(REFIID riid, void **pp
 		return S_OK;
 	}
 
+	if (riid == ID_IDeviceChildParent)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	return _parent_device_11->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D11On12Device::AddRef()
