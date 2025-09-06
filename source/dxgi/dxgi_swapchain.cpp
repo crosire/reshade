@@ -270,7 +270,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDat
 	return _orig->GetPrivateData(Name, pDataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetParent(REFIID riid, void **ppParent)
-{	
+{
 	const HRESULT hr = _orig->GetParent(riid, ppParent);
 	if (SUCCEEDED(hr))
 	{
@@ -322,6 +322,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 		}
 	}
 #endif
+	#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::present_flags>(&Flags, _impl);
+	#endif
 
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
