@@ -7,6 +7,8 @@
 #include "dxgi_adapter.hpp"
 #include "dll_log.hpp"
 #include "com_utils.hpp"
+#include <cassert>
+#include "hide_hdr.hpp"
 
 DXGIOutput::DXGIOutput(IDXGIOutput *original) :
 	_orig(original),
@@ -258,6 +260,20 @@ HRESULT STDMETHODCALLTYPE DXGIOutput::CheckOverlaySupport(DXGI_FORMAT EnumFormat
 HRESULT STDMETHODCALLTYPE DXGIOutput::CheckOverlayColorSpaceSupport(DXGI_FORMAT Format, DXGI_COLOR_SPACE_TYPE ColorSpace, IUnknown *pConcernedDevice, UINT *pFlags)
 {
 	assert(_interface_version >= 4);
+	// Block HDR overlay color space reporting when requested
+	if (reshade::hide_hdr != 0)
+	{
+		switch (ColorSpace)
+		{
+		case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+		case DXGI_COLOR_SPACE_RGB_STUDIO_G2084_NONE_P2020:
+			if (pFlags != nullptr)
+				*pFlags = 0;
+			return S_OK;
+		default:
+			break;
+		}
+	}
 	return static_cast<IDXGIOutput4 *>(_orig)->CheckOverlayColorSpaceSupport(Format, ColorSpace, pConcernedDevice, pFlags);
 }
 
@@ -270,7 +286,17 @@ HRESULT STDMETHODCALLTYPE DXGIOutput::DuplicateOutput1(IUnknown *pDevice, UINT F
 HRESULT STDMETHODCALLTYPE DXGIOutput::GetDesc1(DXGI_OUTPUT_DESC1 *pDesc)
 {
 	assert(_interface_version >= 6);
-	return static_cast<IDXGIOutput6 *>(_orig)->GetDesc1(pDesc);
+	const HRESULT hr = static_cast<IDXGIOutput6 *>(_orig)->GetDesc1(pDesc);
+	if (SUCCEEDED(hr) && pDesc != nullptr && reshade::hide_hdr != 0)
+	{
+		// Force SDR reporting so games think HDR is unavailable
+		pDesc->ColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+		pDesc->BitsPerColor = 8;
+		pDesc->MaxLuminance = 300.0f;
+		pDesc->MinLuminance = 0.0f;
+		pDesc->MaxFullFrameLuminance = 300.0f;
+	}
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIOutput::CheckHardwareCompositionSupport(UINT *pFlags)
 {
