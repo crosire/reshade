@@ -6,6 +6,7 @@
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_device_context.hpp"
 #include "d3d11_impl_type_convert.hpp"
+#include "d3d11_extensions.hpp"
 #include "dll_log.hpp"
 #include <cstring> // std::memcpy, std::strlen
 #include <algorithm> // std::find
@@ -58,6 +59,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	temp_mem<ID3D11Resource *> shader_resource_resources(count);
 	uint32_t transitions_away_from_unordered_access_usage = 0;
 	temp_mem<ID3D11Resource *> unordered_access_resources(count);
+	bool uav_barrier = false;
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
@@ -67,6 +69,9 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 			shader_resource_resources[transitions_away_from_shader_resource_usage++] = reinterpret_cast<ID3D11Resource *>(resources[i].handle);
 		if ((old_states[i] & api::resource_usage::unordered_access) != 0 && (new_states[i] & api::resource_usage::unordered_access) == 0)
 			unordered_access_resources[transitions_away_from_unordered_access_usage++] = reinterpret_cast<ID3D11Resource *>(resources[i].handle);
+
+		if ((old_states[i] & api::resource_usage::unordered_access) != 0 && (new_states[i] & api::resource_usage::unordered_access) != 0)
+			uav_barrier = true;
 	}
 
 	if (transitions_away_from_shader_resource_usage != 0)
@@ -147,6 +152,22 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 
 #undef RESHADE_D3D11_UNBIND_UNORDERED_ACCESS_VIEWS
 	}
+
+	if (uav_barrier || transitions_away_from_unordered_access_usage != 0)
+	{
+		end_uav_overlap();
+	}
+}
+
+void reshade::d3d11::device_context_impl::begin_uav_overlap()
+{
+	if (NvAPI_D3D11_BeginUAVOverlap != nullptr)
+		NvAPI_D3D11_BeginUAVOverlap(_orig);
+}
+void reshade::d3d11::device_context_impl::end_uav_overlap()
+{
+	if (NvAPI_D3D11_EndUAVOverlap != nullptr)
+		NvAPI_D3D11_EndUAVOverlap(_orig);
 }
 
 void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
