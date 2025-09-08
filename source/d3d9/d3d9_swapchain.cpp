@@ -125,6 +125,11 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 {
 	on_present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
+
+	#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::present_flags>(reinterpret_cast<uint32_t *>(&dwFlags), this);
+	#endif
+
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
 	on_finish_present(hr);

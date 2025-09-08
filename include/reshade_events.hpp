@@ -1635,6 +1635,17 @@ namespace reshade
 		/// The source and destination rectangle arguments are optional and may be <see langword="nullptr"/> (which indicates the swap chain is presented in its entirety).
 		/// </remarks>
 		present,
+
+		/// <summary>
+		/// Called before a present call is made, allowing modification of the present flags.
+		/// <para>Callback function signature: <c>void (uint32_t *flags)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// The flags parameter is a pointer to the present flags that can be modified by the callback.
+		/// Depending on the graphics API this can be a 'D3DPRESENT', 'DXGI_PRESENT' or 'VkPresentFlagsKHR' value.
+		/// </remarks>
+		present_flags = 101,
+
 		/// <summary>
 		/// Called after successful presentation, from:
 		/// <list type="bullet">
@@ -1786,7 +1797,7 @@ namespace reshade
 		reshade_overlay_technique,
 
 #if RESHADE_ADDON
-		max = 101 // Last value used internally by ReShade to determine number of events in this enum
+		max = 102 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 
@@ -1910,6 +1921,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::execute_secondary_command_list, void, api::command_list *cmd_list, api::command_list *secondary_cmd_list);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present, void, api::command_queue *queue, api::swapchain *swapchain, const api::rect *source_rect, const api::rect *dest_rect, uint32_t dirty_rect_count, const api::rect *dirty_rects);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::present_flags, void, uint32_t *flags, api::swapchain *swapchain);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::finish_present, void, api::command_queue *queue, api::swapchain *swapchain);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::set_fullscreen_state, bool, api::swapchain *swapchain, bool fullscreen, void *hmonitor);
 
