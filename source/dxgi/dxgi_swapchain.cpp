@@ -16,6 +16,21 @@
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
 
+MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : public IUnknown
+{
+	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObject) = 0;
+	virtual ULONG   STDMETHODCALLTYPE AddRef() = 0;
+	virtual ULONG   STDMETHODCALLTYPE Release() = 0;
+
+	virtual bool    STDMETHODCALLTYPE HasProxyFrontBufferSurface() = 0;
+	virtual HRESULT STDMETHODCALLTYPE GetFrameStatisticsTest(struct DXGI_FRAME_STATISTICS_TEST *) = 0;
+	virtual void    STDMETHODCALLTYPE EmulateXBOXBehavior(BOOL) = 0;
+	virtual DXGI_COLOR_SPACE_TYPE STDMETHODCALLTYPE GetColorSpace1() = 0;
+	virtual void    STDMETHODCALLTYPE GetBufferLayoutInfoTest(struct DXGI_BUFFER_LAYOUT_INFO_TEST *) = 0;
+	virtual void *  STDMETHODCALLTYPE GetDFlipOutput() = 0;
+	virtual UINT    STDMETHODCALLTYPE GetBackBufferImplicitRotationCount() = 0;
+};
+
 #if RESHADE_ADDON
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
@@ -668,8 +683,18 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
 	DXGI_COLOR_SPACE_TYPE prev_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	UINT prev_color_space_size = sizeof(prev_color_space);
-	_orig->GetPrivateData(SKID_SwapChainColorSpace, &prev_color_space_size, &prev_color_space);
+	{
+		if (com_ptr<IDXGISwapChainTest> swapchain_test;
+			SUCCEEDED(_orig->QueryInterface(&swapchain_test)))
+		{
+			prev_color_space = swapchain_test->GetColorSpace1();
+		}
+		else
+		{
+			UINT prev_color_space_size = sizeof(prev_color_space);
+			_orig->GetPrivateData(SKID_SwapChainColorSpace, &prev_color_space_size, &prev_color_space);
+		}
+	}
 
 	if (ColorSpace != prev_color_space)
 		on_reset(true);
