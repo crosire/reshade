@@ -604,7 +604,6 @@
     <ClCompile Include="source\dxgi\dxgi_d3d10.cpp" />
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
     <ClCompile Include="source\dxgi\dxgi_factory.cpp" />
-    <ClCompile Include="source\dxgi\dxgi_output.cpp" />
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
@@ -728,7 +727,6 @@
     <ClInclude Include="source\dxgi\dxgi_adapter.hpp" />
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
     <ClInclude Include="source\dxgi\dxgi_factory.hpp" />
-    <ClInclude Include="source\dxgi\dxgi_output.hpp" />
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />

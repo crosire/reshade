@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#include "dxgi_output.hpp"
 #include "dxgi_factory.hpp"
 #include "dxgi_adapter.hpp"
 #include "dll_log.hpp"
@@ -106,7 +105,6 @@ bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
 	return false;
 }
 
-
 HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
@@ -185,10 +183,7 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::GetParent(REFIID riid, void **ppParent)
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::EnumOutputs(UINT Output, IDXGIOutput **ppOutput)
 {
-	const HRESULT hr = _orig->EnumOutputs(Output, ppOutput);
-	if (SUCCEEDED(hr))
-		DXGIOutput::check_and_proxy_interface(ppOutput);
-	return hr;
+	return _orig->EnumOutputs(Output, ppOutput);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc(DXGI_ADAPTER_DESC *pDesc)
 {
@@ -216,7 +211,7 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterHardwareContentProtectionTeardown
 	assert(_interface_version >= 3);
 	return static_cast<IDXGIAdapter3 *>(_orig)->RegisterHardwareContentProtectionTeardownStatusEvent(hEvent, pdwCookie);
 }
-void STDMETHODCALLTYPE DXGIAdapter::UnregisterHardwareContentProtectionTeardownStatus(DWORD dwCookie)
+void    STDMETHODCALLTYPE DXGIAdapter::UnregisterHardwareContentProtectionTeardownStatus(DWORD dwCookie)
 {
 	assert(_interface_version >= 3);
 	static_cast<IDXGIAdapter3 *>(_orig)->UnregisterHardwareContentProtectionTeardownStatus(dwCookie);
