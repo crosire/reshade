@@ -342,7 +342,7 @@ reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &devi
 }
 
 template <typename T>
-static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] DXGI_SWAP_CHAIN_DESC orig_desc, [[maybe_unused]] bool desc_modified)
+static void init_swapchain_proxy(IDXGIFactory *factory, T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] DXGI_SWAP_CHAIN_DESC orig_desc, [[maybe_unused]] bool desc_modified)
 {
 	DXGISwapChain *swapchain_proxy = nullptr;
 
@@ -354,13 +354,13 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 	{
 		const com_ptr<D3D10Device> &device = reinterpret_cast<const com_ptr<D3D10Device> &>(device_proxy);
 
-		swapchain_proxy = new DXGISwapChain(device.get(), swapchain); // Overwrite returned swap chain with proxy swap chain
+		swapchain_proxy = new DXGISwapChain(factory, device.get(), swapchain); // Overwrite returned swap chain with proxy swap chain
 	}
 	else if (direct3d_version == reshade::api::device_api::d3d11)
 	{
 		const com_ptr<D3D11Device> &device = reinterpret_cast<const com_ptr<D3D11Device> &>(device_proxy);
 
-		swapchain_proxy = new DXGISwapChain(device.get(), swapchain);
+		swapchain_proxy = new DXGISwapChain(factory, device.get(), swapchain);
 	}
 	else if (direct3d_version == reshade::api::device_api::d3d12)
 	{
@@ -369,7 +369,7 @@ static void init_swapchain_proxy(T *&swapchain, reshade::api::device_api direct3
 		{
 			const com_ptr<D3D12CommandQueue> &command_queue = reinterpret_cast<const com_ptr<D3D12CommandQueue> &>(device_proxy);
 
-			swapchain_proxy = new DXGISwapChain(command_queue.get(), swapchain3.get());
+			swapchain_proxy = new DXGISwapChain(factory, command_queue.get(), swapchain3.get());
 		}
 		else
 		{
@@ -446,7 +446,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFacto
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, *pDesc, modified);
+	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, *pDesc, modified);
 
 	return hr;
 }
@@ -498,7 +498,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
 			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
@@ -551,7 +551,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
@@ -604,7 +604,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 		return hr;
 	}
 
-	init_swapchain_proxy(*ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,

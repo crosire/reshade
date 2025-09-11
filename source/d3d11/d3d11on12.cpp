@@ -6,6 +6,8 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "d3d11on12_device.hpp"
+#include "dxgi/dxgi_factory.hpp"
+#include "dxgi/dxgi_adapter.hpp"
 #include "d3d12/d3d12_device.hpp"
 #include "d3d12/d3d12_command_queue.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
@@ -80,6 +82,20 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	hr = device->QueryInterface(&dxgi_device);
 	assert(SUCCEEDED(hr));
 
+	com_ptr<IDXGIFactory> factory;
+	com_ptr<IDXGIAdapter> adapter;
+	hr = dxgi_device->GetAdapter(&adapter);
+	assert(SUCCEEDED(hr));
+	hr = adapter->GetParent(IID_PPV_ARGS(&factory));
+	assert(SUCCEEDED(hr));
+
+	// Only create proxy factory when not using vtable hooking for 'IDXGIFactory::CreateSwapChain'
+	if (!reshade::hooks::is_hooked(reshade::hooks::vtable_from_instance(factory.get()) + 10))
+	{
+		factory = com_ptr<IDXGIFactory>(new DXGIFactory(factory.release()), true);
+		adapter = com_ptr<IDXGIAdapter>(new DXGIAdapter(factory.get(), adapter.release()), true);
+	}
+
 	ID3D11On12Device *d3d11on12_device = nullptr;
 	hr = device->QueryInterface(&d3d11on12_device);
 	assert(SUCCEEDED(hr));
@@ -87,7 +103,7 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	ID3D11DeviceContext *device_context = nullptr;
 	device->GetImmediateContext(&device_context);
 
-	const auto device_proxy = new D3D11Device(dxgi_device.get(), device);
+	const auto device_proxy = new D3D11Device(adapter.get(), dxgi_device.get(), device);
 	device_proxy->_d3d11on12_device = new D3D11On12Device(device_proxy, device_proxy_12.get(), d3d11on12_device);
 	device_proxy->_immediate_context = new D3D11DeviceContext(device_proxy, device_context);
 

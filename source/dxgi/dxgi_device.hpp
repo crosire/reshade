@@ -9,7 +9,8 @@
 
 struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGIDevice4
 {
-	DXGIDevice(IDXGIDevice1 *original);
+	DXGIDevice(IDXGIAdapter *adapter, IDXGIDevice1 *original);
+	~DXGIDevice();
 
 	DXGIDevice(const DXGIDevice &) = delete;
 	DXGIDevice &operator=(const DXGIDevice &) = delete;
@@ -45,4 +46,5 @@ struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGID
 
 	IDXGIDevice1 *_orig;
 	unsigned short _interface_version;
+	IDXGIAdapter *const _parent_adapter;
 };

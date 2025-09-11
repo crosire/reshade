@@ -5,6 +5,7 @@
 
 #include "d3d10_device.hpp"
 #include "dxgi/dxgi_factory.hpp"
+#include "dxgi/dxgi_adapter.hpp"
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
@@ -73,6 +74,10 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 		"Redirecting D3D10CreateDeviceAndSwapChain1(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, HardwareLevel = %x, SDKVersion = %u, pSwapChainDesc = %p, ppSwapChain = %p, ppDevice = %p) ...",
 		pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
+	com_ptr<DXGIAdapter> adapter_proxy;
+	if (pAdapter && SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
+		pAdapter = adapter_proxy->_orig;
+
 #ifndef NDEBUG
 	// Remove flag that prevents turning on the debug layer
 	Flags &= ~D3D10_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY;
@@ -118,6 +123,30 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	hr = device->QueryInterface(&dxgi_device);
 	assert(SUCCEEDED(hr));
 
+	com_ptr<IDXGIFactory> factory;
+	com_ptr<IDXGIAdapter> adapter;
+	if (adapter_proxy == nullptr)
+	{
+		hr = dxgi_device->GetAdapter(&adapter);
+		assert(SUCCEEDED(hr)); // Lets just assume this works =)
+		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
+		assert(SUCCEEDED(hr));
+
+		// Only create proxy factory when not using vtable hooking for 'IDXGIFactory::CreateSwapChain'
+		if (!reshade::hooks::is_hooked(reshade::hooks::vtable_from_instance(factory.get()) + 10))
+		{
+			factory = com_ptr<IDXGIFactory>(new DXGIFactory(factory.release()), true);
+			adapter = com_ptr<IDXGIAdapter>(new DXGIAdapter(factory.get(), adapter.release()), true);
+		}
+	}
+	else
+	{
+		hr = adapter_proxy->GetParent(IID_PPV_ARGS(&factory));
+		assert(SUCCEEDED(hr));
+
+		adapter = std::move(reinterpret_cast<com_ptr<IDXGIAdapter> &>(adapter_proxy));
+	}
+
 	// Create device proxy unless this is a software device
 	D3D10Device *device_proxy = nullptr;
 	if (DriverType == D3D10_DRIVER_TYPE_WARP || DriverType == D3D10_DRIVER_TYPE_REFERENCE)
@@ -127,7 +156,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	else
 	{
 		// Change device to proxy for swap chain creation below
-		device = device_proxy = new D3D10Device(dxgi_device.get(), device);
+		device = device_proxy = new D3D10Device(adapter.get(), dxgi_device.get(), device);
 	}
 
 	// Swap chain creation is piped through the 'IDXGIFactory::CreateSwapChain' function hook
@@ -135,22 +164,9 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	{
 		assert(ppSwapChain != nullptr);
 
-		com_ptr<IDXGIAdapter> adapter(pAdapter, false);
-		// Fall back to the same adapter as the device if it was not explicitly specified in the argument list
-		if (adapter == nullptr)
-		{
-			hr = dxgi_device->GetAdapter(&adapter);
-			assert(SUCCEEDED(hr));
-		}
-
-		// Time to find a factory associated with the target adapter and create a swap chain with it
-		com_ptr<IDXGIFactory> factory;
-		hr = adapter->GetParent(IID_PPV_ARGS(&factory));
-		assert(SUCCEEDED(hr));
-
 		reshade::log::message(reshade::log::level::info, "Calling IDXGIFactory::CreateSwapChain:");
 
-		hr = IDXGIFactory_CreateSwapChain_Impl(factory.get(), device, pSwapChainDesc, ppSwapChain);
+		hr = factory->CreateSwapChain(device, pSwapChainDesc, ppSwapChain);
 	}
 
 #if RESHADE_ADDON >= 2

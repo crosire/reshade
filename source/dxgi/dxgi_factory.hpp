@@ -9,7 +9,8 @@
 
 struct DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final : IDXGIFactory7
 {
-	DXGIFactory(IDXGIFactory *original);
+	DXGIFactory(IDXGIFactory  *original);
+	DXGIFactory(IDXGIFactory2 *original);
 	~DXGIFactory();
 
 	DXGIFactory(const DXGIFactory &) = delete;
@@ -70,12 +71,11 @@ struct DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	static bool check_and_proxy_interface(REFIID riid, void **object);
+	void check_and_proxy_adapter_interface(REFIID riid, void **original_adapter);
 
 	IDXGIFactory *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version;
-	bool _temporary = false;
 };
 
 extern HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain,

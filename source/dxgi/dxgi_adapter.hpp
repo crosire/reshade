@@ -9,8 +9,8 @@
 
 struct DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final : IDXGIAdapter4
 {
-	DXGIAdapter(IDXGIAdapter  *original);
-	DXGIAdapter(IDXGIAdapter1 *original);
+	DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter  *original);
+	DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter1 *original);
 	~DXGIAdapter();
 
 	DXGIAdapter(const DXGIAdapter &) = delete;
@@ -52,15 +52,8 @@ struct DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	static bool check_and_proxy_interface(REFIID riid, void **object);
-	template <typename T>
-	static bool check_and_proxy_interface(T **object)
-	{
-		return check_and_proxy_interface(__uuidof(**object), reinterpret_cast<void **>(object));
-	}
-
 	IDXGIAdapter *_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version;
-	bool _temporary = false;
+	IDXGIFactory *const _parent_factory;
 };
