@@ -21,9 +21,9 @@ function compute_crc16 {
 }
 
 $strings = ""
-$lang_file = Get-Item -Path "..\res\lang_$locale.rc2"
+$lang_file = "..\res\lang_$locale.rc2"
 
-if ($lang_file.Exists)
+if (Test-Path $lang_file)
 {
 	$lang_messages = @{}
 	foreach ($line in Get-Content $lang_file -Encoding UTF8) {
@@ -101,4 +101,5 @@ END
 /////////////////////////////////////////////////////////////////////////////
 "@ | Out-String | Set-Variable lang_data
 # Cannot use 'Out-File' directly, since it does not support in UTF8 without BOM in older Powershell versions
+$lang_file = New-Item -ItemType File -Path $lang_file -Force
 [System.IO.File]::WriteAllText($lang_file, $lang_data, [System.Text.UTF8Encoding]::new($false))

@@ -13,8 +13,8 @@
 
 using reshade::d3d10::to_handle;
 
-D3D10Device::D3D10Device(IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original) :
-	DXGIDevice(original_dxgi_device), device_impl(original)
+D3D10Device::D3D10Device(IDXGIAdapter *adapter, IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original) :
+	DXGIDevice(adapter, original_dxgi_device), device_impl(original)
 {
 	assert(_orig != nullptr);
 

@@ -146,11 +146,12 @@ namespace reshade
 		if (!addon_enabled)
 			return false;
 #endif
+		bool skip = false;
 		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 			if (reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
-				return true;
-		return false;
+				skip = true;
+		return skip;
 	}
 }
 

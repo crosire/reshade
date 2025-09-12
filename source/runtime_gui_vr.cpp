@@ -96,8 +96,6 @@ void reshade::runtime::draw_gui_vr()
 		return;
 
 	build_font_atlas();
-	if (_font_atlas_srv == 0)
-		return; // Cannot render GUI without font atlas
 
 	ImGuiContext *const backup_context = ImGui::GetCurrentContext();
 	ImGui::SetCurrentContext(_imgui_context);
@@ -106,7 +104,6 @@ void reshade::runtime::draw_gui_vr()
 	imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 	imgui_io.DisplaySize.x = static_cast<float>(VR_OVERLAY_WIDTH);
 	imgui_io.DisplaySize.y = static_cast<float>(VR_OVERLAY_HEIGHT);
-	imgui_io.Fonts->TexID = _font_atlas_srv.handle;
 
 	imgui_io.AddKeyEvent(ImGuiKey_Backspace, false);
 	imgui_io.AddKeyEvent(ImGuiKey_Tab, false);

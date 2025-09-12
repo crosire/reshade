@@ -15,11 +15,11 @@ namespace reshade::api { enum class device_api; struct swapchain; }
 
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
 {
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain  *original);
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original);
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain  *original);
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original);
-	DXGISwapChain(D3D12CommandQueue *command_queue, IDXGISwapChain3 *original);
+	DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain  *original);
+	DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain1 *original);
+	DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISwapChain  *original);
+	DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISwapChain1 *original);
+	DXGISwapChain(IDXGIFactory *factory, D3D12CommandQueue *command_queue, IDXGISwapChain3 *original);
 	~DXGISwapChain();
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
@@ -102,6 +102,8 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	// later uses these command queue pointer offsets directly (the second of which is indexed with the back buffer index), ensuring the correct queue is used.
 	IUnknown *const _direct3d_command_queue, *_direct3d_command_queue_per_back_buffer[DXGI_MAX_SWAP_CHAIN_BUFFERS] = {};
 	const reshade::api::device_api _direct3d_version;
+
+	IDXGIFactory *const _parent_factory;
 
 	std::recursive_mutex _impl_mutex;
 	reshade::api::swapchain *const _impl;

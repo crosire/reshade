@@ -5,6 +5,7 @@
 
 #include "d3d11_impl_device.hpp"
 #include "d3d11_impl_type_convert.hpp"
+#include "d3d11_extensions.hpp"
 #include <cstring> // std::memcpy, std::strlen
 #include <algorithm> // std::copy_n
 #include <utf8/unchecked.h>
@@ -31,6 +32,7 @@ static auto adapter_from_device(ID3D11Device *device, DXGI_ADAPTER_DESC *adapter
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 	api_object_impl(device)
 {
+	load_driver_extensions();
 }
 
 bool reshade::d3d11::device_impl::get_property(api::device_properties property, void *data) const

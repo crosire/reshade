@@ -136,13 +136,13 @@ ULONG   STDMETHODCALLTYPE D3D12Device::AddRef()
 	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 
 	_orig->AddRef();
-	return InterlockedIncrement(&_ref);
+	return (++_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 {
 	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 
-	const ULONG ref = InterlockedDecrement(&_ref);
+	const ULONG ref = (--_ref);
 	if (ref != 0)
 	{
 		_orig->Release();

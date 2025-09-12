@@ -15,8 +15,8 @@
 
 using reshade::d3d11::to_handle;
 
-D3D11Device::D3D11Device(IDXGIDevice1 *original_dxgi_device, ID3D11Device *original) :
-	DXGIDevice(original_dxgi_device), device_impl(original)
+D3D11Device::D3D11Device(IDXGIAdapter *adapter, IDXGIDevice1 *original_dxgi_device, ID3D11Device *original) :
+	DXGIDevice(adapter, original_dxgi_device), device_impl(original)
 {
 	assert(_orig != nullptr);
 

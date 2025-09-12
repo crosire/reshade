@@ -288,7 +288,7 @@ bool reshade::imgui::key_input_box(const char *name, unsigned int key[4], const 
 	return res;
 }
 
-bool reshade::imgui::font_input_box(const char *name, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size)
+bool reshade::imgui::font_input_box(const char *name, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, float &size)
 {
 	bool res = false;
 
@@ -303,7 +303,7 @@ bool reshade::imgui::font_input_box(const char *name, const char *hint, std::fil
 
 	ImGui::SameLine(0, spacing);
 	ImGui::SetNextItemWidth(80);
-	ImGui::SliderInt("##size", &size, 8, 32, "%d", ImGuiSliderFlags_AlwaysClamp);
+	ImGui::SliderFloat("##size", &size, 8, 32, "%.0f", ImGuiSliderFlags_AlwaysClamp);
 	if (ImGui::IsItemDeactivatedAfterEdit())
 		res = true;
 

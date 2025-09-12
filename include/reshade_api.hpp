@@ -836,5 +836,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="path">File path to the preset to save to.</param>
 		virtual void export_current_preset(const char *path) const = 0;
+
+		/// <summary>
+		/// Captures a screenshot of the current back buffer resource and saves it to an image file on disk.
+		/// </summary>
+		/// <param name="postfix">Optional string to append to the screenshot filename, or <see langword="nullptr"/> for no postfix.</param>
+		virtual void save_screenshot(const char *postfix = nullptr) = 0;
 	};
 } }

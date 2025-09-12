@@ -12,7 +12,8 @@ inline constexpr GUID ID_IDeviceChildParent = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x
 
 struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGIDevice4
 {
-	DXGIDevice(IDXGIDevice1 *original);
+	DXGIDevice(IDXGIAdapter *adapter, IDXGIDevice1 *original);
+	~DXGIDevice();
 
 	DXGIDevice(const DXGIDevice &) = delete;
 	DXGIDevice &operator=(const DXGIDevice &) = delete;
@@ -48,4 +49,5 @@ struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGID
 
 	IDXGIDevice1 *_orig;
 	unsigned short _interface_version;
+	IDXGIAdapter *const _parent_adapter;
 };

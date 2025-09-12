@@ -858,6 +858,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandLi
 
 	// Get original command list pointer from proxy object and execute with it
 	_orig->ExecuteCommandList(command_list_proxy->_orig, RestoreContextState);
+
+#if RESHADE_ADDON >= 2
+	if (!RestoreContextState)
+	{
+		invoke_bind_default_state_events();
+	}
+#endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
 {
@@ -1107,33 +1114,14 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 	_orig->ClearState();
 
 #if RESHADE_ADDON >= 2
-	// Call events with cleared state
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all, reshade::api::pipeline {});
-
-	const reshade::api::dynamic_state states[5] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
-	const uint32_t values[5] = { static_cast<uint32_t>(reshade::api::primitive_topology::undefined), 0xFFFFFFFF, D3D11_DEFAULT_SAMPLE_MASK, D3D11_DEFAULT_STENCIL_REFERENCE, D3D11_DEFAULT_STENCIL_REFERENCE };
-	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
-
-	constexpr size_t max_null_objects = std::max(D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, std::max(D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, std::max(D3D11_1_UAV_SLOT_COUNT, std::max(D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, std::max(D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)))));
-	void *const null_objects[max_null_objects] = {};
-	invoke_bind_samplers_event(reshade::api::shader_stage::all, 0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, reinterpret_cast<ID3D11SamplerState *const *>(null_objects));
-	invoke_bind_shader_resource_views_event(reshade::api::shader_stage::all, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D11ShaderResourceView *const *>(null_objects));
-	invoke_bind_unordered_access_views_event(reshade::api::shader_stage::all, 0, D3D11_1_UAV_SLOT_COUNT, reinterpret_cast<ID3D11UnorderedAccessView *const *>(null_objects));
-	invoke_bind_constant_buffers_event(reshade::api::shader_stage::all, 0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, reinterpret_cast<ID3D11Buffer *const *>(null_objects));
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource {}, 0, 0);
-	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, 0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<const reshade::api::resource *>(null_objects), reinterpret_cast<const uint64_t *>(null_objects), reinterpret_cast<const uint32_t *>(null_objects));
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<const reshade::api::resource_view *>(null_objects), reshade::api::resource_view {});
-
-	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, 0, nullptr);
-	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, 0, nullptr);
+	invoke_bind_default_state_events();
 #endif
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush()
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
 #endif
 
 	_orig->Flush();
@@ -1528,7 +1516,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::EndEvent()
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
 #endif
 
 	assert(_interface_version >= 3);
@@ -1557,6 +1546,31 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Wait(ID3D11Fence *pFence, UINT64 V
 }
 
 #if RESHADE_ADDON >= 2
+void D3D11DeviceContext::invoke_bind_default_state_events()
+{
+	// Call events with cleared state
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline>(this, reshade::api::pipeline_stage::all, reshade::api::pipeline {});
+
+	const reshade::api::dynamic_state states[5] = { reshade::api::dynamic_state::primitive_topology, reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask, reshade::api::dynamic_state::front_stencil_reference_value, reshade::api::dynamic_state::back_stencil_reference_value };
+	const uint32_t values[5] = { static_cast<uint32_t>(reshade::api::primitive_topology::undefined), 0xFFFFFFFF, D3D11_DEFAULT_SAMPLE_MASK, D3D11_DEFAULT_STENCIL_REFERENCE, D3D11_DEFAULT_STENCIL_REFERENCE };
+	reshade::invoke_addon_event<reshade::addon_event::bind_pipeline_states>(this, static_cast<uint32_t>(std::size(states)), states, values);
+
+	constexpr size_t max_null_objects = std::max(D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, std::max(D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, std::max(D3D11_1_UAV_SLOT_COUNT, std::max(D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, std::max(D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT)))));
+	void *const null_objects[max_null_objects] = {};
+	invoke_bind_samplers_event(reshade::api::shader_stage::all, 0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, reinterpret_cast<ID3D11SamplerState *const *>(null_objects));
+	invoke_bind_shader_resource_views_event(reshade::api::shader_stage::all, 0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<ID3D11ShaderResourceView *const *>(null_objects));
+	invoke_bind_unordered_access_views_event(reshade::api::shader_stage::all, 0, D3D11_1_UAV_SLOT_COUNT, reinterpret_cast<ID3D11UnorderedAccessView *const *>(null_objects));
+	invoke_bind_constant_buffers_event(reshade::api::shader_stage::all, 0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, reinterpret_cast<ID3D11Buffer *const *>(null_objects));
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource {}, 0, 0);
+	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, 0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<const reshade::api::resource *>(null_objects), reinterpret_cast<const uint64_t *>(null_objects), reinterpret_cast<const uint32_t *>(null_objects));
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<const reshade::api::resource_view *>(null_objects), reshade::api::resource_view {});
+
+	reshade::invoke_addon_event<reshade::addon_event::bind_viewports>(this, 0, 0, nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::bind_scissor_rects>(this, 0, 0, nullptr);
+}
+
 void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11SamplerState *const *objects)
 {
 	assert(objects != nullptr || count == 0);

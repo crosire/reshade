@@ -438,9 +438,15 @@ bool reshade::runtime::on_init()
 
 	const input::window_handle window = get_hwnd();
 	if (window != nullptr && !_is_vr)
+	{
 		_input = input::register_window(window);
+		_primary_input_handler = _input.use_count() == 1;
+	}
 	else
+	{
 		_input.reset();
+		_primary_input_handler = _input_gamepad != nullptr;
+	}
 
 	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
 	if (window != nullptr)
@@ -632,7 +638,7 @@ void reshade::runtime::on_present()
 	}
 
 	if (_should_save_screenshot)
-		save_screenshot(_screenshot_save_before ? "After" : std::string_view());
+		save_screenshot(_screenshot_save_before ? "After" : nullptr);
 
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -819,6 +825,9 @@ void reshade::runtime::on_present()
 		}
 	}
 
+	// Apply previous state from application
+	apply_state(cmd_list, _app_state);
+
 #if RESHADE_ADDON
 	invoke_addon_event<addon_event::reshade_present>(this);
 
@@ -826,13 +835,10 @@ void reshade::runtime::on_present()
 #endif
 	_effects_rendered_this_frame = false;
 
-	// Apply previous state from application
-	apply_state(cmd_list, _app_state);
-
 	// Update input status
-	if (_input != nullptr)
+	if (_primary_input_handler && _input != nullptr)
 		_input->next_frame();
-	if (_input_gamepad != nullptr)
+	if (_primary_input_handler && _input_gamepad != nullptr)
 		_input_gamepad->next_frame();
 
 	// Save modified INI files
@@ -4979,8 +4985,12 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	return result;
 }
 
-void reshade::runtime::save_screenshot(const std::string_view postfix)
+void reshade::runtime::save_screenshot(const char *postfix_in)
 {
+	std::string postfix;
+	if (postfix_in != nullptr)
+		postfix = postfix_in;
+
 	const unsigned int screenshot_count = _screenshot_count;
 	unsigned int screenshot_format = _screenshot_format;
 
@@ -4993,7 +5003,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
 		{ "PresetName", _current_preset_path.stem().u8string() },
-		{ "BeforeAfter", std::string(postfix) },
+		{ "BeforeAfter", postfix },
 		{ "Count", std::to_string(screenshot_count) }
 	}, _current_time);
 

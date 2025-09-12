@@ -1562,6 +1562,7 @@ namespace reshade
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
+		/// <item><description>ID3D11DeviceContext::FinishCommandList</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::Reset</description></item>
 		/// <item><description>vkBeginCommandBuffer</description></item>
 		/// </list>
