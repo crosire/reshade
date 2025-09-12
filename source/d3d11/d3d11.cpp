@@ -142,7 +142,7 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 		reshade::log::message(reshade::log::level::warning, "Skipping device because the driver type is 'D3D_DRIVER_TYPE_WARP' or 'D3D_DRIVER_TYPE_REFERENCE'.");
 	}
 	else if (DXGI_ADAPTER_DESC adapter_desc;
-		pAdapter != nullptr && SUCCEEDED(pAdapter->GetDesc(&adapter_desc)) &&
+		SUCCEEDED(adapter->GetDesc(&adapter_desc)) &&
 		adapter_desc.VendorId == 0x1414 /* Microsoft */ && adapter_desc.DeviceId == 0x8C /* Microsoft Basic Render Driver */)
 	{
 		reshade::log::message(reshade::log::level::warning, "Skipping device because it uses the Microsoft Basic Render Driver.");

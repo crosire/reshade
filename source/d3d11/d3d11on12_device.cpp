@@ -104,6 +104,8 @@ HRESULT STDMETHODCALLTYPE D3D11On12Device::GetD3D12Device(REFIID riid, void **pp
 
 HRESULT STDMETHODCALLTYPE D3D11On12Device::UnwrapUnderlyingResource(ID3D11Resource *pResource11, ID3D12CommandQueue *pCommandQueue, REFIID riid, void **ppvResource12)
 {
+	assert(pCommandQueue != nullptr);
+
 	if (com_ptr<D3D12CommandQueue> command_queue_proxy;
 		SUCCEEDED(pCommandQueue->QueryInterface(&command_queue_proxy)))
 		pCommandQueue = command_queue_proxy->_orig;

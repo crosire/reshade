@@ -342,7 +342,7 @@ reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &devi
 }
 
 template <typename T>
-static void init_swapchain_proxy(IDXGIFactory *factory, T *&swapchain, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] DXGI_SWAP_CHAIN_DESC orig_desc, [[maybe_unused]] bool desc_modified)
+static void init_swapchain_proxy(IDXGIFactory *factory, reshade::api::device_api direct3d_version, const com_ptr<IUnknown> &device_proxy, T *&swapchain, DXGI_USAGE usage, [[maybe_unused]] UINT sync_interval, [[maybe_unused]] DXGI_SWAP_CHAIN_DESC orig_desc, [[maybe_unused]] bool desc_modified)
 {
 	DXGISwapChain *swapchain_proxy = nullptr;
 
@@ -436,9 +436,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFacto
 	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = (trampoline != nullptr) ?
-		trampoline(pFactory, pDevice, &desc, ppSwapChain) :
-		pFactory->CreateSwapChain(pDevice, &desc, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, &desc, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -446,7 +444,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFacto
 		return hr;
 	}
 
-	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval, *pDesc, modified);
+	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval, *pDesc, modified);
 
 	return hr;
 }
@@ -488,9 +486,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = (trampoline != nullptr) ?
-		trampoline(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain) :
-		pFactory->CreateSwapChainForHwnd(pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -498,7 +494,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 		return hr;
 	}
 
-	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
 			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
@@ -541,9 +537,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = (trampoline != nullptr) ?
-		trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain) :
-		pFactory->CreateSwapChainForCoreWindow(pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -551,7 +545,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 		return hr;
 	}
 
-	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
@@ -594,9 +588,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = (trampoline != nullptr) ?
-		trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain) :
-		pFactory->CreateSwapChainForComposition(pDevice, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -604,7 +596,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 		return hr;
 	}
 
-	init_swapchain_proxy(pFactory, *ppSwapChain, direct3d_version, device_proxy, desc.BufferUsage, sync_interval,
+	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
 			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
 			pDesc->SampleDesc,
