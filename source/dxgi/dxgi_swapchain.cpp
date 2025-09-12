@@ -43,8 +43,6 @@ thread_local bool g_in_dxgi_runtime = false;
 
 // SpecialK uses this private data GUID to track the current swap chain color space, so just do the same
 inline constexpr GUID SKID_SwapChainColorSpace = { 0x18b57e4, 0x1493, 0x4953, { 0xad, 0xf2, 0xde, 0x6d, 0x99, 0xcc, 0x5, 0xe5 } }; // {018B57E4-1493-4953-ADF2-DE6D99CC05E5}
-// SpecialK uses this IID to query the original swap chain
-inline constexpr GUID SKID_IUnwrappedDXGISwapChain = { 0xe8a33b4a, 0x1405, 0x424c, { 0xae, 0x88, 0xd, 0x3e, 0x9d, 0x46, 0xc9, 0x14 } }; // {E8A33B4A-1405-424C-AE88-0D3E9D46C914}
 
 DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain  *original) :
 	_orig(original),
@@ -201,13 +199,24 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 		return S_OK;
 	}
 
+	// Interface ID to query the original object from a proxy object
+	constexpr GUID IID_UnwrappedObject = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } }; // {7F2C9A11-3B4E-4D6A-812F-5E9CD37A1B42}
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
+	// SpecialK uses this interface ID to query the original swap chain
+	constexpr GUID SKID_IUnwrappedDXGISwapChain = { 0xe8a33b4a, 0x1405, 0x424c, { 0xae, 0x88, 0xd, 0x3e, 0x9d, 0x46, 0xc9, 0x14 } }; // {E8A33B4A-1405-424C-AE88-0D3E9D46C914}
 	if (riid == SKID_IUnwrappedDXGISwapChain)
 	{
 		// Pass through, in case the original object is already proxied by another third party
 		if (FAILED(_orig->QueryInterface(SKID_IUnwrappedDXGISwapChain, ppvObj)))
 		{
-			*ppvObj = _orig;
 			_orig->AddRef();
+			*ppvObj = _orig;
 		}
 
 		return S_OK;
