@@ -433,15 +433,13 @@ namespace reshade
 		bool _is_font_scaling = false;
 		bool _no_font_scaling = false;
 		bool _block_input_next_frame = false;
+		bool _rebuild_font_atlas = true;
 		unsigned int _overlay_key_data[4];
 		unsigned int _fps_key_data[4] = {};
 		unsigned int _frametime_key_data[4] = {};
 		unsigned int _fps_pos = 1;
 		unsigned int _clock_format = 0;
 		unsigned int _input_processing_mode = 2;
-
-		api::resource _font_atlas_tex = {};
-		api::resource_view _font_atlas_srv = {};
 
 		api::pipeline _imgui_pipeline = {};
 		api::pipeline_layout _imgui_pipeline_layout = {};
@@ -477,8 +475,8 @@ namespace reshade
 
 		#pragma region Overlay Settings
 		std::string _selected_language, _current_language;
-		int _font_size = 0;
-		int _editor_font_size = 0;
+		float _font_size = 0;
+		float _editor_font_size = 0;
 		int _style_index = 2;
 		int _editor_style_index = 0;
 		std::filesystem::path _font_path, _default_font_path;

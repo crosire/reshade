@@ -99,7 +99,7 @@ reshade::imgui::code_editor::code_editor()
 	_lines.emplace_back();
 }
 
-void reshade::imgui::code_editor::render(const char *title, const uint32_t palette[color_palette_max], bool border, ImFont *font)
+void reshade::imgui::code_editor::render(const char *title, const uint32_t palette[color_palette_max], bool border, ImFont *font, float font_size)
 {
 	// There should always at least be a single line with a new line character
 	assert(!_lines.empty());
@@ -109,7 +109,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	const float bottom_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
 	const float button_spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
-	ImGui::PushFont(font);
+	ImGui::PushFont(font, font_size);
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, ImGui::ColorConvertU32ToFloat4(palette[color_background]));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
 

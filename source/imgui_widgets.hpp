@@ -44,7 +44,7 @@ namespace reshade::imgui
 	/// <summary>
 	/// Adds a TTF font file selection widget.
 	/// </summary>
-	bool font_input_box(const char *label, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, int &size);
+	bool font_input_box(const char *label, const char *hint, std::filesystem::path &path, std::filesystem::path &dialog_path, float &size);
 
 	/// <summary>
 	/// Adds a search text box widget.
