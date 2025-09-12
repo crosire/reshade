@@ -102,12 +102,6 @@ namespace reshade { namespace api
 		virtual bool capture_screenshot(void *pixels) = 0;
 
 		/// <summary>
-		/// Captures a screenshot of the current back buffer resource and saves it to an image file on disk.
-		/// </summary>
-		/// <param name="postfix">Optional string to append to the screenshot filename, or <see langword="nullptr"/> for no postfix.</param>
-		virtual void save_screenshot(const char *postfix = nullptr) = 0;
-
-		/// <summary>
 		/// Gets the current buffer dimensions of the swap chain.
 		/// </summary>
 		virtual void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const = 0;
@@ -842,5 +836,11 @@ namespace reshade { namespace api
 		/// </summary>
 		/// <param name="path">File path to the preset to save to.</param>
 		virtual void export_current_preset(const char *path) const = 0;
+
+		/// <summary>
+		/// Captures a screenshot of the current back buffer resource and saves it to an image file on disk.
+		/// </summary>
+		/// <param name="postfix">Optional string to append to the screenshot filename, or <see langword="nullptr"/> for no postfix.</param>
+		virtual void save_screenshot(const char *postfix = nullptr) = 0;
 	};
 } }
