@@ -1113,7 +1113,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::ClearState()
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush()
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
 #endif
 
 	_orig->Flush();
@@ -1508,7 +1509,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::EndEvent()
 void    STDMETHODCALLTYPE D3D11DeviceContext::Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
 {
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
+	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(this, this);
 #endif
 
 	assert(_interface_version >= 3);
