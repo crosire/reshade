@@ -111,6 +111,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12DeviceDownlevel))
 	{

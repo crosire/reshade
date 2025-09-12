@@ -72,7 +72,7 @@ HRESULT STDMETHODCALLTYPE D3D11On12Device::QueryInterface(REFIID riid, void **pp
 		return S_OK;
 	}
 
-	if (riid == ID_IDeviceChildParent)
+	if (riid == IID_UnwrappedObject)
 	{
 		_orig->AddRef();
 		*ppvObj = _orig;

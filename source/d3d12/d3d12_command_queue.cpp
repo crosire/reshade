@@ -80,6 +80,13 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 		return S_OK;
 	}
 
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12CommandQueueDownlevel))
 	{

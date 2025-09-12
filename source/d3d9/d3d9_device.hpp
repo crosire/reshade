@@ -7,6 +7,9 @@
 
 #include "d3d9_impl_device.hpp"
 
+// Interface ID to query the original object from a proxy object
+inline constexpr GUID IID_UnwrappedObject = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } }; // {7F2C9A11-3B4E-4D6A-812F-5E9CD37A1B42}
+
 struct Direct3DSwapChain9;
 struct Direct3DDevice9On12;
 struct Direct3DDepthStencilSurface9;

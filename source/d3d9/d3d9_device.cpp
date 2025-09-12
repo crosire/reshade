@@ -138,6 +138,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		return S_OK;
 	}
 
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	if (riid == __uuidof(IDirect3DDevice9On12))
 	{
 		if (_d3d9on12_device != nullptr)

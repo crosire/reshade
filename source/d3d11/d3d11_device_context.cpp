@@ -100,7 +100,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		return S_OK;
 	}
 
-	if (riid == ID_IDeviceChildParent)
+	if (riid == IID_UnwrappedObject)
 	{
 		_orig->AddRef();
 		*ppvObj = _orig;

@@ -4,7 +4,6 @@
  */
 
 #include "dxgi_adapter.hpp"
-#include "dxgi_device.hpp"
 #include "dll_log.hpp"
 #include "com_utils.hpp"
 
@@ -84,7 +83,7 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
-	if (riid == ID_IDeviceChildParent)
+	if (riid == IID_UnwrappedObject)
 	{
 		_orig->AddRef();
 		*ppvObj = _orig;

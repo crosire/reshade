@@ -27,6 +27,13 @@ HRESULT STDMETHODCALLTYPE D3D12DeviceDownlevel::QueryInterface(REFIID riid, void
 		return S_OK;
 	}
 
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	return _parent_device->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D12DeviceDownlevel::AddRef()

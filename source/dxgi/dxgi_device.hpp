@@ -7,9 +7,6 @@
 
 #include <dxgi1_5.h>
 
-// Special ID used by ReShade (and possibly other applications) that returns the parent object of a proxy
-inline constexpr GUID ID_IDeviceChildParent = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } };
-
 struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGIDevice4
 {
 	DXGIDevice(IDXGIAdapter *adapter, IDXGIDevice1 *original);

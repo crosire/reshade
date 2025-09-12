@@ -98,6 +98,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	// Unimplemented interfaces:
 	//   ID3D10Debug       {9B7E4E01-342C-4106-A19F-4F2704F689F0}
 	//   ID3D10InfoQueue   {1B940B17-2642-4D1F-AB1F-B99BAD0C395F}

@@ -44,6 +44,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9On12::QueryInterface(REFIID riid, void 
 		return S_OK;
 	}
 
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
+		return S_OK;
+	}
+
 	return _parent_device_9->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE Direct3DDevice9On12::AddRef()
