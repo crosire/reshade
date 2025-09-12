@@ -638,7 +638,7 @@ void reshade::runtime::on_present()
 	}
 
 	if (_should_save_screenshot)
-		save_screenshot(_screenshot_save_before ? "After" : std::string_view());
+		save_screenshot(_screenshot_save_before ? "After" : nullptr);
 
 	_frame_count++;
 	const auto current_time = std::chrono::high_resolution_clock::now();
@@ -4985,8 +4985,12 @@ static std::string expand_macro_string(const std::string &input, std::vector<std
 	return result;
 }
 
-void reshade::runtime::save_screenshot(const std::string_view postfix)
+void reshade::runtime::save_screenshot(const char *postfix_in)
 {
+	std::string postfix;
+	if (postfix_in != nullptr)
+		postfix = postfix_in;
+
 	const unsigned int screenshot_count = _screenshot_count;
 	unsigned int screenshot_format = _screenshot_format;
 
@@ -4999,7 +5003,7 @@ void reshade::runtime::save_screenshot(const std::string_view postfix)
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
 		{ "PresetName", _current_preset_path.stem().u8string() },
-		{ "BeforeAfter", std::string(postfix) },
+		{ "BeforeAfter", postfix },
 		{ "Count", std::to_string(screenshot_count) }
 	}, _current_time);
 
