@@ -839,7 +839,7 @@ inline void ImGuiListClipper::End() { imgui_function_table_instance()->ImGuiList
 inline bool ImGuiListClipper::Step() { return imgui_function_table_instance()->ImGuiListClipper_Step(this); }
 inline void ImGuiListClipper::IncludeItemsByIndex(int item_begin, int item_end) { imgui_function_table_instance()->ImGuiListClipper_IncludeItemsByIndex(this, item_begin, item_end); }
 inline void ImGuiListClipper::SeekCursorForItem(int item_index) { imgui_function_table_instance()->ImGuiListClipper_SeekCursorForItem(this, item_index); }
-inline ImDrawList::ImDrawList(ImDrawListSharedData* shared_data) { imgui_function_table_instance()->ConstructImDrawList(this); }
+inline ImDrawList::ImDrawList(ImDrawListSharedData* shared_data) { imgui_function_table_instance()->ConstructImDrawList(this, shared_data); }
 inline ImDrawList::~ImDrawList() { imgui_function_table_instance()->DestructImDrawList(this); }
 inline void ImDrawList::PushClipRect(const ImVec2& clip_rect_min, const ImVec2& clip_rect_max, bool intersect_with_current_clip_rect) { imgui_function_table_instance()->ImDrawList_PushClipRect(this, clip_rect_min, clip_rect_max, intersect_with_current_clip_rect); }
 inline void ImDrawList::PushClipRectFullScreen() { imgui_function_table_instance()->ImDrawList_PushClipRectFullScreen(this); }
