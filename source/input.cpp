@@ -544,7 +544,7 @@ bool reshade::input::is_blocking_any_mouse_cursor_warping()
 
 extern "C" BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-#if 1
+#ifndef RESHADE_TEST_APPLICATION
 	DWORD mask = QS_ALLINPUT;
 	if (wMsgFilterMin != 0 || wMsgFilterMax != 0)
 	{
@@ -601,7 +601,7 @@ extern "C" BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMi
 }
 extern "C" BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-#if 1
+#ifndef RESHADE_TEST_APPLICATION
 	DWORD mask = QS_ALLINPUT;
 	if (wMsgFilterMin != 0 || wMsgFilterMax != 0)
 	{
