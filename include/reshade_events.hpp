@@ -1563,12 +1563,14 @@ namespace reshade
 		/// Called before:
 		/// <list type="bullet">
 		/// <item><description>ID3D11DeviceContext::FinishCommandList</description></item>
-		/// <item><description>ID3D11DeviceContext::ExecuteCommandList</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::Reset</description></item>
 		/// <item><description>vkBeginCommandBuffer</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// Is not called for immediate command lists (since they cannot be reset).
+		/// </remarks>
 		reset_command_list = 70,
 
 		/// <summary>

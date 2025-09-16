@@ -65,7 +65,7 @@ namespace reshade
 		/// <summary>
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
-		void save_screenshot(const std::string_view postfix = std::string_view());
+		void save_screenshot(const char *postfix) final;
 		bool capture_screenshot(void *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, static_cast<uint8_t *>(pixels)); }
 
 		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
@@ -433,15 +433,13 @@ namespace reshade
 		bool _is_font_scaling = false;
 		bool _no_font_scaling = false;
 		bool _block_input_next_frame = false;
+		bool _rebuild_font_atlas = true;
 		unsigned int _overlay_key_data[4];
 		unsigned int _fps_key_data[4] = {};
 		unsigned int _frametime_key_data[4] = {};
 		unsigned int _fps_pos = 1;
 		unsigned int _clock_format = 0;
 		unsigned int _input_processing_mode = 2;
-
-		api::resource _font_atlas_tex = {};
-		api::resource_view _font_atlas_srv = {};
 
 		api::pipeline _imgui_pipeline = {};
 		api::pipeline_layout _imgui_pipeline_layout = {};
@@ -477,8 +475,8 @@ namespace reshade
 
 		#pragma region Overlay Settings
 		std::string _selected_language, _current_language;
-		int _font_size = 0;
-		int _editor_font_size = 0;
+		float _font_size = 0;
+		float _editor_font_size = 0;
 		int _style_index = 2;
 		int _editor_style_index = 0;
 		std::filesystem::path _font_path, _default_font_path;

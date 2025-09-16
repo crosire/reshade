@@ -11,7 +11,7 @@
 
 namespace
 {
-	auto convert_color(ImGuiCol old_value) -> ImGuiCol
+	auto convert_style_col(ImGuiCol old_value) -> ImGuiCol
 	{
 		if (old_value >= 51)
 			return old_value + 3;
@@ -245,8 +245,8 @@ namespace
 		old_style.AntiAliasedFill = new_style.AntiAliasedFill;
 		old_style.CurveTessellationTol = new_style.CurveTessellationTol;
 		old_style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
-		for (int i = 0; i < 55; ++i)
-			old_style.Colors[i] = new_style.Colors[convert_color(i)];
+		for (ImGuiCol i = 0; i < 55; ++i)
+			old_style.Colors[i] = new_style.Colors[convert_style_col(i)];
 	}
 
 	void convert(const imgui_font_19180 &new_font, imgui_font_19040 &old_font)
@@ -382,18 +382,20 @@ namespace
 }
 
 const imgui_function_table_19040 init_imgui_function_table_19040() { return {
-	[]() -> imgui_io_19040 &{
+	[]() -> imgui_io_19040 & {
 		static imgui_io_19040 io = {};
 		convert(g_imgui_function_table_19180.GetIO(), io);
 		return io;
 	},
-	[]() -> imgui_style_19040 &{
+	[]() -> imgui_style_19040 & {
 		static imgui_style_19040 style = {};
 		convert(g_imgui_function_table_19180.GetStyle(), style);
 		return style;
 	},
 	g_imgui_function_table_19180.GetVersion,
-	[](const char *name, bool *p_open, ImGuiWindowFlags flags) -> bool { return g_imgui_function_table_19180.Begin(name, p_open, convert_window_flags(flags)); },
+	[](const char *name, bool *p_open, ImGuiWindowFlags flags) -> bool {
+		return g_imgui_function_table_19180.Begin(name, p_open, convert_window_flags(flags));
+	},
 	g_imgui_function_table_19180.End,
 	[](const char *str_id, const ImVec2 &size, ImGuiChildFlags child_flags, ImGuiWindowFlags window_flags) -> bool {
 		if (window_flags & (1 << 23))
@@ -452,8 +454,8 @@ const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 		g_imgui_function_table_19180.PushFont(nullptr);
 	},
 	g_imgui_function_table_19180.PopFont,
-	[](ImGuiCol idx, ImU32 col) { g_imgui_function_table_19180.PushStyleColor(convert_color(idx), col); },
-	[](ImGuiCol idx, const ImVec4 &col) { g_imgui_function_table_19180.PushStyleColor2(convert_color(idx), col); },
+	[](ImGuiCol idx, ImU32 col) { g_imgui_function_table_19180.PushStyleColor(convert_style_col(idx), col); },
+	[](ImGuiCol idx, const ImVec4 &col) { g_imgui_function_table_19180.PushStyleColor2(convert_style_col(idx), col); },
 	g_imgui_function_table_19180.PopStyleColor,
 	[](ImGuiStyleVar idx, float val) { g_imgui_function_table_19180.PushStyleVar(convert_style_var(idx), val); },
 	[](ImGuiStyleVar idx, const ImVec2 &val) { g_imgui_function_table_19180.PushStyleVar2(convert_style_var(idx), val); },
@@ -468,17 +470,17 @@ const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 	g_imgui_function_table_19180.CalcItemWidth,
 	g_imgui_function_table_19180.PushTextWrapPos,
 	g_imgui_function_table_19180.PopTextWrapPos,
-	[]() -> imgui_font_19040 *{
+	[]() -> imgui_font_19040 * {
 		static imgui_font_19040 font = {};
 		convert(*g_imgui_function_table_19180.GetFont(), font);
 		return &font;
 	},
 	g_imgui_function_table_19180.GetFontSize,
 	g_imgui_function_table_19180.GetFontTexUvWhitePixel,
-	[](ImGuiCol idx, float alpha_mul) -> ImU32 { return g_imgui_function_table_19180.GetColorU32(convert_color(idx), alpha_mul); },
+	[](ImGuiCol idx, float alpha_mul) -> ImU32 { return g_imgui_function_table_19180.GetColorU32(convert_style_col(idx), alpha_mul); },
 	g_imgui_function_table_19180.GetColorU322,
 	g_imgui_function_table_19180.GetColorU323,
-	[](ImGuiCol idx) -> const ImVec4 & { return g_imgui_function_table_19180.GetStyleColorVec4(convert_color(idx)); },
+	[](ImGuiCol idx) -> const ImVec4 & { return g_imgui_function_table_19180.GetStyleColorVec4(convert_style_col(idx)); },
 	g_imgui_function_table_19180.GetCursorScreenPos,
 	g_imgui_function_table_19180.SetCursorScreenPos,
 	g_imgui_function_table_19180.GetCursorPos,
@@ -710,7 +712,7 @@ const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 	g_imgui_function_table_19180.GetTime,
 	g_imgui_function_table_19180.GetFrameCount,
 	g_imgui_function_table_19180.GetDrawListSharedData,
-	[](ImGuiCol idx) -> const char * { return g_imgui_function_table_19180.GetStyleColorName(convert_color(idx)); },
+	[](ImGuiCol idx) -> const char * { return g_imgui_function_table_19180.GetStyleColorName(convert_style_col(idx)); },
 	g_imgui_function_table_19180.SetStateStorage,
 	g_imgui_function_table_19180.GetStateStorage,
 	g_imgui_function_table_19180.CalcTextSize,
@@ -1011,7 +1013,7 @@ const imgui_function_table_19040 init_imgui_function_table_19040() { return {
 		wrap(draw_list_19180, _this);
 	},
 	[](imgui_draw_list_19040 *_this, const ImVec2 &a, const ImVec2 &b, const ImVec2 &c, const ImVec2 &d, const ImVec2 &uv_a, const ImVec2 &uv_b, const ImVec2 &uv_c, const ImVec2 &uv_d, ImU32 col) -> void {
-		const auto draw_list_19180 = unwrap(_this, true);
+		const auto draw_list_19180 = unwrap(_this);
 		g_imgui_function_table_19180.ImDrawList_PrimQuadUV(draw_list_19180, a, b, c, d, uv_a, uv_b, uv_c, uv_d, col);
 		wrap(draw_list_19180, _this);
 	},

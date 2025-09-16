@@ -8,7 +8,7 @@
 #include "dll_log.hpp"
 #include "com_utils.hpp"
 
-DXGIFactory::DXGIFactory(IDXGIFactory *original) :
+DXGIFactory::DXGIFactory(IDXGIFactory  *original) :
 	_orig(original),
 	_interface_version(0)
 {
@@ -18,42 +18,15 @@ DXGIFactory::DXGIFactory(IDXGIFactory *original) :
 	DXGIFactory *const factory_proxy = this;
 	_orig->SetPrivateData(__uuidof(DXGIFactory), sizeof(factory_proxy), &factory_proxy);
 }
+DXGIFactory::DXGIFactory(IDXGIFactory2 *original) :
+	DXGIFactory(static_cast<IDXGIFactory *>(original))
+{
+	_interface_version = 1;
+}
 DXGIFactory::~DXGIFactory()
 {
 	// Remove pointer to this proxy object from the private data of the factory
 	_orig->SetPrivateData(__uuidof(DXGIFactory), 0, nullptr);
-}
-
-bool DXGIFactory::check_and_proxy_interface(REFIID riid, void **object)
-{
-	IDXGIFactory *factory = nullptr;
-	if (SUCCEEDED(static_cast<IUnknown *>(*object)->QueryInterface(&factory)))
-	{
-		DXGIFactory *factory_proxy = get_private_pointer_d3dx<DXGIFactory>(factory);
-		if (factory_proxy)
-		{
-			factory_proxy->_ref++;
-		}
-		else
-		{
-			factory_proxy = new DXGIFactory(factory);
-			factory_proxy->_temporary = true;
-		}
-
-		factory->Release();
-
-		if (factory_proxy->check_and_upgrade_interface(riid))
-		{
-			*object = factory_proxy;
-			return true;
-		}
-		else // Do not hook object if we do not support the requested interface
-		{
-			delete factory_proxy; // Delete instead of release to keep reference count untouched
-		}
-	}
-
-	return false;
 }
 
 bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
@@ -85,8 +58,7 @@ bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
 			if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&new_interface))))
 				return false;
 #if RESHADE_VERBOSE_LOG
-			if (!_temporary)
-				reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIFactory%hu object %p to IDXGIFactory%hu.", _interface_version, this, version);
+			reshade::log::message(reshade::log::level::debug, "Upgrading IDXGIFactory%hu object %p to IDXGIFactory%hu.", _interface_version, this, version);
 #endif
 			_orig->Release();
 			_orig = static_cast<IDXGIFactory *>(new_interface);
@@ -99,6 +71,48 @@ bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
 	return false;
 }
 
+void DXGIFactory::check_and_proxy_adapter_interface(REFIID riid, void **out_adapter)
+{
+	IDXGIAdapter *const adapter = static_cast<IDXGIAdapter *>(*out_adapter);
+
+	DXGIAdapter *adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter);
+	if (adapter_proxy != nullptr)
+	{
+		if (adapter_proxy->check_and_upgrade_interface(riid))
+		{
+			adapter_proxy->AddRef();
+			adapter->Release();
+			*out_adapter = adapter_proxy;
+
+#if RESHADE_VERBOSE_LOG
+			reshade::log::message(
+				reshade::log::level::debug,
+				"Returning IDXGIAdapter%hu object %p (%p).",
+				adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
+#endif
+		}
+	}
+	else
+	{
+		adapter_proxy = new DXGIAdapter(this, adapter);
+		if (adapter_proxy->check_and_upgrade_interface(riid))
+		{
+			*out_adapter = adapter_proxy;
+
+#if RESHADE_VERBOSE_LOG
+			reshade::log::message(
+				reshade::log::level::debug,
+				"Returning IDXGIAdapter%hu object %p (%p).",
+				adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
+#endif
+		}
+		else
+		{
+			delete adapter_proxy;
+		}
+	}
+}
+
 HRESULT STDMETHODCALLTYPE DXGIFactory::QueryInterface(REFIID riid, void **ppvObj)
 {
 	if (ppvObj == nullptr)
@@ -108,6 +122,15 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::QueryInterface(REFIID riid, void **ppvObj
 	{
 		AddRef();
 		*ppvObj = this;
+		return S_OK;
+	}
+
+	// Interface ID to query the original object from a proxy object
+	constexpr GUID IID_UnwrappedObject = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } }; // {7F2C9A11-3B4E-4D6A-812F-5E9CD37A1B42}
+	if (riid == IID_UnwrappedObject)
+	{
+		_orig->AddRef();
+		*ppvObj = _orig;
 		return S_OK;
 	}
 
@@ -129,15 +152,13 @@ ULONG   STDMETHODCALLTYPE DXGIFactory::Release()
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
-	const bool temporary = _temporary;
 #if RESHADE_VERBOSE_LOG
-	if (!temporary)
-		reshade::log::message(reshade::log::level::debug, "Destroying IDXGIFactory%hu object %p (%p).", interface_version, this, orig);
+	reshade::log::message(reshade::log::level::debug, "Destroying IDXGIFactory%hu object %p (%p).", interface_version, this, orig);
 #endif
 	delete this;
 
 	const ULONG ref_orig = orig->Release();
-	if (!temporary && ref_orig != 0) // Verify internal reference count
+	if (ref_orig > 1) // One reference can still be held by a DXGI device
 		reshade::log::message(reshade::log::level::warning, "Reference count for IDXGIFactory%hu object %p (%p) is inconsistent (%lu).", interface_version, this, orig, ref_orig);
 	return 0;
 }
@@ -161,9 +182,14 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::GetParent(REFIID riid, void **ppParent)
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters(UINT Adapter, IDXGIAdapter **ppAdapter)
 {
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGIFactory::EnumAdapters(this = %p, Adapter = %u, ppAdapter = %p) ...",
+		this, Adapter, ppAdapter);
+
 	const HRESULT hr = _orig->EnumAdapters(Adapter, ppAdapter);
 	if (SUCCEEDED(hr))
-		DXGIAdapter::check_and_proxy_interface(ppAdapter);
+		check_and_proxy_adapter_interface(IID_PPV_ARGS(ppAdapter));
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIFactory::MakeWindowAssociation(HWND WindowHandle, UINT Flags)
@@ -183,18 +209,20 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSwapChain(IUnknown *pDevice, DXGI_S
 }
 HRESULT STDMETHODCALLTYPE DXGIFactory::CreateSoftwareAdapter(HMODULE Module, IDXGIAdapter **ppAdapter)
 {
-	const HRESULT hr = _orig->CreateSoftwareAdapter(Module, ppAdapter);
-	if (SUCCEEDED(hr))
-		DXGIAdapter::check_and_proxy_interface(ppAdapter);
-	return hr;
+	return _orig->CreateSoftwareAdapter(Module, ppAdapter);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters1(UINT Adapter, IDXGIAdapter1 **ppAdapter)
 {
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGIFactory1::EnumAdapters1(this = %p, Adapter = %u, ppAdapter = %p) ...",
+		this, Adapter, ppAdapter);
+
 	assert(_interface_version >= 1);
 	const HRESULT hr = static_cast<IDXGIFactory1 *>(_orig)->EnumAdapters1(Adapter, ppAdapter);
 	if (SUCCEEDED(hr))
-		DXGIAdapter::check_and_proxy_interface(ppAdapter);
+		check_and_proxy_adapter_interface(IID_PPV_ARGS(ppAdapter));
 	return hr;
 }
 BOOL    STDMETHODCALLTYPE DXGIFactory::IsCurrent()
@@ -276,45 +304,21 @@ UINT    STDMETHODCALLTYPE DXGIFactory::GetCreationFlags()
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapterByLuid(LUID AdapterLuid, REFIID riid, void **ppvAdapter)
 {
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGIFactory4::EnumAdapterByLuid(this = %p, AdapterLuid = %llx, riid = %s, ppvAdapter = %p) ...",
+		this, reinterpret_cast<const LARGE_INTEGER &>(AdapterLuid).QuadPart, reshade::log::iid_to_string(riid).c_str(), ppvAdapter);
+
 	assert(_interface_version >= 4);
 	const HRESULT hr = static_cast<IDXGIFactory4 *>(_orig)->EnumAdapterByLuid(AdapterLuid, riid, ppvAdapter);
 	if (SUCCEEDED(hr))
-	{
-		if (DXGIAdapter::check_and_proxy_interface(riid, ppvAdapter))
-		{
-#if RESHADE_VERBOSE_LOG
-			const auto adapter_proxy = static_cast<DXGIAdapter *>(*ppvAdapter);
-			reshade::log::message(reshade::log::level::debug, "IDXGIFactory4::EnumAdapterByLuid returning IDXGIAdapter%hu object %p (%p).", adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
-#endif
-		}
-		else
-		{
-			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGIFactory4::EnumAdapterByLuid.", reshade::log::iid_to_string(riid).c_str());
-		}
-	}
-
+		check_and_proxy_adapter_interface(riid, ppvAdapter);
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumWarpAdapter(REFIID riid, void **ppvAdapter)
 {
 	assert(_interface_version >= 4);
-	const HRESULT hr = static_cast<IDXGIFactory4 *>(_orig)->EnumWarpAdapter(riid, ppvAdapter);
-	if (SUCCEEDED(hr))
-	{
-		if (DXGIAdapter::check_and_proxy_interface(riid, ppvAdapter))
-		{
-#if RESHADE_VERBOSE_LOG
-			const auto adapter_proxy = static_cast<DXGIAdapter *>(*ppvAdapter);
-			reshade::log::message(reshade::log::level::debug, "IDXGIFactory4::EnumWarpAdapter returning IDXGIAdapter%hu object %p (%p).", adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
-#endif
-		}
-		else
-		{
-			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGIFactory4::EnumWarpAdapter.", reshade::log::iid_to_string(riid).c_str());
-		}
-	}
-
-	return hr;
+	return static_cast<IDXGIFactory4 *>(_orig)->EnumWarpAdapter(riid, ppvAdapter);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::CheckFeatureSupport(DXGI_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize)
@@ -325,23 +329,15 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::CheckFeatureSupport(DXGI_FEATURE Feature,
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapterByGpuPreference(UINT Adapter, DXGI_GPU_PREFERENCE GpuPreference, REFIID riid, void **ppvAdapter)
 {
+	reshade::log::message(
+		reshade::log::level::info,
+		"Redirecting IDXGIFactory6::EnumAdapterByGpuPreference(this = %p, Adapter = %u, GpuPreference = %d, riid = %s, ppvAdapter = %p) ...",
+		this, Adapter, GpuPreference, reshade::log::iid_to_string(riid).c_str(), ppvAdapter);
+
 	assert(_interface_version >= 6);
 	const HRESULT hr = static_cast<IDXGIFactory6 *>(_orig)->EnumAdapterByGpuPreference(Adapter, GpuPreference, riid, ppvAdapter);
 	if (SUCCEEDED(hr))
-	{
-		if (DXGIAdapter::check_and_proxy_interface(riid, ppvAdapter))
-		{
-#if RESHADE_VERBOSE_LOG
-			const auto adapter_proxy = static_cast<DXGIAdapter *>(*ppvAdapter);
-			reshade::log::message(reshade::log::level::debug, "IDXGIFactory6::EnumAdapterByGpuPreference returning IDXGIAdapter%hu object %p (%p).", adapter_proxy->_interface_version, adapter_proxy, adapter_proxy->_orig);
-#endif
-		}
-		else
-		{
-			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGIFactory6::EnumAdapterByGpuPreference.", reshade::log::iid_to_string(riid).c_str());
-		}
-	}
-
+		check_and_proxy_adapter_interface(riid, ppvAdapter);
 	return hr;
 }
 

@@ -85,7 +85,8 @@ namespace reshade::imgui
 		/// <param name="palette">Color palette used for syntax highlighting.</param>
 		/// <param name="border">Set to <see langword="true"/> to surround the child window with a border line.</param>
 		/// <param name="font">Font used for rendering the text (<see langword="nullptr"/> to use the default).</param>
-		void render(const char *title, const uint32_t palette[color_palette_max], bool border = false, ImFont *font = nullptr);
+		/// <param name="font_size">Font size used for rendering the text (or zero to use the current font size).</param>
+		void render(const char *title, const uint32_t palette[color_palette_max], bool border = false, ImFont *font = nullptr, float font_size = 0.0f);
 
 		/// <summary>
 		/// Sets the selection to be between the specified <paramref name="beg"/>in and <paramref name="end"/> positions.

@@ -161,7 +161,7 @@ namespace
 		old_style.AntiAliasedFill = new_style.AntiAliasedFill;
 		old_style.CurveTessellationTol = new_style.CurveTessellationTol;
 		old_style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
-		for (int i = 0; i < 58; ++i)
+		for (ImGuiCol i = 0; i < 58; ++i)
 			old_style.Colors[i] = new_style.Colors[i];
 		old_style.HoverStationaryDelay = new_style.HoverStationaryDelay;
 		old_style.HoverDelayShort = new_style.HoverDelayShort;
@@ -172,12 +172,12 @@ namespace
 }
 
 const imgui_function_table_19180 init_imgui_function_table_19180() { return {
-	[]() -> imgui_io_19180 &{
+	[]() -> imgui_io_19180 & {
 		static imgui_io_19180 io = {};
 		convert(g_imgui_function_table_19191.GetIO(), io);
 		return io;
 	},
-	[]() -> imgui_style_19180 &{
+	[]() -> imgui_style_19180 & {
 		static imgui_style_19180 style = {};
 		convert(g_imgui_function_table_19191.GetStyle(), style);
 		return style;
@@ -606,8 +606,8 @@ const imgui_function_table_19180 init_imgui_function_table_19180() { return {
 	g_imgui_function_table_19191.ImDrawList_PrimQuadUV,
 	g_imgui_function_table_19191.ConstructImFont,
 	g_imgui_function_table_19191.DestructImFont,
-	[](imgui_font_19180 *_this, ImWchar c) -> const ImFontGlyph *{ return g_imgui_function_table_19191.ImFont_FindGlyph(_this, c); },
-	[](imgui_font_19180 *_this, ImWchar c) -> const ImFontGlyph *{ return g_imgui_function_table_19191.ImFont_FindGlyphNoFallback(_this, c); },
+	[](imgui_font_19180 *_this, ImWchar c) -> const ImFontGlyph * { return g_imgui_function_table_19191.ImFont_FindGlyph(_this, c); },
+	[](imgui_font_19180 *_this, ImWchar c) -> const ImFontGlyph * { return g_imgui_function_table_19191.ImFont_FindGlyphNoFallback(_this, c); },
 	g_imgui_function_table_19191.ImFont_CalcTextSizeA,
 	g_imgui_function_table_19191.ImFont_CalcWordWrapPositionA,
 	g_imgui_function_table_19191.ImFont_RenderChar,
