@@ -26,7 +26,8 @@ void STDMETHODCALLTYPE ID3D11Resource_GetDevice(ID3D11Resource *pResource, ID3D1
 	{
 		assert(device != device_proxy);
 
+		device_proxy->AddRef();
+		device->Release();
 		*ppDevice = device_proxy;
-		InterlockedIncrement(&device_proxy->_ref);
 	}
 }
