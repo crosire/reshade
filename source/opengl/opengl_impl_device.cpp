@@ -361,12 +361,12 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::shared_resource:
 	case api::device_caps::shared_resource_nt_handle:
-		return true;
+		return gl.EXT_memory_object && gl.EXT_memory_object_win32;
 	case api::device_caps::resolve_depth_stencil:
 		return true;
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
-		return true;
+		return gl.EXT_semaphore && gl.EXT_semaphore_win32;
 	case api::device_caps::amplification_and_mesh_shader:
 	case api::device_caps::ray_tracing:
 		return false;
