@@ -135,8 +135,11 @@ reshade::vulkan::device_impl::~device_impl()
 
 bool reshade::vulkan::device_impl::get_property(api::device_properties property, void *data) const
 {
+	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+	VkPhysicalDeviceIDProperties device_id_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_tracing_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
-	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &ray_tracing_props };
+	device_props.pNext = &device_id_props;
+	device_id_props.pNext = &ray_tracing_props;
 	vk.GetPhysicalDeviceProperties2(_physical_device, &device_props);
 
 	switch (property)
@@ -174,6 +177,13 @@ bool reshade::vulkan::device_impl::get_property(api::device_properties property,
 	case api::device_properties::shader_group_handle_alignment:
 		*static_cast<uint32_t *>(data) = ray_tracing_props.shaderGroupHandleAlignment;
 		return true;
+	case api::device_properties::adapter_luid:
+		if (device_id_props.deviceLUIDValid)
+		{
+			std::memcpy(data, device_id_props.deviceLUID, 8);
+			return true;
+		}
+		return false;
 	default:
 		return false;
 	}

@@ -176,6 +176,9 @@ bool reshade::d3d12::device_impl::get_property(api::device_properties property, 
 	case api::device_properties::shader_group_handle_alignment:
 		*static_cast<uint32_t *>(data) = D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT;
 		return true;
+	case api::device_properties::adapter_luid:
+		*static_cast<LUID *>(data) = _orig->GetAdapterLuid();
+		return true;
 	default:
 		return false;
 	}

@@ -66,11 +66,11 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 			for (uint32_t i = 0; i < num_physical_devices; ++i)
 			{
 				VkPhysicalDeviceProperties2 props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
-				VkPhysicalDeviceIDProperties id_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
-				props.pNext = &id_props;
+				VkPhysicalDeviceIDProperties device_id_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
+				props.pNext = &device_id_props;
 				vk.GetPhysicalDeviceProperties2(physical_devices[i], &props);
 
-				if (id_props.deviceLUIDValid && std::memcmp(id_props.deviceLUID, device_luid, 8) == 0)
+				if (device_id_props.deviceLUIDValid && std::memcmp(device_id_props.deviceLUID, device_luid, 8) == 0)
 				{
 					physical_device = physical_devices[i];
 					break;
@@ -307,6 +307,13 @@ bool reshade::opengl::device_impl::get_property(api::device_properties property,
 		std::strncpy(static_cast<char *>(data), reinterpret_cast<const char *>(name), 256);
 		return true;
 	}
+	case api::device_properties::adapter_luid:
+		if (gl.EXT_memory_object)
+		{
+			gl.GetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, static_cast<GLubyte *>(data));
+			return true;
+		}
+		return false;
 	default:
 		return false;
 	}

@@ -176,6 +176,13 @@ bool reshade::d3d9::device_impl::get_property(api::device_properties property, v
 			return true;
 		}
 		return false;
+	case api::device_properties::adapter_luid:
+		if (com_ptr<IDirect3D9Ex> d3dex;
+			SUCCEEDED(_d3d->QueryInterface(IID_PPV_ARGS(&d3dex))))
+		{
+			return SUCCEEDED(d3dex->GetAdapterLUID(_cp.AdapterOrdinal, static_cast<LUID *>(data)));
+		}
+		return false;
 	default:
 		return false;
 	}

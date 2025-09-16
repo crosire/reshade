@@ -76,6 +76,14 @@ bool reshade::d3d11::device_impl::get_property(api::device_properties property, 
 			return true;
 		}
 		return false;
+	case api::device_properties::adapter_luid:
+		if (DXGI_ADAPTER_DESC adapter_desc;
+			adapter_from_device(_orig, &adapter_desc))
+		{
+			*static_cast<LUID *>(data) = adapter_desc.AdapterLuid;
+			return true;
+		}
+		return false;
 	default:
 		return false;
 	}

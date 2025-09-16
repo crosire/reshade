@@ -245,6 +245,11 @@ namespace reshade { namespace api
 		/// Data is a 32-bit unsigned integer value.
 		/// </summary>
 		shader_group_handle_alignment,
+		/// <summary>
+		/// LUID of the adapter associated with the logical render device.
+		/// Data is a 64-bit unsigned integer value, or more accurately a <c>LUID</c> object.
+		/// </summary>
+		adapter_luid,
 	};
 
 	/// <summary>
