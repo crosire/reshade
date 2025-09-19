@@ -186,7 +186,7 @@ void reshade::runtime::build_font_atlas()
 			// Microsoft JhengHei
 			_default_font_path = L"C:\\Windows\\Fonts\\msjh.ttc";
 			if (!std::filesystem::exists(_default_font_path, ec))
-				_default_font_path = L"C:\\Windows\\Fonts\\mingliu.ttc"; 
+				_default_font_path = L"C:\\Windows\\Fonts\\mingliu.ttc";
 		}
 	}
 #endif
@@ -3046,49 +3046,54 @@ void reshade::runtime::draw_gui_log()
 	const uintmax_t file_size = std::filesystem::file_size(log_path, ec);
 	if (filter_changed || _last_log_size != file_size)
 	{
-		_log_editor.clear_text();
-		_log_editor.set_readonly(true);
-
-		if (FILE *const file = _wfsopen(log_path.c_str(), L"r", SH_DENYNO))
+		// Defer log reloading to avoid interfering with tab switching
+		// Only reload if we're not currently in the middle of a UI interaction
+		if (!ImGui::IsAnyItemActive() && !ImGui::IsAnyItemFocused())
 		{
-			imgui::code_editor::text_pos line_pos;
+			_log_editor.clear_text();
+			_log_editor.set_readonly(true);
 
-			char line_data[2048];
-			while (fgets(line_data, sizeof(line_data), file))
+			if (FILE *const file = _wfsopen(log_path.c_str(), L"r", SH_DENYNO))
 			{
-				const std::string_view line(line_data);
-				if (string_contains(line, _log_filter))
+				imgui::code_editor::text_pos line_pos;
+
+				char line_data[2048];
+				while (fgets(line_data, sizeof(line_data), file))
 				{
-					if (line.back() != '\n')
-						continue;
+					const std::string_view line(line_data);
+					if (string_contains(line, _log_filter))
+					{
+						if (line.back() != '\n')
+							continue;
 
-					_log_editor.insert_text(line);
+						_log_editor.insert_text(line);
 
-					imgui::code_editor::color col = imgui::code_editor::color_default;
-					/**/ if (line.find("ERROR |") != std::string_view::npos)
-						col = imgui::code_editor::color_error_marker;
-					else if (line.find("WARN  |") != std::string_view::npos)
-						col = imgui::code_editor::color_warning_marker;
-					else if (line.find("DEBUG |") != std::string_view::npos)
-						col = imgui::code_editor::color_comment;
-					else if (line.find("error") != std::string_view::npos)
-						col = imgui::code_editor::color_error_marker;
-					else if (line.find("warning") != std::string_view::npos)
-						col = imgui::code_editor::color_warning_marker;
+						imgui::code_editor::color col = imgui::code_editor::color_default;
+						/**/ if (line.find("ERROR |") != std::string_view::npos)
+							col = imgui::code_editor::color_error_marker;
+						else if (line.find("WARN  |") != std::string_view::npos)
+							col = imgui::code_editor::color_warning_marker;
+						else if (line.find("DEBUG |") != std::string_view::npos)
+							col = imgui::code_editor::color_comment;
+						else if (line.find("error") != std::string_view::npos)
+							col = imgui::code_editor::color_error_marker;
+						else if (line.find("warning") != std::string_view::npos)
+							col = imgui::code_editor::color_warning_marker;
 
-					imgui::code_editor::text_pos next_line_pos = line_pos;
-					next_line_pos.line++;
+						imgui::code_editor::text_pos next_line_pos = line_pos;
+						next_line_pos.line++;
 
-					_log_editor.colorize(line_pos, next_line_pos, col);
+						_log_editor.colorize(line_pos, next_line_pos, col);
 
-					line_pos = next_line_pos;
+						line_pos = next_line_pos;
+					}
 				}
+
+				fclose(file);
 			}
 
-			fclose(file);
+			_last_log_size = file_size;
 		}
-
-		_last_log_size = file_size;
 	}
 
 	uint32_t palette[imgui::code_editor::color_palette_max];
