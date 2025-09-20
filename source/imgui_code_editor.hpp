@@ -122,9 +122,9 @@ namespace reshade::imgui
 		/// </summary>
 		void clear_text();
 		/// <summary>
-		/// Inserts the specified <paramref name="text"/> at the cursor position.
+		/// Inserts the specified <paramref name="text"/> at the end.
 		/// </summary>
-		void insert_text(const std::string_view text);
+		void append_text(const std::string_view text);
 		/// <summary>
 		/// Returns the entire text of this text editor as a string.
 		/// </summary>
@@ -206,6 +206,12 @@ namespace reshade::imgui
 		/// <param name="col">Color to use.</param>
 		void colorize(const text_pos &beg, const text_pos &end, color col);
 
+		/// <summary>
+		/// Returns the position at the end of the current text of this text editor.
+		/// </summary>
+		/// <returns></returns>
+		text_pos get_text_end() const { return _lines.size() - 1; }
+
 	private:
 		struct glyph
 		{
@@ -225,6 +231,7 @@ namespace reshade::imgui
 
 		void record_undo(undo_record &&record);
 
+		void insert_text(const std::string_view text);
 		void insert_character(uint32_t c, bool auto_indent);
 
 		void delete_next();

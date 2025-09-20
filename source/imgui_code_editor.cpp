@@ -782,6 +782,17 @@ void reshade::imgui::code_editor::clear_text()
 {
 	set_text(std::string_view());
 }
+void reshade::imgui::code_editor::append_text(const std::string_view text)
+{
+	text_pos cursor_pos = _cursor_pos;
+	const bool reset_cursor_pos = cursor_pos != get_text_end();
+	_cursor_pos = get_text_end();
+	insert_text(text);
+	// Keep the cursor position at the new end when the cursor was at the end before
+	// This way the editor scrolls with text being appended when the cursor is at the end, but does not scroll when the cursor is somewhere else
+	if (reset_cursor_pos)
+		_cursor_pos = cursor_pos;
+}
 void reshade::imgui::code_editor::insert_text(const std::string_view text)
 {
 	undo_record u;
@@ -835,9 +846,6 @@ void reshade::imgui::code_editor::insert_text(const std::string_view text)
 		u.added_end = _cursor_pos;
 		record_undo(std::move(u));
 	}
-
-	// Reset cursor animation
-	_cursor_anim = 0;
 
 	_scroll_to_cursor = true;
 
