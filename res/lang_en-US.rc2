@@ -197,6 +197,10 @@ BEGIN
 42682 "Yes"
 35957 "No"
 25121 "Off\nOn\n"
+12587 "Pause"
+24486 "Resume"
+48651 "Pause log updates"
+64046 "Resume log updates"
 
 END
 

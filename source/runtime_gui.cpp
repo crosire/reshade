@@ -3027,13 +3027,19 @@ void reshade::runtime::draw_gui_log()
 	std::filesystem::path log_path = global_config().path();
 	log_path.replace_extension(L".log");
 
-	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(ImGui::GetFrameHeight() + 8.0f * ImGui::GetFontSize() + 2 * _imgui_context->Style.ItemSpacing.x));
+	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(ImGui::GetFrameHeight() + 2 * (8.0f * ImGui::GetFontSize()) + _imgui_context->Style.ItemSpacing.x));
 
 	ImGui::SameLine();
 
 	if (ImGui::Button(ICON_FK_FOLDER, ImVec2(ImGui::GetFrameHeight(), 0.0f)))
 		utils::open_explorer(log_path);
 	ImGui::SetItemTooltip(_("Open folder in explorer"));
+
+	ImGui::SameLine();
+
+	if (ImGui::Button(_log_paused ? _("Resume") : _("Pause"), ImVec2(6.0f * ImGui::GetFontSize(), 0.0f)))
+		_log_paused = !_log_paused;
+	ImGui::SetItemTooltip(_log_paused ? _("Resume log updates") : _("Pause log updates"));
 
 	ImGui::SameLine();
 
@@ -3044,7 +3050,7 @@ void reshade::runtime::draw_gui_log()
 	ImGui::Spacing();
 
 	const uintmax_t file_size = std::filesystem::file_size(log_path, ec);
-	if (filter_changed || _last_log_size != file_size)
+	if (filter_changed || (_last_log_size != file_size && !_log_paused))
 	{
 		// Defer log reloading to avoid interfering with tab switching
 		// Only reload if we're not currently in the middle of a UI interaction

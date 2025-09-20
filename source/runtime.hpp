@@ -501,6 +501,7 @@ namespace reshade
 		char _log_filter[32] = {};
 		uintmax_t _last_log_size = 0;
 		imgui::code_editor _log_editor;
+		bool _log_paused = false;
 		#pragma endregion
 
 		#pragma region Overlay Code Editor
