@@ -309,6 +309,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 			Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
 	}
 #endif
+	#if RESHADE_ADDON
+	reshade::invoke_addon_event<reshade::addon_event::present_flags>(&Flags, _impl);
+	#endif
 
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
