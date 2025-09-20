@@ -197,6 +197,10 @@ BEGIN
 42682 "Si"
 35957 "No"
 25121 "Apagado\nEncendido\n"
+12587 "Pausa"
+24486 "Reanudar"
+48651 "Pausar actualizaciones del registro"
+64046 "Reanudar actualizaciones del registro"
 
 END
 

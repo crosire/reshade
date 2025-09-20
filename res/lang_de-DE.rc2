@@ -197,6 +197,10 @@ BEGIN
 42682 "Ja"
 35957 "Nein"
 25121 "Aus\nAn\n"
+12587 "Pause"
+24486 "Fortsetzen"
+48651 "Log-Updates pausieren"
+64046 "Log-Updates fortsetzen"
 
 END
 

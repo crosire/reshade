@@ -197,6 +197,10 @@ BEGIN
 42682 "Oui"
 35957 "Non"
 25121 "Désactivé\nActivé\n"
+12587 "Pause"
+24486 "Reprendre"
+48651 "Mettre en pause les mises à jour du journal"
+64046 "Reprendre les mises à jour du journal"
 
 END
 

@@ -197,6 +197,10 @@ BEGIN
 42682 "Sim"
 35957 "Não"
 25121 "Desligado\nLigado\n"
+12587 "Pausar"
+24486 "Retomar"
+48651 "Pausar atualizações do log"
+64046 "Retomar atualizações do log"
 
 END
 
