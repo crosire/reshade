@@ -3027,7 +3027,7 @@ void reshade::runtime::draw_gui_log()
 	std::filesystem::path log_path = global_config().path();
 	log_path.replace_extension(L".log");
 
-	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(ImGui::GetFrameHeight() + 2 * (8.0f * ImGui::GetFontSize()) + _imgui_context->Style.ItemSpacing.x));
+	const bool filter_changed = imgui::search_input_box(_log_filter, sizeof(_log_filter), -(ImGui::GetFrameHeight() + 2 * (8.0f * ImGui::GetFontSize()) + 3 * _imgui_context->Style.ItemSpacing.x));
 
 	ImGui::SameLine();
 
@@ -3037,7 +3037,7 @@ void reshade::runtime::draw_gui_log()
 
 	ImGui::SameLine();
 
-	if (ImGui::Button(_log_paused ? _("Resume") : _("Pause"), ImVec2(6.0f * ImGui::GetFontSize(), 0.0f)))
+	if (ImGui::Button(_log_paused ? _("Resume") : _("Pause"), ImVec2(8.0f * ImGui::GetFontSize(), 0.0f)))
 		_log_paused = !_log_paused;
 	ImGui::SetItemTooltip(_log_paused ? _("Resume log updates") : _("Pause log updates"));
 
