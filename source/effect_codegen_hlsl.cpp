@@ -359,7 +359,7 @@ private:
 	}
 
 	template <bool is_param = false, bool is_decl = true>
-	void write_type(std::string &s, const type &type) const
+	void write_type(std::string &s, const type &type, texture_format format = texture_format::unknown) const
 	{
 		if constexpr (is_decl)
 		{
@@ -489,6 +489,11 @@ private:
 			s += "RWTexture";
 			s += to_digit(type.texture_dimension());
 			s += "D<";
+			if (format == texture_format::r8 || format == texture_format::r16 ||
+				format == texture_format::rg8 || format == texture_format::rg16 ||
+				format == texture_format::rgba8 || format == texture_format::rgba16 ||
+				format == texture_format::rgb10a2)
+				s += "unorm ";
 			s += "float";
 			if (type.rows > 1)
 				s += to_digit(type.rows);
@@ -643,23 +648,25 @@ private:
 		case texture_format::rgba32u:
 			s += "uint4";
 			break;
+		case texture_format::r8:
+		case texture_format::r16:
+		case texture_format::rg8:
+		case texture_format::rg16:
+		case texture_format::rgba8:
+		case texture_format::rgba16:
+		case texture_format::rgb10a2:
+			s += "unorm float4";
+			break;
 		default:
 			assert(false);
 			[[fallthrough]];
 		case texture_format::unknown:
-		case texture_format::r8:
-		case texture_format::r16:
 		case texture_format::r16f:
 		case texture_format::r32f:
-		case texture_format::rg8:
-		case texture_format::rg16:
 		case texture_format::rg16f:
 		case texture_format::rg32f:
-		case texture_format::rgba8:
-		case texture_format::rgba16:
 		case texture_format::rgba16f:
 		case texture_format::rgba32f:
-		case texture_format::rgb10a2:
 			s += "float4";
 			break;
 		}
@@ -883,7 +890,7 @@ private:
 			write_location(code, loc);
 
 			code += "static const ";
-			write_type(code, info.type);
+			write_type(code, info.type, tex_info.format);
 			code += ' ' + id_to_name(res) + " = { __" + info.unique_name + "_t, __s" + std::to_string(sampler_state_binding) + " };\n";
 		}
 		else
@@ -897,7 +904,7 @@ private:
 			write_location(code, loc);
 
 			code += "static const ";
-			write_type(code, info.type);
+			write_type(code, info.type, tex_info.format);
 			code += ' ' + id_to_name(res) + " = { __" + info.unique_name + "_s, float" + to_digit(texture_dimension) + '(';
 
 			if (tex_info.semantic.empty())
@@ -921,7 +928,7 @@ private:
 
 		return res;
 	}
-	id   define_storage(const location &loc, const texture &, storage &info) override
+	id   define_storage(const location &loc, const texture &tex_info, storage &info) override
 	{
 		const id res = info.id = create_block();
 		define_name<naming::unique>(res, info.unique_name);
@@ -938,7 +945,7 @@ private:
 			if (_shader_model >= 60)
 				code += "[[vk::binding(" + std::to_string(default_binding) + ", 3)]] "; // Descriptor set 3
 
-			write_type(code, info.type);
+			write_type(code, info.type, tex_info.format);
 			code += ' ' + info.unique_name + " : register(u" + std::to_string(default_binding) + ");\n";
 		}
 
