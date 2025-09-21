@@ -24,12 +24,10 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_GetDevice(ID3D12Resource *pResource, RE
 	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
 
 	const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(device);
-	if (device_proxy != nullptr)
+	if (device_proxy != nullptr && device_proxy->_orig == device)
 	{
-		assert(device != device_proxy);
-
+		InterlockedIncrement(&device_proxy->_ref);
 		*ppvDevice = device_proxy;
-		device_proxy->_ref++;
 	}
 
 	return hr;

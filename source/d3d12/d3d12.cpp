@@ -68,11 +68,17 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 	const auto device = static_cast<ID3D12Device *>(*ppDevice);
 
 	// Direct3D 12 devices are singletons per adapter, so first check if one was already created previously
-	const auto device_proxy_existing = get_private_pointer_d3dx<D3D12Device>(device);
-	const auto device_proxy = (device_proxy_existing != nullptr) ? device_proxy_existing : new D3D12Device(device);
-
-	if (device_proxy_existing != nullptr)
-		device_proxy_existing->_ref++;
+	D3D12Device *device_proxy = nullptr;
+	D3D12Device *const device_proxy_existing = get_private_pointer_d3dx<D3D12Device>(device);
+	if (device_proxy_existing != nullptr && device_proxy_existing->_orig == device)
+	{
+		InterlockedIncrement(&device_proxy_existing->_ref);
+		device_proxy = device_proxy_existing;
+	}
+	else
+	{
+		device_proxy = new D3D12Device(device);
+	}
 
 #if RESHADE_ADDON >= 2
 	reshade::unload_addons();

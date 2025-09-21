@@ -22,12 +22,9 @@ void STDMETHODCALLTYPE ID3D11Resource_GetDevice(ID3D11Resource *pResource, ID3D1
 		return;
 
 	const auto device_proxy = get_private_pointer_d3dx<D3D11Device>(device);
-	if (device_proxy != nullptr)
+	if (device_proxy != nullptr && device_proxy->_orig == device)
 	{
-		assert(device != device_proxy);
-
-		device_proxy->AddRef();
-		device->Release();
+		InterlockedIncrement(&device_proxy->_ref);
 		*ppDevice = device_proxy;
 	}
 }
