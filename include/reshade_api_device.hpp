@@ -216,17 +216,17 @@ namespace reshade { namespace api
 		/// </summary>
 		driver_version,
 		/// <summary>
-		/// PCI vendor ID of the hardware associated with the logical render device.
+		/// PCI vendor ID of the adapter associated with the device.
 		/// Data is a 32-bit unsigned integer value.
 		/// </summary>
 		vendor_id,
 		/// <summary>
-		/// PCI device ID of the hardware associated with the logical render device.
+		/// PCI device ID of the adapter associated with the device.
 		/// Data is a 32-bit unsigned integer value.
 		/// </summary>
 		device_id,
 		/// <summary>
-		/// Description text of the hardware associated with the logical render device.
+		/// Description text of the adapter associated with the device.
 		/// Data is an array of 256 byte-sized characters representing a null-terminated string.
 		/// </summary>
 		description,
@@ -246,7 +246,7 @@ namespace reshade { namespace api
 		/// </summary>
 		shader_group_handle_alignment,
 		/// <summary>
-		/// LUID of the adapter associated with the logical render device.
+		/// Local identifier of the adapter associated with the device.
 		/// Data is a 64-bit unsigned integer value, or more accurately a <c>LUID</c> object.
 		/// </summary>
 		adapter_luid,
@@ -313,7 +313,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// A logical render device, used for resource creation and global operations.
+	/// A device, used for resource creation and global operations.
 	/// <para>Functionally equivalent to a 'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice'.</para>
 	/// </summary>
 	/// <remarks>
@@ -642,7 +642,7 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The base class for objects that are children to a logical render <see cref="device"/>.
+	/// The base class for objects that are children to a <see cref="device"/>.
 	/// </summary>
 	struct __declspec(novtable) device_object : public api_object
 	{
