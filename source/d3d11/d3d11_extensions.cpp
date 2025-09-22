@@ -12,9 +12,8 @@ static HMODULE s_nvapi_module = nullptr;
 
 void reshade::d3d11::load_driver_extensions()
 {
-	if (s_nvapi_module == nullptr &&
-		// Increase module reference count
-		GetModuleHandleExW(
+	// Increase NvAPI module reference count
+	if (GetModuleHandleExW(
 			0,
 #ifndef _WIN64
 			L"nvapi.dll",
@@ -30,12 +29,14 @@ void reshade::d3d11::load_driver_extensions()
 			NvAPI_D3D11_EndUAVOverlap = reinterpret_cast<NvAPI_D3D11_EndUAVOverlap_t>(nvapi_QueryInterface(0x2216A357));
 		}
 	}
+	else
+	{
+		s_nvapi_module = nullptr;
+	}
 }
 void reshade::d3d11::unload_driver_extensions()
 {
+	// Decrease NvAPI module reference count
 	if (s_nvapi_module)
-	{
 		FreeLibrary(s_nvapi_module);
-		s_nvapi_module = nullptr;
-	}
 }
