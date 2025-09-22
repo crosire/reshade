@@ -16,4 +16,5 @@ extern NvAPI_D3D11_EndUAVOverlap_t NvAPI_D3D11_EndUAVOverlap;
 namespace reshade::d3d11
 {
 	void load_driver_extensions();
+	void unload_driver_extensions();
 }

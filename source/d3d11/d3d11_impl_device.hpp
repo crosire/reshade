@@ -15,6 +15,7 @@ namespace reshade::d3d11
 	{
 	public:
 		explicit device_impl(ID3D11Device *device);
+		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::d3d11; }
 

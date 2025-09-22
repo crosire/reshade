@@ -34,6 +34,10 @@ reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :
 {
 	load_driver_extensions();
 }
+reshade::d3d11::device_impl::~device_impl()
+{
+	unload_driver_extensions();
+}
 
 bool reshade::d3d11::device_impl::get_property(api::device_properties property, void *data) const
 {
