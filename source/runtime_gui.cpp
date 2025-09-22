@@ -203,16 +203,16 @@ void reshade::runtime::build_font_atlas()
 			if (FILE *const file = _wfsopen(font_path.c_str(), L"rb", SH_DENYNO))
 			{
 				fseek(file, 0, SEEK_END);
-				const auto data_size = ftell(file);
+				const size_t file_size = ftell(file);
 				fseek(file, 0, SEEK_SET);
 
-				const auto data = IM_ALLOC(data_size);
-				const auto data_size_read = fread(data, 1, data_size, file);
+				void *data = IM_ALLOC(file_size);
+				const size_t file_size_read = fread(data, 1, file_size, file);
 				fclose(file);
 
-				if (data_size_read != data_size)
+				if (file_size_read != file_size)
 					IM_FREE(data);
-				else if (atlas->AddFontFromMemoryTTF(data, static_cast<int>(data_size), 0.0f, font_config))
+				else if (atlas->AddFontFromMemoryTTF(data, static_cast<int>(file_size), 0.0f, font_config))
 					return true;
 			}
 		}
