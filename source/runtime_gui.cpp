@@ -5007,7 +5007,11 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 }
 void reshade::runtime::destroy_imgui_resources()
 {
-	_imgui_context->IO.Fonts->Clear();
+	ImFontAtlas *const atlas = _imgui_context->IO.Fonts;
+	atlas->Clear();
+
+	// Have to rebuild font atlas next time it is used again, since it is being destroyed here
+	_rebuild_font_atlas = true;
 
 	for (ImTextureData *const texture_data : _imgui_context->PlatformIO.Textures)
 	{
@@ -5025,6 +5029,9 @@ void reshade::runtime::destroy_imgui_resources()
 		texture_data->SetTexID(ImTextureID_Invalid);
 		texture_data->SetStatus(ImTextureStatus_Destroyed);
 	}
+
+	atlas->TexList.clear_delete();
+	atlas->TexData = nullptr;
 
 	for (size_t i = 0; i < std::size(_imgui_vertices); ++i)
 	{
