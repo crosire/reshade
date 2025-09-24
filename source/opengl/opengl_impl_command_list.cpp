@@ -504,11 +504,11 @@ void reshade::opengl::device_context_impl::bind_pipeline(api::pipeline_stage sta
 		{
 			gl.Enable(GL_STENCIL_TEST);
 			gl.StencilMaskSeparate(GL_FRONT, pipeline_object->front_stencil_write_mask);
+			gl.StencilFuncSeparate(GL_FRONT, pipeline_object->front_stencil_func, static_cast<GLint>(pipeline_object->front_stencil_reference_value), pipeline_object->front_stencil_read_mask);
+			gl.StencilOpSeparate(GL_FRONT, pipeline_object->front_stencil_fail_op, pipeline_object->front_stencil_depth_fail_op, pipeline_object->front_stencil_pass_op);
 			gl.StencilMaskSeparate(GL_BACK, pipeline_object->back_stencil_write_mask);
-			gl.StencilOpSeparate(GL_FRONT, pipeline_object->front_stencil_op_fail, pipeline_object->front_stencil_op_depth_fail, pipeline_object->front_stencil_op_pass);
-			gl.StencilOpSeparate(GL_BACK, pipeline_object->back_stencil_op_fail, pipeline_object->back_stencil_op_depth_fail, pipeline_object->back_stencil_op_pass);
-			gl.StencilFuncSeparate(GL_FRONT, pipeline_object->front_stencil_func, pipeline_object->front_stencil_reference_value, pipeline_object->front_stencil_read_mask);
-			gl.StencilFuncSeparate(GL_BACK, pipeline_object->back_stencil_func, pipeline_object->back_stencil_reference_value, pipeline_object->back_stencil_read_mask);
+			gl.StencilFuncSeparate(GL_BACK, pipeline_object->back_stencil_func, static_cast<GLint>(pipeline_object->back_stencil_reference_value), pipeline_object->back_stencil_read_mask);
+			gl.StencilOpSeparate(GL_BACK, pipeline_object->back_stencil_fail_op, pipeline_object->back_stencil_depth_fail_op, pipeline_object->back_stencil_pass_op);
 		}
 		else
 		{

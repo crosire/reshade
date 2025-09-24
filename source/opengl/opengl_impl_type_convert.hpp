@@ -53,18 +53,18 @@ namespace reshade::opengl
 		GLboolean stencil_test;
 		GLuint front_stencil_read_mask;
 		GLuint front_stencil_write_mask;
-		GLint  front_stencil_reference_value;
+		GLuint front_stencil_reference_value;
 		GLenum front_stencil_func;
-		GLenum front_stencil_op_fail;
-		GLenum front_stencil_op_depth_fail;
-		GLenum front_stencil_op_pass;
+		GLenum front_stencil_pass_op;
+		GLenum front_stencil_fail_op;
+		GLenum front_stencil_depth_fail_op;
 		GLuint back_stencil_read_mask;
 		GLuint back_stencil_write_mask;
-		GLint  back_stencil_reference_value;
+		GLuint back_stencil_reference_value;
 		GLenum back_stencil_func;
-		GLenum back_stencil_op_fail;
-		GLenum back_stencil_op_depth_fail;
-		GLenum back_stencil_op_pass;
+		GLenum back_stencil_pass_op;
+		GLenum back_stencil_fail_op;
+		GLenum back_stencil_depth_fail_op;
 	};
 
 	struct descriptor_table_impl

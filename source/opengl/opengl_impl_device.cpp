@@ -2152,9 +2152,6 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	impl->topology = topology;
 
 	impl->sample_alpha_to_coverage = blend_desc.alpha_to_coverage_enable;
-	impl->logic_op_enable = blend_desc.logic_op_enable[0]; // Logic operation applies to all attachments
-	impl->logic_op = convert_logic_op(blend_desc.logic_op[0]);
-	std::copy_n(blend_desc.blend_constant, 4, impl->blend_constant);
 	for (int i = 0; i < 8; ++i)
 	{
 		impl->blend_enable[i] = blend_desc.blend_enable[i];
@@ -2169,6 +2166,9 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 		impl->color_write_mask[i][2] = (blend_desc.render_target_write_mask[i] & (1 << 2)) != 0;
 		impl->color_write_mask[i][3] = (blend_desc.render_target_write_mask[i] & (1 << 3)) != 0;
 	}
+	std::copy_n(blend_desc.blend_constant, 4, impl->blend_constant);
+	impl->logic_op_enable = blend_desc.logic_op_enable[0]; // Logic operation applies to all attachments
+	impl->logic_op = convert_logic_op(blend_desc.logic_op[0]);
 	impl->sample_mask = sample_mask;
 
 	impl->polygon_mode = convert_fill_mode(rasterizer_desc.fill_mode);
@@ -2188,18 +2188,18 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 	impl->stencil_test = depth_stencil_desc.stencil_enable;
 	impl->front_stencil_read_mask = depth_stencil_desc.front_stencil_read_mask;
 	impl->front_stencil_write_mask = depth_stencil_desc.front_stencil_write_mask;
-	impl->front_stencil_reference_value = static_cast<GLint>(depth_stencil_desc.front_stencil_reference_value);
+	impl->front_stencil_reference_value = depth_stencil_desc.front_stencil_reference_value;
 	impl->front_stencil_func = convert_compare_op(depth_stencil_desc.front_stencil_func);
-	impl->front_stencil_op_fail = convert_stencil_op(depth_stencil_desc.front_stencil_fail_op);
-	impl->front_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.front_stencil_depth_fail_op);
-	impl->front_stencil_op_pass = convert_stencil_op(depth_stencil_desc.front_stencil_pass_op);
+	impl->front_stencil_pass_op = convert_stencil_op(depth_stencil_desc.front_stencil_pass_op);
+	impl->front_stencil_fail_op = convert_stencil_op(depth_stencil_desc.front_stencil_fail_op);
+	impl->front_stencil_depth_fail_op = convert_stencil_op(depth_stencil_desc.front_stencil_depth_fail_op);
 	impl->back_stencil_read_mask = depth_stencil_desc.back_stencil_read_mask;
 	impl->back_stencil_write_mask = depth_stencil_desc.back_stencil_write_mask;
-	impl->back_stencil_reference_value = static_cast<GLint>(depth_stencil_desc.back_stencil_reference_value);
+	impl->back_stencil_reference_value = depth_stencil_desc.back_stencil_reference_value;
 	impl->back_stencil_func = convert_compare_op(depth_stencil_desc.back_stencil_func);
-	impl->back_stencil_op_fail = convert_stencil_op(depth_stencil_desc.back_stencil_fail_op);
-	impl->back_stencil_op_depth_fail = convert_stencil_op(depth_stencil_desc.back_stencil_depth_fail_op);
-	impl->back_stencil_op_pass = convert_stencil_op(depth_stencil_desc.back_stencil_pass_op);
+	impl->back_stencil_pass_op = convert_stencil_op(depth_stencil_desc.back_stencil_pass_op);
+	impl->back_stencil_fail_op = convert_stencil_op(depth_stencil_desc.back_stencil_fail_op);
+	impl->back_stencil_depth_fail_op = convert_stencil_op(depth_stencil_desc.back_stencil_depth_fail_op);
 
 	*out_pipeline = { reinterpret_cast<uintptr_t>(impl) };
 	return true;
