@@ -228,8 +228,10 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
 #endif
 	}
-	bool on_present(reshade::opengl::device_context_impl *context)
+	void on_present(reshade::opengl::device_context_impl *context)
 	{
+		assert(context != nullptr);
+
 		RECT window_rect = {};
 		GetClientRect(static_cast<HWND>(get_hwnd()), &window_rect);
 
@@ -239,7 +241,7 @@ public:
 		if (width == 0 || height == 0)
 		{
 			on_reset(false);
-			return false;
+			return;
 		}
 
 		// Do not use default FBO description of device to compare, since it may be shared and changed repeatedly by multiple swap chains
@@ -267,8 +269,17 @@ public:
 
 		// Assume that the correct OpenGL context is still current here
 		reshade::present_effect_runtime(this);
+	}
+	void on_finish_present(reshade::opengl::device_context_impl *context)
+	{
+		assert(context != nullptr);
 
-		return true;
+		if (_last_width == 0 && _last_height == 0)
+			return;
+
+#if RESHADE_ADDON
+		reshade::invoke_addon_event<reshade::addon_event::finish_present>(context, this);
+#endif
 	}
 
 private:
@@ -1294,8 +1305,8 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 				});
 			swapchain_it != s_opengl_swapchains.end())
 		{
-			if ((*swapchain_it)->on_present(g_opengl_context))
-				swapchain = *swapchain_it;
+			swapchain = *swapchain_it;
+			swapchain->on_present(g_opengl_context);
 		}
 	}
 
@@ -1305,10 +1316,13 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 	const BOOL result = trampoline(hdc);
 	g_in_dxgi_runtime = false;
 
-#if RESHADE_ADDON
-	if (result && swapchain != nullptr)
-		reshade::invoke_addon_event<reshade::addon_event::finish_present>(g_opengl_context, swapchain);
-#endif
+	if (result)
+	{
+		if (swapchain != nullptr)
+		{
+			swapchain->on_finish_present(g_opengl_context);
+		}
+	}
 
 	return result;
 }
