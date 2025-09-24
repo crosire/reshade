@@ -1787,8 +1787,18 @@ namespace reshade
 		/// </remarks>
 		reshade_overlay_technique,
 
+		/// <summary>
+		/// Called when checking overlay color space support.
+		/// Can be used to hide HDR support or modify color space behavior for overlays.
+		/// <para>Callback function signature: <c>bool (api::effect_runtime *runtime, api::color_space color_space, bool *supported)</c></para>
+		/// </summary>
+		/// <remarks>
+		/// To override the color space support result, modify <c>supported</c> and return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
+		reshade_overlay_check_color_space_support,
+
 #if RESHADE_ADDON
-		max = 101 // Last value used internally by ReShade to determine number of events in this enum
+		max = 102 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 
@@ -1935,5 +1945,6 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_open_overlay, bool, api::effect_runtime *runtime, bool open, api::input_source source);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_uniform_variable, bool, api::effect_runtime *runtime, api::effect_uniform_variable variable);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_check_color_space_support, bool, api::effect_runtime *runtime, api::color_space color_space, bool *supported);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::reshade_overlay_technique, bool, api::effect_runtime *runtime, api::effect_technique technique);
 }

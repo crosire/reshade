@@ -43,6 +43,15 @@ bool reshade::d3d11::swapchain_impl::check_color_space_support(api::color_space 
 	if (color_space == api::color_space::unknown)
 		return false;
 
+#if RESHADE_ADDON
+	bool supported = false;
+	if (reshade::has_addon_event<reshade::addon_event::reshade_overlay_check_color_space_support>())
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::reshade_overlay_check_color_space_support>(_runtime, color_space, &supported))
+			return supported;
+	}
+#endif
+
 	com_ptr<IDXGISwapChain3> swapchain3;
 	if (FAILED(_orig->QueryInterface(&swapchain3)))
 		return color_space == api::color_space::srgb_nonlinear;

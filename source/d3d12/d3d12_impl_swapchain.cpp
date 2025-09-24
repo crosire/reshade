@@ -61,6 +61,15 @@ bool reshade::d3d12::swapchain_impl::check_color_space_support(api::color_space 
 	if (color_space == api::color_space::unknown)
 		return false;
 
+#if RESHADE_ADDON
+	bool supported = false;
+	if (reshade::has_addon_event<reshade::addon_event::reshade_overlay_check_color_space_support>())
+	{
+		if (reshade::invoke_addon_event<reshade::addon_event::reshade_overlay_check_color_space_support>(_runtime, color_space, &supported))
+			return supported;
+	}
+#endif
+
 	UINT support;
 	return SUCCEEDED(_orig->CheckColorSpaceSupport(convert_color_space(color_space), &support)) && (support & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0;
 }
