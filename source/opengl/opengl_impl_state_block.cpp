@@ -101,7 +101,7 @@ void reshade::opengl::state_block::capture()
 		gl.GetBooleani_v(GL_COLOR_WRITEMASK, i, _color_write_mask[i]);
 	}
 
-	gl.GetIntegerv(GL_SAMPLE_MASK_VALUE, &_sample_mask);
+	gl.GetIntegeri_v(GL_SAMPLE_MASK_VALUE, 0, &_sample_mask);
 
 	gl.GetIntegerv(GL_POLYGON_MODE, &_polygon_mode);
 	_cull_enable = gl.IsEnabled(GL_CULL_FACE);
