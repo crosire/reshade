@@ -10,7 +10,7 @@
 struct D3D12Device;
 struct D3D12CommandQueueDownlevel;
 
-struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : ID3D12CommandQueue, public reshade::d3d12::command_queue_impl
+struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : ID3D12CommandQueue1, public reshade::d3d12::command_queue_impl
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
 	~D3D12CommandQueue();
@@ -41,6 +41,12 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue f
 	HRESULT STDMETHODCALLTYPE GetTimestampFrequency(UINT64 *pFrequency) override;
 	HRESULT STDMETHODCALLTYPE GetClockCalibration(UINT64 *pGpuTimestamp, UINT64 *pCpuTimestamp) override;
 	D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE GetDesc() override;
+	#pragma endregion
+	#pragma region ID3D12CommandQueue
+	HRESULT STDMETHODCALLTYPE SetProcessPriority(D3D12_COMMAND_QUEUE_PROCESS_PRIORITY Priority) override;
+	HRESULT STDMETHODCALLTYPE GetProcessPriority(D3D12_COMMAND_QUEUE_PROCESS_PRIORITY *pOutValue) override;
+	HRESULT STDMETHODCALLTYPE SetGlobalPriority(D3D12_COMMAND_QUEUE_GLOBAL_PRIORITY Priority) override;
+	HRESULT STDMETHODCALLTYPE GetGlobalPriority(D3D12_COMMAND_QUEUE_GLOBAL_PRIORITY *pOutValue) override;
 	#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);

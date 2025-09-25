@@ -267,8 +267,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 	assert(!g_in_d3d12_pipeline_creation);
 	g_in_d3d12_pipeline_creation = true;
 
-	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
-		riid != __uuidof(ID3D12PipelineState) ||
+	if (ppPipelineState == nullptr || ( // This can happen when application only wants to validate input parameters
+		riid != __uuidof(ID3D12PipelineState) &&
+		riid != __uuidof(ID3D12PipelineState1)) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
@@ -296,8 +297,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 	assert(!g_in_d3d12_pipeline_creation);
 	g_in_d3d12_pipeline_creation = true;
 
-	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
-		riid != __uuidof(ID3D12PipelineState) ||
+	if (ppPipelineState == nullptr || ( // This can happen when application only wants to validate input parameters
+		riid != __uuidof(ID3D12PipelineState) &&
+		riid != __uuidof(ID3D12PipelineState1)) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
@@ -1182,8 +1184,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 	assert(!g_in_d3d12_pipeline_creation);
 	g_in_d3d12_pipeline_creation = true;
 
-	if (ppPipelineState == nullptr || // This can happen when application only wants to validate input parameters
-		riid != __uuidof(ID3D12PipelineState) ||
+	if (ppPipelineState == nullptr || ( // This can happen when application only wants to validate input parameters
+		riid != __uuidof(ID3D12PipelineState) &&
+		riid != __uuidof(ID3D12PipelineState1)) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
@@ -2322,6 +2325,13 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 			depth_stencil_desc = reshade::d3d12::convert_depth_stencil_desc(*static_cast<const D3D12_DEPTH_STENCIL_DESC2 *>(subobject.pDesc));
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
 			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_SERIALIZED_ROOT_SIGNATURE:
+			// TODO: Replace using 'invoke_create_and_init_pipeline_layout_event'
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_LOCAL_SERIALIZED_ROOT_SIGNATURE:
+			break;
+		case D3D12_STATE_SUBOBJECT_TYPE_COMPILER_EXISITING_COLLECTION:
+			break;
 		default:
 			// Unknown sub-object type
 			assert(false);
@@ -2585,6 +2595,10 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 			rasterizer_desc = reshade::d3d12::convert_rasterizer_desc(reinterpret_cast<const D3D12_PIPELINE_STATE_STREAM_RASTERIZER2 *>(p)->data);
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
 			p += sizeof(D3D12_PIPELINE_STATE_STREAM_RASTERIZER2);
+			continue;
+		case D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SERIALIZED_ROOT_SIGNATURE:
+			// TODO: Replace using 'invoke_create_and_init_pipeline_layout_event'
+			p += sizeof(D3D12_PIPELINE_STATE_STREAM_SERIALIZED_ROOT_SIGNATURE);
 			continue;
 		default:
 			// Unknown sub-object type, break out of the loop
