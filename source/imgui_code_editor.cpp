@@ -137,9 +137,10 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 
 	// Deduce text start offset by evaluating maximum number of lines plus two spaces as text width
 	std::snprintf(buf, 16, " %zu ", _lines.size());
-	const float text_start = ImGui::CalcTextSize(buf).x + _left_margin;
+	const float text_start = calc_text_size(buf).x + _left_margin;
+	const float space_size = calc_text_size(" ").x;
 	// The following holds the approximate width and height of a default character for offset calculation
-	const ImVec2 char_advance = ImVec2(calc_text_size(" ").x, ImGui::GetTextLineHeightWithSpacing() * _line_spacing);
+	const ImVec2 char_advance = ImVec2(space_size, ImGui::GetTextLineHeightWithSpacing() * _line_spacing);
 
 	_cursor_anim += io.DeltaTime;
 
@@ -217,7 +218,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	// Handle mouse input
 	if (ImGui::IsWindowHovered() && !alt)
 	{
-		const auto mouse_to_text_pos = [this, text_start, &char_advance]() {
+		const auto mouse_to_text_pos = [this, text_start, space_size, &char_advance]() {
 			const ImVec2 pos(ImGui::GetMousePos().x - ImGui::GetCursorScreenPos().x, ImGui::GetMousePos().y - ImGui::GetCursorScreenPos().y);
 
 			text_pos res;
@@ -226,7 +227,6 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 
 			float column_width = 0.0f;
 			float cumulated_string_width[2] = { 0.0f, 0.0f }; // [0] is the latest, [1] is the previous. I use that trick to check where cursor is exactly (important for tabs).
-			std::string cumulated_string;
 
 			const std::vector<glyph> &line = _lines[res.line];
 
@@ -234,8 +234,17 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			while (text_start + cumulated_string_width[0] < pos.x && res.column < line.size())
 			{
 				cumulated_string_width[1] = cumulated_string_width[0];
-				utf8::unchecked::append(line[res.column].c, std::back_inserter(cumulated_string));
-				cumulated_string_width[0] = calc_text_size(cumulated_string.data(), cumulated_string.data() + cumulated_string.size()).x;
+
+				if (line[res.column].c == '\t')
+				{
+					cumulated_string_width[0] += _tab_size * space_size;
+				}
+				else
+				{
+					char text[4], *text_end = utf8::unchecked::append(line[res.column].c, text);
+					cumulated_string_width[0] += calc_text_size(text, text_end).x;
+				}
+
 				column_width = (cumulated_string_width[0] - cumulated_string_width[1]);
 				res.column++;
 			}
@@ -354,7 +363,6 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 	ImDrawList *const draw_list = ImGui::GetWindowDrawList();
 
 	float longest_line = 0.0f;
-	const float space_size = calc_text_size(" ").x;
 
 	size_t line_no = static_cast<size_t>(std::floor(ImGui::GetScrollY() / char_advance.y));
 	size_t line_max = std::max(static_cast<size_t>(0), std::min(_lines.size() - 1, line_no + static_cast<size_t>(std::floor((ImGui::GetScrollY() + ImGui::GetContentRegionAvail().y) / char_advance.y))));
@@ -509,7 +517,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		// Draw line number (right aligned)
 		std::snprintf(buf, 16, "%zu  ", line_no + 1);
 
-		draw_list->AddText(ImVec2(text_screen_pos.x - ImGui::CalcTextSize(buf).x, line_screen_pos.y), palette[color_line_number], buf);
+		draw_list->AddText(ImVec2(text_screen_pos.x - calc_text_size(buf).x, line_screen_pos.y), palette[color_line_number], buf);
 
 		// Nothing to draw if the line is empty, so continue on
 		if (line.empty())
