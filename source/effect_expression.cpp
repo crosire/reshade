@@ -391,11 +391,18 @@ void reshadefx::expression::add_constant_index_access(unsigned int index)
 void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], unsigned int length)
 {
 	assert(type.is_numeric() && !type.is_array());
+	assert(length <= 4);
 
 	const struct type prev_type = type;
 
 	type.rows = length;
 	type.cols = 1;
+
+	// To form a l-value, swizzling must contain no duplicate components
+	for (unsigned int i = 0; i < length; ++i)
+		for (unsigned int k = i + 1; k < length; ++k)
+			if (swizzle[k] == swizzle[i])
+				type.qualifiers |= type::q_const;
 
 	if (is_constant)
 	{

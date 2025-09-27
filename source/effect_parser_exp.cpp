@@ -946,7 +946,7 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 		{
 			assert(!arguments.empty());
 
-			// Reset expression to only argument and add cast to expression access chain
+			// Reset expression to the only argument and add cast to expression access chain
 			exp = std::move(arguments[0]); exp.add_cast_operation(type);
 		}
 	}
@@ -1256,7 +1256,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					return false;
 				}
 
-				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
 				enum { xyzw, rgba, stpq } set[4];
 
@@ -1291,23 +1290,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 						error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range");
 						return false;
 					}
-
-					// The result is not modifiable if a swizzle appears multiple times
-					for (int k = 0; k < i; ++k)
-					{
-						if (offsets[k] == offsets[i])
-						{
-							is_const = true;
-							break;
-						}
-					}
 				}
 
 				// Add swizzle to current access chain
 				exp.add_swizzle_access(offsets, static_cast<unsigned int>(length));
-
-				if (is_const)
-					exp.type.qualifiers |= type::q_const;
 			}
 			else if (exp.type.is_matrix())
 			{
@@ -1318,7 +1304,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					return false;
 				}
 
-				bool is_const = false;
 				signed char offsets[4] = { -1, -1, -1, -1 };
 				const int set = subscript[1] == 'm';
 				const int coefficient = !set;
@@ -1350,23 +1335,10 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					}
 
 					offsets[j] = static_cast<signed char>(row * 4 + col);
-
-					// The result is not modifiable if a swizzle appears multiple times
-					for (int k = 0; k < j; ++k)
-					{
-						if (offsets[k] == offsets[j])
-						{
-							is_const = true;
-							break;
-						}
-					}
 				}
 
 				// Add swizzle to current access chain
 				exp.add_swizzle_access(offsets, static_cast<unsigned int>(length / (3 + set)));
-
-				if (is_const)
-					exp.type.qualifiers |= type::q_const;
 			}
 			else if (exp.type.is_struct())
 			{
@@ -1402,14 +1374,14 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 					}
 				}
 
-				// Promote scalar to vector type using cast
-				auto target_type = exp.type;
-				target_type.rows = static_cast<unsigned int>(length);
-
-				exp.add_cast_operation(target_type);
-
 				if (length > 1)
-					exp.type.qualifiers |= type::q_const;
+				{
+					// Promote scalar to vector type using cast
+					auto target_type = exp.type;
+					target_type.rows = static_cast<unsigned int>(length);
+
+					exp.add_cast_operation(target_type);
+				}
 			}
 			else
 			{
