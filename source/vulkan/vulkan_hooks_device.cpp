@@ -226,6 +226,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		// Enable features that ReShade requires
 		enabled_features.samplerAnisotropy = VK_TRUE;
 		enabled_features.shaderImageGatherExtended = VK_TRUE;
+		enabled_features.shaderStorageImageReadWithoutFormat = VK_TRUE;
 		enabled_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
 		// Enable extensions that ReShade requires

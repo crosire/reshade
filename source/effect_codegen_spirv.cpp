@@ -681,7 +681,10 @@ private:
 			case type::t_storage3d_float:
 				// No format specified for the storage image
 				if (format == spv::ImageFormatUnknown)
+				{
+					add_capability(spv::CapabilityStorageImageReadWithoutFormat);
 					add_capability(spv::CapabilityStorageImageWriteWithoutFormat);
+				}
 				return convert_image_type(info, format);
 			default:
 				assert(false);
