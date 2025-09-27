@@ -1791,56 +1791,27 @@ private:
 						.add(op.index); // Literal Index
 				break;
 			case expression::operation::op_swizzle:
-				if (op.to.is_vector())
+				assert(op.to.is_vector());
+				if (op.from.is_vector())
 				{
-					if (op.from.is_matrix())
-					{
-						spv::Id components[4];
-						for (int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
-						{
-							const unsigned int row = op.swizzle[c] / 4;
-							const unsigned int column = op.swizzle[c] - row * 4;
-
-							type scalar_type = op.to;
-							scalar_type.rows = 1;
-							scalar_type.cols = 1;
-
-							spirv_instruction &inst = add_instruction(spv::OpCompositeExtract, convert_type(scalar_type));
-							inst.add(result);
-							if (op.from.rows > 1) // Matrix types with a single row are actually vectors, so they don't need the extra index
-								inst.add(row);
-							inst.add(column);
-
-							components[c] = inst;
-						}
-
-						spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
-						for (int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
-							inst.add(components[c]);
-						result = inst;
-					}
-					else if (op.from.is_vector())
-					{
-						spirv_instruction &inst = add_instruction(spv::OpVectorShuffle, convert_type(op.to));
-						inst.add(result); // Vector 1
-						inst.add(result); // Vector 2
-						for (int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
-							inst.add(op.swizzle[c]);
-						result = inst;
-					}
-					else
-					{
-						spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
-						for (unsigned int c = 0; c < op.to.rows; ++c)
-							inst.add(result);
-						result = inst;
-					}
-					break;
+					spirv_instruction &inst = add_instruction(spv::OpVectorShuffle, convert_type(op.to));
+					inst.add(result); // Vector 1
+					inst.add(result); // Vector 2
+					for (int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
+						inst.add(op.swizzle[c]);
+					result = inst;
 				}
-				else if (op.from.is_matrix() && op.to.is_scalar())
+				else
 				{
-					assert(op.swizzle[1] < 0);
-
+					spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
+					for (unsigned int c = 0; c < op.to.rows; ++c)
+						inst.add(result);
+					result = inst;
+				}
+				break;
+			case expression::operation::op_matrix_swizzle:
+				if (op.swizzle[1] < 0)
+				{
 					spirv_instruction &inst = add_instruction(spv::OpCompositeExtract, convert_type(op.to));
 					inst.add(result); // Composite
 					if (op.from.rows > 1)
@@ -1854,14 +1825,36 @@ private:
 					{
 						inst.add(op.swizzle[0]);
 					}
+
 					result = inst;
-					break;
 				}
 				else
 				{
-					assert(false);
-					break;
+					spv::Id components[4];
+					for (int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
+					{
+						const unsigned int row = op.swizzle[c] / 4;
+						const unsigned int column = op.swizzle[c] - row * 4;
+
+						type scalar_type = op.to;
+						scalar_type.rows = 1;
+						scalar_type.cols = 1;
+
+						spirv_instruction &inst = add_instruction(spv::OpCompositeExtract, convert_type(scalar_type));
+						inst.add(result);
+						if (op.from.rows > 1) // Matrix types with a single row are actually vectors, so they don't need the extra index
+							inst.add(row);
+						inst.add(column);
+
+						components[c] = inst;
+					}
+
+					spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(op.to));
+					for (int c = 0; c < 4 && op.swizzle[c] >= 0; ++c)
+						inst.add(components[c]);
+					result = inst;
 				}
+				break;
 			}
 		}
 
@@ -1885,64 +1878,65 @@ private:
 			const expression::operation &op = exp.chain[i];
 			switch (op.op)
 			{
-				case expression::operation::op_cast:
-				case expression::operation::op_member:
-					// These should have been handled above already (and casting does not make sense for a store operation)
-					break;
-				case expression::operation::op_dynamic_index:
-				case expression::operation::op_constant_index:
-					assert(false);
-					break;
-				case expression::operation::op_swizzle:
+			case expression::operation::op_cast:
+			case expression::operation::op_member:
+				// These should have been handled above already (and casting does not make sense for a store operation)
+				break;
+			case expression::operation::op_dynamic_index:
+			case expression::operation::op_constant_index:
+				assert(false);
+				break;
+			case expression::operation::op_swizzle:
+				assert(base_type.is_vector() && op.to.is_vector());
 				{
 					spv::Id result =
 						add_instruction(spv::OpLoad, convert_type(base_type))
 							.add(target); // Pointer
 
-					if (base_type.is_vector())
+					spirv_instruction &inst = add_instruction(spv::OpVectorShuffle, convert_type(base_type));
+					inst.add(result); // Vector 1
+					inst.add(value); // Vector 2
+
+					unsigned int shuffle[4] = { 0, 1, 2, 3 };
+					for (unsigned int c = 0; c < base_type.rows; ++c)
+						if (op.swizzle[c] >= 0)
+							shuffle[op.swizzle[c]] = base_type.rows + c;
+					for (unsigned int c = 0; c < base_type.rows; ++c)
+						inst.add(shuffle[c]);
+
+					value = inst;
+				}
+				break;
+			case expression::operation::op_matrix_swizzle:
+				if (op.swizzle[1] < 0)
+				{
+					spv::Id result =
+						add_instruction(spv::OpLoad, convert_type(base_type))
+							.add(target); // Pointer
+
+					spirv_instruction &inst = add_instruction(spv::OpCompositeInsert, convert_type(base_type));
+					inst.add(value); // Object
+					inst.add(result); // Composite
+					if (op.from.rows > 1)
 					{
-						spirv_instruction &inst = add_instruction(spv::OpVectorShuffle, convert_type(base_type));
-						inst.add(result); // Vector 1
-						inst.add(value); // Vector 2
-
-						unsigned int shuffle[4] = { 0, 1, 2, 3 };
-						for (unsigned int c = 0; c < base_type.rows; ++c)
-							if (op.swizzle[c] >= 0)
-								shuffle[op.swizzle[c]] = base_type.rows + c;
-						for (unsigned int c = 0; c < base_type.rows; ++c)
-							inst.add(shuffle[c]);
-
-						value = inst;
-					}
-					else if (op.to.is_scalar())
-					{
-						assert(op.swizzle[1] < 0);
-
-						spirv_instruction &inst = add_instruction(spv::OpCompositeInsert, convert_type(base_type));
-						inst.add(value); // Object
-						inst.add(result); // Composite
-
-						if (op.from.is_matrix() && op.from.rows > 1)
-						{
-							const unsigned int row = op.swizzle[0] / 4;
-							const unsigned int column = op.swizzle[0] - row * 4;
-							inst.add(row);
-							inst.add(column);
-						}
-						else
-						{
-							inst.add(op.swizzle[0]);
-						}
-
-						value = inst;
+						const unsigned int row = op.swizzle[0] / 4;
+						const unsigned int column = op.swizzle[0] - row * 4;
+						inst.add(row);
+						inst.add(column);
 					}
 					else
 					{
-						// TODO: Implement matrix to vector swizzles
-						assert(false);
+						inst.add(op.swizzle[0]);
 					}
-					break;
+
+					value = inst;
 				}
+				else
+				{
+					// TODO: Implement matrix to vector swizzles
+					assert(false);
+				}
+				break;
 			}
 		}
 
@@ -2332,7 +2326,7 @@ private:
 			for (size_t arg = 0; arg < args.size(); arg += vector_type.rows)
 			{
 				spirv_instruction &inst = add_instruction(spv::OpCompositeConstruct, convert_type(vector_type));
-				for (unsigned row = 0; row < vector_type.rows; ++row)
+				for (unsigned int row = 0; row < vector_type.rows; ++row)
 					inst.add(args[arg + row].base);
 
 				ids.push_back(inst);

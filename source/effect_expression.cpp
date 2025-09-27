@@ -411,6 +411,10 @@ void reshadefx::expression::add_swizzle_access(const signed char swizzle[4], uns
 	{
 		chain.push_back({ operation::op_constant_index, prev_type, type, static_cast<uint32_t>(swizzle[0]) });
 	}
+	else if (prev_type.is_matrix())
+	{
+		chain.push_back({ operation::op_matrix_swizzle, prev_type, type, 0, { swizzle[0], swizzle[1], swizzle[2], swizzle[3] } });
+	}
 	else
 	{
 		chain.push_back({ operation::op_swizzle, prev_type, type, 0, { swizzle[0], swizzle[1], swizzle[2], swizzle[3] } });

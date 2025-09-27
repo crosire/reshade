@@ -165,6 +165,7 @@ namespace reshadefx
 				op_dynamic_index,
 				op_constant_index,
 				op_swizzle,
+				op_matrix_swizzle,
 			};
 
 			op_type op;

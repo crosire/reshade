@@ -14,6 +14,13 @@
 
 using namespace reshadefx;
 
+static const char s_matrix_swizzles[16][5] = {
+	"_m00", "_m01", "_m02", "_m03",
+	"_m10", "_m11", "_m12", "_m13",
+	"_m20", "_m21", "_m22", "_m23",
+	"_m30", "_m31", "_m32", "_m33"
+};
+
 inline char to_digit(unsigned int value)
 {
 	assert(value < 10);
@@ -1289,13 +1296,6 @@ private:
 
 		const id res = make_id();
 
-		static const char s_matrix_swizzles[16][5] = {
-			"_m00", "_m01", "_m02", "_m03",
-			"_m10", "_m11", "_m12", "_m13",
-			"_m20", "_m21", "_m22", "_m23",
-			"_m30", "_m31", "_m32", "_m33"
-		};
-
 		std::string type, expr_code = id_to_name(exp.base);
 
 		for (const expression::operation &op : exp.chain)
@@ -1325,10 +1325,12 @@ private:
 			case expression::operation::op_swizzle:
 				expr_code += '.';
 				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					if (op.from.is_matrix())
-						expr_code += s_matrix_swizzles[op.swizzle[i]];
-					else
-						expr_code += "xyzw"[op.swizzle[i]];
+					expr_code += "xyzw"[op.swizzle[i]];
+				break;
+			case expression::operation::op_matrix_swizzle:
+				expr_code += '.';
+				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					expr_code += s_matrix_swizzles[op.swizzle[i]];
 				break;
 			}
 		}
@@ -1358,13 +1360,6 @@ private:
 
 		code += '\t' + id_to_name(exp.base);
 
-		static const char s_matrix_swizzles[16][5] = {
-			"_m00", "_m01", "_m02", "_m03",
-			"_m10", "_m11", "_m12", "_m13",
-			"_m20", "_m21", "_m22", "_m23",
-			"_m30", "_m31", "_m32", "_m33"
-		};
-
 		for (const expression::operation &op : exp.chain)
 		{
 			switch (op.op)
@@ -1382,10 +1377,12 @@ private:
 			case expression::operation::op_swizzle:
 				code += '.';
 				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
-					if (op.from.is_matrix())
-						code += s_matrix_swizzles[op.swizzle[i]];
-					else
-						code += "xyzw"[op.swizzle[i]];
+					code += "xyzw"[op.swizzle[i]];
+				break;
+			case expression::operation::op_matrix_swizzle:
+				code += '.';
+				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
+					code += s_matrix_swizzles[op.swizzle[i]];
 				break;
 			}
 		}
