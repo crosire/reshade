@@ -2812,7 +2812,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 				desc.address_w = static_cast<api::texture_address_mode>(sampler_info.address_w);
 				desc.mip_lod_bias = sampler_info.lod_bias;
 				desc.max_anisotropy = (desc.filter == api::filter_mode::anisotropic || desc.filter == api::filter_mode::min_mag_anisotropic_mip_point) ? 16.0f : 1.0f;
-				desc.compare_op = api::compare_op::always;
+				desc.compare_op = api::compare_op::never;
 				desc.border_color[0] = 0.0f;
 				desc.border_color[1] = 0.0f;
 				desc.border_color[2] = 0.0f;
