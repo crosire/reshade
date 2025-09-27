@@ -1684,6 +1684,27 @@ private:
 
 					result = emit_construct(exp.location, cast_type, args);
 				}
+				else if (op.from.is_vector() && op.to.is_matrix())
+				{
+					assert(op.from.components() == op.to.components());
+
+					std::vector<expression> args;
+					args.reserve(op.to.components());
+					for (unsigned int c = 0; c < op.to.components(); ++c)
+					{
+						type scalar_type = op.to;
+						scalar_type.rows = 1;
+						scalar_type.cols = 1;
+
+						spirv_instruction &inst = add_instruction(spv::OpCompositeExtract, convert_type(scalar_type));
+						inst.add(result);
+						inst.add(c);
+
+						args.emplace_back().reset_to_rvalue(exp.location, inst, scalar_type);
+					}
+
+					result = emit_construct(exp.location, op.to, args);
+				}
 
 				if (op.from.is_boolean())
 				{
