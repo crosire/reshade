@@ -1185,6 +1185,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 *pRenderTarget)
 {
+#if RESHADE_ADDON
+	// Batman: Arkham City incorrectly calls this with a depth-stencil surface, so handle that case to prevent crash (even though it subsequently fails with D3DERR_INVALIDCALL of course)
+	com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
+	if (pRenderTarget != nullptr &&
+		SUCCEEDED(pRenderTarget->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
+		pRenderTarget = surface_proxy->_orig;
+#endif
+
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && (
