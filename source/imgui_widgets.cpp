@@ -297,20 +297,26 @@ bool reshade::imgui::font_input_box(const char *name, const char *hint, std::fil
 
 	const float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
 
+	const float item_width = ImGui::CalcItemWidth() - (spacing + 5.0f * ImGui::GetFrameHeight());
+
 	ImGui::BeginGroup();
 	ImGui::PushID(name);
 
-	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 100);
+	if (item_width > 100.0f)
+		ImGui::SetNextItemWidth(item_width);
 	if (file_input_box("##font", hint, path, dialog_path, { L".ttf", L".ttc" }))
 		res = true;
 
-	ImGui::SameLine(0, spacing);
-	ImGui::SetNextItemWidth(100);
-	const float size_min = 8;
-	const float size_max = 32;
-	const float size_speed = 1.0f;
-	if (slider_with_buttons("##size", ImGuiDataType_Float, &size, 1, &size_speed, &size_min, &size_max, "%.0f"))
-		res = true;
+	if (item_width > 100.0f)
+	{
+		ImGui::SameLine(0, spacing);
+		ImGui::SetNextItemWidth(5.0f * ImGui::GetFrameHeight());
+		const float size_min = 8;
+		const float size_max = 32;
+		const float size_speed = 1.0f;
+		if (slider_with_buttons("##size", ImGuiDataType_Float, &size, 1, &size_speed, &size_min, &size_max, "%.0f"))
+			res = true;
+	}
 
 	ImGui::PopID();
 
