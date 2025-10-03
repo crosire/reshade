@@ -119,7 +119,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		// The Microsoft Media Foundation library unfortunately checks that the device pointers of the different D3D11 video interfaces it uses match
 		// Since the D3D11 video interfaces ('ID3D11VideoContext' etc.) are not hooked, they return a pointer to the original device when queried via 'GetDevice', rather than this proxy one
 		// To make things work, return a pointer to the original device here too, but only when video support is enabled and therefore it is possible this device was created by the Microsoft Media Foundation library
-		if (_orig->GetCreationFlags() & D3D11_CREATE_DEVICE_VIDEO_SUPPORT)
+		if (riid == __uuidof(ID3D11Device) &&
+			_orig->GetCreationFlags() & D3D11_CREATE_DEVICE_VIDEO_SUPPORT)
 		{
 			_orig->AddRef();
 			*ppvObj = _orig;
