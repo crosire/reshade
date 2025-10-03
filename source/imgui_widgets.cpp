@@ -728,7 +728,7 @@ static bool drag_with_buttons(const char *label, T *v, int components, T v_speed
 	const auto item_width = ImGui::CalcItemWidth();
 	const auto item_width_with_buttons = item_width - (components * 2 * (button_spacing + button_size));
 
-	const bool with_buttons = item_width_with_buttons > 50 * components;
+	const bool with_buttons = item_width_with_buttons > 50 * components && !ImGui::GetIO().KeyShift;
 	const bool ignore_limits = ImGui::GetIO().KeyCtrl;
 
 	ImGui::BeginGroup();
@@ -843,7 +843,7 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 	const auto item_width = ImGui::CalcItemWidth();
 	const auto item_width_with_buttons = item_width - (components * 2 * (button_spacing + button_size));
 
-	const bool with_buttons = item_width_with_buttons > 50 * components;
+	const bool with_buttons = item_width_with_buttons > 50 * components && !ImGui::GetIO().KeyShift;
 	const bool ignore_limits = ImGui::GetIO().KeyCtrl;
 
 	ImGui::BeginGroup();
