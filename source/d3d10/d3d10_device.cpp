@@ -1395,6 +1395,28 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 	if (ppBlendState == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateBlendState(pBlendStateDesc, ppBlendState);
 
+	// Default blend state (https://learn.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_blend_desc)
+	static constexpr D3D10_BLEND_DESC default_blend_desc = {
+		/* AlphaToCoverageEnable = */
+		FALSE,
+		/* BlendEnable = */
+		{ FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE },
+		/* SrcBlend = */
+		D3D10_BLEND_ONE,
+		/* DestBlend = */
+		D3D10_BLEND_ZERO,
+		/* BlendOp = */
+		D3D10_BLEND_OP_ADD,
+		/* SrcBlendAlpha = */
+		D3D10_BLEND_ONE,
+		/* DestBlendAlpha = */
+		D3D10_BLEND_ZERO,
+		/* BlendOpAlpha = */
+		D3D10_BLEND_OP_ADD,
+		/* RenderTargetWriteMask =*/
+		{ D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL, D3D10_COLOR_WRITE_ENABLE_ALL }
+	};
+
 	D3D10_BLEND_DESC internal_desc = {};
 	auto desc = reshade::d3d10::convert_blend_desc(pBlendStateDesc);
 	reshade::api::dynamic_state dynamic_states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
@@ -1419,7 +1441,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
+			// Do not register destruction callback for default blend state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
+			std::memcmp(pBlendStateDesc, &default_blend_desc, sizeof(D3D10_BLEND_DESC)) != 0)
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1441,6 +1465,26 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 #if RESHADE_ADDON
 	if (ppDepthStencilState == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateDepthStencilState(pDepthStencilDesc, ppDepthStencilState);
+
+	// Default depth-stencil state (https://learn.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_depth_stencil_desc)
+	static constexpr D3D10_DEPTH_STENCIL_DESC default_depth_stencil_desc = {
+		/* DepthEnable = */
+		TRUE,
+		/* DepthWriteMask = */
+		D3D10_DEPTH_WRITE_MASK_ALL,
+		/* DepthFunc = */
+		D3D10_COMPARISON_LESS,
+		/* StencilEnable = */
+		FALSE,
+		/* StencilReadMask = */
+		D3D10_DEFAULT_STENCIL_READ_MASK,
+		/* StencilWriteMask = */
+		D3D10_DEFAULT_STENCIL_WRITE_MASK,
+		/* FrontFace = */
+		{ D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_COMPARISON_ALWAYS },
+		/* BackFace = */
+		{ D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_STENCIL_OP_KEEP, D3D10_COMPARISON_ALWAYS }
+	};
 
 	D3D10_DEPTH_STENCIL_DESC internal_desc = {};
 	auto desc = reshade::d3d10::convert_depth_stencil_desc(pDepthStencilDesc);
@@ -1466,7 +1510,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
+			// Do not register destruction callback for default blend state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
+			std::memcmp(pDepthStencilDesc, &default_depth_stencil_desc, sizeof(D3D10_DEPTH_STENCIL_DESC)) != 0)
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1488,6 +1534,30 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 #if RESHADE_ADDON
 	if (ppRasterizerState == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateRasterizerState(pRasterizerDesc, ppRasterizerState);
+
+	// Default rasterizer state (https://learn.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_rasterizer_desc)
+	static constexpr D3D10_RASTERIZER_DESC default_rasterizer_desc = {
+		/* FillMode = */
+		D3D10_FILL_SOLID,
+		/* CullMode = */
+		D3D10_CULL_BACK,
+		/* FrontCounterClockwise = */
+		FALSE,
+		/* DepthBias = */
+		0,
+		/* SlopeScaledDepthBias = */
+		0.0f,
+		/* DepthBiasClamp = */
+		0.0f,
+		/* DepthClipEnable = */
+		TRUE,
+		/* ScissorEnable = */
+		FALSE,
+		/* MultisampleEnable = */
+		FALSE,
+		/* AntialiasedLineEnable = */
+		FALSE
+	};
 
 	D3D10_RASTERIZER_DESC internal_desc = {};
 	auto desc = reshade::d3d10::convert_rasterizer_desc(pRasterizerDesc);
@@ -1511,7 +1581,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
+			// Do not register destruction callback for default rasterizer state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
+			std::memcmp(pRasterizerDesc, &default_rasterizer_desc, sizeof(D3D10_RASTERIZER_DESC)) != 0)
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1733,6 +1805,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 	if (ppBlendState == nullptr) // This can happen when application only wants to validate input parameters
 		return _orig->CreateBlendState1(pBlendStateDesc, ppBlendState);
 
+	// Default blend state (https://learn.microsoft.com/windows/win32/api/d3d10_1/ns-d3d10_1-d3d10_blend_desc1)
+	static constexpr D3D10_BLEND_DESC1 default_blend_desc = {
+		/* AlphaToCoverageEnable = */
+		FALSE,
+		/* IndependentBlendEnable = */
+		FALSE,
+		/* RenderTarget[0] = */
+		{ { FALSE, D3D10_BLEND_ONE, D3D10_BLEND_ZERO, D3D10_BLEND_OP_ADD, D3D10_BLEND_ONE, D3D10_BLEND_ZERO, D3D10_BLEND_OP_ADD, D3D10_COLOR_WRITE_ENABLE_ALL } }
+	};
+
 	D3D10_BLEND_DESC1 internal_desc = {};
 	auto desc = reshade::d3d10::convert_blend_desc(pBlendStateDesc);
 	reshade::api::dynamic_state dynamic_states[2] = { reshade::api::dynamic_state::blend_constant, reshade::api::dynamic_state::sample_mask };
@@ -1757,7 +1839,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
-		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
+			// Do not register destruction callback for default blend state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
+			std::memcmp(pBlendStateDesc, &default_blend_desc, sizeof(D3D10_BLEND_DESC1)) != 0)
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));

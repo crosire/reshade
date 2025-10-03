@@ -791,7 +791,7 @@ reshade::api::blend_desc reshade::d3d10::convert_blend_desc(const D3D10_BLEND_DE
 	}
 	else
 	{
-		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_blend_desc)
+		// Default blend state (https://learn.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_blend_desc)
 		for (UINT i = 0; i < 8; ++i)
 		{
 			desc.source_color_blend_factor[i] = api::blend_factor::one;
@@ -836,7 +836,7 @@ reshade::api::blend_desc reshade::d3d10::convert_blend_desc(const D3D10_BLEND_DE
 	}
 	else
 	{
-		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d10_1/ns-d3d10_1-d3d10_blend_desc1)
+		// Default blend state (https://learn.microsoft.com/windows/win32/api/d3d10_1/ns-d3d10_1-d3d10_blend_desc1)
 		for (UINT i = 0; i < 8; ++i)
 		{
 			desc.source_color_blend_factor[i] = api::blend_factor::one;
@@ -883,7 +883,7 @@ reshade::api::rasterizer_desc reshade::d3d10::convert_rasterizer_desc(const D3D1
 	}
 	else
 	{
-		// Default rasterizer state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_rasterizer_desc)
+		// Default rasterizer state (https://learn.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_rasterizer_desc)
 		desc.fill_mode = api::fill_mode::solid;
 		desc.cull_mode = api::cull_mode::back;
 		desc.depth_clip_enable = true;
@@ -935,7 +935,7 @@ reshade::api::depth_stencil_desc reshade::d3d10::convert_depth_stencil_desc(cons
 	}
 	else
 	{
-		// Default depth-stencil state (https://docs.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_depth_stencil_desc)
+		// Default depth-stencil state (https://learn.microsoft.com/windows/win32/api/d3d10/ns-d3d10-d3d10_depth_stencil_desc)
 		desc.depth_enable = true;
 		desc.depth_write_mask = true;
 		desc.depth_func = api::compare_op::less;
