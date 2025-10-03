@@ -14,7 +14,6 @@ using namespace reshade::api;
 static std::shared_mutex s_mutex;
 static bool s_sync = false;
 static std::vector<effect_runtime *> s_runtimes;
-static thread_local const effect_runtime *s_current_runtime = nullptr;
 
 static void on_init(effect_runtime *runtime)
 {
@@ -35,7 +34,7 @@ static void on_destroy(effect_runtime *runtime)
 
 static bool on_reshade_set_uniform_value(effect_runtime *runtime, effect_uniform_variable variable, const void *new_value, size_t new_value_size)
 {
-	if (!s_sync || runtime == s_current_runtime)
+	if (!s_sync)
 		return false;
 
 	// Skip special uniform variables
@@ -61,7 +60,6 @@ static bool on_reshade_set_uniform_value(effect_runtime *runtime, effect_uniform
 		if (synced_variable == 0)
 			continue;
 
-		s_current_runtime = synced_runtime;
 		switch (base_type)
 		{
 		case format::r32_typeless:
@@ -77,14 +75,13 @@ static bool on_reshade_set_uniform_value(effect_runtime *runtime, effect_uniform
 			synced_runtime->set_uniform_value_uint(synced_variable, static_cast<const uint32_t *>(new_value), new_value_size / sizeof(uint32_t));
 			break;
 		}
-		s_current_runtime = nullptr;
 	}
 
 	return false;
 }
 static bool on_reshade_set_effects_state(effect_runtime *runtime, bool enabled)
 {
-	if (!s_sync || runtime == s_current_runtime)
+	if (!s_sync)
 		return false;
 
 	const std::shared_lock<std::shared_mutex> lock(s_mutex);
@@ -94,16 +91,14 @@ static bool on_reshade_set_effects_state(effect_runtime *runtime, bool enabled)
 		if (synced_runtime == runtime)
 			continue;
 
-		s_current_runtime = synced_runtime;
 		synced_runtime->set_effects_state(enabled);
-		s_current_runtime = nullptr;
 	}
 
 	return false;
 }
 static bool on_reshade_set_technique_state(effect_runtime *runtime, effect_technique technique, bool enabled)
 {
-	if (!s_sync || runtime == s_current_runtime)
+	if (!s_sync)
 		return false;
 
 	// Skip timeout updates
@@ -126,16 +121,14 @@ static bool on_reshade_set_technique_state(effect_runtime *runtime, effect_techn
 		if (synced_technique == 0)
 			continue;
 
-		s_current_runtime = synced_runtime;
 		synced_runtime->set_technique_state(synced_technique, enabled);
-		s_current_runtime = nullptr;
 	}
 
 	return false;
 }
 static void on_reshade_set_current_preset_path(effect_runtime *runtime, const char *path)
 {
-	if (!s_sync || runtime == s_current_runtime)
+	if (!s_sync)
 		return;
 
 	const std::shared_lock<std::shared_mutex> lock(s_mutex);
@@ -145,14 +138,12 @@ static void on_reshade_set_current_preset_path(effect_runtime *runtime, const ch
 		if (synced_runtime == runtime)
 			continue;
 
-		s_current_runtime = synced_runtime;
 		synced_runtime->set_current_preset_path(path);
-		s_current_runtime = nullptr;
 	}
 }
 static bool on_reshade_reorder_techniques(effect_runtime *runtime, size_t count, effect_technique *techniques)
 {
-	if (!s_sync || runtime == s_current_runtime)
+	if (!s_sync)
 		return false;
 
 	const std::shared_lock<std::shared_mutex> lock(s_mutex);
@@ -173,9 +164,7 @@ static bool on_reshade_reorder_techniques(effect_runtime *runtime, size_t count,
 			synced_techniques[i] = synced_runtime->find_technique(effect_name, name);
 		}
 
-		s_current_runtime = synced_runtime;
 		synced_runtime->reorder_techniques(synced_techniques.size(), synced_techniques.data());
-		s_current_runtime = nullptr;
 	}
 
 	return false;
@@ -191,9 +180,7 @@ static void apply_preset_to_all(effect_runtime *runtime)
 		if (synced_runtime == runtime)
 			continue;
 
-		s_current_runtime = synced_runtime;
 		synced_runtime->set_current_preset_path(preset_path);
-		s_current_runtime = nullptr;
 	}
 }
 

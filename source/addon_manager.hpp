@@ -31,6 +31,11 @@ namespace reshade
 	extern std::vector<addon_info> addon_loaded_info;
 
 	/// <summary>
+	/// Pointer to the add-on that is currently executing.
+	/// </summary>
+	extern thread_local const addon_info *addon_current;
+
+	/// <summary>
 	/// Loads any add-ons found in the configured search paths.
 	/// </summary>
 	void load_addons();
@@ -112,7 +117,34 @@ namespace reshade
 #endif
 		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
+		{
+			bool first_invocation = false;
+			if constexpr (
+				ev == addon_event::reshade_present ||
+				ev == addon_event::reshade_begin_effects ||
+				ev == addon_event::reshade_finish_effects ||
+				ev == addon_event::reshade_reloaded_effects ||
+				ev == addon_event::reshade_screenshot ||
+				ev == addon_event::reshade_render_technique ||
+				ev == addon_event::reshade_set_current_preset_path)
+			{
+				// Prevent recursive invocation of events
+				if (nullptr == addon_current)
+				{
+					addon_current = find_addon(event_list[cb]);
+					first_invocation = true;
+				}
+				else if (find_addon(event_list[cb]) == addon_current)
+				{
+					continue;
+				}
+			}
+
 			reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
+
+			if (first_invocation)
+				addon_current = nullptr;
+		}
 	}
 	/// <summary>
 	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <see langword="true"/>.
@@ -149,8 +181,35 @@ namespace reshade
 		bool skip = false;
 		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
+		{
+			bool first_invocation = false;
+			if constexpr (
+				ev == addon_event::reshade_set_uniform_value ||
+				ev == addon_event::reshade_set_technique_state ||
+				ev == addon_event::reshade_set_effects_state ||
+				ev == addon_event::reshade_reorder_techniques ||
+				ev == addon_event::reshade_open_overlay ||
+				ev == addon_event::reshade_overlay_uniform_variable ||
+				ev == addon_event::reshade_overlay_technique)
+			{
+				// Prevent recursive invocation of events
+				if (nullptr == addon_current)
+				{
+					addon_current = find_addon(event_list[cb]);
+					first_invocation = true;
+				}
+				else if (find_addon(event_list[cb]) == addon_current)
+				{
+					continue;
+				}
+			}
+
 			if (reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...))
 				skip = true;
+
+			if (first_invocation)
+				addon_current = nullptr;
+		}
 		return skip;
 	}
 }
