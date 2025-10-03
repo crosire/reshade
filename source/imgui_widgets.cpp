@@ -91,8 +91,11 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 
 	ImGui::PopID();
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -297,14 +300,16 @@ bool reshade::imgui::font_input_box(const char *name, const char *hint, std::fil
 	ImGui::BeginGroup();
 	ImGui::PushID(name);
 
-	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 80);
+	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - spacing - 100);
 	if (file_input_box("##font", hint, path, dialog_path, { L".ttf", L".ttc" }))
 		res = true;
 
 	ImGui::SameLine(0, spacing);
-	ImGui::SetNextItemWidth(80);
-	ImGui::SliderFloat("##size", &size, 8, 32, "%.0f", ImGuiSliderFlags_AlwaysClamp);
-	if (ImGui::IsItemDeactivatedAfterEdit())
+	ImGui::SetNextItemWidth(100);
+	const float size_min = 8;
+	const float size_max = 32;
+	const float size_speed = 1.0f;
+	if (slider_with_buttons("##size", ImGuiDataType_Float, &size, 1, &size_speed, &size_min, &size_max, "%.0f"))
 		res = true;
 
 	ImGui::PopID();
@@ -447,8 +452,11 @@ bool reshade::imgui::radio_list(const char *label, const std::string_view ui_ite
 	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string_view::npos; offset = next + 1, ++i)
 		res |= ImGui::RadioButton(ui_items.data() + offset, v, static_cast<int>(i));
 
-	ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -469,8 +477,11 @@ bool reshade::imgui::checkbox_list(const char *label, const std::string_view ui_
 	for (size_t offset = 0, next, i = 0; (next = ui_items.find('\0', offset)) != std::string_view::npos && i < static_cast<size_t>(components); offset = next + 1, ++i)
 		res |= ImGui::Checkbox(ui_items.data() + offset, reinterpret_cast<bool *>(&v[i]));
 
-	ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(item_width, ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -610,8 +621,11 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 	ImGui::EndGroup();
 	const bool is_hovered = ImGui::IsItemHovered();
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -709,8 +723,11 @@ bool reshade::imgui::combo_with_buttons(const char *label, const std::string_vie
 
 	ImGui::PopID();
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -800,8 +817,11 @@ static bool drag_with_buttons(const char *label, T *v, int components, T v_speed
 
 	ImGui::PopID();
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -915,8 +935,11 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 
 	ImGui::PopID();
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
@@ -963,8 +986,11 @@ bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 
 	ImGui::PopID();
 
-	ImGui::SameLine(0, button_spacing);
-	ImGui::TextUnformatted(label);
+	if (ImGui::FindRenderedTextEnd(label) != label)
+	{
+		ImGui::SameLine(0, button_spacing);
+		ImGui::TextUnformatted(label);
+	}
 
 	ImGui::EndGroup();
 
