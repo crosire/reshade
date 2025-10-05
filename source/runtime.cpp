@@ -4549,7 +4549,7 @@ void reshade::runtime::save_texture(const texture &tex)
 				{
 					log::message(log::level::info, "AVIF: Starting encoding for %dx%d image with quality %d", width, height, _screenshot_avif_quality);
 
-					avifImage *image = avifImageCreate(width, height, 8, AVIF_PIXEL_FORMAT_YUV444);
+					avifImage *image = avifImageCreate(width, height, 8, AVIF_PIXEL_FORMAT_YUV420);
 					if (image != nullptr)
 					{
 						log::message(log::level::info, "AVIF: Image created successfully");
@@ -4577,10 +4577,9 @@ void reshade::runtime::save_texture(const texture &tex)
 								log::message(log::level::info, "AVIF: Encoder created successfully");
 
 								encoder->maxThreads = 1;
-								encoder->minQuantizer = AVIF_QUANTIZER_BEST_QUALITY;
-								encoder->maxQuantizer = AVIF_QUANTIZER_WORST_QUALITY;
-								encoder->minQuantizerAlpha = AVIF_QUANTIZER_BEST_QUALITY;
-								encoder->maxQuantizerAlpha = AVIF_QUANTIZER_WORST_QUALITY;
+								encoder->speed = AVIF_SPEED_DEFAULT;
+								encoder->tileRowsLog2 = 0;
+								encoder->tileColsLog2 = 0;
 
 								// Convert quality (1-100) to quantizer (0-63, lower is better quality)
 								int quantizer = 63 - ((_screenshot_avif_quality - 1) * 63 / 99);
@@ -5187,7 +5186,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					{
 						log::message(log::level::info, "AVIF: Starting main screenshot encoding for %dx%d image with quality %d", _width, _height, _screenshot_avif_quality);
 
-						avifImage *image = avifImageCreate(_width, _height, 8, AVIF_PIXEL_FORMAT_YUV444);
+						avifImage *image = avifImageCreate(_width, _height, 8, AVIF_PIXEL_FORMAT_YUV420);
 						if (image != nullptr)
 						{
 							log::message(log::level::info, "AVIF: Main screenshot image created successfully");
@@ -5215,17 +5214,16 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 									log::message(log::level::info, "AVIF: Main screenshot encoder created successfully");
 
 									encoder->maxThreads = 1;
-									encoder->minQuantizer = AVIF_QUANTIZER_BEST_QUALITY;
-									encoder->maxQuantizer = AVIF_QUANTIZER_WORST_QUALITY;
-									encoder->minQuantizerAlpha = AVIF_QUANTIZER_BEST_QUALITY;
-									encoder->maxQuantizerAlpha = AVIF_QUANTIZER_WORST_QUALITY;
+									encoder->speed = AVIF_SPEED_DEFAULT;
+									encoder->tileRowsLog2 = 0;
+									encoder->tileColsLog2 = 0;
 
 									// Convert quality (1-100) to quantizer (0-63, lower is better quality)
 									int quantizer = 63 - ((_screenshot_avif_quality - 1) * 63 / 99);
-								//	encoder->minQuantizer = quantizer;
-								//	encoder->maxQuantizer = quantizer;
-								//	encoder->minQuantizerAlpha = quantizer;
-								//	encoder->maxQuantizerAlpha = quantizer;
+									encoder->minQuantizer = quantizer;
+									encoder->maxQuantizer = quantizer;
+									encoder->minQuantizerAlpha = quantizer;
+									encoder->maxQuantizerAlpha = quantizer;
 
 									log::message(log::level::info, "AVIF: Main screenshot encoder configured - quality: %d, quantizer: %d", _screenshot_avif_quality, quantizer);
 
