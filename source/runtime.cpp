@@ -5193,11 +5193,11 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 
 							avifRGBImage rgb;
 							avifRGBImageSetDefaults(&rgb, image);
-							rgb.format = AVIF_RGB_FORMAT_RGBA;
+							rgb.format = (comp == 4) ? AVIF_RGB_FORMAT_RGBA : AVIF_RGB_FORMAT_RGB;
 							rgb.depth = 8;
 							rgb.width = _width;
 							rgb.height = _height;
-							rgb.rowBytes = _width * 4;
+							rgb.rowBytes = _width * comp;
 							rgb.pixels = pixels.data();
 
 							log::message(log::level::info, "AVIF: Main screenshot RGB image configured - format: %d, depth: %d, width: %d, height: %d, rowBytes: %d",
