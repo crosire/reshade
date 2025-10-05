@@ -4547,9 +4547,13 @@ void reshade::runtime::save_texture(const texture &tex)
 			case 4:
 				// AVIF encoding (format 4)
 				{
+					log::message(log::level::info, "AVIF: Starting encoding for %dx%d image with quality %d", width, height, _screenshot_avif_quality);
+
 					avifImage *image = avifImageCreate(width, height, 8, AVIF_PIXEL_FORMAT_YUV444);
 					if (image != nullptr)
 					{
+						log::message(log::level::info, "AVIF: Image created successfully");
+
 						avifRGBImage rgb;
 						avifRGBImageSetDefaults(&rgb, image);
 						rgb.format = AVIF_RGB_FORMAT_RGBA;
@@ -4559,11 +4563,19 @@ void reshade::runtime::save_texture(const texture &tex)
 						rgb.rowBytes = width * 4;
 						rgb.pixels = pixels.data();
 
-						if (avifImageRGBToYUV(image, &rgb) == AVIF_RESULT_OK)
+						log::message(log::level::info, "AVIF: RGB image configured - format: %d, depth: %d, width: %d, height: %d, rowBytes: %d",
+							rgb.format, rgb.depth, rgb.width, rgb.height, rgb.rowBytes);
+
+						avifResult rgbToYuvResult = avifImageRGBToYUV(image, &rgb);
+						if (rgbToYuvResult == AVIF_RESULT_OK)
 						{
+							log::message(log::level::info, "AVIF: RGB to YUV conversion successful");
+
 							avifEncoder *encoder = avifEncoderCreate();
 							if (encoder != nullptr)
 							{
+								log::message(log::level::info, "AVIF: Encoder created successfully");
+
 								encoder->maxThreads = 1;
 								encoder->minQuantizer = AVIF_QUANTIZER_BEST_QUALITY;
 								encoder->maxQuantizer = AVIF_QUANTIZER_WORST_QUALITY;
@@ -4577,17 +4589,54 @@ void reshade::runtime::save_texture(const texture &tex)
 								encoder->minQuantizerAlpha = quantizer;
 								encoder->maxQuantizerAlpha = quantizer;
 
+								log::message(log::level::info, "AVIF: Encoder configured - quality: %d, quantizer: %d", _screenshot_avif_quality, quantizer);
+
 								avifRWData output = AVIF_DATA_EMPTY;
-								if (avifEncoderWrite(encoder, image, &output) == AVIF_RESULT_OK)
+								avifResult encodeResult = avifEncoderWrite(encoder, image, &output);
+								if (encodeResult == AVIF_RESULT_OK)
 								{
-									save_success = fwrite(output.data, 1, output.size, file) == output.size;
+									log::message(log::level::info, "AVIF: Encoding successful, output size: %zu bytes", output.size);
+
+									size_t bytesWritten = fwrite(output.data, 1, output.size, file);
+									save_success = bytesWritten == output.size;
+
+									if (save_success)
+									{
+										log::message(log::level::info, "AVIF: File write successful, wrote %zu bytes", bytesWritten);
+									}
+									else
+									{
+										log::message(log::level::error, "AVIF: File write failed - expected %zu bytes, wrote %zu bytes", output.size, bytesWritten);
+									}
 								}
+								else
+								{
+									log::message(log::level::error, "AVIF: Encoding failed with result: %d", encodeResult);
+								}
+
 								avifRWDataFree(&output);
 								avifEncoderDestroy(encoder);
+								log::message(log::level::info, "AVIF: Encoder destroyed");
+							}
+							else
+							{
+								log::message(log::level::error, "AVIF: Failed to create encoder");
 							}
 						}
+						else
+						{
+							log::message(log::level::error, "AVIF: RGB to YUV conversion failed with result: %d", rgbToYuvResult);
+						}
+
 						avifImageDestroy(image);
+						log::message(log::level::info, "AVIF: Image destroyed");
 					}
+					else
+					{
+						log::message(log::level::error, "AVIF: Failed to create image");
+					}
+
+					log::message(log::level::info, "AVIF: Encoding process completed, success: %s", save_success ? "true" : "false");
 				}
 				break;
 			}
@@ -5134,11 +5183,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format);
 					break;
 				case 4:
-					// AVIF encoding (format 4)
+					// AVIF encoding (format 4) - Main screenshot path
 					{
+						log::message(log::level::info, "AVIF: Starting main screenshot encoding for %dx%d image with quality %d", _width, _height, _screenshot_avif_quality);
+
 						avifImage *image = avifImageCreate(_width, _height, 8, AVIF_PIXEL_FORMAT_YUV444);
 						if (image != nullptr)
 						{
+							log::message(log::level::info, "AVIF: Main screenshot image created successfully");
+
 							avifRGBImage rgb;
 							avifRGBImageSetDefaults(&rgb, image);
 							rgb.format = AVIF_RGB_FORMAT_RGBA;
@@ -5148,11 +5201,19 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 							rgb.rowBytes = _width * 4;
 							rgb.pixels = pixels.data();
 
-							if (avifImageRGBToYUV(image, &rgb) == AVIF_RESULT_OK)
+							log::message(log::level::info, "AVIF: Main screenshot RGB image configured - format: %d, depth: %d, width: %d, height: %d, rowBytes: %d",
+								rgb.format, rgb.depth, rgb.width, rgb.height, rgb.rowBytes);
+
+							avifResult rgbToYuvResult = avifImageRGBToYUV(image, &rgb);
+							if (rgbToYuvResult == AVIF_RESULT_OK)
 							{
+								log::message(log::level::info, "AVIF: Main screenshot RGB to YUV conversion successful");
+
 								avifEncoder *encoder = avifEncoderCreate();
 								if (encoder != nullptr)
 								{
+									log::message(log::level::info, "AVIF: Main screenshot encoder created successfully");
+
 									encoder->maxThreads = 1;
 									encoder->minQuantizer = AVIF_QUANTIZER_BEST_QUALITY;
 									encoder->maxQuantizer = AVIF_QUANTIZER_WORST_QUALITY;
@@ -5161,22 +5222,59 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 
 									// Convert quality (1-100) to quantizer (0-63, lower is better quality)
 									int quantizer = 63 - ((_screenshot_avif_quality - 1) * 63 / 99);
-									encoder->minQuantizer = quantizer;
-									encoder->maxQuantizer = quantizer;
-									encoder->minQuantizerAlpha = quantizer;
-									encoder->maxQuantizerAlpha = quantizer;
+								//	encoder->minQuantizer = quantizer;
+								//	encoder->maxQuantizer = quantizer;
+								//	encoder->minQuantizerAlpha = quantizer;
+								//	encoder->maxQuantizerAlpha = quantizer;
+
+									log::message(log::level::info, "AVIF: Main screenshot encoder configured - quality: %d, quantizer: %d", _screenshot_avif_quality, quantizer);
 
 									avifRWData output = AVIF_DATA_EMPTY;
-									if (avifEncoderWrite(encoder, image, &output) == AVIF_RESULT_OK)
+									avifResult encodeResult = avifEncoderWrite(encoder, image, &output);
+									if (encodeResult == AVIF_RESULT_OK)
 									{
-										save_success = fwrite(output.data, 1, output.size, file) == output.size;
+										log::message(log::level::info, "AVIF: Main screenshot encoding successful, output size: %zu bytes", output.size);
+
+										size_t bytesWritten = fwrite(output.data, 1, output.size, file);
+										save_success = bytesWritten == output.size;
+
+										if (save_success)
+										{
+											log::message(log::level::info, "AVIF: Main screenshot file write successful, wrote %zu bytes", bytesWritten);
+										}
+										else
+										{
+											log::message(log::level::error, "AVIF: Main screenshot file write failed - expected %zu bytes, wrote %zu bytes", output.size, bytesWritten);
+										}
 									}
+									else
+									{
+										log::message(log::level::error, "AVIF: Main screenshot encoding failed with result: %d", encodeResult);
+									}
+
 									avifRWDataFree(&output);
 									avifEncoderDestroy(encoder);
+									log::message(log::level::info, "AVIF: Main screenshot encoder destroyed");
+								}
+								else
+								{
+									log::message(log::level::error, "AVIF: Main screenshot failed to create encoder");
 								}
 							}
+							else
+							{
+								log::message(log::level::error, "AVIF: Main screenshot RGB to YUV conversion failed with result: %d", rgbToYuvResult);
+							}
+
 							avifImageDestroy(image);
+							log::message(log::level::info, "AVIF: Main screenshot image destroyed");
 						}
+						else
+						{
+							log::message(log::level::error, "AVIF: Main screenshot failed to create image");
+						}
+
+						log::message(log::level::info, "AVIF: Main screenshot encoding process completed, success: %s", save_success ? "true" : "false");
 					}
 					break;
 				}
