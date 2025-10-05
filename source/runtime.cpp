@@ -35,6 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
+#include <avif/avif.h>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -957,6 +958,7 @@ void reshade::runtime::load_config()
 	config_get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config_get("SCREENSHOT", "FileNaming", _screenshot_name);
 	config_get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+	config_get("SCREENSHOT", "AVIFQuality", _screenshot_avif_quality);
 	config_get("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config_get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config_get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
@@ -1022,6 +1024,7 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
+	config.set("SCREENSHOT", "AVIFQuality", _screenshot_avif_quality);
 	config.set("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
@@ -4501,7 +4504,7 @@ void reshade::runtime::save_texture(const texture &tex)
 	}
 
 	std::string filename = tex.unique_name;
-	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 2 ? ".jpg" : ".png");
+	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : _screenshot_format == 2 ? ".jpg" : _screenshot_format == 3 ? ".png" : ".avif");
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
@@ -4537,9 +4540,59 @@ void reshade::runtime::save_texture(const texture &tex)
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
-				}
+				case 3:
+					// HDR PNG encoding
+					save_success = stbi_write_png_to_func(write_callback, file, width, height, 4, pixels.data(), width * 4) != 0;
+					break;
+			case 4:
+				// AVIF encoding (format 4)
+				{
+					avifImage *image = avifImageCreate(width, height, 8, AVIF_PIXEL_FORMAT_YUV444);
+					if (image != nullptr)
+					{
+						avifRGBImage rgb;
+						avifRGBImageSetDefaults(&rgb, image);
+						rgb.format = AVIF_RGB_FORMAT_RGBA;
+						rgb.depth = 8;
+						rgb.width = width;
+						rgb.height = height;
+						rgb.rowBytes = width * 4;
+						rgb.pixels = pixels.data();
 
-				if (ferror(file))
+						if (avifImageRGBToYUV(image, &rgb) == AVIF_RESULT_OK)
+						{
+							avifEncoder *encoder = avifEncoderCreate();
+							if (encoder != nullptr)
+							{
+								encoder->maxThreads = 1;
+								encoder->minQuantizer = AVIF_QUANTIZER_BEST_QUALITY;
+								encoder->maxQuantizer = AVIF_QUANTIZER_WORST_QUALITY;
+								encoder->minQuantizerAlpha = AVIF_QUANTIZER_BEST_QUALITY;
+								encoder->maxQuantizerAlpha = AVIF_QUANTIZER_WORST_QUALITY;
+
+								// Convert quality (1-100) to quantizer (0-63, lower is better quality)
+								int quantizer = 63 - ((_screenshot_avif_quality - 1) * 63 / 99);
+								encoder->minQuantizer = quantizer;
+								encoder->maxQuantizer = quantizer;
+								encoder->minQuantizerAlpha = quantizer;
+								encoder->maxQuantizerAlpha = quantizer;
+
+								avifRWData output = AVIF_DATA_EMPTY;
+								if (avifEncoderWrite(encoder, image, &output) == AVIF_RESULT_OK)
+								{
+									save_success = fwrite(output.data, 1, output.size, file) == output.size;
+								}
+								avifRWDataFree(&output);
+								avifEncoderDestroy(encoder);
+							}
+						}
+						avifImageDestroy(image);
+					}
+				}
+				break;
+			}
+
+			if (ferror(file))
 					save_success = false;
 
 				fclose(file);
@@ -5013,7 +5066,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		screenshot_name += postfix;
 	}
 
-	screenshot_name += (screenshot_format == 0 ? ".bmp" : screenshot_format == 2 ? ".jpg" : ".png");
+	screenshot_name += (screenshot_format == 0 ? ".bmp" : screenshot_format == 1 ? ".png" : screenshot_format == 2 ? ".jpg" : screenshot_format == 3 ? ".png" : ".avif");
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name).lexically_normal();
 
@@ -5079,6 +5132,52 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				// Implicit HDR PNG when running in HDR
 				case 3:
 					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format);
+					break;
+				case 4:
+					// AVIF encoding (format 4)
+					{
+						avifImage *image = avifImageCreate(_width, _height, 8, AVIF_PIXEL_FORMAT_YUV444);
+						if (image != nullptr)
+						{
+							avifRGBImage rgb;
+							avifRGBImageSetDefaults(&rgb, image);
+							rgb.format = AVIF_RGB_FORMAT_RGBA;
+							rgb.depth = 8;
+							rgb.width = _width;
+							rgb.height = _height;
+							rgb.rowBytes = _width * 4;
+							rgb.pixels = pixels.data();
+
+							if (avifImageRGBToYUV(image, &rgb) == AVIF_RESULT_OK)
+							{
+								avifEncoder *encoder = avifEncoderCreate();
+								if (encoder != nullptr)
+								{
+									encoder->maxThreads = 1;
+									encoder->minQuantizer = AVIF_QUANTIZER_BEST_QUALITY;
+									encoder->maxQuantizer = AVIF_QUANTIZER_WORST_QUALITY;
+									encoder->minQuantizerAlpha = AVIF_QUANTIZER_BEST_QUALITY;
+									encoder->maxQuantizerAlpha = AVIF_QUANTIZER_WORST_QUALITY;
+
+									// Convert quality (1-100) to quantizer (0-63, lower is better quality)
+									int quantizer = 63 - ((_screenshot_avif_quality - 1) * 63 / 99);
+									encoder->minQuantizer = quantizer;
+									encoder->maxQuantizer = quantizer;
+									encoder->minQuantizerAlpha = quantizer;
+									encoder->maxQuantizerAlpha = quantizer;
+
+									avifRWData output = AVIF_DATA_EMPTY;
+									if (avifEncoderWrite(encoder, image, &output) == AVIF_RESULT_OK)
+									{
+										save_success = fwrite(output.data, 1, output.size, file) == output.size;
+									}
+									avifRWDataFree(&output);
+									avifEncoderDestroy(encoder);
+								}
+							}
+							avifImageDestroy(image);
+						}
+					}
 					break;
 				}
 

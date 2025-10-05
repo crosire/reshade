@@ -2134,10 +2134,14 @@ void reshade::runtime::draw_gui_settings()
 		}
 		else
 		{
-			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
+			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0HDR PNG (*.png)\0AVIF (*.avif)\0");
 
 			if (_screenshot_format == 2)
 				modified |= ImGui::SliderInt(_("JPEG quality"), reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
+			else if (_screenshot_format == 3)
+				modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
+			else if (_screenshot_format == 4)
+				modified |= ImGui::SliderInt(_("AVIF quality"), reinterpret_cast<int *>(&_screenshot_avif_quality), 0, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
 			else
 				modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
 		}
@@ -2164,7 +2168,7 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
-			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg";
+			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : _screenshot_format == 2 ? ".jpg" : _screenshot_format == 3 ? ".png" : ".avif";
 
 			ImGui::SetTooltip(_(
 				"Macros you can add that are resolved during command execution:\n"
@@ -5065,3 +5069,4 @@ bool reshade::runtime::open_overlay(bool open, api::input_source source)
 }
 
 #endif
+
