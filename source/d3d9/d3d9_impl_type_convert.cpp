@@ -377,6 +377,7 @@ void reshade::d3d9::convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memor
 		heap = api::memory_heap::gpu_only;
 		break;
 	case D3DPOOL_MANAGED:
+	case D3DPOOL_MANAGED_EX:
 		heap = api::memory_heap::unknown;
 		break;
 	case D3DPOOL_SYSTEMMEM:
@@ -488,7 +489,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 
 	assert(desc.texture.samples == 1);
 
-	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	if (internal_desc.Pool != D3DPOOL_MANAGED && internal_desc.Pool != D3DPOOL_MANAGED_EX)
 	{
 		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 		// Volume textures cannot have render target or depth-stencil usage, so do not call 'convert_resource_usage_to_d3d_usage'
@@ -541,7 +542,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 		internal_desc.MultiSampleQuality = 0;
 	}
 
-	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	if (internal_desc.Pool != D3DPOOL_MANAGED && internal_desc.Pool != D3DPOOL_MANAGED_EX)
 	{
 		convert_memory_heap_to_d3d_pool(desc.heap, internal_desc.Pool);
 		// System memory textures cannot have render target or depth-stencil usage
@@ -604,7 +605,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 
 	assert((desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer)) == api::resource_usage::index_buffer);
 
-	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	if (internal_desc.Pool != D3DPOOL_MANAGED && internal_desc.Pool != D3DPOOL_MANAGED_EX)
 	{
 		if (desc.heap == api::memory_heap::gpu_to_cpu)
 		{
@@ -639,7 +640,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 
 	assert((desc.usage & (api::resource_usage::vertex_buffer | api::resource_usage::index_buffer)) == api::resource_usage::vertex_buffer);
 
-	if (internal_desc.Pool != D3DPOOL_MANAGED)
+	if (internal_desc.Pool != D3DPOOL_MANAGED && internal_desc.Pool != D3DPOOL_MANAGED_EX)
 	{
 		if (desc.heap == api::memory_heap::gpu_to_cpu)
 		{
@@ -717,7 +718,7 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 		desc.heap = api::memory_heap::cpu_to_gpu;
 
 	convert_d3d_usage_to_resource_usage(internal_desc.Usage, desc.usage);
-	if ((internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE) && (internal_desc.Pool == D3DPOOL_DEFAULT || internal_desc.Pool == D3DPOOL_MANAGED || (internal_desc.Pool == D3DPOOL_SYSTEMMEM && (caps.DevCaps & D3DDEVCAPS_TEXTURESYSTEMMEMORY) != 0)))
+	if ((internal_desc.Type == D3DRTYPE_TEXTURE || internal_desc.Type == D3DRTYPE_CUBETEXTURE) && (internal_desc.Pool == D3DPOOL_DEFAULT || internal_desc.Pool == D3DPOOL_MANAGED || internal_desc.Pool == D3DPOOL_MANAGED_EX || (internal_desc.Pool == D3DPOOL_SYSTEMMEM && (caps.DevCaps & D3DDEVCAPS_TEXTURESYSTEMMEMORY) != 0)))
 	{
 		switch (static_cast<DWORD>(internal_desc.Format))
 		{

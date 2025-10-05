@@ -683,7 +683,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				}
 			}
 
-			assert(dst_desc.Pool == D3DPOOL_DEFAULT && (src_desc.Pool == D3DPOOL_DEFAULT || src_desc.Pool == D3DPOOL_MANAGED));
+			assert(dst_desc.Pool == D3DPOOL_DEFAULT && (src_desc.Pool == D3DPOOL_DEFAULT || src_desc.Pool == D3DPOOL_MANAGED || src_desc.Pool == D3DPOOL_MANAGED_EX));
 
 			if (_copy_state == nullptr)
 				return;
