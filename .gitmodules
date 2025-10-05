@@ -30,3 +30,6 @@
 [submodule "openxr"]
 	path = deps/openxr
 	url = https://github.com/KhronosGroup/OpenXR-SDK.git
+[submodule "libavif"]
+	path = deps/libavif
+	url = https://github.com/AOMediaCodec/libavif.git
