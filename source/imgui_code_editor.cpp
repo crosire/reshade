@@ -2058,6 +2058,15 @@ void reshade::imgui::code_editor::colorize()
 		case reshadefx::tokenid::min16int2:
 		case reshadefx::tokenid::min16int3:
 		case reshadefx::tokenid::min16int4:
+		case reshadefx::tokenid::min16int2x2:
+		case reshadefx::tokenid::min16int2x3:
+		case reshadefx::tokenid::min16int2x4:
+		case reshadefx::tokenid::min16int3x2:
+		case reshadefx::tokenid::min16int3x3:
+		case reshadefx::tokenid::min16int3x4:
+		case reshadefx::tokenid::min16int4x2:
+		case reshadefx::tokenid::min16int4x3:
+		case reshadefx::tokenid::min16int4x4:
 		case reshadefx::tokenid::uint_:
 		case reshadefx::tokenid::uint2:
 		case reshadefx::tokenid::uint3:
@@ -2075,6 +2084,15 @@ void reshade::imgui::code_editor::colorize()
 		case reshadefx::tokenid::min16uint2:
 		case reshadefx::tokenid::min16uint3:
 		case reshadefx::tokenid::min16uint4:
+		case reshadefx::tokenid::min16uint2x2:
+		case reshadefx::tokenid::min16uint2x3:
+		case reshadefx::tokenid::min16uint2x4:
+		case reshadefx::tokenid::min16uint3x2:
+		case reshadefx::tokenid::min16uint3x3:
+		case reshadefx::tokenid::min16uint3x4:
+		case reshadefx::tokenid::min16uint4x2:
+		case reshadefx::tokenid::min16uint4x3:
+		case reshadefx::tokenid::min16uint4x4:
 		case reshadefx::tokenid::float_:
 		case reshadefx::tokenid::float2:
 		case reshadefx::tokenid::float3:
@@ -2092,6 +2110,15 @@ void reshade::imgui::code_editor::colorize()
 		case reshadefx::tokenid::min16float2:
 		case reshadefx::tokenid::min16float3:
 		case reshadefx::tokenid::min16float4:
+		case reshadefx::tokenid::min16float2x2:
+		case reshadefx::tokenid::min16float2x3:
+		case reshadefx::tokenid::min16float2x4:
+		case reshadefx::tokenid::min16float3x2:
+		case reshadefx::tokenid::min16float3x3:
+		case reshadefx::tokenid::min16float3x4:
+		case reshadefx::tokenid::min16float4x2:
+		case reshadefx::tokenid::min16float4x3:
+		case reshadefx::tokenid::min16float4x4:
 		case reshadefx::tokenid::vector:
 		case reshadefx::tokenid::matrix:
 		case reshadefx::tokenid::string_:
