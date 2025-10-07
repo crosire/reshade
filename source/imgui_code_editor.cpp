@@ -634,14 +634,22 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 				ImGui::SetKeyboardFocusHere(-1); // Focus replace text box again after entering a value
 
 				if (find_and_scroll_to_text(_search_text, false, true))
+				{
+					delete_selection();
 					insert_text(_replace_text);
+				}
 			}
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine(0.0f, button_spacing * 2 + button_size + 5);
 			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_R)))
+			{
 				if (find_and_scroll_to_text(_search_text, false, true))
+				{
+					delete_selection();
 					insert_text(_replace_text);
+				}
+			}
 			ImGui::SetItemTooltip("Replace next (Alt + R)");
 
 			ImGui::SameLine(0.0f, button_spacing);
@@ -650,7 +658,10 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 				// Reset select position so that replace stats at document begin
 				_select_beg = text_pos();
 				while (find_and_scroll_to_text(_search_text, false, true))
+				{
+					delete_selection();
 					insert_text(_replace_text);
+				}
 			}
 			ImGui::SetItemTooltip("Replace all (Alt + A)");
 		}
