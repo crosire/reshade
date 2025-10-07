@@ -219,24 +219,51 @@ private:
 		if (loc.source.empty() || !_debug_info)
 			return;
 
-		spv::Id file;
+		spv::Id source_id;
 
 		if (const auto it = _string_lookup.find(loc.source);
 			it != _string_lookup.end())
 		{
-			file = it->second;
+			source_id = it->second;
 		}
 		else
 		{
-			file =
+			source_id =
 				add_instruction(spv::OpString, 0, _debug_a)
 					.add_string(loc.source.c_str());
-			_string_lookup.emplace(loc.source, file);
+
+#ifndef NDEBUG
+			// Embed source in the SPIR-V container so that profiling tools like NVIDIA Nsight Graphics show source mapping
+#ifndef _WIN32
+			FILE *const file = fopen(loc.source.c_str(), "rb");
+#else
+			FILE *const file = _fsopen(loc.source.c_str(), "rb", SH_DENYWR);
+#endif
+			if (file != nullptr)
+			{
+				fseek(file, 0, SEEK_END);
+				const size_t file_size = ftell(file);
+				fseek(file, 0, SEEK_SET);
+
+				std::string file_data(file_size, '\0');
+				fread(file_data.data(), 1, file_size, file);
+
+				add_instruction_without_result(spv::OpSource, _debug_a)
+					.add(spv::SourceLanguageHLSL)
+					.add(0)
+					.add(source_id)
+					.add_string(file_data.c_str());
+
+				fclose(file);
+			}
+#endif
+
+			_string_lookup.emplace(loc.source, source_id);
 		}
 
 		// https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html#OpLine
 		add_instruction_without_result(spv::OpLine, block)
-			.add(file)
+			.add(source_id)
 			.add(loc.line)
 			.add(loc.column);
 	}
