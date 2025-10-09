@@ -2,21 +2,341 @@
 	<project>
 		<font name="forkawesome-webfont.ttf">
 			<glyphs>
+				<glyph orgId="61441" newId="61441" orgName="music" newName="music"/>
 				<glyph orgId="61442" newId="61442" orgName="search" newName="search"/>
+				<glyph orgId="61443" newId="61443" orgName="envelope-o" newName="envelope"/>
+				<glyph orgId="61444" newId="61444" orgName="heart" newName="heart"/>
+				<glyph orgId="61445" newId="61445" orgName="star" newName="star"/>
+				<glyph orgId="61446" newId="61446" orgName="star-o" newName="star_empty"/>
+				<glyph orgId="61447" newId="61447" orgName="user" newName="user"/>
+				<glyph orgId="61448" newId="61448" orgName="film" newName="film"/>
+				<glyph orgId="61449" newId="61449" orgName="th-large" newName="th_large"/>
+				<glyph orgId="61450" newId="61450" orgName="th" newName="th"/>
+				<glyph orgId="61451" newId="61451" orgName="th-list" newName="th_list"/>
 				<glyph orgId="61452" newId="61452" orgName="check" newName="ok"/>
 				<glyph orgId="61453" newId="61453" orgName="times" newName="cancel"/>
+				<glyph orgId="61454" newId="61454" orgName="search-plus" newName="search_plus"/>
+				<glyph orgId="61456" newId="61456" orgName="search-minus" newName="search_minus"/>
+				<glyph orgId="61457" newId="61457" orgName="power-off" newName="off"/>
+				<glyph orgId="61458" newId="61458" orgName="signal" newName="signal"/>
+				<glyph orgId="61459" newId="61459" orgName="cog" newName="cog"/>
+				<glyph orgId="61460" newId="61460" orgName="trash-o" newName="trash_alt"/>
+				<glyph orgId="61461" newId="61461" orgName="home" newName="home"/>
 				<glyph orgId="61462" newId="61462" orgName="file-o" newName="file"/>
+				<glyph orgId="61463" newId="61463" orgName="clock-o" newName="clock"/>
+				<glyph orgId="61464" newId="61464" orgName="road" newName="road"/>
+				<glyph orgId="61465" newId="61465" orgName="download" newName="download"/>
+				<glyph orgId="61468" newId="61468" orgName="inbox" newName="inbox"/>
+				<glyph orgId="61470" newId="61470" orgName="repeat" newName="repeat"/>
 				<glyph orgId="61473" newId="61473" orgName="refresh" newName="refresh"/>
+				<glyph orgId="61474" newId="61474" orgName="list-alt" newName="list_alt"/>
+				<glyph orgId="61475" newId="61475" orgName="lock" newName="lock"/>
+				<glyph orgId="61476" newId="61476" orgName="flag" newName="flag"/>
+				<glyph orgId="61477" newId="61477" orgName="headphones" newName="headphones"/>
+				<glyph orgId="61478" newId="61478" orgName="volume-off" newName="volume_off"/>
+				<glyph orgId="61479" newId="61479" orgName="volume-down" newName="volume_down"/>
+				<glyph orgId="61480" newId="61480" orgName="volume-up" newName="volume_up"/>
+				<glyph orgId="61481" newId="61481" orgName="qrcode" newName="qrcode"/>
+				<glyph orgId="61482" newId="61482" orgName="barcode" newName="barcode"/>
+				<glyph orgId="61483" newId="61483" orgName="tag" newName="tag"/>
+				<glyph orgId="61484" newId="61484" orgName="tags" newName="tags"/>
+				<glyph orgId="61485" newId="61485" orgName="book" newName="book"/>
+				<glyph orgId="61487" newId="61487" orgName="print" newName="print"/>
+				<glyph orgId="61488" newId="61488" orgName="camera" newName="camera"/>
+				<glyph orgId="61489" newId="61489" orgName="font" newName="font"/>
+				<glyph orgId="61490" newId="61490" orgName="bold" newName="bold"/>
+				<glyph orgId="61491" newId="61491" orgName="italic" newName="italic"/>
+				<glyph orgId="61494" newId="61494" orgName="align-left" newName="align_left"/>
+				<glyph orgId="61495" newId="61495" orgName="align-center" newName="align_center"/>
+				<glyph orgId="61496" newId="61496" orgName="align-right" newName="align_right"/>
+				<glyph orgId="61497" newId="61497" orgName="align-justify" newName="align_justify"/>
+				<glyph orgId="61498" newId="61498" orgName="list" newName="list"/>
+				<glyph orgId="61499" newId="61499" orgName="outdent" newName="indent_left"/>
+				<glyph orgId="61500" newId="61500" orgName="indent" newName="indent_right"/>
+				<glyph orgId="61501" newId="61501" orgName="video-camera" newName="video_camera"/>
+				<glyph orgId="61502" newId="61502" orgName="picture-o" newName="picture"/>
 				<glyph orgId="61504" newId="61504" orgName="pencil" newName="pencil"/>
+				<glyph orgId="61505" newId="61505" orgName="map-marker" newName="map_marker"/>
+				<glyph orgId="61506" newId="61506" orgName="adjust" newName="adjust"/>
+				<glyph orgId="61507" newId="61507" orgName="tint" newName="tint"/>
+				<glyph orgId="61511" newId="61511" orgName="arrows" newName="move"/>
+				<glyph orgId="61512" newId="61512" orgName="step-backward" newName="step_backward"/>
+				<glyph orgId="61513" newId="61513" orgName="fast-backward" newName="fast_backward"/>
+				<glyph orgId="61514" newId="61514" orgName="backward" newName="backward"/>
+				<glyph orgId="61515" newId="61515" orgName="play" newName="play"/>
+				<glyph orgId="61516" newId="61516" orgName="pause" newName="pause"/>
+				<glyph orgId="61517" newId="61517" orgName="stop" newName="stop"/>
+				<glyph orgId="61518" newId="61518" orgName="forward" newName="forward"/>
+				<glyph orgId="61520" newId="61520" orgName="fast-forward" newName="fast_forward"/>
+				<glyph orgId="61521" newId="61521" orgName="step-forward" newName="step_forward"/>
+				<glyph orgId="61522" newId="61522" orgName="eject" newName="eject"/>
+				<glyph orgId="61523" newId="61523" orgName="chevron-left" newName="chevron_left"/>
+				<glyph orgId="61524" newId="61524" orgName="chevron-right" newName="chevron_right"/>
+				<glyph orgId="61525" newId="61525" orgName="plus-circle" newName="plus_circle"/>
+				<glyph orgId="61526" newId="61526" orgName="minus-circle" newName="minus_circle"/>
+				<glyph orgId="61527" newId="61527" orgName="times-circle" newName="cancel_circle"/>
+				<glyph orgId="61528" newId="61528" orgName="check-circle" newName="ok_circle"/>
+				<glyph orgId="61529" newId="61529" orgName="question-circle" newName="question_circle"/>
+				<glyph orgId="61530" newId="61530" orgName="info-circle" newName="info_circle"/>
+				<glyph orgId="61531" newId="61531" orgName="crosshairs" newName="crosshairs"/>
+				<glyph orgId="61534" newId="61534" orgName="ban" newName="ban"/>
+				<glyph orgId="61536" newId="61536" orgName="arrow-left" newName="arrow_left"/>
+				<glyph orgId="61537" newId="61537" orgName="arrow-right" newName="arrow_right"/>
+				<glyph orgId="61538" newId="61538" orgName="arrow-up" newName="arrow_up"/>
+				<glyph orgId="61539" newId="61539" orgName="arrow-down" newName="arrow_down"/>
+				<glyph orgId="61540" newId="61540" orgName="share" newName="share"/>
+				<glyph orgId="61541" newId="61541" orgName="expand" newName="resize_expand"/>
+				<glyph orgId="61542" newId="61542" orgName="compress" newName="resize_compress"/>
 				<glyph orgId="61543" newId="61543" orgName="plus" newName="plus"/>
 				<glyph orgId="61544" newId="61544" orgName="minus" newName="minus"/>
+				<glyph orgId="61545" newId="61545" orgName="asterisk" newName="asterisk"/>
+				<glyph orgId="61546" newId="61546" orgName="exclamation-circle" newName="exclamation_circle"/>
+				<glyph orgId="61547" newId="61547" orgName="gift" newName="gift"/>
+				<glyph orgId="61548" newId="61548" orgName="leaf" newName="leaf"/>
+				<glyph orgId="61549" newId="61549" orgName="fire" newName="fire"/>
+				<glyph orgId="61550" newId="61550" orgName="eye" newName="eye"/>
+				<glyph orgId="61552" newId="61552" orgName="eye-slash" newName="eye_slash"/>
 				<glyph orgId="61553" newId="61553" orgName="exclamation-triangle" newName="warning"/>
+				<glyph orgId="61554" newId="61554" orgName="plane" newName="plane"/>
+				<glyph orgId="61555" newId="61555" orgName="calendar" newName="calendar"/>
+				<glyph orgId="61556" newId="61556" orgName="random" newName="random"/>
+				<glyph orgId="61557" newId="61557" orgName="comment" newName="comment"/>
+				<glyph orgId="61558" newId="61558" orgName="magnet" newName="magnet"/>
+				<glyph orgId="61559" newId="61559" orgName="chevron-up" newName="chevron_up"/>
+				<glyph orgId="61560" newId="61560" orgName="chevron-down" newName="chevron_down"/>
+				<glyph orgId="61561" newId="61561" orgName="retweet" newName="retweet"/>
+				<glyph orgId="61562" newId="61562" orgName="shopping-cart" newName="shopping_cart"/>
+				<glyph orgId="61565" newId="61565" orgName="arrows-v" newName="resize_vertical"/>
+				<glyph orgId="61566" newId="61566" orgName="arrows-h" newName="resize_horizontal"/>
+				<glyph orgId="61568" newId="61568" orgName="bar-chart" newName="chart_bar"/>
+				<glyph orgId="61571" newId="61571" orgName="camera-retro" newName="camera_retro"/>
+				<glyph orgId="61572" newId="61572" orgName="key" newName="key"/>
+				<glyph orgId="61573" newId="61573" orgName="cogs" newName="cogs"/>
+				<glyph orgId="61574" newId="61574" orgName="comments" newName="comments"/>
+				<glyph orgId="61575" newId="61575" orgName="thumbs-o-up" newName="thumbs_up"/>
+				<glyph orgId="61576" newId="61576" orgName="thumbs-o-down" newName="thumbs_down"/>
+				<glyph orgId="61578" newId="61578" orgName="heart-o" newName="heart_empty"/>
+				<glyph orgId="61579" newId="61579" orgName="sign-out" newName="sign_out"/>
+				<glyph orgId="61581" newId="61581" orgName="thumb-tack" newName="pushpin"/>
+				<glyph orgId="61582" newId="61582" orgName="external-link" newName="external_link"/>
+				<glyph orgId="61584" newId="61584" orgName="sign-in" newName="sign_in"/>
+				<glyph orgId="61585" newId="61585" orgName="trophy" newName="trophy"/>
+				<glyph orgId="61587" newId="61587" orgName="upload" newName="upload"/>
+				<glyph orgId="61590" newId="61590" orgName="square-o" newName="square_empty"/>
+				<glyph orgId="61591" newId="61591" orgName="bookmark-o" newName="bookmark"/>
+				<glyph orgId="61595" newId="61595" orgName="github" newName="github"/>
+				<glyph orgId="61596" newId="61596" orgName="unlock" newName="unlock"/>
+				<glyph orgId="61598" newId="61598" orgName="rss" newName="rss"/>
+				<glyph orgId="61600" newId="61600" orgName="hdd-o" newName="hdd"/>
+				<glyph orgId="61601" newId="61601" orgName="bullhorn" newName="bullhorn"/>
+				<glyph orgId="61603" newId="61603" orgName="certificate" newName="certificate"/>
+				<glyph orgId="61604" newId="61604" orgName="hand-o-right" newName="hand_right"/>
+				<glyph orgId="61605" newId="61605" orgName="hand-o-left" newName="hand_left"/>
+				<glyph orgId="61606" newId="61606" orgName="hand-o-up" newName="hand_up"/>
+				<glyph orgId="61607" newId="61607" orgName="hand-o-down" newName="hand_down"/>
+				<glyph orgId="61608" newId="61608" orgName="arrow-circle-left" newName="arrow_circle_left"/>
+				<glyph orgId="61609" newId="61609" orgName="arrow-circle-right" newName="arrow_circle_right"/>
+				<glyph orgId="61610" newId="61610" orgName="arrow-circle-up" newName="arrow_circle_up"/>
+				<glyph orgId="61611" newId="61611" orgName="arrow-circle-down" newName="arrow_circle_down"/>
+				<glyph orgId="61612" newId="61612" orgName="globe" newName="globe"/>
+				<glyph orgId="61613" newId="61613" orgName="wrench" newName="wrench"/>
+				<glyph orgId="61614" newId="61614" orgName="tasks" newName="tasks"/>
+				<glyph orgId="61616" newId="61616" orgName="filter" newName="filter"/>
+				<glyph orgId="61617" newId="61617" orgName="briefcase" newName="briefcase"/>
+				<glyph orgId="61618" newId="61618" orgName="arrows-alt" newName="fullscreen"/>
+				<glyph orgId="61632" newId="61632" orgName="users" newName="users"/>
+				<glyph orgId="61633" newId="61633" orgName="link" newName="link"/>
+				<glyph orgId="61634" newId="61634" orgName="cloud" newName="cloud"/>
+				<glyph orgId="61635" newId="61635" orgName="flask" newName="flask"/>
+				<glyph orgId="61636" newId="61636" orgName="scissors" newName="cut"/>
+				<glyph orgId="61637" newId="61637" orgName="files-o" newName="copy"/>
+				<glyph orgId="61638" newId="61638" orgName="paperclip" newName="paper_clip"/>
 				<glyph orgId="61639" newId="61639" orgName="floppy-o" newName="floppy"/>
+				<glyph orgId="61640" newId="61640" orgName="square" newName="square"/>
+				<glyph orgId="61641" newId="61641" orgName="bars" newName="bars"/>
+				<glyph orgId="61642" newId="61642" orgName="list-ul" newName="list_ul"/>
+				<glyph orgId="61643" newId="61643" orgName="list-ol" newName="list_ol"/>
+				<glyph orgId="61644" newId="61644" orgName="strikethrough" newName="strikethrough"/>
+				<glyph orgId="61645" newId="61645" orgName="underline" newName="underline"/>
+				<glyph orgId="61646" newId="61646" orgName="table" newName="table"/>
+				<glyph orgId="61648" newId="61648" orgName="magic" newName="magic"/>
+				<glyph orgId="61649" newId="61649" orgName="truck" newName="truck"/>
+				<glyph orgId="61655" newId="61655" orgName="caret-down" newName="caret_down"/>
+				<glyph orgId="61656" newId="61656" orgName="caret-up" newName="caret_up"/>
+				<glyph orgId="61657" newId="61657" orgName="caret-left" newName="caret_left"/>
+				<glyph orgId="61658" newId="61658" orgName="caret-right" newName="caret_right"/>
+				<glyph orgId="61659" newId="61659" orgName="columns" newName="columns"/>
+				<glyph orgId="61660" newId="61660" orgName="sort" newName="sort"/>
+				<glyph orgId="61661" newId="61661" orgName="sort-desc" newName="sort_desc"/>
+				<glyph orgId="61662" newId="61662" orgName="sort-asc" newName="sort_asc"/>
 				<glyph orgId="61666" newId="61666" orgName="undo" newName="undo"/>
+				<glyph orgId="61667" newId="61667" orgName="gavel" newName="legal"/>
+				<glyph orgId="61668" newId="61668" orgName="tachometer" newName="dashboard"/>
+				<glyph orgId="61671" newId="61671" orgName="bolt" newName="bolt"/>
+				<glyph orgId="61672" newId="61672" orgName="sitemap" newName="sitemap"/>
+				<glyph orgId="61673" newId="61673" orgName="umbrella" newName="umbrella"/>
+				<glyph orgId="61674" newId="61674" orgName="clipboard" newName="clipboard"/>
+				<glyph orgId="61675" newId="61675" orgName="lightbulb-o" newName="light_bulb"/>
+				<glyph orgId="61676" newId="61676" orgName="exchange" newName="exchange"/>
+				<glyph orgId="61677" newId="61677" orgName="cloud-download" newName="cloud_download"/>
+				<glyph orgId="61678" newId="61678" orgName="cloud-upload" newName="cloud_upload"/>
+				<glyph orgId="61681" newId="61681" orgName="stethoscope" newName="stethoscope"/>
+				<glyph orgId="61682" newId="61682" orgName="suitcase" newName="suitcase"/>
+				<glyph orgId="61683" newId="61683" orgName="bell" newName="bell"/>
+				<glyph orgId="61684" newId="61684" orgName="coffee" newName="coffee"/>
+				<glyph orgId="61685" newId="61685" orgName="cutlery" newName="food"/>
+				<glyph orgId="61686" newId="61686" orgName="file-text-o" newName="file_text"/>
+				<glyph orgId="61687" newId="61687" orgName="building-o" newName="building"/>
+				<glyph orgId="61690" newId="61690" orgName="medkit" newName="medkit"/>
+				<glyph orgId="61692" newId="61692" orgName="beer" newName="beer"/>
+				<glyph orgId="61694" newId="61694" orgName="plus-square" newName="plus_square"/>
+				<glyph orgId="61696" newId="61696" orgName="angle-double-left" newName="angle_double_left"/>
+				<glyph orgId="61697" newId="61697" orgName="angle-double-right" newName="angle_double_right"/>
+				<glyph orgId="61698" newId="61698" orgName="angle-double-up" newName="angle_double_up"/>
+				<glyph orgId="61699" newId="61699" orgName="angle-double-down" newName="angle_double_down"/>
+				<glyph orgId="61700" newId="61700" orgName="angle-left" newName="angle_left"/>
+				<glyph orgId="61701" newId="61701" orgName="angle-right" newName="angle_right"/>
+				<glyph orgId="61702" newId="61702" orgName="angle-up" newName="angle_up"/>
+				<glyph orgId="61703" newId="61703" orgName="angle-down" newName="angle_down"/>
+				<glyph orgId="61704" newId="61704" orgName="desktop" newName="desktop"/>
+				<glyph orgId="61705" newId="61705" orgName="laptop" newName="laptop"/>
+				<glyph orgId="61706" newId="61706" orgName="tablet" newName="tablet"/>
+				<glyph orgId="61707" newId="61707" orgName="mobile" newName="mobile"/>
+				<glyph orgId="61708" newId="61708" orgName="circle-o" newName="circle_empty"/>
+				<glyph orgId="61709" newId="61709" orgName="quote-left" newName="quote_left"/>
+				<glyph orgId="61710" newId="61710" orgName="quote-right" newName="quote_right"/>
+				<glyph orgId="61713" newId="61713" orgName="circle" newName="circle"/>
+				<glyph orgId="61714" newId="61714" orgName="reply" newName="reply"/>
 				<glyph orgId="61716" newId="61716" orgName="folder-o" newName="folder"/>
-				<glyph orgId="61717" newId="61717" orgName="folder-open-o" newName="folder-open"/>
-				<glyph orgId="61893" newId="61893" orgName="file-image-o" newName="file-image"/>
-				<glyph orgId="61897" newId="61897" orgName="file-code-o" newName="file-code"/>
+				<glyph orgId="61717" newId="61717" orgName="folder-open-o" newName="folder_open"/>
+				<glyph orgId="61720" newId="61720" orgName="smile-o" newName="smiley"/>
+				<glyph orgId="61721" newId="61721" orgName="frown-o" newName="smiley_frown"/>
+				<glyph orgId="61722" newId="61722" orgName="meh-o" newName="smiley_meh"/>
+				<glyph orgId="61723" newId="61723" orgName="gamepad" newName="gamepad"/>
+				<glyph orgId="61724" newId="61724" orgName="keyboard-o" newName="keyboard"/>
+				<glyph orgId="61726" newId="61726" orgName="flag-checkered" newName="flag_checkered"/>
+				<glyph orgId="61728" newId="61728" orgName="terminal" newName="terminal"/>
+				<glyph orgId="61729" newId="61729" orgName="code" newName="code"/>
+				<glyph orgId="61730" newId="61730" orgName="reply-all" newName="reply_all"/>
+				<glyph orgId="61731" newId="61731" orgName="star-half-o" newName="star_half"/>
+				<glyph orgId="61732" newId="61732" orgName="location-arrow" newName="location_arrow"/>
+				<glyph orgId="61733" newId="61733" orgName="crop" newName="crop"/>
+				<glyph orgId="61734" newId="61734" orgName="code-fork" newName="code_fork"/>
+				<glyph orgId="61735" newId="61735" orgName="chain-broken" newName="unlink"/>
+				<glyph orgId="61736" newId="61736" orgName="question" newName="question"/>
+				<glyph orgId="61737" newId="61737" orgName="info" newName="info"/>
+				<glyph orgId="61738" newId="61738" orgName="exclamation" newName="exclamation"/>
+				<glyph orgId="61742" newId="61742" orgName="puzzle-piece" newName="puzzle_piece"/>
+				<glyph orgId="61744" newId="61744" orgName="microphone" newName="microphone"/>
+				<glyph orgId="61745" newId="61745" orgName="microphone-slash" newName="microphone_slash"/>
+				<glyph orgId="61746" newId="61746" orgName="shield" newName="shield"/>
+				<glyph orgId="61747" newId="61747" orgName="calendar-o" newName="calendar_empty"/>
+				<glyph orgId="61748" newId="61748" orgName="fire-extinguisher" newName="fire_extinguisher"/>
+				<glyph orgId="61749" newId="61749" orgName="rocket" newName="rocket"/>
+				<glyph orgId="61751" newId="61751" orgName="chevron-circle-left" newName="chevron_circle_left"/>
+				<glyph orgId="61752" newId="61752" orgName="chevron-circle-right" newName="chevron_circle_right"/>
+				<glyph orgId="61753" newId="61753" orgName="chevron-circle-up" newName="chevron_circle_up"/>
+				<glyph orgId="61754" newId="61754" orgName="chevron-circle-down" newName="chevron_circle_down"/>
+				<glyph orgId="61757" newId="61757" orgName="anchor" newName="anchor"/>
+				<glyph orgId="61760" newId="61760" orgName="bullseye" newName="bullseye"/>
+				<glyph orgId="61761" newId="61761" orgName="ellipsis-h" newName="ellipsis_horizontal"/>
+				<glyph orgId="61762" newId="61762" orgName="ellipsis-v" newName="ellipsis_vertical"/>
+				<glyph orgId="61764" newId="61764" orgName="play-circle" newName="play_circle"/>
+				<glyph orgId="61765" newId="61765" orgName="ticket" newName="ticket"/>
+				<glyph orgId="61766" newId="61766" orgName="minus-square" newName="minus_square"/>
+				<glyph orgId="61768" newId="61768" orgName="level-up" newName="level_up"/>
+				<glyph orgId="61769" newId="61769" orgName="level-down" newName="level_down"/>
+				<glyph orgId="61770" newId="61770" orgName="check-square" newName="ok_square"/>
+				<glyph orgId="61771" newId="61771" orgName="pencil-square" newName="pencil_square"/>
+				<glyph orgId="61773" newId="61773" orgName="share-square" newName="share_square"/>
+				<glyph orgId="61774" newId="61774" orgName="compass" newName="compass"/>
+				<glyph orgId="61789" newId="61789" orgName="sort-alpha-asc" newName="sort_alphabet_asc"/>
+				<glyph orgId="61790" newId="61790" orgName="sort-alpha-desc" newName="sort_alphabet_desc"/>
+				<glyph orgId="61792" newId="61792" orgName="sort-amount-asc" newName="sort_amount_asc"/>
+				<glyph orgId="61793" newId="61793" orgName="sort-amount-desc" newName="sort_amount_desc"/>
+				<glyph orgId="61794" newId="61794" orgName="sort-numeric-asc" newName="sort_numeric_asc"/>
+				<glyph orgId="61795" newId="61795" orgName="sort-numeric-desc" newName="sort_numeric_desc"/>
+				<glyph orgId="61813" newId="61813" orgName="long-arrow-down" newName="long_arrow_down"/>
+				<glyph orgId="61814" newId="61814" orgName="long-arrow-up" newName="long_arrow_up"/>
+				<glyph orgId="61815" newId="61815" orgName="long-arrow-left" newName="long_arrow_left"/>
+				<glyph orgId="61816" newId="61816" orgName="long-arrow-right" newName="long_arrow_right"/>
+				<glyph orgId="61817" newId="61817" orgName="apple" newName="apple"/>
+				<glyph orgId="61818" newId="61818" orgName="windows" newName="windows"/>
+				<glyph orgId="61819" newId="61819" orgName="android" newName="android"/>
+				<glyph orgId="61820" newId="61820" orgName="linux" newName="linux"/>
+				<glyph orgId="61826" newId="61826" orgName="female" newName="female"/>
+				<glyph orgId="61827" newId="61827" orgName="male" newName="male"/>
+				<glyph orgId="61829" newId="61829" orgName="sun-o" newName="sun_empty"/>
+				<glyph orgId="61830" newId="61830" orgName="moon-o" newName="moon_empty"/>
+				<glyph orgId="61831" newId="61831" orgName="archive" newName="archive"/>
+				<glyph orgId="61832" newId="61832" orgName="bug" newName="bug"/>
+				<glyph orgId="61842" newId="61842" orgName="dot-circle-o" newName="dot_circle"/>
+				<glyph orgId="61843" newId="61843" orgName="wheelchair" newName="wheelchair"/>
+				<glyph orgId="61852" newId="61852" orgName="university" newName="university"/>
+				<glyph orgId="61853" newId="61853" orgName="graduation-cap" newName="graduation_cap"/>
+				<glyph orgId="61867" newId="61867" orgName="language" newName="language"/>
+				<glyph orgId="61878" newId="61878" orgName="steam" newName="steam"/>
+				<glyph orgId="61879" newId="61879" orgName="steam-square" newName="steam_square"/>
+				<glyph orgId="61893" newId="61893" orgName="file-image-o" newName="file_image"/>
+				<glyph orgId="61894" newId="61894" orgName="file-archive-o" newName="file_archive"/>
+				<glyph orgId="61895" newId="61895" orgName="file-audio-o" newName="file_audio"/>
+				<glyph orgId="61896" newId="61896" orgName="file-video-o" newName="file_video"/>
+				<glyph orgId="61897" newId="61897" orgName="file-code-o" newName="file_code"/>
+				<glyph orgId="61912" newId="61912" orgName="paper-plane" newName="paper_plane"/>
+				<glyph orgId="61914" newId="61914" orgName="history" newName="history"/>
+				<glyph orgId="61918" newId="61918" orgName="sliders" newName="sliders"/>
+				<glyph orgId="61920" newId="61920" orgName="share-alt" newName="share_alt"/>
+				<glyph orgId="61921" newId="61921" orgName="share-alt-square" newName="share_alt_square"/>
+				<glyph orgId="61925" newId="61925" orgName="binoculars" newName="binoculars"/>
+				<glyph orgId="61926" newId="61926" orgName="plug" newName="plug"/>
+				<glyph orgId="61943" newId="61943" orgName="bell-slash-o" newName="bell_slash"/>
+				<glyph orgId="61944" newId="61944" orgName="trash" newName="trash"/>
+				<glyph orgId="61945" newId="61945" orgName="copyright" newName="copyright"/>
+				<glyph orgId="61946" newId="61946" orgName="at" newName="at"/>
+				<glyph orgId="61947" newId="61947" orgName="eyedropper" newName="eyedropper"/>
+				<glyph orgId="61948" newId="61948" orgName="paint-brush" newName="paint_brush"/>
+				<glyph orgId="61949" newId="61949" orgName="birthday-cake" newName="birthday_cake"/>
+				<glyph orgId="61950" newId="61950" orgName="area-chart" newName="chart_area"/>
+				<glyph orgId="61952" newId="61952" orgName="pie-chart" newName="chart_pie"/>
+				<glyph orgId="61953" newId="61953" orgName="line-chart" newName="chart_line"/>
+				<glyph orgId="61956" newId="61956" orgName="toggle-off" newName="toggle_off"/>
+				<glyph orgId="61957" newId="61957" orgName="toggle-on" newName="toggle_on"/>
+				<glyph orgId="61977" newId="61977" orgName="diamond" newName="diamond"/>
+				<glyph orgId="61979" newId="61979" orgName="user-secret" newName="user_secret"/>
+				<glyph orgId="61982" newId="61982" orgName="heartbeat" newName="heartbeat"/>
+				<glyph orgId="62003" newId="62003" orgName="server" newName="server"/>
+				<glyph orgId="62016" newId="62016" orgName="battery-full" newName="battery"/>
+				<glyph orgId="62017" newId="62017" orgName="battery-three-quarters" newName="battery_three_quarters"/>
+				<glyph orgId="62018" newId="62018" orgName="battery-half" newName="battery_half"/>
+				<glyph orgId="62019" newId="62019" orgName="battery-quarter" newName="battery_quarter"/>
+				<glyph orgId="62020" newId="62020" orgName="battery-empty" newName="battery_empty"/>
+				<glyph orgId="62021" newId="62021" orgName="mouse-pointer" newName="mouse_pointer"/>
+				<glyph orgId="62026" newId="62026" orgName="sticky-note-o" newName="sticky_note"/>
+				<glyph orgId="62029" newId="62029" orgName="clone" newName="clone"/>
+				<glyph orgId="62032" newId="62032" orgName="hourglass-o" newName="hourglass_empty"/>
+				<glyph orgId="62033" newId="62033" orgName="hourglass-start" newName="hourglass_start"/>
+				<glyph orgId="62034" newId="62034" orgName="hourglass-half" newName="hourglass_half"/>
+				<glyph orgId="62035" newId="62035" orgName="hourglass-end" newName="hourglass_end"/>
+				<glyph orgId="62036" newId="62036" orgName="hourglass" newName="hourglass"/>
+				<glyph orgId="62044" newId="62044" orgName="trademark" newName="trademark"/>
+				<glyph orgId="62045" newId="62045" orgName="registered" newName="registered"/>
+				<glyph orgId="62060" newId="62060" orgName="television" newName="television"/>
+				<glyph orgId="62074" newId="62074" orgName="commenting" newName="commenting"/>
+				<glyph orgId="62087" newId="62087" orgName="usb" newName="usb"/>
+				<glyph orgId="62091" newId="62091" orgName="pause-circle" newName="pause_circle"/>
+				<glyph orgId="62092" newId="62092" orgName="pause-circle-o" newName="pause_circle_alt"/>
+				<glyph orgId="62093" newId="62093" orgName="stop-circle" newName="stop_circle"/>
+				<glyph orgId="62094" newId="62094" orgName="stop-circle-o" newName="stop_circle_alt"/>
+				<glyph orgId="62099" newId="62099" orgName="bluetooth" newName="bluetooth"/>
+				<glyph orgId="62144" newId="62144" orgName="user-o" newName="user_empty"/>
+				<glyph orgId="62160" newId="62160" orgName="window-maximize" newName="window_maximize"/>
+				<glyph orgId="62161" newId="62161" orgName="window-minimize" newName="window_minimize"/>
+				<glyph orgId="62162" newId="62162" orgName="window-restore" newName="window_restore"/>
+				<glyph orgId="62163" newId="62163" orgName="window-close" newName="window_close"/>
+				<glyph orgId="62248" newId="62248" orgName="moon" newName="moon"/>
+				<glyph orgId="62249" newId="62249" orgName="sun" newName="sun"/>
+				<glyph orgId="62253" newId="62253" orgName="bell-ringing" newName="bell_ringing"/>
+				<glyph orgId="62255" newId="62255" orgName="volume-mute" newName="volume_mute"/>
 			</glyphs>
 			<prefix>FK</prefix>
 			<pathfilename>forkawesome-webfont.ttf</pathfilename>
@@ -24,15 +344,8 @@
 			<fontsize>32</fontsize>
 		</font>
 		<rangecoloring show="false" hash="10;15;35;0.5"/>
-		<previewcountglyph_x>20</previewcountglyph_x>
+		<countglyph_x>20</countglyph_x>
 		<mergedfontprefix></mergedfontprefix>
-		<curglyphtooltip>true</curglyphtooltip>
-		<srcglyphtooltip>true</srcglyphtooltip>
-		<dstglyphtooltip>true</dstglyphtooltip>
-		<glyphpreviewscale>1</glyphpreviewscale>
-		<glyphpreviewshowcontrollines>false</glyphpreviewshowcontrollines>
-		<glyphpreviewquadbeziercounsegment>5</glyphpreviewquadbeziercounsegment>
-		<genmode>653</genmode>
-		<fonttomergein>forkawesome-webfont.ttf</fonttomergein>
+		<genmode>77</genmode>
 	</project>
 </config>
