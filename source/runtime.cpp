@@ -2334,7 +2334,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		if (tex.resource != 0)
 		{
 			if (!(tex.render_target && tex.rtv[0] == 0) &&
-				!(tex.storage_access && tex.uav.empty()))
+				!(tex.storage_access && _renderer_id >= 0xb000 && tex.uav.empty()))
 				continue;
 
 			// Update texture if usage has changed since it was last created (e.g. because a pooled texture is now used with storage access when it was not before)
