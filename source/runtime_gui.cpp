@@ -4428,7 +4428,7 @@ void reshade::runtime::draw_technique_editor()
 
 			if (tech.toggle_key_data[0] != 0)
 			{
-				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120);
+				ImGui::SameLine(ImGui::GetContentRegionAvail().x - 10.0f * ImGui::GetFontSize());
 				ImGui::TextDisabled("%s", input::key_name(tech.toggle_key_data).c_str());
 			}
 
