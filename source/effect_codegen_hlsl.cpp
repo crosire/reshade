@@ -147,7 +147,7 @@ private:
 			"uint" #n " r = 0;" \
 			"for (int i = 0; i < 32; i++) {" \
 				"r *= 2;" \
-				"r += floor(x % 2);" \
+				"r += floor(v % 2);" \
 				"v /= 2;" \
 			"}" \
 			"return r;" \
