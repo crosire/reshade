@@ -709,8 +709,6 @@ private:
 		{
 			if (semantic == "SV_POSITION")
 				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
-			if (semantic == "VPOS")
-				return "VPOS";
 			if (semantic == "SV_POINTSIZE")
 				return "PSIZE";
 			if (semantic.compare(0, 9, "SV_TARGET") == 0)
@@ -721,6 +719,8 @@ private:
 				return "TEXCOORD0 /* VERTEXID */";
 			if (semantic == "SV_ISFRONTFACE")
 				return "VFACE";
+			if (semantic.compare(0, 3, "SV_") == 0)
+				return semantic; // Unhandled system value semantic
 
 			size_t digit_index = semantic.size() - 1;
 			while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
