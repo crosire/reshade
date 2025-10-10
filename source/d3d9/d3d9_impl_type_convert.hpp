@@ -11,8 +11,8 @@
 #include <vector>
 #include <limits>
 
-// Undocumented
-const D3DPOOL D3DPOOL_MANAGED_EX = D3DPOOL(6);
+// Undocumented managed pool in D3D9Ex
+constexpr D3DPOOL D3DPOOL_MANAGED_EX = D3DPOOL(6);
 
 namespace reshade::d3d9
 {

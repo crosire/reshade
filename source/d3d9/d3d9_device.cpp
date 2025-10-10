@@ -417,7 +417,8 @@ void    STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMM
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture9 **ppTexture, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -526,7 +527,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT Height, UINT Depth, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DVolumeTexture9 **ppVolumeTexture, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -610,7 +612,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DCubeTexture9 **ppCubeTexture, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -728,7 +731,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	if (_use_software_rendering)
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -782,7 +786,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 	if (_use_software_rendering)
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -2801,13 +2806,6 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 				reshade::api::resource_usage::index_buffer,
 				_primitive_up_index_buffer);
 		}
-	}
-}
-
-void Direct3DDevice9::modify_pool_for_d3d9ex(D3DPOOL &pool) const
-{
-	if (_extended_interface && pool == D3DPOOL_MANAGED) {
-		pool = D3DPOOL_MANAGED_EX;
 	}
 }
 #endif

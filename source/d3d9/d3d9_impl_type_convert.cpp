@@ -371,7 +371,7 @@ void reshade::d3d9::convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPO
 }
 void reshade::d3d9::convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memory_heap &heap)
 {
-	switch (d3d_pool)
+	switch (static_cast<DWORD>(d3d_pool))
 	{
 	case D3DPOOL_DEFAULT:
 		heap = api::memory_heap::gpu_only;
