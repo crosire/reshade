@@ -5015,7 +5015,7 @@ void reshade::runtime::destroy_imgui_resources()
 
 	for (ImTextureData *const texture_data : _imgui_context->PlatformIO.Textures)
 	{
-		if (texture_data->Status == ImTextureStatus_WantCreate || texture_data->Status == ImTextureStatus_Destroyed)
+		if (texture_data->Status == ImTextureStatus_Destroyed || (texture_data->Status == ImTextureStatus_WantCreate && !texture_data->WantDestroyNextFrame))
 			continue;
 
 		assert(texture_data->RefCount == 1);
@@ -5030,8 +5030,11 @@ void reshade::runtime::destroy_imgui_resources()
 		texture_data->SetStatus(ImTextureStatus_Destroyed);
 	}
 
+	// Remove texture from font atlas, since it was destroyed among all texture above
 	atlas->TexList.clear_delete();
 	atlas->TexData = nullptr;
+	// Also remove from the platform texture list, so that the now deleted font atlas texture data is not accessed again
+	_imgui_context->PlatformIO.Textures.clear();
 
 	for (size_t i = 0; i < std::size(_imgui_vertices); ++i)
 	{
