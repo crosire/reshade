@@ -1576,10 +1576,10 @@ DEFINE_INTRINSIC(refract, 0, float2, float2, float2, float)
 DEFINE_INTRINSIC(refract, 0, float3, float3, float3, float)
 DEFINE_INTRINSIC(refract, 0, float4, float4, float4, float)
 IMPLEMENT_INTRINSIC_GLSL(refract, 0, {
-	code += "refract(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[1].base) + ')';
+	code += "refract(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(refract, 0, {
-	code += "refract(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[1].base) + ')';
+	code += "refract(" + id_to_name(args[0].base) + ", " + id_to_name(args[1].base) + ", " + id_to_name(args[2].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_SPIRV(refract, 0, {
 	return
