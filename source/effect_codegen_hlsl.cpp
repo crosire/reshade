@@ -1208,9 +1208,6 @@ private:
 				if (func.type == shader_type::vertex)
 					// Keep track of the position output variable
 					position_variable_name = id_to_name(param.id);
-				else if (func.type == shader_type::pixel)
-					// Change the position input semantic in pixel shaders
-					param.semantic = "VPOS";
 			}
 		}
 
