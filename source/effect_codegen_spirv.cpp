@@ -63,6 +63,7 @@ struct spirv_instruction
 	/// </summary>
 	spirv_instruction &add_string(const char *string)
 	{
+		assert(std::strlen(string) <= (0xFFFF - (1 + operands.size())) * 4 - 1);
 		uint32_t word;
 		do {
 			word = 0;
@@ -89,6 +90,7 @@ struct spirv_instruction
 		// WordCount - 1 | Operand N (N is determined by WordCount minus the 1 to 3 words used for the opcode, instruction type <id>, and instruction Result <id>).
 
 		const uint32_t word_count = 1 + (type != 0) + (result != 0) + static_cast<uint32_t>(operands.size());
+		assert(word_count <= 0xFFFF);
 		write_word(output, (word_count << spv::WordCountShift) | op);
 
 		// Optional instruction type ID
@@ -242,17 +244,26 @@ private:
 			if (file != nullptr)
 			{
 				fseek(file, 0, SEEK_END);
-				const size_t file_size = ftell(file);
+				size_t file_size = ftell(file);
 				fseek(file, 0, SEEK_SET);
 
-				std::string file_data(file_size, '\0');
-				fread(file_data.data(), 1, file_size, file);
+				for (size_t string_size, continued = 0; file_size != 0; file_size -= string_size, ++continued)
+				{
+					string_size = std::min(file_size, static_cast<size_t>((0xFFFF - 4) * 4 - 1));
+					std::string file_data(string_size, '\0');
+					if (fread(file_data.data(), 1, string_size, file) != string_size)
+						break;
 
-				add_instruction_without_result(spv::OpSource, _debug_a)
-					.add(spv::SourceLanguageHLSL)
-					.add(0)
-					.add(source_id)
-					.add_string(file_data.c_str());
+					if (!continued)
+						add_instruction_without_result(spv::OpSource, _debug_a)
+							.add(spv::SourceLanguageHLSL)
+							.add(0)
+							.add(source_id)
+							.add_string(file_data.c_str());
+					else
+						add_instruction_without_result(spv::OpSourceContinued, _debug_a)
+							.add_string(file_data.c_str());
+				}
 
 				fclose(file);
 			}
