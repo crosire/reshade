@@ -319,13 +319,9 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path, bool
 	}
 
 	const auto check_delayed_hook_path = [](const std::filesystem::path &path) -> HMODULE {
-		// Skip export module if it was loaded somehow before/outside of 'ensure_export_module_loaded' below
-		if (path == s_export_hook_path)
-			return nullptr;
-
 		// Pin the module so it cannot be unloaded by the application and cause problems when ReShade tries to call into it afterwards
 		HMODULE delayed_handle = nullptr;
-		if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle))
+		if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.c_str(), &delayed_handle) || delayed_handle == g_module_handle)
 			return nullptr;
 
 		return delayed_handle;
@@ -333,7 +329,8 @@ static void install_delayed_hooks(const std::filesystem::path &loaded_path, bool
 	const auto install_delayed_hook_path = [&loaded_path](const std::filesystem::path &path, HMODULE delayed_handle) {
 		reshade::log::message(reshade::log::level::info, "Installing delayed hooks for '%s' (Just loaded via LoadLibrary('%s')) ...", path.u8string().c_str(), loaded_path.u8string().c_str());
 
-		install_internal(delayed_handle, g_module_handle, hook_method::function_hook) && reshade::hook::apply_queued_actions();
+		install_internal(delayed_handle, g_module_handle, hook_method::function_hook);
+		reshade::hook::apply_queued_actions();
 	};
 
 	if (const auto it = std::find_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
@@ -578,7 +575,6 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 		log::message(log::level::info, "> Libraries loaded.");
 
 		install_internal(handle, g_module_handle, hook_method::function_hook);
-
 		hook::apply_queued_actions();
 	}
 }
