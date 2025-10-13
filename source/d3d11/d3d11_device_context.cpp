@@ -57,11 +57,11 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 		return true;
 
 	static constexpr IID iid_lookup[] = {
-		__uuidof(ID3D11DeviceContext),
-		__uuidof(ID3D11DeviceContext1),
-		__uuidof(ID3D11DeviceContext2),
-		__uuidof(ID3D11DeviceContext3),
-		__uuidof(ID3D11DeviceContext4),
+		__uuidof(ID3D11DeviceContext),  // {C0BFA96C-E089-44FB-8EAF-26F8796190DA}
+		__uuidof(ID3D11DeviceContext1), // {BB2C6FAA-B5FB-4082-8E6B-388B8CFA90E1}
+		__uuidof(ID3D11DeviceContext2), // {420D5B32-B90C-4DA4-BEF0-359F6A24A83A}
+		__uuidof(ID3D11DeviceContext3), // {B4E3C01D-E79E-4637-91B2-510E9F4C9B8F}
+		__uuidof(ID3D11DeviceContext4), // {917600DA-F58C-4C33-98D8-3E15B390FA24}
 	};
 
 	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)

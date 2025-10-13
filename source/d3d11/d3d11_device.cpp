@@ -70,12 +70,12 @@ D3D11Device::~D3D11Device()
 bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 {
 	static constexpr IID iid_lookup[] = {
-		__uuidof(ID3D11Device),
-		__uuidof(ID3D11Device1),
-		__uuidof(ID3D11Device2),
-		__uuidof(ID3D11Device3),
-		__uuidof(ID3D11Device4),
-		__uuidof(ID3D11Device5),
+		__uuidof(ID3D11Device),  // {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}
+		__uuidof(ID3D11Device1), // {A04BFB29-08EF-43D6-A49C-A9BDBDCBE686}
+		__uuidof(ID3D11Device2), // {9D06DFFA-D1E5-4D07-83A8-1BB123F2F841}
+		__uuidof(ID3D11Device3), // {A05C8C37-D2C6-4732-B3A0-9CE0B0DC9AE6}
+		__uuidof(ID3D11Device4), // {8992AB71-02E6-4B8D-BA48-B056DCDA42C4}
+		__uuidof(ID3D11Device5), // {8FFDE202-A0E7-45DF-9E01-E837801B5EA0}
 	};
 
 	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -151,12 +151,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
-	if (riid == __uuidof(ID3D11On12Device) ||
-		riid == __uuidof(ID3D11On12Device1) ||
-		riid == __uuidof(ID3D11On12Device2))
+	if (riid == __uuidof(ID3D11On12Device) ||  // {85611E73-70A9-490E-9614-A9E302777904}
+		riid == __uuidof(ID3D11On12Device1) || // {BDB64DF4-EA2F-4C70-B861-AAAB1258BB5D}
+		riid == __uuidof(ID3D11On12Device2))   // {DC90F331-4740-43FA-866E-67F12CB58223}
 	{
 		if (_d3d11on12_device != nullptr)
 			return _d3d11on12_device->QueryInterface(riid, ppvObj);
+		else
+			return E_NOINTERFACE;
 	}
 
 	// Unimplemented interfaces:

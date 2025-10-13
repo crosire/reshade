@@ -37,14 +37,14 @@ bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
 		return true;
 
 	static constexpr IID iid_lookup[] = {
-		__uuidof(IDXGIFactory),
-		__uuidof(IDXGIFactory1),
-		__uuidof(IDXGIFactory2),
-		__uuidof(IDXGIFactory3),
-		__uuidof(IDXGIFactory4),
-		__uuidof(IDXGIFactory5),
-		__uuidof(IDXGIFactory6),
-		__uuidof(IDXGIFactory7),
+		__uuidof(IDXGIFactory),  // {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
+		__uuidof(IDXGIFactory1), // {770AAE78-F26F-4DBA-A829-253C83D1B387}
+		__uuidof(IDXGIFactory2), // {50C83A1C-E072-4C48-87B0-3630FA36A6D0}
+		__uuidof(IDXGIFactory3), // {25483823-CD46-4C7D-86CA-47AA95B837BD}
+		__uuidof(IDXGIFactory4), // {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
+		__uuidof(IDXGIFactory5), // {7632E1f5-EE65-4DCA-87FD-84CD75F8838D}
+		__uuidof(IDXGIFactory6), // {C1B6694F-FF09-44A9-B03C-77900A0A1D17}
+		__uuidof(IDXGIFactory7), // {A4966EED-76DB-44DA-84C1-EE9A7AFB20A8}
 	};
 
 	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)

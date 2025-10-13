@@ -105,9 +105,9 @@ bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDirect3DDevice9))
+		riid == __uuidof(IDirect3DDevice9))   // {D0223B96-BF7A-43fd-92BD-A43B0D82B9EB}
 		return true;
-	if (riid != __uuidof(IDirect3DDevice9Ex))
+	if (riid != __uuidof(IDirect3DDevice9Ex)) // {B18B10CE-2649-405a-870F-95F777D4313A}
 		return false;
 
 	if (!_extended_interface)

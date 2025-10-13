@@ -41,8 +41,8 @@ bool D3D12CommandQueue::check_and_upgrade_interface(REFIID riid)
 		return true;
 
 	static constexpr IID iid_lookup[] = {
-		__uuidof(ID3D12CommandQueue),
-		__uuidof(ID3D12CommandQueue1),
+		__uuidof(ID3D12CommandQueue),  // {0EC870A6-5D7E-4C22-8CFC-5BAAE07616ED}
+		__uuidof(ID3D12CommandQueue1), // {3A3C3165-0EE7-4B8E-A0AF-6356B4c3BBB9}
 	};
 
 	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
@@ -91,11 +91,15 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 	}
 
 	// Special case for d3d12on7
-	if (riid == __uuidof(ID3D12CommandQueueDownlevel))
+	if (riid == __uuidof(ID3D12CommandQueueDownlevel)) // {38A8C5EF-7CCB-4E81-914F-A6E9D072C494}
 	{
-		if (ID3D12CommandQueueDownlevel *downlevel = nullptr; // Not a 'com_ptr' since D3D12CommandQueueDownlevel will take ownership
-			_downlevel == nullptr && SUCCEEDED(_orig->QueryInterface(&downlevel)))
-			_downlevel = new D3D12CommandQueueDownlevel(this, downlevel);
+		if (_downlevel == nullptr)
+		{
+			// Not a 'com_ptr' since D3D12CommandQueueDownlevel will take ownership
+			ID3D12CommandQueueDownlevel *downlevel = nullptr;
+			if (SUCCEEDED(_orig->QueryInterface(&downlevel)))
+				_downlevel = new D3D12CommandQueueDownlevel(this, downlevel);
+		}
 
 		if (_downlevel != nullptr)
 			return _downlevel->QueryInterface(riid, ppvObj);

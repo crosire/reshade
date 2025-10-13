@@ -49,9 +49,9 @@ bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDirect3DSwapChain9))
+		riid == __uuidof(IDirect3DSwapChain9))   // {794950F2-ADFC-458a-905E-10A10B0B503B}
 		return true;
-	if (riid != __uuidof(IDirect3DSwapChain9Ex))
+	if (riid != __uuidof(IDirect3DSwapChain9Ex)) // {91886CAF-1C3D-4d2e-A0AB-3E4C7D8D3303}
 		return false;
 
 	if (!_extended_interface)

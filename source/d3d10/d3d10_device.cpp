@@ -63,8 +63,8 @@ D3D10Device::~D3D10Device()
 
 bool D3D10Device::check_and_upgrade_interface(REFIID riid)
 {
-	if (riid == __uuidof(ID3D10Device) ||
-		riid == __uuidof(ID3D10Device1))
+	if (riid == __uuidof(ID3D10Device) || // {9B7E4C0F-342C-4106-A19F-4F2704F689F0}
+		riid == __uuidof(ID3D10Device1))  // {9B7E4C8F-342C-4106-A19F-4F2704F689F0}
 		return true;
 
 	return false;
