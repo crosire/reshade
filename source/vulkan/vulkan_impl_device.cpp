@@ -629,6 +629,9 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource resource)
 		offsetof(object_data<VK_OBJECT_TYPE_IMAGE>, create_info) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER>, create_info));
 
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (data == nullptr)
+		return;
+
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) // Structure type is at the same offset in both image and buffer object data structures
 	{
 		const VmaAllocation allocation = data->allocation;
@@ -659,6 +662,9 @@ void reshade::vulkan::device_impl::destroy_resource(api::resource resource)
 reshade::api::resource_desc reshade::vulkan::device_impl::get_resource_desc(api::resource resource) const
 {
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (data == nullptr)
+		return api::resource_desc();
+
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 		return convert_resource_desc(data->create_info);
 	else
@@ -673,6 +679,9 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		return false;
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (resource_data == nullptr)
+		return false;
+
 	if (resource_data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
 	{
 		VkImageViewCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
@@ -800,6 +809,9 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view view
 		offsetof(object_data<VK_OBJECT_TYPE_IMAGE_VIEW>, create_info) == offsetof(object_data<VK_OBJECT_TYPE_BUFFER_VIEW>, create_info));
 
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data == nullptr)
+		return;
+
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO) // Structure type is at the same offset in both image view and buffer view object data structures
 	{
 		unregister_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
@@ -823,6 +835,9 @@ void reshade::vulkan::device_impl::destroy_resource_view(api::resource_view view
 reshade::api::resource reshade::vulkan::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data == nullptr)
+		return { 0 };
+
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 		return { (uint64_t)data->create_info.image };
 	else if (data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
@@ -833,6 +848,9 @@ reshade::api::resource reshade::vulkan::device_impl::get_resource_from_view(api:
 reshade::api::resource_view_desc reshade::vulkan::device_impl::get_resource_view_desc(api::resource_view view) const
 {
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data == nullptr)
+		return api::resource_view_desc();
+
 	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 		return convert_resource_view_desc(data->create_info);
 	else if (data->create_info.sType != VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
@@ -844,7 +862,7 @@ reshade::api::resource_view_desc reshade::vulkan::device_impl::get_resource_view
 uint64_t reshade::vulkan::device_impl::get_resource_view_gpu_address(api::resource_view view) const
 {
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
-	if (data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+	if (data == nullptr || data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
 	{
 		return 0;
 	}
@@ -872,6 +890,9 @@ bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uin
 	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
+	if (resource_data == nullptr)
+		return false;
+
 	if (resource_data->allocation != VMA_NULL)
 	{
 		assert(size == UINT64_MAX || size <= resource_data->allocation->GetSize());
@@ -884,7 +905,10 @@ bool reshade::vulkan::device_impl::map_buffer_region(api::resource resource, uin
 	}
 	else if (resource_data->memory != VK_NULL_HANDLE)
 	{
-		return vk.MapMemory(_orig, resource_data->memory, resource_data->memory_offset + offset, size, 0, out_data) == VK_SUCCESS;
+		if (vk.MapMemory(_orig, resource_data->memory, resource_data->memory_offset + offset, size, 0, out_data) == VK_SUCCESS)
+		{
+			return true;
+		}
 	}
 
 	return false;
@@ -894,6 +918,9 @@ void reshade::vulkan::device_impl::unmap_buffer_region(api::resource resource)
 	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle);
+	if (resource_data == nullptr)
+		return;
+
 	if (resource_data->allocation != VMA_NULL)
 	{
 		vmaUnmapMemory(_alloc, resource_data->allocation);
@@ -919,6 +946,8 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (resource_data == nullptr)
+		return false;
 
 	VkImageSubresource subresource_info;
 	subresource_info.aspectMask = aspect_flags_from_format(resource_data->create_info.format);
@@ -959,6 +988,9 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 	assert(resource != 0);
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (resource_data == nullptr)
+		return;
+
 	if (resource_data->allocation != VMA_NULL)
 	{
 		vmaUnmapMemory(_alloc, resource_data->allocation);
@@ -997,6 +1029,8 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		return; // No point in creating upload buffer when it cannot be uploaded
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (resource_data == nullptr)
+		return;
 
 	VkExtent3D extent = resource_data->create_info.extent;
 	extent.depth *= resource_data->create_info.arrayLayers;
@@ -2183,6 +2217,8 @@ void reshade::vulkan::device_impl::set_resource_name(api::resource resource, con
 		return;
 
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	if (data == nullptr)
+		return;
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
 	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE : VK_OBJECT_TYPE_BUFFER;
@@ -2199,6 +2235,8 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view vie
 		return;
 
 	const auto data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)view.handle);
+	if (data == nullptr)
+		return;
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
 	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE_VIEW : VK_OBJECT_TYPE_BUFFER_VIEW;
