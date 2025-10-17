@@ -687,6 +687,16 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 #endif
 		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
+#if RESHADE_ADDON
+	// Some games might crash if the color space failed to be set,
+	// and that might happen if the addons upgraded the swapchain format
+	DXGI_SWAP_CHAIN_DESC desc;
+	if (SUCCEEDED(_orig->GetDesc(&desc)) && desc.BufferDesc.Format != _orig_desc.BufferDesc.Format)
+	{
+		return S_OK;
+	}
+#endif
+
 	DXGI_COLOR_SPACE_TYPE prev_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 	{
 		if (com_ptr<IDXGISwapChainTest> swapchain_test;
