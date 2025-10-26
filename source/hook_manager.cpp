@@ -134,7 +134,11 @@ static bool install_internal(const char *name, reshade::hook &hook, hook_method 
 }
 static bool install_internal(HMODULE target_module, HMODULE replacement_module, hook_method method)
 {
-	assert(target_module != nullptr && replacement_module != nullptr && target_module != replacement_module);
+	if (target_module == nullptr || replacement_module == nullptr || target_module == replacement_module)
+	{
+		reshade::log::message(reshade::log::level::warning, "> Invalid module! Skipped.");
+		return false;
+	}
 
 	// Load export tables from both modules
 	const std::vector<module_export> target_exports = enumerate_module_exports(target_module);
