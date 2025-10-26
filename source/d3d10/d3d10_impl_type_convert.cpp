@@ -299,6 +299,8 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BU
 
 	if (internal_desc.Usage == D3D10_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D10_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -320,6 +322,8 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TE
 
 	if (internal_desc.Usage == D3D10_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D10_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -342,6 +346,8 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TE
 
 	if (internal_desc.Usage == D3D10_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D10_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -363,6 +369,8 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_TE
 
 	if (internal_desc.Usage == D3D10_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D10_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
