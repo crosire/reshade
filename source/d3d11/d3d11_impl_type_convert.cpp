@@ -729,7 +729,7 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 	if (desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_array)
 	{
 		internal_desc.Format = convert_format(desc.format);
-		assert(desc.type == api::resource_view_type::buffer || desc.texture.level_count == 1);
+		assert(desc.texture.level_count == 1);
 		switch (desc.type)
 		{
 		case api::resource_view_type::texture_2d:

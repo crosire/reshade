@@ -1934,6 +1934,8 @@ bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, u
 
 void reshade::d3d12::device_impl::set_resource_name(api::resource resource, const char *name)
 {
+	assert(resource != 0);
+
 	const size_t debug_name_len = std::strlen(name);
 	std::wstring debug_name_wide;
 	debug_name_wide.reserve(debug_name_len + 1);

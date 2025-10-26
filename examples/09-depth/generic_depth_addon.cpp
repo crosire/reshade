@@ -269,7 +269,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 			if (backup.depth_stencil_resource != 0)
 				continue;
 
-			assert(backup.references == 0 && backup.destroy_after_frame != std::numeric_limits<uint64_t>::max());
+			assert(backup.references == 0 && backup.destroy_after_frame != std::numeric_limits<uint64_t>::max() && backup.backup_texture != 0);
 
 			const resource_desc existing_desc = device->get_resource_desc(backup.backup_texture);
 			if (desc.texture.width == existing_desc.texture.width &&
@@ -278,25 +278,24 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 				desc.usage == existing_desc.usage)
 			{
 				backup.references++;
-				backup.depth_stencil_resource = resource;
 				backup.destroy_after_frame = std::numeric_limits<uint64_t>::max();
+				backup.depth_stencil_resource = resource;
 
 				return &backup;
 			}
 		}
 
-		depth_stencil_backup &backup = depth_stencil_backups.emplace_back();
-		backup.depth_stencil_resource = resource;
+		depth_stencil_backup new_backup;
+		new_backup.depth_stencil_resource = resource;
 
-		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &backup.backup_texture))
+		if (device->create_resource(desc, nullptr, resource_usage::copy_dest, &new_backup.backup_texture))
 		{
-			device->set_resource_name(backup.backup_texture, "ReShade depth backup texture");
+			device->set_resource_name(new_backup.backup_texture, "ReShade depth backup texture");
 
-			return &backup;
+			return &depth_stencil_backups.emplace_back(std::move(new_backup));
 		}
 		else
 		{
-			depth_stencil_backups.pop_back();
 			reshade::log::message(reshade::log::level::error, "Failed to create backup depth-stencil texture!");
 
 			return nullptr;
