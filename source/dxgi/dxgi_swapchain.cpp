@@ -288,6 +288,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	on_present(Flags);
 
+	assert(!g_in_dxgi_runtime);
+	g_in_dxgi_runtime = true;
+
 #if RESHADE_ADDON
 	// If an add-on allows tearing, force it on when possible (application is not in fullscreen exclusive mode)
 	if (_sync_interval == 0x10000000)
@@ -310,8 +313,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 	}
 #endif
 
-	assert(!g_in_dxgi_runtime);
-	g_in_dxgi_runtime = true;
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
 	g_in_dxgi_runtime = false;
 
@@ -455,8 +456,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 #if RESHADE_ADDON
 		if (Width == 0 || Height == 0)
 		{
+			g_in_dxgi_runtime = true;
 			DXGI_SWAP_CHAIN_DESC desc = {};
 			_orig->GetDesc(&desc);
+			g_in_dxgi_runtime = was_in_dxgi_runtime;
 
 			_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
 			_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
@@ -552,6 +555,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 {
 	on_present(PresentFlags, pPresentParameters);
 
+	assert(!g_in_dxgi_runtime);
+	g_in_dxgi_runtime = true;
+
 #if RESHADE_ADDON
 	// If an add-on allows tearing, force it on when possible (application is not in fullscreen exclusive mode)
 	if (_sync_interval == 0x10000000)
@@ -575,8 +581,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 #endif
 
 	assert(_interface_version >= 1);
-	assert(!g_in_dxgi_runtime);
-	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 	g_in_dxgi_runtime = false;
 
@@ -688,12 +692,16 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
 #if RESHADE_ADDON
+	assert(!g_in_dxgi_runtime);
+	g_in_dxgi_runtime = true;
 	// Skip if an add-on modified the back buffer format, since color space change may fail in that case and cause some games to crash
 	if (DXGI_SWAP_CHAIN_DESC desc;
 		SUCCEEDED(_orig->GetDesc(&desc)) && desc.BufferDesc.Format != _orig_desc.BufferDesc.Format)
 	{
+		g_in_dxgi_runtime = false;
 		return S_OK;
 	}
+	g_in_dxgi_runtime = false;
 #endif
 
 	DXGI_COLOR_SPACE_TYPE prev_color_space = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
@@ -802,8 +810,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 #if RESHADE_ADDON
 		if (Width == 0 || Height == 0)
 		{
+			g_in_dxgi_runtime = true;
 			DXGI_SWAP_CHAIN_DESC desc = {};
 			_orig->GetDesc(&desc);
+			g_in_dxgi_runtime = was_in_dxgi_runtime;
 
 			_orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
 			_orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
