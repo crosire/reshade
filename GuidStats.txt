@@ -1,0 +1,638 @@
+  Id,	Hits,	Bytes Consumed,	Ave,	GUID,	Name, Level
+   0,        0,          0,     0, {00000000-0000-0000-0000-000000000000}NT - Stack Walk (NULL)
+   1,        0,          0,     0, {06778EFB-5BB0-48C3-A897-71C05387B648}DX - ETW Version
+   2,        0,          0,     0, {069F67F2-C380-4A65-8A61-071CD4A87275}DX - Blt
+   3,        0,          0,     0, {E5309F3A-9D78-11DA-9575-00E08161165F}DX - Blt Sub Rect
+   4,        0,          0,     0, {22412531-670B-4CD3-81D1-E709C154AE3D}DX - Flip
+   5,        0,          0,     0, {5365EDDD-408C-4F67-B4FA-D26C6AC33962}DX - Render
+   6,        0,          0,     0, {D1E8BA89-C4BC-44E5-932A-D494A16F2C1D}CDD - Render
+   7,        0,          0,     0, {4746DD2B-20D7-493F-BC1B-240397C85B25}DX - Dma Packet
+   8,        0,          0,     0, {295E0D8E-51EC-43B8-9CC6-9F79331D27D6}DX - Queue Packet
+   9,        0,          0,     0, {58DEE33F-2B46-4FF4-902D-50435512FF50}DX - VSync Interrupt
+  10,        0,          0,     0, {5CCF1378-6B2C-4C0F-BD56-8EEB9E4C5C77}DX - VSync DPC
+  11,        0,          0,     0, {FE44CBC5-A014-11DA-9578-00E08161165F}DX - Sch Updt Cntxt Status
+  12,        0,          0,     0, {E2E07A20-DB80-476B-B796-E30814BE1026}DX - Create/Dest Allocation
+  13,        0,          0,     0, {9C94956D-B0FB-4EF3-9482-966BB4C06B00}DX - Open/Close Allocation
+  14,        0,          0,     0, {919286B0-0612-4605-9442-D0A1E05B1403}DX - Terminate Allocation - Submit
+  15,        0,          0,     0, {5014DC69-D99C-458D-8D3D-CB718A0F7313}DX - Terminate Allocation - Process
+  16,        0,          0,     0, {BCB426AE-E29C-4302-BBB6-4474918E1B31}DX - Lock Allocation
+  17,        0,          0,     0, {82A4A1AB-3603-445F-B739-91B4AFE9E065}DX - Unlock Allocation
+  18,        0,          0,     0, {6E7CE7B1-D0D7-4CFF-AD8D-82696C80D003}DX - Reference Allocation
+  19,        0,          0,     0, {7EE1ECEB-9319-4654-AFFF-CC0CA7F9B0CE}DX - Patch Location List
+  20,        0,          0,     0, {B43251B9-4930-4029-90FD-2A6714CA72A3}DX - Set Allocation Priority
+  21,        0,          0,     0, {D69D770E-3427-43E7-B16F-F10090AC526F}DX - Allocation Migration
+  22,        0,          0,     0, {CF04FC0A-924E-4299-B5F6-79658D96D941}DX - Memory Transfer
+  23,        0,          0,     0, {46BD227F-0686-4C96-A998-38E657CE078C}DX - Aperture Mapping
+  24,        0,          0,     0, {DD172168-3E92-4A38-A5CF-07FF1B9F61F5}DX - Aperture Unmapping
+  25,        0,          0,     0, {4FC1E80C-242A-411F-BABD-AA8397BFB6DB}DX - Paging Operation
+  26,        0,          0,     0, {8BF76FFB-D03C-4F60-8985-9CA734CCF6CE}DX - Preparation
+  27,        0,          0,     0, {935CDFBD-33D3-4F9C-A2A9-DD29F9D8D015}DX - Rename/Retire Allocation
+  28,        0,          0,     0, {DA344755-A6AF-49E9-AC1A-5932C3DDE190}DX - Skip Segment
+  29,        0,          0,     0, {FD6A724C-6953-44BA-8638-AD6C3BD88BB5}DX - Reserve Resource
+  30,        0,          0,     0, {527C43C3-56F4-4781-988C-6687CB1106EF}DX - Preparation Inner Iteration
+  31,        0,          0,     0, {66A8C3D4-D204-406B-9DF9-6BE1DDA93D9D}DX - Allocation Fault
+  32,        0,          0,     0, {80D7782B-B1D5-46D0-BE75-ABCF5B225D8B}DX - Mark Allocation
+  33,        0,          0,     0, {CB1E1086-31D1-4873-8BC9-144DFF752B58}DX - Page-In Allocation
+  34,        0,          0,     0, {015C1BE4-6B65-4115-BB6C-6F26BA6DC671}DX - Evict Allocation
+  35,        0,          0,     0, {4CE3EC93-995A-4A56-9142-197FDFF5C539}DX - Unreset
+  36,        0,          0,     0, {2BD38D14-264F-441C-9B22-CF14CA38583E}DX - Add/Remove DMA Buffer
+  37,        0,          0,     0, {BCE3B4E3-4E48-4F3D-B10C-6D5771445C4A}DX - Report Adapter Segment
+  38,        0,          0,     0, {D6F8DEA9-EA6A-47E6-B480-35834E428AF8}DX - Report Adapter Segment 2
+  39,        0,          0,     0, {82E0337F-DA98-4D82-B128-8ACA368EBC0C}DX - Report Commit Alloc
+  40,        0,          0,     0, {E6089FBE-5BA9-43C4-A537-498C97270AD9}DX - Mm Process Policy Change
+  41,        0,          0,     0, {5C6936EB-1DE1-430E-9907-FE32EF88AD96}DX - Mm Process Policy Change 2
+  42,        0,          0,     0, {4CB5AB7E-5663-4F4F-B22C-E11492C6DDD4}DX - Mm Segment Policy Change
+  43,        0,          0,     0, {33A72383-2BBD-4E08-B395-E4B41457DC57}DX - Mm Segment Policy Change 2
+  44,        0,          0,     0, {804B4DE8-EC8F-42B9-A56E-6D76B9C1805D}DX - Mm DMA Pool Trim Pol Change
+  45,        0,          0,     0, {DED349B9-4930-4C01-B535-8E3FC790B2C8}DX - Set Process Working Set
+  46,        0,          0,     0, {D0473B42-906E-4AB4-A464-7DAF147A6E28}DX - Create/Dest GPU Sync Object
+  47,        0,          0,     0, {7A41241A-DDA4-47E4-B711-0C32E8260B3B}DX - Create/Dest GPU Sync2 Object
+  48,        0,          0,     0, {2905FA66-D9DC-410F-953F-25650C63A9D3}DX - Wait For GPU Sync Object
+  49,        0,          0,     0, {45B7F0F1-CDEA-47B2-8EC4-BBFC2EBD3752}DX - Wait For GPU Sync2 Object
+  50,        0,          0,     0, {A24DE2A3-48AF-444A-899C-C43E09FC3546}DX - Signal GPU Sync Object
+  51,        0,          0,     0, {E905462E-8525-489C-B91C-EF5EAD172A13}DX - Signal GPU Sync2 Object
+  52,        0,          0,     0, {3B8B74F6-9CEB-11DA-9574-00E08161165F}DX - Change Display Mode
+  53,        0,          0,     0, {699789BD-9D8A-11DA-9575-00E08161165F}DX - Block Thread
+  54,        0,          0,     0, {3C1F2AB5-9D92-11DA-9575-00E08161165F}DX - Performance Warning
+  55,        0,          0,     0, {52221CAF-6863-4DD7-A8E1-2C8BF3679239}DX - Generic Event
+  56,        0,          0,     0, {59CBCE66-6684-4108-BCA9-101583465794}DX - Create/Dest Device
+  57,        0,          0,     0, {096A58E7-0A79-4802-94E6-A605165E40F7}DX - Create/Dest Adapter
+  58,        0,          0,     0, {FDF76A97-330D-4993-997E-9B81979CBD40}DX - Create/Dest Context
+  59,        0,          0,     0, {89CD1C28-0C39-48DF-A144-BF48B852E754}DX - Set Pointer Position
+  60,        0,          0,     0, {7C5B9F93-7B80-482D-B08A-D786E57EA5F3}DX - Profiler Event
+  61,        0,          0,     0, {30B42759-9CE6-11DA-9574-00E08161165F}DX - DpiReportAdapter
+  62,        0,          0,     0, {393673BD-4D1B-434C-9C3D-AF68D022CB7F}DX - Sch Select Cntxt
+  63,        0,          0,     0, {C7B15E95-AF81-4FEC-B7A1-0B71DC610391}DX - Sch Updt Cntxt Running T
+  64,        0,          0,     0, {DA502C38-2F36-45D0-9DC8-3FF8744F280F}DX - Sch Change Priority
+  65,        0,          0,     0, {F317DA36-6C01-4192-A527-76A814B05215}DX - Sch Attempt Preemption
+  66,        0,          0,     0, {B4BA590C-270A-43FC-8F2E-2C52D62CEEF9}DX - Leg Create Allocation
+  67,        0,          0,     0, {48E7C4DB-89B4-462C-AA27-80236F12AF10}DX - Leg Submit Packet
+  68,        0,          0,     0, {8DB33187-1172-488A-8343-DB288779B994}DX - Leg Report Segment
+  69,        0,          0,     0, {856CA85F-19AC-4602-9D15-EA9E312F244A}DX - Leg Move Allocation
+  70,        0,          0,     0, {E55DB1A9-D177-4141-A7F4-B53DB32DDD23}DX - Leg Reference Allocation
+  71,        0,          0,     0, {3215F9A2-DE3A-45BE-8489-E592B43A9925}DX - Leg Profile Event
+  72,        0,          0,     0, {42CF525B-4944-4F60-8AC0-8323CF568A81}DX - ACPI Event
+  73,        0,          0,     0, {547820FE-5666-4B41-93DC-6CFD5DEA28CC}DX - Sch MMIO Flip
+  74,        0,          0,     0, {FBC37FED-C1CE-4C11-91AC-44EE7102D3A3}DX - Create Page Dir
+  75,        0,          0,     0, {A72BA007-5BA8-4B1F-B803-A6D5BF6990F0}DX - Create Page Table
+  76,        0,          0,     0, {1FDBA18E-7016-44E4-877A-04BBA849EBC9}DX - Report Alloc Group
+  77,        0,          0,     0, {8DADD995-B664-421E-9B8C-D1C5CA92D322}DX - Update Page Table
+  78,        0,          0,     0, {D3761FBA-5468-4A0F-A6C0-2F838C998DD9}DX - Update Page Dir
+  79,        0,          0,     0, {3621F983-5F34-4D2C-B670-416AA27B2FF6}DX - Move Page Dir
+  80,        0,          0,     0, {04233132-17AA-4AF2-AC06-D08D7833C097}DX - Report VA Caps
+  81,        0,          0,     0, {028E5E87-FA6A-4A5C-A0BE-E9FF3714FA38}DX - Post OpenAllocation
+  82,        0,          0,     0, {DF9438AE-55F0-4B22-B5D9-86D922A43C01}DX - Video Pipeline Info
+  83,        0,          0,     0, {BB891590-0F5E-427A-8D04-F835F27EA0DE}DX - Video Pipeline status
+  84,        0,          0,     0, {2B5C1C95-9A01-4A8E-A12E-9C02436BEAD3}DX - Stats Adapter
+  85,        0,          0,     0, {D2D0E42E-60C0-4307-A522-6D86A947BDD3}DX - Stats Segment
+  86,        0,          0,     0, {FBE6C501-7751-4122-B719-648BAADE5D8D}DX - Stats Node
+  87,        0,          0,     0, {F11D9A50-9735-4205-A1B3-2A8F8CFC9B7F}DX - Stats VidPnSource
+  88,        0,          0,     0, {20145C86-E024-4413-BF9B-47B120C6E0A4}DX - Stats Process
+  89,        0,          0,     0, {FB69735A-3BE4-4DB8-B7FC-3B65869BF0DF}DX - Stats Process Adapter
+  90,        0,          0,     0, {9BF21670-2F5B-47D5-A9D9-22E2662611AD}DX - Stats Process Seg
+  91,        0,          0,     0, {A2434E19-5614-493B-8547-FE8A5E456CBD}DX - Stats Process Node
+  92,        0,          0,     0, {505A0B44-8E04-41CB-B3E2-95FF40CD079C}DX - Stats Process VidPnSource
+  93,        0,          0,     0, {5AE9BF52-A00C-487F-A118-DBF912AFE28F}DX - KMD Power State Change
+  94,        0,          0,     0, {27587E9F-37AC-422A-AAE3-AC82E1C00505}DX - KMD Thermal Event
+  95,        0,          0,     0, {046EF81A-71A8-413F-BC2E-4803C247F839}DX - KMD PCIe Event
+  96,        0,          0,     0, {C19F763A-C0C1-479D-9F74-22ABFC3A5F0A}DX - Present History
+  97,        0,          0,     0, {8EBF1282-0500-45C6-A8AF-3EEE75678A96}D3D9 - Present
+  98,        0,          0,     0, {72A65AAB-773F-497D-A999-4694B2BBCE57}D3D9 - BitBlt
+  99,     4436,    1214905,   273, {3D6FA8D0-FE05-11D0-9DDA-00C04FD7BA7C}NT - Process Event
+ 100,   896578,   83877582,    93, {3D6FA8D1-FE05-11D0-9DDA-00C04FD7BA7C}NT - Thread Event
+ 101,    53136,   13792256,   259, {2CB15D1D-5FC1-11D2-ABE1-00A0C911F518}NT - Image Load
+ 102,   294030,   62190848,   211, {DEF2FE46-7BD6-4B80-BD94-F57FE20D0CE3}NT - Stack Walk
+ 103,   212662,   22631785,   106, {B3E675D7-2554-4F18-830B-2762732560DE}NT - Image ID
+ 104,        3,        252,    84, {CE1DBFB4-137E-4DA6-87B0-3F59AA102CBC}NT - Perf Info
+ 105,        0,          0,     0, {E8FC0619-B1D3-4B11-88CB-AE0B9F51B758}NT - Kernel Mode Enter
+ 106,        0,          0,     0, {04233E80-7905-4CEB-BC4D-78C8FBF0AD74}NT - Kernel Mode Exit
+ 107,        0,          0,     0, {5985A5BB-C362-4FC0-839C-9EA9A6CE5CB5}NT - Log
+ 108,   276112,   22088960,    80, {686C6784-3F7F-4FB1-8800-BD3B21927A55}NT - Profile Sample
+ 109,        0,          0,     0, {97D8D304-7BEC-4E67-8674-17385ED906ED}NT - Dpc
+ 110,        0,          0,     0, {072577AC-9FB3-4622-A1E4-6862F5959939}NT - Timer Dpc
+ 111,        0,          0,     0, {91C86202-4460-45F7-B440-72CCBB999799}NT - Interrupt
+ 112,       15,       1616,   107, {68FDD900-4A3E-11D1-84F4-0000F80464E3}NT - Event Trace
+ 113,        0,          0,     0, {9E814AAD-3204-11D2-9A82-006008A86939}NT - System Trace Control
+ 114,        0,          0,     0, {3D6FA8D3-FE05-11D0-9DDA-00C04FD7BA7C}NT - Page Fault
+ 115,       20,       2316,   115, {9B79EE91-B5FD-41C0-A243-4248E266E9D0}NT - System Config Info
+ 116,      651,     191714,   294, {01853A65-418F-4F36-AEFC-DC0F1D2FD235}NT - Event Trace Config
+ 117,        2,        224,   112, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PresentHistory
+ 118,     1224,     137088,   112, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PresentHistory
+ 119,      818,      91616,   112, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PresentHistory
+ 120,     5656,     610848,   108, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DmaPacket
+ 121,     5656,     520352,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DmaPacket
+ 122,     5656,     656096,   116, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DmaPacket
+ 123,    41806,    5183944,   124, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl QueuePacket
+ 124,    15302,    1224160,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl QueuePacket
+ 125,    79668,    7648128,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl QueuePacket
+ 126,    28228,    2145328,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl WorkerThread
+ 127,    28229,    2145404,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl WorkerThread
+ 130,        3,        800,   266, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Adapter
+ 131,        4,        496,   124, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Device
+ 132,        4,        496,   124, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Device
+ 133,       56,       6944,   124, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Device
+ 134,       14,       1792,   128, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Context
+ 135,       14,       1792,   128, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Context
+ 136,      155,      19840,   128, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Context
+ 137,     2524,     530040,   210, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AdapterAllocation
+ 138,     1945,     408450,   210, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AdapterAllocation
+ 139,     9900,    2079000,   210, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AdapterAllocation
+ 140,     2532,     415248,   164, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DeviceAllocation
+ 141,     1949,     319636,   164, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DeviceAllocation
+ 142,    10011,    1641804,   164, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DeviceAllocation
+ 153,     2522,     272376,   108, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReserveResource
+ 154,     2522,     171496,    68, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReserveResource
+ 157,       16,       1600,   100, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SynchronizationMutex
+ 159,       16,       1600,   100, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SynchronizationMutex
+ 160,      312,      31200,   100, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SynchronizationMutex
+ 161,        8,        832,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Semaphore
+ 163,        8,        832,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Semaphore
+ 168,       30,       3120,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Fence
+ 173,   445514,   30294952,    68, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Profiler
+ 174,   445512,   30294816,    68, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Profiler
+ 177,        0,          0,     0, {A6A00EFD-21F2-4A99-807E-9B3BF1D90285}AE - Control GUID for AudioEngine
+ 178,        0,          0,     0, {E918C461-D445-48EE-B26A-FF8CCC797E36}AE - Object event
+ 179,        0,          0,     0, {2013DBB2-2F76-4B2C-950A-0C9DFAC62398}AE - Glitch event
+ 180,        0,          0,     0, {F6C4E82E-4C40-4B08-A983-FFC0E63B7E03}AE - Drop event
+ 181,        0,          0,     0, {7768062C-700D-4479-8DDD-7E7F60CCB4B4}AE - CPU usage event
+ 182,        0,          0,     0, {810143B0-8898-433D-B00D-FBA5D05EDF6D}AE - Process pass event
+ 183,        0,          0,     0, {2F900642-1A32-408F-B286-E6A07A1750A5}AE - Control Event
+ 184,        0,          0,     0, {AE78763D-362E-49DC-8D07-AF87B3573D89}AE - Position Event
+ 185,        0,          0,     0, {432EA06E-2B00-4A58-846D-BE3AF44E0DF8}AE - Security Event
+ 186,        0,          0,     0, {0D663B46-C4BF-4C22-9CB5-2F2C79BACBBB}AE - Data Write/Read Event
+ 187,        0,          0,     0, {FF9C1883-333A-4278-9D22-403B6F4F4957}AE - Irp complete/submitRead Event
+ 188,        0,          0,     0, {B3369E69-074D-4E14-A7BD-845BC1B47EE9}AE - Clock interpolator
+ 189,        0,          0,     0, {41DBCB73-5A7F-476B-B844-61A49D724E3A}AE - Time stamp
+ 190,        0,          0,     0, {D1EDF991-708D-47DE-9697-DE950CFC6EEA}AE - Performance
+ 191,        0,          0,     0, {63327924-0DCC-418C-A5F0-5FAF329F14AB}AE - Glitch, position timestamp
+ 192,        0,          0,     0, {41916587-DEBB-4C34-B7FA-909301F128CD}AE - Memory allocation
+ 193,        0,          0,     0, {5602AA38-C16D-461F-86B0-D78D7CD80A24}AE - Wave RT
+ 194,        0,          0,     0, {A8B153AF-DA6C-4378-83DA-17E841E59B24}AE - Async IO
+ 195,        0,          0,     0, {EB224906-D375-4CC0-87EC-1EE4773DC5D2}AE - EndPoint
+ 196,        0,          0,     0, {F3FFCF91-5DD9-4DF8-8247-18E4BBC73C73}DWM - FrameInfo
+ 197,        0,          0,     0, {3542B3F7-AB3F-4DFC-9C97-01C433144338}DWM - Time
+ 198,        0,          0,     0, {C3EAE4C4-D971-4B92-8850-2DF061ECAA2D}DWM - TuningParams
+ 199,        0,          0,     0, {AD0DFBFE-BF4B-4C01-8AE4-50526BB5DA25}DWM - Statistics
+ 200,        0,          0,     0, {CB06234D-E3CC-46DE-82AC-7A20AEAC068C}DWM - RateInfo
+ 201,        0,          0,     0, {383D3582-BE4F-4F59-8F99-0C7FAC671F12}DWM - WFVB
+ 202,        0,          0,     0, {14D1A24A-A581-4F66-9EDB-EE13F4578170}DWM - WFW
+ 203,        0,          0,     0, {E599988E-7A01-4FBA-943E-8BD2C8E6001A}DWM - GetPresentCount
+ 204,        0,          0,     0, {CDBF3DDB-AFCC-4001-AF16-9C792D4A4335}DWM - Process Frame
+ 205,        0,          0,     0, {966DEF4F-25FB-488A-B3D1-8760AB28A8C0}DWM - Render
+ 206,        0,          0,     0, {0DE25C99-DDA4-4074-B914-BE14980CD237}DWM - Present
+ 207,        0,          0,     0, {36B0C7F9-2763-454D-BC6E-09C5F3BFCF69}DWM - Scheme
+ 208,        0,          0,     0, {25D4BD80-ECBA-4D58-815B-D70AF79F8D9D}DWM - Glitch
+ 209,        0,          0,     0, {34B58F7E-B0B0-4E74-9EDB-E1829A9B8FA7}DWM - Glitch Recov. Attempt
+ 210,        0,          0,     0, {BA8E0E31-A12A-4392-91D9-0BA32AD2923C}DWM - Reset
+ 211,        0,          0,     0, {AA88F073-45F1-43EB-AAF6-1797C66A52FB}DWM - QPC Failure
+ 212,        0,          0,     0, {A528E091-0A45-468D-BBD2-646908DB6E3C}DWM - DWM
+ 213,        0,          0,     0, {36695694-6D88-4F1D-826C-4A3FFBAF0AF8}DWM - DWM Config
+ 214,        0,          0,     0, {65358E40-AA15-470A-A166-E478A3B02800}DWM - DWM State Machine
+ 215,        0,          0,     0, {4E9E5AA8-D4EA-431B-83F5-613E4F8A156F}DWM - DWM Graphics Stream
+ 216,        0,          0,     0, {64C31B8D-E3E4-4E1D-9044-5AFE7C472BBF}DWM - Win32 Redirection
+ 217,        0,          0,     0, {92BB5CEE-A57E-4EEE-A5FD-5B65306CBD00}DWM - Remoting
+ 218,        0,          0,     0, {C60637BB-4FC7-4E1B-A624-98830A6704D7}DWM - UDWM
+ 219,        0,          0,     0, {95EA05F8-F7AE-4B1F-B1FF-033FCB06517E}DWM - UDWM Animation
+ 220,        0,          0,     0, {F906CA84-F5DB-4A2F-8BB1-509D656E9C23}DWM - LPC Message
+ 221,        0,          0,     0, {56144D38-0BEB-436B-8DB0-3030992BDAF7}DWM - VideoMix
+ 222,        0,          0,     0, {A8295F90-7937-491D-85D2-7B84C1D18B22}DWM - VideoGlitch
+ 223,        0,          0,     0, {650D5BAC-0B0B-4C66-9ECC-C27B08ECAEFB}DWM - VideoBeginFrame
+ 224,        0,          0,     0, {7D2C8338-C13C-4C5C-867A-C56C980354E4}DWM - SWFallback
+ 225,        0,          0,     0, {189BF19A-B3CA-44B1-9315-838211A81E36}DWM - NoWavAvailable
+ 226,        0,          0,     0, {EA2815AA-748C-46C1-B994-49B41CEECDA6}DWM - OutOfVideoMemory
+ 227,        0,          0,     0, {07C9179D-40A4-4CEE-A847-D29C7CB7B49C}DWM - GeneriMilEvent
+ 228,        0,          0,     0, {5C02C62F-AEC1-4F0C-B4A7-511D280184FD}DWM - BitMapCopyEvent
+ 229,        0,          0,     0, {12FF2EAC-9AEC-4069-BB01-CDA998158E95}DWM - LayerEvent
+ 230,        0,          0,     0, {C8960930-BF29-4C06-8574-D4BE803F13F9}DWM - ClearEvent
+ 231,        0,          0,     0, {A4CB774B-F41B-4F2A-AF77-92080267F27E}DWM - DirtyRegionEvent
+ 232,        0,          0,     0, {9B3D423F-4FBF-460A-B529-9FD15F032724}DWM - OcclusionEvent
+ 233,        0,          0,     0, {9CEC574C-5B6A-4CED-A6C3-8A475B3B0CDF}DWM - DWMUpDataWindow
+ 234,        0,          0,     0, {C4E8F367-3BA1-4C75-B985-FACBB4274DD7}DWM - DrawEvent
+ 235,        0,          0,     0, {2E62C3BF-7C51-43FB-8CDC-915D4ABC09DD}DWM - DeskTopRTCreate
+ 236,        0,          0,     0, {B7C7F692-F2B4-447A-B5DF-FA6C314889AE}DWM - Media UCE ProcessQueue
+ 237,        0,          0,     0, {DE51AE60-46AD-4CC0-9A29-426A87E88E9F}DWM - Media UCE PreCompute
+ 238,        0,          0,     0, {4C48D6EF-AC14-4D84-BA37-49A94BA8D2AF}DWM - Media UCE Present
+ 239,        0,          0,     0, {4C253B24-7230-4FA1-9748-AC4C59CF288C}DWM - Media UCE WinResponse
+ 240,        0,          0,     0, {C914EE5B-07CD-422D-A2EB-7A44A550616C}DWM - Media UCE ProcessPresentHistory
+ 241,        0,          0,     0, {76601D6D-C6D4-4E8D-AC6E-3F9B4F1745E0}DWM - Media UCE Check Device State
+ 242,        0,          0,     0, {A4C821C3-F456-4DA6-9B1C-06C7DCB8993C}DWM - FlipChange Duration
+ 243,        0,          0,     0, {671F95D5-B389-4878-9692-54E5100A2143}DWM - FlipChain Clitch
+ 244,        0,          0,     0, {9DDFEEDC-05BB-45CB-B09D-DC77DEF67197}DWM - FlipChain SetPresentParameters
+ 245,        0,          0,     0, {FFDE6AAC-5646-422E-83F5-0F3F31B129CC}DWM - DWMUpdate
+ 246,        0,          0,     0, {79B4910C-1419-44F0-B38C-5053D631342B}DWM - Redir
+ 247,        0,          0,     0, {065DFED6-0DD9-4A35-95F7-8BAAD8900074}DWM - DXResize
+ 248,        0,          0,     0, {26E9403B-E569-42C5-AACD-B72CA51AE8E6}DWM - GetCompositionTimeingInfo
+ 249,        0,          0,     0, {6F61C05D-C9E1-40CC-BC38-69A60397F8C7}DWM - ModifyFrameDuration
+ 250,        0,          0,     0, {46DD695F-A1B4-49BD-8BA0-09E5C967D6AF}DWM - DWM Redir AsyncFlush
+ 251,        0,          0,     0, {4114800A-1B17-4754-9D70-CCDD416AF619}DWM - API
+ 252,        0,          0,     0, {704345F8-59BB-41EF-9899-D4305C0865A1}DX - DpiDispatchCreate
+ 253,        0,          0,     0, {0920AE82-6564-423E-84E5-FA5EE0C17F53}DX - DpiDispatchClose
+ 254,        0,          0,     0, {91C2B6A9-F568-4A37-AD51-17EA217B4F38}DX - DpiDispatchPNP
+ 255,        0,          0,     0, {D87441D2-04EC-4627-B63D-19E85FC59E77}DX - DpiDispatchPower
+ 256,        0,          0,     0, {0D662B6B-E924-49DC-BA1C-FD1B51864030}DX - DpiDispatchIOCtl
+ 257,        0,          0,     0, {AC77B6CF-C906-451D-B23B-BEB6EA428733}DX - DpiDispatchInternalIOCtl
+ 258,        0,          0,     0, {00A81E6F-5531-4C83-8980-EBD125B00C0C}DX - DpiDispatchSystemControl
+ 259,        0,          0,     0, {C5CA877C-9260-4CDA-9D0D-0AFB811E3DFE}DX - DpiAddDevice
+ 260,        0,          0,     0, {8D967592-5A98-4774-A191-DE4112DEB67A}DX - DpiDriverUnload
+ 261,        0,          0,     0, {470B95CB-A888-4E7C-BD4D-8095A7C37C52}DX - Sch Worker Thread
+ 262,        0,          0,     0, {FD29CC3A-72F0-4134-9109-66388DDCE886}DX - DmAddDevice
+ 263,        0,          0,     0, {5DE9CF90-F79A-44FD-B38E-77AB4D366C40}DX - DmStartDevice
+ 264,        0,          0,     0, {4C7DBA02-BFD3-4909-962D-B2F0E544B85D}DX - DmStopDevice
+ 265,        0,          0,     0, {BEA11B19-8572-4C29-9EFD-C6CABFE407D2}DX - DmRemoveDevice
+ 266,        0,          0,     0, {670C97C6-F30F-4C06-AD44-338E86802D46}DX - DmDispatchIORequest
+ 267,        0,          0,     0, {F2C20036-F79F-48AA-901B-E20E4C6F8D69}DX - DmProtectedCallback
+ 268,        0,          0,     0, {49B70EFC-B689-41D7-9332-E00ED43AEE58}DX - DmQueryInterface
+ 269,        0,          0,     0, {8E956800-6912-4262-9719-58893BBCEC62}DX - DmQueryChildRelations
+ 270,        0,          0,     0, {9E6C88DA-3FE9-4237-9C23-1B41E7A86F28}DX - DmQueryChildStatus
+ 271,        0,          0,     0, {D9C02857-6757-4B7B-A1BB-F32CBE59BA69}DX - DmQueryDeviceDescriptor
+ 272,        0,          0,     0, {4AA1D9E5-4929-494C-9D03-AC47394B8ACE}DX - DmSetPowerState
+ 273,        0,          0,     0, {EA64AFFD-5E5B-48FB-AE78-A7C3BB154109}DX - DmNotifyACPIEvent
+ 274,        0,          0,     0, {3F48A8DA-2411-4C98-BF5F-6C53858AC28D}DX - DmResetDevice
+ 275,        0,          0,     0, {702CAC4A-8113-4883-AA70-BC660CF60D78}DX - DmUnload
+ 276,        0,          0,     0, {B5EA4B6A-92B7-4106-965E-B184BCFF66B0}DX - DmLinkDevice
+ 277,        0,          0,     0, {9792224B-86A9-4E2A-8ACA-2FB616FF6B3E}CDD - Profiler Event
+ 278,        0,          0,     0, {B4DE17A1-C5B2-44FE-86D5-D97A648114FF}DXVA2 - Decode Create Device
+ 279,        0,          0,     0, {853EBDF2-4160-421D-8893-63DCEA4F18BB}DXVA2 - Decode Destroy Device
+ 280,        0,          0,     0, {9FD1ACF6-44CB-4637-BC62-2C11A9608F90}DXVA2 - Decode Begin Frame
+ 281,        0,          0,     0, {850AEB4C-D19A-4609-B3B4-BCBF0E22121E}DXVA2 - Decode Execute
+ 282,        0,          0,     0, {57B128FB-72CB-4137-A575-D91FA3160897}DXVA2 - Decode Get Buffer
+ 283,        0,          0,     0, {9FB3CB33-47DC-4899-98C8-C0C6CD7CD3CB}DXVA2 - Decode End Frame
+ 284,        0,          0,     0, {895508C6-540D-4C87-98F8-8DCBF2DABB2A}DXVA2 - VideoProcess Create Device
+ 285,        0,          0,     0, {F97F30B1-FB49-42C7-8EE8-88BDFA92D4E2}DXVA2 - VideoProcess Destroy Device
+ 286,        0,          0,     0, {69089CC0-71AB-42D0-953A-2887BF05A8AF}DXVA2 - VideoProcess Blt
+ 287,        0,          0,     0, {681E3D1E-5674-4FB3-A503-2F2055E91F60}DXVAHD - Create Video Processor
+ 288,        0,          0,     0, {76C94B5A-193F-4692-9484-A4D999DA81A8}DXVAHD - Video Process Blt State
+ 289,        0,          0,     0, {262C0B02-209D-47ED-94D8-82AE02B84AA7}DXVAHD - Video Process Stream State
+ 290,        0,          0,     0, {BEF3D435-78C7-4DE3-9707-CD1B083B160A}DXVAHD - Video Process Blt HD
+ 291,        0,          0,     0, {27AE473E-A5FC-4BE5-B4E3-F24994D3C495}DXVAHD - Video Process BLT HD Stream
+ 292,        0,          0,     0, {F943F0A0-3F16-43E0-8093-105A986AA5F1}DXVAHD - Destroy Video Processor
+ 293,        0,          0,     0, {2BDAC136-B577-49AC-B568-3536FBDB4604}GT - Test Start/End
+ 294,        0,          0,     0, {013F8F86-0C8C-4C50-A8E7-2B0518467581}GT - Message
+ 295,        0,          0,     0, {D900DD34-2922-4FF1-B742-46DE3E2ABDDD}GT - Warning
+ 296,        0,          0,     0, {2BDAC136-B578-49AC-B568-3536FBDB4604}GT - Error
+ 297,        0,          0,     0, {013F8F86-0C8C-4C50-A8E7-2B0518467582}GTFW - Message
+ 298,        0,          0,     0, {D900DD34-2922-4FF1-B742-46DE3E2ABDDE}GTFW - Warning
+ 299,        0,          0,     0, {2BDAC136-B578-49AC-B568-3536FBDB4606}GTFW - Error
+ 300,        0,          0,     0, {2BDAC136-B578-49AC-B568-3536FBDB4608}GTFW - Profile
+ 301,        0,          0,     0, {CA04227A-F03E-4382-A168-8050BEFD3A49}MF - Object
+ 302,        0,          0,     0, {DAA05FDD-8072-4D5F-8033-AD6F6B1834A5}MF - AudioRenderer Starvation
+ 303,        0,          0,     0, {A48F85E2-8317-49FB-BA3F-936E627B98FB}MF - Video Frame Glitch
+ 304,        0,          0,     0, {D91D194A-B161-4536-B56B-0AF6C176E7B7}MF - Data Drop
+ 305,        0,          0,     0, {D66A2A37-5724-4FBF-B384-0B489CCAC093}MF - Clock GetTime
+ 306,        0,          0,     0, {6E2E9480-8622-49C9-BFB2-D9E3A14B27D3}MF - Predicted Video SampleTime
+ 307,        0,          0,     0, {21805BD5-7410-4498-B5D9-4F57A71294D6}MF - Stream
+ 308,        0,          0,     0, {88BC3905-9DDA-4E4A-876F-F7EFFFD9435B}MF - MediaType Change
+ 309,        0,          0,     0, {CFB318FE-9439-4974-9BBD-DDE5A6C2AF1B}MF - Buffer
+ 310,        0,          0,     0, {C9652F07-BEF6-466B-A04E-38B68852EDD5}MF - Process
+ 311,        0,          0,     0, {FB3062ED-2D22-4DDC-B68E-B0ED564915E6}MF - Unusual Streaming
+ 312,        0,          0,     0, {A5687CAA-208E-4BD5-8042-A486B19BE4E7}MF - DiskIo Request
+ 313,        0,          0,     0, {8AFB0B5F-EABC-41E0-A25D-91DC6173195E}MF - DiskIo Complete
+ 314,        0,          0,     0, {C25C3351-9AD3-4338-83CE-C73F83BFEFD4}MF - File Open
+ 315,        0,          0,     0, {B857A029-6523-4DDE-AF98-F5B7E796D99A}MF - Render Rend
+ 316,        0,          0,     0, {08DE626F-5C51-4597-A958-46B0F97E0F5A}MF - Render Sample
+ 317,        0,          0,     0, {28E45CAF-7C4A-421A-B299-9310F92432E2}MF - DXVA
+ 318,        0,          0,     0, {B1D8D69D-354F-423C-9F85-0B02D9C56B6B}MF - Codec DXVA
+ 319,        0,          0,     0, {674A28FB-B8BA-43DB-95E4-731F14CF1BDB}MF - AudioRenderer BufferFullness
+ 320,        0,          0,     0, {F6EA3EB9-CF8F-4933-8612-41FFF8AF3E22}MF - State Change
+ 321,        0,          0,     0, {1BF54FD9-9534-40E6-AD15-559E3BCFAA66}MF - Transform Creation
+ 322,        0,          0,     0, {2DB45F91-1E5D-4DBB-98DB-E778CE6FFFBB}MF - MediaEngine
+ 323,        0,          0,     0, {E78B8410-9535-4B19-AFC3-94AAF91453E1}MF - TopoLoader
+ 324,        0,          0,     0, {2C0408D5-D56B-4C54-8444-AE76A7E88BCA}MF - Latency
+ 325,        0,          0,     0, {2C0408D6-D56B-4C54-8444-AE76A7E88BCA}MF - PacketSink
+ 326,        0,          0,     0, {2C0408D7-D56B-4C54-8444-AE76A7E88BCA}MF - NetSource
+ 327,        0,          0,     0, {467E65A9-23F7-44B6-8CDD-9C99967A8604}MF - NetChannel
+ 328,        0,          0,     0, {D27BA2A0-75F3-46BE-8244-1A7498E9AFA7}MF - NetSession
+ 329,        0,          0,     0, {8CE0B5F4-B8B4-41CC-AFFA-4356DBBDABB8}MF - NetClient
+ 330,        0,          0,     0, {56564990-02C5-4FD3-802D-B0A7B215E38B}MF - NetClientGuid
+ 331,        0,          0,     0, {7281B2A8-9328-44BD-A422-E4F0784BE5FF}MF - Http ByteStream
+ 332,        0,          0,     0, {07F6DAFA-0E12-40DE-A79B-403E7157721F}MF - Base Remote ByteStream
+ 333,        0,          0,     0, {839EE1CB-FC91-44D9-A5E0-8F51F52CF778}MF - Urlmon Remote ByteStream
+ 334,        0,          0,     0, {FE785A19-A580-406F-BCC3-1AA0BE3DEC25}MF - Http Web Request
+ 335,        0,          0,     0, {4007FE7D-8A35-4D26-A68D-E4CAA269BF63}MF - MeadCache
+ 336,        0,          0,     0, {D2FC7223-E092-4195-9170-FC8187A00DE8}MF - SourceResolution
+ 337,        0,          0,     0, {70AEED03-7C02-42D6-A8D8-E3266C9C6E19}MF - Session BitPump
+ 338,        0,          0,     0, {568A2F63-DEB8-4348-88D3-36F3763ED1F6}MF - MediaSession
+ 339,        0,          0,     0, {C12F92FE-4C72-47EC-94F6-7961FB7B7D36}MF - Sequencer
+ 340,        0,          0,     0, {E730C440-047E-481A-B567-394C148C2185}MF - QM
+ 341,        0,          0,     0, {656470C4-B9AF-4C0B-A65C-300614068E28}MF - Media Proc Source
+ 342,        0,          0,     0, {B5F0542E-7282-4E72-A4BE-5368539D4584}MF - Frame Grabber
+ 343,        0,          0,     0, {0B023F29-00BC-4F42-912F-632260FC870D}MF - Adjust Sample Time
+ 344,        0,          0,     0, {87AA2B7C-75CD-4A85-AE55-A88F476984F7}MF - MediaClip
+ 345,        0,          0,     0, {582BB2A3-BEC2-404F-B8CB-B8E267C974E4}MF - Video Render
+ 346,        0,          0,     0, {C30D21DB-CC0C-4C14-874F-04413CEB7F53}MF - Audio Render
+ 347,        0,          0,     0, {DAE07B68-C8C5-4C81-B633-88227D7C6891}MF - MetaData
+ 348,        0,          0,     0, {EC2A3817-AAC4-4D20-8DAD-1F0B0DAECBBE}MF - Muxer
+ 349,        0,          0,     0, {73D4BD03-1382-48E1-B39F-8A255CF9BFFD}MF - Timer Late
+ 350,        0,          0,     0, {1BE6DFEB-7843-4443-8533-BDF8782F2761}MF - Lock
+ 351,        0,          0,     0, {201D5081-4704-440E-BC9C-ED3B6FAE4945}MF - Stack
+ 352,        0,          0,     0, {DEF1CE86-DD89-4774-B4D4-A31135512D8B}MF - MFGraph
+ 353,        0,          0,     0, {EEF1CE86-DD89-4774-B4D4-A31135512D8B}MF - WMP PlayBack
+ 354,        0,          0,     0, {8E9E23E8-094D-466A-A935-1F00E87C8994}MF - PEAuthComm
+ 355,        0,          0,     0, {69765E1D-CE42-4CB1-BA65-7C518784240B}MF - CacheReader
+ 356,        0,          0,     0, {50197EB4-6378-4ADA-B644-7EA8A5399D10}MF - ASFSource
+ 357,        0,          0,     0, {96C0E294-5EFC-43A3-A440-0BD78D032978}MF - OPQueue
+ 358,        0,          0,     0, {3A918990-B731-4DEB-93B0-55248F887EC4}MF - Evr Queue
+ 359,        0,          0,     0, {C8809DD6-2B1C-4F21-8CBD-016ACA980293}MF - Evr DWM Dequeue
+ 360,        0,          0,     0, {A98951CD-AEF4-4072-8281-C9F66E5BE033}MF - Evr Monitor Estimate
+ 361,        0,          0,     0, {C114F738-957F-4C53-AFBC-14A1C36FCD4F}MF - Evr Sleep
+ 362,        0,          0,     0, {13789057-37AD-4448-801A-98DA51EA6C75}MF - Property Handler
+ 363,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD00}MFL - PlayList Populated
+ 364,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD01}MFL - DropComplete
+ 365,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD02}MFL - TreeView Expanded
+ 366,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD03}MFL - NodeRenameComplete
+ 367,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD04}MFL - OCXSetClientSite
+ 368,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD05}MFL - OCXActivated
+ 369,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD06}MFL - FullScreen
+ 370,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD07}MFL - ColumnSortComplete
+ 371,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD08}MFL - BulkEditComplete
+ 372,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD09}MFL - SearchForMedia
+ 373,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD0A}MFL - App Navigate
+ 374,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD0B}MFL - Task Switch
+ 375,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD0C}MFL - App End Of Launch
+ 376,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD0D}MFL - App Idle
+ 377,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD0E}MFL - Rip
+ 378,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD0F}MFL - PDA Transfer File
+ 379,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD10}MFL - PDA NewSync
+ 380,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD11}MFL - PDA Transcode File
+ 381,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD12}MFL - SQM Upload Signal
+ 382,        0,          0,     0, {93059C20-F8FF-4C0F-BCF1-DAA35C045873}MFL - PDA Device Enumerate
+ 383,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD13}MFL - Local Play
+ 384,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD14}MFL - Streaming Play Begin
+ 385,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD15}MFL - Media Open
+ 386,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD16}MFL - PlayList Open NoMedia
+ 387,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD17}MFL - Playing
+ 388,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD18}MFL - Trasitioning
+ 389,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD19}MFL - Media Ended
+ 390,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD1A}MFL - Error Dialog
+ 391,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD1B}MFL - OCX First Paint
+ 392,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD1C}MFL - DeleteSelection End
+ 393,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD1D}MFL - DocumentComplete
+ 394,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD1E}MFL - BeforeNavigate2
+ 395,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD1F}MFL - HME ExecuteQuery
+ 396,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD20}MFL - HME ServiceAdded
+ 397,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD21}MFL - HME InitialiDiscovery
+ 398,        0,          0,     0, {564C2AE5-133F-4C5B-B3F2-CEE4A8DDCD22}MFL - HME Browse
+ 399,        0,          0,     0, {24C153E9-A111-409F-95A8-1783F6301D29}MFL - PDA Device Detected
+ 400,        0,          0,     0, {8DCC5318-A16A-4AB0-BA45-54FC7925F3CD}MF - EVR DX Present Event
+ 401,        0,          0,     0, {BDD865D1-D7C1-11D0-A501-00A0C9062910}NT - DiskPerfGuid
+ 402,        0,          0,     0, {A1BC18C0-A7C8-11D1-BF3C-00A0C9062910}NT - New: Thermal Zone
+ 403,        0,          0,     0, {E8908ABC-AA84-11D2-9A93-00805F85D7C6}NT - Global Logger
+ 404,        0,          0,     0, {8D40301F-AB4A-11D2-9A93-00805F85D7C6}NT - Generic Message
+ 405,        0,          0,     0, {3D6FA8D4-FE05-11D0-9DDA-00C04FD7BA7C}NT - Disk IO
+ 406,        0,          0,     0, {90CBDC39-4A3E-11D1-84F4-0000F80464E3}NT - File IO
+ 407,        0,          0,     0, {9A280AC0-C8E0-11D1-84E2-00C04FB998A2}NT - TCP/IP
+ 408,        0,          0,     0, {BF3A50C5-A9C9-4988-A005-2DF0B7C80F80}NT - UDP/IP
+ 409,        0,          0,     0, {AE53722E-C863-11D2-8659-00C04FA321A1}NT - Registry
+ 410,        0,          0,     0, {398191DC-2DA7-11D3-8B98-00805F85D7C6}NT - Trace Error
+ 411,        0,          0,     0, {44608A51-1851-4456-98B2-B300E931EE41}NT - Wmi Event Logger
+ 412,        0,          0,     0, {98A2B9D7-94DD-496A-847E-67A5557A59F2}NT - New: System Info
+ 413,        0,          0,     0, {13976D09-A327-438C-950B-7F03192815C7}NT - Debug Print
+ 414,        0,          0,     0, {B16F9F5E-B3DA-4027-9318-ADF2B79DF73B}NT - Event Log
+ 415,        0,          0,     0, {D56CA431-61BF-4904-A621-00E0381E4DDE}NT - Driver Verifier
+ 416,        0,          0,     0, {78D14F17-0105-46D7-BFFF-6FBEA2F3F358}NT - Application Verifier
+ 417,        0,          0,     0, {54DEA73A-ED1F-42A4-AF71-3E63D056F174}NT - New: CKCL
+ 418,        0,          0,     0, {0E66E20B-B802-BA6A-9272-31199D0ED295}NT - New: AuditLogger
+ 419,        0,          0,     0, {54849625-5478-4994-A5BA-3E3B0328C30D}NT - New: Security Provider
+ 420,        0,          0,     0, {472496CF-0DAF-4F7C-AC2E-3F8457ECC6BB}NT - New: Pri Logger Security
+ 421,        0,          0,     0, {0268A8B6-74FD-4302-9DD0-6E8F1795C0CF}NT - Pool
+ 422,        0,          0,     0, {222962AB-6180-4B88-A825-346B75F2A24A}NT - Heap
+ 423,        0,          0,     0, {D781CA11-61C0-4387-B83D-AF52D3D2DD6A}NT - Heap Range
+ 424,        0,          0,     0, {3AC66736-CC59-4CFF-8115-8DF50E39816B}NT - Critical Section
+ 425,        0,          0,     0, {45D8CCCD-539F-4B72-A8B7-5C683142609A}NT - ALPC
+ 426,        0,          0,     0, {6A399AE0-4BC6-4DE9-870B-3657F8947E7E}NT - RT Lost Events
+ 427,        0,          0,     0, {E21D2142-DF90-4D93-BBD9-30E63D5A4AD6}NT - Dll Trace
+ 428,        0,          0,     0, {D3DE60B2-A663-45D5-9826-A0A5949D2CB0}NT - Load MUI Dll
+ 429,        0,          0,     0, {89497F50-EFFE-4440-8CF2-CE6B1CDCACA7}NT - Object
+ 430,        0,          0,     0, {A9152F00-3F58-4BEE-92A1-70C7D079D5DD}NT - Mod Bound
+ 431,        0,          0,     0, {E43445E0-0903-48C3-B878-FF0FCCEBDD04}NT - Power
+ 432,        0,          0,     0, {F8F10121-B617-4A56-868B-9DF1B27FE32C}NT - MMCSS
+ 433,        0,          0,     0, {B2D14872-7C5B-463D-8419-EE9BF7D23E04}NT - DPC
+ 434,        0,          0,     0, {D837CA92-12B9-44A5-AD6A-3A65B3578AA8}NT - New: SplitIo
+ 435,        0,          0,     0, {C861D0E2-A2C1-4D36-9F9C-970BAB943A12}NT - New: Thread Pool
+ 436,        0,          0,     0, {7F2A405C-69B5-4BF9-A1F5-30E8F1AFAB5E}NT - New: Hypervisor Trace
+ 437,        0,          0,     0, {2CE9A149-EFFE-42F0-A635-A1D39E26C8F2}NT - New: Hypervisor XTrace
+ 438,        0,          0,     0, {2D9F3A42-01D4-4733-97F7-041E8021DC84}NT - New: Legay Event Log
+ 439,        0,          0,     0, {3B9C9951-3480-4220-9377-9C8E5184F5CD}NT - New: Kernel Rundown
+ 440,        0,          0,     0, {2A6E185B-90DE-4FC5-826C-9F44E608A427}NT - New: Session Notification
+ 441,        0,          0,     0, {331C3B3A-2005-44C2-AC5E-77220C37D6B4}NT - Kernel Power
+ 442,      363,     548978,  1512, {BBCCF6C1-6CD1-48C4-80FF-839482E37671}NT - Event Metadata Guid
+ 443,        0,          0,     0, {BF6EF1CB-89B5-490A-80AC-B180CFBCFF0F}NT - Event Track Metadata Guid
+ 449,        1,         88,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Process
+ 450,      225,      19800,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Process
+ 454,        3,       8552,  2850, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DpiReportAdapter
+ 455,        9,        756,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AdapterFeatureState
+ 459,       10,       1250,   125, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportSegment
+ 460,      109,      10464,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AssociateDxgSchedulerObject
+ 461,        8,        704,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl HwQueue
+ 462,        8,        704,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl HwQueue
+ 463,      181,      15928,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl HwQueue
+ 468,       19,       2280,   120, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AddDmaBuffer
+ 471,     9963,     916596,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ProcessAllocationDetails
+ 472,      307,      28244,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ProcessAllocationDetails
+ 475,      567,      61236,   108, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpDiscard
+ 479,        4,        464,   116, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpUnmapApertureSegment
+ 482,      623,      82236,   132, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpVirtualFill
+ 483,       10,       1200,   120, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpInitContextResource
+ 484,    28334,    5100120,   180, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpUpdatePageTable
+ 485,     7295,     933760,   128, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpFlushTlb
+ 486,        4,        480,   120, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpUpdateContextAllocation
+ 487,       28,       3024,   108, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpNotifyResidency
+ 488,     7459,     865244,   116, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportCommittedAllocation
+ 489,        6,        504,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportCommittedGlobalAllocation
+ 490,     1055,      88620,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportMarkedGlobalAllocation
+ 491,      150,      15600,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MonitoredFence
+ 493,      140,      14560,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MonitoredFence
+ 494,     2507,     260728,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MonitoredFence
+ 495,     3993,     447216,   112, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl QueuePacket
+ 496,    33883,    3930236,   115, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl QueuePacket
+ 497,      141,      13536,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportSyncObject
+ 498,     2148,     206208,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportSyncObject
+ 500,     3263,     365456,   112, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingQueuePacket
+ 501,     1082,     112528,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingQueuePacket
+ 502,     4345,     382360,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingQueuePacket
+ 503,     4345,     417120,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingQueuePacket
+ 504,       82,       7872,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ChangePriority
+ 505,       87,       8352,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ChangeHwContextPriority
+ 506,       95,       7600,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ChangeInProcessPriority
+ 507,      895,      64440,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl EvictAllocation
+ 508,       91,      98084,  1077, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl GpuWork
+ 513,      981,      82404,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpSysmemCommit
+ 514,      476,      39984,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpSysmemUncommit
+ 515,     5424,     390528,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingPreparation
+ 516,     2524,     191824,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AllocationFault
+ 517,     1934,     139248,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MarkAllocation
+ 518,     1077,      77544,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl TerminateAllocation
+ 526,      662,     105920,   160, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl FlipMultiPlaneOverlay
+ 527,      406,      60088,   148, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl IndependentFlip
+ 528,      737,      64856,    88, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Present
+ 533,    32412,   20076364,   619, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 RuntimeMarker
+ 534,     1374,     164880,   120, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncDPC
+ 535,     1374,     307808,   224, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncDPCMultiPlane
+ 536,     1065,     238552,   223, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl HSyncDPCMultiPlane
+ 538,        4,       1200,   300, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI SwapChain
+ 539,        2,        600,   300, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI SwapChain
+ 541,        4,        576,   144, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Device
+ 542,       33,       4732,   143, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Device
+ 543,        4,        576,   144, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Device
+ 545,        1,        109,   109, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Device
+ 547,     4111,     838644,   204, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Resource
+ 548,     3994,     814776,   204, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Resource
+ 549,     4102,     836808,   204, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Resource
+ 551,        6,        704,   117, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CommandQueue
+ 554,       45,       4140,    92, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CommandList
+ 557,       78,       6864,    88, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Fence
+ 560,      111,       9324,    84, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CommandAllocator
+ 562,        2,        160,    80, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 GraphicsPipelineState
+ 563,     1122,      89760,    80, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 GraphicsPipelineState
+ 566,       80,       7680,    96, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 DescriptorHeap
+ 569,      462,      38808,    84, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 RootSignature
+ 571,      855,     116280,   136, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Heap
+ 572,      573,      77928,   136, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Heap
+ 573,      855,     116280,   136, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Heap
+ 575,       32,       2944,    92, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 QueryHeap
+ 578,        6,        552,    92, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CommandSignature
+ 586,    69181,   32035000,   463, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 AllocationInfo
+ 614,       14,       2240,   160, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Buffer
+ 615,       17,       2720,   160, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Buffer
+ 616,      924,     147760,   159, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Buffer
+ 620,      143,      22880,   160, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Texture2D
+ 621,       96,      15360,   160, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Texture2D
+ 622,      604,      96640,   160, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Texture2D
+ 633,      586,      68830,   117, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Name
+ 634,     1750,     247044,   141, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Name
+ 635,       27,       2566,    95, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Name
+ 637,      386,      51398,   133, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Name
+ 638,      423,      58374,   138, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 Name
+ 645,        2,        146,    73, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl OfferAllocation
+ 646,        2,        144,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl OfferAllocation
+ 647,       21,       1554,    74, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReportOfferAllocation
+ 648,        1,         72,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DiscardAllocation
+ 649,        2,        148,    74, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ReclaimAllocation
+ 650,     1374,     115416,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncInterrupt
+ 651,      641,      46152,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSync
+ 652,      641,      46152,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSync
+ 654,     1068,     196512,   184, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MMIOFlipMultiPlaneOverlay
+ 655,     1068,     192240,   180, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MMIOFlipMultiPlaneOverlay3
+ 656,     1068,     111072,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncHwFlipQueueLogUpdate
+ 657,        9,       1080,   120, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SetDisplayMode
+ 658,       59,       5680,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl NodeMetadata
+ 666,    32412,    2981904,    92, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CommandList
+ 667,    32412,    2981904,    92, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CommandAllocatorUnacquire
+ 668,    11521,    1134908,    98, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 ExecuteCommandList
+ 669,    32414,   11773204,   363, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 RuntimeMarker
+ 670,    11521,    1134908,    98, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 ExecuteCommandList
+ 671,     5490,     439200,    80, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 TrackWrittenResource
+ 672,    24974,   36086696,  1444, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 HistoryBufferCompletion
+ 673,      422,      35448,    84, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI SwapChain
+ 674,      737,      50116,    68, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Present
+ 675,     1017,     239757,   235, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 RuntimeMarker
+ 676,     3693,     295440,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ResetSmoother
+ 677,     4132,     280976,    68, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncSmoothenedReset
+ 678,     6501,     728112,   112, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncSmoothenedTime
+ 679,    47775,    4586400,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VidSchiSignalSynchronizationObjectFromCpu
+ 680,    34668,    3328128,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DmaPacket
+ 681,    23811,    2503016,   105, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SignalSynchronizationObjectFromGpu
+ 682,    38122,    3507224,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl WaitForSynchronizationObjectFromGpu
+ 683,     1065,      89460,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl HSyncInterrupt
+ 684,     5982,     574272,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SetInterruptTargetPresentId
+ 685,    34660,    2772800,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DmaPacket
+ 686,     3993,     319440,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl UnwaitQueuePacket
+ 687,     1921,     176732,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncTimeStatistics
+ 688,     1921,     153680,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DdiControlInterrupt2
+ 689,     1068,      89712,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DdiSetVidPnMultiPlaneOverlay3
+ 690,     1068,      89712,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DdiSetVidPnMultiPlaneOverlay3
+ 691,     1068,      94048,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MMIOFlipMultiPlaneOverlayDirtyRect
+ 692,      662,      63552,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PresentMultiPlaneOverlay
+ 693,     1901,     182496,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VidSchSignalSyncObjectsFromGpuImmediate
+ 694,    21396,    1626096,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl GetDeviceState
+ 695,    19671,    2045784,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl WaitForSynchronizationObjectFromCpu
+ 696,     3163,     253040,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncWaiterChange
+ 697,     1005,      84420,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DWMVsyncCountWait
+ 698,     1645,     151340,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VSyncSmoothenedPeriod
+ 699,       91,      13832,   152, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Blit
+ 700,       91,       8736,    96, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl BlitRect
+ 701,      816,     159968,   196, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PresentHistoryDetailed
+ 702,      814,      87912,   108, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Present
+ 703,    21153,    2199912,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl UnwaitCpuWaiter
+ 704,    11066,    1018072,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SignalSynchronizationObjectFromCpu
+ 705,     4450,     373800,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl TotalBytesResidentInSegment
+ 706,    11575,     926000,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl UpdateContextStatus
+ 707,     5661,     430236,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl AttemptPreemption
+ 708,     5424,     390528,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingPreparation
+ 709,     9554,    1108264,   116, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VidSchiCompleteSignalCommmand
+ 710,     1200,     129600,   108, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl MemoryTransfer
+ 711,      620,      52080,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ResetBackingStore
+ 712,     2533,     182376,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PageInAllocation
+ 713,     1374,     115416,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl DWMVsyncSignal
+ 714,      827,      56236,    68, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl BlockThread
+ 715,      906,      65232,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Unlock
+ 716,    15458,    1607632,   104, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl CalibrateGpuClockTask
+ 717,        2,        168,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl CreateSyncPoint
+ 718,        2,        160,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl RetireSyncPoint
+ 719,      561,      40392,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl WaitForVerticalBlankEventInternal
+ 720,       51,       3468,    68, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Profile
+ 721,        1,        115,   115, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI JournalEntry
+ 722,        3,        264,    88, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Factory
+ 723,        3,        264,    88, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Factory
+ 724,       48,       3264,    68, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Profile
+ 725,       15,       1440,    96, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Adapter
+ 726,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 D3D11CoreCreateDevice
+ 727,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 UMDOpenAdapter
+ 728,      590,      54712,    92, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 JournalEntry
+ 729,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 UMDOpenAdapter
+ 730,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 KMDDeviceCreate
+ 731,       12,       1104,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VidMmPagingQueue
+ 732,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 KMDDeviceCreate
+ 733,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 UMDDeviceCreate
+ 734,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 UMD10CreateDevice
+ 735,        2,        144,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Render
+ 736,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 UMD10CreateDevice
+ 737,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 UMDDeviceCreate
+ 738,        4,        352,    88, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Context
+ 739,        4,        256,    64, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 D3D11CoreCreateDevice
+ 740,        4,        352,    88, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Context
+ 741,       15,       1080,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VidMmDereferenceObjectAsync
+ 742,       15,       1080,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl VidMmDereferenceObjectAsync
+ 743,       15,       1440,    96, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Adapter
+ 744,        4,        288,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl RenderKm
+ 745,        4,        336,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl RenderGdi
+ 746,        6,        552,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl RenderGdiAlloc
+ 747,        4,        480,   120, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl PagingOpMapApertureSegment2
+ 748,        4,        368,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ApertureMapping
+ 749,        4,        368,    92, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ApertureUnmapping
+ 750,        3,        264,    88, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Factory
+ 751,        1,         80,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl EtwVersion
+ 752,        6,        480,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl FlushScheduler
+ 753,        2,        176,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl FlushPresentReferencesAndDisableOverlays
+ 754,        3,        252,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl Brightness
+ 755,        3,        252,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl BacklightOptimizationLevel
+ 756,        2,        152,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl ResumeSchedulerForVidPnSource
+ 757,        1,         88,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl BltQueueWakeReason
+ 758,       33,       2896,    87, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Context
+ 759,        1,        160,   160, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 ExtendedFeatureVersion
+ 760,      504,      40320,    80, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 StateObject
+ 761,        1,         80,    80, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 LifetimeTracker
+ 762,        1,        108,   108, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 ShaderCacheSession
+ 763,       64,       8960,   140, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 JournalEntry
+ 764,       16,       1760,   110, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Output
+ 765,       14,       1540,   110, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI Output
+ 766,       69,       5244,    76, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SetProcessStatus
+ 767,        4,        384,    96, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI GetMultiplaneOverlayCaps
+ 768,        4,        336,    84, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI CreateDirectFlipResource
+ 769,        4,        356,    89, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI BindBackBuffersToDwm
+ 770,        4,        304,    76, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI DWMRedirection
+ 771,        4,        304,    76, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI SetColorSpace1
+ 772,      315,      28980,    92, {DB6F6DDB-AC77-4E88-8253-819DF9BBF140}Direct3D11 Texture2D
+ 773,        5,        552,   110, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SignalSynchronizationObject2
+ 774,        2,        128,    64, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CreatePipelineStateObject
+ 775,        2,        192,    96, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CreatePipelineStateObject
+ 776,        2,        128,    64, {5D8087DD-3A9B-4F56-90DF-49196CDC4F11}Direct3D12 CreatePipelineStateObject
+ 777,        2,        144,    72, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl OfferAllocation
+ 778,      122,      10248,    84, {9E5F9046-43C6-4F62-BA13-7B19896253FF}{9E5F9046-43C6-4F62-BA13-7B19896253FF} 6
+ 779,        1,         80,    80, {9E5F9046-43C6-4F62-BA13-7B19896253FF}{9E5F9046-43C6-4F62-BA13-7B19896253FF} 1
+ 780,        2,        152,    76, {CA11C036-0102-4A2D-A6AD-F03CFED5D3C9}DXGI UnBindBackBuffersFromDwm
+ 781,        2,        168,    84, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SignalSynchronizationObjectImmediate
+ 782,      295,      25960,    88, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl SetPointerPosition
+ 783,        2,        160,    80, {802EC45A-1E99-4B83-9920-87C98277BA9D}DxgKrnl TransferAllocationOwnership
+ 784,        1,        112,   112, {9E5F9046-43C6-4F62-BA13-7B19896253FF}{9E5F9046-43C6-4F62-BA13-7B19896253FF} 5
+ 785,        3,       6893,  2297, {ED54DFF8-C409-4CF6-BF83-05E1E61A09C4}{ED54DFF8-C409-4CF6-BF83-05E1E61A09C4} - {ED54DFF8-C409-4CF6-BF83-05E1E61A09C4}
