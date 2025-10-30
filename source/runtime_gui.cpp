@@ -151,7 +151,7 @@ void reshade::runtime::build_font_atlas()
 	if (language.empty())
 		language = resources::get_current_language();
 
-	if (language.find("bg") == 0 || language.find("ru") == 0)
+	if (language.find("bg") == 0 || language.find("ru") == 0 || language.find("tr") == 0)
 	{
 		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
 	}
@@ -234,6 +234,7 @@ void reshade::runtime::build_font_atlas()
 			log::message(log::level::error, "Failed to load latin font from '%s' with error code %d!", resolved_font_path.u8string().c_str(), ec.value());
 
 		cfg.MergeMode = true;
+		cfg.PixelSnapH = true;
 	}
 #endif
 
