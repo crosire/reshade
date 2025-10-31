@@ -42,8 +42,6 @@ static aspect_ratio_heuristic s_aspect_ratio_heuristic = aspect_ratio_heuristic:
 // Enable or disable the format check from 'check_depth_format' in the detection heuristic
 static unsigned int s_format_filtering = 0;
 static unsigned int s_custom_resolution_filtering[2] = {};
-// value which is by default 0, which is added to a new best match if it is to be chosen as the new best match. This to prevent ping-ponging between two candidates. 
-static int s_value_diff_for_pick = 0;
 
 enum class clear_op : uint8_t
 {
@@ -69,24 +67,8 @@ struct draw_stats
 		return (drawcalls_indirect < (drawcalls / 3) ?
 			// Choose snapshot with the most vertices, since that is likely to contain the main scene
 			vertices > other.vertices :
-			// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
-			drawcalls > other.drawcalls);
-	}
-
-	/// will return true if this is a better pick than the passed in stats if the delta s_value_diff_for_pick is added to this
-	/// called with currently selected as 'this' and other is new best match
-	bool is_better(const draw_stats &other) const
-	{
-		if (s_draw_stats_heuristic == draw_stats_heuristic::vertices)
-			return (vertices + s_value_diff_for_pick) > other.vertices;
-		if (s_draw_stats_heuristic == draw_stats_heuristic::drawcalls)
-			return (drawcalls + s_value_diff_for_pick) > other.drawcalls;
-
-		return (drawcalls_indirect < (drawcalls / 3) ?
-			// Choose snapshot with the most vertices, since that is likely to contain the main scene
-			(vertices + s_value_diff_for_pick) > other.vertices :
-			// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
-			(drawcalls + s_value_diff_for_pick) > other.drawcalls);
+		// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
+		drawcalls > other.drawcalls);
 	}
 };
 struct clear_stats : public draw_stats
@@ -293,7 +275,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 			if (desc.texture.width == existing_desc.texture.width &&
 				desc.texture.height == existing_desc.texture.height &&
 				desc.texture.format == existing_desc.texture.format &&
-				desc.usage == existing_desc.usage)
+				(desc.usage & existing_desc.usage) == desc.usage)
 			{
 				backup.references++;
 				backup.destroy_after_frame = std::numeric_limits<uint64_t>::max();
@@ -442,15 +424,15 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 				do_copy = current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
 			else
-			if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
-			{
-				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
-				do_copy = current_stats.vertices >= 5000;
-			}
-			else
-			{
-				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
-			}
+				if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
+				{
+					// Special case for Garry's Mod which chooses the last clear operation that has a high workload
+					do_copy = current_stats.vertices >= 5000;
+				}
+				else
+				{
+					do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
+				}
 
 			counters.clears.push_back({ current_stats, op, do_copy });
 		}
@@ -948,9 +930,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 	resource best_match = { 0 };
 	resource_desc best_match_desc;
-	resource_desc selected_depth_stencil_desc;
 	const depth_stencil_frame_stats *best_snapshot = nullptr;
-	const depth_stencil_frame_stats *selected_depth_stencil_stats = nullptr;
 
 	uint32_t frame_width, frame_height;
 	runtime->get_screenshot_width_and_height(&frame_width, &frame_height);
@@ -960,14 +940,13 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 	// Unlock while calling into device below, since device may hold a lock itself and that then can deadlock another thread that calls into 'on_destroy_resource' from the device holding that lock
 	lock.unlock();
 
-
 	for (auto &[resource, info] : current_depth_stencil_resources)
 	{
 		if (info.last_counters.total_stats.drawcalls == 0 || (info.last_counters.total_stats.vertices <= 3 && info.last_counters.total_stats.drawcalls_indirect == 0))
 			continue; // Skip unused
 
-		if (s_value_diff_for_pick <= 0 && (info.last_used_in_frame < device_data->frame_index || device_data->frame_index <= (info.first_used_in_frame + 1)))
-			continue; // Skip resources not used this frame or those that only just appeared for the first time. Only do this if we want auto selection not use a delta. 
+		if (info.last_used_in_frame < device_data->frame_index || device_data->frame_index <= (info.first_used_in_frame + 1))
+			continue; // Skip resources not used this frame or those that only just appeared for the first time
 
 		const resource_desc desc = device->get_resource_desc(resource);
 		if (desc.texture.samples > 1 && !device->check_capability(device_caps::resolve_depth_stencil))
@@ -986,12 +965,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			best_match_desc = desc;
 			best_snapshot = &snapshot;
 		}
-
-		if (data.selected_depth_stencil == resource)
-		{
-			selected_depth_stencil_stats = &snapshot;
-			selected_depth_stencil_desc = desc;
-		}
 	}
 
 	if (data.override_depth_stencil != 0)
@@ -1002,20 +975,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 			best_match = it->first;
 			best_match_desc = device->get_resource_desc(it->first);
 			best_snapshot = &it->second.last_counters;
-		}
-	}
-	else
-	{
-		if (nullptr!=selected_depth_stencil_stats && data.selected_depth_stencil!=best_match)
-		{
-			// keep the current one if it doesn't differ that much from the new best match...
-			if (selected_depth_stencil_stats->total_stats.is_better(best_snapshot->total_stats))
-			{
-				// pick existing
-				best_match = data.selected_depth_stencil;
-				best_match_desc = selected_depth_stencil_desc;
-				best_snapshot = selected_depth_stencil_stats;
-			}
 		}
 	}
 
@@ -1281,9 +1240,6 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 		}
 	}
-
-	ImGui::DragInt("Required delta for auto-selection", &s_value_diff_for_pick, 1, 0, 50000, "%d", ImGuiSliderFlags_AlwaysClamp);
-	ImGui::SetItemTooltip("This is usually 0, but in case of performance degradation due to two buffers being equal, you can use this value to keep one buffer preselected");
 
 	ImGui::Spacing();
 	ImGui::Separator();
