@@ -67,8 +67,8 @@ struct draw_stats
 		return (drawcalls_indirect < (drawcalls / 3) ?
 			// Choose snapshot with the most vertices, since that is likely to contain the main scene
 			vertices > other.vertices :
-		// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
-		drawcalls > other.drawcalls);
+			// Or check draw calls, since vertices may not be accurate if application is using indirect draw calls
+			drawcalls > other.drawcalls);
 	}
 };
 struct clear_stats : public draw_stats
@@ -424,15 +424,15 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 				do_copy = current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
 			else
-				if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
-				{
-					// Special case for Garry's Mod which chooses the last clear operation that has a high workload
-					do_copy = current_stats.vertices >= 5000;
-				}
-				else
-				{
-					do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
-				}
+			if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
+			{
+				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
+				do_copy = current_stats.vertices >= 5000;
+			}
+			else
+			{
+				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
+			}
 
 			counters.clears.push_back({ current_stats, op, do_copy });
 		}
