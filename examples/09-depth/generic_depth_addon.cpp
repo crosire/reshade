@@ -275,7 +275,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 			if (desc.texture.width == existing_desc.texture.width &&
 				desc.texture.height == existing_desc.texture.height &&
 				desc.texture.format == existing_desc.texture.format &&
-				desc.usage == existing_desc.usage)
+				(desc.usage & existing_desc.usage) == desc.usage)
 			{
 				backup.references++;
 				backup.destroy_after_frame = std::numeric_limits<uint64_t>::max();
