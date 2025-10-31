@@ -282,7 +282,6 @@ namespace reshade
 		bool _performance_mode = false;
 		bool _effect_load_skipping = false;
 		unsigned int _reload_key_data[4] = {};
-		unsigned int _performance_mode_key_data[4] = {};
 
 		std::vector<std::pair<std::string, std::string>> _global_preprocessor_definitions;
 		std::unordered_map<std::string, std::vector<std::pair<std::string, std::string>>> _preset_preprocessor_definitions;

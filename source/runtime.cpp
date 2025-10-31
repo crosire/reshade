@@ -750,13 +750,6 @@ void reshade::runtime::on_present()
 			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
 				reload_effects();
 
-			if (_input->is_key_pressed(_performance_mode_key_data, _force_shortcut_modifiers))
-			{
-				_performance_mode = !_performance_mode;
-				save_config();
-				reload_effects();
-			}
-
 			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data, _force_shortcut_modifiers);
 				reversed || _input->is_key_pressed(_next_preset_key_data, _force_shortcut_modifiers))
 			{
@@ -901,7 +894,6 @@ void reshade::runtime::load_config()
 	config_get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config_get("INPUT", "KeyEffects", _effects_key_data);
 	config_get("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config_get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config_get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config_get("INPUT", "KeyReload", _reload_key_data);
 
@@ -980,7 +972,6 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyReload", _reload_key_data);
 

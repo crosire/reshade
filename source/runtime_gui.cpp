@@ -2047,8 +2047,6 @@ void reshade::runtime::draw_gui_settings()
 			modified |= imgui::key_input_box(_("Effect toggle key"), _effects_key_data, *_input);
 			modified |= imgui::key_input_box(_("Effect reload key"), _reload_key_data, *_input);
 
-			modified |= imgui::key_input_box(_("Performance mode toggle key"), _performance_mode_key_data, *_input);
-
 			modified |= imgui::key_input_box(_("Previous preset key"), _prev_preset_key_data, *_input);
 			modified |= imgui::key_input_box(_("Next preset key"), _next_preset_key_data, *_input);
 

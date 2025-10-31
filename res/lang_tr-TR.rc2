@@ -12,7 +12,6 @@ LANGUAGE 31, 1
 STRINGTABLE
 BEGIN
 
-
 55975 "Yeni bir güncelleme mevcut! Lütfen %s adresine giderek yeni sürümü (v%u.%u.%u) yükleyin."
 37123 "Haberler, güncellemeler, efektler ve tartışmalar için %s adresini ziyaret edin."
 6954 "Derleniyor (%zu efekt kaldı)... Bu biraz sürebilir. Uygulama bir süre yanıt vermeyebilir."
@@ -77,7 +76,6 @@ BEGIN
 23871 "Menü açma tuşu"
 40379 "Efekt açma kapama tuşu"
 36049 "Efekt yeniden yükleme tuşu"
-8199 "Performans modu açma kapama tuşu"
 41151 "Önceki ön ayar tuşu"
 20675 "Sonraki ön ayar tuşu"
 62542 "Ön ayar geçiş süresi"
