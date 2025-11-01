@@ -1415,6 +1415,10 @@ UINT    STDMETHODCALLTYPE D3D11Device::GetExceptionMode()
 }
 D3D_FEATURE_LEVEL STDMETHODCALLTYPE D3D11Device::GetFeatureLevel()
 {
+#if RESHADE_ADDON >= 2
+	if (_custom_feature_level) // Spoof the original feature level to avoid issues in case it was upgraded
+		return _orig_feature_level;
+#endif
 	return _orig->GetFeatureLevel();
 }
 
