@@ -51,11 +51,11 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 #endif
 
 #if RESHADE_ADDON >= 2
+	uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
 	if (ppDevice != nullptr)
 	{
 		reshade::load_addons();
 
-		uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
 		if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d11, api_version))
 		{
 			FeatureLevels = 1;
