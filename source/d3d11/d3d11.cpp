@@ -51,15 +51,19 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 #endif
 
 #if RESHADE_ADDON >= 2
-	uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
+	uint32_t upgraded_api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
+	uint32_t original_api_version = D3D_FEATURE_LEVEL_11_0;
+	bool api_version_increased = false;
 	if (ppDevice != nullptr)
 	{
 		reshade::load_addons();
 
-		if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d11, api_version))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_device>(reshade::api::device_api::d3d11, upgraded_api_version))
 		{
+			original_api_version = pFeatureLevels[0];
 			FeatureLevels = 1;
-			pFeatureLevels = reinterpret_cast<const D3D_FEATURE_LEVEL *>(&api_version);
+			pFeatureLevels = reinterpret_cast<const D3D_FEATURE_LEVEL *>(&upgraded_api_version);
+			api_version_increased = upgraded_api_version > original_api_version;
 		}
 	}
 #endif
@@ -94,7 +98,17 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	}
 
 	if (pFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
-		*pFeatureLevel = FeatureLevel;
+	{
+		// Don't tell the game the feature level was upgraded, it might have issue if the game came out before the upgraded feature level existed
+		if (api_version_increased && FeatureLevel >= upgraded_api_version)
+		{
+			*pFeatureLevel = original_api_version;
+		}
+		else
+		{
+			*pFeatureLevel = FeatureLevel;
+		}
+	}
 
 	reshade::log::message(reshade::log::level::info, "Using feature level %x.", FeatureLevel);
 
