@@ -151,23 +151,25 @@ void reshade::runtime::build_font_atlas()
 	if (language.empty())
 		language = resources::get_current_language();
 
-	if (language.find("bg") == 0 || language.find("ru") == 0 || language.find("tr") == 0)
+	if (language.find("bg") == 0 || language.find("ru") == 0 || language.find("tr") == 0 || language.find("th") == 0)
 	{
-		_default_font_path = L"C:\\Windows\\Fonts\\calibri.ttf";
+		// Microsoft Sans Serif
+		_default_font_path = L"C:\\Windows\\Fonts\\micross.ttf";
 	}
 	else
 	if (language.find("ja") == 0)
 	{
 		// Morisawa BIZ UDGothic Regular, available since Windows 10 October 2018 Update (1809) Build 17763.1
 		_default_font_path = L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
+		// Fall back to MS Gothic if it does not exist
 		if (!std::filesystem::exists(_default_font_path, ec))
-			// MS Gothic
 			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc";
 	}
 	else
 	if (language.find("ko") == 0)
 	{
-		_default_font_path = L"C:\\Windows\\Fonts\\malgun.ttf"; // Malgun Gothic
+		// Malgun Gothic
+		_default_font_path = L"C:\\Windows\\Fonts\\malgun.ttf";
 	}
 	else
 	if (language.find("zh") == 0)
@@ -177,6 +179,7 @@ void reshade::runtime::build_font_atlas()
 		{
 			// Microsoft YaHei
 			_default_font_path = L"C:\\Windows\\Fonts\\msyh.ttc";
+			// Fall back to SimSun if it does not exist
 			if (!std::filesystem::exists(_default_font_path, ec))
 				_default_font_path = L"C:\\Windows\\Fonts\\simsun.ttc";
 		}
@@ -185,6 +188,7 @@ void reshade::runtime::build_font_atlas()
 		{
 			// Microsoft JhengHei
 			_default_font_path = L"C:\\Windows\\Fonts\\msjh.ttc";
+			// Fall back to MingLiU if it does not exist
 			if (!std::filesystem::exists(_default_font_path, ec))
 				_default_font_path = L"C:\\Windows\\Fonts\\mingliu.ttc";
 		}
