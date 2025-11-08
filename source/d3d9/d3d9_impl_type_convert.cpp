@@ -723,11 +723,14 @@ reshade::api::resource_desc reshade::d3d9::convert_resource_desc(const D3DSURFAC
 		switch (static_cast<DWORD>(internal_desc.Format))
 		{
 		default:
+			desc.usage |= api::resource_usage::shader_resource;
+			break;
 		case MAKEFOURCC('R', 'A', 'W', 'Z'):
 		case MAKEFOURCC('D', 'F', '1', '6'):
 		case MAKEFOURCC('D', 'F', '2', '4'):
 		case MAKEFOURCC('I', 'N', 'T', 'Z'):
-			desc.usage |= api::resource_usage::shader_resource;
+			// Copy is possible from texture using rasterization pipeline
+			desc.usage |= api::resource_usage::shader_resource | api::resource_usage::copy_source;
 			break;
 		case D3DFMT_D16_LOCKABLE:
 		case D3DFMT_D32:
