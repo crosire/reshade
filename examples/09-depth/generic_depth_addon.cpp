@@ -534,8 +534,17 @@ static void on_destroy_command_queue(command_queue *cmd_queue)
 {
 	cmd_queue->destroy_private_data<state_tracking>();
 
-	auto *const device_data = cmd_queue->get_device()->get_private_data<generic_depth_device_data>();
+	auto *const device = cmd_queue->get_device();
+	auto *const device_data = device->get_private_data<generic_depth_device_data>();
 	device_data->queues.erase(std::remove(device_data->queues.begin(), device_data->queues.end(), cmd_queue), device_data->queues.end());
+
+	// All resources must be destroyed before a device reset in D3D9
+	if (device->get_api() == device_api::d3d9)
+	{
+		for (depth_stencil_backup &backup : device_data->depth_stencil_backups)
+			device->destroy_resource(backup.backup_texture);
+		device_data->depth_stencil_backups.clear();
+	}
 }
 
 static void on_init_effect_runtime(effect_runtime *runtime)

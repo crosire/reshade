@@ -354,7 +354,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	{
 		reshade::log::message(reshade::log::level::error, "IDirect3DDevice9::Reset failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 
-		// Initialize device implementation even when reset failed, so that 'init_device', 'init_command_list' and 'init_command_queue' events are still called
+		// Initialize device implementation even when reset failed, so that 'init_command_list' and 'init_command_queue' events are still called
 		on_init();
 	}
 
@@ -2603,7 +2603,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	{
 		reshade::log::message(reshade::log::level::error, "IDirect3DDevice9Ex::ResetEx failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 
-		// Initialize device implementation even when reset failed, so that 'init_device', 'init_command_list' and 'init_command_queue' events are still called
+		// Initialize device implementation even when reset failed, so that 'init_command_list' and 'init_command_queue' events are still called
 		on_init();
 	}
 
