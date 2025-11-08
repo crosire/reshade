@@ -1192,8 +1192,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetInd
 {
 #if RESHADE_ADDON
 	// Batman: Arkham City incorrectly calls this with a depth-stencil surface, so handle that case to prevent crash (even though it subsequently fails with D3DERR_INVALIDCALL of course)
-	com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
-	if (pRenderTarget != nullptr &&
+	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
+		pRenderTarget != nullptr &&
 		SUCCEEDED(pRenderTarget->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pRenderTarget = surface_proxy->_orig;
 #endif
@@ -1255,9 +1255,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 {
 #if RESHADE_ADDON
 	com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
-	if (pNewZStencil != nullptr &&
-		SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
-		pNewZStencil = surface_proxy->_orig;
+	if (pNewZStencil != nullptr)
+	{
+		if (_current_depth_stencil.get() == pNewZStencil)
+		{
+			surface_proxy = std::move(_current_depth_stencil);
+			pNewZStencil = surface_proxy->_orig;
+		}
+		else if (SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
+		{
+			pNewZStencil = surface_proxy->_orig;
+		}
+	}
 #endif
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
@@ -1295,9 +1304,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 	{
 		assert(ppZStencilSurface != nullptr);
 
-		if (_current_depth_stencil != nullptr)
+		IDirect3DSurface9 *const surface = *ppZStencilSurface;
+		if (_current_depth_stencil != nullptr &&
+			surface == _current_depth_stencil->_orig)
 		{
-			IDirect3DSurface9 *const surface = *ppZStencilSurface;
 			Direct3DDepthStencilSurface9 *const surface_proxy = _current_depth_stencil.get();
 
 			surface_proxy->AddRef();
