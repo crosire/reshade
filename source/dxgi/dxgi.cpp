@@ -53,8 +53,6 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 
 		desc.back_buffer.texture.width = window_rect.right;
 		desc.back_buffer.texture.height = window_rect.bottom;
-
-		assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
 	}
 
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
@@ -130,8 +128,6 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 
 		desc.back_buffer.texture.width = window_rect.right;
 		desc.back_buffer.texture.height = window_rect.bottom;
-
-		assert(desc.back_buffer.texture.width != 0 && desc.back_buffer.texture.height != 0);
 	}
 
 	if (internal_desc.BufferUsage & DXGI_USAGE_SHADER_INPUT)
@@ -384,16 +380,6 @@ static void init_swapchain_proxy(IDXGIFactory *factory, reshade::api::device_api
 	if (swapchain_proxy != nullptr)
 	{
 #if RESHADE_ADDON
-		// Update actual swap chain size
-		if (orig_desc.BufferDesc.Width == 0 || orig_desc.BufferDesc.Height == 0)
-		{
-			DXGI_SWAP_CHAIN_DESC desc = {};
-			swapchain->GetDesc(&desc);
-
-			orig_desc.BufferDesc.Width = desc.BufferDesc.Width;
-			orig_desc.BufferDesc.Height = desc.BufferDesc.Height;
-		}
-
 		swapchain_proxy->_sync_interval = sync_interval;
 		swapchain_proxy->_orig_desc = orig_desc;
 		swapchain_proxy->_is_desc_modified = desc_modified;

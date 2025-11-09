@@ -1276,7 +1276,7 @@ private:
 
 		code += ";\n";
 
-		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
+		// Shift everything by half a viewport pixel to work around the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
 		if (func.type == shader_type::vertex && !position_variable_name.empty()) // Check if we are in a vertex shader definition
 			code += '\t' + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
 
