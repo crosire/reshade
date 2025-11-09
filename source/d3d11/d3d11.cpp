@@ -51,7 +51,8 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 #endif
 
 #if RESHADE_ADDON >= 2
-	uint32_t api_version = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
+	const D3D_FEATURE_LEVEL orig_feature_level = (pFeatureLevels != nullptr && FeatureLevels > 0) ? pFeatureLevels[0] : D3D_FEATURE_LEVEL_11_0;
+	uint32_t api_version = static_cast<uint32_t>(orig_feature_level);
 	if (ppDevice != nullptr)
 	{
 		reshade::load_addons();
@@ -78,10 +79,10 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 #endif
 
 	// Use local feature level variable in case the application did not pass one in
-	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_11_0;
 
 	g_in_dxgi_runtime = true;
-	HRESULT hr = trampoline(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
+	HRESULT hr = trampoline(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &feature_level, nullptr);
 	g_in_dxgi_runtime = false;
 	if (FAILED(hr))
 	{
@@ -94,9 +95,16 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	}
 
 	if (pFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
-		*pFeatureLevel = FeatureLevel;
+	{
+#if RESHADE_ADDON >= 2
+		if (feature_level > orig_feature_level)
+			*pFeatureLevel = orig_feature_level;
+		else
+#endif
+			*pFeatureLevel = feature_level;
+	}
 
-	reshade::log::message(reshade::log::level::info, "Using feature level %x.", FeatureLevel);
+	reshade::log::message(reshade::log::level::info, "Using feature level %x.", feature_level);
 
 	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
 	if (ppDevice == nullptr)
@@ -155,6 +163,10 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 		// Change device to proxy for swap chain creation below
 		device = device_proxy = new D3D11Device(adapter.get(), dxgi_device.get(), device);
 		device_proxy->_immediate_context = new D3D11DeviceContext(device_proxy, device_context);
+#if RESHADE_ADDON >= 2
+		if (feature_level > orig_feature_level)
+			device_proxy->_orig_feature_level = orig_feature_level;
+#endif
 	}
 
 	// Swap chain creation is piped through the 'IDXGIFactory::CreateSwapChain' function hook
