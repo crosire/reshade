@@ -208,20 +208,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 		return S_OK;
 	}
 
-	// SpecialK uses this interface ID to query the original swap chain
-	constexpr GUID SKID_IUnwrappedDXGISwapChain = { 0xe8a33b4a, 0x1405, 0x424c, { 0xae, 0x88, 0xd, 0x3e, 0x9d, 0x46, 0xc9, 0x14 } }; // {E8A33B4A-1405-424C-AE88-0D3E9D46C914}
-	if (riid == SKID_IUnwrappedDXGISwapChain)
-	{
-		// Pass through, in case the original object is already proxied by another third party
-		if (FAILED(_orig->QueryInterface(SKID_IUnwrappedDXGISwapChain, ppvObj)))
-		{
-			_orig->AddRef();
-			*ppvObj = _orig;
-		}
-
-		return S_OK;
-	}
-
 	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE DXGISwapChain::AddRef()
