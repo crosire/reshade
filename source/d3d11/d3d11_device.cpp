@@ -1415,9 +1415,11 @@ UINT    STDMETHODCALLTYPE D3D11Device::GetExceptionMode()
 }
 D3D_FEATURE_LEVEL STDMETHODCALLTYPE D3D11Device::GetFeatureLevel()
 {
+#if RESHADE_ADDON >= 2
 	// Work around feature level greater than 11.0 breaking Unreal Engine 4 (https://github.com/EpicGames/UnrealEngine/blob/4.8/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Texture.cpp#L768)
 	if (_orig_feature_level != 0)
 		return _orig_feature_level;
+#endif
 
 	return _orig->GetFeatureLevel();
 }
