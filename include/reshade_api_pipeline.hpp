@@ -83,6 +83,14 @@ namespace reshade { namespace api
 		/// </summary>
 		sampler_with_resource_view = 1,
 		/// <summary>
+		/// Descriptors are either of type <see cref="buffer_shader_resource_view"/> or <see cref="texture_shader_resource_view"/>.
+		/// </summary>
+		shader_resource_view = 2,
+		/// <summary>
+		/// Descriptors are either of type <see cref="buffer_unordered_access_view"/> or <see cref="texture_unordered_access_view"/>.
+		/// </summary>
+		unordered_access_view = 3,
+		/// <summary>
 		/// Descriptors are an array of <see cref="resource_view"/>.
 		/// </summary>
 		buffer_shader_resource_view = 4,
@@ -93,19 +101,11 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Descriptors are an array of <see cref="resource_view"/>.
 		/// </summary>
-		texture_shader_resource_view = 2,
+		texture_shader_resource_view = shader_resource_view,
 		/// <summary>
 		/// Descriptors are an array of <see cref="resource_view"/>.
 		/// </summary>
-		texture_unordered_access_view = 3,
-		/// <summary>
-		/// Descriptors are either of type <see cref="buffer_shader_resource_view"/> or <see cref="texture_shader_resource_view"/>.
-		/// </summary>
-		shader_resource_view = texture_shader_resource_view,
-		/// <summary>
-		/// Descriptors are either of type <see cref="buffer_unordered_access_view"/> or <see cref="texture_unordered_access_view"/>.
-		/// </summary>
-		unordered_access_view = texture_unordered_access_view,
+		texture_unordered_access_view = unordered_access_view,
 		/// <summary>
 		/// Descriptors are an array of <see cref="buffer_range"/>.
 		/// </summary>
