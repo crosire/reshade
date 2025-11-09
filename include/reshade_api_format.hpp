@@ -480,6 +480,8 @@ namespace reshade { namespace api
 		case format::b8g8r8x8_unorm:
 		case format::b8g8r8x8_unorm_srgb:
 			return 8;
+		case format::r9g9b9e5:
+			return 9;
 		case format::r10g10b10a2_typeless:
 		case format::r10g10b10a2_unorm:
 		case format::r10g10b10a2_xr_bias:
