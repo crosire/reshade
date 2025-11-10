@@ -3412,11 +3412,6 @@ bool reshade::runtime::create_texture(texture &tex)
 }
 void reshade::runtime::destroy_texture(texture &tex)
 {
-#if RESHADE_GUI
-	if (_preview_texture == tex.srv[0])
-		_preview_texture.handle = 0;
-#endif
-
 	_device->destroy_resource(tex.resource);
 	tex.resource = {};
 
@@ -3632,6 +3627,7 @@ void reshade::runtime::destroy_effects()
 
 #if RESHADE_GUI
 	_effect_filter[0] = '\0';
+	_preview_texture = std::numeric_limits<size_t>::max();
 #endif
 
 	// Reset the effect creation queue

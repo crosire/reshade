@@ -491,7 +491,7 @@ namespace reshade
 
 		#pragma region Overlay Statistics
 		bool _gather_gpu_statistics = false;
-		api::resource_view _preview_texture = {};
+		size_t _preview_texture = std::numeric_limits<size_t>::max();
 		unsigned int _preview_size[3] = { 0, 0, 0xFFFFFFFF };
 		uint64_t _timestamp_frequency = 0;
 		#pragma endregion

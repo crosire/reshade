@@ -819,7 +819,7 @@ void reshade::runtime::draw_gui()
 	_gather_gpu_statistics = false;
 	_effects_expanded_state &= 2;
 
-	if (!show_splash_window && !show_message_window && !show_statistics_window && !_show_overlay && _preview_texture == 0
+	if (!show_splash_window && !show_message_window && !show_statistics_window && !_show_overlay && _preview_texture == std::numeric_limits<size_t>::max()
 #if RESHADE_ADDON
 		&& !has_addon_event<addon_event::reshade_overlay>()
 #endif
@@ -1420,7 +1420,10 @@ void reshade::runtime::draw_gui()
 	}
 #endif
 
-	if (_preview_texture != 0 && _effects_enabled)
+	if (_effects_enabled &&
+		_preview_texture < _textures.size() &&
+		std::any_of(_textures[_preview_texture].shared.begin(), _textures[_preview_texture].shared.end(),
+			[this](const size_t effect_index) { return _effects[effect_index].rendering; }))
 	{
 		if (!_show_overlay)
 		{
@@ -1454,7 +1457,10 @@ void reshade::runtime::draw_gui()
 			preview_max.y = (preview_max.y * 0.5f) + (_preview_size[1] * 0.5f);
 		}
 
-		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(_preview_texture.handle, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
+		const api::resource_view srv = _textures[_preview_texture].srv[0];
+		assert(srv != 0);
+
+		ImGui::FindWindowByName("Viewport")->DrawList->AddImage(srv.handle, preview_min, preview_max, ImVec2(0, 0), ImVec2(1, 1), _preview_size[2]);
 	}
 
 #if RESHADE_LOCALIZATION
@@ -2783,7 +2789,7 @@ void reshade::runtime::draw_gui_statistics()
 		};
 
 		const float total_width = ImGui::GetContentRegionAvail().x;
-		int texture_index = 0;
+		int texture_count = 0;
 		const unsigned int num_columns = std::max(1u, static_cast<unsigned int>(std::ceil(total_width / (55.0f * ImGui::GetFontSize()))));
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
@@ -2792,14 +2798,16 @@ void reshade::runtime::draw_gui_statistics()
 		int64_t post_processing_memory_size = 0;
 		const char *memory_size_unit;
 
-		for (const texture &tex : _textures)
+		for (size_t texture_index = 0; texture_index < _textures.size(); ++texture_index)
 		{
+			const texture &tex = _textures[texture_index];
+
 			if (tex.resource == 0 || !tex.semantic.empty() ||
 				!std::any_of(tex.shared.cbegin(), tex.shared.cend(),
 					[this](size_t effect_index) { return _effects[effect_index].rendering; }))
 				continue;
 
-			ImGui::PushID(texture_index);
+			ImGui::PushID(texture_count);
 			ImGui::BeginGroup();
 
 			int64_t memory_size = 0;
@@ -2952,18 +2960,18 @@ void reshade::runtime::draw_gui_statistics()
 
 			if (tex.type == reshadefx::texture_type::texture_2d)
 			{
-				if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] == 0; ImGui::RadioButton(_("Preview scaled"), check))
+				if (bool check = _preview_texture == texture_index && _preview_size[0] == 0; ImGui::RadioButton(_("Preview scaled"), check))
 				{
 					_preview_size[0] = 0;
 					_preview_size[1] = 0;
-					_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
+					_preview_texture = !check ? texture_index : std::numeric_limits<size_t>::max();
 				}
 				ImGui::SameLine();
-				if (bool check = _preview_texture == tex.srv[0] && _preview_size[0] != 0; ImGui::RadioButton(_("Preview original"), check))
+				if (bool check = _preview_texture == texture_index && _preview_size[0] != 0; ImGui::RadioButton(_("Preview original"), check))
 				{
 					_preview_size[0] = tex.width;
 					_preview_size[1] = tex.height;
-					_preview_texture = !check ? tex.srv[0] : api::resource_view { 0 };
+					_preview_texture = !check ? texture_index : std::numeric_limits<size_t>::max();
 				}
 
 				bool r = (_preview_size[2] & 0x000000FF) != 0;
@@ -2998,13 +3006,13 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::EndGroup();
 			ImGui::PopID();
 
-			if ((texture_index++ % num_columns) != (num_columns - 1))
+			if ((texture_count++ % num_columns) != (num_columns - 1))
 				ImGui::SameLine(0.0f, 5.0f);
 			else
 				ImGui::Spacing();
 		}
 
-		if ((texture_index % num_columns) != 0)
+		if ((texture_count % num_columns) != 0)
 			ImGui::NewLine(); // Reset ImGui::SameLine() so the following starts on a new line
 
 		ImGui::Separator();
