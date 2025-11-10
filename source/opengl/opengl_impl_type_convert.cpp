@@ -646,7 +646,7 @@ void reshade::opengl::convert_pixel_format(api::format format, PIXELFORMATDESCRI
 		pfd.cRedBits = 10;
 		pfd.cRedShift = 0;
 		pfd.cGreenBits = 10;
-		pfd.cGreenBits = 10;
+		pfd.cGreenShift = 10;
 		pfd.cBlueBits = 10;
 		pfd.cBlueShift = 20;
 		pfd.cAlphaBits = 2;

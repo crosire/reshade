@@ -1088,7 +1088,7 @@ void reshade::d3d11::convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND
 			desc.render_target_write_mask[i] != desc.render_target_write_mask[0])
 			internal_desc.IndependentBlendEnable = TRUE;
 
-		assert(!desc.logic_op_enable);
+		assert(!desc.logic_op_enable[i]);
 
 		internal_desc.RenderTarget[i].BlendEnable = desc.blend_enable[i];
 		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.source_color_blend_factor[i]);
