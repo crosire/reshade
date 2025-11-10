@@ -68,8 +68,6 @@ namespace reshade
 			return type == desc.type && width == desc.width && height == desc.height && levels == desc.levels && format == desc.format;
 		}
 
-		size_t effect_index = std::numeric_limits<size_t>::max();
-
 		std::vector<size_t> shared;
 		bool loaded = false;
 

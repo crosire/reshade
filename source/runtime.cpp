@@ -2125,8 +2125,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 		for (texture new_texture : permutation.module.textures)
 		{
-			new_texture.effect_index = effect_index;
-
 			if (!new_texture.semantic.empty() && (new_texture.render_target || new_texture.storage_access))
 			{
 				errors += "error: " + new_texture.unique_name + ": texture with a semantic used as a render target or storage\n";
@@ -2141,36 +2139,29 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					});
 				existing_texture != _textures.end())
 			{
+				const bool shared_permutation = std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) != existing_texture->shared.end();
+
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (new_texture.semantic != existing_texture->semantic)
 				{
-					errors += "error: " + new_texture.unique_name + ": another effect ";
-					if (existing_texture->effect_index == new_texture.effect_index)
-						errors += "permutation";
-					else
-						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
-					errors += " already created a texture with the same name but different semantic\n";
+					errors += "error: " + new_texture.unique_name + ":"
+						" another effect " + (shared_permutation ? "permutation" : '(' + _effects[existing_texture->shared[0]].source_file.filename().u8string() + ')') +
+						" already created a texture with the same name but different semantic\n";
 					compiled = false;
 					break;
 				}
 
 				if (new_texture.semantic.empty() && !existing_texture->matches_description(new_texture))
 				{
-					errors += "warning: " + new_texture.unique_name + ": another effect ";
-					if (existing_texture->effect_index == new_texture.effect_index)
-						errors += "permutation";
-					else
-						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
-					errors += " already created a texture with the same name but different dimensions\n";
+					errors += "warning: " + new_texture.unique_name + ":"
+						" another effect " + (shared_permutation ? "permutation" : '(' + _effects[existing_texture->shared[0]].source_file.filename().u8string() + ')') +
+						" already created a texture with the same name but different dimensions\n";
 				}
 				if (new_texture.semantic.empty() && (existing_texture->annotation_as_string("source") != new_texture.annotation_as_string("source")))
 				{
-					errors += "warning: " + new_texture.unique_name + ": another effect ";
-					if (existing_texture->effect_index == new_texture.effect_index)
-						errors += "permutation";
-					else
-						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
-					errors += " already created a texture with a different image file\n";
+					errors += "warning: " + new_texture.unique_name + ":"
+						" another effect " + (shared_permutation ? "permutation" : '(' + _effects[existing_texture->shared[0]].source_file.filename().u8string() + ')') +
+						" already created a texture with a different image file\n";
 				}
 
 				if (existing_texture->semantic == "COLOR" && api::format_bit_depth(_effect_permutations[permutation_index].color_format) != 8)
@@ -2184,7 +2175,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					}
 				}
 
-				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
+				if (!shared_permutation)
 					existing_texture->shared.push_back(effect_index);
 
 				// Update render target and storage access flags of the existing shared texture, in case they are used as such in this effect
@@ -2197,8 +2188,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				// Try to find another pooled texture to share with (and do not share within the same effect)
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-						[&new_texture](const texture &item) {
-							return item.annotation_as_int("pooled") && std::find(item.shared.begin(), item.shared.end(), new_texture.effect_index) == item.shared.end() && item.matches_description(new_texture);
+						[effect_index, &new_texture](const texture &item) {
+							return item.annotation_as_int("pooled") && std::find(item.shared.begin(), item.shared.end(), effect_index) == item.shared.end() && item.matches_description(new_texture);
 						});
 					existing_texture != _textures.end())
 				{
@@ -3006,9 +2997,6 @@ void reshade::runtime::destroy_effect(size_t effect_index, bool unload)
 				destroy_texture(tex);
 				return true;
 			}
-			// If this texture is still used by another effect, move ownership to that other effect
-			if (effect_index == tex.effect_index)
-				tex.effect_index = tex.shared.front();
 			return false;
 		}), _textures.end());
 	// Clean up techniques belonging to this effect
@@ -3902,7 +3890,7 @@ void reshade::runtime::update_effects()
 
 		// Destroy all textures belonging to this effect
 		for (texture &tex : _textures)
-			if (tex.effect_index == effect_index && tex.shared.size() <= 1)
+			if (tex.shared.size() == 1 && tex.shared[0] == effect_index)
 				destroy_texture(tex);
 		// Disable all techniques belonging to this effect
 		for (technique &tech : _techniques)

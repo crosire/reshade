@@ -493,7 +493,7 @@ void reshade::runtime::get_texture_variable_effect_name(api::effect_texture_vari
 	if (handle.handle != 0)
 	{
 		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
-		const std::string effect_name = _effects[variable.effect_index].source_file.filename().u8string();
+		const std::string effect_name = _effects[variable.shared[0]].source_file.filename().u8string();
 
 		if (value == nullptr)
 		{
