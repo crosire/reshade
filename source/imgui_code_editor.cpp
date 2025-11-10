@@ -1326,7 +1326,7 @@ void reshade::imgui::code_editor::delete_lines(size_t first_line, size_t last_li
 	std::unordered_map<size_t, std::pair<std::string, bool>> errors;
 	errors.reserve(_errors.size());
 	for (std::pair<const size_t, std::pair<std::string, bool>> &i : _errors)
-		if (i.first < first_line && i.first > last_line)
+		if (i.first < first_line || i.first > last_line)
 			errors.insert({ i.first > last_line ? i.first - (last_line - first_line) : i.first, std::move(i.second) });
 	_errors = std::move(errors);
 
