@@ -97,7 +97,8 @@ bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t valu
 			return false;
 		impl->current_value = value;
 
-		return _orig->End(impl->event_queries[value % std::size(impl->event_queries)].get()), true;
+		_orig->End(impl->event_queries[value % std::size(impl->event_queries)].get());
+		return true;
 	}
 
 	if (com_ptr<ID3D11Fence> fence_object;

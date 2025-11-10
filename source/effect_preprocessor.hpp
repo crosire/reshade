@@ -92,7 +92,7 @@ namespace reshadefx
 		/// <summary>
 		/// Gets a list of "#pragma reshade" directives that where used.
 		/// </summary>
-		std::vector<std::pair<std::string, std::string>> used_pragma_directives() const { return _used_pragmas; }
+		const std::vector<std::pair<std::string, std::string>> &used_pragma_directives() const { return _used_pragmas; }
 
 	private:
 		struct if_level

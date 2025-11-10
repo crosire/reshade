@@ -2376,7 +2376,7 @@ void reshade::opengl::device_impl::copy_descriptor_tables(uint32_t count, const 
 	{
 		const api::descriptor_table_copy &copy = copies[i];
 
-		const auto src_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.source_table.handle);
+		const auto src_table_impl = reinterpret_cast<const descriptor_table_impl *>(copy.source_table.handle);
 		const auto dst_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.dest_table.handle);
 		assert(src_table_impl != nullptr && dst_table_impl != nullptr && src_table_impl->type == dst_table_impl->type);
 

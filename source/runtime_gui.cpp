@@ -1197,7 +1197,7 @@ void reshade::runtime::draw_gui()
 			fps_window_pos.y = imgui_io.DisplaySize.y - fps_window_size.y - 5;
 
 		ImGui::SetNextWindowPos(fps_window_pos);
-		ImGui::PushStyleColor(ImGuiCol_Text, (const ImVec4 &)_fps_col);
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_fps_col[0], _fps_col[1], _fps_col[2], _fps_col[0]));
 		ImGui::Begin("OSD", nullptr,
 			ImGuiWindowFlags_NoDecoration |
 			ImGuiWindowFlags_NoNav |
@@ -3419,7 +3419,7 @@ void reshade::runtime::draw_variable_editor()
 				std::string name;
 				std::vector<std::pair<std::string, std::string>> &definitions;
 				bool &modified;
-			} definition_types[] = {
+			} const definition_types[] = {
 				{ _("Global"), _global_preprocessor_definitions, global_modified },
 				{ _("Current Preset"), _preset_preprocessor_definitions[{}], preset_modified },
 			};

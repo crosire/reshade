@@ -1408,7 +1408,7 @@ void reshade::runtime::reorder_techniques(size_t count, const api::effect_techni
 	std::vector<size_t> technique_indices(_techniques.size());
 	for (size_t i = 0; i < count; ++i)
 	{
-		const auto tech = reinterpret_cast<technique *>(techniques[i].handle);
+		const auto tech = reinterpret_cast<const technique *>(techniques[i].handle);
 		if (tech == nullptr)
 			return;
 

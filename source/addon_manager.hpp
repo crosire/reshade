@@ -53,7 +53,7 @@ namespace reshade
 	/// <summary>
 	/// Gets the add-on that was loaded at the specified address.
 	/// </summary>
-	addon_info *find_addon(void *address);
+	addon_info *find_addon(const void *address);
 
 	/// <summary>
 	/// Checks whether any callbacks were registered for the specified <paramref name="ev"/>ent.
@@ -115,7 +115,7 @@ namespace reshade
 		if (!addon_enabled)
 			return;
 #endif
-		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
+		const std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb) // Generates better code than ranged-based for loop
 		{
 			bool first_invocation = false;
@@ -179,7 +179,7 @@ namespace reshade
 			return false;
 #endif
 		bool skip = false;
-		std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
+		const std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 		{
 			bool first_invocation = false;

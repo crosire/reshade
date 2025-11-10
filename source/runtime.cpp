@@ -2196,14 +2196,14 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					// Overwrite referenced texture in samplers with the pooled one
 					for (reshadefx::sampler &sampler_info : permutation.module.samplers)
 					{
-						if (sampler_info.texture_name == new_texture.unique_name)
+						if (new_texture.unique_name == sampler_info.texture_name)
 							sampler_info.texture_name = existing_texture->unique_name;
 					}
 
 					// Overwrite referenced texture in storages with the pooled one
 					for (reshadefx::storage &storage_info : permutation.module.storages)
 					{
-						if (storage_info.texture_name == new_texture.unique_name)
+						if (new_texture.unique_name == storage_info.texture_name)
 							storage_info.texture_name = existing_texture->unique_name;
 					}
 

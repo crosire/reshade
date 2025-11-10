@@ -391,7 +391,7 @@ bool reshade::has_loaded_addons()
 		}) != addon_loaded_info.cend();
 }
 
-reshade::addon_info *reshade::find_addon(void *address)
+reshade::addon_info *reshade::find_addon(const void *address)
 {
 	if (address == nullptr)
 		return nullptr;

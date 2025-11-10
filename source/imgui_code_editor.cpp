@@ -241,7 +241,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 				}
 				else
 				{
-					char text[4], *text_end = utf8::unchecked::append(line[res.column].c, text);
+					char text[4], *const text_end = utf8::unchecked::append(line[res.column].c, text);
 					cumulated_string_width[0] += calc_text_size(text, text_end).x;
 				}
 
@@ -378,7 +378,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			}
 			else
 			{
-				char text[4], *text_end = utf8::unchecked::append(line[i].c, text);
+				char text[4], *const text_end = utf8::unchecked::append(line[i].c, text);
 				distance += calc_text_size(text, text_end).x;
 			}
 		}
@@ -447,9 +447,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 					if (highlight_index == 0)
 						begin_column = i;
 
-					++highlight_index;
-
-					if (highlight_index == _highlighted.size())
+					if (++highlight_index == _highlighted.size())
 					{
 						if ((begin_column == 0 || line[begin_column - 1].col != color_identifier) && (i + 1 == line.size() || line[i + 1].col != color_identifier)) // Make sure this is a whole word and not just part of one
 						{
@@ -698,11 +696,13 @@ void reshade::imgui::code_editor::select(const text_pos &beg, const text_pos &en
 		// Search from the first position backwards until a character with a different color is found
 		for (color word_color = beg_line[beg.column].col;
 			beg.column > 0 && beg_line[beg.column - 1].col == word_color;
-			--beg.column) continue;
+			--beg.column)
+			continue;
 		// Search from the selection end position forwards until a character with a different color is found
 		for (color word_color = end_line[end.column].col;
 			end.column < end_line.size() && end_line[end.column].col == word_color;
-			++end.column) continue;
+			++end.column)
+			continue;
 	};
 
 	// Reset cursor animation (so it is always visible when clicking something)
@@ -1544,7 +1544,7 @@ void reshade::imgui::code_editor::move_right(size_t amount, bool selection, bool
 
 	while (amount-- > 0)
 	{
-		std::vector<glyph> &line = _lines[_cursor_pos.line];
+		const std::vector<glyph> &line = _lines[_cursor_pos.line];
 
 		if (_cursor_pos.column >= line.size()) // At the end of the current line, so move on to next
 		{
@@ -1784,7 +1784,7 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 						}
 						else
 						{
-							match_offset--;
+							--match_offset;
 						}
 					}
 					else
@@ -1805,8 +1805,8 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 			else
 				search_pos.line -= 1;
 
-			if (match_offset != match_last && *match_offset-- != '\n')
-				match_offset  = match_last; // Check for line feed in search text between lines
+			if (match_last != match_offset && *match_offset-- != '\n')
+				match_offset = match_last; // Check for line feed in search text between lines
 
 			search_pos.column = _lines[search_pos.line].size(); // Continue at end of previous line
 		}
@@ -1817,8 +1817,8 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 
 		while (search_pos.line < _lines.size())
 		{
-			if (match_offset != text_begin && *match_offset++ != '\n')
-				match_offset  = text_begin; // Check for line feed in search text between lines
+			if (text_begin != match_offset && *match_offset++ != '\n')
+				match_offset = text_begin; // Check for line feed in search text between lines
 
 			while (search_pos.column < _lines[search_pos.line].size())
 			{
@@ -1827,10 +1827,8 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 					if (match_offset == text_begin) // Keep track of beginning of the match
 						match_pos_beg = search_pos;
 
-					match_offset++;
-
 					// All characters matching means the text was found, so select it and return
-					if (match_offset == text_end)
+					if (++match_offset == text_end)
 					{
 						_select_beg = match_pos_beg;
 						_select_end = text_pos(search_pos.line, search_pos.column + 1);

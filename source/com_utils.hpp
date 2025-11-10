@@ -49,7 +49,7 @@ inline void register_destruction_callback_d3dx(T *object, L &&callback)
 	{
 	public:
 		// The call to 'SetPrivateDataInterface' below increases the reference count, so set it to zero initially
-		tracker_instance(L &&callback) :
+		explicit tracker_instance(L &&callback) :
 			_ref(0), _callback(std::move(callback)) {}
 
 		ULONG STDMETHODCALLTYPE AddRef() override
@@ -94,7 +94,7 @@ inline void register_destruction_callback_d3d9(T *object, L &&callback, const UI
 	{
 	public:
 		// The call to 'SetPrivateData' below increases the reference count, so set it to zero initially
-		tracker_instance(L &&callback) :
+		explicit tracker_instance(L &&callback) :
 			_ref(0), _callback(std::move(callback)) {}
 
 		ULONG STDMETHODCALLTYPE AddRef() override
