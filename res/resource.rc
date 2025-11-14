@@ -109,6 +109,8 @@ IDR_LICENSE_STB         RCDATA                  "..\\deps\\stb\\LICENSE"
 IDR_LICENSE_UTFCPP      RCDATA                  "..\\deps\\utfcpp\\LICENSE"
 
 IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
+
+IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\jxl_simple\\LICENSE"
 #endif
 
 #endif    // Neutral (Default) resources
