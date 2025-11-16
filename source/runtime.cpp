@@ -4532,7 +4532,7 @@ void reshade::runtime::save_texture(const texture &tex)
 					break;
 				case 3:
 					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, 4))
+						simple_jxl::writer(pixels, encoded_data, width, height, 4))
 						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
 					break;
 				}
@@ -4992,12 +4992,11 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 	const unsigned int screenshot_count = _screenshot_count;
 	unsigned int screenshot_format = _screenshot_format;
 
-	// Use PNG for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
+	// Use PNG or JPEG XL for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
 	if (((_back_buffer_format == api::format::r10g10b10a2_unorm ||
 		  _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
 		 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
-		// crude format checking when switching to HDR, defaults to PNG HDR if it hasn't configured
-		screenshot_format = (_screenshot_format > 1) ? 4 : 4 + _screenshot_format;
+		screenshot_format = _screenshot_format == 3 ? 5 : 4;
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
@@ -5012,31 +5011,24 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		screenshot_name += postfix;
 	}
 
-	std::string format_name;
-
 	switch (screenshot_format)
 	{
 	case 0:
 		screenshot_name += ".bmp";
-		format_name = ".bmp";
 		break;
 	case 1:
 	case 4:
 		screenshot_name += ".png";
-		format_name = ".png";
 		break;
 	case 2:
 		screenshot_name += ".jpg";
-		format_name = ".jpg";
 		break;
 	case 3:
 	case 5:
 		screenshot_name += ".jxl";
-		format_name = ".jxl";
 		break;
 	default:
 		screenshot_name += ".png";
-		format_name = ".png";
 		break;
 	}
 

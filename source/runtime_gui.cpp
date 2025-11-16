@@ -2135,15 +2135,18 @@ void reshade::runtime::draw_gui_settings()
 				"HH-mm-ss");
 		}
 
-		// HDR screenshots only support PNG, and have no alpha channel
+		// HDR screenshots have no alpha channel
 		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
 			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
 		{
-			// defaults to PNG to prevent empty selector when switching to HDR
-			if (_screenshot_format > 1) _screenshot_format = 0;
+			int hdr_screenshot_format = _screenshot_format == 3 ? 1 : 0;
+			if (ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&hdr_screenshot_format), "Portable Network Graphics (*.png)\0JPEG XL Lossless (*.jxl)\0"))
+			{
+				_screenshot_format = hdr_screenshot_format == 1 ? 3 : 1;
+				modified = true;
+			}
 
-			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Portable Network Graphics (*.png)\0JPEG XL Lossless (*.jxl)\0");
-			if (_screenshot_format == 0)
+			if (hdr_screenshot_format == 0)
 				modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
 		}
 		else
