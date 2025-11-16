@@ -1323,6 +1323,19 @@ void reshade::runtime::draw_gui()
 			for (const std::pair<std::string, void(runtime::*)()> &widget : overlay_callbacks)
 				ImGui::DockBuilderDockWindow(widget.first.c_str(), main_space_id);
 
+#if RESHADE_ADDON
+			for (const addon_info &info : addon_loaded_info)
+			{
+				for (const addon_info::overlay_callback &widget : info.overlay_callbacks)
+				{
+					if (widget.title == "OSD")
+						continue;
+
+					ImGui::DockBuilderDockWindow(widget.title.c_str(), main_space_id);
+				}
+			}
+#endif
+
 			// Attach editor window to the remaining dock space
 			ImGui::DockBuilderDockWindow("###editor", right_space_id);
 
