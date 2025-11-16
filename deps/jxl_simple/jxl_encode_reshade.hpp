@@ -16,15 +16,11 @@ bool writer(const std::vector<uint8_t> &pixel_data,
             std::vector<uint8_t> &output_data, size_t j_width, size_t j_height,
             int c_num, const format fmt = format::r8g8b8a8_unorm,
             const color_space cs = color_space::srgb_nonlinear) {
-  size_t num_threads = 0;
   int bitdepth = 8;
 
-  auto parallel_runner = [](void *num_threads_ptr, void *opaque,
+  auto parallel_runner = [](void *, void *opaque,
                             void fun(void *, size_t), size_t count) {
-    size_t num_threads = *static_cast<size_t *>(num_threads_ptr);
-    if (num_threads == 0) {
-      num_threads = std::thread::hardware_concurrency();
-    }
+    size_t num_threads = std::thread::hardware_concurrency();
     if (num_threads > count) {
       num_threads = count;
     }
@@ -97,7 +93,7 @@ bool writer(const std::vector<uint8_t> &pixel_data,
 
   encoded_size = JxlSimpleLosslessEncode(
       pix_data, j_width, stride, j_height, c_num, bitdepth,
-      /*big_endian=*/false, 1, cs, &encoded, &num_threads, +parallel_runner);
+      /*big_endian=*/false, 1, cs, &encoded, nullptr, +parallel_runner);
 
   if (encoded_size == 0) {
     free(encoded);
