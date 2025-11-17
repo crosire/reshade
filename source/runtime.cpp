@@ -35,7 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
-#include <jxl_encode_reshade.hpp>
+#include <simple_jxl_reshade.hpp>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
