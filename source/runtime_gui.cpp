@@ -2148,15 +2148,23 @@ void reshade::runtime::draw_gui_settings()
 				"HH-mm-ss");
 		}
 
-		// HDR screenshots only support PNG, and have no alpha channel
+		// HDR screenshots have no alpha channel
 		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
 			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
 		{
-			modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
+			int hdr_screenshot_format = _screenshot_format == 3 ? 1 : 0;
+			if (ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&hdr_screenshot_format), "Portable Network Graphics (*.png)\0JPEG XL Lossless (*.jxl)\0"))
+			{
+				_screenshot_format = hdr_screenshot_format == 1 ? 3 : 1;
+				modified = true;
+			}
+
+			if (hdr_screenshot_format == 0)
+				modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
 		}
 		else
 		{
-			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0");
+			modified |= ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&_screenshot_format), "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0JPEG (*.jpeg)\0JPEG XL Lossless (*.jxl)\0");
 
 			if (_screenshot_format == 2)
 				modified |= ImGui::SliderInt(_("JPEG quality"), reinterpret_cast<int *>(&_screenshot_jpeg_quality), 1, 100, "%d", ImGuiSliderFlags_AlwaysClamp);
@@ -2186,7 +2194,7 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
-			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : ".jpg";
+			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : _screenshot_format == 3 ? ".jxl" : ".jpg";
 
 			ImGui::SetTooltip(_(
 				"Macros you can add that are resolved during command execution:\n"
@@ -3220,6 +3228,11 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
 		ImGui::TextUnformatted("Copyright (C) 2018 Fork Awesome (https://forkawesome.github.io)\
 \
 This Font Software is licensed under the SIL Open Font License, Version 1.1. (http://scripts.sil.org/OFL)");
+	}
+	if (ImGui::CollapsingHeader("libjxl simple lossless encoder"))
+	{
+		const resources::data_resource resource = resources::load_data_resource(IDR_LICENSE_S_JXL);
+		ImGui::TextUnformatted(static_cast<const char *>(resource.data), static_cast<const char *>(resource.data) + resource.data_size);
 	}
 
 	ImGui::PopTextWrapPos();
