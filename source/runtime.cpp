@@ -5059,6 +5059,14 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
 					*reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
 			}
+			// JXL can store alpha channel in HDR
+			else if (_screenshot_clear_alpha && screenshot_format == 5)
+			{
+				comp = 3;
+				if (_back_buffer_format == api::format::r16g16b16a16_float)
+					for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
+						*reinterpret_cast<uint64_t *>(pixels.data() + 6 * i) = *reinterpret_cast<const uint64_t *>(pixels.data() + 8 * i);
+			}
 
 			// Create screenshot directory if it does not exist
 			std::error_code ec;

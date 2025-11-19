@@ -83,13 +83,13 @@ namespace simple_jxl {
 		std::vector<uint16_t> converted_pix;
 
 		if (fmt == format::r10g10b10a2_unorm || fmt == format::b10g10r10a2_unorm) {
-			converted_pix.resize(j_height * j_width * 3, 0x0);
+			converted_pix.resize(j_height * j_width * c_num, 0x0);
 
 			uint16_t *cpix_ptr = converted_pix.data();
 			const uint32_t *src_pixels =
 				reinterpret_cast<const uint32_t *>(pixel_data.data());
 
-			if (converted_pix.size() != (pixel_data.size() / 4 * 3)) {
+			if (converted_pix.size() != (pixel_data.size() / 4 * c_num)) {
 				// Final check
 				reshade::log::message(reshade::log::level::error, "Pixel size mismatch");
 				return false;
@@ -97,17 +97,30 @@ namespace simple_jxl {
 
 			for (size_t i = 0; i < j_height * j_width; i++) {
 				const uint32_t pix = *src_pixels;
-				const uint16_t pixels[] = { (pix & 0x000003FFU) & 0xFFFFU,
-										   ((pix & 0x000FFC00U) >> 10U) & 0xFFFFU,
-										   ((pix & 0x3FF00000U) >> 20U) & 0xFFFFU };
+				if (c_num == 4) {
+					const uint16_t pixels[] = { (pix & 0x000003FFU) & 0xFFFFU,
+												((pix & 0x000FFC00U) >> 10U) & 0xFFFFU,
+												((pix & 0x3FF00000U) >> 20U) & 0xFFFFU,
+												// 2 to 10-bit scaling
+												(((pix & 0xC0000000U) >> 30U) & 0xFFFFU) * 341 };
 
-				memcpy(cpix_ptr, pixels, sizeof(pixels));
+					memcpy(cpix_ptr, pixels, sizeof(pixels));
 
-				src_pixels++;
-				cpix_ptr += 3;
+					src_pixels++;
+					cpix_ptr += 4;
+				}
+				else {
+					const uint16_t pixels[] = { (pix & 0x000003FFU) & 0xFFFFU,
+												((pix & 0x000FFC00U) >> 10U) & 0xFFFFU,
+												((pix & 0x3FF00000U) >> 20U) & 0xFFFFU };
+
+					memcpy(cpix_ptr, pixels, sizeof(pixels));
+
+					src_pixels++;
+					cpix_ptr += 3;
+				}
 			}
 			pix_data = reinterpret_cast<const unsigned char *>(converted_pix.data());
-			c_num = 3;
 			bitdepth = 10;
 		}
 		else if (fmt == format::r16g16b16a16_float) {
