@@ -2163,10 +2163,6 @@ void reshade::runtime::draw_gui_settings()
 			{
 				modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
 			}
-			else if (hdr_screenshot_format == 1)
-			{
-				modified |= ImGui::Checkbox(_("Clear alpha channel"), &_screenshot_clear_alpha);
-			}
 		}
 		else
 		{
