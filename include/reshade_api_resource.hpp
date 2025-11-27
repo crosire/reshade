@@ -197,6 +197,11 @@ namespace reshade { namespace api
 		/// </summary>
 		dynamic = (1 << 3),
 		/// <summary>
+		/// Immutable resources can never be written to again after creationn, either by the CPU or the GPU.
+		/// The flag is only supported in D3D10 and D3D11.
+		/// </summary>
+		immutable = (1 << 4),
+		/// <summary>
 		/// Required to create <see cref="resource_view_type::texture_cube"/> or <see cref="resource_view_type::texture_cube_array"/> views of the resource.
 		/// </summary>
 		cube_compatible = (1 << 2),

@@ -851,7 +851,7 @@ extern "C" UINT WINAPI HookGetRawInputBuffer(PRAWINPUT pData, PUINT pcbSize, UIN
 	static const auto trampoline = reshade::hooks::call(HookGetRawInputBuffer);
 	const UINT result = trampoline(pData, pcbSize, cbSizeHeader);
 	// This is a high throughput API (i.e. 8 kHz mouse polling), so need a fast path to exit
-	if (result < 0 || pData == nullptr || *pcbSize == 0 || !(reshade::input::is_blocking_any_mouse_input() || reshade::input::is_blocking_any_keyboard_input()))
+	if (result == static_cast<UINT>(-1) || pData == nullptr || *pcbSize == 0 || !(reshade::input::is_blocking_any_mouse_input() || reshade::input::is_blocking_any_keyboard_input()))
 		return result;
 
 	using QWORD = UINT64;

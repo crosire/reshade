@@ -136,6 +136,14 @@
       <Output TaskParameter="ExitCode" PropertyName="PipExitCode" />
     </Exec>
     <Error Text="Could not find Python or Pip. Make sure Python is installed and in the PATH environment variable." Condition="'$(PipExitCode)'=='9009'" />
+    <ItemGroup>
+      <GladSpecifications Include="khronos\*.xml" />
+    </ItemGroup>
+    <Copy SourceFiles="@(GladSpecifications)" DestinationFolder="glad\" />
     <Exec Command="python -m glad --out-path .\target $(GladQuietSwitch) $(GladReproducibleSwitch) --api @(GladApis, ',') --extensions @(GladExtensions, ',') $(GladLanguage) $(GladMultiContextSwitch)" WorkingDirectory="glad\" />
+    <ItemGroup>
+      <GladSpecificationsTemp Include="glad\*.xml" />
+    </ItemGroup>
+    <Delete Files="@(GladSpecificationsTemp)" />
   </Target>
 </Project>

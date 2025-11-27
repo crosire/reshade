@@ -1642,8 +1642,33 @@ void reshade::opengl::device_context_impl::copy_texture_region(api::resource src
 		const GLenum copy_depth = is_depth_stencil_format(src_desc.texture.format);
 		assert(copy_depth != GL_STENCIL_ATTACHMENT && is_depth_stencil_format(dst_desc.texture.format) == copy_depth);
 
-		bind_framebuffer_with_resource(GL_READ_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, src, src_subresource, src_desc);
-		bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, dst, dst_subresource, dst_desc);
+		if (src_target == GL_FRAMEBUFFER_DEFAULT)
+		{
+			if (0 != prev_read_binding)
+				gl.BindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
+			gl.ReadBuffer(src_object);
+		}
+		else
+		{
+			bind_framebuffer_with_resource(GL_READ_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, src, src_subresource, src_desc);
+
+			gl.ReadBuffer(GL_COLOR_ATTACHMENT0);
+		}
+
+		if (dst_target == GL_FRAMEBUFFER_DEFAULT)
+		{
+			if (0 != prev_draw_binding)
+				gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+			gl.DrawBuffer(dst_object);
+		}
+		else
+		{
+			bind_framebuffer_with_resource(GL_DRAW_FRAMEBUFFER, copy_depth != GL_NONE ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0, dst, dst_subresource, dst_desc);
+
+			gl.DrawBuffer(GL_COLOR_ATTACHMENT0);
+		}
 
 		if (prev_scissor_test)
 			gl.Disable(GL_SCISSOR_TEST);

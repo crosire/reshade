@@ -493,7 +493,7 @@ void reshade::runtime::get_texture_variable_effect_name(api::effect_texture_vari
 	if (handle.handle != 0)
 	{
 		const texture &variable = *reinterpret_cast<const texture *>(handle.handle);
-		const std::string effect_name = _effects[variable.effect_index].source_file.filename().u8string();
+		const std::string effect_name = _effects[variable.shared[0]].source_file.filename().u8string();
 
 		if (value == nullptr)
 		{
@@ -1408,7 +1408,7 @@ void reshade::runtime::reorder_techniques(size_t count, const api::effect_techni
 	std::vector<size_t> technique_indices(_techniques.size());
 	for (size_t i = 0; i < count; ++i)
 	{
-		const auto tech = reinterpret_cast<technique *>(techniques[i].handle);
+		const auto tech = reinterpret_cast<const technique *>(techniques[i].handle);
 		if (tech == nullptr)
 			return;
 

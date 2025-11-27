@@ -372,6 +372,8 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BU
 
 	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	if ((internal_desc.MiscFlags & D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS) != 0)
 		desc.usage |= api::resource_usage::indirect_argument;
@@ -402,6 +404,8 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 
 	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -424,6 +428,8 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 
 	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -450,6 +456,8 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 
 	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
 		desc.flags |= api::resource_flags::dynamic;
+	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
+		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -721,7 +729,7 @@ void reshade::d3d11::convert_resource_view_desc(const api::resource_view_desc &d
 	if (desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_array)
 	{
 		internal_desc.Format = convert_format(desc.format);
-		assert(desc.type == api::resource_view_type::buffer || desc.texture.level_count == 1);
+		assert(desc.texture.level_count == 1);
 		switch (desc.type)
 		{
 		case api::resource_view_type::texture_2d:
@@ -1080,7 +1088,7 @@ void reshade::d3d11::convert_blend_desc(const api::blend_desc &desc, D3D11_BLEND
 			desc.render_target_write_mask[i] != desc.render_target_write_mask[0])
 			internal_desc.IndependentBlendEnable = TRUE;
 
-		assert(!desc.logic_op_enable);
+		assert(!desc.logic_op_enable[i]);
 
 		internal_desc.RenderTarget[i].BlendEnable = desc.blend_enable[i];
 		internal_desc.RenderTarget[i].SrcBlend = convert_blend_factor(desc.source_color_blend_factor[i]);
@@ -1153,7 +1161,7 @@ reshade::api::blend_desc reshade::d3d11::convert_blend_desc(const D3D11_BLEND_DE
 	}
 	else
 	{
-		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d11/ns-d3d11-d3d11_blend_desc)
+		// Default blend state (https://learn.microsoft.com/windows/win32/api/d3d11/ns-d3d11-d3d11_blend_desc)
 		for (UINT i = 0; i < 8; ++i)
 		{
 			desc.source_color_blend_factor[i] = api::blend_factor::one;
@@ -1205,7 +1213,7 @@ reshade::api::blend_desc reshade::d3d11::convert_blend_desc(const D3D11_BLEND_DE
 	}
 	else
 	{
-		// Default blend state (https://docs.microsoft.com/windows/win32/api/d3d11_1/ns-d3d11_1-d3d11_blend_desc1)
+		// Default blend state (https://learn.microsoft.com/windows/win32/api/d3d11_1/ns-d3d11_1-d3d11_blend_desc1)
 		for (UINT i = 0; i < 8; ++i)
 		{
 			desc.source_color_blend_factor[i] = api::blend_factor::one;
@@ -1267,7 +1275,7 @@ reshade::api::rasterizer_desc reshade::d3d11::convert_rasterizer_desc(const D3D1
 	}
 	else
 	{
-		// Default rasterizer state (https://docs.microsoft.com/windows/win32/api/d3d11/ns-d3d11-d3d11_rasterizer_desc)
+		// Default rasterizer state (https://learn.microsoft.com/windows/win32/api/d3d11/ns-d3d11-d3d11_rasterizer_desc)
 		desc.fill_mode = api::fill_mode::solid;
 		desc.cull_mode = api::cull_mode::back;
 		desc.depth_clip_enable = true;
@@ -1338,7 +1346,7 @@ reshade::api::depth_stencil_desc reshade::d3d11::convert_depth_stencil_desc(cons
 	}
 	else
 	{
-		// Default depth-stencil state (https://docs.microsoft.com/windows/win32/api/d3d11/ns-d3d11-d3d11_depth_stencil_desc)
+		// Default depth-stencil state (https://learn.microsoft.com/windows/win32/api/d3d11/ns-d3d11-d3d11_depth_stencil_desc)
 		desc.depth_enable = true;
 		desc.depth_write_mask = true;
 		desc.depth_func = api::compare_op::less;

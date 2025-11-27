@@ -137,6 +137,7 @@ bool reshade::addon_enabled = true;
 bool reshade::addon_all_loaded = true;
 std::vector<void *> reshade::addon_event_list[static_cast<uint32_t>(reshade::addon_event::max)];
 std::vector<reshade::addon_info> reshade::addon_loaded_info;
+thread_local const reshade::addon_info *reshade::addon_current = nullptr;
 static unsigned long s_reference_count = 0;
 
 void reshade::load_addons()
@@ -390,7 +391,7 @@ bool reshade::has_loaded_addons()
 		}) != addon_loaded_info.cend();
 }
 
-reshade::addon_info *reshade::find_addon(void *address)
+reshade::addon_info *reshade::find_addon(const void *address)
 {
 	if (address == nullptr)
 		return nullptr;

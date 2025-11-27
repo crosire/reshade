@@ -1299,7 +1299,7 @@ void reshade::d3d11::device_impl::copy_descriptor_tables(uint32_t count, const a
 	{
 		const api::descriptor_table_copy &copy = copies[i];
 
-		const auto src_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.source_table.handle);
+		const auto src_table_impl = reinterpret_cast<const descriptor_table_impl *>(copy.source_table.handle);
 		const auto dst_table_impl = reinterpret_cast<descriptor_table_impl *>(copy.dest_table.handle);
 		assert(src_table_impl != nullptr && dst_table_impl != nullptr && src_table_impl->type == dst_table_impl->type);
 
@@ -1601,7 +1601,8 @@ bool reshade::d3d11::device_impl::signal(api::fence fence, uint64_t value)
 		com_ptr<ID3D11DeviceContext> immediate_context;
 		_orig->GetImmediateContext(&immediate_context);
 
-		return immediate_context->End(impl->event_queries[value % std::size(impl->event_queries)].get()), true;
+		immediate_context->End(impl->event_queries[value % std::size(impl->event_queries)].get());
+		return true;
 	}
 
 	if (com_ptr<ID3D11Fence> fence_object;

@@ -25,6 +25,7 @@
 #define IDR_LICENSE_STB                 708
 #define IDR_LICENSE_UTFCPP              709
 #define IDR_LICENSE_VMA                 710
+#define IDR_LICENSE_S_JXL               711
 
 // Next default values for new objects
 // 

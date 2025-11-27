@@ -35,6 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
+#include <jxl_encode_reshade.hpp>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -750,13 +751,6 @@ void reshade::runtime::on_present()
 			if (_input->is_key_pressed(_reload_key_data, _force_shortcut_modifiers))
 				reload_effects();
 
-			if (_input->is_key_pressed(_performance_mode_key_data, _force_shortcut_modifiers))
-			{
-				_performance_mode = !_performance_mode;
-				save_config();
-				reload_effects();
-			}
-
 			if (const bool reversed = _input->is_key_pressed(_prev_preset_key_data, _force_shortcut_modifiers);
 				reversed || _input->is_key_pressed(_next_preset_key_data, _force_shortcut_modifiers))
 			{
@@ -901,7 +895,6 @@ void reshade::runtime::load_config()
 	config_get("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config_get("INPUT", "KeyEffects", _effects_key_data);
 	config_get("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config_get("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config_get("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config_get("INPUT", "KeyReload", _reload_key_data);
 
@@ -980,7 +973,6 @@ void reshade::runtime::save_config() const
 	config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
 	config.set("INPUT", "KeyEffects", _effects_key_data);
 	config.set("INPUT", "KeyNextPreset", _next_preset_key_data);
-	config.set("INPUT", "KeyPerformanceMode", _performance_mode_key_data);
 	config.set("INPUT", "KeyPreviousPreset", _prev_preset_key_data);
 	config.set("INPUT", "KeyReload", _reload_key_data);
 
@@ -2134,8 +2126,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 		for (texture new_texture : permutation.module.textures)
 		{
-			new_texture.effect_index = effect_index;
-
 			if (!new_texture.semantic.empty() && (new_texture.render_target || new_texture.storage_access))
 			{
 				errors += "error: " + new_texture.unique_name + ": texture with a semantic used as a render target or storage\n";
@@ -2150,36 +2140,29 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					});
 				existing_texture != _textures.end())
 			{
+				const bool shared_permutation = std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) != existing_texture->shared.end();
+
 				// Cannot share texture if this is a normal one, but the existing one is a reference and vice versa
 				if (new_texture.semantic != existing_texture->semantic)
 				{
-					errors += "error: " + new_texture.unique_name + ": another effect ";
-					if (existing_texture->effect_index == new_texture.effect_index)
-						errors += "permutation";
-					else
-						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
-					errors += " already created a texture with the same name but different semantic\n";
+					errors += "error: " + new_texture.unique_name + ":"
+						" another effect " + (shared_permutation ? "permutation" : '(' + _effects[existing_texture->shared[0]].source_file.filename().u8string() + ')') +
+						" already created a texture with the same name but different semantic\n";
 					compiled = false;
 					break;
 				}
 
 				if (new_texture.semantic.empty() && !existing_texture->matches_description(new_texture))
 				{
-					errors += "warning: " + new_texture.unique_name + ": another effect ";
-					if (existing_texture->effect_index == new_texture.effect_index)
-						errors += "permutation";
-					else
-						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
-					errors += " already created a texture with the same name but different dimensions\n";
+					errors += "warning: " + new_texture.unique_name + ":"
+						" another effect " + (shared_permutation ? "permutation" : '(' + _effects[existing_texture->shared[0]].source_file.filename().u8string() + ')') +
+						" already created a texture with the same name but different dimensions\n";
 				}
 				if (new_texture.semantic.empty() && (existing_texture->annotation_as_string("source") != new_texture.annotation_as_string("source")))
 				{
-					errors += "warning: " + new_texture.unique_name + ": another effect ";
-					if (existing_texture->effect_index == new_texture.effect_index)
-						errors += "permutation";
-					else
-						errors += '(' + _effects[existing_texture->effect_index].source_file.filename().u8string() + ')';
-					errors += " already created a texture with a different image file\n";
+					errors += "warning: " + new_texture.unique_name + ":"
+						" another effect " + (shared_permutation ? "permutation" : '(' + _effects[existing_texture->shared[0]].source_file.filename().u8string() + ')') +
+						" already created a texture with a different image file\n";
 				}
 
 				if (existing_texture->semantic == "COLOR" && api::format_bit_depth(_effect_permutations[permutation_index].color_format) != 8)
@@ -2193,7 +2176,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					}
 				}
 
-				if (std::find(existing_texture->shared.begin(), existing_texture->shared.end(), effect_index) == existing_texture->shared.end())
+				if (!shared_permutation)
 					existing_texture->shared.push_back(effect_index);
 
 				// Update render target and storage access flags of the existing shared texture, in case they are used as such in this effect
@@ -2206,22 +2189,22 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			{
 				// Try to find another pooled texture to share with (and do not share within the same effect)
 				if (const auto existing_texture = std::find_if(_textures.begin(), _textures.end(),
-						[&new_texture](const texture &item) {
-							return item.annotation_as_int("pooled") && std::find(item.shared.begin(), item.shared.end(), new_texture.effect_index) == item.shared.end() && item.matches_description(new_texture);
+						[effect_index, &new_texture](const texture &item) {
+							return item.annotation_as_int("pooled") && std::find(item.shared.begin(), item.shared.end(), effect_index) == item.shared.end() && item.matches_description(new_texture);
 						});
 					existing_texture != _textures.end())
 				{
 					// Overwrite referenced texture in samplers with the pooled one
 					for (reshadefx::sampler &sampler_info : permutation.module.samplers)
 					{
-						if (sampler_info.texture_name == new_texture.unique_name)
+						if (new_texture.unique_name == sampler_info.texture_name)
 							sampler_info.texture_name = existing_texture->unique_name;
 					}
 
 					// Overwrite referenced texture in storages with the pooled one
 					for (reshadefx::storage &storage_info : permutation.module.storages)
 					{
-						if (storage_info.texture_name == new_texture.unique_name)
+						if (new_texture.unique_name == storage_info.texture_name)
 							storage_info.texture_name = existing_texture->unique_name;
 					}
 
@@ -2334,7 +2317,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		if (tex.resource != 0)
 		{
 			if (!(tex.render_target && tex.rtv[0] == 0) &&
-				!(tex.storage_access && tex.uav.empty()))
+				!(tex.storage_access && _renderer_id >= 0xb000 && tex.uav.empty()))
 				continue;
 
 			// Update texture if usage has changed since it was last created (e.g. because a pooled texture is now used with storage access when it was not before)
@@ -3015,9 +2998,6 @@ void reshade::runtime::destroy_effect(size_t effect_index, bool unload)
 				destroy_texture(tex);
 				return true;
 			}
-			// If this texture is still used by another effect, move ownership to that other effect
-			if (effect_index == tex.effect_index)
-				tex.effect_index = tex.shared.front();
 			return false;
 		}), _textures.end());
 	// Clean up techniques belonging to this effect
@@ -3421,11 +3401,6 @@ bool reshade::runtime::create_texture(texture &tex)
 }
 void reshade::runtime::destroy_texture(texture &tex)
 {
-#if RESHADE_GUI
-	if (_preview_texture == tex.srv[0])
-		_preview_texture.handle = 0;
-#endif
-
 	_device->destroy_resource(tex.resource);
 	tex.resource = {};
 
@@ -3641,6 +3616,7 @@ void reshade::runtime::destroy_effects()
 
 #if RESHADE_GUI
 	_effect_filter[0] = '\0';
+	_preview_texture = std::numeric_limits<size_t>::max();
 #endif
 
 	// Reset the effect creation queue
@@ -3915,7 +3891,7 @@ void reshade::runtime::update_effects()
 
 		// Destroy all textures belonging to this effect
 		for (texture &tex : _textures)
-			if (tex.effect_index == effect_index && tex.shared.size() <= 1)
+			if (tex.shared.size() == 1 && tex.shared[0] == effect_index)
 				destroy_texture(tex);
 		// Disable all techniques belonging to this effect
 		for (technique &tech : _techniques)
@@ -4501,7 +4477,24 @@ void reshade::runtime::save_texture(const texture &tex)
 	}
 
 	std::string filename = tex.unique_name;
-	filename += (_screenshot_format == 0 ? ".bmp" : _screenshot_format == 2 ? ".jpg" : ".png");
+	switch (_screenshot_format)
+	{
+	case 0:
+		filename += ".bmp";
+		break;
+	case 1:
+		filename += ".png";
+		break;
+	case 2:
+		filename += ".jpg";
+		break;
+	case 3:
+		filename += ".jxl";
+		break;
+	default:
+		filename += ".png";
+		break;
+	}
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
 
@@ -4536,6 +4529,11 @@ void reshade::runtime::save_texture(const texture &tex)
 					break;
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
+					break;
+				case 3:
+					if (std::vector<uint8_t> encoded_data;
+						simple_jxl::writer(pixels, encoded_data, width, height, 4))
+						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
 					break;
 				}
 
@@ -4994,11 +4992,11 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 	const unsigned int screenshot_count = _screenshot_count;
 	unsigned int screenshot_format = _screenshot_format;
 
-	// Use PNG for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
+	// Use PNG or JPEG XL for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
 	if (((_back_buffer_format == api::format::r10g10b10a2_unorm ||
 		  _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
 		 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
-		screenshot_format = 3;
+		screenshot_format = _screenshot_format == 3 ? 5 : 4;
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
@@ -5013,7 +5011,26 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		screenshot_name += postfix;
 	}
 
-	screenshot_name += (screenshot_format == 0 ? ".bmp" : screenshot_format == 2 ? ".jpg" : ".png");
+	switch (screenshot_format)
+	{
+	case 0:
+		screenshot_name += ".bmp";
+		break;
+	case 1:
+	case 4:
+		screenshot_name += ".png";
+		break;
+	case 2:
+		screenshot_name += ".jpg";
+		break;
+	case 3:
+	case 5:
+		screenshot_name += ".jxl";
+		break;
+	default:
+		screenshot_name += ".png";
+		break;
+	}
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name).lexically_normal();
 
@@ -5036,7 +5053,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		_worker_threads.emplace_back([this, screenshot_count, screenshot_format, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
-			if (_screenshot_clear_alpha && screenshot_format != 3)
+			if (_screenshot_clear_alpha && screenshot_format < 4)
 			{
 				comp = 3;
 				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
@@ -5076,9 +5093,20 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
-				// Implicit HDR PNG when running in HDR
 				case 3:
+					if (std::vector<uint8_t> encoded_data;
+						simple_jxl::writer(pixels, encoded_data, _width, _height, comp))
+						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					break;
+				// Implicit HDR PNG when running in HDR
+				case 4:
 					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format);
+					break;
+				// HDR JPEG XL
+				case 5:
+					if (std::vector<uint8_t> encoded_data;
+						simple_jxl::writer(pixels, encoded_data, _width, _height, comp, _back_buffer_format, _back_buffer_color_space))
+						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
 					break;
 				}
 

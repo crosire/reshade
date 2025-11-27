@@ -649,6 +649,8 @@ private:
 
 	std::string escape_name(std::string name) const
 	{
+		assert(!name.empty());
+
 		static const std::unordered_set<std::string> s_reserverd_names = {
 			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
 			"attribute", "varying", "buffer", "resource", "coherent", "readonly", "writeonly",
@@ -684,6 +686,9 @@ private:
 		// Remove duplicated underscore symbols from name which can occur due to namespaces but are not allowed in GLSL
 		for (size_t pos = 0; (pos = name.find("__", pos)) != std::string::npos;)
 			name.replace(pos, 2, "_x");
+		// Avoid name ending with an underscore for same reasons as above
+		if (name.back() == '_')
+			name.push_back('x');
 
 		return name;
 	}
@@ -707,6 +712,9 @@ private:
 			return "gl_LocalInvocationID";
 		if (semantic == "SV_DISPATCHTHREADID")
 			return "gl_GlobalInvocationID";
+
+		if (name.empty())
+			return std::string();
 
 		return escape_name(std::move(name));
 	}

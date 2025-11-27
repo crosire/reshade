@@ -11,6 +11,9 @@
 #include <vector>
 #include <limits>
 
+// Undocumented managed pool in D3D9Ex
+constexpr D3DPOOL D3DPOOL_MANAGED_EX = D3DPOOL(6);
+
 namespace reshade::d3d9
 {
 	static_assert(sizeof(D3DBOX) == sizeof(api::subresource_box));

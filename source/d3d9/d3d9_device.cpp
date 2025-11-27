@@ -105,9 +105,9 @@ bool Direct3DDevice9::check_and_upgrade_interface(REFIID riid)
 {
 	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
-		riid == __uuidof(IDirect3DDevice9))
+		riid == __uuidof(IDirect3DDevice9))   // {D0223B96-BF7A-43fd-92BD-A43B0D82B9EB}
 		return true;
-	if (riid != __uuidof(IDirect3DDevice9Ex))
+	if (riid != __uuidof(IDirect3DDevice9Ex)) // {B18B10CE-2649-405a-870F-95F777D4313A}
 		return false;
 
 	if (!_extended_interface)
@@ -354,7 +354,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	{
 		reshade::log::message(reshade::log::level::error, "IDirect3DDevice9::Reset failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 
-		// Initialize device implementation even when reset failed, so that 'init_device', 'init_command_list' and 'init_command_queue' events are still called
+		// Initialize device implementation even when reset failed, so that 'init_command_list' and 'init_command_queue' events are still called
 		on_init();
 	}
 
@@ -417,7 +417,8 @@ void    STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMM
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture9 **ppTexture, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Usage, Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -526,7 +527,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT Height, UINT Depth, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DVolumeTexture9 **ppVolumeTexture, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Usage, Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -610,7 +612,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DCubeTexture9 **ppCubeTexture, HANDLE *pSharedHandle)
 {
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Usage, Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -728,7 +731,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	if (_use_software_rendering)
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Usage, Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -782,7 +786,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 	if (_use_software_rendering)
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 #if RESHADE_ADDON >= 2
-	modify_pool_for_d3d9ex(Usage, Pool);
+	if (_extended_interface && Pool == D3DPOOL_MANAGED)
+		Pool = D3DPOOL_MANAGED_EX;
 #endif
 
 #if RESHADE_ADDON
@@ -1185,6 +1190,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9 *pRenderTarget)
 {
+#if RESHADE_ADDON
+	// Batman: Arkham City incorrectly calls this with a depth-stencil surface, so handle that case to prevent crash (even though it subsequently fails with D3DERR_INVALIDCALL of course)
+	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
+		pRenderTarget != nullptr &&
+		SUCCEEDED(pRenderTarget->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
+		pRenderTarget = surface_proxy->_orig;
+#endif
+
 	const HRESULT hr = _orig->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && (
@@ -1242,9 +1255,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 {
 #if RESHADE_ADDON
 	com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
-	if (pNewZStencil != nullptr &&
-		SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
-		pNewZStencil = surface_proxy->_orig;
+	if (pNewZStencil != nullptr)
+	{
+		if (_current_depth_stencil.get() == pNewZStencil)
+		{
+			surface_proxy = std::move(_current_depth_stencil);
+			pNewZStencil = surface_proxy->_orig;
+		}
+		else if (SUCCEEDED(pNewZStencil->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
+		{
+			pNewZStencil = surface_proxy->_orig;
+		}
+	}
 #endif
 
 	const HRESULT hr = _orig->SetDepthStencilSurface(pNewZStencil);
@@ -1282,9 +1304,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 	{
 		assert(ppZStencilSurface != nullptr);
 
-		if (_current_depth_stencil != nullptr)
+		IDirect3DSurface9 *const surface = *ppZStencilSurface;
+		if (_current_depth_stencil != nullptr &&
+			surface == _current_depth_stencil->_orig)
 		{
-			IDirect3DSurface9 *const surface = *ppZStencilSurface;
 			Direct3DDepthStencilSurface9 *const surface_proxy = _current_depth_stencil.get();
 
 			surface_proxy->AddRef();
@@ -2590,7 +2613,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	{
 		reshade::log::message(reshade::log::level::error, "IDirect3DDevice9Ex::ResetEx failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
 
-		// Initialize device implementation even when reset failed, so that 'init_device', 'init_command_list' and 'init_command_queue' events are still called
+		// Initialize device implementation even when reset failed, so that 'init_command_list' and 'init_command_queue' events are still called
 		on_init();
 	}
 
@@ -2794,16 +2817,5 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 				_primitive_up_index_buffer);
 		}
 	}
-}
-
-void Direct3DDevice9::modify_pool_for_d3d9ex(DWORD &usage, D3DPOOL &pool) const
-{
-	if (!_extended_interface)
-		return;
-	if (pool != D3DPOOL_MANAGED)
-		return;
-
-	pool = D3DPOOL_DEFAULT;
-	usage |= D3DUSAGE_DYNAMIC;
 }
 #endif

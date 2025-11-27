@@ -111,4 +111,7 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final :
 #if RESHADE_ADDON
 	reshade::api::pipeline_layout _global_pipeline_layout = {};
 #endif
+#if RESHADE_ADDON >= 2
+	D3D_FEATURE_LEVEL _orig_feature_level = static_cast<D3D_FEATURE_LEVEL>(0);
+#endif
 };

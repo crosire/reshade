@@ -147,7 +147,7 @@ private:
 			"uint" #n " r = 0;" \
 			"for (int i = 0; i < 32; i++) {" \
 				"r *= 2;" \
-				"r += floor(x % 2);" \
+				"r += floor(v % 2);" \
 				"v /= 2;" \
 			"}" \
 			"return r;" \
@@ -709,8 +709,6 @@ private:
 		{
 			if (semantic == "SV_POSITION")
 				return "POSITION"; // For pixel shaders this has to be "VPOS", so need to redefine that in post
-			if (semantic == "VPOS")
-				return "VPOS";
 			if (semantic == "SV_POINTSIZE")
 				return "PSIZE";
 			if (semantic.compare(0, 9, "SV_TARGET") == 0)
@@ -721,6 +719,8 @@ private:
 				return "TEXCOORD0 /* VERTEXID */";
 			if (semantic == "SV_ISFRONTFACE")
 				return "VFACE";
+			if (semantic.compare(0, 3, "SV_") == 0)
+				return semantic; // Unhandled system value semantic
 
 			size_t digit_index = semantic.size() - 1;
 			while (digit_index != 0 && semantic[digit_index] >= '0' && semantic[digit_index] <= '9')
@@ -1208,9 +1208,6 @@ private:
 				if (func.type == shader_type::vertex)
 					// Keep track of the position output variable
 					position_variable_name = id_to_name(param.id);
-				else if (func.type == shader_type::pixel)
-					// Change the position input semantic in pixel shaders
-					param.semantic = "VPOS";
 			}
 		}
 
@@ -1279,7 +1276,7 @@ private:
 
 		code += ";\n";
 
-		// Shift everything by half a viewport pixel to workaround the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
+		// Shift everything by half a viewport pixel to work around the different half-pixel offset in D3D9 (https://aras-p.info/blog/2016/04/08/solving-dx9-half-pixel-offset/)
 		if (func.type == shader_type::vertex && !position_variable_name.empty()) // Check if we are in a vertex shader definition
 			code += '\t' + position_variable_name + ".xy += __TEXEL_SIZE__ * " + position_variable_name + ".ww;\n";
 
