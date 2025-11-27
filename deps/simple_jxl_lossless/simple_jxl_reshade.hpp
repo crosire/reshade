@@ -12,10 +12,10 @@ namespace simple_jxl {
 	using format = reshade::api::format;
 	using color_space = reshade::api::color_space;
 
-	bool writer(const std::vector<uint8_t> &pixel_data,
-				std::vector<uint8_t> &output_data, size_t j_width, size_t j_height,
-				int c_num, const format fmt = format::r8g8b8a8_unorm,
-				const color_space cs = color_space::srgb_nonlinear) {
+	unsigned char* writer(const std::vector<uint8_t> &pixel_data,
+						  size_t &output_size, size_t j_width, size_t j_height,
+						  int c_num, const format fmt = format::r8g8b8a8_unorm,
+						  const color_space cs = color_space::srgb_nonlinear) {
 		int bitdepth = 8;
 
 		JxlColorEncoding color_encoding;
@@ -75,7 +75,7 @@ namespace simple_jxl {
 		if (pixel_data.size() < j_width * j_height * c_num) {
 			// Assert so that it won't crash the whole app
 			reshade::log::message(reshade::log::level::error, "Pixel size mismatch");
-			return false;
+			return nullptr;
 		}
 
 		const unsigned char *pix_data =
@@ -92,7 +92,7 @@ namespace simple_jxl {
 			if (converted_pix.size() != (pixel_data.size() / 4 * 3)) {
 				// Final check
 				reshade::log::message(reshade::log::level::error, "Pixel size mismatch");
-				return false;
+				return nullptr;
 			}
 
 			for (size_t i = 0; i < j_height * j_width; i++) {
@@ -114,24 +114,19 @@ namespace simple_jxl {
 			color_encoding.is_float = true;
 		}
 
-		size_t encoded_size = 0;
 		unsigned char *encoded = nullptr;
 		size_t stride = j_width * c_num * (bitdepth > 8 ? 2 : 1);
 
-		encoded_size = JxlSimpleLosslessEncode(
+		output_size = JxlSimpleLosslessEncode(
 			pix_data, j_width, stride, j_height, c_num, bitdepth,
 			/*big_endian=*/false, 2, &encoded, nullptr, +parallel_runner, color_encoding);
 
-		if (encoded_size == 0) {
+		if (output_size == 0) {
 			free(encoded);
 			reshade::log::message(reshade::log::level::error, "JXL Encode error");
-			return false;
+			return nullptr;
 		}
 
-		output_data.resize(encoded_size, 0x0);
-		memcpy(output_data.data(), encoded, encoded_size);
-		free(encoded);
-
-		return true;
+		return encoded;
 	}
 } // namespace simple_jxl

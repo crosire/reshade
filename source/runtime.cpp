@@ -4531,9 +4531,15 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, width, height, 4))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					{
+						size_t encoded_size = 0;
+						unsigned char *encoded_data = simple_jxl::writer(pixels, encoded_size, width, height, 4);
+						if (encoded_data && encoded_size > 0)
+						{
+							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+							free(encoded_data);
+						}
+					}
 					break;
 				}
 
@@ -5101,9 +5107,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, comp))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					{
+						size_t encoded_size = 0;
+						unsigned char *encoded_data = simple_jxl::writer(pixels, encoded_size, _width, _height, comp);
+						if (encoded_data && encoded_size > 0)
+						{
+							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+							free(encoded_data);
+						}
+					}
 					break;
 				// Implicit HDR PNG when running in HDR
 				case 4:
@@ -5111,9 +5123,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					break;
 				// HDR JPEG XL
 				case 5:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, comp, _back_buffer_format, _back_buffer_color_space))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					{
+						size_t encoded_size = 0;
+						unsigned char *encoded_data = simple_jxl::writer(pixels, encoded_size, _width, _height, comp, _back_buffer_format, _back_buffer_color_space);
+						if (encoded_data && encoded_size > 0)
+						{
+							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+							free(encoded_data);
+						}
+					}
 					break;
 				}
 
