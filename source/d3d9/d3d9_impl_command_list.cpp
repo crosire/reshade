@@ -832,7 +832,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			com_ptr<IDirect3DSurface9> target_surface = dst_surface;
 
-			if (src_desc.Pool == D3DPOOL_SYSTEMMEM && dst_desc.Pool == D3DPOOL_DEFAULT)
+			if (dst_desc.Pool == D3DPOOL_DEFAULT && src_desc.Pool == D3DPOOL_SYSTEMMEM)
 			{
 				_orig->UpdateSurface(
 					src_surface.get(), convert_box_to_rect(src_box, src_rect),
@@ -872,27 +872,22 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 		}
 		case D3DRTYPE_VOLUMETEXTURE | (D3DRTYPE_VOLUMETEXTURE << 4): // Copy from volume texture to volume texture
 		{
-			const DWORD src_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(src_object));
-			const DWORD src_level = src_subresource % src_level_count;
-
-			const DWORD dst_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(dst_object));
-			const DWORD dst_level = dst_subresource % dst_level_count;
+			if (src_subresource != 0 || dst_subresource != 0)
+				return;
 
 			com_ptr<IDirect3DVolumeTexture9> src_volume = static_cast<IDirect3DVolumeTexture9 *>(src_object);
 			com_ptr<IDirect3DVolumeTexture9> dst_volume = static_cast<IDirect3DVolumeTexture9 *>(dst_object);
 
 			D3DVOLUME_DESC src_desc;
-			IDirect3DVolumeTexture9_GetLevelDesc(src_volume.get(), src_level, &src_desc);
+			IDirect3DVolumeTexture9_GetLevelDesc(src_volume.get(), 0, &src_desc);
 			D3DVOLUME_DESC dst_desc;
-			IDirect3DVolumeTexture9_GetLevelDesc(dst_volume.get(), dst_level, &dst_desc);
+			IDirect3DVolumeTexture9_GetLevelDesc(dst_volume.get(), 0, &dst_desc);
 
 			if (dst_desc.Pool == D3DPOOL_DEFAULT && src_desc.Pool == D3DPOOL_SYSTEMMEM)
 			{
 				_orig->UpdateTexture(src_volume.get(), dst_volume.get());
 				return;
 			}
-
-			assert(dst_desc.Pool != D3DPOOL_DEFAULT && src_desc.Pool != D3DPOOL_SYSTEMMEM);
 			break;
 		}
 		case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_CUBETEXTURE << 4): // Copy from cube texture to cube texture
