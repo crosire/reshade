@@ -35,7 +35,7 @@
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
 #include <sk_hdr_png.hpp>
-#include <jxl_encode_reshade.hpp>
+#include <simple_jxl_reshade.hpp>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -4531,9 +4531,15 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, width, height, 4))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					{
+						size_t encoded_size = 0;
+						unsigned char *encoded_data = simple_jxl::writer(pixels, encoded_size, width, height, 4);
+						if (encoded_data && encoded_size > 0)
+						{
+							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+							free(encoded_data);
+						}
+					}
 					break;
 				}
 
@@ -5059,6 +5065,13 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
 					*reinterpret_cast<uint32_t *>(pixels.data() + 3 * i) = *reinterpret_cast<const uint32_t *>(pixels.data() + 4 * i);
 			}
+			else if (screenshot_format == 5)
+			{
+				comp = 3;
+				if (_back_buffer_format == api::format::r16g16b16a16_float)
+					for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
+						*reinterpret_cast<uint64_t *>(pixels.data() + 6 * i) = *reinterpret_cast<const uint64_t *>(pixels.data() + 8 * i);
+			}
 
 			// Create screenshot directory if it does not exist
 			std::error_code ec;
@@ -5094,9 +5107,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, comp))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					{
+						size_t encoded_size = 0;
+						unsigned char *encoded_data = simple_jxl::writer(pixels, encoded_size, _width, _height, comp);
+						if (encoded_data && encoded_size > 0)
+						{
+							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+							free(encoded_data);
+						}
+					}
 					break;
 				// Implicit HDR PNG when running in HDR
 				case 4:
@@ -5104,9 +5123,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					break;
 				// HDR JPEG XL
 				case 5:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, comp, _back_buffer_format, _back_buffer_color_space))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					{
+						size_t encoded_size = 0;
+						unsigned char *encoded_data = simple_jxl::writer(pixels, encoded_size, _width, _height, comp, _back_buffer_format, _back_buffer_color_space);
+						if (encoded_data && encoded_size > 0)
+						{
+							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+							free(encoded_data);
+						}
+					}
 					break;
 				}
 

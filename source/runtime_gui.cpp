@@ -2160,7 +2160,9 @@ void reshade::runtime::draw_gui_settings()
 			}
 
 			if (hdr_screenshot_format == 0)
+			{
 				modified |= ImGui::SliderInt(_("HDR PNG quality"), reinterpret_cast<int *>(&_screenshot_hdr_bits), 7, 16, "%d bit", ImGuiSliderFlags_AlwaysClamp);
+			}
 		}
 		else
 		{
