@@ -1891,12 +1891,15 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		}
 	}
 
+
+	VkPushConstantRange *previous_push_constant_range = nullptr;
 	for (; i < param_count && params[i].type == api::pipeline_layout_param_type::push_constants; ++i)
 	{
 		VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
 		push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(params[i].push_constants.visibility);
-		push_constant_range.offset = 0;
+		push_constant_range.offset = previous_push_constant_range != nullptr ? previous_push_constant_range->offset + previous_push_constant_range->size : 0;
 		push_constant_range.size = params[i].push_constants.count * 4;
+		previous_push_constant_range = &push_constant_range;
 	}
 
 	if (i < param_count)
