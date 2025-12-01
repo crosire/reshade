@@ -824,6 +824,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_
 		pDesc = &internal_desc;
 		pOptimizedClearValue = nullptr; // Disable optimized clear value in case the format was changed by an add-on
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, riid, ppvResource);
@@ -933,6 +941,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOUR
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pOptimizedClearValue = nullptr;
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1307,6 +1323,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 		pDesc = &internal_desc;
 		pOptimizedClearValue = nullptr;
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommittedResource1(pHeapProperties, HeapFlags, pDesc, InitialResourceState, pOptimizedClearValue, pProtectedSession, riid, ppvResource);
@@ -1366,6 +1390,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 		pDesc = &internal_desc;
 		// Resource format may have been altered, which would make the optimized clear value mismatch, so just unset it
 		pOptimizedClearValue = nullptr;
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1538,6 +1570,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP
 		pDesc = &internal_desc;
 		// Resource format may have been altered, which would make the optimized clear value mismatch, so just unset it
 		pOptimizedClearValue = nullptr;
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1732,6 +1772,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource3(const D3D12_HEAP
 		pDesc = &internal_desc;
 		pOptimizedClearValue = nullptr;
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D12Device10 *>(_orig)->CreateCommittedResource3(pHeapProperties, HeapFlags, pDesc, InitialLayout, pOptimizedClearValue, pProtectedSession, NumCastableFormats, pCastableFormats, riid, ppvResource);
@@ -1842,6 +1890,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource2(const D3D12_RESOU
 		reshade::d3d12::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pOptimizedClearValue = nullptr;
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, initial_state, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(riid, ppvResource)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -2395,6 +2451,14 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		hr = device_impl::create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pipeline) ? S_OK : E_FAIL;
 		d3d_pipeline = reinterpret_cast<ID3D12StateObject *>(pipeline.handle);
 	}
+	else if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(&d3d_pipeline)))
+	{
+		hr = S_OK;
+		return true;
+	}
 	else
 	{
 		assert(_interface_version >= 5);
@@ -2620,6 +2684,14 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 			reshade::api::pipeline pipeline;
 			hr = device_impl::create_pipeline(layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), &pipeline) ? S_OK : E_FAIL;
 			d3d_pipeline = reinterpret_cast<ID3D12PipelineState *>(pipeline.handle);
+		}
+		else if (reshade::api::pipeline override_pipeline = {};
+			reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, layout, static_cast<uint32_t>(subobjects.size()), subobjects.data(), override_pipeline) &&
+			override_pipeline != 0 &&
+			SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(&d3d_pipeline)))
+		{
+			hr = S_OK;
+			return true;
 		}
 		else
 		{

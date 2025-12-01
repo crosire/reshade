@@ -429,6 +429,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, &Levels, nullptr, _caps);
 
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture)))
+		return S_OK;
+
 	const HRESULT hr = _orig->CreateTexture(internal_desc.Width, internal_desc.Height, Levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppTexture, pSharedHandle);
 #else
 	const HRESULT hr = _orig->CreateTexture(Width, Height, Levels, Usage, Format, Pool, ppTexture, pSharedHandle);
@@ -539,6 +545,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, &Levels, _caps);
 
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppVolumeTexture)))
+		return S_OK;
+
 	const HRESULT hr = _orig->CreateVolumeTexture(internal_desc.Width, internal_desc.Height, internal_desc.Depth, Levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppVolumeTexture, pSharedHandle);
 #else
 	const HRESULT hr = _orig->CreateVolumeTexture(Width, Height, Depth, Levels, Usage, Format, Pool, ppVolumeTexture, pSharedHandle);
@@ -623,6 +635,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 	if (desc.texture.format != reshade::api::format::unknown &&
 		reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, &Levels, nullptr, _caps);
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppCubeTexture)))
+		return S_OK;
 
 	const HRESULT hr = _orig->CreateCubeTexture(internal_desc.Width, Levels, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppCubeTexture, pSharedHandle);
 #else
@@ -742,6 +760,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc);
 
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppVertexBuffer)))
+		return S_OK;
+
 	const HRESULT hr = _orig->CreateVertexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.FVF, internal_desc.Pool, ppVertexBuffer, pSharedHandle);
 #else
 	const HRESULT hr = _orig->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
@@ -797,6 +821,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc);
 
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppIndexBuffer)))
+		return S_OK;
+
 	const HRESULT hr = _orig->CreateIndexBuffer(internal_desc.Size, internal_desc.Usage, internal_desc.Format, internal_desc.Pool, ppIndexBuffer, pSharedHandle);
 #else
 	const HRESULT hr = _orig->CreateIndexBuffer(Length, Usage, Format, Pool, ppIndexBuffer, pSharedHandle);
@@ -844,6 +874,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, &Lockable, _caps);
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppSurface)))
+		return S_OK;
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) && !Lockable ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
@@ -923,6 +959,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 	D3DSURFACE_DESC internal_desc = old_desc;
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, nullptr, _caps);
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppSurface)))
+		return S_OK;
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
@@ -1130,6 +1172,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, nullptr, _caps);
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppSurface)))
+		return S_OK;
 
 	const HRESULT hr = _orig->CreateOffscreenPlainSurface(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.Pool, ppSurface, pSharedHandle);
 #else
@@ -2365,6 +2413,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, &Lockable, _caps);
 
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::render_target, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppSurface)))
+		return S_OK;
+
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) && !Lockable ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :
 		static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.MultiSampleType, internal_desc.MultiSampleQuality, Lockable, ppSurface, pSharedHandle, internal_desc.Usage);
@@ -2445,6 +2499,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::general))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, nullptr, _caps);
 
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppSurface)))
+		return S_OK;
+
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateOffscreenPlainSurfaceEx(internal_desc.Width, internal_desc.Height, internal_desc.Format, internal_desc.Pool, ppSurface, pSharedHandle, internal_desc.Usage);
 #else
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->CreateOffscreenPlainSurfaceEx(Width, Height, Format, Pool, ppSurface, pSharedHandle, Usage);
@@ -2513,6 +2573,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 	D3DSURFACE_DESC internal_desc = old_desc;
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil))
 		reshade::d3d9::convert_resource_desc(desc, internal_desc, nullptr, nullptr, _caps);
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, nullptr, reshade::api::resource_usage::depth_stencil, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppSurface)))
+		return S_OK;
 
 	const HRESULT hr = ((desc.usage & reshade::api::resource_usage::shader_resource) != 0) ?
 		create_surface_replacement(internal_desc, ppSurface, pSharedHandle) :

@@ -44,9 +44,11 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	case addon_event::init_resource: return "init_resource";
 	case addon_event::create_resource: return "create_resource";
 	case addon_event::destroy_resource: return "destroy_resource";
+	case addon_event::override_resource: return "override_resource";
 	case addon_event::init_resource_view: return "init_resource_view";
 	case addon_event::create_resource_view: return "create_resource_view";
 	case addon_event::destroy_resource_view: return "destroy_resource_view";
+	case addon_event::override_resource_view: return "override_resource_view";
 	case addon_event::map_buffer_region: return "map_buffer_region";
 	case addon_event::unmap_buffer_region: return "unmap_buffer_region";
 	case addon_event::map_texture_region: return "map_texture_region";
@@ -58,6 +60,7 @@ static const char *addon_event_to_string(reshade::addon_event ev)
 	case addon_event::init_pipeline: return "init_pipeline";
 	case addon_event::create_pipeline: return "create_pipeline";
 	case addon_event::destroy_pipeline: return "destroy_pipeline";
+	case addon_event::override_pipeline: return "override_pipeline";
 	case addon_event::init_pipeline_layout: return "init_pipeline_layout";
 	case addon_event::create_pipeline_layout: return "create_pipeline_layout";
 	case addon_event::destroy_pipeline_layout: return "destroy_pipeline_layout";

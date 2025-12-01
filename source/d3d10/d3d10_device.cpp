@@ -793,6 +793,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(&initial_data);
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppBuffer)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
@@ -855,6 +863,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture1D(const D3D10_TEXTURE1D_DES
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture1D)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
@@ -915,6 +931,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture2D(const D3D10_TEXTURE2D_DES
 		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture2D)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -977,6 +1001,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateTexture3D(const D3D10_TEXTURE3D_DES
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture3D)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
@@ -1029,6 +1061,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView(ID3D10Resource *
 		reshade::d3d10::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppShaderResourceView)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, pDesc, ppShaderResourceView);
@@ -1072,6 +1112,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 		reshade::d3d10::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppRenderTargetView)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, pDesc, ppRenderTargetView);
@@ -1114,6 +1162,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	{
 		reshade::d3d10::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::depth_stencil, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppDepthStencilView)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1173,6 +1229,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 		pShaderBytecodeWithInputSignature = signature_desc.code;
 		BytecodeLength = signature_desc.code_size;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppInputLayout)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
@@ -1219,6 +1283,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderByt
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppVertexShader)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, ppVertexShader);
@@ -1264,6 +1336,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderB
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppGeometryShader)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1316,6 +1396,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 		BytecodeLength = desc.code_size;
 		assert(stream_output_desc.rasterized_stream == 0);
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppGeometryShader)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, OutputStreamStride, ppGeometryShader);
@@ -1361,6 +1449,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderByte
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppPixelShader)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1431,6 +1527,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *
 		reshade::d3d10::convert_blend_desc(desc, internal_desc);
 		pBlendStateDesc = &internal_desc;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppBlendState)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateBlendState(pBlendStateDesc, ppBlendState);
@@ -1499,6 +1603,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilState(const D3D10_DEPTH
 	{
 		reshade::d3d10::convert_depth_stencil_desc(desc, internal_desc);
 		pDepthStencilDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppDepthStencilState)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1570,6 +1682,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRasterizerState(const D3D10_RASTERI
 	{
 		reshade::d3d10::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppRasterizerState)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1772,6 +1892,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource 
 		reshade::d3d10::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppShaderResourceView)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView1(pResource, pDesc, ppShaderResourceView);
@@ -1828,6 +1956,14 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1
 	{
 		reshade::d3d10::convert_blend_desc(desc, internal_desc);
 		pBlendStateDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppBlendState)))
+	{
+		return S_OK;
 	}
 #endif
 

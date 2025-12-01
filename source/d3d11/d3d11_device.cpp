@@ -252,6 +252,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(&initial_data);
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppBuffer)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateBuffer(pDesc, pInitialData, ppBuffer);
@@ -307,6 +315,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture1D(const D3D11_TEXTURE1D_DES
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data.data());
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture1D)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateTexture1D(pDesc, pInitialData, ppTexture1D);
@@ -360,6 +376,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D(const D3D11_TEXTURE2D_DES
 		reshade::d3d11::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data.data());
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture2D)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -415,6 +439,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D(const D3D11_TEXTURE3D_DES
 		pDesc = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data.data());
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, reinterpret_cast<const reshade::api::subresource_data *>(pInitialData), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture3D)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateTexture3D(pDesc, pInitialData, ppTexture3D);
@@ -460,6 +492,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppShaderResourceView)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateShaderResourceView(pResource, pDesc, ppShaderResourceView);
@@ -502,6 +542,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 	{
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::unordered_access, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppUnorderedAccessView)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -546,6 +594,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::render_target, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppRenderTargetView)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateRenderTargetView(pResource, pDesc, ppRenderTargetView);
@@ -588,6 +644,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	{
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc = &internal_desc;
+	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), internal_desc.Flags != 0 ? reshade::api::resource_usage::depth_stencil_read : reshade::api::resource_usage::depth_stencil, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppDepthStencilView)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -647,6 +711,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 		pShaderBytecodeWithInputSignature = signature_desc.code;
 		BytecodeLength = signature_desc.code_size;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppInputLayout)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateInputLayout(pInputElementDescs, NumElements, pShaderBytecodeWithInputSignature, BytecodeLength, ppInputLayout);
@@ -693,6 +765,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderByt
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppVertexShader)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
@@ -738,6 +818,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderB
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppGeometryShader)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -790,6 +878,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 		BytecodeLength = desc.code_size;
 		RasterizedStream = stream_output_desc.rasterized_stream;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppGeometryShader)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateGeometryShaderWithStreamOutput(pShaderBytecode, BytecodeLength, pSODeclaration, NumEntries, pBufferStrides, NumStrides, RasterizedStream, pClassLinkage, ppGeometryShader);
@@ -835,6 +931,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderByte
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppPixelShader)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -882,6 +986,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytec
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppHullShader)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateHullShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppHullShader);
@@ -928,6 +1040,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDomainShader(const void *pShaderByt
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppDomainShader)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = _orig->CreateDomainShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppDomainShader);
@@ -973,6 +1093,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateComputeShader(const void *pShaderBy
 	{
 		pShaderBytecode = desc.code;
 		BytecodeLength = desc.code_size;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppComputeShader)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1034,6 +1162,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 	{
 		reshade::d3d11::convert_blend_desc(desc, internal_desc);
 		pBlendStateDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppBlendState)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1103,6 +1239,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 	{
 		reshade::d3d11::convert_depth_stencil_desc(desc, internal_desc);
 		pDepthStencilDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppDepthStencilState)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1174,6 +1318,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppRasterizerState)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1496,6 +1648,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 		reshade::d3d11::convert_blend_desc(desc, internal_desc);
 		pBlendStateDesc = &internal_desc;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppBlendState)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
@@ -1570,6 +1730,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
+	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppRasterizerState)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1830,6 +1998,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DE
 		pDesc1 = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data.data());
 	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture2D)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
@@ -1885,6 +2061,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DE
 		reshade::d3d11::convert_resource_desc(desc, internal_desc);
 		pDesc1 = &internal_desc;
 		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data.data());
+	}
+
+	if (reshade::api::resource override_resource = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource>(this, desc, initial_data.data(), reshade::api::resource_usage::general, override_resource) &&
+		override_resource != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource.handle)->QueryInterface(ppTexture3D)))
+	{
+		return S_OK;
 	}
 #endif
 
@@ -1963,6 +2147,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
 		pRasterizerDesc = &internal_desc;
 	}
+
+	if (reshade::api::pipeline override_pipeline = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, override_pipeline) &&
+		override_pipeline != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_pipeline.handle)->QueryInterface(ppRasterizerState)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateRasterizerState2(pRasterizerDesc, ppRasterizerState);
@@ -2010,6 +2202,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc1 = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppShaderResourceView1)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, ppShaderResourceView1);
@@ -2055,6 +2255,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc1 = &internal_desc;
 	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppUnorderedAccessView1)))
+	{
+		return S_OK;
+	}
 #endif
 
 	const HRESULT hr = static_cast<ID3D11Device3 *>(_orig)->CreateUnorderedAccessView1(pResource, pDesc1, ppUnorderedAccessView1);
@@ -2099,6 +2307,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *p
 	{
 		reshade::d3d11::convert_resource_view_desc(desc, internal_desc);
 		pDesc1 = &internal_desc;
+	}
+
+	if (reshade::api::resource_view override_resource_view = {};
+		reshade::invoke_addon_event<reshade::addon_event::override_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc, override_resource_view) &&
+		override_resource_view != 0 &&
+		SUCCEEDED(reinterpret_cast<IUnknown *>(override_resource_view.handle)->QueryInterface(ppRenderTargetView1)))
+	{
+		return S_OK;
 	}
 #endif
 
