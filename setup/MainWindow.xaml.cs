@@ -671,6 +671,11 @@ namespace ReShade.Setup
 				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
 				{
 					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+
+					if (compatibilityIni.HasValue(executableName, "Is64Bit"))
+					{
+						currentInfo.is64Bit = compatibilityIni.GetString(executableName, "Is64Bit") == "1";
+					}
 				}
 
 				string api = compatibilityIni.GetString(executableName, "RenderApi");
