@@ -2320,7 +2320,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	for (uint32_t i = set_desc_count; i < param_count; ++i)
 	{
-		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i];
+		const VkPushConstantRange& push_constant_range = pCreateInfo->pPushConstantRanges[i - set_desc_count];
 
 		params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
 		params[i].push_constants.count = push_constant_range.offset + push_constant_range.size;
