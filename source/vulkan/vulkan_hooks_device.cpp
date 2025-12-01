@@ -649,7 +649,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	std::vector<VkFormat> format_list;
 	std::vector<uint32_t> queue_family_list;
 	VkSwapchainCreateInfoKHR create_info = *pCreateInfo;
-	VkImageFormatListCreateInfoKHR format_list_info;
+	VkImageFormatListCreateInfo format_list_info;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
 	if (device_impl->_primary_graphics_queue != nullptr)
@@ -668,8 +668,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
 
 		// Patch the format list in the create info of the application
-		if (const auto format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfoKHR>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR))
+		if (const auto format_list_info2 = find_in_structure_chain<VkImageFormatListCreateInfo>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
 		{
 			format_list.insert(format_list.end(),
 				format_list_info2->pViewFormats, format_list_info2->pViewFormats + format_list_info2->viewFormatCount);
@@ -679,12 +679,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
 
 			// This is evil, because writing into application memory, but eh =)
-			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
-			const_cast<VkImageFormatListCreateInfoKHR *>(format_list_info2)->pViewFormats = format_list.data();
+			const_cast<VkImageFormatListCreateInfo *>(format_list_info2)->viewFormatCount = static_cast<uint32_t>(format_list.size());
+			const_cast<VkImageFormatListCreateInfo *>(format_list_info2)->pViewFormats = format_list.data();
 		}
 		else if (format_list[0] != format_list[1])
 		{
-			format_list_info = { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR };
+			format_list_info = { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO };
 			format_list_info.pNext = create_info.pNext;
 			format_list_info.viewFormatCount = static_cast<uint32_t>(format_list.size());
 			format_list_info.pViewFormats = format_list.data();
@@ -1579,6 +1579,15 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	{
 		reshade::vulkan::convert_resource_desc(desc, create_info);
 		pCreateInfo = &create_info;
+
+		if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
+		{
+			// Remove format list info if format was overriden
+			if (std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.format) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
+				// This is evil, because writing into application memory, but it is what it is
+				const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
+		}
 	}
 #endif
 
@@ -2320,7 +2329,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	for (uint32_t i = set_desc_count; i < param_count; ++i)
 	{
-		const VkPushConstantRange& push_constant_range = pCreateInfo->pPushConstantRanges[i - set_desc_count];
+		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i - set_desc_count];
 
 		params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
 		params[i].push_constants.count = push_constant_range.offset + push_constant_range.size;
