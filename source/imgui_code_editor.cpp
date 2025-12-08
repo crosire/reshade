@@ -291,16 +291,33 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			const bool flip_selection = _cursor_pos > _select_beg;
 
 			_cursor_pos = mouse_to_text_pos();
-			_interactive_beg = _cursor_pos;
-			_interactive_end = _cursor_pos;
 
-			if (shift)
-				if (flip_selection)
-					_interactive_beg = _select_beg;
-				else
-					_interactive_end = _select_end;
+			if (!ctrl)
+			{
+				_interactive_beg = _cursor_pos;
+				_interactive_end = _cursor_pos;
 
-			select(_interactive_beg, _interactive_end, ctrl ? selection_mode::word : selection_mode::normal);
+				if (shift)
+					if (flip_selection)
+						_interactive_beg = _select_beg;
+					else
+						_interactive_end = _select_end;
+
+				select(_interactive_beg, _interactive_end, selection_mode::normal);
+			}
+			else
+			{
+				select(_cursor_pos, _cursor_pos, selection_mode::word);
+				const bool search_whole_word = _search_whole_word;
+				_search_whole_word = true;
+				if (const std::string highlighted = get_selected_text(); !find_and_scroll_to_text(highlighted))
+				{
+					// Wrap around to the beginning
+					select(text_pos(), text_pos());
+					find_and_scroll_to_text(highlighted);
+				}
+				_search_whole_word = search_whole_word;
+			}
 
 			_last_click_time = ImGui::GetTime();
 		}
@@ -589,7 +606,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 		if (open_search_window)
 			ImGui::SetKeyboardFocusHere();
 
-		const float input_width = ImGui::GetContentRegionAvail().x - (4 * button_spacing) - (4 * button_size) - 5;
+		const float input_width = ImGui::GetContentRegionAvail().x - ((5 * button_spacing) + (2 * (button_size + 5)) + (3 * button_size));
 		ImGui::PushItemWidth(input_width);
 		if (ImGui::InputText("##search", _search_text, sizeof(_search_text), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AllowTabInput))
 		{
@@ -605,6 +622,13 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			_search_case_sensitive = !_search_case_sensitive;
 		ImGui::PopStyleColor();
 		ImGui::SetItemTooltip("Match case (Alt + C)");
+
+		ImGui::SameLine(0.0f, button_spacing);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_search_whole_word ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+		if (ImGui::Button("ab", ImVec2(button_size + 5, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_W)))
+			_search_whole_word = !_search_whole_word;
+		ImGui::PopStyleColor();
+		ImGui::SetItemTooltip("Match whole word (Alt + W)");
 
 		ImGui::SameLine(0.0f, button_spacing);
 		if (ImGui::Button("<", ImVec2(button_size, 0)) || (shift && ImGui::IsKeyPressed(ImGuiKey_F3)))
@@ -639,7 +663,7 @@ void reshade::imgui::code_editor::render(const char *title, const uint32_t palet
 			}
 			ImGui::PopItemWidth();
 
-			ImGui::SameLine(0.0f, button_spacing * 2 + button_size + 5);
+			ImGui::SameLine(0.0f, (3 * button_spacing) + (2 * (button_size + 5)));
 			if (ImGui::Button("Repl", ImVec2(2 * button_size + button_spacing, 0)) || (!ctrl && !shift && alt && ImGui::IsKeyPressed(ImGuiKey_R)))
 			{
 				if (find_and_scroll_to_text(_search_text, false, true))
@@ -1776,11 +1800,18 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 						// All characters matching means the text was found, so select it and return
 						if (match_offset == text_begin)
 						{
-							_select_beg = search_pos;
-							_select_end = text_pos(match_pos_beg.line, match_pos_beg.column + 1);
-							_cursor_pos = _select_beg;
-							_scroll_to_cursor = true;
-							return true;
+							if (!_search_whole_word || (match_pos_beg.column + 1 >= _lines[match_pos_beg.line].size() || _lines[match_pos_beg.line][match_pos_beg.column + 1].col != _lines[match_pos_beg.line][match_pos_beg.column].col))
+							{
+								_select_beg = search_pos;
+								_select_end = text_pos(match_pos_beg.line, match_pos_beg.column + 1);
+								_cursor_pos = _select_beg;
+								_scroll_to_cursor = true;
+								return true;
+							}
+							else
+							{
+								match_offset = match_last;
+							}
 						}
 						else
 						{
@@ -1828,13 +1859,20 @@ bool reshade::imgui::code_editor::find_and_scroll_to_text(const std::string_view
 						match_pos_beg = search_pos;
 
 					// All characters matching means the text was found, so select it and return
-					if (++match_offset == text_end)
+					if ((++match_offset) == text_end)
 					{
-						_select_beg = match_pos_beg;
-						_select_end = text_pos(search_pos.line, search_pos.column + 1);
-						_cursor_pos = _select_end;
-						_scroll_to_cursor = true;
-						return true;
+						if (!_search_whole_word || (search_pos.column + 1 >= _lines[search_pos.line].size() || _lines[search_pos.line][search_pos.column + 1].col != _lines[search_pos.line][search_pos.column].col))
+						{
+							_select_beg = match_pos_beg;
+							_select_end = text_pos(search_pos.line, search_pos.column + 1);
+							_cursor_pos = _select_end;
+							_scroll_to_cursor = true;
+							return true;
+						}
+						else
+						{
+							match_offset = text_begin;
+						}
 					}
 				}
 				else
