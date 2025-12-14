@@ -66,7 +66,7 @@ namespace reshade
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const char *postfix) final;
-		bool capture_screenshot(void *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, static_cast<uint8_t *>(pixels)); }
+		bool capture_screenshot(void *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, static_cast<uint8_t *>(pixels), false); }
 
 		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
 
@@ -230,7 +230,7 @@ namespace reshade
 
 		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, int scope_mask, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
 
-		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels, bool quantize_to_rgba8);
 
 		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string_view postfix);
 

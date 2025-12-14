@@ -92,6 +92,7 @@
     <Import Project="deps\fpng.props" />
     <Import Project="deps\glad.props" />
     <Import Project="deps\ImGui.props" />
+    <Import Project="deps\jxl.props" />
     <Import Project="deps\MinHook.props" />
     <Import Project="deps\OpenVR.props" />
     <Import Project="deps\OpenXR.props" />
@@ -101,7 +102,6 @@
     <Import Project="deps\Vulkan.props" />
     <Import Project="deps\Windows.props" />
     <Import Project="deps\sk_hdr_png.props" />
-    <Import Project="deps\simple_jxl_lossless.props" />
   </ImportGroup>
   <PropertyGroup>
     <ExecutablePath>tools;$(ExecutablePath)</ExecutablePath>
@@ -509,11 +509,11 @@
     <ProjectReference Include="deps\ImGui.vcxproj">
       <Project>{9a62233b-0b70-4b48-91e8-35aa666bc32e}</Project>
     </ProjectReference>
+    <ProjectReference Include="deps\jxl_simple_lossless.vcxproj">
+      <Project>{54216c95-7b51-46d3-ab11-4b341e76a774}</Project>
+    </ProjectReference>
     <ProjectReference Include="deps\MinHook.vcxproj">
       <Project>{783fedfb-5124-4f8c-87bc-70aa8490266b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="deps\simple_jxl_lossless.vcxproj">
-      <Project>{54216c95-7b51-46d3-ab11-4b341e76a774}</Project>
     </ProjectReference>
     <ProjectReference Include="deps\stb.vcxproj">
       <Project>{723bdef8-4a39-4961-bdab-54074012ff47}</Project>

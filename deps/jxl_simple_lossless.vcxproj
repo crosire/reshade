@@ -36,7 +36,7 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\Common.props" />
-    <Import Project="simple_jxl_lossless.props" />
+    <Import Project="jxl.props" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -85,11 +85,11 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="simple_jxl_lossless\simple-lossless-encoder\simple_lossless.cc" />
+    <ClCompile Include="jxl_simple_lossless\simple_lossless.cc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="simple_jxl_lossless\simple-lossless-encoder\simple_lossless.h" />
-    <ClInclude Include="simple_jxl_lossless\simple-lossless-encoder\color_encoding.h" />
+    <ClInclude Include="jxl_simple_lossless\simple_lossless.h" />
+    <ClInclude Include="jxl_simple_lossless\color_encoding.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

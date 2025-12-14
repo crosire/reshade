@@ -110,7 +110,7 @@ IDR_LICENSE_UTFCPP      RCDATA                  "..\\deps\\utfcpp\\LICENSE"
 
 IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
 
-IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\simple_jxl_lossless\\simple-lossless-encoder\\LICENSE"
+IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\jxl_simple_lossless\\LICENSE"
 #endif
 
 #endif    // Neutral (Default) resources
