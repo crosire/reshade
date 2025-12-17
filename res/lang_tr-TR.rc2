@@ -94,7 +94,6 @@ BEGIN
 8134 "Ekran görüntüsü yolu"
 25098 "Ekran görüntüsünün adı"
 30328 "Kaydetme sırasında kullanılabilecek makrolar:\n  %%AppName%%         Uygulama adı (%s)\n  %%PresetName%%      Mevcut ön ayar dosyasının uzantısız adı (%s)\n  %%BeforeAfter%%     Ekran görüntüsünün çekildiği anı tanımlar ('Before', 'After' veya 'Overlay')\n  %%Date%%            Geçerli tarih ('%s' biçiminde)\n  %%DateYear%%        Yıl bileşeni\n  %%DateMonth%%       Ay bileşeni\n  %%DateDay%%         Gün bileşeni\n  %%Time%%            Geçerli saat ('%s' biçiminde)\n  %%TimeHour%%        Saat\n  %%TimeMinute%%      Dakika\n  %%TimeSecond%%      Saniye\n  %%TimeMS%%          Milisaniye\n  %%Count%%           Bu oturumda alınan ekran görüntüsü sayısı\n"
-4289 "HDR PNG kalitesi"
 24896 "Ekran görüntüsünün fotoğraf biçimi"
 3555 "JPEG kalitesi"
 13473 "Alfa kanalını temizle"

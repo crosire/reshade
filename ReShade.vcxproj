@@ -101,7 +101,6 @@
     <Import Project="deps\utfcpp.props" />
     <Import Project="deps\Vulkan.props" />
     <Import Project="deps\Windows.props" />
-    <Import Project="deps\sk_hdr_png.props" />
   </ImportGroup>
   <PropertyGroup>
     <ExecutablePath>tools;$(ExecutablePath)</ExecutablePath>

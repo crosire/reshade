@@ -349,7 +349,6 @@ namespace reshade
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_count = 0;
 		unsigned int _screenshot_format = 1;
-		unsigned int _screenshot_hdr_bits = 11;
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
 		std::filesystem::path _screenshot_sound_path;

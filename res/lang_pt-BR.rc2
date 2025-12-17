@@ -94,7 +94,6 @@ BEGIN
 8134 "Caminho da captura de tela"
 25098 "Nome da captura de tela"
 30328 "Macros que você pode adicionar e que são resolvidas durante o salvamento:\n  %%AppName%%         Nome do aplicativo (%s)\n  %%PresetName%%      Nome do arquivo sem extensão do arquivo de preset atual (%s)\n  %%BeforeAfter%%     Termo que descreve o momento em que a captura de tela foi feita ('Before', 'After' ou 'Overlay')\n  %%Date%%            Data atual no formato '%s'\n  %%DateYear%%        Componente de ano da data atual\n  %%DateMonth%%       Componente de mês da data atual\n  %%DateDay%%         Componente de dia da data atual\n  %%Time%%            Hora atual no formato '%s'\n  %%TimeHour%%        Componente de hora da hora atual\n  %%TimeMinute%%      Componente de minuto da hora atual\n  %%TimeSecond%%      Componente de segundo da hora atual\n  %%TimeMS%%          Fração de milissegundos da hora atual\n  %%Count%%           Número de capturas de tela feitas nesta sessão\n"
-4289 "Qualidade HDR PNG"
 24896 "Formato da captura de tela"
 3555 "Qualidade JPEG"
 13473 "Limpar canal alfa"

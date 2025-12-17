@@ -29,13 +29,13 @@
 #include <charconv> // std::to_chars
 #include <algorithm> // std::all_of, std::copy_n, std::equal, std::fill_n, std::find, std::find_if, std::for_each, std::max, std::min, std::replace, std::remove, std::remove_if, std::reverse, std::search, std::set_symmetric_difference, std::sort, std::stable_sort, std::swap, std::transform
 #include <fpng.h>
+#include <simple_lossless.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
+#include <stb_image_write_hdr_png.h>
 #include <stb_image_resize2.h>
 #include <d3dcompiler.h>
-#include <sk_hdr_png.hpp>
-#include <simple_lossless.h>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -950,7 +950,6 @@ void reshade::runtime::load_config()
 	config_get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config_get("SCREENSHOT", "FileNaming", _screenshot_name);
 	config_get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
-	config_get("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config_get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config_get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #if RESHADE_GUI
@@ -1014,7 +1013,6 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
-	config.set("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #if RESHADE_GUI
@@ -5083,7 +5081,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 			_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(),
 			_back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present,
 			pixels.data(),
-			screenshot_format >= 4 ? (_back_buffer_format == api::format::r16g16b16a16_float ? api::format::r16g16b16_float : api::format::r16g16b16_unorm) : api::format::r8g8b8a8_unorm))
+			screenshot_format >= 4 ? (_back_buffer_format == api::format::r16g16b16a16_float && screenshot_format == 5 ? api::format::r16g16b16_float : api::format::r16g16b16_unorm) : api::format::r8g8b8a8_unorm))
 	{
 		const bool include_preset =
 			_screenshot_include_preset &&
@@ -5141,13 +5139,20 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
-				// Implicit HDR PNG when running in HDR
-				case 4:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format == api::format::r16g16b16a16_float ? api::format::r16g16b16_float : api::format::r16g16b16_unorm);
+				case 4: // HDR PNG
+					save_success = stbi_write_hdr_png_to_func(
+						write_callback,
+						file,
+						_width,
+						_height,
+						comp,
+						reinterpret_cast<uint16_t *>(pixels.data()),
+						0,
+						_back_buffer_color_space == api::color_space::extended_srgb_linear ? 1u /* BT.709 */ : 9u /* BT.2020 */,
+						_back_buffer_color_space == api::color_space::extended_srgb_linear ? 8u /* Linear */ : 16u /* ST.2084 EOTF (PQ) */) != 0;
 					break;
 				case 3:
-				// HDR JPEG XL
-				case 5:
+				case 5: // HDR JPEG XL
 					{
 						JxlColorEncoding color_encoding = {};
 						color_encoding.color_space = JXL_COLOR_SPACE_RGB;
@@ -5308,25 +5313,11 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	assert(quantization_format != api::format::unknown);
 
 	const api::resource_desc desc = _device->get_resource_desc(resource);
-
-	api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
-	if (view_format != api::format::r8_unorm &&
-		view_format != api::format::r8g8_unorm &&
-		view_format != api::format::r8g8b8a8_unorm &&
-		view_format != api::format::b8g8r8a8_unorm &&
-		view_format != api::format::r8g8b8x8_unorm &&
-		view_format != api::format::b8g8r8x8_unorm &&
-		view_format != api::format::r10g10b10a2_unorm &&
-		view_format != api::format::b10g10r10a2_unorm &&
-		view_format != api::format::r16g16b16a16_float)
-	{
-		log::message(log::level::error, "Screenshots are not supported for format %u!", static_cast<uint32_t>(desc.texture.format));
-		return false;
-	}
+	const api::format intermediate_format = api::format_to_default_typed(desc.texture.format, 0);
 
 	// Copy back buffer data into system memory buffer
 	api::resource intermediate;
-	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, intermediate_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 	{
 		log::message(log::level::error, "Failed to create system memory texture for screenshot capture!");
 		return false;
@@ -5353,7 +5344,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 		for (size_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
-			if (quantization_format == view_format)
+			if (quantization_format == intermediate_format)
 			{
 				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
 				continue;
@@ -5361,7 +5352,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 			if (quantization_format == api::format::r8g8b8a8_unorm)
 			{
-				switch (view_format)
+				switch (intermediate_format)
 				{
 				case api::format::r8_unorm:
 					for (size_t x = 0; x < desc.texture.width; ++x)
@@ -5413,29 +5404,57 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 				case api::format::b10g10r10a2_unorm:
 					for (size_t x = 0; x < pixels_row_pitch; x += 4)
 					{
+						const auto offset_r = intermediate_format == api::format::b10g10r10a2_unorm ? 2 : 0;
+						const auto offset_g = 1;
+						const auto offset_b = intermediate_format == api::format::b10g10r10a2_unorm ? 0 : 2;
+						const auto offset_a = 3;
+
 						const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 						// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-						pixels[x + (view_format == api::format::b10g10r10a2_unorm ? 2 : 0)] = (( rgba & 0x000003FFu)        /  4) & 0xFF;
-						pixels[x +                                                      1 ] = (((rgba & 0x000FFC00u) >> 10) /  4) & 0xFF;
-						pixels[x + (view_format == api::format::b10g10r10a2_unorm ? 0 : 2)] = (((rgba & 0x3FF00000u) >> 20) /  4) & 0xFF;
-						pixels[x +                                                      3 ] = (((rgba & 0xC0000000u) >> 30) * 85) & 0xFF;
+						pixels[offset_r] = (( rgba & 0x000003FFu)        /  4) & 0xFF;
+						pixels[offset_g] = (((rgba & 0x000FFC00u) >> 10) /  4) & 0xFF;
+						pixels[offset_b] = (((rgba & 0x3FF00000u) >> 20) /  4) & 0xFF;
+						pixels[offset_a] = (((rgba & 0xC0000000u) >> 30) * 85) & 0xFF;
 					}
 					continue;
 				}
 			}
-			else if (quantization_format == api::format::r16g16b16_unorm && (view_format == api::format::r10g10b10a2_unorm || view_format == api::format::b10g10r10a2_unorm))
+			else if (quantization_format == api::format::r16g16b16_unorm)
 			{
-				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+				switch (intermediate_format)
 				{
-					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + (x / (sizeof(uint16_t) * 3)) * 4);
-					// Multiply by 64 to get 10-bit range (0-1023) into 16-bit range (0-65535)
-					reinterpret_cast<uint16_t *>(pixels + x)[view_format == api::format::b10g10r10a2_unorm ? 2 : 0] = ( (rgba & 0x000003FFu)        * 64) & 0xFFFF;
-					reinterpret_cast<uint16_t *>(pixels + x)[                                                    1] = (((rgba & 0x000FFC00u) >> 10) * 64) & 0xFFFF;
-					reinterpret_cast<uint16_t *>(pixels + x)[view_format == api::format::b10g10r10a2_unorm ? 0 : 2] = (((rgba & 0x3FF00000u) >> 20) * 64) & 0xFFFF;
+				case api::format::r10g10b10a2_unorm:
+				case api::format::b10g10r10a2_unorm:
+					for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+					{
+						const auto offset_r = intermediate_format == api::format::b10g10r10a2_unorm ? 2 : 0;
+						const auto offset_g = 1;
+						const auto offset_b = intermediate_format == api::format::b10g10r10a2_unorm ? 0 : 2;
+
+						const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + (x / (sizeof(uint16_t) * 3)) * 4);
+						// Multiply by 64 to get 10-bit range (0-1023) into 16-bit range (0-65535)
+						reinterpret_cast<uint16_t *>(pixels + x)[offset_r] = ( (rgba & 0x000003FFu)        * 64) & 0xFFFF;
+						reinterpret_cast<uint16_t *>(pixels + x)[offset_g] = (((rgba & 0x000FFC00u) >> 10) * 64) & 0xFFFF;
+						reinterpret_cast<uint16_t *>(pixels + x)[offset_b] = (((rgba & 0x3FF00000u) >> 20) * 64) & 0xFFFF;
+					}
+					continue;
+				case api::format::r16g16b16a16_float:
+					for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+					{
+						// Convert 16-bit floating point values to 32-bit floating point, then convert to integers and pack into 16-bit range
+						uint16_t result[4];
+						_mm_storel_epi64(reinterpret_cast<__m128i *>(result),
+							_mm_packus_epi32(_mm_cvtps_epi32(
+								_mm_mul_ps(
+										_mm_cvtph_ps(_mm_loadl_epi64(reinterpret_cast<const __m128i *>(mapped_pixels + (x / 3) * 4))),
+										_mm_set_ps1(65536.0f))),
+								_mm_setzero_si128()));
+						std::memcpy(pixels + x, result, sizeof(uint16_t) * 3);
+					}
+					continue;
 				}
-				continue;
 			}
-			else if (quantization_format == api::format::r16g16b16_float && (view_format == api::format::r16g16b16a16_float))
+			else if (quantization_format == api::format::r16g16b16_float && intermediate_format == api::format::r16g16b16a16_float)
 			{
 				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
 				{
@@ -5443,7 +5462,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 				}
 				continue;
 			}
-			else if (quantization_format == api::format::r10g10b10a2_unorm && (view_format == api::format::b10g10r10a2_unorm))
+			else if (quantization_format == api::format::r10g10b10a2_unorm && intermediate_format == api::format::b10g10r10a2_unorm)
 			{
 				// Format is BGRA, but output should be RGBA, so flip channels
 				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint32_t))
@@ -5456,6 +5475,8 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 			// Unsupported quantization, return an error below
 			mapped_data.data = nullptr;
+
+			log::message(log::level::error, "Screenshots are not supported for format %u!", static_cast<uint32_t>(desc.texture.format));
 			break;
 		}
 
