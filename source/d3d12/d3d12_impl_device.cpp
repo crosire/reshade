@@ -1358,6 +1358,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		return internal_params[index];
 	};
 
+	bool has_descriptor_tables = false;
+
 	for (uint32_t i = 0; i < param_count; ++i)
 	{
 		set_ranges[i] = { D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES, 0 };
@@ -1459,6 +1461,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				internal_param.ShaderVisibility = convert_shader_visibility(visibility_mask);
 
 				global_visibility_mask |= visibility_mask;
+
+				has_descriptor_tables = true;
 			}
 		}
 		else
@@ -1506,6 +1510,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 
 		if (std::pair<D3D12_FEATURE_DATA_SHADER_MODEL, D3D12_FEATURE_DATA_D3D12_OPTIONS> options = { { D3D_SHADER_MODEL_6_6 }, {} };
+			!has_descriptor_tables &&
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &options.first, sizeof(options.first))) &&
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options.second, sizeof(options.second))) &&
 			options.first.HighestShaderModel >= D3D_SHADER_MODEL_6_6 &&
