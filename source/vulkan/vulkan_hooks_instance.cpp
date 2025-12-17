@@ -138,6 +138,8 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 		// Enable extensions that ReShade requires
 		add_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
+
+		add_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, false);
 	}
 
 	VkInstanceCreateInfo create_info = *pCreateInfo;
