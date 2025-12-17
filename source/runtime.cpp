@@ -4500,7 +4500,7 @@ void reshade::runtime::save_texture(const texture &tex)
 	_last_screenshot_save_successful = true;
 
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
-		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data(), true))
+		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data(), api::format::r8g8b8a8_unorm))
 	{
 		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), width = tex.width, height = tex.height]() mutable {
 			// Default to a save failure unless it is reported to succeed below
@@ -5035,9 +5035,8 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 	unsigned int screenshot_format = _screenshot_format;
 
 	// Use PNG or JPEG XL for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
-	if (((_back_buffer_format == api::format::r10g10b10a2_unorm ||
-		  _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
-		 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
+	if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
+		_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
 		screenshot_format = _screenshot_format == 3 ? 5 : 4;
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
@@ -5079,8 +5078,12 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 
 	_last_screenshot_save_successful = true;
 
-	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * (_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4));
-		get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, pixels.data(), screenshot_format < 5))
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * (screenshot_format >= 4 ? 6 : 4));
+		get_texture_data(
+			_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(),
+			_back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present,
+			pixels.data(),
+			screenshot_format >= 4 ? (_back_buffer_format == api::format::r16g16b16a16_float ? api::format::r16g16b16_float : api::format::r16g16b16_unorm) : api::format::r8g8b8a8_unorm))
 	{
 		const bool include_preset =
 			_screenshot_include_preset &&
@@ -5094,7 +5097,11 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		_worker_threads.emplace_back([this, screenshot_count, screenshot_format, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
-			if (_screenshot_clear_alpha && screenshot_format < 4)
+			if (screenshot_format >= 4)
+			{
+				comp = 3;
+			}
+			else if (_screenshot_clear_alpha)
 			{
 				comp = 3;
 				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
@@ -5136,7 +5143,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					break;
 				// Implicit HDR PNG when running in HDR
 				case 4:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format);
+					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format == api::format::r16g16b16a16_float ? api::format::r16g16b16_float : api::format::r16g16b16_unorm);
 					break;
 				case 3:
 				// HDR JPEG XL
@@ -5168,43 +5175,17 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 							break;
 						}
 
-						int bitdepth = 8;
-						const uint8_t *pixels_data = pixels.data();
-						std::vector<uint16_t> converted_pixels;
-
-						if ((_back_buffer_format == api::format::r10g10b10a2_unorm || _back_buffer_format == api::format::b10g10r10a2_unorm) && screenshot_format == 5)
-						{
-							converted_pixels.resize(static_cast<size_t>(_width) * static_cast<size_t>(_height) * 3, 0x0);
-
-							for (uint16_t *converted_pixels_data = converted_pixels.data(); converted_pixels_data < converted_pixels.data() + converted_pixels.size(); converted_pixels_data += 3, pixels_data += sizeof(uint32_t))
-							{
-								const uint32_t rgba = *reinterpret_cast<const uint32_t *>(pixels_data);
-								converted_pixels_data[0] = ((rgba & 0x000003FF)      ) & 0xFFFF;
-								converted_pixels_data[1] = ((rgba & 0x000FFC00) >> 10) & 0xFFFF;
-								converted_pixels_data[2] = ((rgba & 0x3FF00000) >> 20) & 0xFFFF;
-							}
-
-							bitdepth = 10;
-							pixels_data = reinterpret_cast<const uint8_t *>(converted_pixels.data());
-						}
-						else if (_back_buffer_format == api::format::r16g16b16a16_float)
-						{
-							comp = 3;
-							for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
-								*reinterpret_cast<uint64_t *>(pixels.data() + 6 * i) = *reinterpret_cast<const uint64_t *>(pixels.data() + 8 * i);
-
-							bitdepth = 16;
+						if (_back_buffer_format == api::format::r16g16b16a16_float)
 							color_encoding.is_float = true;
-						}
 
 						uint8_t *encoded_data = nullptr;
 						const size_t encoded_size = JxlSimpleLosslessEncode(
-							pixels_data,
+							pixels.data(),
 							_width,
-							static_cast<size_t>(_width) * comp * (bitdepth > 8 ? 2 : 1),
+							static_cast<size_t>(_width) * comp * (screenshot_format >= 4 ? 2 : 1),
 							_height,
 							comp,
-							bitdepth,
+							screenshot_format >= 4 ? 16 : 8,
 							/* big_endian = */ false,
 							/* effort = */ 2,
 							&encoded_data,
@@ -5322,11 +5303,13 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	return true;
 }
 
-bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels, bool quantize_to_rgba8)
+bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels, api::format quantization_format)
 {
+	assert(quantization_format != api::format::unknown);
+
 	const api::resource_desc desc = _device->get_resource_desc(resource);
 
-	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
+	api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
 	if (view_format != api::format::r8_unorm &&
 		view_format != api::format::r8g8_unorm &&
 		view_format != api::format::r8g8b8a8_unorm &&
@@ -5366,15 +5349,21 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	if (_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data))
 	{
 		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
-		const uint32_t pixels_row_pitch = api::format_row_pitch(view_format, desc.texture.width);
+		const uint32_t pixels_row_pitch = api::format_row_pitch(quantization_format, desc.texture.width);
 
 		for (size_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
-			switch (view_format)
+			if (quantization_format == view_format)
 			{
-			case api::format::r8_unorm:
-				if (quantize_to_rgba8)
+				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
+				continue;
+			}
+
+			if (quantization_format == api::format::r8g8b8a8_unorm)
+			{
+				switch (view_format)
 				{
+				case api::format::r8_unorm:
 					for (size_t x = 0; x < desc.texture.width; ++x)
 					{
 						pixels[x * 4 + 0] = mapped_pixels[x];
@@ -5382,15 +5371,8 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 						pixels[x * 4 + 2] = 0;
 						pixels[x * 4 + 3] = 0xFF;
 					}
-				}
-				else
-				{
-					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				}
-				break;
-			case api::format::r8g8_unorm:
-				if (quantize_to_rgba8)
-				{
+					continue;
+				case api::format::r8g8_unorm:
 					for (size_t x = 0; x < desc.texture.width; ++x)
 					{
 						pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
@@ -5398,75 +5380,83 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 						pixels[x * 4 + 2] = 0;
 						pixels[x * 4 + 3] = 0xFF;
 					}
-				}
-				else
-				{
-					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				}
-				break;
-			case api::format::r8g8b8a8_unorm:
-			case api::format::r8g8b8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				if (view_format == api::format::r8g8b8x8_unorm)
+					continue;
+				case api::format::r8g8b8x8_unorm:
 					for (size_t x = 0; x < pixels_row_pitch; x += 4)
+					{
+						pixels[x + 0] = mapped_pixels[x + 0];
+						pixels[x + 1] = mapped_pixels[x + 1];
+						pixels[x + 2] = mapped_pixels[x + 2];
 						pixels[x + 3] = 0xFF;
-				break;
-			case api::format::b8g8r8a8_unorm:
-			case api::format::b8g8r8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				// Format is BGRA, but output should be RGBA, so flip channels
-				for (size_t x = 0; x < pixels_row_pitch; x += 4)
-					std::swap(pixels[x + 0], pixels[x + 2]);
-				if (view_format == api::format::b8g8r8x8_unorm)
+					}
+					continue;
+				case api::format::b8g8r8a8_unorm:
+					// Format is BGRA, but output should be RGBA, so flip channels
 					for (size_t x = 0; x < pixels_row_pitch; x += 4)
+					{
+						pixels[x + 0] = mapped_pixels[x + 2];
+						pixels[x + 1] = mapped_pixels[x + 1];
+						pixels[x + 2] = mapped_pixels[x + 0];
+						pixels[x + 3] = mapped_pixels[x + 3];
+					}
+					continue;
+				case api::format::b8g8r8x8_unorm:
+					for (size_t x = 0; x < pixels_row_pitch; x += 4)
+					{
+						pixels[x + 0] = mapped_pixels[x + 2];
+						pixels[x + 1] = mapped_pixels[x + 1];
+						pixels[x + 2] = mapped_pixels[x + 0];
 						pixels[x + 3] = 0xFF;
-				break;
-			case api::format::r10g10b10a2_unorm:
-			case api::format::b10g10r10a2_unorm:
-				// SDR: Quantize the image down to 8-bpc for compatibility with standard screenshot formats
-				if (quantize_to_rgba8)
-				{
+					}
+					continue;
+				case api::format::r10g10b10a2_unorm:
+				case api::format::b10g10r10a2_unorm:
 					for (size_t x = 0; x < pixels_row_pitch; x += 4)
 					{
 						const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 						// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-						pixels[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
-						pixels[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
-						pixels[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
-						pixels[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
-						if (view_format == api::format::b10g10r10a2_unorm)
-							std::swap(pixels[x + 0], pixels[x + 2]);
+						pixels[x + (view_format == api::format::b10g10r10a2_unorm ? 2 : 0)] = (( rgba & 0x000003FFu)        /  4) & 0xFF;
+						pixels[x +                                                      1 ] = (((rgba & 0x000FFC00u) >> 10) /  4) & 0xFF;
+						pixels[x + (view_format == api::format::b10g10r10a2_unorm ? 0 : 2)] = (((rgba & 0x3FF00000u) >> 20) /  4) & 0xFF;
+						pixels[x +                                                      3 ] = (((rgba & 0xC0000000u) >> 30) * 85) & 0xFF;
 					}
+					continue;
 				}
-				// HDR10: Keep the original data, do not convert to 8-bpc
-				else
-				{
-					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-#if 0
-					if (view_format == api::format::b10g10r10a2_unorm)
-					{
-						// Format is BGRA, but output should be RGBA, so flip channels
-						for (size_t x = 0; x < pixels_row_pitch; x += 4)
-						{
-							const uint32_t rgba = *reinterpret_cast<const uint32_t *>(pixels + x);
-							*reinterpret_cast<uint32_t *>(pixels + x) = ((rgba & 0x000003FF) << 20) | ((rgba & 0x3FF00000) >> 20) | (rgba & 0xC00FFC00);
-						}
-					}
-#endif
-				}
-				break;
-			default:
-				if (quantize_to_rgba8)
-				{
-					// Return an error below
-					mapped_data.data = nullptr;
-				}
-				else
-				{
-					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				}
-				break;
 			}
+			else if (quantization_format == api::format::r16g16b16_unorm && (view_format == api::format::r10g10b10a2_unorm || view_format == api::format::b10g10r10a2_unorm))
+			{
+				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + (x / (sizeof(uint16_t) * 3)) * 4);
+					// Multiply by 64 to get 10-bit range (0-1023) into 16-bit range (0-65535)
+					reinterpret_cast<uint16_t *>(pixels + x)[view_format == api::format::b10g10r10a2_unorm ? 2 : 0] = ( (rgba & 0x000003FFu)        * 64) & 0xFFFF;
+					reinterpret_cast<uint16_t *>(pixels + x)[                                                    1] = (((rgba & 0x000FFC00u) >> 10) * 64) & 0xFFFF;
+					reinterpret_cast<uint16_t *>(pixels + x)[view_format == api::format::b10g10r10a2_unorm ? 0 : 2] = (((rgba & 0x3FF00000u) >> 20) * 64) & 0xFFFF;
+				}
+				continue;
+			}
+			else if (quantization_format == api::format::r16g16b16_float && (view_format == api::format::r16g16b16a16_float))
+			{
+				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+				{
+					std::memcpy(pixels + x, mapped_pixels + (x / 3) * 4, sizeof(uint16_t) * 3);
+				}
+				continue;
+			}
+			else if (quantization_format == api::format::r10g10b10a2_unorm && (view_format == api::format::b10g10r10a2_unorm))
+			{
+				// Format is BGRA, but output should be RGBA, so flip channels
+				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint32_t))
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
+					*reinterpret_cast<uint32_t *>(pixels + x) = ((rgba & 0x000003FFu) << 20) | ((rgba & 0x3FF00000u) >> 20) | (rgba & 0xC00FFC00u);
+				}
+				continue;
+			}
+
+			// Unsupported quantization, return an error below
+			mapped_data.data = nullptr;
+			break;
 		}
 
 		_device->unmap_texture_region(intermediate, 0);

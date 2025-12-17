@@ -311,7 +311,6 @@ namespace sk_hdr_png
   bool         write_image_to_disk          (const wchar_t* image_path, unsigned int width, unsigned int height, const void*  pixels,          int quantization_bits, format fmt);//, reshade::api::display* display);
   bool         write_hdr_chunks             (const wchar_t* image_path, unsigned int width, unsigned int height, const float* luminance_array, int quantization_bits);//,                                 reshade::api::display* display);
   cLLi_Payload calculate_content_light_info (const float*   luminance,  unsigned int width, unsigned int height);
-  bool         copy_to_clipboard            (const wchar_t* image_path);
   bool         remove_chunk                 (const char*    chunk_name, void* data, size_t& size);
   uint32_t     crc32                        (const void*    typeless_data, size_t offset, size_t len, uint32_t crc);
 
@@ -768,7 +767,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 	// Space savings are possible by quantizing to alternate bit depths before encoding, 10-bpc is a sane minimum for HDR.
 	WICPixelFormatGUID wic_format = GUID_WICPixelFormat48bppRGB;
 
-	if (image_path == nullptr || width == 0 || height == 0 || (fmt != format::r16g16b16a16_float && fmt != format::r10g10b10a2_unorm && fmt != format::b10g10r10a2_unorm))
+	if (image_path == nullptr || width == 0 || height == 0 || (fmt != format::r16g16b16_float && fmt != format::r16g16b16_unorm))
 	{
 		return false;
 	}
@@ -814,10 +813,10 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 
 		hr = E_OUTOFMEMORY;
 		const auto png_buffer = static_cast<BYTE *>(_aligned_malloc(sizeof(BYTE) * buffer_size, 16));
-		const auto rgba32_scanline = static_cast<XMFLOAT4 *>(_aligned_malloc(sizeof(XMFLOAT4) * width, 16));
+		const auto rgb_scanline = static_cast<float *>(_aligned_malloc(sizeof(float) * 3 * width, 16));
 		const auto luminance = static_cast<float *>(_aligned_malloc(sizeof(float) * width * height, 16));
 
-		if (png_buffer != nullptr && rgba32_scanline != nullptr && luminance != nullptr)
+		if (png_buffer != nullptr && rgb_scanline != nullptr && luminance != nullptr)
 		{
 			auto QUANTIZE_FP32_TO_UNORM16 = [](XMVECTOR& rgb32,int bit_reduce,uint16_t*& output)
 			{
@@ -829,38 +828,31 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 				*(output++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(std::roundf ((XMVectorGetZ (rgb32) * quant_prescale)) * 65536.0f) / quant_postscale));
 			};
 
-			if (fmt == format::r10g10b10a2_unorm || fmt == format::b10g10r10a2_unorm)
+			if (fmt == format::r16g16b16_unorm)
 			{
 				uint16_t* png_pixels = (uint16_t *)png_buffer;
-				uint32_t* src_pixels = (uint32_t *)pixels;
+				uint16_t* src_pixels = (uint16_t *)pixels;
 
 				auto pixel_luminance = luminance;
 
 				for (size_t i = 0; i < width * height; i++)
 				{
-					const uint32_t color = *reinterpret_cast<const uint32_t *>(src_pixels++);
-
-					// Multiply by 64 and +/- 1 to get 10-bit range (0-1023) into 16-bit range (0-65535)
-					const uint16_t c[] = { (((( color & 0x000003FFU)         + 1U) * 64U) & 0xFFFFU) - 1U,
-					                       (((((color & 0x000FFC00U) >> 10U) + 1U) * 64U) & 0xFFFFU) - 1U,
-					                       (((((color & 0x3FF00000U) >> 20U) + 1U) * 64U) & 0xFFFFU) - 1U };
-
-					const int r = fmt == format::b10g10r10a2_unorm ? 2 : 0;
-					const int g = 1;
-					const int b = fmt == format::b10g10r10a2_unorm ? 0 : 2;
+					const uint16_t r = *(src_pixels++);
+					const uint16_t g = *(src_pixels++);
+					const uint16_t b = *(src_pixels++);
 
 					XMVECTOR rgb =
-						XMVectorSet (static_cast<float>(c [r]) / 65535.0f,
-						             static_cast<float>(c [g]) / 65535.0f,
-						             static_cast<float>(c [b]) / 65535.0f, 1.0f);
+						XMVectorSet (static_cast<float>(r) / 65535.0f,
+						             static_cast<float>(g) / 65535.0f,
+						             static_cast<float>(b) / 65535.0f, 1.0f);
 
 					if (quantization_bits < 10) {
 						QUANTIZE_FP32_TO_UNORM16 (rgb, quantization_bits, png_pixels);
 					} else {
 						quantization_bits = 10; // Cap to 10-bpc
-						*(png_pixels++) = c [r];
-						*(png_pixels++) = c [g];
-						*(png_pixels++) = c [b];
+						*(png_pixels++) = r;
+						*(png_pixels++) = g;
+						*(png_pixels++) = b;
 					}
 
 					*pixel_luminance++ =
@@ -871,7 +863,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 						);
 				}
 			}
-			else if (fmt == format::r16g16b16a16_float)
+			else if (fmt == format::r16g16b16_float)
 			{
 				uint16_t* png_pixels = (uint16_t *)png_buffer;
 				uint16_t* src_pixels = (uint16_t *)pixels;
@@ -880,17 +872,17 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 
 				for (size_t y = 0; y < height; y++)
 				{
-					XMFLOAT4* rgba32_pixels = rgba32_scanline;
+					XMFLOAT3* rgb_pixels = (XMFLOAT3*)rgb_scanline;
 
 					XMConvertHalfToFloatStream (
-					  (float *)rgba32_pixels, sizeof (float),
-					           src_pixels,    sizeof (HALF), 4 * width
+					  (float *)rgb_pixels, sizeof (float),
+					           src_pixels,    sizeof (HALF), 3 * width
 					);
 
 					for (size_t x = 0; x < width ; x++)
 					{
 						XMVECTOR rgb =
-							XMLoadFloat4 (rgba32_pixels++);
+							XMLoadFloat3 (rgb_pixels++);
 
 						*pixel_luminance++ =
 							XMVectorGetY (
@@ -913,7 +905,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 							*(png_pixels++) = static_cast<uint16_t>(std::min (65535, static_cast<int>(XMVectorGetZ (rgb) * 65536.0f)));
 						}
 
-						src_pixels += 4;
+						src_pixels += 3;
 					}
 				}
 			}
@@ -927,7 +919,7 @@ sk_hdr_png::write_image_to_disk (const wchar_t* image_path, unsigned int width, 
 		}
 
 		_aligned_free(png_buffer);
-		_aligned_free(rgba32_scanline);
+		_aligned_free(rgb_scanline);
 		_aligned_free(luminance);
 	}
 
