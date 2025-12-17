@@ -721,6 +721,14 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		else if ((usage_type & api::resource_usage::shader_resource) != 0)
 			create_info.subresourceRange.aspectMask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
 
+		VkImageViewUsageCreateInfo usage_info { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
+		if (usage_type != api::resource_usage::undefined)
+		{
+			convert_usage_to_image_usage_flags(usage_type, usage_info.usage);
+
+			create_info.pNext = &usage_info;
+		}
+
 		VkImageView image_view = VK_NULL_HANDLE;
 		if (vk.CreateImageView(_orig, &create_info, nullptr, &image_view) == VK_SUCCESS)
 		{
