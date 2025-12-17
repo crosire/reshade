@@ -151,7 +151,7 @@ void reshade::runtime::build_font_atlas()
 	if (language.empty())
 		language = resources::get_current_language();
 
-	if (language.find("bg") == 0 || language.find("ru") == 0 || language.find("tr") == 0 || language.find("th") == 0)
+	if (language.find("bg") == 0 || language.find("ru") == 0 || language.find("sl") == 0 || language.find("tr") == 0 || language.find("th") == 0)
 	{
 		// Microsoft Sans Serif
 		_default_font_path = L"C:\\Windows\\Fonts\\micross.ttf";
