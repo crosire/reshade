@@ -278,10 +278,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	// Enable private data feature
 	VkDevicePrivateDataCreateInfo private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO, create_info.pNext };
 	private_data_info.privateDataSlotRequestCount = 1;
-	VkPhysicalDevicePrivateDataFeatures private_data_feature;
-	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_feature;
-	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_feature;
 
+	VkPhysicalDevicePrivateDataFeatures private_data_features;
+	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features;
 	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
 	{
@@ -296,10 +295,20 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else
 	{
-		private_data_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES, &private_data_info };
-		private_data_feature.privateData = VK_TRUE;
+		if (const auto existing_private_data_features = find_in_structure_chain<VkPhysicalDevicePrivateDataFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES))
+		{
+			create_info.pNext = &private_data_info;
 
-		create_info.pNext = &private_data_feature;
+			const_cast<VkPhysicalDevicePrivateDataFeatures *>(existing_private_data_features)->privateData = VK_TRUE;
+		}
+		else
+		{
+			private_data_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES, &private_data_info };
+			private_data_features.privateData = VK_TRUE;
+
+			create_info.pNext = &private_data_features;
+		}
 
 		if (const auto existing_dynamic_rendering_features = find_in_structure_chain<VkPhysicalDeviceDynamicRenderingFeatures>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES))
@@ -308,13 +317,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 		else if (dynamic_rendering_ext)
 		{
-			dynamic_rendering_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, const_cast<void *>(create_info.pNext) };
-			dynamic_rendering_feature.dynamicRendering = VK_TRUE;
+			dynamic_rendering_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, const_cast<void *>(create_info.pNext) };
+			dynamic_rendering_features.dynamicRendering = VK_TRUE;
 
-			create_info.pNext = &dynamic_rendering_feature;
+			create_info.pNext = &dynamic_rendering_features;
 		}
 	}
 
+	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_features;
 	if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
 	{
@@ -332,23 +342,23 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 		else if (timeline_semaphore_ext)
 		{
-			timeline_semaphore_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, const_cast<void *>(create_info.pNext) };
-			timeline_semaphore_feature.timelineSemaphore = VK_TRUE;
+			timeline_semaphore_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, const_cast<void *>(create_info.pNext) };
+			timeline_semaphore_features.timelineSemaphore = VK_TRUE;
 
-			create_info.pNext = &timeline_semaphore_feature;
+			create_info.pNext = &timeline_semaphore_features;
 		}
 	}
 
 	// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
 	if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
-		pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
 	{
-		if (existing_memory_model_features->vulkanMemoryModel)
-			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
+		const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModel = VK_TRUE;
+		const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
 	}
 
 	// Optionally enable custom border color feature
-	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_feature;
+	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_features;
 	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT))
 	{
@@ -356,15 +366,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (custom_border_color_ext)
 	{
-		custom_border_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT, const_cast<void *>(create_info.pNext) };
-		custom_border_feature.customBorderColors = VK_TRUE;
-		custom_border_feature.customBorderColorWithoutFormat = VK_TRUE;
+		custom_border_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT, const_cast<void *>(create_info.pNext) };
+		custom_border_features.customBorderColors = VK_TRUE;
+		custom_border_features.customBorderColorWithoutFormat = VK_TRUE;
 
-		create_info.pNext = &custom_border_feature;
+		create_info.pNext = &custom_border_features;
 	}
 
 	// Optionally enable extended dynamic state feature
-	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_feature;
+	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_features;
 	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT))
 	{
@@ -372,15 +382,15 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (extended_dynamic_state_ext)
 	{
-		extended_dynamic_state_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, const_cast<void *>(create_info.pNext) };
-		extended_dynamic_state_feature.extendedDynamicState = VK_TRUE;
+		extended_dynamic_state_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, const_cast<void *>(create_info.pNext) };
+		extended_dynamic_state_features.extendedDynamicState = VK_TRUE;
 
-		create_info.pNext = &extended_dynamic_state_feature;
+		create_info.pNext = &extended_dynamic_state_features;
 	}
 
 	// Optionally enable ray tracing feature
-	VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_feature;
-	VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_feature;
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_features;
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features;
 	if (const auto existing_ray_tracing_features = find_in_structure_chain<VkPhysicalDeviceRayTracingPipelineFeaturesKHR>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR))
 	{
@@ -388,29 +398,29 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else if (ray_tracing_ext)
 	{
-		ray_tracing_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, const_cast<void *>(create_info.pNext) };
-		ray_tracing_feature.rayTracingPipeline = VK_TRUE;
+		ray_tracing_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, const_cast<void *>(create_info.pNext) };
+		ray_tracing_features.rayTracingPipeline = VK_TRUE;
 
-		create_info.pNext = &ray_tracing_feature;
+		create_info.pNext = &ray_tracing_features;
 
-		acceleration_structure_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR, const_cast<void *>(create_info.pNext) };
-		acceleration_structure_feature.accelerationStructure = VK_TRUE;
+		acceleration_structure_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR, const_cast<void *>(create_info.pNext) };
+		acceleration_structure_features.accelerationStructure = VK_TRUE;
 
-		create_info.pNext = &acceleration_structure_feature;
+		create_info.pNext = &acceleration_structure_features;
 	}
 
-	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_feature;
-	if (const auto existing_buffer_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
+	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features;
+	if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
 			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
 	{
-		buffer_device_address_ext = existing_buffer_address_features->bufferDeviceAddress;
+		buffer_device_address_ext = existing_buffer_device_address_features->bufferDeviceAddress;
 	}
 	else if (buffer_device_address_ext)
 	{
-		buffer_device_address_feature = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, const_cast<void *>(create_info.pNext) };
-		buffer_device_address_feature.bufferDeviceAddress = VK_TRUE;
+		buffer_device_address_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, const_cast<void *>(create_info.pNext) };
+		buffer_device_address_features.bufferDeviceAddress = VK_TRUE;
 
-		create_info.pNext = &buffer_device_address_feature;
+		create_info.pNext = &buffer_device_address_features;
 	}
 	#pragma endregion
 
