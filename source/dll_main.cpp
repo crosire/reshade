@@ -155,6 +155,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
 			if (default_base_to_target_executable_path && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOADING_CHECK", nullptr, 0))
 			{
+#ifndef NDEBUG
+				// Avoid loading in the ReShade test application
+				if (g_target_executable_path.filename() ==
+#ifndef _WIN64
+						L"ReShade32.exe"
+#else
+						L"ReShade64.exe"
+#endif
+						)
+				{
+					return FALSE;
+				}
+#endif
+
 				std::error_code ec;
 				if (!std::filesystem::exists(config.path(), ec))
 				{
