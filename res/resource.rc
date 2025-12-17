@@ -134,6 +134,7 @@ IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\simple_jxl_lossless\\
 #include "lang_ko-KR.rc2"
 #include "lang_pt-BR.rc2"
 #include "lang_ru-RU.rc2"
+#include "lang_sl-SI.rc2"
 #include "lang_th-TH.rc2"
 #include "lang_tr-TR.rc2"
 #include "lang_zh-CN.rc2"

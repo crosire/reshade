@@ -94,7 +94,6 @@ BEGIN
 8134 "Pot za posnetke zaslona"
 25098 "Ime posnetka zaslona"
 30328 "Makri, ki jih lahko dodate in se razrešijo med shranjevanjem:\n  %%AppName%%         Ime aplikacije (%s)\n  %%PresetName%%      Ime datoteke brez končnice trenutne prednastavitve (%s)\n  %%BeforeAfter%%     Izraz, ki opisuje trenutek zajema posnetka ('Pred', 'Po' ali 'Prekrivna')\n  %%Date%%            Trenutni datum v formatu '%s'\n  %%DateYear%%        Leto trenutnega datuma\n  %%DateMonth%%       Mesec trenutnega datuma\n  %%DateDay%%         Dan trenutnega datuma\n  %%Time%%            Trenutni čas v formatu '%s'\n  %%TimeHour%%        Ura trenutnega časa\n  %%TimeMinute%%      Minuta trenutnega časa\n  %%TimeSecond%%      Sekunda trenutnega časa\n  %%TimeMS%%          Milisekundni del trenutnega časa\n  %%Count%%           Število posnetkov zaslona v tej seji\n"
-4289 "Kvaliteta HDR PNG"
 24896 "Format posnetka zaslona"
 3555 "Kvaliteta JPEG"
 13473 "Počisti alfa kanal"
