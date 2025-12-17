@@ -15,18 +15,16 @@ extern bool is_windows7();
 static auto adapter_from_device(ID3D11Device *device, DXGI_ADAPTER_DESC *adapter_desc = nullptr) -> const com_ptr<IDXGIAdapter>
 {
 	com_ptr<IDXGIDevice> dxgi_device;
-	if (SUCCEEDED(device->QueryInterface(&dxgi_device)))
-	{
-		com_ptr<IDXGIAdapter> dxgi_adapter;
-		if (SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
-		{
-			if (adapter_desc != nullptr)
-				dxgi_adapter->GetDesc(adapter_desc);
-			return dxgi_adapter;
-		}
-	}
+	if (FAILED(device->QueryInterface(&dxgi_device)))
+		return nullptr;
 
-	return nullptr;
+	com_ptr<IDXGIAdapter> dxgi_adapter;
+	if (FAILED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		return nullptr;
+
+	if (adapter_desc != nullptr)
+		dxgi_adapter->GetDesc(adapter_desc);
+	return dxgi_adapter;
 }
 
 reshade::d3d11::device_impl::device_impl(ID3D11Device *device) :

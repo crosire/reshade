@@ -13,6 +13,21 @@ struct D3D11Device;
 struct D3D12CommandQueue;
 namespace reshade::api { enum class device_api; struct swapchain; }
 
+MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : public IUnknown
+{
+	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) = 0;
+	virtual ULONG   STDMETHODCALLTYPE AddRef() = 0;
+	virtual ULONG   STDMETHODCALLTYPE Release() = 0;
+
+	virtual bool    STDMETHODCALLTYPE HasProxyFrontBufferSurface() = 0;
+	virtual HRESULT STDMETHODCALLTYPE GetFrameStatisticsTest(struct DXGI_FRAME_STATISTICS_TEST *) = 0;
+	virtual void    STDMETHODCALLTYPE EmulateXBOXBehavior(BOOL) = 0;
+	virtual DXGI_COLOR_SPACE_TYPE STDMETHODCALLTYPE GetColorSpace1() = 0;
+	virtual void    STDMETHODCALLTYPE GetBufferLayoutInfoTest(struct DXGI_BUFFER_LAYOUT_INFO_TEST *) = 0;
+	virtual void *  STDMETHODCALLTYPE GetDFlipOutput() = 0;
+	virtual UINT    STDMETHODCALLTYPE GetBackBufferImplicitRotationCount() = 0;
+};
+
 struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
 {
 	DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain  *original);

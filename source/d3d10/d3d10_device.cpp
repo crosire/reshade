@@ -440,9 +440,9 @@ void    STDMETHODCALLTYPE D3D10Device::RSSetScissorRects(UINT NumRects, const D3
 }
 void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox)
 {
+#if RESHADE_ADDON >= 2
 	assert(pDstResource != nullptr && pSrcResource != nullptr);
 
-#if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_region>() ||
 		reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
@@ -536,9 +536,9 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 }
 void    STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource, ID3D10Resource *pSrcResource)
 {
+#if RESHADE_ADDON >= 2
 	assert(pDstResource != nullptr && pSrcResource != nullptr);
 
-#if RESHADE_ADDON >= 2
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, to_handle(pSrcResource), to_handle(pDstResource)))
 		return;
 #endif
@@ -546,9 +546,9 @@ void    STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource
 }
 void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, const D3D10_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
+#if RESHADE_ADDON >= 2
 	assert(pDstResource != nullptr);
 
-#if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::update_buffer_region>() ||
 		reshade::has_addon_event<reshade::addon_event::update_texture_region>())
 	{
@@ -1680,9 +1680,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::OpenSharedResource(HANDLE hResource, REFI
 	const HRESULT hr = _orig->OpenSharedResource(hResource, ReturnedInterface, ppResource);
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppResource != nullptr);
 
-#if RESHADE_ADDON
 		// The returned interface IID may be 'IDXGIResource', which is a different pointer than 'ID3D10Resource', so need to query it first
 		ID3D10Resource *resource = nullptr;
 		reshade::api::resource_desc desc;

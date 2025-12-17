@@ -246,20 +246,24 @@ D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE D3D12CommandQueue::GetDesc()
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::SetProcessPriority(D3D12_COMMAND_QUEUE_PROCESS_PRIORITY Priority)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<ID3D12CommandQueue1 *>(_orig)->SetProcessPriority(Priority);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetProcessPriority(D3D12_COMMAND_QUEUE_PROCESS_PRIORITY *pOutValue)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<ID3D12CommandQueue1 *>(_orig)->GetProcessPriority(pOutValue);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::SetGlobalPriority(D3D12_COMMAND_QUEUE_GLOBAL_PRIORITY Priority)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<ID3D12CommandQueue1 *>(_orig)->SetGlobalPriority(Priority);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetGlobalPriority(D3D12_COMMAND_QUEUE_GLOBAL_PRIORITY *pOutValue)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<ID3D12CommandQueue1 *>(_orig)->GetGlobalPriority(pOutValue);
 }

@@ -4474,26 +4474,26 @@ void reshade::runtime::save_texture(const texture &tex)
 		return;
 	}
 
-	std::string filename = tex.unique_name;
+	std::string screenshot_name = tex.unique_name;
 	switch (_screenshot_format)
 	{
 	case 0:
-		filename += ".bmp";
+		screenshot_name += ".bmp";
 		break;
 	case 1:
-		filename += ".png";
+		screenshot_name += ".png";
 		break;
 	case 2:
-		filename += ".jpg";
+		screenshot_name += ".jpg";
 		break;
 	case 3:
-		filename += ".jxl";
+		screenshot_name += ".jxl";
 		break;
 	default:
 		return;
 	}
 
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
 
 	_last_screenshot_save_successful = true;
 

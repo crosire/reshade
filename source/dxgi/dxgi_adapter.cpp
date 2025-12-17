@@ -154,49 +154,58 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::CheckInterfaceSupport(REFGUID InterfaceNa
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc1(DXGI_ADAPTER_DESC1 *pDesc)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGIAdapter1 *>(_orig)->GetDesc1(pDesc);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc2(DXGI_ADAPTER_DESC2 *pDesc)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGIAdapter2 *>(_orig)->GetDesc2(pDesc);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterHardwareContentProtectionTeardownStatusEvent(HANDLE hEvent, DWORD *pdwCookie)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->RegisterHardwareContentProtectionTeardownStatusEvent(hEvent, pdwCookie);
 }
 void    STDMETHODCALLTYPE DXGIAdapter::UnregisterHardwareContentProtectionTeardownStatus(DWORD dwCookie)
 {
 	assert(_interface_version >= 3);
+
 	static_cast<IDXGIAdapter3 *>(_orig)->UnregisterHardwareContentProtectionTeardownStatus(dwCookie);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryVideoMemoryInfo(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, DXGI_QUERY_VIDEO_MEMORY_INFO *pVideoMemoryInfo)
 {
 	// assert(_interface_version >= 3); // Grand Theft Auto V Enhanced Edition incorrectly calls this on a 'IDXGIAdapter' object
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->QueryVideoMemoryInfo(NodeIndex, MemorySegmentGroup, pVideoMemoryInfo);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::SetVideoMemoryReservation(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, UINT64 Reservation)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->SetVideoMemoryReservation(NodeIndex, MemorySegmentGroup, Reservation);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterVideoMemoryBudgetChangeNotificationEvent(HANDLE hEvent, DWORD *pdwCookie)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->RegisterVideoMemoryBudgetChangeNotificationEvent(hEvent, pdwCookie);
 }
 void    STDMETHODCALLTYPE DXGIAdapter::UnregisterVideoMemoryBudgetChangeNotification(DWORD dwCookie)
 {
 	assert(_interface_version >= 3);
+
 	static_cast<IDXGIAdapter3 *>(_orig)->UnregisterVideoMemoryBudgetChangeNotification(dwCookie);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc3(DXGI_ADAPTER_DESC3 *pDesc)
 {
 	assert(_interface_version >= 4);
+
 	return static_cast<IDXGIAdapter4 *>(_orig)->GetDesc3(pDesc);
 }
 

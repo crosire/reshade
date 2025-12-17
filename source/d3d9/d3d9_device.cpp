@@ -435,9 +435,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateTexture(UINT Width, UINT Height
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppTexture != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DTexture9 *const resource = *ppTexture;
 #endif
 #if RESHADE_ADDON >= 2
@@ -545,9 +545,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVolumeTexture(UINT Width, UINT 
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppVolumeTexture != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DVolumeTexture9 *const resource = *ppVolumeTexture;
 #endif
 #if RESHADE_ADDON >= 2
@@ -630,9 +630,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppCubeTexture != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DCubeTexture9 *const resource = *ppCubeTexture;
 #endif
 #if RESHADE_ADDON >= 2
@@ -748,9 +748,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppVertexBuffer != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DVertexBuffer9 *const resource = *ppVertexBuffer;
 #endif
 #if RESHADE_ADDON >= 2
@@ -803,9 +803,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD 
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppIndexBuffer != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DIndexBuffer9 *const resource = *ppIndexBuffer;
 #endif
 #if RESHADE_ADDON >= 2
@@ -853,9 +853,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppSurface != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON >= 2
@@ -932,9 +932,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppSurface != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 
@@ -983,9 +983,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrcSurface, const RECT *pSrcRect, IDirect3DSurface9 *pDstSurface, const POINT *pDstPoint)
 {
+#if RESHADE_ADDON >= 2
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
-#if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		uint32_t src_subresource;
@@ -1021,9 +1021,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrc
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *pSrcTexture, IDirect3DBaseTexture9 *pDstTexture)
 {
+#if RESHADE_ADDON >= 2
 	assert(pSrcTexture != nullptr && pDstTexture != nullptr);
 
-#if RESHADE_ADDON >= 2
 	if (reshade::invoke_addon_event<reshade::addon_event::copy_resource>(this, to_handle(pSrcTexture), to_handle(pDstTexture)))
 		return D3D_OK;
 #endif
@@ -1032,9 +1032,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateTexture(IDirect3DBaseTexture9 *
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9 *pSrcSurface, IDirect3DSurface9 *pDstSurface)
 {
+#if RESHADE_ADDON >= 2
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
-#if RESHADE_ADDON >= 2
 	if (reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
 		uint32_t src_subresource;
@@ -1063,9 +1063,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSurface, const RECT *pSrcRect, IDirect3DSurface9 *pDstSurface, const RECT *pDstRect, D3DTEXTUREFILTERTYPE Filter)
 {
+#if RESHADE_ADDON
 	assert(pSrcSurface != nullptr && pDstSurface != nullptr);
 
-#if RESHADE_ADDON
 	if (com_ptr<Direct3DDepthStencilSurface9> surface_proxy;
 		SUCCEEDED(pSrcSurface->QueryInterface(IID_PPV_ARGS(&surface_proxy))))
 		pSrcSurface = surface_proxy->_orig;
@@ -1137,9 +1137,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppSurface != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON >= 2
@@ -1912,9 +1912,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 	const HRESULT hr = _orig->CreateVertexDeclaration(pVertexElements, ppDecl);
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppDecl != nullptr);
 
-#if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppDecl));
 #endif
 	}
@@ -1990,9 +1990,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunc
 	const HRESULT hr = _orig->CreateVertexShader(pFunction, ppShader);
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppShader != nullptr);
 
-#if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
@@ -2174,9 +2174,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunct
 	const HRESULT hr = _orig->CreatePixelShader(pFunction, ppShader);
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppShader != nullptr);
 
-#if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(*ppShader));
 #endif
 	}
@@ -2373,9 +2373,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppSurface != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON >= 2
@@ -2451,9 +2451,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Wi
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppSurface != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 #endif
 #if RESHADE_ADDON >= 2
@@ -2522,9 +2522,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Widt
 #endif
 	if (SUCCEEDED(hr))
 	{
+#if RESHADE_ADDON
 		assert(ppSurface != nullptr);
 
-#if RESHADE_ADDON
 		IDirect3DSurface9 *const surface = *ppSurface;
 		*ppSurface = new Direct3DDepthStencilSurface9(this, surface, old_desc);
 

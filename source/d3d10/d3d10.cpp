@@ -127,6 +127,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	com_ptr<IDXGIAdapter> adapter;
 	if (adapter_proxy == nullptr)
 	{
+		// Fall back to the same adapter as the device if it was not explicitly specified in the argument list
 		hr = dxgi_device->GetAdapter(&adapter);
 		assert(SUCCEEDED(hr)); // Lets just assume this works =)
 		hr = adapter->GetParent(IID_PPV_ARGS(&factory));

@@ -16,21 +16,6 @@
 #include "addon_manager.hpp"
 #include "runtime_manager.hpp"
 
-MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : public IUnknown
-{
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) = 0;
-	virtual ULONG   STDMETHODCALLTYPE AddRef() = 0;
-	virtual ULONG   STDMETHODCALLTYPE Release() = 0;
-
-	virtual bool    STDMETHODCALLTYPE HasProxyFrontBufferSurface() = 0;
-	virtual HRESULT STDMETHODCALLTYPE GetFrameStatisticsTest(struct DXGI_FRAME_STATISTICS_TEST *) = 0;
-	virtual void    STDMETHODCALLTYPE EmulateXBOXBehavior(BOOL) = 0;
-	virtual DXGI_COLOR_SPACE_TYPE STDMETHODCALLTYPE GetColorSpace1() = 0;
-	virtual void    STDMETHODCALLTYPE GetBufferLayoutInfoTest(struct DXGI_BUFFER_LAYOUT_INFO_TEST *) = 0;
-	virtual void *  STDMETHODCALLTYPE GetDFlipOutput() = 0;
-	virtual UINT    STDMETHODCALLTYPE GetBackBufferImplicitRotationCount() = 0;
-};
-
 #if RESHADE_ADDON
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &desc, UINT &sync_interval);
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
@@ -499,6 +484,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentC
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
 	assert(_interface_version >= 1);
+
 	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 
 #if RESHADE_ADDON
@@ -545,23 +531,27 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetFullscreenDesc(pDesc);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetHwnd(HWND *pHwnd)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetHwnd(pHwnd);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppUnk)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetCoreWindow(refiid, ppUnk);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
+	assert(_interface_version >= 1);
+
 	on_present(PresentFlags, pPresentParameters);
 
-	assert(_interface_version >= 1);
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 
@@ -597,82 +587,99 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 BOOL    STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->IsTemporaryMonoSupported();
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetRestrictToOutput(ppRestrictToOutput);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetBackgroundColor(const DXGI_RGBA *pColor)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->SetBackgroundColor(pColor);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBackgroundColor(DXGI_RGBA *pColor)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetBackgroundColor(pColor);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetRotation(DXGI_MODE_ROTATION Rotation)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->SetRotation(Rotation);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotation)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(_orig)->GetRotation(pRotation);
 }
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetSourceSize(UINT Width, UINT Height)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->SetSourceSize(Width, Height);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetSourceSize(UINT *pWidth, UINT *pHeight)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->GetSourceSize(pWidth, pHeight);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetMaximumFrameLatency(UINT MaxLatency)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->SetMaximumFrameLatency(MaxLatency);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetMaximumFrameLatency(UINT *pMaxLatency)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->GetMaximumFrameLatency(pMaxLatency);
 }
 HANDLE  STDMETHODCALLTYPE DXGISwapChain::GetFrameLatencyWaitableObject()
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->GetFrameLatencyWaitableObject();
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetMatrixTransform(const DXGI_MATRIX_3X2_F *pMatrix)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->SetMatrixTransform(pMatrix);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetMatrixTransform(DXGI_MATRIX_3X2_F *pMatrix)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGISwapChain2 *>(_orig)->GetMatrixTransform(pMatrix);
 }
 
 UINT    STDMETHODCALLTYPE DXGISwapChain::GetCurrentBackBufferIndex()
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGISwapChain3 *>(_orig)->GetCurrentBackBufferIndex();
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::CheckColorSpaceSupport(DXGI_COLOR_SPACE_TYPE ColorSpace, UINT *pColorSpaceSupport)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGISwapChain3 *>(_orig)->CheckColorSpaceSupport(ColorSpace, pColorSpaceSupport);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE ColorSpace)
 {
+	assert(_interface_version >= 3);
+
 #if RESHADE_VERBOSE_LOG
 	const char *color_space_string = nullptr;
 	switch (ColorSpace)
@@ -728,7 +735,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 	if (ColorSpace != prev_color_space)
 		on_reset(true);
 
-	assert(_interface_version >= 3);
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->SetColorSpace1(ColorSpace);
@@ -744,6 +750,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue)
 {
+	assert(_interface_version >= 3);
+
 	reshade::log::message(
 		reshade::log::level::info,
 		"Redirecting IDXGISwapChain3::ResizeBuffers1(this = %p, BufferCount = %u, Width = %u, Height = %u, Format = %d, SwapChainFlags = %#x, pCreationNodeMask = %p, ppPresentQueue = %p) ...",
@@ -751,7 +759,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	on_reset(true);
 
-	assert(_interface_version >= 3);
 	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 
 	// Handle update of the swap chain description
@@ -840,6 +847,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData)
 {
 	// assert(_interface_version >= 4); // Red Dead Redemption 2 incorrectly calls this on a 'IDXGISwapChain3' object
+
 #if 0
 	return static_cast<IDXGISwapChain4 *>(_orig)->SetHDRMetaData(Type, Size, pMetaData);
 #else

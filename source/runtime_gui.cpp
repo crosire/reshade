@@ -2191,7 +2191,22 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
-			const std::string extension = _screenshot_format == 0 ? ".bmp" : _screenshot_format == 1 ? ".png" : _screenshot_format == 3 ? ".jxl" : ".jpg";
+			const char *extension = "";
+			switch (_screenshot_format)
+			{
+			case 0:
+				extension = ".bmp";
+				break;
+			case 1:
+				extension = ".png";
+				break;
+			case 2:
+				extension = ".jpg";
+				break;
+			case 3:
+				extension = ".jxl";
+				break;
+			}
 
 			ImGui::SetTooltip(_(
 				"Macros you can add that are resolved during command execution:\n"
@@ -2220,7 +2235,7 @@ void reshade::runtime::draw_gui_settings()
 				(_screenshot_path / (_screenshot_name + extension)).u8string().c_str(),
 				_screenshot_path.u8string().c_str(),
 				(_screenshot_name + extension).c_str(),
-				extension.c_str(),
+				extension,
 				_screenshot_name.c_str());
 		}
 

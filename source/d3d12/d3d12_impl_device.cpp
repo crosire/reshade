@@ -2071,34 +2071,32 @@ void reshade::d3d12::device_impl::get_acceleration_structure_size(api::accelerat
 bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *out_handles)
 {
 	com_ptr<ID3D12StateObjectProperties> props;
-	if (pipeline != 0 &&
-		SUCCEEDED(reinterpret_cast<IUnknown *>(pipeline.handle)->QueryInterface(&props)))
+	if (pipeline == 0 ||
+		FAILED(reinterpret_cast<IUnknown *>(pipeline.handle)->QueryInterface(&props)))
+		return false;
+
+	UINT extra_data_size = 0;
+	reinterpret_cast<ID3D12StateObject *>(pipeline.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr);
+	std::vector<WCHAR> extra_data(extra_data_size / sizeof(WCHAR));
+	reinterpret_cast<ID3D12StateObject *>(pipeline.handle)->GetPrivateData(extra_data_guid, &extra_data_size, extra_data.data());
+
+	WCHAR *group_exports = extra_data.data();
+	for (uint32_t i = 0; i < first && group_exports < (extra_data.data() + extra_data_size / sizeof(WCHAR)); ++i)
+		group_exports += std::wcslen(group_exports) + 1;
+
+	for (uint32_t i = 0; i < count; ++i, group_exports += std::wcslen(group_exports) + 1)
 	{
-		UINT extra_data_size = 0;
-		reinterpret_cast<ID3D12StateObject *>(pipeline.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr);
-		std::vector<WCHAR> extra_data(extra_data_size / sizeof(WCHAR));
-		reinterpret_cast<ID3D12StateObject *>(pipeline.handle)->GetPrivateData(extra_data_guid, &extra_data_size, extra_data.data());
+		if (group_exports >= (extra_data.data() + extra_data_size / sizeof(WCHAR)))
+			return false;
 
-		WCHAR *group_exports = extra_data.data();
-		for (uint32_t i = 0; i < first && group_exports < (extra_data.data() + extra_data_size / sizeof(WCHAR)); ++i)
-			group_exports += std::wcslen(group_exports) + 1;
+		void *const identifier = props->GetShaderIdentifier(group_exports);
+		if (identifier == nullptr)
+			return false;
 
-		for (uint32_t i = 0; i < count; ++i, group_exports += std::wcslen(group_exports) + 1)
-		{
-			if (group_exports >= (extra_data.data() + extra_data_size / sizeof(WCHAR)))
-				return false;
-
-			void *const identifier = props->GetShaderIdentifier(group_exports);
-			if (identifier == nullptr)
-				return false;
-
-			std::memcpy(static_cast<uint8_t *>(out_handles) + i * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-		}
-
-		return true;
+		std::memcpy(static_cast<uint8_t *>(out_handles) + i * D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, identifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 	}
 
-	return false;
+	return true;
 }
 
 void reshade::d3d12::device_impl::register_resource(ID3D12Resource *resource, [[maybe_unused]] bool acceleration_structure)
