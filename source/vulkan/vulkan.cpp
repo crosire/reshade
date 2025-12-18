@@ -172,6 +172,12 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, );
 #endif
 
+	// Core 1_4
+#if RESHADE_ADDON >= 2
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSet, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplate, );
+#endif
+
 	// VK_KHR_swapchain
 	RESHADE_VULKAN_HOOK_PROC(CreateSwapchainKHR);
 	RESHADE_VULKAN_HOOK_PROC(DestroySwapchainKHR);
@@ -187,8 +193,8 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 
 #if RESHADE_ADDON >= 2
 	// VK_KHR_push_descriptor
-	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR, );
-	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplateKHR, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSet, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplate, KHR);
 
 	// VK_KHR_descriptor_update_template
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateDescriptorUpdateTemplate, KHR);

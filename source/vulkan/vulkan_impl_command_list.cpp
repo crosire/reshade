@@ -547,21 +547,21 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 	{
 		if ((stages & api::shader_stage::all_compute) != 0)
 		{
-			vk.CmdPushDescriptorSetKHR(_orig,
+			vk.CmdPushDescriptorSet(_orig,
 				VK_PIPELINE_BIND_POINT_COMPUTE,
 				(VkPipelineLayout)layout.handle, layout_param,
 				1, &write);
 		}
 		if ((stages & api::shader_stage::all_graphics) != 0)
 		{
-			vk.CmdPushDescriptorSetKHR(_orig,
+			vk.CmdPushDescriptorSet(_orig,
 				VK_PIPELINE_BIND_POINT_GRAPHICS,
 				(VkPipelineLayout)layout.handle, layout_param,
 				1, &write);
 		}
 		if ((stages & api::shader_stage::all_ray_tracing) != 0)
 		{
-			vk.CmdPushDescriptorSetKHR(_orig,
+			vk.CmdPushDescriptorSet(_orig,
 				VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 				(VkPipelineLayout)layout.handle, layout_param,
 				1, &write);

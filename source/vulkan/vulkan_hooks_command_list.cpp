@@ -1776,11 +1776,11 @@ void VKAPI_CALL vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t 
 #endif
 }
 
-void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
+void VKAPI_CALL vkCmdPushDescriptorSet(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushDescriptorSetKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushDescriptorSet, device_impl);
 	trampoline(commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount, pDescriptorWrites);
 
 #if RESHADE_ADDON >= 2
@@ -1859,11 +1859,11 @@ void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipel
 	}
 #endif
 }
-void VKAPI_CALL vkCmdPushDescriptorSetWithTemplateKHR(VkCommandBuffer commandBuffer, VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set, const void *pData)
+void VKAPI_CALL vkCmdPushDescriptorSetWithTemplate(VkCommandBuffer commandBuffer, VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set, const void *pData)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
 
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushDescriptorSetWithTemplateKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CmdPushDescriptorSetWithTemplate, device_impl);
 	trampoline(commandBuffer, descriptorUpdateTemplate, layout, set, pData);
 
 #if RESHADE_ADDON >= 2

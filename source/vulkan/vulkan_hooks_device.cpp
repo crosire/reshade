@@ -548,6 +548,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.dispatch_table.GetPrivateData = device.dispatch_table.GetPrivateDataEXT;
 		device.dispatch_table.SetPrivateData = device.dispatch_table.SetPrivateDataEXT;
 	}
+	if (instance.api_version < VK_API_VERSION_1_4)
+	{
+		device.dispatch_table.CmdPushDescriptorSet = device.dispatch_table.CmdPushDescriptorSetKHR;
+		device.dispatch_table.CmdPushDescriptorSetWithTemplate = device.dispatch_table.CmdPushDescriptorSetWithTemplateKHR;
+	}
 
 	// Initialize per-device data
 	const auto device_impl = new reshade::vulkan::device_impl(
