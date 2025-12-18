@@ -4706,10 +4706,11 @@ void APIENTRY glBindProgramARB(GLenum target, GLuint program)
 		reshade::api::pipeline_stage stage;
 		switch (target)
 		{
-		case 0x8620 /* GL_VERTEX_PROGRAM_ARB */:
+		case 0x8620 /* GL_VERTEX_PROGRAM_ARB, GL_VERTEX_PROGRAM_NV */:
 			stage = reshade::api::pipeline_stage::vertex_shader;
 			break;
 		case 0x8804 /* GL_FRAGMENT_PROGRAM_ARB */:
+		case 0x8870 /* GL_FRAGMENT_PROGRAM_NV */:
 			stage = reshade::api::pipeline_stage::pixel_shader;
 			break;
 		default:
@@ -4737,10 +4738,11 @@ void APIENTRY glProgramStringARB(GLenum target, GLenum format, GLsizei length, c
 		reshade::api::pipeline_subobject_type subobject_type;
 		switch (target)
 		{
-		case 0x8620 /* GL_VERTEX_PROGRAM_ARB */:
+		case 0x8620 /* GL_VERTEX_PROGRAM_ARB, GL_VERTEX_PROGRAM_NV */:
 			subobject_type = reshade::api::pipeline_subobject_type::vertex_shader;
 			break;
 		case 0x8804 /* GL_FRAGMENT_PROGRAM_ARB */:
+		case 0x8870 /* GL_FRAGMENT_PROGRAM_NV */:
 			subobject_type = reshade::api::pipeline_subobject_type::pixel_shader;
 			break;
 		default:
