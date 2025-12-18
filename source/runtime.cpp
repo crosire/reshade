@@ -4501,14 +4501,6 @@ void reshade::runtime::save_texture(const texture &tex)
 		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data(), api::format::r8g8b8a8_unorm))
 	{
 		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), width = tex.width, height = tex.height]() mutable {
-			JxlColorEncoding color_encoding;
-			color_encoding.color_space = JXL_COLOR_SPACE_RGB;
-			color_encoding.white_point = JXL_WHITE_POINT_D65;
-			color_encoding.primaries = JXL_PRIMARIES_SRGB;
-			color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
-			color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
-			color_encoding.is_float = false;
-
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
@@ -4536,6 +4528,14 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
+					JxlColorEncoding color_encoding;
+					color_encoding.color_space = JXL_COLOR_SPACE_RGB;
+					color_encoding.white_point = JXL_WHITE_POINT_D65;
+					color_encoding.primaries = JXL_PRIMARIES_SRGB;
+					color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+					color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+					color_encoding.is_float = false;
+
 					uint8_t *encoded_data = nullptr;
 					const size_t encoded_size = JxlSimpleLosslessEncode(
 						pixels.data(),
@@ -5080,7 +5080,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 			_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(),
 			_back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present,
 			pixels.data(),
-			screenshot_format >= 4 ? (_back_buffer_format == api::format::r16g16b16a16_float && screenshot_format == 5 ? api::format::r16g16b16_float : api::format::r16g16b16_unorm) : api::format::r8g8b8a8_unorm))
+			screenshot_format >= 4 ? (_back_buffer_format == api::format::r16g16b16a16_float ? api::format::r16g16b16_float : api::format::r16g16b16_unorm) : api::format::r8g8b8a8_unorm))
 	{
 		const bool include_preset =
 			_screenshot_include_preset &&
@@ -5112,33 +5112,6 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				if (!(_screenshot_directory_creation_successful = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
 					log::message(log::level::error, "Failed to create screenshot directory '%s' with error code %d!", screenshot_path.parent_path().u8string().c_str(), ec.value());
 
-			JxlColorEncoding color_encoding;
-			color_encoding.color_space = JXL_COLOR_SPACE_RGB;
-			color_encoding.white_point = JXL_WHITE_POINT_D65;
-			color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
-			color_encoding.is_float = false;
-
-			switch (_back_buffer_color_space)
-			{
-			default:
-			case api::color_space::srgb_nonlinear:
-				color_encoding.primaries = JXL_PRIMARIES_SRGB;
-				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
-				break;
-			case api::color_space::extended_srgb_linear:
-				color_encoding.primaries = JXL_PRIMARIES_SRGB;
-				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
-				break;
-			case api::color_space::hdr10_st2084:
-				color_encoding.primaries = JXL_PRIMARIES_2100;
-				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
-				break;
-			case api::color_space::hdr10_hlg:
-				color_encoding.primaries = JXL_PRIMARIES_2100;
-				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
-				break;
-			}
-
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
@@ -5166,6 +5139,47 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 4: // HDR PNG
+					if (_back_buffer_format == api::format::r16g16b16a16_float)
+					{
+						for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
+						{
+							uint16_t *const pixel = reinterpret_cast<uint16_t *>(pixels.data()) + i * 3;
+							alignas(16) uint16_t result[4] = { pixel[0], pixel[1], pixel[2] };
+
+							// Convert 16-bit floating point values to 32-bit floating point
+							auto rgba_float_srgb = _mm_cvtph_ps(_mm_loadl_epi64(reinterpret_cast<const __m128i *>(result)));
+
+							// Convert BT.709/sRGB to BT.2020 primaries
+							auto rgba_float_bt2100 = _mm_max_ps(_mm_setzero_ps(),
+								_mm_add_ps(_mm_mul_ps(_mm_shuffle_ps(rgba_float_srgb, rgba_float_srgb, 0b00000000), _mm_setr_ps(0.627403914928436279296875f,     0.069097287952899932861328125f,    0.01639143936336040496826171875f, 0.0f)),
+								_mm_add_ps(_mm_mul_ps(_mm_shuffle_ps(rgba_float_srgb, rgba_float_srgb, 0b01010101), _mm_setr_ps(0.3292830288410186767578125f,    0.9195404052734375f,               0.08801330626010894775390625f,    0.0f)),
+								           _mm_mul_ps(_mm_shuffle_ps(rgba_float_srgb, rgba_float_srgb, 0b10101010), _mm_setr_ps(0.0433130674064159393310546875f, 0.011362315155565738677978515625f, 0.895595252513885498046875f,      0.0f)))));
+
+							// Convert linear to PQ
+							// PQ constants as per Rec. ITU-R BT.2100-3 Table 4
+							const float PQ_m1 = 0.1593017578125f;
+							const float PQ_m2 = 78.84375f;
+							const float PQ_c1 = 0.8359375f;
+							const float PQ_c2 = 18.8515625f;
+							const float PQ_c3 = 18.6875f;
+
+							auto rgba_float_bt2100_pq = _mm_div_ps(rgba_float_bt2100, _mm_set_ps1(125.0f));
+							alignas(16) float temp[4];
+							_mm_store_ps(temp, rgba_float_bt2100_pq);
+							rgba_float_bt2100_pq = _mm_setr_ps(std::powf(temp[0], PQ_m1), std::powf(temp[1], PQ_m1), std::powf(temp[2], PQ_m1), 0.0f);
+							rgba_float_bt2100_pq = _mm_div_ps(_mm_add_ps(_mm_mul_ps(_mm_set_ps1(PQ_c2), rgba_float_bt2100_pq), _mm_set_ps1(PQ_c1)), _mm_add_ps(_mm_mul_ps(_mm_set_ps1(PQ_c3), rgba_float_bt2100_pq), _mm_set_ps1(1.0f)));
+							_mm_store_ps(temp, rgba_float_bt2100_pq);
+							rgba_float_bt2100_pq = _mm_setr_ps(std::powf(temp[0], PQ_m2), std::powf(temp[1], PQ_m2), std::powf(temp[2], PQ_m2), 0.0f);
+
+							// Convert to integers and pack into 16-bit range
+							_mm_storel_epi64(reinterpret_cast<__m128i *>(result), _mm_packus_epi32(_mm_cvtps_epi32(_mm_mul_ps(rgba_float_bt2100_pq, _mm_set_ps1(65536.0f))), _mm_setzero_si128()));
+
+							pixel[0] = result[0];
+							pixel[1] = result[1];
+							pixel[2] = result[2];
+						}
+					}
+
 					save_success = stbi_write_hdr_png_to_func(
 						write_callback,
 						file,
@@ -5174,13 +5188,37 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 						comp,
 						reinterpret_cast<uint16_t *>(pixels.data()),
 						0,
-						static_cast<unsigned char>(color_encoding.primaries),
-						static_cast<unsigned char>(color_encoding.transfer_function)) != 0;
+						static_cast<unsigned char>(JXL_PRIMARIES_2100),
+						static_cast<unsigned char>(_back_buffer_color_space == api::color_space::hdr10_hlg ? JXL_TRANSFER_FUNCTION_HLG : JXL_TRANSFER_FUNCTION_PQ)) != 0;
 					break;
 				case 3:
 				case 5: // HDR JPEG XL
-					if (_back_buffer_format == api::format::r16g16b16a16_float)
-						color_encoding.is_float = true;
+					JxlColorEncoding color_encoding;
+					color_encoding.color_space = JXL_COLOR_SPACE_RGB;
+					color_encoding.white_point = JXL_WHITE_POINT_D65;
+					color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+					color_encoding.is_float = _back_buffer_format == api::format::r16g16b16a16_float;
+
+					switch (_back_buffer_color_space)
+					{
+					default:
+					case api::color_space::srgb_nonlinear:
+						color_encoding.primaries = JXL_PRIMARIES_SRGB;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+						break;
+					case api::color_space::extended_srgb_linear:
+						color_encoding.primaries = JXL_PRIMARIES_SRGB;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
+						break;
+					case api::color_space::hdr10_st2084:
+						color_encoding.primaries = JXL_PRIMARIES_2100;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
+						break;
+					case api::color_space::hdr10_hlg:
+						color_encoding.primaries = JXL_PRIMARIES_2100;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
+						break;
+					}
 
 					uint8_t *encoded_data = nullptr;
 					const size_t encoded_size = JxlSimpleLosslessEncode(
@@ -5434,20 +5472,6 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 						reinterpret_cast<uint16_t *>(pixels + x)[offset_r] = ( (rgba & 0x000003FFu)        * 64) & 0xFFFF;
 						reinterpret_cast<uint16_t *>(pixels + x)[offset_g] = (((rgba & 0x000FFC00u) >> 10) * 64) & 0xFFFF;
 						reinterpret_cast<uint16_t *>(pixels + x)[offset_b] = (((rgba & 0x3FF00000u) >> 20) * 64) & 0xFFFF;
-					}
-					continue;
-				case api::format::r16g16b16a16_float:
-					for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
-					{
-						// Convert 16-bit floating point values to 32-bit floating point, then convert to integers and pack into 16-bit range
-						uint16_t result[4];
-						_mm_storel_epi64(reinterpret_cast<__m128i *>(result),
-							_mm_packus_epi32(_mm_cvtps_epi32(
-								_mm_mul_ps(
-										_mm_cvtph_ps(_mm_loadl_epi64(reinterpret_cast<const __m128i *>(mapped_pixels + (x / 3) * 4))),
-										_mm_set_ps1(65536.0f))),
-								_mm_setzero_si128()));
-						std::memcpy(pixels + x, result, sizeof(uint16_t) * 3);
 					}
 					continue;
 				}
