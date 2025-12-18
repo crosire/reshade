@@ -2243,7 +2243,6 @@ auto reshade::vulkan::convert_descriptor_type(api::descriptor_type value) -> VkD
 	case api::descriptor_type::acceleration_structure:
 		return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 	default:
-		assert(false);
 		return static_cast<VkDescriptorType>(value);
 	}
 }
@@ -2265,15 +2264,16 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 		return api::descriptor_type::buffer_unordered_access_view;
 	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		return api::descriptor_type::constant_buffer;
 	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 		return api::descriptor_type::shader_storage_buffer;
 	case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 		return api::descriptor_type::acceleration_structure;
 	default:
 		assert(false);
+		[[fallthrough]];
+	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 		return static_cast<api::descriptor_type>(value);
 	}
 }

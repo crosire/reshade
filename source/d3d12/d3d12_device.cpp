@@ -2816,9 +2816,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 							range.dx_register_index = range_data->BaseShaderRegister;
 							range.dx_register_space = range_data->RegisterSpace;
 							range.count = range_data->NumDescriptors;
+							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 							range.array_size = 1;
 							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
 							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
 								range.binding = descriptor_offset;
@@ -2844,9 +2844,9 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 							range.dx_register_index = range_data->BaseShaderRegister;
 							range.dx_register_space = range_data->RegisterSpace;
 							range.count = range_data->NumDescriptors;
+							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 							range.array_size = 1;
 							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
 
 							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
 								range.binding = descriptor_offset;
@@ -2896,8 +2896,8 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 					range.dx_register_index = descriptor_data->ShaderRegister;
 					range.dx_register_space = descriptor_data->RegisterSpace;
 					range.count = 1;
-					range.array_size = 1;
 					range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+					range.array_size = 1;
 
 					if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
 						range.type = reshade::api::descriptor_type::constant_buffer;
