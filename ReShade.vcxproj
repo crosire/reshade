@@ -96,10 +96,9 @@
     <Import Project="deps\MinHook.props" />
     <Import Project="deps\OpenVR.props" />
     <Import Project="deps\OpenXR.props" />
-    <Import Project="deps\SPIRV.props" />
     <Import Project="deps\stb.props" />
     <Import Project="deps\utfcpp.props" />
-    <Import Project="deps\Vulkan.props" />
+    <Import Project="deps\VMA.props" />
     <Import Project="deps\Windows.props" />
   </ImportGroup>
   <PropertyGroup>
@@ -675,7 +674,6 @@
     <ClInclude Include="include\reshade_events.hpp" />
     <ClInclude Include="include\reshade_overlay.hpp" />
     <ClInclude Include="res\fonts\forkawesome.h" />
-    <ClInclude Include="res\fonts\glyph_ranges.hpp" />
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\addon.hpp" />
