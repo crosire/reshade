@@ -57,6 +57,9 @@ bool is_windows7()
 /// </summary>
 static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
 {
+	if (path.empty())
+		return false;
+
 	WCHAR buf[4096];
 	if (ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
 		path = buf;
@@ -75,17 +78,17 @@ static bool resolve_env_path(std::filesystem::path &path, const std::filesystem:
 /// </summary>
 std::filesystem::path get_base_path(bool default_to_target_executable_path = false)
 {
-	std::filesystem::path result;
+	std::filesystem::path path_override;
 
 	// Cannot use global config here yet, since it uses base path for look up, so look at config file next to target executable instead
-	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", result) &&
-		resolve_env_path(result))
-		return result;
+	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", path_override) &&
+		resolve_env_path(path_override))
+		return path_override;
 
 	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
-		resolve_env_path(result = buf))
-		return result;
+	path_override.assign(buf, buf + GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)));
+	if (resolve_env_path(path_override))
+		return path_override;
 
 	return default_to_target_executable_path ? g_target_executable_path.parent_path() : g_reshade_dll_path.parent_path();
 }
@@ -95,22 +98,18 @@ std::filesystem::path get_base_path(bool default_to_target_executable_path = fal
 /// </summary>
 std::filesystem::path get_system_path()
 {
-	static std::filesystem::path result;
-	if (!result.empty())
-		return result; // Return the cached path if it exists
+	std::filesystem::path path_override;
 
-	if (reshade::global_config().get("INSTALL", "ModulePath", result) &&
-		resolve_env_path(result))
-		return result;
+	if (reshade::global_config().get("INSTALL", "ModulePath", path_override) &&
+		resolve_env_path(path_override))
+		return path_override;
 
 	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
-		resolve_env_path(result = buf))
-		return result;
+	path_override.assign(buf, buf + GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)));
+	if (resolve_env_path(path_override))
+		return path_override;
 
-	// First try environment variable, use system directory if it does not exist or is empty
-	GetSystemDirectoryW(buf, ARRAYSIZE(buf));
-	return result = buf;
+	return std::filesystem::path(buf, buf + GetSystemDirectoryW(buf, ARRAYSIZE(buf)));
 }
 
 /// <summary>
@@ -119,7 +118,7 @@ std::filesystem::path get_system_path()
 std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
-	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
+	return std::filesystem::path(buf, buf + GetModuleFileNameW(module, buf, ARRAYSIZE(buf)));
 }
 
 #ifndef RESHADE_TEST_APPLICATION
