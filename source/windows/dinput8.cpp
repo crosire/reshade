@@ -10,6 +10,9 @@
 #include "dll_log.hpp" // Include late to get 'hr_to_string' helper function
 #include "hook_manager.hpp"
 #include "input.hpp"
+#include "lockfree_linear_map.hpp"
+
+static lockfree_linear_map<IUnknown *, BYTE, 8> s_dinput_device_type;
 
 #define IDirectInputDevice8_GetDeviceState_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceState(IDirectInputDevice8##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
@@ -17,10 +20,7 @@
 		const HRESULT hr = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
 		if (SUCCEEDED(hr)) \
 		{ \
-			DIDEVCAPS caps = { sizeof(caps) }; \
-			pDevice->GetCapabilities(&caps); \
-			\
-			switch (LOBYTE(caps.dwDevType)) \
+			switch (s_dinput_device_type.at(pDevice)) \
 			{ \
 			case DI8DEVTYPE_MOUSE: \
 				if (reshade::input::is_blocking_any_mouse_input() && (cbData == sizeof(DIMOUSESTATE) || cbData == sizeof(DIMOUSESTATE2))) \
@@ -49,10 +49,7 @@ IDirectInputDevice8_GetDeviceState_Impl(9, W)
 			(dwFlags & DIGDD_PEEK) == 0 && \
 			(rgdod != nullptr && *pdwInOut != 0)) \
 		{ \
-			DIDEVCAPS caps = { sizeof(caps) }; \
-			pDevice->GetCapabilities(&caps); \
-			\
-			switch (LOBYTE(caps.dwDevType)) \
+			switch (s_dinput_device_type.at(pDevice)) \
 			{ \
 			case DI8DEVTYPE_MOUSE: \
 				if (reshade::input::is_blocking_any_mouse_input()) \
@@ -87,8 +84,14 @@ IDirectInputDevice8_GetDeviceData_Impl(10, W)
 		const HRESULT hr = reshade::hooks::call(IDirectInput8##encoding##_CreateDevice, reshade::hooks::vtable_from_instance(pDI) + vtable_index)(pDI, rguid, lplpDirectInputDevice, pUnkOuter); \
 		if (SUCCEEDED(hr)) \
 		{ \
-			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 9, &IDirectInputDevice8##encoding##_GetDeviceState); \
-			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(*lplpDirectInputDevice), 10, &IDirectInputDevice8##encoding##_GetDeviceData); \
+			const LPDIRECTINPUTDEVICE8##encoding device = *lplpDirectInputDevice; \
+			\
+			DIDEVCAPS caps = { sizeof(caps) }; \
+			device->GetCapabilities(&caps); \
+			s_dinput_device_type.emplace(device, LOBYTE(caps.dwDevType)); \
+			\
+			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(device), 9, &IDirectInputDevice8##encoding##_GetDeviceState); \
+			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(device), 10, &IDirectInputDevice8##encoding##_GetDeviceData); \
 		} \
 		else \
 		{ \
