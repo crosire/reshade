@@ -624,7 +624,7 @@
     <ClCompile Include="source\input_gamepad.cpp">
       <PreprocessorDefinitions>_WIN32_WINNT=_WIN32_WINNT_WIN7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="source\opengl\opengl_hooks.cpp" />
+    <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_wgl.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_command_list.cpp" />
@@ -633,9 +633,9 @@
     <ClCompile Include="source\opengl\opengl_impl_state_block.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_swapchain.cpp" />
     <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp" />
-    <ClCompile Include="source\openvr\openvr_hooks.cpp" />
+    <ClCompile Include="source\openvr\openvr.cpp" />
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp" />
-    <ClCompile Include="source\openxr\openxr_hooks.cpp" />
+    <ClCompile Include="source\openxr\openxr.cpp" />
     <ClCompile Include="source\openxr\openxr_hooks_instance.cpp" />
     <ClCompile Include="source\openxr\openxr_hooks_swapchain.cpp" />
     <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp" />
@@ -647,10 +647,11 @@
     <ClCompile Include="source\runtime_manager.cpp" />
     <ClCompile Include="source\runtime_update_check.cpp" />
     <ClCompile Include="source\state_block.cpp" />
-    <ClCompile Include="source\vulkan\vulkan_hooks.cpp" />
-    <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp" />
+    <ClCompile Include="source\vulkan\vulkan.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_hooks_command_list.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp" />
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_hooks_swapchain.cpp" />
     <ClCompile Include="source\vulkan\vulkan_impl_command_list.cpp" />
     <ClCompile Include="source\vulkan\vulkan_impl_command_list_immediate.cpp" />
     <ClCompile Include="source\vulkan\vulkan_impl_command_queue.cpp" />
