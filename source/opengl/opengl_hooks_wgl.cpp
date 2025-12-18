@@ -138,8 +138,9 @@ public:
 	static constexpr reshade::api::resource default_ds = reshade::opengl::make_resource_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 	static constexpr reshade::api::resource_view default_dsv = reshade::opengl::make_resource_view_handle(GL_FRAMEBUFFER_DEFAULT, GL_DEPTH_STENCIL_ATTACHMENT);
 
-	wgl_swapchain(wgl_device *device, HDC hdc) :
-		swapchain_impl(device, hdc)
+	wgl_swapchain(HDC hdc) :
+		swapchain_impl(static_cast<wgl_device *>(g_opengl_context->get_device()), hdc),
+		_last_context(g_opengl_context)
 	{
 	}
 	~wgl_swapchain()
@@ -149,12 +150,14 @@ public:
 		reshade::destroy_effect_runtime(this);
 	}
 
-	void on_init(reshade::opengl::device_context_impl *context, unsigned int width, unsigned int height)
+	auto get_device_context() const { return _last_context; }
+
+	void on_init(unsigned int width, unsigned int height)
 	{
-		assert(width != 0 && height != 0);
+		assert(g_opengl_context != nullptr && width != 0 && height != 0);
 
 		// Ensure 'get_resource_desc' returns the right dimensions
-		context->update_default_framebuffer(width, height);
+		g_opengl_context->update_default_framebuffer(width, height);
 
 		if (_last_width == width && _last_height == height)
 			return;
@@ -172,7 +175,7 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this, resize);
 
 		// Communicate implicit back buffer render target view and depth-stencil view to add-ons
-		assert(default_rt == get_back_buffer());
+		assert(get_back_buffer() == default_rt);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			device,
@@ -199,7 +202,7 @@ public:
 
 		// Communicate default state to add-ons
 		reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(
-			context,
+			g_opengl_context,
 			1, &default_rtv,
 			device->_default_depth_format != reshade::api::format::unknown ? default_dsv : reshade::api::resource_view {});
 #endif
@@ -228,9 +231,9 @@ public:
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
 #endif
 	}
-	void on_present(reshade::opengl::device_context_impl *context)
+	void on_present()
 	{
-		assert(context != nullptr);
+		assert(g_opengl_context != nullptr);
 
 		RECT window_rect = {};
 		GetClientRect(static_cast<HWND>(get_hwnd()), &window_rect);
@@ -249,42 +252,43 @@ public:
 		{
 			reshade::log::message(reshade::log::level::info, "Resizing device context %p to %ux%u ...", _orig, width, height);
 
-			on_init(context, width, height);
+			on_init(width, height);
 		}
 
-		if (_init_effect_runtime)
+		// Ensure effect runtime references the same context as this swap chain
+		if (g_opengl_context != _last_context || _init_effect_runtime)
 		{
-			reshade::create_effect_runtime(this, context);
+			reshade::create_effect_runtime(this, _last_context);
 			reshade::init_effect_runtime(this);
 
+			_last_context = g_opengl_context;
 			_init_effect_runtime = false;
 		}
 
 #if RESHADE_ADDON
 		// Behave as if immediate command list is flushed
-		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(context, context);
+		reshade::invoke_addon_event<reshade::addon_event::execute_command_list>(g_opengl_context, g_opengl_context);
 
-		reshade::invoke_addon_event<reshade::addon_event::present>(context, this, nullptr, nullptr, 0, nullptr);
+		reshade::invoke_addon_event<reshade::addon_event::present>(g_opengl_context, this, nullptr, nullptr, 0, nullptr);
 #endif
 
 		// Assume that the correct OpenGL context is still current here
 		reshade::present_effect_runtime(this);
 	}
-	void on_finish_present(reshade::opengl::device_context_impl *context)
+	void on_finish_present()
 	{
-		assert(context != nullptr);
-
 		if (_last_width == 0 && _last_height == 0)
 			return;
 
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::finish_present>(context, this);
+		reshade::invoke_addon_event<reshade::addon_event::finish_present>(g_opengl_context, this);
 #endif
 	}
 
 private:
 	unsigned int _last_width = 0;
 	unsigned int _last_height = 0;
+	reshade::opengl::device_context_impl *_last_context = nullptr;
 	bool _init_effect_runtime = true;
 };
 
@@ -863,80 +867,68 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 		{
 			wgl_device *const device = static_cast<wgl_device *>(it->second->get_device());
 
-			if (it->second != device)
+			// Set the render context current so its resources can be cleaned up
+			bool hglrc_is_current = true;
+			HWND dummy_window_handle = nullptr;
+
+			const HDC prev_hdc = wglGetCurrentDC();
+			const HGLRC prev_hglrc = wglGetCurrentContext();
+
+			if (prev_hglrc != hglrc && !(prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
 			{
+				// In case the original was destroyed already, create a dummy window to get a valid context
+				dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
+				const HDC hdc = GetDC(dummy_window_handle);
+				const PIXELFORMATDESCRIPTOR dummy_pfd = { sizeof(dummy_pfd), 1, PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL };
+				reshade::hooks::call(wglSetPixelFormat)(hdc, device->get_pixel_format(), &dummy_pfd);
+
+				hglrc_is_current = reshade::hooks::call(wglMakeCurrent)(hdc, hglrc);
+			}
+
+			if (hglrc_is_current)
+			{
+				// Delete any swap chains referencing this render context
+				for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
+				{
+					wgl_swapchain *const swapchain = *swapchain_it;
+
+					if (swapchain->get_device_context() == it->second)
+					{
+						delete swapchain;
+						swapchain_it = s_opengl_swapchains.erase(swapchain_it);
+					}
+					else
+					{
+						++swapchain_it;
+					}
+				}
+
 				// Separate contexts are only created for shared render contexts
-				// It is important that the context that it is shared with still exists, otherwise accessing the device in the command queue object during destruction would crash
-				const HGLRC prev_hglrc = wglGetCurrentContext();
-				if (prev_hglrc == hglrc || (prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
+				if (it->second != device)
 				{
 					delete static_cast<wgl_device_context *>(it->second);
 				}
-				else
-				{
-					reshade::log::message(reshade::log::level::warning, "Unable to make context current! Leaking resources ...");
-				}
-			}
-			else
-			{
-				if (std::any_of(s_opengl_contexts.begin(), s_opengl_contexts.end(),
+
+				// Only delete device after last render context it is referenced by is getting destroyed
+				if (std::none_of(s_opengl_contexts.begin(), s_opengl_contexts.end(),
 						[hglrc, device](const std::pair<HGLRC, reshade::opengl::device_context_impl *> &context_info) {
 							return context_info.first != hglrc && device == context_info.second->get_device();
 						}))
 				{
-					reshade::log::message(reshade::log::level::warning, "Another context referencing the context being destroyed still exists! Application may crash.");
-				}
-
-				const HDC prev_hdc = wglGetCurrentDC();
-				const HGLRC prev_hglrc = wglGetCurrentContext();
-
-				// Set the render context current so its resources can be cleaned up
-				bool hglrc_is_current = true;
-				HWND dummy_window_handle = nullptr;
-
-				if (prev_hglrc != hglrc)
-				{
-					// In case the original was destroyed already, create a dummy window to get a valid context
-					dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
-					const HDC hdc = GetDC(dummy_window_handle);
-					const PIXELFORMATDESCRIPTOR dummy_pfd = { sizeof(dummy_pfd), 1, PFD_DOUBLEBUFFER | PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL };
-					reshade::hooks::call(wglSetPixelFormat)(hdc, device->get_pixel_format(), &dummy_pfd);
-
-					hglrc_is_current = reshade::hooks::call(wglMakeCurrent)(hdc, hglrc);
-				}
-
-				if (hglrc_is_current)
-				{
-					// Delete any swap chains referencing this device
-					for (auto swapchain_it = s_opengl_swapchains.begin(); swapchain_it != s_opengl_swapchains.end();)
-					{
-						wgl_swapchain *const swapchain = *swapchain_it;
-
-						if (device == swapchain->get_device())
-						{
-							delete swapchain;
-							swapchain_it = s_opengl_swapchains.erase(swapchain_it);
-						}
-						else
-						{
-							++swapchain_it;
-						}
-					}
-
 					delete device;
-
-					// Restore previous device and render context
-					if (prev_hglrc != hglrc)
-						reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
-				}
-				else
-				{
-					reshade::log::message(reshade::log::level::warning, "Unable to make context current (error code %lu)! Leaking resources ...", GetLastError() & 0xFFFF);
 				}
 
-				if (dummy_window_handle != nullptr)
-					DestroyWindow(dummy_window_handle);
+				// Restore previous device and render context
+				if (prev_hglrc != hglrc)
+					reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
 			}
+			else
+			{
+				reshade::log::message(reshade::log::level::warning, "Unable to make context current (error code %lu)! Leaking resources ...", GetLastError() & 0xFFFF);
+			}
+
+			if (dummy_window_handle != nullptr)
+				DestroyWindow(dummy_window_handle);
 
 			// Ensure the render context is not still current after deleting
 			if (it->second == g_opengl_context)
@@ -1032,10 +1024,15 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 #endif
 	}
 
+	wgl_device *device = nullptr;
+
 	if (const auto it = s_opengl_contexts.find(shared_hglrc);
 		it != s_opengl_contexts.end())
 	{
 		g_opengl_context = it->second;
+
+		assert(g_opengl_context != nullptr);
+		device = static_cast<wgl_device *>(g_opengl_context);
 	}
 	else
 	{
@@ -1072,14 +1069,10 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		assert(s_hooks_installed);
 
+		// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
+		// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
 		const bool legacy_context = s_legacy_contexts.find(shared_hglrc) != s_legacy_contexts.end();
-
-		const auto device = new wgl_device(
-			hdc, shared_hglrc,
-			dispatch_table,
-			// Always set compatibility context flag on contexts that were created with 'wglCreateContext' instead of 'wglCreateContextAttribsARB'
-			// This is necessary because with some pixel formats the 'GL_ARB_compatibility' extension is not exposed even though the context was not created with the core profile
-			legacy_context);
+		device = new wgl_device(hdc, shared_hglrc, dispatch_table, legacy_context);
 
 		s_opengl_contexts.emplace(shared_hglrc, device);
 		g_opengl_context = device;
@@ -1096,9 +1089,6 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				dispatch_table.VertexAttrib4f(i, 0.0f, 0.0f, 0.0f, 1.0f);
 		}
 	}
-
-	assert(g_opengl_context != nullptr);
-	const auto device = static_cast<wgl_device *>(g_opengl_context);
 
 	if (hglrc != shared_hglrc)
 	{
@@ -1117,18 +1107,12 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 
 	const HWND hwnd = WindowFromDC(hdc);
-	wgl_swapchain *swapchain = nullptr;
 
-	if (const auto swapchain_it = std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
+	if (std::find_if(s_opengl_swapchains.begin(), s_opengl_swapchains.end(),
 			[hdc, hwnd, device](wgl_swapchain *const swapchain) {
 				const HDC swapchain_hdc = reinterpret_cast<HDC>(swapchain->_orig);
 				return (swapchain_hdc == hdc || (hwnd != nullptr && WindowFromDC(swapchain_hdc) == hwnd)) && swapchain->get_device() == device;
-			});
-		swapchain_it != s_opengl_swapchains.end())
-	{
-		swapchain = *swapchain_it;
-	}
-	else
+			}) == s_opengl_swapchains.end())
 	{
 		if (hwnd == nullptr || s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end())
 		{
@@ -1145,8 +1129,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			assert(wglGetPixelFormat(hdc) == device->get_pixel_format());
 
-			swapchain = new wgl_swapchain(device, hdc);
-			s_opengl_swapchains.push_back(swapchain);
+			s_opengl_swapchains.push_back(new wgl_swapchain(hdc));
 		}
 	}
 
@@ -1154,6 +1137,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	unsigned int height;
 	if (hwnd != nullptr)
 	{
+		// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
 		RECT window_rect = {};
 		GetClientRect(hwnd, &window_rect);
 
@@ -1173,11 +1157,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		height = scissor_box[3] - scissor_box[1];
 	}
 
-	// Wolfenstein: The Old Blood creates a window with a height of zero that is later resized
-	if (swapchain != nullptr && width != 0 && height != 0)
-		swapchain->on_init(g_opengl_context, width, height);
-	else
-		g_opengl_context->update_default_framebuffer(width, height);
+	g_opengl_context->update_default_framebuffer(width, height);
 
 	return TRUE;
 }
@@ -1304,11 +1284,11 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 					return (swapchain_hdc == hdc || (hwnd != nullptr && WindowFromDC(swapchain_hdc) == hwnd)) && swapchain->get_device() == g_opengl_context->get_device();
 				});
 			swapchain_it != s_opengl_swapchains.end())
-		{
 			swapchain = *swapchain_it;
-			swapchain->on_present(g_opengl_context);
-		}
 	}
+
+	if (swapchain != nullptr)
+		swapchain->on_present();
 
 	static const auto trampoline = reshade::hooks::call(wglSwapBuffers);
 	assert(!g_in_dxgi_runtime);
@@ -1316,13 +1296,8 @@ extern "C" BOOL  WINAPI wglSwapBuffers(HDC hdc)
 	const BOOL result = trampoline(hdc);
 	g_in_dxgi_runtime = false;
 
-	if (result)
-	{
-		if (swapchain != nullptr)
-		{
-			swapchain->on_finish_present(g_opengl_context);
-		}
-	}
+	if (result && swapchain != nullptr)
+		swapchain->on_finish_present();
 
 	return result;
 }
