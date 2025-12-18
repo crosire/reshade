@@ -4501,6 +4501,14 @@ void reshade::runtime::save_texture(const texture &tex)
 		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data(), api::format::r8g8b8a8_unorm))
 	{
 		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), width = tex.width, height = tex.height]() mutable {
+			JxlColorEncoding color_encoding;
+			color_encoding.color_space = JXL_COLOR_SPACE_RGB;
+			color_encoding.white_point = JXL_WHITE_POINT_D65;
+			color_encoding.primaries = JXL_PRIMARIES_SRGB;
+			color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+			color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+			color_encoding.is_float = false;
+
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
@@ -4528,51 +4536,42 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
-					{
-						JxlColorEncoding color_encoding = {};
-						color_encoding.color_space = JXL_COLOR_SPACE_RGB;
-						color_encoding.white_point = JXL_WHITE_POINT_D65;
-						color_encoding.primaries = JXL_PRIMARIES_SRGB;
-						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
-						color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
-
-						uint8_t *encoded_data = nullptr;
-						const size_t encoded_size = JxlSimpleLosslessEncode(
-							pixels.data(),
-							width,
-							static_cast<size_t>(width) * 4,
-							height,
-							4,
-							/* bitdepth = */ 8,
-							/* big_endian = */ false,
-							/* effort = */ 2,
-							&encoded_data,
-							nullptr,
-							[](void *, void *opaque, void fun(void *, size_t), size_t count) {
-								const size_t num_splits = std::min(count, static_cast<size_t>(std::thread::hardware_concurrency()));
-								if (num_splits == 1)
-								{
+					uint8_t *encoded_data = nullptr;
+					const size_t encoded_size = JxlSimpleLosslessEncode(
+						pixels.data(),
+						width,
+						static_cast<size_t>(width) * 4,
+						height,
+						4,
+						/* bitdepth = */ 8,
+						/* big_endian = */ false,
+						/* effort = */ 2,
+						&encoded_data,
+						nullptr,
+						[](void *, void *opaque, void fun(void *, size_t), size_t count) {
+							const size_t num_splits = std::min(count, static_cast<size_t>(std::thread::hardware_concurrency()));
+							if (num_splits == 1)
+							{
+								for (size_t i = 0; i < count; ++i)
+									fun(opaque, i);
+								return;
+							}
+							std::vector<std::thread> worker_threads;
+							for (size_t n = 0; n < num_splits; ++n)
+								worker_threads.emplace_back([count, opaque, fun, num_splits, n]() {
 									for (size_t i = 0; i < count; ++i)
-										fun(opaque, i);
-									return;
-								}
-								std::vector<std::thread> worker_threads;
-								for (size_t n = 0; n < num_splits; ++n)
-									worker_threads.emplace_back([count, opaque, fun, num_splits, n]() {
-										for (size_t i = 0; i < count; ++i)
-											if (i * num_splits / count == n)
-												fun(opaque, i);
-									});
-								for (std::thread &thread : worker_threads)
-									thread.join();
-							},
-							color_encoding);
+										if (i * num_splits / count == n)
+											fun(opaque, i);
+								});
+							for (std::thread &thread : worker_threads)
+								thread.join();
+						},
+						color_encoding);
 
-						if (encoded_data && encoded_size > 0)
-						{
-							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
-							free(encoded_data);
-						}
+					if (encoded_data && encoded_size > 0)
+					{
+						save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+						free(encoded_data);
 					}
 					break;
 				}
@@ -5113,6 +5112,33 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				if (!(_screenshot_directory_creation_successful = std::filesystem::create_directories(screenshot_path.parent_path(), ec)))
 					log::message(log::level::error, "Failed to create screenshot directory '%s' with error code %d!", screenshot_path.parent_path().u8string().c_str(), ec.value());
 
+			JxlColorEncoding color_encoding;
+			color_encoding.color_space = JXL_COLOR_SPACE_RGB;
+			color_encoding.white_point = JXL_WHITE_POINT_D65;
+			color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+			color_encoding.is_float = false;
+
+			switch (_back_buffer_color_space)
+			{
+			default:
+			case api::color_space::srgb_nonlinear:
+				color_encoding.primaries = JXL_PRIMARIES_SRGB;
+				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+				break;
+			case api::color_space::extended_srgb_linear:
+				color_encoding.primaries = JXL_PRIMARIES_SRGB;
+				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
+				break;
+			case api::color_space::hdr10_st2084:
+				color_encoding.primaries = JXL_PRIMARIES_2100;
+				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
+				break;
+			case api::color_space::hdr10_hlg:
+				color_encoding.primaries = JXL_PRIMARIES_2100;
+				color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
+				break;
+			}
+
 			// Default to a save failure unless it is reported to succeed below
 			bool save_success = false;
 
@@ -5148,78 +5174,50 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 						comp,
 						reinterpret_cast<uint16_t *>(pixels.data()),
 						0,
-						_back_buffer_color_space == api::color_space::extended_srgb_linear ? 1u /* BT.709 */ : 9u /* BT.2020 */,
-						_back_buffer_color_space == api::color_space::extended_srgb_linear ? 8u /* Linear */ : 16u /* ST.2084 EOTF (PQ) */) != 0;
+						static_cast<unsigned char>(color_encoding.primaries),
+						static_cast<unsigned char>(color_encoding.transfer_function)) != 0;
 					break;
 				case 3:
 				case 5: // HDR JPEG XL
-					{
-						JxlColorEncoding color_encoding = {};
-						color_encoding.color_space = JXL_COLOR_SPACE_RGB;
-						color_encoding.white_point = JXL_WHITE_POINT_D65;
-						color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+					if (_back_buffer_format == api::format::r16g16b16a16_float)
+						color_encoding.is_float = true;
 
-						switch (_back_buffer_color_space)
-						{
-						default:
-						case api::color_space::srgb_nonlinear:
-							color_encoding.primaries = JXL_PRIMARIES_SRGB;
-							color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
-							break;
-						case api::color_space::extended_srgb_linear:
-							color_encoding.primaries = JXL_PRIMARIES_SRGB;
-							color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
-							break;
-						case api::color_space::hdr10_st2084:
-							color_encoding.primaries = JXL_PRIMARIES_2100;
-							color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
-							break;
-						case api::color_space::hdr10_hlg:
-							color_encoding.primaries = JXL_PRIMARIES_2100;
-							color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
-							break;
-						}
-
-						if (_back_buffer_format == api::format::r16g16b16a16_float)
-							color_encoding.is_float = true;
-
-						uint8_t *encoded_data = nullptr;
-						const size_t encoded_size = JxlSimpleLosslessEncode(
-							pixels.data(),
-							_width,
-							static_cast<size_t>(_width) * comp * (screenshot_format >= 4 ? 2 : 1),
-							_height,
-							comp,
-							screenshot_format >= 4 ? 16 : 8,
-							/* big_endian = */ false,
-							/* effort = */ 2,
-							&encoded_data,
-							nullptr,
-							[](void *, void *opaque, void fun(void *, size_t), size_t count) {
-								const size_t num_splits = std::min(count, static_cast<size_t>(std::thread::hardware_concurrency()));
-								if (num_splits == 1)
-								{
+					uint8_t *encoded_data = nullptr;
+					const size_t encoded_size = JxlSimpleLosslessEncode(
+						pixels.data(),
+						_width,
+						static_cast<size_t>(_width) * comp * (screenshot_format >= 4 ? 2 : 1),
+						_height,
+						comp,
+						screenshot_format >= 4 ? 16 : 8,
+						/* big_endian = */ false,
+						/* effort = */ 2,
+						&encoded_data,
+						nullptr,
+						[](void *, void *opaque, void fun(void *, size_t), size_t count) {
+							const size_t num_splits = std::min(count, static_cast<size_t>(std::thread::hardware_concurrency()));
+							if (num_splits == 1)
+							{
+								for (size_t i = 0; i < count; ++i)
+									fun(opaque, i);
+								return;
+							}
+							std::vector<std::thread> worker_threads;
+							for (size_t n = 0; n < num_splits; ++n)
+								worker_threads.emplace_back([count, opaque, fun, num_splits, n]() {
 									for (size_t i = 0; i < count; ++i)
-										fun(opaque, i);
-									return;
-								}
-								std::vector<std::thread> worker_threads;
-								for (size_t n = 0; n < num_splits; ++n)
-									worker_threads.emplace_back([count, opaque, fun, num_splits, n]() {
-										for (size_t i = 0; i < count; ++i)
-											if (i * num_splits / count == n)
-												fun(opaque, i);
-									});
-								for (std::thread &thread : worker_threads)
-									thread.join();
-							},
-							color_encoding);
+										if (i * num_splits / count == n)
+											fun(opaque, i);
+								});
+							for (std::thread &thread : worker_threads)
+								thread.join();
+						},
+						color_encoding);
 
-						if (encoded_data && encoded_size > 0)
-						{
-							save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
-							free(encoded_data);
-						}
+					if (encoded_data && encoded_size > 0)
+					{
+						save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+						free(encoded_data);
 					}
 					break;
 				}
