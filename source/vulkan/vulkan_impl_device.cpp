@@ -1582,10 +1582,17 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		std::vector<VkVertexInputBindingDescription> vertex_bindings;
 		std::vector<VkVertexInputAttributeDescription> vertex_attributes;
-		convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_bindings, vertex_attributes);
+		std::vector<VkVertexInputBindingDivisorDescription> vertex_binding_divisors;
+		convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_bindings, vertex_attributes, vertex_binding_divisors);
+
+		VkPipelineVertexInputDivisorStateCreateInfo vertex_input_divisor_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO };
+		vertex_input_divisor_state_info.vertexBindingDivisorCount = static_cast<uint32_t>(vertex_binding_divisors.size());
+		vertex_input_divisor_state_info.pVertexBindingDivisors = vertex_binding_divisors.data();
 
 		VkPipelineVertexInputStateCreateInfo vertex_input_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 		create_info.pVertexInputState = &vertex_input_state_info;
+		if (!vertex_binding_divisors.empty())
+			vertex_input_state_info.pNext = &vertex_input_divisor_state_info;
 		vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(vertex_bindings.size());
 		vertex_input_state_info.pVertexBindingDescriptions = vertex_bindings.data();
 		vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size());

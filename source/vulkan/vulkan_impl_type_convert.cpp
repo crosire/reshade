@@ -1046,8 +1046,8 @@ void reshade::vulkan::convert_sampler_desc(const api::sampler_desc &desc, VkSamp
 	create_info.minLod = desc.min_lod;
 	create_info.maxLod = desc.max_lod;
 
-	const auto border_color_info = const_cast<VkSamplerCustomBorderColorCreateInfoEXT *>(
-		find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT));
+	const auto border_color_info = const_cast<VkSamplerCustomBorderColorCreateInfoEXT *>(find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(
+		create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT));
 
 	const bool is_float_border_color =
 		create_info.borderColor != VK_BORDER_COLOR_INT_TRANSPARENT_BLACK &&
@@ -1183,8 +1183,8 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 	desc.min_lod = create_info.minLod;
 	desc.max_lod = create_info.maxLod;
 
-	const auto border_color_info =
-		find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT);
+	const auto border_color_info = find_in_structure_chain<VkSamplerCustomBorderColorCreateInfoEXT>(
+		create_info.pNext, VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT);
 
 	switch (create_info.borderColor)
 	{
@@ -1710,7 +1710,7 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 	return states;
 }
 
-void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<VkVertexInputBindingDescription> &vertex_bindings, std::vector<VkVertexInputAttributeDescription> &vertex_attributes)
+void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<VkVertexInputBindingDescription> &vertex_bindings, std::vector<VkVertexInputAttributeDescription> &vertex_attributes, std::vector<VkVertexInputBindingDivisorDescription> &vertex_binding_divisors)
 {
 	vertex_attributes.reserve(count);
 
@@ -1724,21 +1724,34 @@ void reshade::vulkan::convert_input_layout_desc(uint32_t count, const api::input
 		attribute.format = convert_format(element.format);
 		attribute.offset = element.offset;
 
-		assert(element.instance_step_rate <= 1);
-		const VkVertexInputRate input_rate = element.instance_step_rate > 0 ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
-
 		if (const auto it = std::find_if(vertex_bindings.cbegin(), vertex_bindings.cend(),
-				[&element](const VkVertexInputBindingDescription &input_binding) { return input_binding.binding == element.buffer_binding; });
+				[&element](const VkVertexInputBindingDescription &binding_desc) { return binding_desc.binding == element.buffer_binding; });
 			it != vertex_bindings.cend())
 		{
-			assert(it->inputRate == input_rate && it->stride == element.stride);
+			assert(it->inputRate == (element.instance_step_rate > 0 ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX) && it->stride == element.stride);
 		}
 		else
 		{
-			VkVertexInputBindingDescription &binding = vertex_bindings.emplace_back();
-			binding.binding = element.buffer_binding;
-			binding.stride = element.stride;
-			binding.inputRate = input_rate;
+			VkVertexInputBindingDescription &binding_desc = vertex_bindings.emplace_back();
+			binding_desc.binding = element.buffer_binding;
+			binding_desc.stride = element.stride;
+			binding_desc.inputRate = element.instance_step_rate > 0 ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
+		}
+
+		if (element.instance_step_rate > 1)
+		{
+			if (const auto it = std::find_if(vertex_binding_divisors.cbegin(), vertex_binding_divisors.cend(),
+				[&element](const VkVertexInputBindingDivisorDescription &binding_divisor_desc) { return binding_divisor_desc.binding == element.buffer_binding; });
+				it != vertex_binding_divisors.cend())
+			{
+				assert(it->divisor == element.instance_step_rate);
+			}
+			else
+			{
+				VkVertexInputBindingDivisorDescription &binding_divisor_desc = vertex_binding_divisors.emplace_back();
+				binding_divisor_desc.binding = element.buffer_binding;
+				binding_divisor_desc.divisor = element.instance_step_rate;
+			}
 		}
 	}
 }
@@ -1761,13 +1774,28 @@ std::vector<reshade::api::input_element> reshade::vulkan::convert_input_layout_d
 
 		for (uint32_t b = 0; b < create_info->vertexBindingDescriptionCount; ++b)
 		{
-			const VkVertexInputBindingDescription &binding = create_info->pVertexBindingDescriptions[b];
+			const VkVertexInputBindingDescription &binding_desc = create_info->pVertexBindingDescriptions[b];
 
-			if (binding.binding == attribute.binding)
+			if (binding_desc.binding == attribute.binding)
 			{
-				elements[a].stride = binding.stride;
-				elements[a].instance_step_rate = binding.inputRate != VK_VERTEX_INPUT_RATE_VERTEX ? 1 : 0;
+				elements[a].stride = binding_desc.stride;
+				elements[a].instance_step_rate = binding_desc.inputRate != VK_VERTEX_INPUT_RATE_VERTEX ? 1 : 0;
 				break;
+			}
+		}
+
+		if (const auto binding_divisor_info = find_in_structure_chain<VkPipelineVertexInputDivisorStateCreateInfo>(
+				create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO))
+		{
+			for (uint32_t b = 0; b < binding_divisor_info->vertexBindingDivisorCount; ++b)
+			{
+				const VkVertexInputBindingDivisorDescription &divisor_desc = binding_divisor_info->pVertexBindingDivisors[b];
+
+				if (divisor_desc.binding == attribute.binding)
+				{
+					elements[a].instance_step_rate = divisor_desc.divisor;
+					break;
+				}
 			}
 		}
 	}
@@ -2264,7 +2292,7 @@ auto reshade::vulkan::convert_render_pass_load_op(api::render_pass_load_op value
 	case api::render_pass_load_op::discard:
 		return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	case api::render_pass_load_op::no_access:
-		return VK_ATTACHMENT_LOAD_OP_NONE_EXT;
+		return VK_ATTACHMENT_LOAD_OP_NONE;
 	}
 }
 auto reshade::vulkan::convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op
@@ -2280,7 +2308,7 @@ auto reshade::vulkan::convert_render_pass_load_op(VkAttachmentLoadOp value) -> a
 		return api::render_pass_load_op::clear;
 	case VK_ATTACHMENT_LOAD_OP_DONT_CARE:
 		return api::render_pass_load_op::discard;
-	case VK_ATTACHMENT_LOAD_OP_NONE_EXT:
+	case VK_ATTACHMENT_LOAD_OP_NONE:
 		return api::render_pass_load_op::no_access;
 	}
 }
@@ -2296,7 +2324,7 @@ auto reshade::vulkan::convert_render_pass_store_op(api::render_pass_store_op val
 	case api::render_pass_store_op::discard:
 		return VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	case api::render_pass_store_op::no_access:
-		return VK_ATTACHMENT_STORE_OP_NONE_EXT;
+		return VK_ATTACHMENT_STORE_OP_NONE;
 	}
 }
 auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op
@@ -2310,7 +2338,7 @@ auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) ->
 		return api::render_pass_store_op::store;
 	case VK_ATTACHMENT_STORE_OP_DONT_CARE:
 		return api::render_pass_store_op::discard;
-	case VK_ATTACHMENT_STORE_OP_NONE_EXT:
+	case VK_ATTACHMENT_STORE_OP_NONE:
 		return api::render_pass_store_op::no_access;
 	}
 }
@@ -2432,7 +2460,7 @@ void reshade::vulkan::convert_acceleration_structure_build_input(const api::acce
 		geometry.geometry.triangles.vertexData.deviceAddress = build_input.triangles.vertex_offset;
 		geometry.geometry.triangles.vertexStride = build_input.triangles.vertex_stride;
 		geometry.geometry.triangles.maxVertex = build_input.triangles.vertex_count;
-		geometry.geometry.triangles.indexType = build_input.triangles.index_format == api::format::r8_uint ? VK_INDEX_TYPE_UINT8_EXT : build_input.triangles.index_format == api::format::r16_uint ? VK_INDEX_TYPE_UINT16 : build_input.triangles.index_format == api::format::r32_uint ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_NONE_KHR;
+		geometry.geometry.triangles.indexType = build_input.triangles.index_format == api::format::r8_uint ? VK_INDEX_TYPE_UINT8 : build_input.triangles.index_format == api::format::r16_uint ? VK_INDEX_TYPE_UINT16 : build_input.triangles.index_format == api::format::r32_uint ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_NONE_KHR;
 		geometry.geometry.triangles.indexData.deviceAddress = build_input.triangles.index_offset;
 		geometry.geometry.triangles.transformData.deviceAddress = build_input.triangles.transform_offset;
 		range_info.primitiveCount = geometry.geometry.triangles.indexData.deviceAddress != 0 ? build_input.triangles.index_count / 3 : build_input.triangles.vertex_count / 3;
@@ -2471,7 +2499,7 @@ reshade::api::acceleration_structure_build_input reshade::vulkan::convert_accele
 		build_input.triangles.vertex_format = convert_format(geometry.geometry.triangles.vertexFormat);
 		build_input.triangles.index_offset = geometry.geometry.triangles.indexData.deviceAddress;
 		build_input.triangles.index_count = geometry.geometry.triangles.indexData.deviceAddress != 0 ? range_info.primitiveCount * 3 : 0;
-		build_input.triangles.index_format = geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT8_EXT ? api::format::r8_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT16 ? api::format::r16_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT32 ? api::format::r32_uint : api::format::unknown;
+		build_input.triangles.index_format = geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT8 ? api::format::r8_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT16 ? api::format::r16_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT32 ? api::format::r32_uint : api::format::unknown;
 		build_input.triangles.transform_offset = geometry.geometry.triangles.transformData.deviceAddress + range_info.transformOffset;
 		break;
 	case VK_GEOMETRY_TYPE_AABBS_KHR:

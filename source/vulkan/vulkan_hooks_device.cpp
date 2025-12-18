@@ -279,6 +279,14 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	VkDevicePrivateDataCreateInfo private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO, create_info.pNext };
 	private_data_info.privateDataSlotRequestCount = 1;
 
+	if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES))
+	{
+		assert(instance.api_version >= VK_API_VERSION_1_4);
+
+		push_descriptor_ext = existing_vulkan_14_features->pushDescriptor;
+	}
+
 	VkPhysicalDevicePrivateDataFeatures private_data_features;
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features;
 	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
