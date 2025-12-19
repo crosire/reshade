@@ -9,10 +9,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="minhook\src\HDE\hde32.c">
+    <ClCompile Include="minhook\src\hde\hde32.c">
       <Filter>HDE</Filter>
     </ClCompile>
-    <ClCompile Include="minhook\src\HDE\hde64.c">
+    <ClCompile Include="minhook\src\hde\hde64.c">
       <Filter>HDE</Filter>
     </ClCompile>
     <ClCompile Include="minhook\src\buffer.c" />
@@ -20,19 +20,19 @@
     <ClCompile Include="minhook\src\trampoline.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="minhook\src\HDE\hde32.h">
+    <ClInclude Include="minhook\src\hde\hde32.h">
       <Filter>HDE</Filter>
     </ClInclude>
-    <ClInclude Include="minhook\src\HDE\hde64.h">
+    <ClInclude Include="minhook\src\hde\hde64.h">
       <Filter>HDE</Filter>
     </ClInclude>
-    <ClInclude Include="minhook\src\HDE\pstdint.h">
+    <ClInclude Include="minhook\src\hde\pstdint.h">
       <Filter>HDE</Filter>
     </ClInclude>
-    <ClInclude Include="minhook\src\HDE\table32.h">
+    <ClInclude Include="minhook\src\hde\table32.h">
       <Filter>HDE</Filter>
     </ClInclude>
-    <ClInclude Include="minhook\src\HDE\table64.h">
+    <ClInclude Include="minhook\src\hde\table64.h">
       <Filter>HDE</Filter>
     </ClInclude>
     <ClInclude Include="minhook\include\MinHook.h">

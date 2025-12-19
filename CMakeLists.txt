@@ -275,8 +275,8 @@ if(MSVC)
   set_source_files_properties(examples/09-depth/generic_depth_addon.cpp PROPERTIES COMPILE_FLAGS /FIreshade.hpp)
   set_source_files_properties(examples/15-effect_runtime_sync/runtime_sync_addon.cpp PROPERTIES COMPILE_FLAGS /FIreshade.hpp)
 else()
-  set_source_files_properties(examples/09-depth/generic_depth_addon.cpp PROPERTIES COMPILE_FLAGS -include reshade.hpp)
-  set_source_files_properties(examples/15-effect_runtime_sync/runtime_sync_addon.cpp PROPERTIES COMPILE_FLAGS -include reshade.hpp)
+  set_source_files_properties(examples/09-depth/generic_depth_addon.cpp PROPERTIES COMPILE_FLAGS "-include reshade.hpp")
+  set_source_files_properties(examples/15-effect_runtime_sync/runtime_sync_addon.cpp PROPERTIES COMPILE_FLAGS "-include reshade.hpp")
 endif()
 
 target_include_directories(
@@ -322,6 +322,8 @@ else()
   target_compile_options(
     ReShade
     PRIVATE
+      -DSTDMETHODCALLTYPE=
+      -Wno-changes-meaning
       $<$<CONFIG:Release>:-fno-rtti>
   )
 endif()
@@ -332,7 +334,8 @@ target_link_libraries(ReShade PRIVATE ReShadeFX D3D12On7 fpng glad ImGui jxl Min
 
 add_library(ReShadeFX STATIC)
 
-target_sources(ReShadeFX
+target_sources(
+  ReShadeFX
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS
@@ -359,13 +362,15 @@ target_sources(ReShadeFX
     source/effect_symbol_table_intrinsics.inl
 )
 
-target_compile_definitions(ReShadeFX
+target_compile_definitions(
+  ReShadeFX
   PRIVATE
     _UNICODE
 )
 
 if(MSVC)
-  target_compile_options(ReShadeFX
+  target_compile_options(
+    ReShadeFX
     PRIVATE
       /utf-8
       /Zc:char8_t-
@@ -373,7 +378,8 @@ if(MSVC)
       $<$<CONFIG:Release>:/GR->
   )
 else()
-  target_compile_options(ReShadeFX
+  target_compile_options(
+    ReShadeFX
     PRIVATE
       $<$<CONFIG:Release>:-fno-rtti>
   )
