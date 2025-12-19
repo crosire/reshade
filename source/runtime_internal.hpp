@@ -7,6 +7,7 @@
 
 #include "effect_module.hpp"
 #include "moving_average.hpp"
+#include <algorithm>
 
 namespace reshade
 {

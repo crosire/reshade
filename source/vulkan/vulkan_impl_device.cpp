@@ -343,7 +343,7 @@ void reshade::vulkan::device_impl::destroy_sampler(api::sampler sampler)
 	vk.DestroySampler(_orig, (VkSampler)sampler.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_resource, HANDLE *shared_handle)
+bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_resource, void **shared_handle)
 {
 	*out_resource = { 0 };
 
@@ -2264,7 +2264,7 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view vie
 #endif
 }
 
-bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, HANDLE *shared_handle)
+bool reshade::vulkan::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, void **shared_handle)
 {
 	*out_fence = { 0 };
 

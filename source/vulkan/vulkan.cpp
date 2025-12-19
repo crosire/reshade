@@ -325,9 +325,15 @@ PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const c
 	return trampoline(instance, pName);
 }
 
+enum VkNegotiateLayerStructType
+{
+	LAYER_NEGOTIATE_UNINTIALIZED = 0,
+	LAYER_NEGOTIATE_INTERFACE_STRUCT = 1,
+};
+
 struct VkNegotiateLayerInterface
 {
-	enum VkNegotiateLayerStructType sType;
+	VkNegotiateLayerStructType sType;
 	void *pNext;
 	uint32_t loaderLayerInterfaceVersion;
 	PFN_vkGetInstanceProcAddr pfnGetInstanceProcAddr;
@@ -338,7 +344,7 @@ struct VkNegotiateLayerInterface
 VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
 {
 	if (pVersionStruct == nullptr ||
-		pVersionStruct->sType != 1 /* LAYER_NEGOTIATE_INTERFACE_STRUCT */)
+		pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)
 		return VK_ERROR_INITIALIZATION_FAILED;
 
 	pVersionStruct->loaderLayerInterfaceVersion = 2; // Version 2 added 'vkNegotiateLoaderLayerInterfaceVersion'

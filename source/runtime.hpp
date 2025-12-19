@@ -8,10 +8,12 @@
 #include "reshade_api.hpp"
 #include "state_block.hpp"
 #include "imgui_code_editor.hpp"
+#include <atomic>
+#include <thread>
 #include <chrono>
 #include <memory>
 #include <filesystem>
-#include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 namespace reshade

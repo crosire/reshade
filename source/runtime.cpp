@@ -19,7 +19,6 @@
 #include "platform_utils.hpp"
 #include "reshade_api_object_impl.hpp"
 #include <set>
-#include <thread>
 #include <cmath> // std::abs, std::fmod
 #include <cctype> // std::toupper
 #include <cwctype> // std::towlower
@@ -69,7 +68,7 @@ static std::filesystem::path make_relative_path(const std::filesystem::path &pat
 		return std::filesystem::path();
 	// Use ReShade DLL directory as base for relative paths (see 'resolve_path')
 	std::filesystem::path proximate_path = path.lexically_proximate(g_reshade_base_path);
-	if (proximate_path.native().rfind(L"..", 0) != std::wstring::npos)
+	if (proximate_path.wstring().rfind(L"..", 0) != std::wstring::npos)
 		return path; // Do not use relative path if preset is in a parent directory
 	if (proximate_path.is_relative() && !proximate_path.empty() && proximate_path.native().front() != L'.')
 		// Prefix preset path with dot character to better indicate it being a relative path
@@ -382,8 +381,9 @@ bool reshade::runtime::on_init()
 	}
 
 	// Create effect color and stencil resource
-	api::format stencil_format = api::format::unknown;
 	{
+		api::format stencil_format = api::format::unknown;
+
 		// Find a supported stencil format with the smallest footprint (since the depth component is not used)
 		constexpr api::format possible_stencil_formats[] = {
 			api::format::s8_uint,
@@ -400,10 +400,10 @@ bool reshade::runtime::on_init()
 				break;
 			}
 		}
+	
+		if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
+			goto exit_failure;
 	}
-
-	if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
-		goto exit_failure;
 
 	// Create render targets for the back buffer resources
 	for (uint32_t i = 0, count = _swapchain->get_back_buffer_count(); i < count; ++i)
@@ -440,21 +440,23 @@ bool reshade::runtime::on_init()
 		goto exit_failure;
 #endif
 
-	const input::window_handle window = get_hwnd();
-	if (window != nullptr && !_is_vr)
 	{
-		_input = input::register_window(window);
-		_primary_input_handler = _input.use_count() == 1;
-	}
-	else
-	{
-		_input.reset();
-		_primary_input_handler = _input_gamepad != nullptr;
-	}
+		const input::window_handle window = get_hwnd();
+		if (window != nullptr && !_is_vr)
+		{
+			_input = input::register_window(window);
+			_primary_input_handler = _input.use_count() == 1;
+		}
+		else
+		{
+			_input.reset();
+			_primary_input_handler = _input_gamepad != nullptr;
+		}
 
-	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
-	if (window != nullptr)
-		utils::set_window_transparency(window, false);
+		// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
+		if (window != nullptr)
+			utils::set_window_transparency(window, false);
+	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_frame_count = 0;
@@ -1320,7 +1322,7 @@ void reshade::runtime::save_current_preset(ini_file &preset) const
 bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)
 {
 	std::error_code ec; // This is here to ignore file system errors below
-	std::filesystem::path filter_text;
+	std::wstring filter_text;
 
 	resolve_path(filter_path, ec);
 
@@ -1329,9 +1331,9 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	{
 		if (file_type == std::filesystem::file_type::not_found)
 		{
-			filter_text = filter_path.filename();
+			filter_text = filter_path.filename().wstring();
 			if (!filter_text.empty())
-				filter_path = filter_path.parent_path();
+				filter_path = filter_path.parent_path().wstring();
 		}
 		else
 		{
@@ -1360,10 +1362,10 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 			continue;
 		}
 
-		const std::wstring preset_name = preset_path.stem();
+		const std::wstring preset_name = preset_path.stem().wstring();
 		// Only add those files that are matching the filter text
 		if (filter_text.empty() ||
-			std::search(preset_name.cbegin(), preset_name.cend(), filter_text.native().begin(), filter_text.native().end(),
+			std::search(preset_name.cbegin(), preset_name.cend(), filter_text.begin(), filter_text.end(),
 				[](auto c1, auto c2) { return std::towlower(c1) == std::towlower(c2); }) != preset_name.cend())
 			preset_paths.push_back(std::move(preset_path));
 	}
@@ -3700,7 +3702,7 @@ void reshade::runtime::clear_effect_cache()
 
 		const std::filesystem::path filename = entry.path().filename();
 		const std::filesystem::path extension = entry.path().extension();
-		if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
+		if (filename.wstring().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
 			continue;
 
 		std::filesystem::remove(entry, ec);
@@ -5303,7 +5305,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	if (_screenshot_post_save_command.empty())
 		return false;
 
-	const std::wstring ext = _screenshot_post_save_command.extension().native();
+	const std::wstring ext = _screenshot_post_save_command.extension().wstring();
 
 	std::string command_line;
 	if (ext == L".bat" || ext == L".cmd")

@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include <cstdarg>
 #include <Windows.h>
 
 struct scoped_file_handle

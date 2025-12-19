@@ -90,28 +90,22 @@ namespace reshade
 			if (it2 == it1->second.end())
 				return false;
 			values.resize(it2->second.size());
-			for (size_t i = 0; i < it2->second.size(); ++i)
-				values[i] = convert<T>(it2->second, i);
-			return true;
-		}
-		template <>
-		bool get(const std::string &section, const std::string &key, std::vector<std::pair<std::string, std::string>> &values) const
-		{
-			const auto it1 = _sections.find(section);
-			if (it1 == _sections.end())
-				return false;
-			const auto it2 = it1->second.find(key);
-			if (it2 == it1->second.end())
-				return false;
-			values.resize(it2->second.size());
-			for (size_t i = 0; i < it2->second.size(); ++i)
+			if constexpr (std::is_same_v<T, std::pair<std::string, std::string>>)
 			{
-				std::string value = convert<std::string>(it2->second, i);
-				if (const size_t equals_sign = value.find('=');
-					equals_sign != std::string::npos)
-					values[i] = { value.substr(0, equals_sign), value.substr(equals_sign + 1) };
-				else
-					values[i].first = std::move(value);
+				for (size_t i = 0; i < it2->second.size(); ++i)
+				{
+					std::string value = convert<std::string>(it2->second, i);
+					if (const size_t equals_sign = value.find('=');
+						equals_sign != std::string::npos)
+						values[i] = { value.substr(0, equals_sign), value.substr(equals_sign + 1) };
+					else
+						values[i].first = std::move(value);
+				}
+			}
+			else
+			{
+				for (size_t i = 0; i < it2->second.size(); ++i)
+					values[i] = convert<T>(it2->second, i);
 			}
 			return true;
 		}
@@ -133,33 +127,25 @@ namespace reshade
 		template <typename T>
 		void set(const std::string &section, const std::string &key, const T &value)
 		{
-			set(section, key, std::to_string(value));
-		}
-		template <>
-		void set(const std::string &section, const std::string &key, const bool &value)
-		{
-			set<std::string>(section, key, value ? "1" : "0");
-		}
-		template <>
-		void set(const std::string &section, const std::string &key, const std::string &value)
-		{
 			auto &v = _sections[section][key];
-			v.assign(1, value);
+			if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, const char *>)
+			{
+				v.assign(1, value);
+			}
+			else if constexpr (std::is_same_v<T, bool>)
+			{
+				v.assign(1, value ? "1" : "0");
+			}
+			else if constexpr (std::is_same_v<T, std::filesystem::path>)
+			{
+				v.assign(1, value.u8string());
+			}
+			else
+			{
+				v.assign(1, std::to_string(value));
+			}
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
-		}
-		void set(const std::string &section, const std::string &key, std::string &&value)
-		{
-			auto &v = _sections[section][key];
-			v.resize(1);
-			v[0] = std::forward<std::string>(value);
-			_modified = true;
-			_modified_at = std::filesystem::file_time_type::clock::now();
-		}
-		template <>
-		void set(const std::string &section, const std::string &key, const std::filesystem::path &value)
-		{
-			set(section, key, value.u8string());
 		}
 		template <typename T, size_t SIZE>
 		void set(const std::string &section, const std::string &key, const T(&values)[SIZE], const size_t size = SIZE)
@@ -175,17 +161,48 @@ namespace reshade
 		void set(const std::string &section, const std::string &key, const std::vector<T> &values)
 		{
 			auto &v = _sections[section][key];
-			v.resize(values.size());
-			for (size_t i = 0; i < values.size(); ++i)
-				v[i] = std::to_string(values[i]);
+			if constexpr (std::is_same_v<T, std::string>)
+			{
+				v = values;
+			}
+			else if constexpr (std::is_same_v<T, bool>)
+			{
+				v.resize(values.size());
+				for (size_t i = 0; i < values.size(); ++i)
+					v[i] = values[i] ? "1" : "0";
+			}
+			else if constexpr (std::is_same_v<T, std::filesystem::path>)
+			{
+				v.resize(values.size());
+				for (size_t i = 0; i < values.size(); ++i)
+					v[i] = values[i].u8string();
+			}
+			else if constexpr (std::is_same_v<T, std::pair<std::string, std::string>>)
+			{
+				v.resize(values.size());
+				for (size_t i = 0; i < values.size(); ++i)
+				{
+					const std::pair<std::string, std::string> &value = values[i];
+					v[i] = value.first;
+					if (!value.second.empty())
+						v[i] += '=' + value.second;
+				}
+			}
+			else
+			{
+				v.resize(values.size());
+				for (size_t i = 0; i < values.size(); ++i)
+					v[i] = std::to_string(values[i]);
+			}
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
-		template <>
-		void set(const std::string &section, const std::string &key, const std::vector<std::string> &values)
+
+		void set(const std::string &section, const std::string &key, std::string &&value)
 		{
 			auto &v = _sections[section][key];
-			v = values;
+			v.resize(1);
+			v[0] = std::forward<std::string>(value);
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
@@ -193,31 +210,6 @@ namespace reshade
 		{
 			auto &v = _sections[section][key];
 			v = std::forward<std::vector<std::string>>(values);
-			_modified = true;
-			_modified_at = std::filesystem::file_time_type::clock::now();
-		}
-		template <>
-		void set(const std::string &section, const std::string &key, const std::vector<std::pair<std::string, std::string>> &values)
-		{
-			auto &v = _sections[section][key];
-			v.resize(values.size());
-			for (size_t i = 0; i < values.size(); ++i)
-			{
-				const std::pair<std::string, std::string> &value = values[i];
-				v[i] = value.first;
-				if (!value.second.empty())
-					v[i] += '=' + value.second;
-			}
-			_modified = true;
-			_modified_at = std::filesystem::file_time_type::clock::now();
-		}
-		template <>
-		void set(const std::string &section, const std::string &key, const std::vector<std::filesystem::path> &values)
-		{
-			auto &v = _sections[section][key];
-			v.resize(values.size());
-			for (size_t i = 0; i < values.size(); ++i)
-				v[i] = values[i].u8string();
 			_modified = true;
 			_modified_at = std::filesystem::file_time_type::clock::now();
 		}
@@ -285,61 +277,30 @@ namespace reshade
 
 	private:
 		template <typename T>
-		static const T convert(const std::vector<std::string> &values, size_t i) = delete;
-		template <>
-		static const bool convert(const std::vector<std::string> &values, size_t i)
+		static const T convert(const std::vector<std::string> &values, size_t i)
 		{
-			return convert<int>(values, i) != 0 || i < values.size() && (values[i] == "true" || values[i] == "True" || values[i] == "TRUE");
-		}
-		template <>
-		static const int convert(const std::vector<std::string> &values, size_t i)
-		{
-			return static_cast<int>(convert<long>(values, i));
-		}
-		template <>
-		static const unsigned int convert(const std::vector<std::string> &values, size_t i)
-		{
-			return static_cast<unsigned int>(convert<unsigned long>(values, i));
-		}
-		template <>
-		static const long convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? std::strtol(values[i].c_str(), nullptr, 10) : 0l;
-		}
-		template <>
-		static const unsigned long convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? std::strtoul(values[i].c_str(), nullptr, 10) : 0ul;
-		}
-		template <>
-		static const long long convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? std::strtoll(values[i].c_str(), nullptr, 10) : 0ll;
-		}
-		template <>
-		static const unsigned long long convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? std::strtoull(values[i].c_str(), nullptr, 10) : 0ull;
-		}
-		template <>
-		static const float convert(const std::vector<std::string> &values, size_t i)
-		{
-			return static_cast<float>(convert<double>(values, i));
-		}
-		template <>
-		static const double convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? std::strtod(values[i].c_str(), nullptr) : 0.0;
-		}
-		template <>
-		static const std::string convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? values[i] : std::string();
-		}
-		template <>
-		static const std::filesystem::path convert(const std::vector<std::string> &values, size_t i)
-		{
-			return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
+			if constexpr (std::is_same_v<T, bool>)
+				return convert<int>(values, i) != 0 || i < values.size() && (values[i] == "true" || values[i] == "True" || values[i] == "TRUE");
+			if constexpr (std::is_same_v<T, int>)
+				return static_cast<int>(convert<long>(values, i));
+			if constexpr (std::is_same_v<T, unsigned int>)
+				return static_cast<unsigned int>(convert<unsigned long>(values, i));
+			if constexpr (std::is_same_v<T, long>)
+				return i < values.size() ? std::strtol(values[i].c_str(), nullptr, 10) : 0l;
+			if constexpr (std::is_same_v<T, unsigned long>)
+				return i < values.size() ? std::strtoul(values[i].c_str(), nullptr, 10) : 0ul;
+			if constexpr (std::is_same_v<T, long long>)
+				return i < values.size() ? std::strtoll(values[i].c_str(), nullptr, 10) : 0ll;
+			if constexpr (std::is_same_v<T, unsigned long long>)
+				return i < values.size() ? std::strtoull(values[i].c_str(), nullptr, 10) : 0ull;
+			if constexpr (std::is_same_v<T, float>)
+				return static_cast<float>(convert<double>(values, i));
+			if constexpr (std::is_same_v<T, double>)
+				return i < values.size() ? std::strtod(values[i].c_str(), nullptr) : 0.0;
+			if constexpr (std::is_same_v<T, std::string>)
+				return i < values.size() ? values[i] : std::string();
+			if constexpr (std::is_same_v<T, std::filesystem::path>)
+				return i < values.size() ? std::filesystem::u8path(values[i]) : std::filesystem::path();
 		}
 
 		/// <summary>

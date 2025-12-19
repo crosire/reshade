@@ -4,6 +4,7 @@
  */
 
 #include "ini_file.hpp"
+#include <mutex>
 #include <shared_mutex>
 #include <cctype> // std::toupper
 #include <cassert>
@@ -11,7 +12,7 @@
 #include <utf8/core.h>
 
 static std::shared_mutex s_ini_cache_mutex;
-static std::unordered_map<std::wstring, std::unique_ptr<reshade::ini_file>> s_ini_cache;
+static std::unordered_map<std::filesystem::path::string_type, std::unique_ptr<reshade::ini_file>> s_ini_cache;
 
 reshade::ini_file &reshade::global_config()
 {
