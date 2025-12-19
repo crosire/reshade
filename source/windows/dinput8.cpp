@@ -12,7 +12,7 @@
 #include "input.hpp"
 #include "lockfree_linear_map.hpp"
 
-static lockfree_linear_map<IUnknown *, BYTE, 8> s_dinput_device_type;
+static lockfree_linear_map<IUnknown *, BYTE, 16> s_dinput_device_type;
 
 #define IDirectInputDevice8_GetDeviceState_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceState(IDirectInputDevice8##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
@@ -88,7 +88,7 @@ IDirectInputDevice8_GetDeviceData_Impl(10, W)
 			\
 			DIDEVCAPS caps = { sizeof(caps) }; \
 			device->GetCapabilities(&caps); \
-			s_dinput_device_type.emplace(device, LOBYTE(caps.dwDevType)); \
+			s_dinput_device_type.emplace(device, GET_DIDEVICE_TYPE(caps.dwDevType)); \
 			\
 			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(device), 9, &IDirectInputDevice8##encoding##_GetDeviceState); \
 			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(device), 10, &IDirectInputDevice8##encoding##_GetDeviceData); \

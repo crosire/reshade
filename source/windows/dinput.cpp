@@ -12,7 +12,7 @@
 #include "input.hpp"
 #include "lockfree_linear_map.hpp"
 
-static lockfree_linear_map<IUnknown *, BYTE, 8> s_dinput_device_type;
+static lockfree_linear_map<IUnknown *, BYTE, 16> s_dinput_device_type;
 
 // It is technically possible to associate these hooks back to a device (cooperative level), but it may not be the same window as ReShade renders on
 #define IDirectInputDevice_GetDeviceState_Impl(vtable_index, device_interface_version, encoding) \
@@ -94,7 +94,7 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 			\
 			DIDEVCAPS caps = { sizeof(caps) }; \
 			device->GetCapabilities(&caps); \
-			s_dinput_device_type.emplace(device, LOBYTE(caps.dwDevType)); \
+			s_dinput_device_type.emplace(device, GET_DIDEVICE_TYPE(caps.dwDevType)); \
 			\
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(device), 9, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceState); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(device), 10, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceData); \
@@ -120,7 +120,7 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 			\
 			DIDEVCAPS caps = { sizeof(caps) }; \
 			device->GetCapabilities(&caps); \
-			s_dinput_device_type.emplace(device, LOBYTE(caps.dwDevType)); \
+			s_dinput_device_type.emplace(device, GET_DIDEVICE_TYPE(caps.dwDevType)); \
 			\
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(device), 9, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceState); \
 			reshade::hooks::install("IDirectInputDevice" #device_interface_version #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(device), 10, &IDirectInputDevice##device_interface_version##encoding##_GetDeviceData); \
