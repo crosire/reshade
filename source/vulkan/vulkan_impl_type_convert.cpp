@@ -565,11 +565,11 @@ auto reshade::vulkan::convert_color_space(api::color_space color_space) -> VkCol
 	default:
 		assert(false);
 		[[fallthrough]];
-	case api::color_space::srgb_nonlinear:
+	case api::color_space::srgb:
 		return VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-	case api::color_space::extended_srgb_linear:
+	case api::color_space::scrgb:
 		return VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
-	case api::color_space::hdr10_st2084:
+	case api::color_space::hdr10_pq:
 		return VK_COLOR_SPACE_HDR10_ST2084_EXT;
 	case api::color_space::hdr10_hlg:
 		return VK_COLOR_SPACE_HDR10_HLG_EXT;
@@ -583,11 +583,11 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 		assert(false);
 		return api::color_space::unknown;
 	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
-		return api::color_space::srgb_nonlinear;
+		return api::color_space::srgb;
 	case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
-		return api::color_space::extended_srgb_linear;
+		return api::color_space::scrgb;
 	case VK_COLOR_SPACE_HDR10_ST2084_EXT:
-		return api::color_space::hdr10_st2084;
+		return api::color_space::hdr10_pq;
 	case VK_COLOR_SPACE_HDR10_HLG_EXT:
 		return api::color_space::hdr10_hlg;
 	}

@@ -91,10 +91,10 @@ void reshade::openvr::swapchain_impl::set_color_space(vr::EColorSpace color_spac
 		_back_buffer_color_space = api::color_space::unknown;
 		break;
 	case vr::ColorSpace_Gamma:
-		_back_buffer_color_space = api::color_space::srgb_nonlinear;
+		_back_buffer_color_space = api::color_space::srgb;
 		break;
 	case vr::ColorSpace_Linear:
-		_back_buffer_color_space = api::color_space::extended_srgb_linear;
+		_back_buffer_color_space = api::color_space::scrgb;
 		break;
 	}
 }

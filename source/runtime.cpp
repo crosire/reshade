@@ -268,6 +268,9 @@ bool reshade::runtime::on_init()
 	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
 	_back_buffer_samples = back_buffer_desc.texture.samples;
 	_back_buffer_color_space = _swapchain->get_color_space();
+	// Workaround for early HDR games, RGBA16F without a color space defined is pretty much guaranteed to be HDR for games
+	if (_back_buffer_format == api::format::r16g16b16a16_float)
+		_back_buffer_color_space = api::color_space::scrgb;
 
 	// Create resolve texture and copy pipeline (do this before creating effect resources, to ensure correct back buffer format is set up)
 	if (back_buffer_desc.texture.samples > 1 ||
@@ -5029,12 +5032,9 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		postfix = postfix_in;
 
 	const unsigned int screenshot_count = _screenshot_count;
-	unsigned int screenshot_format = _screenshot_format;
-
 	// Use PNG or JPEG XL for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
-	if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
-		_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
-		screenshot_format = _screenshot_format == 3 ? 5 : 4;
+	const unsigned int screenshot_format =
+		(_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq) ? (_screenshot_format == 3 ? 5 : 4) : _screenshot_format;
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
@@ -5202,15 +5202,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 					switch (_back_buffer_color_space)
 					{
 					default:
-					case api::color_space::srgb_nonlinear:
+					case api::color_space::srgb:
 						color_encoding.primaries = JXL_PRIMARIES_SRGB;
 						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
 						break;
-					case api::color_space::extended_srgb_linear:
+					case api::color_space::scrgb:
 						color_encoding.primaries = JXL_PRIMARIES_SRGB;
 						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
 						break;
-					case api::color_space::hdr10_st2084:
+					case api::color_space::hdr10_pq:
 						color_encoding.primaries = JXL_PRIMARIES_2100;
 						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
 						break;

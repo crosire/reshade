@@ -25,7 +25,7 @@ namespace reshade::openxr
 		uint32_t get_back_buffer_count() const final;
 		uint32_t get_current_back_buffer_index() const final;
 
-		bool check_color_space_support(api::color_space color_space) const final { return color_space == api::color_space::srgb_nonlinear || color_space == api::color_space::extended_srgb_linear; }
+		bool check_color_space_support(api::color_space color_space) const final { return color_space == api::color_space::srgb || color_space == api::color_space::scrgb; }
 
 		api::color_space get_color_space() const final { return api::color_space::unknown; }
 

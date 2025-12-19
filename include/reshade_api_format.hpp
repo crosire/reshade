@@ -186,10 +186,18 @@ namespace reshade { namespace api
 	{
 		unknown = 0,
 
-		srgb_nonlinear,
-		extended_srgb_linear,
-		hdr10_st2084,
+		// BT.709/sRGB primaries
+		srgb,
+		// BT.709/sRGB primaries + linear
+		scrgb,
+		// BT.2020 primaries + PQ transfer function
+		hdr10_pq,
+		// BT.2020 primaries + HLG transfer function
 		hdr10_hlg,
+
+		srgb_nonlinear = srgb,
+		extended_srgb_linear = scrgb,
+		hdr10_st2084 = hdr10_pq,
 	};
 
 	/// <summary>

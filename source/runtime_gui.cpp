@@ -2149,8 +2149,7 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 		// HDR screenshots have no alpha channel
-		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
-			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
+		if (_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq)
 		{
 			int hdr_screenshot_format = _screenshot_format == 3 ? 1 : 0;
 			if (ImGui::Combo(_("Screenshot format"), reinterpret_cast<int *>(&hdr_screenshot_format), "Portable Network Graphics (*.png)\0JPEG XL Lossless (*.jxl)\0"))
@@ -2433,8 +2432,7 @@ void reshade::runtime::draw_gui_settings()
 		}
 
 		// Only show on possible HDR swap chains
-		if (_back_buffer_format == reshade::api::format::r16g16b16a16_float ||
-			_back_buffer_color_space == reshade::api::color_space::hdr10_st2084)
+		if (_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq)
 		{
 			if (ImGui::SliderFloat(_("HDR overlay brightness"), &_hdr_overlay_brightness, 20.f, 400.f, "%.0f nits", ImGuiSliderFlags_AlwaysClamp))
 				modified = true;
@@ -4994,11 +4992,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 							   -(2 * draw_data->DisplayPos.x + draw_data->DisplaySize.x + (adjust_half_pixel ? 1.0f : 0.0f)) / draw_data->DisplaySize.x,
 			(flip_y ? -1 : 1) * (2 * draw_data->DisplayPos.y + draw_data->DisplaySize.y + (adjust_half_pixel ? 1.0f : 0.0f)) / draw_data->DisplaySize.y, depth_clip_zero_to_one ? 0.5f : 0.0f, 1.0f,
 		},
-		_hdr_overlay_overwrite_color_space != api::color_space::unknown ?
-			_hdr_overlay_overwrite_color_space :
-			// Workaround for early HDR games, RGBA16F without a color space defined is pretty much guaranteed to be HDR for games
-			_back_buffer_format == api::format::r16g16b16a16_float ?
-				api::color_space::extended_srgb_linear : _back_buffer_color_space,
+		_hdr_overlay_overwrite_color_space != api::color_space::unknown ? _hdr_overlay_overwrite_color_space : _back_buffer_color_space,
 		_hdr_overlay_brightness
 	};
 
