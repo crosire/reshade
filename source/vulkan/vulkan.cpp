@@ -5,7 +5,9 @@
 
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
+#ifdef RESHADE_TEST_APPLICATION
 #include "hook_manager.hpp"
+#endif
 #include "lockfree_linear_map.hpp"
 #include <cstring> // std::strcmp
 
