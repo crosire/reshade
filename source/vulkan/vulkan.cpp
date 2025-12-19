@@ -343,7 +343,7 @@ struct VkNegotiateLayerInterface
 	PFN_vkGetInstanceProcAddr pfnGetPhysicalDeviceProcAddr;
 };
 
-VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
+extern "C" VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
 {
 	if (pVersionStruct == nullptr ||
 		pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)

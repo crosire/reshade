@@ -73,7 +73,6 @@ XrResult XRAPI_CALL xrCreateApiLayerInstance(const XrInstanceCreateInfo *pCreate
 #endif
 	return result;
 }
-
 XrResult XRAPI_CALL xrDestroyInstance(XrInstance instance)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting xrDestroyInstance(instance = %" PRIx64 ") ...", instance);
