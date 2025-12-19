@@ -5143,6 +5143,13 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				case 4: // HDR PNG
 					if (_back_buffer_format == api::format::r16g16b16a16_float)
 					{
+						if (!fpng::fpng_cpu_supports_sse41())
+						{
+							// Technically requires F16C instruction set, not just SSE4.1
+							save_success = false;
+							break;
+						}
+
 						for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
 						{
 							uint16_t *const pixel = reinterpret_cast<uint16_t *>(pixels.data()) + i * 3;
