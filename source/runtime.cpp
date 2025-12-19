@@ -655,7 +655,7 @@ void reshade::runtime::on_present()
 	else
 		draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
+	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != std::numeric_limits<size_t>::max() && _effects_enabled)))
 		save_screenshot("Overlay");
 
 	_block_input_next_frame = false;
