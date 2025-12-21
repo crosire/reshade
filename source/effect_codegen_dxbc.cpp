@@ -70,36 +70,6 @@ public:
 		compile_flags |= D3DCOMPILE_DEBUG;
 #endif
 
-		HMODULE d3dcompiler_module = nullptr;
-		// Prefer loading up-to-date system D3DCompiler DLL over local variants
-		// Do not check system path when running in Wine though, since the D3DCompiler DLL there does not support various features
-		const HMODULE ntdll_module = GetModuleHandleW(L"ntdll.dll");
-		assert(ntdll_module != nullptr);
-		if (GetProcAddress(ntdll_module, "wine_get_version") == nullptr)
-		{
-			WCHAR d3dcompiler_path[MAX_PATH] = L"";
-			GetSystemDirectoryW(d3dcompiler_path, MAX_PATH);
-			wcscat_s(d3dcompiler_path, L"\\d3dcompiler_47.dll");
-
-			d3dcompiler_module = LoadLibraryW(d3dcompiler_path);
-		}
-
-		if ((d3dcompiler_module == nullptr) &&
-			(d3dcompiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
-			(d3dcompiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
-		{
-			errors += "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!";
-			return false;
-		}
-
-		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(d3dcompiler_module, "D3DCompile"));
-		const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(d3dcompiler_module, "D3DDisassemble"));
-		if (D3DCompile == nullptr || D3DDisassemble == nullptr)
-		{
-			FreeLibrary(d3dcompiler_module);
-			return false;
-		}
-
 		com_ptr<ID3DBlob> d3d_errors;
 		com_ptr<ID3DBlob> d3d_compiled;
 		com_ptr<ID3DBlob> d3d_disassembled;
@@ -151,8 +121,6 @@ public:
 				d3d_disassembled.reset();
 			}
 		}
-
-		FreeLibrary(d3dcompiler_module);
 
 		return SUCCEEDED(hr);
 	}

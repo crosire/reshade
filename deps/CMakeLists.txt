@@ -328,11 +328,41 @@ if(WIN32)
   target_compile_definitions(
     Windows
     INTERFACE
-      WIN32_LEAN_AND_MEAN;NOGDICAPMASKS;NOMENUS;NOICONS;NOKEYSTATES;NOSYSCOMMANDS;NORASTEROPS;NOATOM;NOCOLOR;NODRAWTEXT;NOMEMMGR;NOMETAFILE;NOMINMAX;NOOPENFILE;NOSCROLL;NOSERVICE;NOSOUND;NOTEXTMETRIC;NOCOMM;NOKANJI;NOHELP;NOPROFILER;NODEFERWINDOWPOS;NOMCX
+      WIN32_LEAN_AND_MEAN
+      NOGDICAPMASKS
+      NOMENUS
+      NOICONS
+      NOKEYSTATES
+      NOSYSCOMMANDS
+      NORASTEROPS
+      NOATOM
+      NOCOLOR
+      NODRAWTEXT
+      NOMEMMGR
+      NOMETAFILE
+      NOMINMAX
+      NOOPENFILE
+      NOSCROLL
+      NOSERVICE
+      NOSOUND
+      NOTEXTMETRIC
+      NOCOMM
+      NOKANJI
+      NOHELP
+      NOPROFILER
+      NODEFERWINDOWPOS
+      NOMCX
   )
   target_link_libraries(
     Windows
     INTERFACE
-      Dwmapi.lib;dxguid.lib;ShLwApi.lib;WinInet.lib;WS2_32.lib;Version.lib;winmm.lib
+      d3dcompiler.lib
+      dwmapi.lib
+      dxguid.lib
+      ShLwApi.lib
+      wininet.lib
+      WS2_32.lib
+      Version.lib
+      WinMM.lib
   )
 endif()

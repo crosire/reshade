@@ -10,6 +10,7 @@
 #include "addon_manager.hpp"
 #include <Windows.h>
 #include <Psapi.h>
+#include <delayimp.h> // Delay-load helpers
 #ifndef NDEBUG
 #include <DbgHelp.h>
 
@@ -413,5 +414,35 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 	return TRUE;
 }
+
+static FARPROC WINAPI DliNotifyHook2(unsigned dliNotify, PDelayLoadInfo pdli)
+{
+	if (dliNotify == dliNotePreLoadLibrary && _stricmp(pdli->szDll, "D3DCompiler_47.dll") == 0)
+	{
+		// Prefer loading up-to-date system D3DCompiler DLL over local variants
+		// Do not check system path when running in Wine though, since the D3DCompiler DLL there does not support various features
+		if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version") == nullptr)
+		{
+			const HMODULE d3dcompiler_47_module = LoadLibraryW((get_system_path() / L"D3DCompiler_47.dll").c_str());
+			return reinterpret_cast<FARPROC>(d3dcompiler_47_module);
+		}
+
+		if (const HMODULE d3dcompiler_47_module = LoadLibraryW(L"D3DCompiler_47.dll"))
+		{
+			return reinterpret_cast<FARPROC>(d3dcompiler_47_module);
+		}
+
+		// Fall back to older D3DCompiler version
+		if (const HMODULE d3dcompiler_43_module = LoadLibraryW(L"D3DCompiler_43.dll"))
+		{
+			return reinterpret_cast<FARPROC>(d3dcompiler_43_module);
+		}
+	}
+
+	return nullptr;
+}
+
+// See https://learn.microsoft.com/cpp/build/reference/understanding-the-helper-function
+extern "C" const PfnDliHook __pfnDliNotifyHook2 = DliNotifyHook2;
 
 #endif
