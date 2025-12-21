@@ -2027,6 +2027,15 @@ private:
 			_blocks.erase(case_block);
 	}
 
+	void emit_pragma(const std::string &pragma) override
+	{
+		if (pragma == "reshade skipoptimization" || pragma == "reshade nooptimization")
+			return;
+
+		std::string &code = _blocks.at(_current_block);
+		code += "#pragma " + pragma + '\n';
+	}
+
 	id   create_block() override
 	{
 		const id res = make_id();

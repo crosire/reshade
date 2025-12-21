@@ -88,6 +88,7 @@ static const std::unordered_map<tokenid, std::string_view> s_token_lookup = {
 	{ tokenid::caret_equal, "^=" },
 	{ tokenid::pipe_equal, "|=" },
 	{ tokenid::pipe_pipe, "||" },
+	{ tokenid::pragma, "_Pragma" },
 	{ tokenid::identifier, "identifier" },
 	{ tokenid::reserved, "reserved word" },
 	{ tokenid::true_literal, "true" },
@@ -206,6 +207,7 @@ static const std::unordered_map<tokenid, std::string_view> s_token_lookup = {
 	{ tokenid::storage3d, "storage3D" },
 };
 static const std::unordered_map<std::string_view, tokenid> s_keyword_lookup = {
+	{ "_Pragma", tokenid::pragma },
 	{ "asm", tokenid::reserved },
 	{ "asm_fragment", tokenid::reserved },
 	{ "auto", tokenid::reserved },

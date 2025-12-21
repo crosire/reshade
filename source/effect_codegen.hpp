@@ -239,6 +239,12 @@ namespace reshadefx
 		virtual void emit_switch(const location &loc, id selector_value, id selector_block, id default_label, id default_block, const std::vector<id> &case_literal_and_labels, const std::vector<id> &case_blocks, unsigned int flags) = 0;
 
 		/// <summary>
+		/// Adds a pragma operator to the output.
+		/// </summary>
+		/// <param name="pragma">Argument of the pragma operator.</param>
+		virtual void emit_pragma(const std::string &pragma) = 0;
+
+		/// <summary>
 		/// Returns <see langword="true"/> if code is currently added to a basic block.
 		/// </summary>
 		bool is_in_block() const { return _current_block != 0; }

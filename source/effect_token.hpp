@@ -101,6 +101,7 @@ namespace reshadefx
 		string_literal,
 
 		// keywords
+		pragma,
 		namespace_,
 		struct_,
 		technique,

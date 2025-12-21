@@ -2512,6 +2512,10 @@ private:
 		_current_block_data->instructions.push_back(merge_label);
 	}
 
+	void emit_pragma(const std::string &) override
+	{
+	}
+
 	bool is_in_function() const { return _current_function_blocks != nullptr; }
 
 	id   set_block(id id) override

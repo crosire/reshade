@@ -53,6 +53,17 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 
 bool reshadefx::parser::parse_top(bool &parse_success)
 {
+	if (accept(tokenid::pragma))
+	{
+		if (!expect('(') || !expect(tokenid::string_literal))
+			return false;
+
+		_codegen->emit_pragma(_token.literal_as_string);
+
+		if (!expect(')'))
+			return false;
+	}
+
 	if (accept(tokenid::namespace_))
 	{
 		// Anonymous namespaces are not supported right now, so an identifier is a must

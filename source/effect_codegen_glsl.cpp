@@ -2239,6 +2239,10 @@ private:
 			_blocks.erase(case_block);
 	}
 
+	void emit_pragma(const std::string &) override
+	{
+	}
+
 	id   create_block() override
 	{
 		const id res = make_id();

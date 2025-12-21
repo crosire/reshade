@@ -1594,19 +1594,16 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			source = pp.output();
 
-			for (const std::pair<std::string, std::string> &pragma : pp.used_pragma_directives())
+			for (const std::string &pragma : pp.used_pragma_directives())
 			{
-				if (pragma.first == "reshade")
+				if (pragma == "reshade skipoptimization" || pragma == "reshade nooptimization")
 				{
-					if (pragma.second == "skipoptimization" || pragma.second == "nooptimization")
-						skip_optimization = true;
+					skip_optimization = true;
 					continue;
 				}
 
-				const std::string pragma_directive = "#pragma " + pragma.first + ' ' + pragma.second + '\n';
-
-				code_preamble += pragma_directive;
-				source = "// " + pragma_directive + source;
+				code_preamble += pragma + '\n';
+				source = "// " + pragma + '\n' + source;
 			}
 
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)

@@ -92,7 +92,7 @@ namespace reshadefx
 		/// <summary>
 		/// Gets a list of "#pragma reshade" directives that where used.
 		/// </summary>
-		const std::vector<std::pair<std::string, std::string>> &used_pragma_directives() const { return _used_pragmas; }
+		const std::vector<std::string> &used_pragma_directives() const { return _used_pragmas; }
 
 	private:
 		struct if_level
@@ -157,7 +157,7 @@ namespace reshadefx
 
 		std::vector<if_level> _if_stack;
 
-		std::vector<std::pair<std::string, std::string>> _used_pragmas;
+		std::vector<std::string> _used_pragmas;
 
 		std::vector<std::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _file_cache;
