@@ -10,6 +10,7 @@
 #include "dll_log.hpp"
 #include "ini_file.hpp"
 #include <algorithm> // std::find, std::find_if, std::remove, std::remove_if
+#include <Windows.h>
 
 extern void register_addon_depth();
 extern void register_addon_effect_runtime_sync();
@@ -410,7 +411,7 @@ reshade::addon_info *reshade::find_addon(const void *address)
 
 #if defined(RESHADE_API_LIBRARY_EXPORT)
 
-bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
+bool ReShadeRegisterAddon(void *module, uint32_t api_version)
 {
 	// Can only register an add-on module once
 	if (module == nullptr || module == g_module_handle || reshade::find_addon(module))
@@ -426,7 +427,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		return false;
 	}
 
-	const std::filesystem::path path = get_module_path(module);
+	const std::filesystem::path path = get_module_path(static_cast<HMODULE>(module));
 
 	reshade::addon_info info;
 	info.name = path.stem().u8string();
@@ -469,13 +470,13 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 		}
 	}
 
-	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(module, "NAME")))
+	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "NAME")))
 		info.name = *name;
-	if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(module, "DESCRIPTION")))
+	if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "DESCRIPTION")))
 		info.description = *description;
-	if (const char *const *website_url = reinterpret_cast<const char *const *>(GetProcAddress(module, "WEBSITE")))
+	if (const char *const *website_url = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "WEBSITE")))
 		info.website_url = *website_url;
-	if (const char *const *issues_url = reinterpret_cast<const char *const *>(GetProcAddress(module, "ISSUES")))
+	if (const char *const *issues_url = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "ISSUES")))
 		info.issues_url = *issues_url;
 
 	if (std::find_if(reshade::addon_loaded_info.cbegin(), reshade::addon_loaded_info.cend(),
@@ -509,7 +510,7 @@ bool ReShadeRegisterAddon(HMODULE module, uint32_t api_version)
 
 	return true;
 }
-void ReShadeUnregisterAddon(HMODULE module)
+void ReShadeUnregisterAddon(void *module)
 {
 	if (module == nullptr || module == g_module_handle)
 		return;
@@ -543,7 +544,7 @@ void ReShadeRegisterEvent(reshade::addon_event ev, void *callback)
 {
 	ReShadeRegisterEventForAddon(nullptr, ev, callback);
 }
-void ReShadeRegisterEventForAddon(HMODULE module, reshade::addon_event ev, void *callback)
+void ReShadeRegisterEventForAddon(void *module, reshade::addon_event ev, void *callback)
 {
 	if (ev >= reshade::addon_event::max)
 		return;
@@ -579,7 +580,7 @@ void ReShadeUnregisterEvent(reshade::addon_event ev, void *callback)
 {
 	ReShadeUnregisterEventForAddon(nullptr, ev, callback);
 }
-void ReShadeUnregisterEventForAddon(HMODULE module, reshade::addon_event ev, void *callback)
+void ReShadeUnregisterEventForAddon(void *module, reshade::addon_event ev, void *callback)
 {
 	if (ev >= reshade::addon_event::max)
 		return;
@@ -611,7 +612,7 @@ void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::eff
 {
 	ReShadeRegisterOverlayForAddon(nullptr, title, callback);
 }
-void ReShadeRegisterOverlayForAddon(HMODULE module, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
+void ReShadeRegisterOverlayForAddon(void *module, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
 	reshade::addon_info *const info = reshade::find_addon(module != nullptr ? module : static_cast<void *>(callback));
 	if (info == nullptr)
@@ -638,7 +639,7 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 {
 	ReShadeUnregisterOverlayForAddon(nullptr, title, callback);
 }
-void ReShadeUnregisterOverlayForAddon(HMODULE module, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
+void ReShadeUnregisterOverlayForAddon(void *module, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
 	reshade::addon_info *const info = reshade::find_addon(module != nullptr ? module : static_cast<void *>(callback));
 	if (info == nullptr)

@@ -12,7 +12,7 @@
 #include "ini_file.hpp"
 #include <cstring> // std::strlen
 
-void ReShadeLogMessage([[maybe_unused]] HMODULE module, int level, const char *message)
+void ReShadeLogMessage([[maybe_unused]] void *module, int level, const char *message)
 {
 #if RESHADE_ADDON
 	if (reshade::addon_info *const info = reshade::find_addon(module))
@@ -40,7 +40,7 @@ void ReShadeGetBasePath(char *path, size_t *size)
 	}
 }
 
-bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
+bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
 {
 	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
@@ -77,11 +77,11 @@ bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 	return !elements.empty();
 }
 
-void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+void ReShadeSetConfigValue(void *module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	return ReShadeSetConfigArray(module, runtime, section, key, value, value != nullptr ? std::strlen(value) : 0);
 }
-void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
+void ReShadeSetConfigArray(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
 {
 	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
