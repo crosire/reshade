@@ -12,14 +12,8 @@
 static std::shared_mutex s_xinput_mutex;
 static std::weak_ptr<reshade::input_gamepad> s_xinput_instance;
 
-reshade::input_gamepad::input_gamepad(void *module) : _xinput_module(module)
+reshade::input_gamepad::input_gamepad()
 {
-	_xinput_get_state = reinterpret_cast<void *>(GetProcAddress(static_cast<HMODULE>(_xinput_module), "XInputGetState"));
-	assert(_xinput_get_state != nullptr);
-}
-reshade::input_gamepad::~input_gamepad()
-{
-	FreeLibrary(static_cast<HMODULE>(_xinput_module));
 }
 
 std::shared_ptr<reshade::input_gamepad> reshade::input_gamepad::load()
@@ -29,11 +23,7 @@ std::shared_ptr<reshade::input_gamepad> reshade::input_gamepad::load()
 	if (!s_xinput_instance.expired())
 		return s_xinput_instance.lock();
 
-	const HMODULE module = LoadLibrary(XINPUT_DLL);
-	if (module == nullptr)
-		return nullptr;
-
-	const auto instance = std::make_shared<input_gamepad>(module);
+	const auto instance = std::make_shared<input_gamepad>();
 	s_xinput_instance = instance;
 
 	return instance;
@@ -87,7 +77,7 @@ bool reshade::input_gamepad::is_button_released(unsigned int button) const
 void reshade::input_gamepad::next_frame()
 {
 	XINPUT_STATE xstate;
-	if (static_cast<decltype(&XInputGetState)>(_xinput_get_state)(0, &xstate) != ERROR_SUCCESS)
+	if (XInputGetState(0, &xstate))
 	{
 		_buttons = 0;
 		_last_buttons = 0;
