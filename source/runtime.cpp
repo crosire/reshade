@@ -266,9 +266,6 @@ bool reshade::runtime::on_init()
 	_back_buffer_format = api::format_to_default_typed(back_buffer_desc.texture.format);
 	_back_buffer_samples = back_buffer_desc.texture.samples;
 	_back_buffer_color_space = _swapchain->get_color_space();
-	// Workaround for early HDR games, RGBA16F without a color space defined is pretty much guaranteed to be HDR for games
-	if (_back_buffer_format == api::format::r16g16b16a16_float)
-		_back_buffer_color_space = api::color_space::scrgb;
 
 	// Create resolve texture and copy pipeline (do this before creating effect resources, to ensure correct back buffer format is set up)
 	if (back_buffer_desc.texture.samples > 1 ||
