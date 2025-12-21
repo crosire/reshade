@@ -1,3 +1,13 @@
+if(MSVC)
+  add_compile_options(
+    /fp:fast
+  )
+else()
+  add_compile_options(
+    -fPIC
+  )
+endif()
+
 # D3D12On7
 
 add_library(D3D12On7 INTERFACE)
@@ -29,13 +39,7 @@ target_compile_definitions(
   PUBLIC
     FPNG_NO_STDIO
 )
-if(MSVC)
-  target_compile_options(
-    fpng
-    PRIVATE
-      /fp:fast
-  )
-else()
+if(NOT MSVC)
   target_compile_options(
     fpng
     PRIVATE
@@ -148,13 +152,6 @@ target_compile_definitions(
     "$<$<CONFIG:Release>:IMGUI_DISABLE_DEBUG_TOOLS>"
     "$<$<CONFIG:Release>:IMGUI_DEBUG_PRINTF=((void)0)>"
 )
-if(MSVC)
-  target_compile_options(
-    ImGui
-    PRIVATE
-      /fp:fast
-  )
-endif()
 
 # jxl
 
@@ -177,13 +174,6 @@ target_compile_definitions(
   PRIVATE
     main=simple_lossless
 )
-if(MSVC)
-  target_compile_options(
-    jxl
-    PRIVATE
-      /fp:fast
-  )
-endif()
 
 # MinHook
 
@@ -283,13 +273,6 @@ target_compile_definitions(
     STBI_WRITE_NO_STDIO
     _CRT_SECURE_NO_WARNINGS
 )
-if(MSVC)
-  target_compile_options(
-    stb
-    PRIVATE
-      /fp:fast
-  )
-endif()
 
 # utfcpp
 

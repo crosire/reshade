@@ -16,6 +16,7 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 else()
   set(RESHADE_SUFFIX 32)
 endif()
+set_target_properties(ReShade PROPERTIES PREFIX "")
 set_target_properties(ReShade PROPERTIES SUFFIX ${RESHADE_SUFFIX}${CMAKE_SHARED_LIBRARY_SUFFIX})
 
 set(RESHADE_SOURCE
@@ -293,13 +294,13 @@ target_compile_definitions(
     RESHADE_API_LIBRARY_EXPORT
     RESHADE_ADDON=2
     RESHADE_LOCALIZATION
-    "$<$<CONFIG:Debug>:RESHADE_VERBOSE_LOG>"
+    $<$<CONFIG:Debug>:RESHADE_VERBOSE_LOG>
     _GDI32_
     WINSOCK_API_LINKAGE=
     _UNICODE
     _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
-    "$<$<CONFIG:Debug>:_DEBUG>"
-    "$<$<CONFIG:Release>:NDEBUG>"
+    $<$<CONFIG:Debug>:_DEBUG>
+    $<$<CONFIG:Release>:NDEBUG>
 )
 
 if(MSVC)
@@ -324,6 +325,7 @@ else()
     PRIVATE
       -DSTDMETHODCALLTYPE=
       -Wno-changes-meaning
+      -fPIC
       $<$<CONFIG:Release>:-fno-rtti>
   )
 endif()
@@ -382,6 +384,7 @@ else()
   target_compile_options(
     ReShadeFX
     PRIVATE
+      -fPIC
       $<$<CONFIG:Release>:-fno-rtti>
   )
 endif()

@@ -109,7 +109,7 @@ namespace reshadefx
 		std::vector<annotation> annotations;
 		bool render_target = false;
 		bool storage_access = false;
-		uint32_t semantic_binding = std::numeric_limits<uint32_t>::max();
+		uint32_t semantic_binding = 0xFFFFFFFF;
 	};
 
 	/// <summary>

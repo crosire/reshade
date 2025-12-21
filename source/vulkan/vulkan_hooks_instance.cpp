@@ -52,7 +52,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 		// Look up functions in layer info
 		get_instance_proc_addr = link_info->u.pLayerInfo->pfnNextGetInstanceProcAddr;
-		trampoline = reinterpret_cast<PFN_vkCreateInstance>(get_instance_proc_addr(nullptr, "vkCreateInstance"));
+		trampoline = reinterpret_cast<PFN_vkCreateInstance>(get_instance_proc_addr(VK_NULL_HANDLE, "vkCreateInstance"));
 
 		// Advance the link info for the next element of the chain
 		link_info->u.pLayerInfo = link_info->u.pLayerInfo->pNext;

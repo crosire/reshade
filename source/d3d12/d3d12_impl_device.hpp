@@ -15,6 +15,10 @@ struct D3D12DescriptorHeap;
 
 namespace reshade::d3d12
 {
+	class command_list_impl;
+	class command_list_immediate_impl;
+	class command_queue_impl;
+
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
 		friend class command_list_impl;

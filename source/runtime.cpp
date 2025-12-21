@@ -396,7 +396,7 @@ bool reshade::runtime::on_init()
 				break;
 			}
 		}
-	
+
 		if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
 			goto exit_failure;
 	}

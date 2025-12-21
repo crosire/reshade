@@ -12,6 +12,8 @@
 
 namespace reshade::opengl
 {
+	class device_context_impl;
+
 	class device_impl : public api::api_object_impl<HGLRC, api::device>
 	{
 		friend class device_context_impl;

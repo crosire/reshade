@@ -6,6 +6,7 @@
 #pragma once
 
 #include "reshade_api_resource.hpp"
+#include <cstddef>
 
 namespace reshade { namespace api
 {

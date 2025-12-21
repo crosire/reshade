@@ -12,12 +12,18 @@
 #include <vk_mem_alloc.h>
 #pragma warning(pop)
 #include "reshade_api_object_impl.hpp"
+#include <mutex>
 #include <shared_mutex>
+#include <vector>
 #include <unordered_map>
 
 namespace reshade::vulkan
 {
 	template <VkObjectType type> struct object_data;
+
+	class command_list_impl;
+	class command_list_immediate_impl;
+	class command_queue_impl;
 
 	class device_impl : public api::api_object_impl<VkDevice, api::device>
 	{
