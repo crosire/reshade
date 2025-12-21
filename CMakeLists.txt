@@ -350,6 +350,7 @@ target_sources(
       source/effect_symbol_table.hpp
       source/effect_token.hpp
   PRIVATE
+    source/effect_codegen_dxbc.cpp
     source/effect_codegen_glsl.cpp
     source/effect_codegen_hlsl.cpp
     source/effect_codegen_spirv.cpp

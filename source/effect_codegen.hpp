@@ -27,17 +27,20 @@ namespace reshadefx
 		/// <summary>
 		/// Gets the module describing the generated code.
 		/// </summary>
-		const effect_module &module() const { return _module; }
+		effect_module &module() { return _module; }
 
 		/// <summary>
 		/// Finalizes and returns the generated code for the entire module (all entry points).
 		/// </summary>
-		virtual std::basic_string<char> finalize_code() const = 0;
+		virtual std::string finalize_code() const = 0;
 		/// <summary>
-		/// Finalizes and returns the generated code for the specified entry point (and no other entry points).
+		/// Finalizes and assembles the generated code for the specified entry point (and no other entry points).
 		/// </summary>
 		/// <param name="entry_point_name">Name of the entry point function to generate code for.</param>
-		virtual std::basic_string<char> finalize_code_for_entry_point(const std::string &entry_point_name) const = 0;
+		/// <param name="binary">Output binary code.</param>
+		/// <param name="assembly">Output assembly code.</param>
+		/// <param name="errors">Output list of error messages.</param>
+		virtual bool assemble_code_for_entry_point(const std::string &entry_point_name, std::string &binary, std::string &assembly, std::string &errors) const = 0;
 
 	protected:
 		/// <summary>
@@ -405,6 +408,7 @@ namespace reshadefx
 	/// <param name="debug_info">Whether to append debug information like line directives to the generated code.</param>
 	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
 	codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants);
+	codegen *create_codegen_dxbc(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, int optimization_level);
 	/// <summary>
 	/// Creates a back-end implementation for SPIR-V code generation.
 	/// </summary>

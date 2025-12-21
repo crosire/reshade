@@ -4456,8 +4456,8 @@ void reshade::runtime::draw_technique_editor()
 
 						std::string entry_point_name;
 						for (const std::pair<std::string, reshadefx::shader_type> &entry_point : effect.permutations[permutation_index].module.entry_points)
-							if (const auto assembly_it = effect.permutations[permutation_index].assembly_text.find(entry_point.first);
-								assembly_it != effect.permutations[permutation_index].assembly_text.end() && ImGui::MenuItem(entry_point.first.c_str()))
+							if (const auto assembly_it = effect.permutations[permutation_index].assembly.find(entry_point.first);
+								assembly_it != effect.permutations[permutation_index].assembly.end() && ImGui::MenuItem(entry_point.first.c_str()))
 								entry_point_name = entry_point.first;
 
 						ImGui::EndPopup();
@@ -4605,7 +4605,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 		if (instance.entry_point_name.empty())
 			instance.editor.set_text(permutation.generated_code);
 		else
-			instance.editor.set_text(permutation.assembly_text.at(instance.entry_point_name));
+			instance.editor.set_text(permutation.assembly.at(instance.entry_point_name));
 		instance.editor.set_readonly(true);
 		return; // Errors only apply to the effect source, not generated code
 	}

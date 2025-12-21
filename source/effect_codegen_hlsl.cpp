@@ -14,7 +14,7 @@
 
 using namespace reshadefx;
 
-static const char s_matrix_swizzles[16][5] = {
+static inline const char s_matrix_swizzles[16][5] = {
 	"_m00", "_m01", "_m02", "_m03",
 	"_m10", "_m11", "_m12", "_m13",
 	"_m20", "_m21", "_m22", "_m23",
@@ -33,7 +33,7 @@ inline uint32_t align_up(uint32_t size, uint32_t alignment, uint32_t elements)
 	return ((size + alignment) & ~alignment) * (elements - 1) + size;
 }
 
-class codegen_hlsl final : public codegen
+class codegen_hlsl : public codegen
 {
 public:
 	codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants) :
@@ -46,7 +46,7 @@ public:
 		block.reserve(8192);
 	}
 
-private:
+protected:
 	enum class naming
 	{
 		// Name should already be unique, so no additional steps are taken
@@ -74,6 +74,8 @@ private:
 	std::string _remapped_semantics[15];
 	std::vector<std::tuple<type, constant, id>> _constant_lookup;
 	std::vector<sampler_binding> _sampler_lookup;
+
+	unsigned int _texture_semantic_index = 0;
 
 	void optimize_bindings() override
 	{
@@ -222,14 +224,6 @@ private:
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(2) "\n"
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(3) "\n"
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(4) "\n";
-
-			if (!_cbuffer_block.empty())
-			{
-				if (_shader_model >= 60)
-					preamble += "[[vk::binding(0, 0)]] "; // Descriptor set 0
-
-				preamble += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
-			}
 		}
 		else
 		{
@@ -277,8 +271,62 @@ private:
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(2) "\n"
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(3) "\n"
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(4) "\n";
+		}
 
-			if (!_cbuffer_block.empty())
+		if (!_cbuffer_block.empty())
+		{
+			// Apply any specialization constant values set between code generation and assembling
+			for (const uniform &spec_constant : _module.spec_constants)
+			{
+				// Check if this is a split specialization constant and move data accordingly
+				constant initializer_value = spec_constant.initializer_value;
+				if (spec_constant.type.is_scalar() && spec_constant.offset != 0)
+					initializer_value.as_uint[0] = initializer_value.as_uint[spec_constant.offset];
+
+				preamble += "#define SPEC_CONSTANT_" + spec_constant.unique_name + ' ';
+
+				for (unsigned int i = 0; i < spec_constant.type.components(); ++i)
+				{
+					switch (spec_constant.type.base)
+					{
+					case type::t_bool:
+						preamble += initializer_value.as_uint[i] ? "true" : "false";
+						break;
+					case type::t_int:
+						preamble += std::to_string(initializer_value.as_int[i]);
+						break;
+					case type::t_uint:
+						preamble += std::to_string(initializer_value.as_uint[i]);
+						break;
+					case type::t_float:
+						char temp[64];
+						const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), initializer_value.as_float[i]
+#if !defined(_HAS_COMPLETE_CHARCONV) || _HAS_COMPLETE_CHARCONV
+							, std::chars_format::scientific, 8
+#endif
+						);
+						if (res.ec == std::errc())
+							preamble.append(temp, res.ptr);
+						else
+							assert(false);
+						break;
+					}
+
+					if (i + 1 < spec_constant.type.components())
+						preamble += ", ";
+				}
+
+				preamble += '\n';
+			}
+
+			if (_shader_model >= 40)
+			{
+				if (_shader_model >= 60)
+					preamble += "[[vk::binding(0, 0)]] "; // Descriptor set 0
+
+				preamble += "cbuffer _Globals {\n" + _cbuffer_block + "};\n";
+			}
+			else
 			{
 				preamble += _cbuffer_block;
 			}
@@ -308,13 +356,13 @@ private:
 
 		return code;
 	}
-	std::string finalize_code_for_entry_point(const std::string &entry_point_name) const override
+	bool assemble_code_for_entry_point(const std::string &entry_point_name, std::string &code, std::string &, std::string &) const override
 	{
 		const function *const entry_point = find_function(entry_point_name);
 		if (entry_point == nullptr)
-			return {};
+			return false;
 
-		std::string code = finalize_preamble();
+		code = finalize_preamble();
 
 		if (_shader_model < 40 && entry_point->type == shader_type::pixel)
 			// Overwrite position semantic in pixel shaders
@@ -362,7 +410,7 @@ private:
 			code += _blocks.at(func->id);
 		}
 
-		return code;
+		return true;
 	}
 
 	template <bool is_param = false, bool is_decl = true>
@@ -836,6 +884,17 @@ private:
 	{
 		const id res = info.id = make_id();
 
+		if (_shader_model < 40 && !info.semantic.empty())
+		{
+			const std::string pixel_size_variable_name = info.semantic + "_PIXEL_SIZE";
+
+			info.semantic_binding = 224 - (1 + _texture_semantic_index++);
+			assert((_module.total_uniform_size / 16) <= info.semantic_binding);
+
+			if (_blocks.at(0).find(pixel_size_variable_name) == std::string::npos)
+				_blocks.at(0) += "uniform float2 " + pixel_size_variable_name + " : register(c" + std::to_string(info.semantic_binding) + ");\n";
+		}
+
 		_module.textures.push_back(info);
 
 		return res;
@@ -924,7 +983,7 @@ private:
 			}
 			else
 			{
-				// Expect application to set inverse texture size via a define if it is not known here
+				// Expect application to set inverse texture size via a define if it is not known here (see definition in 'define_texture' above)
 				code += tex_info.semantic + "_PIXEL_SIZE";
 			}
 
@@ -2147,7 +2206,9 @@ private:
 	}
 };
 
+#ifndef RESHADEFX_CODEGEN_HLSL_INLINE
 codegen *reshadefx::create_codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants)
 {
 	return new codegen_hlsl(shader_model, debug_info, uniforms_to_spec_constants);
 }
+#endif

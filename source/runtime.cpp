@@ -34,7 +34,6 @@
 #include <stb_image_write.h>
 #include <stb_image_write_hdr_png.h>
 #include <stb_image_resize2.h>
-#include <d3dcompiler.h>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -1537,8 +1536,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	bool preprocessed = effect.preprocessed && permutation_index == 0;
 	bool compiled = effect.compiled && permutation_index == 0;
 	bool source_cached = false;
-	bool skip_optimization = false;
-	std::string code_preamble;
 	std::string source;
 	std::string errors;
 
@@ -1594,18 +1591,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			source = pp.output();
 
-			for (const std::string &pragma : pp.used_pragma_directives())
-			{
-				if (pragma == "reshade skipoptimization" || pragma == "reshade nooptimization")
-				{
-					skip_optimization = true;
-					continue;
-				}
-
-				code_preamble += pragma + '\n';
-				source = "// " + pragma + '\n' + source;
-			}
-
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
 			{
@@ -1622,16 +1607,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				source = "// " + definition.first + '=' + definition.second + '\n' + source;
 			}
 
-			std::sort(preprocessor_definitions.begin(), preprocessor_definitions.end());
-
-			// Do not cache if any special pragma directives were used, to ensure they are read again next time
-			if (!skip_optimization)
-				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
+			source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 
 		if (permutation_index == 0)
 		{
 			effect.definitions = std::move(preprocessor_definitions);
+			std::sort(effect.definitions.begin(), effect.definitions.end());
 
 			// Keep track of included files
 			effect.included_files = pp.included_files();
@@ -1646,7 +1628,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			effect.definitions.clear();
 
-			// Read used preprocessor definitions and pragmas from the cached source
+			// Read used preprocessor definitions from the cached source
 			for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
 			{
 				offset += 3;
@@ -1654,11 +1636,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (next == std::string::npos)
 					break;
 
-				if (source.compare(offset, 7, "#pragma") == 0)
-				{
-					code_preamble += source.substr(offset, (next + 1) - offset);
-				}
-				else if (const size_t equals_index = source.find('=', offset);
+				if (const size_t equals_index = source.find('=', offset);
 					equals_index != std::string::npos)
 				{
 					effect.definitions.emplace_back(
@@ -1687,7 +1665,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			shader_model = 51; // D3D12
 
 		if ((_renderer_id & 0xF0000) == 0)
-			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, !_no_debug_info, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_dxbc(shader_model, !_no_debug_info, _performance_mode, _performance_mode ? 3 : 1));
 		else if (_renderer_id < 0x20000)
 			codegen.reset(reshadefx::create_codegen_glsl(false, !_no_debug_info, _performance_mode, false, true));
 		else // Vulkan uses SPIR-V input
@@ -1699,12 +1677,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		compiled = parser.parse(std::move(source), codegen.get());
 
 		// Append parser errors to the error list
-		errors += parser.errors();
+		errors  += parser.errors();
 
 		// Write result to effect module
 		permutation.module = codegen->module();
-		if (_device->get_api() != api::device_api::vulkan)
-			permutation.generated_code = codegen->finalize_code();
 
 		if (compiled)
 		{
@@ -1873,49 +1849,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						preset.get(effect_name, spec_constant.name, spec_constant.initializer_value.as_float);
 						break;
 					}
-
-					// Check if this is a split specialization constant and move data accordingly
-					if (spec_constant.type.is_scalar() && spec_constant.offset != 0)
-						spec_constant.initializer_value.as_uint[0] = spec_constant.initializer_value.as_uint[spec_constant.offset];
-
-					if (_renderer_id >= 0x20000)
-						continue;
-
-					code_preamble += "#define SPEC_CONSTANT_" + spec_constant.unique_name + ' ';
-
-					for (unsigned int i = 0; i < spec_constant.type.components(); ++i)
-					{
-						switch (spec_constant.type.base)
-						{
-						case reshadefx::type::t_bool:
-							code_preamble += spec_constant.initializer_value.as_uint[i] ? "true" : "false";
-							break;
-						case reshadefx::type::t_int:
-							code_preamble += std::to_string(spec_constant.initializer_value.as_int[i]);
-							break;
-						case reshadefx::type::t_uint:
-							code_preamble += std::to_string(spec_constant.initializer_value.as_uint[i]);
-							break;
-						case reshadefx::type::t_float:
-							char temp[64];
-							const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), spec_constant.initializer_value.as_float[i]
-#if !defined(_HAS_COMPLETE_CHARCONV) || _HAS_COMPLETE_CHARCONV
-								, std::chars_format::scientific, 8
-#endif
-								);
-							if (res.ec == std::errc())
-								code_preamble.append(temp, res.ptr);
-							else
-								assert(false);
-							break;
-						}
-
-						if (i + 1 < spec_constant.type.components())
-							code_preamble += ", ";
-					}
-
-					code_preamble += '\n';
 				}
+
+				// Update specialization constant values for when code is generated below in 'finalize_code' and 'assemble_code_for_entry_point'
+				codegen->module().spec_constants = permutation.module.spec_constants;
 			}
 		}
 		else if (!preprocessed)
@@ -1924,11 +1861,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			return load_effect(source_file, preset, effect_index, permutation_index, force_load, true);
 		}
+
+		permutation.generated_code = codegen->finalize_code();
 	}
 
 	if ((preprocessed || source_cached) && compiled)
 	{
-		if (permutation.assembly.empty())
+		if (permutation.cso.empty())
 		{
 			// Compile shader modules
 			for (const std::pair<std::string, reshadefx::shader_type> &entry_point : permutation.module.entry_points)
@@ -1940,184 +1879,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					break;
 				}
 
-				std::string &cso = permutation.assembly[entry_point.first];
-				std::string &cso_text = permutation.assembly_text[entry_point.first];
+				std::string &cso = permutation.cso[entry_point.first];
+				std::string &assembly = permutation.assembly[entry_point.first];
 
-				if ((_renderer_id & 0xF0000) == 0)
+				const std::string cache_id = source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash) + '-' + entry_point.first;
+
+				if (load_effect_cache(cache_id, "cso", cso) &&
+					load_effect_cache(cache_id, "asm", assembly))
 				{
-					assert(_d3d_compiler_module != nullptr);
-
-					// Copy string, since this has to be repeated for every entry point
-					std::string hlsl = code_preamble;
-
-					if (_renderer_id == 0x9000)
-					{
-						// Create SEMANTIC_PIXEL_SIZE constants
-						hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_effect_permutations[permutation_index].width) + ", 1.0 / " + std::to_string(_effect_permutations[permutation_index].height) + '\n';
-
-						uint32_t semantic_index = 0;
-						for (const reshadefx::texture &tex : permutation.module.textures)
-						{
-							if (tex.semantic.empty() || tex.semantic == "COLOR")
-								continue;
-
-							semantic_index++;
-							assert((effect.uniform_data_storage.size() / 16) <= (224 - semantic_index));
-
-							// Avoid duplicate declarations if the semantic was used multiple times
-							if (hlsl.find(tex.semantic + "_PIXEL_SIZE") == std::string::npos)
-								hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(224 - semantic_index) + ");\n";
-						}
-					}
-
-					hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-					hlsl += codegen->finalize_code_for_entry_point(entry_point.first);
-
-					std::string profile;
-					switch (entry_point.second)
-					{
-					case reshadefx::shader_type::vertex:
-						profile = "vs";
-						break;
-					case reshadefx::shader_type::pixel:
-						profile = "ps";
-						break;
-					case reshadefx::shader_type::compute:
-						profile = "cs";
-						break;
-					}
-
-					switch (_renderer_id)
-					{
-					default:
-					case D3D_FEATURE_LEVEL_11_0:
-						profile += "_5_0";
-						break;
-					case D3D_FEATURE_LEVEL_10_1:
-						profile += "_4_1";
-						break;
-					case D3D_FEATURE_LEVEL_10_0:
-						profile += "_4_0";
-						break;
-					case D3D_FEATURE_LEVEL_9_1:
-					case D3D_FEATURE_LEVEL_9_2:
-						profile += "_4_0_level_9_1";
-						break;
-					case D3D_FEATURE_LEVEL_9_3:
-						profile += "_4_0_level_9_3";
-						break;
-					case 0x9000:
-						profile += "_3_0";
-						break;
-					}
-
-					UINT compile_flags = 0;
-					if (skip_optimization)
-						compile_flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-					else if (_performance_mode)
-						compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-					if (_renderer_id >= D3D_FEATURE_LEVEL_10_0)
-						compile_flags |= D3DCOMPILE_ENABLE_STRICTNESS;
-#ifndef NDEBUG
-					compile_flags |= D3DCOMPILE_DEBUG;
-#endif
-
-					std::string hlsl_attributes;
-					hlsl_attributes += "entrypoint=" + entry_point.first + ';';
-					hlsl_attributes += "profile=" + profile + ';';
-					hlsl_attributes += "flags=" + std::to_string(compile_flags) + ';';
-
-					const std::string cache_id =
-						effect.source_file.stem().u8string() + '-' + entry_point.first + '-' + std::to_string(_renderer_id) + '-' +
-						std::to_string(std::hash<std::string_view>()(hlsl_attributes) ^ std::hash<std::string_view>()(hlsl));
-
-					if (!load_effect_cache(cache_id, "cso", cso))
-					{
-						const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
-						assert(D3DCompile != nullptr);
-
-						com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-						const HRESULT hr = D3DCompile(
-							hlsl.data(), hlsl.size(),
-							nullptr, nullptr, nullptr,
-							entry_point.first.c_str(),
-							profile.c_str(),
-							compile_flags, 0,
-							&d3d_compiled, &d3d_errors);
-
-						std::string d3d_errors_string;
-						if (d3d_errors != nullptr) // Append warnings to the output error string as well
-							d3d_errors_string.assign(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-						d3d_errors.reset();
-
-						// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-						for (size_t line_offset = 0, next_line_offset; (next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
-						{
-							const std::string_view cur_line(d3d_errors_string.data() + line_offset, next_line_offset - line_offset);
-
-							if (const size_t end_offset = d3d_errors_string.find('\n', next_line_offset + 1);
-								end_offset != std::string::npos)
-							{
-								const std::string_view next_line(d3d_errors_string.data() + next_line_offset + 1, end_offset - next_line_offset - 1);
-								if (cur_line == next_line)
-								{
-									d3d_errors_string.erase(next_line_offset, end_offset - next_line_offset);
-									next_line_offset = line_offset - 1;
-								}
-							}
-
-							// Also remove D3DCompiler warnings about 'groupshared' specifier used in VS/PS modules
-							if (cur_line.find("X3579") != std::string_view::npos)
-							{
-								d3d_errors_string.erase(line_offset, next_line_offset + 1 - line_offset);
-								next_line_offset = line_offset - 1;
-							}
-						}
-
-						if (FAILED(hr))
-						{
-							// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
-							if (d3d_errors_string.find("error") == std::string::npos)
-								errors += "error: " + entry_point.first + ": ";
-
-							errors += d3d_errors_string;
-							compiled = false;
-							break;
-						}
-						else
-						{
-							// Append warnings
-							errors += d3d_errors_string;
-						}
-
-						cso.resize(d3d_compiled->GetBufferSize());
-						std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
-
-						save_effect_cache(cache_id, "cso", cso);
-					}
-
-					if (!load_effect_cache(cache_id, "asm", cso_text))
-					{
-						const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
-						assert(D3DDisassemble != nullptr);
-
-						com_ptr<ID3DBlob> d3d_disassembled;
-						if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-							cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
-
-						save_effect_cache(cache_id, "asm", cso_text);
-					}
+					continue;
 				}
 				else
 				{
-					cso = codegen->finalize_code_for_entry_point(entry_point.first);
-
-					if (_renderer_id < 0x20000)
+					if (!codegen->assemble_code_for_entry_point(entry_point.first, cso, assembly, errors))
 					{
-						cso.insert(std::size("#version 430\n") - 1, code_preamble);
-
-						cso_text = cso;
+						compiled = false;
+						break;
 					}
+
+					save_effect_cache(cache_id, "cso", cso);
+					save_effect_cache(cache_id, "asm", assembly);
 				}
 			}
 		}
@@ -2554,7 +2335,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 			if (!pass.cs_entry_point.empty())
 			{
 				api::shader_desc cs_desc = {};
-				const std::string &cs = permutation.assembly.at(pass.cs_entry_point);
+				const std::string &cs = permutation.cso.at(pass.cs_entry_point);
 				cs_desc.code = cs.data();
 				cs_desc.code_size = cs.size();
 				if (_renderer_id & 0x20000)
@@ -2580,7 +2361,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 				api::shader_desc vs_desc = {};
 				if (!pass.vs_entry_point.empty())
 				{
-					const std::string &vs = permutation.assembly.at(pass.vs_entry_point);
+					const std::string &vs = permutation.cso.at(pass.vs_entry_point);
 					vs_desc.code = vs.data();
 					vs_desc.code_size = vs.size();
 					if (_renderer_id & 0x20000)
@@ -2597,7 +2378,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 				api::shader_desc ps_desc = {};
 				if (!pass.ps_entry_point.empty())
 				{
-					const std::string &ps = permutation.assembly.at(pass.ps_entry_point);
+					const std::string &ps = permutation.cso.at(pass.ps_entry_point);
 					ps_desc.code = ps.data();
 					ps_desc.code_size = ps.size();
 					if (_renderer_id & 0x20000)
@@ -3513,28 +3294,6 @@ void reshade::runtime::load_effects(bool force_load_all)
 	// Have to be initialized at this point or else the threads spawned below will immediately exit without reducing the remaining effects count
 	assert(_is_initialized);
 
-	// Ensure HLSL compiler is loaded before trying to compile effects in Direct3D
-	if (_d3d_compiler_module == nullptr && (_renderer_id & 0xF0000) == 0)
-	{
-		// Prefer loading up-to-date system D3DCompiler DLL over local variants
-		// Do not check system path when running in Wine though, since the D3DCompiler DLL there does not support various features
-		const auto ntdll_module = GetModuleHandleW(L"ntdll.dll");
-		assert(ntdll_module != nullptr);
-		if (GetProcAddress(ntdll_module, "wine_get_version") == nullptr)
-		{
-			extern std::filesystem::path get_system_path();
-			_d3d_compiler_module = LoadLibraryW((get_system_path() / L"d3dcompiler_47.dll").c_str());
-		}
-
-		if ((_d3d_compiler_module == nullptr) &&
-			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
-			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
-		{
-			log::message(log::level::error, "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!");
-			return;
-		}
-	}
-
 	// Reload preprocessor definitions from current preset before compiling to avoid having to recompile again when preset is applied in 'update_effects'
 	_preset_preprocessor_definitions.clear();
 	preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions[{}]);
@@ -3637,13 +3396,6 @@ void reshade::runtime::destroy_effects()
 	for (const auto &[hash, sampler] : _effect_sampler_states)
 		_device->destroy_sampler(sampler);
 	_effect_sampler_states.clear();
-
-	// Unload HLSL compiler which was previously loaded in 'load_effects' above
-	if (_d3d_compiler_module)
-	{
-		FreeLibrary(static_cast<HMODULE>(_d3d_compiler_module));
-		_d3d_compiler_module = nullptr;
-	}
 
 	// Textures and techniques should have been cleaned up by the calls to 'destroy_effect' above
 	assert(_textures.empty());
@@ -3913,7 +3665,7 @@ void reshade::runtime::update_effects()
 
 		const effect::permutation &permutation = effect.permutations[permutation_index];
 
-		if (permutation.assembly_text.find(instance.entry_point_name) != permutation.assembly_text.end())
+		if (permutation.assembly.find(instance.entry_point_name) != permutation.assembly.end())
 			open_code_editor(instance);
 	}
 #endif
@@ -4183,7 +3935,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 			continue;
 
 		if (permutation_index >= tech.permutations.size() ||
-			(!tech.permutations[permutation_index].created && _effects[effect_index].permutations[permutation_index].assembly.empty()))
+			(!tech.permutations[permutation_index].created && _effects[effect_index].permutations[permutation_index].cso.empty()))
 		{
 			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(effect_index, permutation_index)) == _reload_required_effects.end())
 				_reload_required_effects.emplace_back(effect_index, permutation_index);
@@ -4403,17 +4155,22 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 				};
 				cmd_list->push_constants(api::shader_stage::vertex, permutation.layout, 0, 255 * 4, 4, texel_size);
 
-				// Set SEMANTIC_PIXEL_SIZE constants (see 'load_effect' above)
-				uint32_t semantic_index = 0;
+				// Set SEMANTIC_PIXEL_SIZE constants (see effect_codegen_hlsl.cpp)
 				for (const reshadefx::texture &tex : permutation.module.textures)
 				{
-					if (tex.semantic.empty() || tex.semantic == "COLOR")
+					if (tex.semantic.empty())
 						continue;
 
-					semantic_index++;
+					if (tex.semantic == "COLOR")
+					{
+						const float pixel_size[4] = {
+							1.0f / _effect_permutations[permutation_index].width,
+							1.0f / _effect_permutations[permutation_index].height
+						};
 
-					if (const auto it = _texture_semantic_bindings.find(tex.semantic);
-						it != _texture_semantic_bindings.end())
+						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, permutation.layout, 0, tex.semantic_binding * 4, 4, pixel_size);
+					}
+					else if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
 					{
 						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
 
@@ -4422,7 +4179,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 							1.0f / desc.texture.height
 						};
 
-						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, permutation.layout, 0, (244 - semantic_index) * 4, 4, pixel_size);
+						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, permutation.layout, 0, tex.semantic_binding * 4, 4, pixel_size);
 					}
 				}
 			}

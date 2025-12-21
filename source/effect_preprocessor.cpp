@@ -707,8 +707,6 @@ void reshadefx::preprocessor::parse_pragma()
 
 	// Convert preprocessor pragma directive to pragma operator
 	_output += "_Pragma(\"" + pragma + "\")\n";
-
-	_used_pragmas.emplace_back(std::move(pragma));
 }
 
 void reshadefx::preprocessor::parse_include()
