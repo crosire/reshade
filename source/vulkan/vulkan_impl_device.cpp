@@ -1824,8 +1824,10 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		data.binding_to_offset.reserve(range_count);
 
 		std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
+		std::vector<VkDescriptorSetLayoutCreateFlags> internal_binding_flags;
 		std::vector<std::vector<VkSampler>> internal_samplers;
 		internal_bindings.reserve(range_count);
+		internal_binding_flags.reserve(range_count);
 		internal_samplers.reserve(range_count);
 
 		for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_static_samplers ? range + 1 : reinterpret_cast<const api::descriptor_range_with_static_samplers *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
@@ -1850,7 +1852,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 			if (with_static_samplers && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && range->static_samplers != nullptr)
 			{
-				if (range->array_size != 1)
+				if (range->array_size != 1 || range->count == UINT32_MAX)
 					goto exit_failure;
 
 				std::vector<VkSampler> &internal_binding_samplers = internal_samplers.emplace_back();
@@ -1872,7 +1874,14 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 			}
 
 			if (range->count == UINT32_MAX)
-				continue; // Skip unbounded ranges
+			{
+				internal_binding_flags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
+				break; // Unbounded range must be the last binding
+			}
+			else
+			{
+				internal_binding_flags.push_back(0);
+			}
 
 			// Add additional bindings if the total descriptor count exceeds the array size of the binding
 			for (uint32_t j = 0; j < (range->count - range->array_size); ++j)
@@ -1886,10 +1895,16 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 				additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
 
 				offset += additional_binding.descriptorCount;
+
+				internal_binding_flags.push_back(0);
 			}
 		}
 
-		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+		binding_flags_info.bindingCount = static_cast<uint32_t>(internal_binding_flags.size());
+		binding_flags_info.pBindingFlags = internal_binding_flags.data();
+
+		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, &binding_flags_info };
 		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
 		create_info.pBindings = internal_bindings.data();
 

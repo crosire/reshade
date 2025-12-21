@@ -1802,7 +1802,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	reshade::api::pipeline_layout_param *param_data = params.data();
 
-	if (pAllocator == nullptr && // Cannot replace pipeline layout if custom allocator is used, since corresponding 'vkDestroyPipeline' would be called with mismatching allocator callbacks
+	if (pAllocator == nullptr && // Cannot replace pipeline layout if custom allocator is used, since corresponding 'vkDestroyPipelineLayout' would be called with mismatching allocator callbacks
 		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, param_count, param_data))
 	{
 		static_assert(sizeof(*pPipelineLayout) == sizeof(reshade::api::pipeline_layout));
@@ -1936,6 +1936,9 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 	{
 		assert(pCreateInfo->pBindings != nullptr);
 
+		const auto binding_flags_info = find_in_structure_chain<VkDescriptorSetLayoutBindingFlagsCreateInfo>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO);
+
 		bool has_static_samplers = false;
 
 		data.ranges_with_static_samplers.resize(pCreateInfo->bindingCount);
@@ -1963,10 +1966,18 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 			range.dx_register_index = 0;
 			range.dx_register_space = 0;
 			range.count = binding.descriptorCount;
+			range.visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
 			range.array_size = binding.descriptorCount;
 			range.type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
-			range.visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
 			range.static_samplers = data.static_samplers[i].data();
+
+			if (binding_flags_info != nullptr && i < binding_flags_info->bindingCount)
+			{
+				const VkDescriptorBindingFlags binding_flags = binding_flags_info->pBindingFlags[i];
+
+				if ((binding_flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0)
+					range.count = UINT32_MAX;
+			}
 
 			data.num_descriptors += binding.descriptorCount;
 		}
