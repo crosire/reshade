@@ -11,11 +11,6 @@
 #include <Windows.h>
 #include <Psapi.h>
 #include <delayimp.h> // Delay-load helpers
-#ifndef NDEBUG
-#include <DbgHelp.h>
-
-static PVOID s_exception_handler_handle = nullptr;
-#endif
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
@@ -122,6 +117,12 @@ std::filesystem::path get_module_path(HMODULE module)
 }
 
 #ifndef RESHADE_TEST_APPLICATION
+
+#ifndef NDEBUG
+#include <DbgHelp.h>
+
+static PVOID s_exception_handler_handle = nullptr;
+#endif
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
@@ -366,7 +367,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			reshade::log::message(reshade::log::level::info, "Initialized.");
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON >= 2
 			// It is not safe to call 'LoadLibrary' from 'DllMain', but there are cases where add-ons want to be loaded as early as possible, so at least give the option
 			if (config.get("ADDON", "LoadFromDllMain"))
 			{
@@ -379,7 +380,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 		{
 			reshade::log::message(reshade::log::level::info, "Exiting ...");
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON >= 2
 			if (reshade::has_loaded_addons())
 			{
 				if (reshade::global_config().get("ADDON", "LoadFromDllMain"))
