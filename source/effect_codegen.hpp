@@ -409,6 +409,7 @@ namespace reshadefx
 	/// <param name="uniforms_to_spec_constants">Whether to convert uniform variables to specialization constants.</param>
 	codegen *create_codegen_hlsl(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants);
 	codegen *create_codegen_dxbc(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, int optimization_level);
+	codegen *create_codegen_dxil(unsigned int shader_model, bool debug_info, bool uniforms_to_spec_constants, int optimization_level);
 	/// <summary>
 	/// Creates a back-end implementation for SPIR-V code generation.
 	/// </summary>

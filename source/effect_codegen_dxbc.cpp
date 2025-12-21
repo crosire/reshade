@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 Patrick Mours
+ * Copyright (C) 2025 Patrick Mours
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
@@ -33,24 +33,10 @@ public:
 		if (!codegen_hlsl::assemble_code_for_entry_point(entry_point_name, hlsl, hlsl, errors))
 			return false;
 
-		std::string profile;
-		switch (entry_point_it->second)
-		{
-		case shader_type::vertex:
-			profile = "vs";
-			break;
-		case shader_type::pixel:
-			profile = "ps";
-			break;
-		case shader_type::compute:
-			profile = "cs";
-			break;
-		}
-
-		profile += '_';
-		profile += '0' + (_shader_model / 10) % 10;
-		profile += '_';
-		profile += '0' + (_shader_model % 10);
+		CHAR profile[] = "cs_0_0";
+		profile[0] = entry_point_it->second == shader_type::vertex ? 'v' : entry_point_it->second == shader_type::pixel ? 'p' : 'c';
+		profile[3] = '0' + (_shader_model / 10) % 10;
+		profile[5] = '0' + (_shader_model % 10);
 
 		UINT compile_flags = 0;
 		if (_optimization_level < 0)
@@ -74,7 +60,7 @@ public:
 		com_ptr<ID3DBlob> d3d_compiled;
 		com_ptr<ID3DBlob> d3d_disassembled;
 
-		const HRESULT hr = D3DCompile(hlsl.data(), hlsl.size(), nullptr, nullptr, nullptr, entry_point_name.c_str(), profile.c_str(), compile_flags, 0, &d3d_compiled, &d3d_errors);
+		const HRESULT hr = D3DCompile(hlsl.data(), hlsl.size(), nullptr, nullptr, nullptr, entry_point_name.c_str(), profile, compile_flags, 0, &d3d_compiled, &d3d_errors);
 
 		if (d3d_errors != nullptr) // Append warnings to the output error string as well
 		{
