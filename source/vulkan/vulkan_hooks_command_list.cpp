@@ -730,7 +730,7 @@ void VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcImage, 
 				static_cast<uint32_t>(region.dstOffsets[0].z),
 				static_cast<uint32_t>(region.dstOffsets[1].x),
 				static_cast<uint32_t>(region.dstOffsets[1].y),
-				static_cast<uint32_t>(region.dstOffsets[1].z) + region.srcSubresource.layerCount,
+				static_cast<uint32_t>(region.dstOffsets[1].z) + region.dstSubresource.layerCount,
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
