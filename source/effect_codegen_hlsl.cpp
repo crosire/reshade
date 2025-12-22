@@ -14,13 +14,6 @@
 
 using namespace reshadefx;
 
-static inline const char s_matrix_swizzles[16][5] = {
-	"_m00", "_m01", "_m02", "_m03",
-	"_m10", "_m11", "_m12", "_m13",
-	"_m20", "_m21", "_m22", "_m23",
-	"_m30", "_m31", "_m32", "_m33"
-};
-
 inline char to_digit(unsigned int value)
 {
 	assert(value < 10);
@@ -1385,6 +1378,12 @@ protected:
 				break;
 			case expression::operation::op_matrix_swizzle:
 				expr_code += '.';
+				static constexpr const char *s_matrix_swizzles[16] = {
+					"_m00", "_m01", "_m02", "_m03",
+					"_m10", "_m11", "_m12", "_m13",
+					"_m20", "_m21", "_m22", "_m23",
+					"_m30", "_m31", "_m32", "_m33"
+				};
 				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 					expr_code += s_matrix_swizzles[op.swizzle[i]];
 				break;
@@ -1437,6 +1436,12 @@ protected:
 				break;
 			case expression::operation::op_matrix_swizzle:
 				code += '.';
+				static constexpr const char *s_matrix_swizzles[16] = {
+					"_m00", "_m01", "_m02", "_m03",
+					"_m10", "_m11", "_m12", "_m13",
+					"_m20", "_m21", "_m22", "_m23",
+					"_m30", "_m31", "_m32", "_m33"
+				};
 				for (int i = 0; i < 4 && op.swizzle[i] >= 0; ++i)
 					code += s_matrix_swizzles[op.swizzle[i]];
 				break;

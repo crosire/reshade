@@ -6,7 +6,6 @@
 #pragma once
 
 #include "effect_symbol_table.hpp"
-#include <memory> // std::unique_ptr
 
 namespace reshadefx
 {
@@ -21,9 +20,9 @@ namespace reshadefx
 		~parser();
 
 		/// <summary>
-		/// Parses the provided input string.
+		/// Parses the provided source code and generate code for it.
 		/// </summary>
-		/// <param name="source">String to analyze.</param>
+		/// <param name="source">Source code string to parse.</param>
 		/// <param name="backend">Code generation implementation to use.</param>
 		/// <returns><see langword="true"/> if parsing was successfull, <see langword="false"/> otherwise.</returns>
 		bool parse(std::string source, class codegen *backend);
@@ -76,7 +75,7 @@ namespace reshadefx
 
 		std::string _errors;
 
-		std::unique_ptr<class lexer> _lexer;
+		class lexer *_lexer = nullptr;
 		class codegen *_codegen = nullptr;
 
 		token _token;
