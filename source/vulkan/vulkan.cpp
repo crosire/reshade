@@ -15,14 +15,18 @@ extern lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #define RESHADE_VULKAN_HOOK_PROC(name) \
-	if (0 == std::strcmp(pName, "vk" #name)) \
+	if (0 == std::strcmp(name_without_prefix, #name)) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
 #define RESHADE_VULKAN_HOOK_PROC_OPTIONAL(name, suffix) \
-	if (0 == std::strcmp(pName, "vk" #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
+	if (0 == std::strcmp(name_without_prefix, #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
 
 PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
+	if (pName == nullptr || pName[0] != 'v' || pName[1] != 'k')
+		return nullptr;
+	const char *name_without_prefix = pName + 2;
+
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
 	RESHADE_VULKAN_HOOK_PROC(DestroyDevice);
 
@@ -297,6 +301,10 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 
 PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
 {
+	if (pName == nullptr || pName[0] != 'v' || pName[1] != 'k')
+		return nullptr;
+	const char *name_without_prefix = pName + 2;
+
 	// Core 1_0
 	RESHADE_VULKAN_HOOK_PROC(CreateInstance);
 	RESHADE_VULKAN_HOOK_PROC(DestroyInstance);

@@ -640,10 +640,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 		}
 
 		const auto glad_load = [](void *user, const char *name) -> GLADapiproc {
-			if (0 == std::strcmp(name, "vkCreateInstance") ||
-				0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties") ||
-				0 == std::strcmp(name, "vkEnumerateInstanceLayerProperties") ||
-				0 == std::strcmp(name, "vkEnumerateInstanceVersion"))
+			const char *name_without_prefix = name + 2; // Skip "vk" prefix
+
+			if (0 == std::strcmp(name_without_prefix, "CreateInstance") ||
+				0 == std::strcmp(name_without_prefix, "EnumerateInstanceExtensionProperties") ||
+				0 == std::strcmp(name_without_prefix, "EnumerateInstanceLayerProperties") ||
+				0 == std::strcmp(name_without_prefix, "EnumerateInstanceVersion"))
 				return reinterpret_cast<GLADapiproc>(vkGetInstanceProcAddr(VK_NULL_HANDLE, name));
 
 			const auto &vulkan_instance_and_device = *static_cast<const vulkan_instance_and_device_type *>(user);
@@ -651,16 +653,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 				return nullptr;
 
 			// Need to distinguish between instance and device functions
-			if (0 == std::strcmp(name, "vkGetInstanceProcAddr") ||
-				0 == std::strcmp(name, "vkDestroyInstance") ||
-				0 == std::strcmp(name, "vkGetDeviceProcAddr") ||
-				0 == std::strcmp(name, "vkCreateDevice") ||
-				0 == std::strcmp(name, "vkSubmitDebugUtilsMessageEXT") ||
-				0 == std::strcmp(name, "vkCreateDebugUtilsMessengerEXT") ||
-				0 == std::strcmp(name, "vkDestroyDebugUtilsMessengerEXT") ||
-				(std::strstr(name, "Properties") != nullptr && std::strstr(name, "AccelerationStructures") == nullptr && std::strstr(name, "Handle") == nullptr) ||
-				(std::strstr(name, "Surface") != nullptr && std::strstr(name, "DeviceGroupSurface") == nullptr) ||
-				(std::strstr(name, "PhysicalDevice") != nullptr))
+			if (0 == std::strcmp(name_without_prefix, "GetInstanceProcAddr") ||
+				0 == std::strcmp(name_without_prefix, "DestroyInstance") ||
+				0 == std::strcmp(name_without_prefix, "GetDeviceProcAddr") ||
+				0 == std::strcmp(name_without_prefix, "CreateDevice") ||
+				0 == std::strcmp(name_without_prefix, "SubmitDebugUtilsMessageEXT") ||
+				0 == std::strcmp(name_without_prefix, "CreateDebugUtilsMessengerEXT") ||
+				0 == std::strcmp(name_without_prefix, "DestroyDebugUtilsMessengerEXT") ||
+				(std::strstr(name_without_prefix, "Properties") != nullptr && std::strstr(name_without_prefix, "AccelerationStructures") == nullptr && std::strstr(name_without_prefix, "Handle") == nullptr) ||
+				(std::strstr(name_without_prefix, "Surface") != nullptr && std::strstr(name_without_prefix, "DeviceGroupSurface") == nullptr) ||
+				(std::strstr(name_without_prefix, "PhysicalDevice") != nullptr))
 				return reinterpret_cast<GLADapiproc>(vkGetInstanceProcAddr(vulkan_instance_and_device.instance_handle, name));
 
 			if (vulkan_instance_and_device.device_handle == VK_NULL_HANDLE)
