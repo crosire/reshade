@@ -175,12 +175,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 			if (0 == std::strcmp(name_without_prefix, "EnumerateInstanceExtensionProperties"))
 				return reinterpret_cast<GLADapiproc>(instance.dispatch_table.EnumerateInstanceExtensionProperties);
 
-			const bool global =
-				0 == std::strcmp(name_without_prefix, "CreateInstance") ||
-				0 == std::strcmp(name_without_prefix, "EnumerateInstanceLayerProperties") ||
-				0 == std::strcmp(name_without_prefix, "EnumerateInstanceVersion");
-
-			const PFN_vkVoidFunction instance_proc_address = instance.dispatch_table.GetInstanceProcAddr(global ? VK_NULL_HANDLE : instance.handle, name);
+			const PFN_vkVoidFunction instance_proc_address = instance.dispatch_table.GetInstanceProcAddr(instance.handle, name);
 			return reinterpret_cast<GLADapiproc>(instance_proc_address);
 		}, &instance);
 
