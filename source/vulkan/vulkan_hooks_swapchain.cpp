@@ -29,7 +29,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateSwapchainKHR(device = %p, pCreateInfo = %p, pAllocator = %p, pSwapchain = %p) ...", device, pCreateInfo, pAllocator, pSwapchain);
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(CreateSwapchainKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CreateSwapchainKHR, device_impl);
 
 	assert(pCreateInfo != nullptr && pSwapchain != nullptr);
 
@@ -368,7 +368,7 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 		return;
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(DestroySwapchainKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(DestroySwapchainKHR, device_impl);
 
 	// Remove swap chain from global list
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
@@ -410,7 +410,7 @@ VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapch
 	assert(pImageIndex != nullptr);
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(AcquireNextImageKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(AcquireNextImageKHR, device_impl);
 
 	const VkResult result = trampoline(device, swapchain, timeout, semaphore, fence, pImageIndex);
 	if (result == VK_SUCCESS)
@@ -432,7 +432,7 @@ VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextI
 	assert(pAcquireInfo != nullptr && pImageIndex != nullptr);
 
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(AcquireNextImage2KHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(AcquireNextImage2KHR, device_impl);
 
 	const VkResult result = trampoline(device, pAcquireInfo, pImageIndex);
 	if (result == VK_SUCCESS)
@@ -558,7 +558,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	device_impl->advance_transient_descriptor_pool();
 
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(QueuePresentKHR, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(QueuePresentKHR, device_impl);
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const VkResult result = trampoline(queue, &present_info);
@@ -586,7 +586,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 VkResult VKAPI_CALL vkAcquireFullScreenExclusiveModeEXT(VkDevice device, VkSwapchainKHR swapchain)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(AcquireFullScreenExclusiveModeEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(AcquireFullScreenExclusiveModeEXT, device_impl);
 
 #if RESHADE_ADDON
 	if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
@@ -599,7 +599,7 @@ VkResult VKAPI_CALL vkAcquireFullScreenExclusiveModeEXT(VkDevice device, VkSwapc
 VkResult VKAPI_CALL vkReleaseFullScreenExclusiveModeEXT(VkDevice device, VkSwapchainKHR swapchain)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(ReleaseFullScreenExclusiveModeEXT, device_impl);
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(ReleaseFullScreenExclusiveModeEXT, device_impl);
 
 #if RESHADE_ADDON
 	if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))

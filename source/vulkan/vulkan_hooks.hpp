@@ -53,9 +53,9 @@ struct vulkan_instance
 	GladVulkanContext dispatch_table;
 };
 
-#define RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR_FROM(name, data) \
-	assert((data) != nullptr); \
-	PFN_vk##name trampoline = (data)->_dispatch_table.name; \
+#define RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(name, device) \
+	assert((device) != nullptr); \
+	PFN_vk##name trampoline = (device)->_dispatch_table.name; \
 	assert(trampoline != nullptr)
 #define RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(name, object) \
 	PFN_vk##name trampoline = g_vulkan_instances.at(dispatch_key_from_handle(object)).dispatch_table.name; \
