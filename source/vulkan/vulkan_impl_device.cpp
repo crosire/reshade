@@ -145,6 +145,24 @@ bool reshade::vulkan::device_impl::get_property(api::device_properties property,
 	switch (property)
 	{
 	case api::device_properties::api_version:
+		// First check the API version the instance was created with
+		if (!_dispatch_table.VERSION_1_2)
+		{
+			*static_cast<uint32_t *>(data) = (1 << 12) | (1 << 8);
+			return true;
+		}
+		if (!_dispatch_table.VERSION_1_3)
+		{
+			*static_cast<uint32_t *>(data) = (1 << 12) | (2 << 8);
+			return true;
+		}
+		if (!_dispatch_table.VERSION_1_4)
+		{
+			*static_cast<uint32_t *>(data) = (1 << 12) | (3 << 8);
+			return true;
+		}
+
+		// Fall back to reporting the highest API version supported by the physical device
 		*static_cast<uint32_t *>(data) =
 			VK_API_VERSION_MAJOR(device_props.properties.apiVersion) << 12 |
 			VK_API_VERSION_MINOR(device_props.properties.apiVersion) <<  8;

@@ -502,6 +502,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	if (instance.api_version < VK_API_VERSION_1_2)
 	{
+		device.dispatch_table.VERSION_1_2 = 0;
+
 		device.dispatch_table.CreateRenderPass2 = device.dispatch_table.CreateRenderPass2KHR;
 		device.dispatch_table.CmdBeginRenderPass2 = device.dispatch_table.CmdBeginRenderPass2KHR;
 		device.dispatch_table.CmdNextSubpass2 = device.dispatch_table.CmdNextSubpass2KHR;
@@ -518,6 +520,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	if (instance.api_version < VK_API_VERSION_1_3)
 	{
+		device.dispatch_table.VERSION_1_3 = 0;
+
 		device.dispatch_table.CmdBeginRendering = device.dispatch_table.CmdBeginRenderingKHR;
 		device.dispatch_table.CmdEndRendering = device.dispatch_table.CmdEndRenderingKHR;
 
@@ -552,6 +556,8 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	if (instance.api_version < VK_API_VERSION_1_4)
 	{
+		device.dispatch_table.VERSION_1_4 = 0;
+
 		device.dispatch_table.CmdPushDescriptorSet = device.dispatch_table.CmdPushDescriptorSetKHR;
 		device.dispatch_table.CmdPushDescriptorSetWithTemplate = device.dispatch_table.CmdPushDescriptorSetWithTemplateKHR;
 	}
