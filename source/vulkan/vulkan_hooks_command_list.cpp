@@ -725,12 +725,12 @@ void VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage srcImage, 
 				static_cast<uint32_t>(region.srcOffsets[1].z) + region.srcSubresource.layerCount,
 			};
 			const reshade::api::subresource_box dst_box = {
-				static_cast<uint32_t>(region.srcOffsets[0].x),
-				static_cast<uint32_t>(region.srcOffsets[0].y),
-				static_cast<uint32_t>(region.srcOffsets[0].z),
-				static_cast<uint32_t>(region.srcOffsets[1].x),
-				static_cast<uint32_t>(region.srcOffsets[1].y),
-				static_cast<uint32_t>(region.srcOffsets[1].z) + region.srcSubresource.layerCount,
+				static_cast<uint32_t>(region.dstOffsets[0].x),
+				static_cast<uint32_t>(region.dstOffsets[0].y),
+				static_cast<uint32_t>(region.dstOffsets[0].z),
+				static_cast<uint32_t>(region.dstOffsets[1].x),
+				static_cast<uint32_t>(region.dstOffsets[1].y),
+				static_cast<uint32_t>(region.dstOffsets[1].z) + region.srcSubresource.layerCount,
 			};
 
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(
