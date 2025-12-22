@@ -252,21 +252,21 @@ namespace reshade
 #if defined(RESHADE_API_LIBRARY)
 		return ReShadeRegisterAddon(addon_module, RESHADE_API_VERSION);
 #else
-		addon_module = internal::get_current_module_handle(addon_module);
-		reshade_module = internal::get_reshade_module_handle(reshade_module);
+		addon_module = internal::get_current_module_handle(static_cast<HMODULE>(addon_module));
+		reshade_module = internal::get_reshade_module_handle(static_cast<HMODULE>(reshade_module));
 
 		if (reshade_module == nullptr)
 			return false;
 
 		const auto func = reinterpret_cast<bool(*)(void *, uint32_t)>(
-			GetProcAddress(reshade_module, "ReShadeRegisterAddon"));
+			GetProcAddress(static_cast<HMODULE>(reshade_module), "ReShadeRegisterAddon"));
 		// Check that the ReShade module supports the used API
 		if (func == nullptr || !func(addon_module, RESHADE_API_VERSION))
 			return false;
 
 #if defined(IMGUI_VERSION_NUM)
 		const auto imgui_func = reinterpret_cast<const imgui_function_table *(*)(uint32_t)>(
-			GetProcAddress(reshade_module, "ReShadeGetImGuiFunctionTable"));
+			GetProcAddress(static_cast<HMODULE>(reshade_module), "ReShadeGetImGuiFunctionTable"));
 		// Check that the ReShade module was built with Dear ImGui support and supports the used version
 		if (imgui_func == nullptr || !(imgui_function_table_instance() = imgui_func(IMGUI_VERSION_NUM)))
 			return false;
@@ -286,14 +286,14 @@ namespace reshade
 #if defined(RESHADE_API_LIBRARY)
 		ReShadeUnregisterAddon(addon_module);
 #else
-		addon_module = internal::get_current_module_handle(addon_module);
-		reshade_module = internal::get_reshade_module_handle(reshade_module);
+		addon_module = internal::get_current_module_handle(static_cast<HMODULE>(addon_module));
+		reshade_module = internal::get_reshade_module_handle(static_cast<HMODULE>(reshade_module));
 
 		if (reshade_module == nullptr)
 			return;
 
 		const auto func = reinterpret_cast<bool(*)(void *)>(
-			GetProcAddress(reshade_module, "ReShadeUnregisterAddon"));
+			GetProcAddress(static_cast<HMODULE>(reshade_module), "ReShadeUnregisterAddon"));
 		if (func != nullptr)
 			func(addon_module);
 #endif
