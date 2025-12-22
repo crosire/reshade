@@ -536,20 +536,15 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		submit_info.pWaitSemaphores = present_info.pWaitSemaphores;
 		submit_info.pWaitDstStageMask = wait_stages.p;
 
-		// If the application is presenting with a different queue than rendering, synchronize these two queues first
+		queue_impl->flush_immediate_command_list(submit_info);
+
+		// If the application is presenting with a different queue than rendering, synchronize these two queues
 		if (present_from_secondary_queue)
 		{
-			// Signal the semaphores on the present queue again first, for compatibility with frame generation techniques that don't update them for generated frames
-			submit_info.signalSemaphoreCount = present_info.waitSemaphoreCount;
-			submit_info.pSignalSemaphores = present_info.pWaitSemaphores;
-			device_impl->_dispatch_table.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-			submit_info.signalSemaphoreCount = 0;
-			submit_info.pSignalSemaphores = nullptr;
+			queue_impl->wait_and_signal(submit_info);
 
 			device_impl->_primary_graphics_queue->flush_immediate_command_list(submit_info);
 		}
-
-		queue_impl->flush_immediate_command_list(submit_info);
 
 		// Override wait semaphores based on the last queue submit
 		present_info.waitSemaphoreCount = submit_info.waitSemaphoreCount;

@@ -33,6 +33,7 @@ namespace reshade::vulkan
 
 		bool wait(api::fence fence, uint64_t value) final;
 		bool signal(api::fence fence, uint64_t value) final;
+		bool wait_and_signal(VkSubmitInfo &semaphore_info);
 
 		uint64_t get_timestamp_frequency() const final;
 
@@ -42,6 +43,8 @@ namespace reshade::vulkan
 		device_impl *const _device_impl;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
 		VkQueueFamilyProperties _queue_family_props = {};
+		uint32_t _signal_index = 0;
+		VkSemaphore _signal_semaphores[4] = {};
 	};
 
 	template <>

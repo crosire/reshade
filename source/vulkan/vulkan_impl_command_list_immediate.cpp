@@ -122,7 +122,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo &semaphore
 	submit_info.pCommandBuffers = &_orig;
 
 	if (semaphore_info.waitSemaphoreCount != 0 ||
-		semaphore_info.signalSemaphoreCount != 0)
+		semaphore_info.signalSemaphoreCount != 0) // Handle case where this is called from 'command_queue_impl::signal'
 	{
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores = &_cmd_semaphores[_cmd_index];
