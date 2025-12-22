@@ -5207,10 +5207,10 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 						const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 						// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-						pixels[offset_r] = (( rgba & 0x000003FFu)        /  4) & 0xFF;
-						pixels[offset_g] = (((rgba & 0x000FFC00u) >> 10) /  4) & 0xFF;
-						pixels[offset_b] = (((rgba & 0x3FF00000u) >> 20) /  4) & 0xFF;
-						pixels[offset_a] = (((rgba & 0xC0000000u) >> 30) * 85) & 0xFF;
+						pixels[x + offset_r] = (( rgba & 0x000003FFu)        /  4) & 0xFF;
+						pixels[x + offset_g] = (((rgba & 0x000FFC00u) >> 10) /  4) & 0xFF;
+						pixels[x + offset_b] = (((rgba & 0x3FF00000u) >> 20) /  4) & 0xFF;
+						pixels[x + offset_a] = (((rgba & 0xC0000000u) >> 30) * 85) & 0xFF;
 					}
 					continue;
 				}
