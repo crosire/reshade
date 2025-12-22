@@ -639,11 +639,37 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			VK_CHECK(vk.CreateInstance(&create_info, nullptr, &instance));
 		}
 
-		gladLoadVulkanContextUserPtr(&vk, VK_NULL_HANDLE,
-			[](void *user, const char *name) -> GLADapiproc {
-				const auto &vulkan_instance_and_device = *static_cast<const vulkan_instance_and_device_type *>(user);
+		const auto glad_load = [](void *user, const char *name) -> GLADapiproc {
+			if (0 == std::strcmp(name, "vkCreateInstance") ||
+				0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties") ||
+				0 == std::strcmp(name, "vkEnumerateInstanceLayerProperties") ||
+				0 == std::strcmp(name, "vkEnumerateInstanceVersion"))
+				return reinterpret_cast<GLADapiproc>(vkGetInstanceProcAddr(VK_NULL_HANDLE, name));
+
+			const auto &vulkan_instance_and_device = *static_cast<const vulkan_instance_and_device_type *>(user);
+			if (vulkan_instance_and_device.instance_handle == VK_NULL_HANDLE)
+				return nullptr;
+
+			// Need to distinguish between instance and device functions
+			if (0 == std::strcmp(name, "vkGetInstanceProcAddr") ||
+				0 == std::strcmp(name, "vkDestroyInstance") ||
+				0 == std::strcmp(name, "vkGetDeviceProcAddr") ||
+				0 == std::strcmp(name, "vkCreateDevice") ||
+				0 == std::strcmp(name, "vkSubmitDebugUtilsMessageEXT") ||
+				0 == std::strcmp(name, "vkCreateDebugUtilsMessengerEXT") ||
+				0 == std::strcmp(name, "vkDestroyDebugUtilsMessengerEXT") ||
+				(std::strstr(name, "Properties") != nullptr && std::strstr(name, "AccelerationStructures") == nullptr && std::strstr(name, "Handle") == nullptr) ||
+				(std::strstr(name, "Surface") != nullptr && std::strstr(name, "DeviceGroupSurface") == nullptr) ||
+				(std::strstr(name, "PhysicalDevice") != nullptr))
 				return reinterpret_cast<GLADapiproc>(vkGetInstanceProcAddr(vulkan_instance_and_device.instance_handle, name));
-			}, &vulkan_instance_and_device);
+
+			if (vulkan_instance_and_device.device_handle == VK_NULL_HANDLE)
+				return nullptr;
+
+			const PFN_vkVoidFunction device_proc_address = vkGetDeviceProcAddr(vulkan_instance_and_device.device_handle, name);
+			return reinterpret_cast<GLADapiproc>(device_proc_address);
+		};
+		gladLoadVulkanContextUserPtr(&vk, VK_NULL_HANDLE, glad_load, &vulkan_instance_and_device);
 
 		// Pick the first physical device.
 		uint32_t num_physical_devices = 1;
@@ -687,27 +713,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			VK_CHECK(vk.CreateDevice(physical_device, &create_info, nullptr, &device));
 		}
 
-		gladLoadVulkanContextUserPtr(&vk, physical_device,
-			[](void *user, const char *name) -> GLADapiproc {
-				const auto &vulkan_instance_and_device = *static_cast<const vulkan_instance_and_device_type *>(user);
-
-				// Need to distinguish between instance and device functions
-				if (0 == std::strcmp(name, "vkGetDeviceProcAddr") ||
-					0 == std::strcmp(name, "vkGetInstanceProcAddr") ||
-					0 == std::strcmp(name, "vkCreateDevice") ||
-					0 == std::strcmp(name, "vkCreateInstance") ||
-					0 == std::strcmp(name, "vkDestroyInstance") ||
-					0 == std::strcmp(name, "vkSubmitDebugUtilsMessageEXT") ||
-					0 == std::strcmp(name, "vkCreateDebugUtilsMessengerEXT") ||
-					0 == std::strcmp(name, "vkDestroyDebugUtilsMessengerEXT") ||
-					(std::strstr(name, "Properties") != nullptr && std::strstr(name, "AccelerationStructures") == nullptr && std::strstr(name, "Handle") == nullptr) ||
-					(std::strstr(name, "Surface") != nullptr && std::strstr(name, "DeviceGroupSurface") == nullptr) ||
-					(std::strstr(name, "PhysicalDevice") != nullptr))
-					return reinterpret_cast<GLADapiproc>(vkGetInstanceProcAddr(vulkan_instance_and_device.instance_handle, name));
-
-				const PFN_vkVoidFunction device_proc_address = vkGetDeviceProcAddr(vulkan_instance_and_device.device_handle, name);
-				return reinterpret_cast<GLADapiproc>(device_proc_address);
-			}, &vulkan_instance_and_device);
+		gladLoadVulkanContextUserPtr(&vk, physical_device, glad_load, &vulkan_instance_and_device);
 
 		{	VkWin32SurfaceCreateInfoKHR create_info { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
 			create_info.hinstance = hInstance;

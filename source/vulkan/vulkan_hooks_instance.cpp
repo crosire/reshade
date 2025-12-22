@@ -99,17 +99,15 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	}
 
 	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
-	const auto vulkan_module = GetModuleHandleW(L"vulkan-1.dll");
-	assert(vulkan_module != nullptr);
-	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(vulkan_module, "vkEnumerateInstanceExtensionProperties"));
-	assert(enum_instance_extensions != nullptr);
+	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
+	if (enum_instance_extensions == nullptr)
+		return VK_ERROR_INITIALIZATION_FAILED;
 
 	std::vector<const char *> enabled_extensions;
 	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
-	if (enum_instance_extensions != nullptr)
 	{
 		uint32_t num_extensions = 0;
 		enum_instance_extensions(nullptr, &num_extensions, nullptr);
@@ -168,7 +166,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 	gladLoadVulkanContextUserPtr(&instance.dispatch_table, VK_NULL_HANDLE,
 		[](void *user, const char *name) -> GLADapiproc {
-			const auto &instance = *static_cast<const vulkan_instance *>(user);
+			const vulkan_instance &instance = *static_cast<const vulkan_instance *>(user);
 
 			// Do not load existing function pointers anew
 			if (0 == std::strcmp(name, "vkGetInstanceProcAddr"))
@@ -176,7 +174,12 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 			if (0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties"))
 				return reinterpret_cast<GLADapiproc>(instance.dispatch_table.EnumerateInstanceExtensionProperties);
 
-			const PFN_vkVoidFunction instance_proc_address = instance.dispatch_table.GetInstanceProcAddr(instance.handle, name);
+			const bool global =
+				0 == std::strcmp(name, "vkCreateInstance") ||
+				0 == std::strcmp(name, "vkEnumerateInstanceLayerProperties") ||
+				0 == std::strcmp(name, "vkEnumerateInstanceVersion");
+
+			const PFN_vkVoidFunction instance_proc_address = instance.dispatch_table.GetInstanceProcAddr(global ? VK_NULL_HANDLE : instance.handle, name);
 			return reinterpret_cast<GLADapiproc>(instance_proc_address);
 		}, &instance);
 

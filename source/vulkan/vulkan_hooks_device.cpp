@@ -126,9 +126,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->ppEnabledExtensionNames[i]);
 
 	const auto enum_queue_families = instance.dispatch_table.GetPhysicalDeviceQueueFamilyProperties;
-	assert(enum_queue_families != nullptr);
 	const auto enum_device_extensions = instance.dispatch_table.EnumerateDeviceExtensionProperties;
-	assert(enum_device_extensions != nullptr);
+	if (enum_queue_families == nullptr || enum_device_extensions == nullptr)
+		return VK_ERROR_INITIALIZATION_FAILED;
 
 	uint32_t num_queue_families = 0;
 	enum_queue_families(physicalDevice, &num_queue_families, nullptr);
@@ -174,25 +174,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool ray_tracing_ext = false;
 	bool buffer_device_address_ext = false;
 
-	// Check if the device is used for presenting
-	if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
-			[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.cend())
 	{
-		reshade::log::message(reshade::log::level::warning, "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.");
-
-		graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
-	}
-	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
-	else if (graphics_queue_family_index == std::numeric_limits<uint32_t>::max())
-	{
-		reshade::log::message(reshade::log::level::warning, "Skipping device because it is not created with a graphics queue.");
-	}
-	else
-	{
-		// No Man's Sky initializes OpenVR before loading Vulkan (and therefore before loading ReShade), so need to manually install OpenVR hooks now when used
-		extern void check_and_init_openvr_hooks();
-		check_and_init_openvr_hooks();
-
 		uint32_t num_extensions = 0;
 		enum_device_extensions(physicalDevice, nullptr, &num_extensions, nullptr);
 		std::vector<VkExtensionProperties> extensions(num_extensions);
@@ -233,9 +215,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		if (instance.api_version < VK_API_VERSION_1_3 && !add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
 
-		add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
-		add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
-
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 		dynamic_rendering_ext = instance.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
@@ -261,6 +240,29 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			add_extension(VK_KHR_RAY_TRACING_MAINTENANCE_1_EXTENSION_NAME, false);
 		buffer_device_address_ext = ray_tracing_ext && add_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, false);
 #endif
+
+		// Check if the device is used for presenting
+		if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
+				[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.cend())
+		{
+			reshade::log::message(reshade::log::level::warning, "Skipping device because it is not created with the \"" VK_KHR_SWAPCHAIN_EXTENSION_NAME "\" extension.");
+
+			graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
+		}
+		// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
+		else if (graphics_queue_family_index == std::numeric_limits<uint32_t>::max())
+		{
+			reshade::log::message(reshade::log::level::warning, "Skipping device because it is not created with a graphics queue.");
+		}
+		else
+		{
+			// No Man's Sky initializes OpenVR before loading Vulkan (and therefore before loading ReShade), so need to manually install OpenVR hooks now when used
+			extern void check_and_init_openvr_hooks();
+			check_and_init_openvr_hooks();
+
+			add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
+			add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
+		}
 	}
 
 	VkDeviceCreateInfo create_info = *pCreateInfo;
@@ -450,34 +452,34 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	gladLoadVulkanContextUserPtr(&device.dispatch_table, physicalDevice,
 		[](void *user, const char *name) -> GLADapiproc {
-			const auto &device = *static_cast<const vulkan_device *>(user);
+			const vulkan_device &device = *static_cast<const vulkan_device *>(user);
 
 			// Do not load existing instance function pointers anew
-			if (0 == std::strcmp(name, "vkGetDeviceProcAddr"))
-				return reinterpret_cast<GLADapiproc>(device.dispatch_table.GetDeviceProcAddr);
 			if (0 == std::strcmp(name, "vkGetInstanceProcAddr"))
 				return reinterpret_cast<GLADapiproc>(device.dispatch_table.GetInstanceProcAddr);
-
+			if (0 == std::strcmp(name, "vkCreateInstance"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.CreateInstance);
+			if (0 == std::strcmp(name, "vkEnumerateDeviceExtensionProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateDeviceExtensionProperties);
+			if (0 == std::strcmp(name, "vkEnumerateDeviceLayerProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateDeviceLayerProperties);
+			if (0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceExtensionProperties);
+			if (0 == std::strcmp(name, "vkEnumerateInstanceLayerProperties"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceLayerProperties);
 			if (0 == std::strcmp(name, "vkEnumerateInstanceVersion"))
 				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceVersion);
 
-			if (0 == std::strcmp(name, "vkEnumerateDeviceLayerProperties"))
-				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateDeviceLayerProperties);
-			if (0 == std::strcmp(name, "vkEnumerateInstanceLayerProperties"))
-				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceLayerProperties);
-			if (0 == std::strcmp(name, "vkEnumerateDeviceExtensionProperties"))
-				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateDeviceExtensionProperties);
-			if (0 == std::strcmp(name, "vkEnumerateInstanceExtensionProperties"))
-				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumerateInstanceExtensionProperties);
-
-			if (0 == std::strcmp(name, "vkEnumeratePhysicalDevices"))
-				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumeratePhysicalDevices);
 			if (0 == std::strcmp(name, "vkEnumeratePhysicalDeviceGroups"))
 				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumeratePhysicalDeviceGroups);
+			if (0 == std::strcmp(name, "vkEnumeratePhysicalDevices"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.EnumeratePhysicalDevices);
 
-			if (0 == std::strcmp(name, "vkCreateDevice") ||
-				0 == std::strcmp(name, "vkCreateInstance") ||
-				0 == std::strcmp(name, "vkDestroyInstance") ||
+			if (0 == std::strcmp(name, "vkGetDeviceProcAddr"))
+				return reinterpret_cast<GLADapiproc>(device.dispatch_table.GetDeviceProcAddr);
+
+			if (0 == std::strcmp(name, "vkDestroyInstance") ||
+				0 == std::strcmp(name, "vkCreateDevice") ||
 				0 == std::strcmp(name, "vkSubmitDebugUtilsMessageEXT") ||
 				0 == std::strcmp(name, "vkCreateDebugUtilsMessengerEXT") ||
 				0 == std::strcmp(name, "vkDestroyDebugUtilsMessengerEXT") ||
