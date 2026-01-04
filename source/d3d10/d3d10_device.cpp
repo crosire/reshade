@@ -82,6 +82,16 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	// Do not proxy calls coming from DXGI
+	// The 'IDXGIOutput1::DuplicateOutput' implementation for example queries the device, then gets the adapter from the device and attempts to call an internal function on that adapter object, which crashes if it is the proxied object
+	extern std::filesystem::path get_system_path();
+	if (HMODULE return_module = nullptr;
+		GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(_ReturnAddress()), &return_module) &&
+		return_module == GetModuleHandleW((get_system_path() / L"dxgi.dll").c_str()))
+	{
+		return _orig->QueryInterface(riid, ppvObj);
+	}
+
 	if (check_and_upgrade_interface(riid))
 	{
 		AddRef();
