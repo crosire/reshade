@@ -240,6 +240,15 @@ void reshade::load_addons()
 
 		log::message(log::level::warning, "Skipped loading add-on from '%s' because this build of ReShade has only limited add-on functionality.", path.u8string().c_str());
 #else
+		// Avoid loading library again that has already been loaded externally
+		if (const auto it =	std::find_if(addon_loaded_info.cbegin(), addon_loaded_info.cend(),
+				[&path](const addon_info &info) { return path.filename().u8string() == info.file; });
+			it != addon_loaded_info.cend())
+		{
+			assert(it->external);
+			continue;
+		}
+
 		// Avoid loading library altogether when it is found in the disabled add-on list
 		if (addon_info info;
 			std::find_if(disabled_addons.cbegin(), disabled_addons.cend(),
