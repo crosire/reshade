@@ -89,9 +89,13 @@ namespace reshade
 			const auto it2 = it1->second.find(key);
 			if (it2 == it1->second.end())
 				return false;
-			values.resize(it2->second.size());
-			if constexpr (std::is_same_v<T, std::pair<std::string, std::string>>)
+			if constexpr (std::is_same_v<T, std::string>)
 			{
+				values = it2->second;
+			}
+			else if constexpr (std::is_same_v<T, std::pair<std::string, std::string>>)
+			{
+				values.resize(it2->second.size());
 				for (size_t i = 0; i < it2->second.size(); ++i)
 				{
 					std::string value = convert<std::string>(it2->second, i);
@@ -104,6 +108,7 @@ namespace reshade
 			}
 			else
 			{
+				values.resize(it2->second.size());
 				for (size_t i = 0; i < it2->second.size(); ++i)
 					values[i] = convert<T>(it2->second, i);
 			}
