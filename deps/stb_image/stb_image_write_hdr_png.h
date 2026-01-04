@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-STBIWDEF int stbi_write_hdr_png_to_func(stbi_write_func *func, void *context, int w, int h, int comp, stbi_us *data, int stride_in_bytes, unsigned char color_primaries, unsigned char transfer_function);
+STBIWDEF int stbi_write_hdr_png_to_func(stbi_write_func *func, void *context, int w, int h, int comp, const stbi_us *data, int stride_in_bytes, unsigned char color_primaries, unsigned char transfer_function);
 
 #ifdef __cplusplus
 }
@@ -203,7 +203,7 @@ static const unsigned char ICC_RGB_D65_202_Rel_PeQ[] =
   0xF8, 0x3F, 0x0B, 0x10, 0x3B, 0xD9
 };
 
-STBIWDEF int stbi_write_hdr_png_to_func(stbi_write_func *func, void *context, int w, int h, int comp, stbi_us *data, int stride_bytes, unsigned char color_primaries, unsigned char transfer_function)
+STBIWDEF int stbi_write_hdr_png_to_func(stbi_write_func *func, void *context, int w, int h, int comp, const stbi_us *data, int stride_bytes, unsigned char color_primaries, unsigned char transfer_function)
 {
 	const int ctype[5] = { -1, 0, 4, 2, 6 };
 	const unsigned char sig[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
@@ -218,17 +218,17 @@ STBIWDEF int stbi_write_hdr_png_to_func(stbi_write_func *func, void *context, in
 
 	for (int y = 0; y < h; ++y)
 	{
+		unsigned char *z = data_encoded + y * (encoded_stride_bytes + 1);
+		*z++ = 2;
+		stbiw__encode_png_line((unsigned char *)data, stride_bytes, w * 2, h, y, comp, 2, z);
+
 		// Convert little endian to big endian data
-		unsigned char *z = (unsigned char *)data + stride_bytes * (stbi__flip_vertically_on_write ? h - 1 - y : y);
 		for (int i = 0; i < w * comp; ++i, z += 2)
 		{
 			unsigned char temp = z[0];
 			z[0] = z[1];
 			z[1] = temp;
 		}
-
-		data_encoded[y * (encoded_stride_bytes + 1)] = 2;
-		stbiw__encode_png_line((unsigned char *)data, stride_bytes, w * 2, h, y, comp, 2, data_encoded + y * (encoded_stride_bytes + 1) + 1);
 	}
 
 	data_compressed = stbi_zlib_compress(data_encoded, h * (encoded_stride_bytes + 1), &compressed_size, stbi_write_png_compression_level);
