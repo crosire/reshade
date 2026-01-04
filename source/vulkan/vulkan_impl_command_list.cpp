@@ -95,8 +95,8 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 			barrier.size = VK_WHOLE_SIZE;
 		}
 
-		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features, vk.KHR_ray_tracing_pipeline);
-		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features, vk.KHR_ray_tracing_pipeline);
+		src_stage_mask |= convert_usage_to_pipeline_stage(old_states[i], true, _device_impl->_enabled_features, _device_impl->_dispatch_table);
+		dst_stage_mask |= convert_usage_to_pipeline_stage(new_states[i], false, _device_impl->_enabled_features, _device_impl->_dispatch_table);
 	}
 
 	assert(src_stage_mask != 0 && dst_stage_mask != 0);
@@ -109,6 +109,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 	_has_commands = true;
 	_is_in_render_pass = true;
 
+#if VK_KHR_dynamic_rendering
 	if (vk.KHR_dynamic_rendering)
 	{
 		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
@@ -175,6 +176,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		vk.CmdBeginRendering(_orig, &rendering_info);
 	}
 	else
+#endif
 	{
 		size_t hash = 0;
 		for (uint32_t i = 0; i < count; ++i)
@@ -343,11 +345,13 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 	assert(_has_commands);
 	_is_in_render_pass = false;
 
+#if VK_KHR_dynamic_rendering
 	if (vk.KHR_dynamic_rendering)
 	{
 		vk.CmdEndRendering(_orig);
 	}
 	else
+#endif
 	{
 		vk.CmdEndRenderPass(_orig);
 	}
@@ -397,6 +401,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 		case api::dynamic_state::back_stencil_reference_value:
 			vk.CmdSetStencilReference(_orig, VK_STENCIL_FACE_BACK_BIT, values[i]);
 			break;
+#if VK_EXT_extended_dynamic_state
 		case api::dynamic_state::cull_mode:
 			if (vk.EXT_extended_dynamic_state)
 				vk.CmdSetCullMode(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
@@ -439,12 +444,15 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			else
 				assert(false);
 			break;
+#endif
+#if VK_KHR_ray_tracing_pipeline
 		case api::dynamic_state::ray_tracing_pipeline_stack_size:
 			if (vk.KHR_ray_tracing_pipeline)
 				vk.CmdSetRayTracingPipelineStackSizeKHR(_orig, values[i]);
 			else
 				assert(false);
 			break;
+#endif
 		default:
 			assert(false);
 			break;
@@ -543,6 +551,7 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		break;
 	}
 
+#if VK_KHR_push_descriptor
 	if (vk.KHR_push_descriptor)
 	{
 		if ((stages & api::shader_stage::all_compute) != 0)
@@ -561,13 +570,18 @@ void reshade::vulkan::command_list_impl::push_descriptors(api::shader_stage stag
 		}
 		if ((stages & api::shader_stage::all_ray_tracing) != 0)
 		{
+#if VK_KHR_ray_tracing_pipeline
 			vk.CmdPushDescriptorSet(_orig,
 				VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 				(VkPipelineLayout)layout.handle, layout_param,
 				1, &write);
+#else
+			assert(false);
+#endif
 		}
 		return;
 	}
+#endif
 
 	assert(update.binding == 0 && update.array_offset == 0);
 
@@ -609,10 +623,14 @@ void reshade::vulkan::command_list_impl::bind_descriptor_tables(api::shader_stag
 	}
 	if ((stages & api::shader_stage::all_ray_tracing) != 0)
 	{
+#if VK_KHR_ray_tracing_pipeline
 		vk.CmdBindDescriptorSets(_orig,
 			VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 			(VkPipelineLayout)layout.handle,
 			first, count, reinterpret_cast<const VkDescriptorSet *>(tables), 0, nullptr);
+#else
+		assert(false);
+#endif
 	}
 }
 
@@ -626,8 +644,12 @@ void reshade::vulkan::command_list_impl::bind_vertex_buffers(uint32_t first, uin
 }
 void reshade::vulkan::command_list_impl::bind_stream_output_buffers(uint32_t first, uint32_t count, const api::resource *buffers, const uint64_t *offsets, const uint64_t *max_sizes, const api::resource *, const uint64_t *)
 {
+#if VK_EXT_transform_feedback
 	if (vk.CmdBindTransformFeedbackBuffersEXT != nullptr)
 		vk.CmdBindTransformFeedbackBuffersEXT(_orig, first, count, reinterpret_cast<const VkBuffer *>(buffers), offsets, max_sizes);
+#else
+	assert(false);
+#endif
 }
 
 void reshade::vulkan::command_list_impl::draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance)
@@ -650,12 +672,17 @@ void reshade::vulkan::command_list_impl::dispatch(uint32_t group_count_x, uint32
 }
 void reshade::vulkan::command_list_impl::dispatch_mesh(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z)
 {
+#if VK_EXT_mesh_shader
 	_has_commands = true;
 
 	vk.CmdDrawMeshTasksEXT(_orig, group_count_x, group_count_y, group_count_z);
+#else
+	assert(false);
+#endif
 }
 void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uint64_t raygen_offset, uint64_t raygen_size, api::resource miss, uint64_t miss_offset, uint64_t miss_size, uint64_t miss_stride, api::resource hit_group, uint64_t hit_group_offset, uint64_t hit_group_size, uint64_t hit_group_stride, api::resource callable, uint64_t callable_offset, uint64_t callable_size, uint64_t callable_stride, uint32_t width, uint32_t height, uint32_t depth)
 {
+#if VK_KHR_ray_tracing_pipeline
 	_has_commands = true;
 
 	VkStridedDeviceAddressRegionKHR raygen_region;
@@ -703,6 +730,9 @@ void reshade::vulkan::command_list_impl::dispatch_rays(api::resource raygen, uin
 	callable_region.stride = callable_stride;
 
 	vk.CmdTraceRaysKHR(_orig, &raygen_region, &miss_region, &hit_group_region, &callable_region, width, height, depth);
+#else
+	assert(false);
+#endif
 }
 void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect_command type, api::resource buffer, uint64_t offset, uint32_t draw_count, uint32_t stride)
 {
@@ -720,9 +750,12 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect
 		for (uint32_t i = 0; i < draw_count; ++i)
 			vk.CmdDispatchIndirect(_orig, (VkBuffer)buffer.handle, offset + static_cast<uint64_t>(i) * stride);
 		break;
+#if VK_EXT_mesh_shader
 	case api::indirect_command::dispatch_mesh:
 		vk.CmdDrawMeshTasksIndirectEXT(_orig, (VkBuffer)buffer.handle, offset, draw_count, stride);
 		break;
+#endif
+#if VK_KHR_ray_tracing_pipeline
 	case api::indirect_command::dispatch_rays:
 		if (buffer != 0)
 		{
@@ -733,6 +766,7 @@ void reshade::vulkan::command_list_impl::draw_or_dispatch_indirect(api::indirect
 		for (uint32_t i = 0; i < draw_count; ++i)
 			vk.CmdTraceRaysIndirect2KHR(_orig, offset + static_cast<uint64_t>(i) * stride);
 		break;
+#endif
 	}
 }
 
@@ -1002,6 +1036,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	}
 	else
 	{
+#if VK_KHR_dynamic_rendering
 		if (!vk.KHR_dynamic_rendering || _is_in_render_pass ||
 			src_data->default_view == VK_NULL_HANDLE || dst_data->default_view == VK_NULL_HANDLE)
 		{
@@ -1088,6 +1123,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		std::swap(barriers[0].oldLayout, barriers[0].newLayout);
 		std::swap(barriers[1].oldLayout, barriers[1].newLayout);
 		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 2, barriers);
+#endif
 	}
 }
 
@@ -1253,8 +1289,12 @@ void reshade::vulkan::command_list_impl::begin_query(api::query_heap heap, api::
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
+#if VK_EXT_transform_feedback
 		if (vk.CmdBeginQueryIndexedEXT != nullptr)
 			vk.CmdBeginQueryIndexedEXT(_orig, (VkQueryPool)heap.handle, index, 0, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+#else
+		assert(false);
+#endif
 		break;
 	case api::query_type::acceleration_structure_size:
 	case api::query_type::acceleration_structure_compacted_size:
@@ -1284,8 +1324,12 @@ void reshade::vulkan::command_list_impl::end_query(api::query_heap heap, api::qu
 	case api::query_type::stream_output_statistics_1:
 	case api::query_type::stream_output_statistics_2:
 	case api::query_type::stream_output_statistics_3:
+#if VK_EXT_transform_feedback
 		if (vk.CmdEndQueryIndexedEXT != nullptr)
 			vk.CmdEndQueryIndexedEXT(_orig, (VkQueryPool)heap.handle, index, static_cast<uint32_t>(type) - static_cast<uint32_t>(api::query_type::stream_output_statistics_0));
+#else
+		assert(false);
+#endif
 		break;
 	case api::query_type::acceleration_structure_size:
 	case api::query_type::acceleration_structure_compacted_size:
@@ -1307,6 +1351,7 @@ void reshade::vulkan::command_list_impl::copy_query_heap_results(api::query_heap
 
 void reshade::vulkan::command_list_impl::copy_acceleration_structure(api::resource_view source, api::resource_view dest, api::acceleration_structure_copy_mode mode)
 {
+#if VK_KHR_acceleration_structure
 	_has_commands = true;
 
 	VkCopyAccelerationStructureInfoKHR info { VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR };
@@ -1315,9 +1360,13 @@ void reshade::vulkan::command_list_impl::copy_acceleration_structure(api::resour
 	info.mode = convert_acceleration_structure_copy_mode(mode);
 
 	vk.CmdCopyAccelerationStructureKHR(_orig, &info);
+#else
+	assert(false);
+#endif
 }
 void reshade::vulkan::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)
 {
+#if VK_KHR_acceleration_structure
 	_has_commands = true;
 
 	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
@@ -1389,9 +1438,13 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 	const VkAccelerationStructureBuildRangeInfoKHR *const range_infos_ptr = range_infos.data();
 
 	vk.CmdBuildAccelerationStructuresKHR(_orig, 1, &info, &range_infos_ptr);
+#else
+	assert(false);
+#endif
 }
 void reshade::vulkan::command_list_impl::query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first)
 {
+#if VK_KHR_acceleration_structure
 	_has_commands = true;
 
 	assert(heap != 0);
@@ -1403,6 +1456,9 @@ void reshade::vulkan::command_list_impl::query_acceleration_structures(uint32_t 
 		type == api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers);
 
 	vk.CmdWriteAccelerationStructuresPropertiesKHR(_orig, count, reinterpret_cast<const VkAccelerationStructureKHR *>(acceleration_structures), convert_query_type(type), (VkQueryPool)heap.handle, first);
+#else
+	assert(false);
+#endif
 }
 
 void reshade::vulkan::command_list_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
@@ -1420,6 +1476,7 @@ void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, co
 {
 	assert(label != nullptr);
 
+#if VK_EXT_debug_utils
 	if (vk.CmdBeginDebugUtilsLabelEXT == nullptr)
 		return;
 
@@ -1436,18 +1493,22 @@ void reshade::vulkan::command_list_impl::begin_debug_event(const char *label, co
 	}
 
 	vk.CmdBeginDebugUtilsLabelEXT(_orig, &label_info);
+#endif
 }
 void reshade::vulkan::command_list_impl::end_debug_event()
 {
+#if VK_EXT_debug_utils
 	if (vk.CmdEndDebugUtilsLabelEXT == nullptr)
 		return;
 
 	vk.CmdEndDebugUtilsLabelEXT(_orig);
+#endif
 }
 void reshade::vulkan::command_list_impl::insert_debug_marker(const char *label, const float color[4])
 {
 	assert(label != nullptr);
 
+#if VK_EXT_debug_utils
 	if (vk.CmdInsertDebugUtilsLabelEXT == nullptr)
 		return;
 
@@ -1463,4 +1524,5 @@ void reshade::vulkan::command_list_impl::insert_debug_marker(const char *label, 
 	}
 
 	vk.CmdInsertDebugUtilsLabelEXT(_orig, &label_info);
+#endif
 }

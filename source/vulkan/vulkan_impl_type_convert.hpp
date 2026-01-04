@@ -23,8 +23,10 @@ namespace reshade::vulkan
 	static_assert(sizeof(VkViewport) == sizeof(api::viewport));
 	static_assert(sizeof(VkDescriptorSet) == sizeof(api::descriptor_table));
 	static_assert(sizeof(VkDescriptorBufferInfo) == sizeof(api::buffer_range));
+#if VK_KHR_acceleration_structure
 	static_assert(sizeof(VkAccelerationStructureKHR) == sizeof(api::resource_view));
 	static_assert(sizeof(VkAccelerationStructureInstanceKHR) == sizeof(api::acceleration_structure_instance));
+#endif
 
 	template <VkObjectType type>
 	struct object_data;
@@ -173,6 +175,7 @@ namespace reshade::vulkan
 		VkQueryType type;
 	};
 
+#if VK_KHR_acceleration_structure
 	template <>
 	struct object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>
 	{
@@ -180,6 +183,7 @@ namespace reshade::vulkan
 
 		VkAccelerationStructureCreateInfoKHR create_info;
 	};
+#endif
 
 	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
 	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
@@ -205,7 +209,7 @@ namespace reshade::vulkan
 
 	auto convert_usage_to_access(api::resource_usage state) -> VkAccessFlags;
 	auto convert_usage_to_image_layout(api::resource_usage state) -> VkImageLayout;
-	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features, bool enabled_ray_tracing) -> VkPipelineStageFlags;
+	auto convert_usage_to_pipeline_stage(api::resource_usage state, bool src_stage, const VkPhysicalDeviceFeatures &enabled_features, const GladVulkanContext &context) -> VkPipelineStageFlags;
 
 	void convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags);
 	void convert_usage_to_buffer_usage_flags(api::resource_usage usage, VkBufferUsageFlags &buffer_flags);
@@ -220,10 +224,14 @@ namespace reshade::vulkan
 
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkImageViewCreateInfo &create_info);
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info);
+#if VK_KHR_acceleration_structure
 	void convert_resource_view_desc(const api::resource_view_desc &desc, VkAccelerationStructureCreateInfoKHR &create_info);
+#endif
 	api::resource_view_desc convert_resource_view_desc(const VkImageViewCreateInfo &create_info);
 	api::resource_view_desc convert_resource_view_desc(const VkBufferViewCreateInfo &create_info);
+#if VK_KHR_acceleration_structure
 	api::resource_view_desc convert_resource_view_desc(const VkAccelerationStructureCreateInfoKHR &create_info);
+#endif
 
 	void convert_dynamic_states(uint32_t count, const api::dynamic_state *states, std::vector<VkDynamicState> &internal_states);
 	std::vector<api::dynamic_state> convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info);
@@ -231,8 +239,10 @@ namespace reshade::vulkan
 	void convert_input_layout_desc(uint32_t count, const api::input_element *elements, std::vector<VkVertexInputBindingDescription> &vertex_bindings, std::vector<VkVertexInputAttributeDescription> &vertex_attributes, std::vector<VkVertexInputBindingDivisorDescription> &vertex_binding_divisors);
 	std::vector<api::input_element> convert_input_layout_desc(const VkPipelineVertexInputStateCreateInfo *create_info);
 
+#if VK_EXT_transform_feedback
 	void convert_stream_output_desc(const api::stream_output_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info);
 	api::stream_output_desc convert_stream_output_desc(const VkPipelineRasterizationStateCreateInfo *create_info);
+#endif
 	void convert_blend_desc(const api::blend_desc &desc, VkPipelineColorBlendStateCreateInfo &create_info, VkPipelineMultisampleStateCreateInfo &multisample_create_info);
 	api::blend_desc convert_blend_desc(const VkPipelineColorBlendStateCreateInfo *create_info, const VkPipelineMultisampleStateCreateInfo *multisample_create_info);
 	void convert_rasterizer_desc(const api::rasterizer_desc &desc, VkPipelineRasterizationStateCreateInfo &create_info);
@@ -270,8 +280,11 @@ namespace reshade::vulkan
 
 	auto convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags;
 	auto convert_pipeline_flags(VkPipelineCreateFlags2 value) -> api::pipeline_flags;
+#if VK_KHR_ray_tracing_pipeline
 	auto convert_shader_group_type(api::shader_group_type value) -> VkRayTracingShaderGroupTypeKHR;
 	auto convert_shader_group_type(VkRayTracingShaderGroupTypeKHR value) -> api::shader_group_type;
+#endif
+#if VK_KHR_acceleration_structure
 	auto convert_acceleration_structure_type(api::acceleration_structure_type value) -> VkAccelerationStructureTypeKHR;
 	auto convert_acceleration_structure_type(VkAccelerationStructureTypeKHR value) -> api::acceleration_structure_type;
 	auto convert_acceleration_structure_copy_mode(api::acceleration_structure_copy_mode value) -> VkCopyAccelerationStructureModeKHR;
@@ -281,6 +294,7 @@ namespace reshade::vulkan
 
 	void convert_acceleration_structure_build_input(const api::acceleration_structure_build_input &build_input, VkAccelerationStructureGeometryKHR &geometry, VkAccelerationStructureBuildRangeInfoKHR &range_info);
 	api::acceleration_structure_build_input convert_acceleration_structure_build_input(const VkAccelerationStructureGeometryKHR &geometry, const VkAccelerationStructureBuildRangeInfoKHR &range_info);
+#endif
 
 	auto convert_shader_stages(VkPipelineBindPoint value) -> api::shader_stage;
 	auto convert_pipeline_stages(api::pipeline_stage value) -> VkPipelineBindPoint;

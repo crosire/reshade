@@ -1834,6 +1834,7 @@ void VKAPI_CALL vkCmdPushDescriptorSet(VkCommandBuffer commandBuffer, VkPipeline
 			static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 			update.descriptors = write.pBufferInfo;
 			break;
+#if VK_KHR_acceleration_structure
 		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 			if (const auto write_acceleration_structure =
 					find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(
@@ -1844,6 +1845,7 @@ void VKAPI_CALL vkCmdPushDescriptorSet(VkCommandBuffer commandBuffer, VkPipeline
 				break;
 			}
 			[[fallthrough]];
+#endif
 		default:
 			update.count = 0;
 			update.descriptors = nullptr;
@@ -1920,9 +1922,11 @@ void VKAPI_CALL vkCmdPushDescriptorSetWithTemplate(VkCommandBuffer commandBuffer
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 			update.descriptors = static_cast<const VkDescriptorBufferInfo *>(base);
 			break;
+#if VK_KHR_acceleration_structure
 		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 			update.descriptors = static_cast<const VkAccelerationStructureKHR *>(base);
 			break;
+#endif
 		default:
 			update.count = 0;
 			update.descriptors = nullptr;
@@ -1939,6 +1943,7 @@ void VKAPI_CALL vkCmdPushDescriptorSetWithTemplate(VkCommandBuffer commandBuffer
 #endif
 }
 
+#if VK_EXT_transform_feedback
 void VKAPI_CALL vkCmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets, const VkDeviceSize *pSizes)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
@@ -1993,7 +1998,9 @@ void VKAPI_CALL vkCmdEndQueryIndexedEXT(VkCommandBuffer commandBuffer, VkQueryPo
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdEndQueryIndexedEXT, device_impl);
 	trampoline(commandBuffer, queryPool, query, index);
 }
+#endif
 
+#if VK_EXT_multi_draw
 void VKAPI_CALL vkCmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawInfoEXT *pVertexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
@@ -2024,7 +2031,9 @@ void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdDrawMultiIndexedEXT, device_impl);
 	trampoline(commandBuffer, drawCount, pIndexInfo, instanceCount, firstInstance, stride, pVertexOffset);
 }
+#endif
 
+#if VK_KHR_acceleration_structure
 void VKAPI_CALL vkCmdBuildAccelerationStructuresKHR(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, const VkAccelerationStructureBuildRangeInfoKHR *const *ppBuildRangeInfos)
 {
 	assert(pInfos != nullptr && ppBuildRangeInfos != nullptr);
@@ -2116,7 +2125,9 @@ void VKAPI_CALL vkCmdWriteAccelerationStructuresPropertiesKHR(VkCommandBuffer co
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdWriteAccelerationStructuresPropertiesKHR, device_impl);
 	trampoline(commandBuffer, accelerationStructureCount, pAccelerationStructures, queryType, queryPool, firstQuery);
 }
+#endif
 
+#if VK_KHR_ray_tracing_pipeline
 void VKAPI_CALL vkCmdTraceRaysKHR(VkCommandBuffer commandBuffer, const VkStridedDeviceAddressRegionKHR *pRaygenShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pMissShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pHitShaderBindingTable, const VkStridedDeviceAddressRegionKHR *pCallableShaderBindingTable, uint32_t width, uint32_t height, uint32_t depth)
 {
 	assert(pRaygenShaderBindingTable != nullptr && pMissShaderBindingTable != nullptr && pHitShaderBindingTable != nullptr && pCallableShaderBindingTable != nullptr);
@@ -2157,6 +2168,8 @@ void VKAPI_CALL vkCmdTraceRaysIndirectKHR(VkCommandBuffer commandBuffer, const V
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdTraceRaysIndirectKHR, device_impl);
 	trampoline(commandBuffer, pRaygenShaderBindingTable, pMissShaderBindingTable, pHitShaderBindingTable, pCallableShaderBindingTable, indirectDeviceAddress);
 }
+#endif
+#if VK_KHR_ray_tracing_maintenance1
 void VKAPI_CALL vkCmdTraceRaysIndirect2KHR(VkCommandBuffer commandBuffer, VkDeviceAddress indirectDeviceAddress)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
@@ -2171,7 +2184,9 @@ void VKAPI_CALL vkCmdTraceRaysIndirect2KHR(VkCommandBuffer commandBuffer, VkDevi
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdTraceRaysIndirect2KHR, device_impl);
 	trampoline(commandBuffer, indirectDeviceAddress);
 }
+#endif
 
+#if VK_EXT_mesh_shader
 void VKAPI_CALL vkCmdDrawMeshTasksEXT(VkCommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
@@ -2214,3 +2229,4 @@ void VKAPI_CALL vkCmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdDrawMeshTasksIndirectCountEXT, device_impl);
 	trampoline(commandBuffer, buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }
+#endif

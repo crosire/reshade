@@ -14,7 +14,7 @@
 
 #define RESHADE_OPENGL_IMPORT_WITH_VULKAN 1
 
-#if RESHADE_OPENGL_IMPORT_WITH_VULKAN
+#if RESHADE_OPENGL_IMPORT_WITH_VULKAN && GL_EXT_memory_object && GL_EXT_memory_object_win32
 #include "vulkan/vulkan_impl_type_convert.hpp"
 
 // There is no API in OpenGL to query the memory size of a resource, but that information is necessary to import an external resource
@@ -43,7 +43,7 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 		VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 		app_info.apiVersion = VK_API_VERSION_1_3;
 		app_info.pApplicationName = "ReShade";
-		VkInstanceCreateInfo instance_create_info = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+		VkInstanceCreateInfo instance_create_info { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 		instance_create_info.pApplicationInfo = &app_info;
 
 		VkInstance instance = VK_NULL_HANDLE;
@@ -84,16 +84,19 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 				vk.CreateDevice = reinterpret_cast<PFN_vkCreateDevice>(vk.GetInstanceProcAddr(instance, "vkCreateDevice"));
 				assert(vk.CreateDevice != nullptr);
 
+#if VK_KHR_maintenance9
 				VkPhysicalDeviceFeatures2 features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
 				VkPhysicalDeviceMaintenance9FeaturesKHR maintenance9_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR };
 				features.pNext = &maintenance9_features;
 				vk.GetPhysicalDeviceFeatures2(physical_device, &features);
+#endif
 
 				// Create temporary Vulkan device
 				float queue_priority = 0.0f;
 				VkDeviceQueueCreateInfo queue_info;
 
 				VkDeviceCreateInfo device_create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+#if VK_KHR_maintenance9
 				if (maintenance9_features.maintenance9)
 				{
 					static const char *maintenance9_name = VK_KHR_MAINTENANCE_9_EXTENSION_NAME;
@@ -103,6 +106,7 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 					device_create_info.ppEnabledExtensionNames = &maintenance9_name;
 				}
 				else
+#endif
 				{
 					queue_info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
 					queue_info.queueCount = 1;
@@ -308,11 +312,13 @@ bool reshade::opengl::device_impl::get_property(api::device_properties property,
 		return true;
 	}
 	case api::device_properties::adapter_luid:
+#if GL_EXT_memory_object
 		if (gl.EXT_memory_object)
 		{
 			gl.GetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, static_cast<GLubyte *>(data));
 			return true;
 		}
+#endif
 		return false;
 	default:
 		return false;
@@ -368,12 +374,20 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::shared_resource:
 	case api::device_caps::shared_resource_nt_handle:
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		return gl.EXT_memory_object && gl.EXT_memory_object_win32;
+#else
+		return false;
+#endif
 	case api::device_caps::resolve_depth_stencil:
 		return true;
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
+#if GL_EXT_semaphore && GL_EXT_semaphore_win32
 		return gl.EXT_semaphore && gl.EXT_semaphore_win32;
+#else
+		return false;
+#endif
 	case api::device_caps::amplification_and_mesh_shader:
 	case api::device_caps::ray_tracing:
 		return false;
@@ -589,6 +603,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	GLenum shared_handle_type = GL_NONE;
 	if ((desc.flags & api::resource_flags::shared) != 0)
 	{
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		if (!gl.EXT_memory_object || !gl.EXT_memory_object_win32)
 			return false;
 
@@ -602,6 +617,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
 		else
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
+#else
+		return false;
+#endif
 	}
 
 	GLuint object = 0;
@@ -625,6 +643,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		GLbitfield storage_flags = GL_NONE;
 		convert_resource_desc(desc, buffer_size, storage_flags);
 
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
@@ -636,6 +655,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			gl.DeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
+#endif
 		{
 			// Upload of initial data is using 'glBufferSubData', which requires the dynamic storage flag
 			if (initial_data != nullptr)
@@ -686,6 +706,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
 
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
@@ -740,6 +761,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			gl.DeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
+#endif
 		{
 			switch (target)
 			{
@@ -2516,10 +2538,14 @@ bool reshade::opengl::device_impl::get_query_heap_results(api::query_heap heap, 
 
 void reshade::opengl::device_impl::set_resource_name(api::resource resource, const char *name)
 {
+	assert(resource != 0);
+
 	gl.ObjectLabel((resource.handle >> 40) == GL_BUFFER ? GL_BUFFER : GL_TEXTURE, resource.handle & 0xFFFFFFFF, -1, name);
 }
 void reshade::opengl::device_impl::set_resource_view_name(api::resource_view view, const char *name)
 {
+	assert(view != 0);
+
 	if (((view.handle >> 32) & 0x1) == 0)
 		return; // This is not a standalone object, so name may have already been set via 'set_resource_name' before
 
@@ -2532,6 +2558,7 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 
 	if ((flags & api::fence_flags::shared) != 0)
 	{
+#if GL_EXT_semaphore && GL_EXT_semaphore_win32
 		if (!gl.EXT_semaphore || !gl.EXT_semaphore_win32)
 			return false;
 
@@ -2552,6 +2579,9 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 
 		*out_fence = { (0xFFFFFFFFull << 40) | object };
 		return true;
+#else
+		return false;
+#endif
 	}
 
 	fence_impl *const impl = new fence_impl();
@@ -2563,6 +2593,7 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 }
 void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
@@ -2573,6 +2604,7 @@ void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 		gl.DeleteSemaphoresEXT(1, &object);
 		return;
 	}
+#endif
 
 	if (fence == 0)
 		return;
@@ -2587,6 +2619,7 @@ void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 
 uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fence) const
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
@@ -2598,6 +2631,7 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 		gl.GetSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
 		return value;
 	}
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 
@@ -2616,8 +2650,10 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 
 bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 		return false;
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value > impl->current_value)
@@ -2632,8 +2668,10 @@ bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64
 }
 bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 		return false;
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value < impl->current_value)

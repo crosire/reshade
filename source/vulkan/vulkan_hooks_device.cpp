@@ -212,22 +212,41 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
 		// Enable extensions that ReShade requires
+#if VK_EXT_private_data
 		if (instance.api_version < VK_API_VERSION_1_3 && !add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
 			return VK_ERROR_EXTENSION_NOT_PRESENT;
+#endif
 
+#if VK_KHR_push_descriptor
 		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
-		dynamic_rendering_ext = instance.api_version >= VK_API_VERSION_1_3 || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
+#endif
+		dynamic_rendering_ext = instance.api_version >= VK_API_VERSION_1_3;
+#if VK_KHR_dynamic_rendering
+		dynamic_rendering_ext = dynamic_rendering_ext || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
 		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
 		if (dynamic_rendering_ext && instance.api_version < VK_API_VERSION_1_3)
 		{
 			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
 			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
 		}
-		timeline_semaphore_ext = instance.api_version >= VK_API_VERSION_1_2 || add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
+#endif
+		timeline_semaphore_ext = instance.api_version >= VK_API_VERSION_1_2;
+#if VK_KHR_timeline_semaphore
+		timeline_semaphore_ext = timeline_semaphore_ext || add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
+#endif
+#if VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
-		extended_dynamic_state_ext = instance.api_version >= VK_API_VERSION_1_3 || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+#endif
+		extended_dynamic_state_ext = instance.api_version >= VK_API_VERSION_1_3;
+#if VK_EXT_extended_dynamic_state
+		extended_dynamic_state_ext = extended_dynamic_state_ext || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
+#endif
+#if VK_EXT_conservative_rasterization
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
+#endif
+#if VK_KHR_external_memory_win32
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
+#endif
 
 #if 0
 		ray_tracing_ext =
@@ -260,8 +279,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			extern void check_and_init_openvr_hooks();
 			check_and_init_openvr_hooks();
 
+#if VK_KHR_swapchain_mutable_format
 			add_extension(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME, true);
 			add_extension(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, true);
+#endif
 		}
 	}
 
@@ -367,6 +388,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
 	}
 
+#if VK_EXT_custom_border_color
 	// Optionally enable custom border color feature
 	VkPhysicalDeviceCustomBorderColorFeaturesEXT custom_border_features;
 	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
@@ -382,7 +404,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &custom_border_features;
 	}
+#endif
 
+#if VK_EXT_extended_dynamic_state
 	// Optionally enable extended dynamic state feature
 	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_features;
 	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
@@ -397,7 +421,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &extended_dynamic_state_features;
 	}
+#endif
 
+#if VK_KHR_acceleration_structure && VK_KHR_ray_tracing_pipeline
 	// Optionally enable ray tracing feature
 	VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_features;
 	VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features;
@@ -418,6 +444,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		create_info.pNext = &acceleration_structure_features;
 	}
+#endif
 
 	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features;
 	if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
@@ -493,52 +520,85 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			return reinterpret_cast<GLADapiproc>(device_proc_address);
 		}, &device);
 
+#if VK_KHR_push_descriptor
 	device.dispatch_table.KHR_push_descriptor &= push_descriptor_ext ? 1 : 0;
+#endif
+#if VK_KHR_dynamic_rendering
 	device.dispatch_table.KHR_dynamic_rendering &= dynamic_rendering_ext ? 1 : 0;
+#endif
+#if VK_KHR_timeline_semaphore
 	device.dispatch_table.KHR_timeline_semaphore &= timeline_semaphore_ext ? 1 : 0;
+#endif
+#if VK_EXT_custom_border_color
 	device.dispatch_table.EXT_custom_border_color &= custom_border_color_ext ? 1 : 0;
+#endif
+#if VK_EXT_extended_dynamic_state
 	device.dispatch_table.EXT_extended_dynamic_state &= extended_dynamic_state_ext ? 1 : 0;
+#endif
+#if VK_EXT_conservative_rasterization
 	device.dispatch_table.EXT_conservative_rasterization &= conservative_rasterization_ext ? 1 : 0;
+#endif
+#if VK_KHR_ray_tracing_pipeline
 	device.dispatch_table.KHR_ray_tracing_pipeline &= ray_tracing_ext ? 1 : 0;
+#endif
+#if VK_KHR_acceleration_structure
 	device.dispatch_table.KHR_acceleration_structure &= ray_tracing_ext ? 1 : 0;
+#endif
+#if VK_KHR_buffer_device_address
 	device.dispatch_table.KHR_buffer_device_address &= buffer_device_address_ext ? 1 : 0;
+#endif
 
 	if (instance.api_version < VK_API_VERSION_1_2)
 	{
 		device.dispatch_table.VERSION_1_2 = 0;
 
+#if VK_KHR_create_renderpass2
 		device.dispatch_table.CreateRenderPass2 = device.dispatch_table.CreateRenderPass2KHR;
 		device.dispatch_table.CmdBeginRenderPass2 = device.dispatch_table.CmdBeginRenderPass2KHR;
 		device.dispatch_table.CmdNextSubpass2 = device.dispatch_table.CmdNextSubpass2KHR;
 		device.dispatch_table.CmdEndRenderPass2 = device.dispatch_table.CmdEndRenderPass2KHR;
+#endif
 
+#if VK_KHR_draw_indirect_count
 		device.dispatch_table.CmdDrawIndirectCount = device.dispatch_table.CmdDrawIndirectCountKHR;
 		device.dispatch_table.CmdDrawIndexedIndirectCount = device.dispatch_table.CmdDrawIndexedIndirectCountKHR;
+#endif
 
+#if VK_KHR_timeline_semaphore
 		device.dispatch_table.GetSemaphoreCounterValue = device.dispatch_table.GetSemaphoreCounterValueKHR;
 		device.dispatch_table.WaitSemaphores = device.dispatch_table.WaitSemaphoresKHR;
 		device.dispatch_table.SignalSemaphore = device.dispatch_table.SignalSemaphoreKHR;
+#endif
 
+#if VK_KHR_buffer_device_address
 		device.dispatch_table.GetBufferDeviceAddress = device.dispatch_table.GetBufferDeviceAddressKHR;
+#endif
 	}
 	if (instance.api_version < VK_API_VERSION_1_3)
 	{
 		device.dispatch_table.VERSION_1_3 = 0;
 
+#if VK_KHR_dynamic_rendering
 		device.dispatch_table.CmdBeginRendering = device.dispatch_table.CmdBeginRenderingKHR;
 		device.dispatch_table.CmdEndRendering = device.dispatch_table.CmdEndRenderingKHR;
+#endif
 
+#if VK_KHR_synchronization2
 		device.dispatch_table.CmdPipelineBarrier2 = device.dispatch_table.CmdPipelineBarrier2KHR;
 		device.dispatch_table.CmdWriteTimestamp2 = device.dispatch_table.CmdWriteTimestamp2KHR;
 		device.dispatch_table.QueueSubmit2 = device.dispatch_table.QueueSubmit2KHR;
+#endif
 
+#if VK_KHR_copy_commands2
 		device.dispatch_table.CmdCopyBuffer2 = device.dispatch_table.CmdCopyBuffer2KHR;
 		device.dispatch_table.CmdCopyImage2 = device.dispatch_table.CmdCopyImage2KHR;
 		device.dispatch_table.CmdCopyBufferToImage2 = device.dispatch_table.CmdCopyBufferToImage2KHR;
 		device.dispatch_table.CmdCopyImageToBuffer2 = device.dispatch_table.CmdCopyImageToBuffer2KHR;
 		device.dispatch_table.CmdBlitImage2 = device.dispatch_table.CmdBlitImage2KHR;
 		device.dispatch_table.CmdResolveImage2 = device.dispatch_table.CmdResolveImage2KHR;
+#endif
 
+#if VK_EXT_extended_dynamic_state
 		device.dispatch_table.CmdSetCullMode = device.dispatch_table.CmdSetCullModeEXT;
 		device.dispatch_table.CmdSetFrontFace = device.dispatch_table.CmdSetFrontFaceEXT;
 		device.dispatch_table.CmdSetPrimitiveTopology = device.dispatch_table.CmdSetPrimitiveTopologyEXT;
@@ -551,18 +611,23 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.dispatch_table.CmdSetDepthBoundsTestEnable = device.dispatch_table.CmdSetDepthBoundsTestEnableEXT;
 		device.dispatch_table.CmdSetStencilTestEnable = device.dispatch_table.CmdSetStencilTestEnableEXT;
 		device.dispatch_table.CmdSetStencilOp = device.dispatch_table.CmdSetStencilOpEXT;
+#endif
 
+#if VK_EXT_private_data
 		device.dispatch_table.CreatePrivateDataSlot = device.dispatch_table.CreatePrivateDataSlotEXT;
 		device.dispatch_table.DestroyPrivateDataSlot = device.dispatch_table.DestroyPrivateDataSlotEXT;
 		device.dispatch_table.GetPrivateData = device.dispatch_table.GetPrivateDataEXT;
 		device.dispatch_table.SetPrivateData = device.dispatch_table.SetPrivateDataEXT;
+#endif
 	}
 	if (instance.api_version < VK_API_VERSION_1_4)
 	{
 		device.dispatch_table.VERSION_1_4 = 0;
 
+#if VK_KHR_push_descriptor
 		device.dispatch_table.CmdPushDescriptorSet = device.dispatch_table.CmdPushDescriptorSetKHR;
 		device.dispatch_table.CmdPushDescriptorSetWithTemplate = device.dispatch_table.CmdPushDescriptorSetWithTemplateKHR;
+#endif
 	}
 
 	// Initialize per-device data
@@ -1274,6 +1339,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 				desc = &pixel_desc;
 				subobjects.push_back({ reshade::api::pipeline_subobject_type::pixel_shader, 1, &pixel_desc });
 				break;
+#if VK_EXT_mesh_shader
 			case VK_SHADER_STAGE_TASK_BIT_EXT:
 				desc = &amplification_desc;
 				subobjects.push_back({ reshade::api::pipeline_subobject_type::amplification_shader, 1, &amplification_desc });
@@ -1282,6 +1348,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 				desc = &mesh_desc;
 				subobjects.push_back({ reshade::api::pipeline_subobject_type::mesh_shader, 1, &mesh_desc });
 				break;
+#endif
 			default:
 				continue;
 			}
@@ -1308,6 +1375,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		auto dynamic_states = reshade::vulkan::convert_dynamic_states(create_info.pDynamicState);
 		subobjects.push_back({ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() });
 
+#if VK_KHR_pipeline_library
 		VkGraphicsPipelineLibraryFlagsEXT library_flags = (flags & reshade::api::pipeline_flags::library) == 0 ? VK_GRAPHICS_PIPELINE_LIBRARY_FLAG_BITS_MAX_ENUM_EXT : 0;
 
 		if (const auto library_info = find_in_structure_chain<VkPipelineLibraryCreateInfoKHR>(
@@ -1326,6 +1394,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		}
 
 		if ((library_flags & VK_GRAPHICS_PIPELINE_LIBRARY_VERTEX_INPUT_INTERFACE_BIT_EXT) != 0)
+#endif
 		{
 			input_layout = reshade::vulkan::convert_input_layout_desc(create_info.pVertexInputState);
 
@@ -1347,23 +1416,33 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(input_layout.size()), input_layout.data() });
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::primitive_topology, 1, &topology });
 		}
+#if VK_KHR_pipeline_library
 		if ((library_flags & VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT) != 0)
+#endif
 		{
+#if VK_EXT_transform_feedback
 			stream_output_desc = reshade::vulkan::convert_stream_output_desc(create_info.pRasterizationState);
+
+			subobjects.push_back({ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc });
+#endif
+
 			rasterizer_desc = reshade::vulkan::convert_rasterizer_desc(create_info.pRasterizationState, create_info.pMultisampleState);
 			viewport_count = (create_info.pViewportState != nullptr) ? create_info.pViewportState->viewportCount : 1;
 
-			subobjects.push_back({ reshade::api::pipeline_subobject_type::stream_output_state, 1, &stream_output_desc });
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::rasterizer_state, 1, &rasterizer_desc });
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::viewport_count, 1, &viewport_count });
 		}
+#if VK_KHR_pipeline_library
 		if ((library_flags & VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT) != 0)
+#endif
 		{
 			depth_stencil_desc = reshade::vulkan::convert_depth_stencil_desc(create_info.pDepthStencilState);
 
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::depth_stencil_state, 1, &depth_stencil_desc });
 		}
+#if VK_KHR_pipeline_library
 		if ((library_flags & VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_OUTPUT_INTERFACE_BIT_EXT) != 0)
+#endif
 		{
 			blend_desc = reshade::vulkan::convert_blend_desc(create_info.pColorBlendState, create_info.pMultisampleState);
 
@@ -1536,6 +1615,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 #endif
 }
+#if VK_KHR_ray_tracing_pipeline
 VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOperationKHR deferredOperation, VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkRayTracingPipelineCreateInfoKHR *pCreateInfos, const VkAllocationCallbacks *pAllocator, VkPipeline *pPipelines)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
@@ -1727,6 +1807,7 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 	return trampoline(device, deferredOperation, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 #endif
 }
+#endif
 void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, const VkAllocationCallbacks *pAllocator)
 {
 	if (pipeline == VK_NULL_HANDLE)
@@ -1939,7 +2020,7 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 #if RESHADE_ADDON >= 2
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*pSetLayout);
 	data.num_descriptors = 0;
-	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR) != 0;
+	data.push_descriptors = (pCreateInfo->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT) != 0;
 
 	if (pCreateInfo->bindingCount != 0)
 	{
@@ -2199,6 +2280,7 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 				static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 				update.descriptors = write.pBufferInfo;
 				break;
+#if VK_KHR_acceleration_structure
 			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 				if (const auto write_acceleration_structure = find_in_structure_chain<VkWriteDescriptorSetAccelerationStructureKHR>(write.pNext, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR))
 				{
@@ -2207,6 +2289,7 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 					break;
 				}
 				[[fallthrough]];
+#endif
 			default:
 				update.count = 0;
 				update.descriptors = nullptr;
@@ -2337,9 +2420,11 @@ void     VKAPI_CALL vkUpdateDescriptorSetWithTemplate(VkDevice device, VkDescrip
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 				update.descriptors = static_cast<const VkDescriptorBufferInfo *>(base);
 				break;
+#if VK_KHR_acceleration_structure
 			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 				update.descriptors = static_cast<const VkAccelerationStructureKHR *>(base);
 				break;
+#endif
 			default:
 				update.count = 0;
 				update.descriptors = nullptr;
@@ -2568,6 +2653,7 @@ void     VKAPI_CALL vkFreeCommandBuffers(VkDevice device, VkCommandPool commandP
 	trampoline(device, commandPool, commandBufferCount, pCommandBuffers);
 }
 
+#if VK_KHR_acceleration_structure
 VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAccelerationStructureCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkAccelerationStructureKHR *pAccelerationStructure)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
@@ -2616,3 +2702,4 @@ void     VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device, VkAcceler
 
 	trampoline(device, accelerationStructure, pAllocator);
 }
+#endif

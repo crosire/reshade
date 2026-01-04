@@ -90,6 +90,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 	reshade::log::message(reshade::log::level::info, "Requesting new Vulkan instance for API version %u.%u.", VK_API_VERSION_MAJOR(app_info.apiVersion), VK_API_VERSION_MINOR(app_info.apiVersion));
 
+#if VK_EXT_private_data
 	// ReShade requires at least Vulkan 1.1 (for SPIR-V 1.3 compatibility)
 	if (app_info.apiVersion < VK_API_VERSION_1_1)
 	{
@@ -97,6 +98,15 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 
 		app_info.apiVersion = VK_API_VERSION_1_1;
 	}
+#else
+	// ReShade requires at least Vulkan 1.3 (for private data support in addition to SPIR-V 1.3 compatibility)
+	if (app_info.apiVersion < VK_API_VERSION_1_3)
+	{
+		reshade::log::message(reshade::log::level::info, "> Replacing requested version with 1.3.");
+
+		app_info.apiVersion = VK_API_VERSION_1_3;
+	}
+#endif
 
 	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
 	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
@@ -137,10 +147,14 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		};
 
 		// Enable extensions that ReShade requires
+#if VK_EXT_debug_utils
 		add_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
+#endif
 
 		add_extension(VK_KHR_SURFACE_EXTENSION_NAME, false);
+#if VK_EXT_swapchain_color_space
 		add_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, false);
+#endif
 	}
 
 	VkInstanceCreateInfo create_info = *pCreateInfo;
@@ -203,6 +217,7 @@ void     VKAPI_CALL vkDestroyInstance(VkInstance instance, const VkAllocationCal
 	trampoline(instance, pAllocator);
 }
 
+#if VK_KHR_win32_surface
 VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSurfaceKHR *pSurface)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateWin32SurfaceKHR(instance = %p, pCreateInfo = %p, pAllocator = %p, pSurface = %p) ...", instance, pCreateInfo, pAllocator, pSurface);
@@ -219,6 +234,8 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 
 	return VK_SUCCESS;
 }
+#endif
+#if VK_KHR_surface
 void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroySurfaceKHR(instance = %p, surface = %p, pAllocator = %) ...", instance, surface, pAllocator);
@@ -228,6 +245,7 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);
 }
+#endif
 
 extern "C" const char *ReShadeVersion;
 
@@ -256,10 +274,10 @@ static VkResult get_physical_device_tool_properties(VkPhysicalDevice physicalDev
 	if (VK_SUCCESS != result)
 		return result;
 
-	VkPhysicalDeviceToolPropertiesEXT &tool_props = pToolProperties[(*pToolCount)++];
+	VkPhysicalDeviceToolProperties &tool_props = pToolProperties[(*pToolCount)++];
 	std::strncpy(tool_props.name, "ReShade", VK_MAX_EXTENSION_NAME_SIZE);
 	std::strncpy(tool_props.version, ReShadeVersion, VK_MAX_EXTENSION_NAME_SIZE);
-	tool_props.purposes = VK_TOOL_PURPOSE_ADDITIONAL_FEATURES_BIT_EXT | VK_TOOL_PURPOSE_MODIFYING_FEATURES_BIT_EXT;
+	tool_props.purposes = VK_TOOL_PURPOSE_ADDITIONAL_FEATURES_BIT | VK_TOOL_PURPOSE_MODIFYING_FEATURES_BIT;
 	std::strncpy(tool_props.description, "crosire's ReShade post-processing injector", VK_MAX_DESCRIPTION_SIZE);
 	std::strncpy(tool_props.layer, "VK_LAYER_reshade", VK_MAX_EXTENSION_NAME_SIZE);
 
@@ -271,8 +289,10 @@ VkResult VKAPI_CALL vkGetPhysicalDeviceToolProperties(VkPhysicalDevice physicalD
 	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceToolProperties, physicalDevice);
 	return get_physical_device_tool_properties(physicalDevice, pToolCount, pToolProperties, trampoline);
 }
+#if VK_EXT_tooling_info
 VkResult VKAPI_CALL vkGetPhysicalDeviceToolPropertiesEXT(VkPhysicalDevice physicalDevice, uint32_t *pToolCount, VkPhysicalDeviceToolPropertiesEXT *pToolProperties)
 {
 	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(GetPhysicalDeviceToolPropertiesEXT, physicalDevice);
 	return get_physical_device_tool_properties(physicalDevice, pToolCount, pToolProperties, trampoline);
 }
+#endif

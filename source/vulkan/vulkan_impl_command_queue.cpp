@@ -88,6 +88,7 @@ void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, c
 {
 	assert(label != nullptr);
 
+#if VK_EXT_debug_utils
 	if (vk.QueueBeginDebugUtilsLabelEXT == nullptr)
 		return;
 
@@ -104,18 +105,22 @@ void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, c
 	}
 
 	vk.QueueBeginDebugUtilsLabelEXT(_orig, &label_info);
+#endif
 }
 void reshade::vulkan::command_queue_impl::end_debug_event()
 {
+#if VK_EXT_debug_utils
 	if (vk.QueueEndDebugUtilsLabelEXT == nullptr)
 		return;
 
 	vk.QueueEndDebugUtilsLabelEXT(_orig);
+#endif
 }
 void reshade::vulkan::command_queue_impl::insert_debug_marker(const char *label, const float color[4])
 {
 	assert(label != nullptr);
 
+#if VK_EXT_debug_utils
 	if (vk.QueueInsertDebugUtilsLabelEXT == nullptr)
 		return;
 
@@ -131,6 +136,7 @@ void reshade::vulkan::command_queue_impl::insert_debug_marker(const char *label,
 	}
 
 	vk.QueueInsertDebugUtilsLabelEXT(_orig, &label_info);
+#endif
 }
 
 bool reshade::vulkan::command_queue_impl::wait(api::fence fence, uint64_t value)

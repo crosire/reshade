@@ -24,6 +24,7 @@ extern void create_default_view(reshade::vulkan::device_impl *device_impl, VkIma
 extern void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkImage image);
 #endif
 
+#if VK_KHR_swapchain
 VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkSwapchainKHR *pSwapchain)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateSwapchainKHR(device = %p, pCreateInfo = %p, pAllocator = %p, pSwapchain = %p) ...", device, pCreateInfo, pAllocator, pSwapchain);
@@ -50,6 +51,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		format_list.push_back(reshade::vulkan::convert_format(
 			reshade::api::format_to_default_typed(reshade::vulkan::convert_format(create_info.imageFormat), 1)));
 
+#if VK_KHR_swapchain_mutable_format
 		// Only have to make format mutable if they are actually different
 		if (format_list[0] != format_list[1])
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
@@ -78,6 +80,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 			create_info.pNext = &format_list_info;
 		}
+#endif
 
 		// Add required queue family indices, so images can be used on the graphics queue
 		if (create_info.imageSharingMode == VK_SHARING_MODE_CONCURRENT)
@@ -134,6 +137,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
 			color_space_string = "VK_COLOR_SPACE_SRGB_NONLINEAR_KHR";
 			break;
+#if VK_EXT_swapchain_colorspace
 		case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
 			color_space_string = "VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT";
 			break;
@@ -146,6 +150,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		case VK_COLOR_SPACE_HDR10_HLG_EXT:
 			color_space_string = "VK_COLOR_SPACE_HDR10_HLG_EXT";
 			break;
+#endif
 		}
 
 		reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
@@ -177,7 +182,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 
 	// Look up window handle from surface
-	const HWND hwnd = g_vulkan_surfaces.at(create_info.surface);
+	HWND const hwnd = g_vulkan_surfaces.at(create_info.surface);
 
 #if RESHADE_ADDON
 	reshade::api::swapchain_desc desc = {};
@@ -197,6 +202,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	desc.present_flags = create_info.flags;
 	desc.sync_interval = create_info.presentMode == VK_PRESENT_MODE_IMMEDIATE_KHR ? 0 : UINT32_MAX;
 
+#if VK_EXT_full_screen_exclusive
 	// Optionally change fullscreen state
 	VkSurfaceFullScreenExclusiveInfoEXT fullscreen_info;
 	if (const auto existing_fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(
@@ -211,6 +217,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		fullscreen_info = { VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT, const_cast<void *>(create_info.pNext) };
 		fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT;
 	}
+#endif
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(reshade::api::device_api::vulkan, desc, hwnd))
 	{
@@ -224,6 +231,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
 		create_info.flags = static_cast<uint32_t>(desc.present_flags);
 
+#if VK_EXT_full_screen_exclusive
 		if (desc.fullscreen_state)
 		{
 			if (fullscreen_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT)
@@ -242,6 +250,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 				create_info.pNext = &fullscreen_info;
 			}
 		}
+#endif
 
 		if (desc.sync_interval == 0)
 			create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
@@ -332,8 +341,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			image_data.create_info.flags |= VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT;
 		if ((create_info.flags & VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR) != 0)
 			image_data.create_info.flags |= VK_IMAGE_CREATE_PROTECTED_BIT;
+#if VK_KHR_swapchain_mutable_format
 		if ((create_info.flags & VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR) != 0)
 			image_data.create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT | VK_IMAGE_CREATE_EXTENDED_USAGE_BIT;
+#endif
 	}
 
 #if RESHADE_ADDON
@@ -343,6 +354,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	for (uint32_t i = 0; i < num_images; ++i)
 		create_default_view(device_impl, swapchain_images[i]);
 
+#if VK_EXT_full_screen_exclusive
 	if (fullscreen_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT)
 	{
 		if (const auto fullscreen_win32_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveWin32InfoEXT>(
@@ -351,6 +363,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 		reshade::invoke_addon_event<reshade::addon_event::set_fullscreen_state>(swapchain_impl, fullscreen_info.fullScreenExclusive == VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT, swapchain_impl->hmonitor);
 	}
+#endif
 #endif
 
 	reshade::init_effect_runtime(swapchain_impl);
@@ -473,6 +486,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		uint32_t dirty_rect_count = 0;
 		temp_mem<reshade::api::rect, 16> dirty_rects;
 
+#if VK_KHR_incremental_present
 		const auto present_regions = find_in_structure_chain<VkPresentRegionsKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR);
 		if (present_regions != nullptr)
 		{
@@ -494,7 +508,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 				};
 			}
 		}
+#endif
 
+#if VK_KHR_display_swapchain
 		reshade::api::rect source_rect, dest_rect;
 
 		const auto display_present_info = find_in_structure_chain<VkDisplayPresentInfoKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR);
@@ -521,6 +537,15 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			display_present_info != nullptr ? &dest_rect : nullptr,
 			dirty_rect_count,
 			dirty_rect_count != 0 ? dirty_rects.p : nullptr);
+#else
+		reshade::invoke_addon_event<reshade::addon_event::present>(
+			queue_impl,
+			swapchain_impl,
+			nullptr,
+			nullptr,
+			dirty_rect_count,
+			dirty_rect_count != 0 ? dirty_rects.p : nullptr);
+#endif
 #endif
 
 		reshade::present_effect_runtime(swapchain_impl);
@@ -577,7 +602,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	return result;
 }
+#endif
 
+#if VK_EXT_full_screen_exclusive
 VkResult VKAPI_CALL vkAcquireFullScreenExclusiveModeEXT(VkDevice device, VkSwapchainKHR swapchain)
 {
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
@@ -604,3 +631,4 @@ VkResult VKAPI_CALL vkReleaseFullScreenExclusiveModeEXT(VkDevice device, VkSwapc
 
 	return trampoline(device, swapchain);
 }
+#endif

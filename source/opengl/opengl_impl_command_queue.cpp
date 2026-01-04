@@ -57,6 +57,7 @@ void reshade::opengl::device_context_impl::wait_idle() const
 
 bool reshade::opengl::device_context_impl::wait(api::fence fence, uint64_t value)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
@@ -68,6 +69,7 @@ bool reshade::opengl::device_context_impl::wait(api::fence fence, uint64_t value
 		gl.WaitSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
 		return true;
 	}
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value > impl->current_value)
@@ -82,6 +84,7 @@ bool reshade::opengl::device_context_impl::wait(api::fence fence, uint64_t value
 }
 bool reshade::opengl::device_context_impl::signal(api::fence fence, uint64_t value)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
@@ -93,6 +96,7 @@ bool reshade::opengl::device_context_impl::signal(api::fence fence, uint64_t val
 		gl.SignalSemaphoreEXT(object, 0, nullptr, 0, nullptr, nullptr);
 		return true;
 	}
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value < impl->current_value)
