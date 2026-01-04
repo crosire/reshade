@@ -481,6 +481,8 @@ bool ReShadeRegisterAddon(void *module, uint32_t api_version)
 
 	if (const char *const *name = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "NAME")))
 		info.name = *name;
+	if (const char *const *author = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "AUTHOR")))
+		info.author = *author;
 	if (const char *const *description = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "DESCRIPTION")))
 		info.description = *description;
 	if (const char *const *website_url = reinterpret_cast<const char *const *>(GetProcAddress(static_cast<HMODULE>(module), "WEBSITE")))
