@@ -1614,10 +1614,6 @@ void reshade::opengl::convert_resource_desc(const api::resource_desc &desc, GLsi
 
 	switch (desc.heap)
 	{
-	default:
-	case api::memory_heap::unknown:
-		storage_flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
-		break;
 	case api::memory_heap::gpu_only:
 		storage_flags = 0;
 		break;
@@ -1629,6 +1625,10 @@ void reshade::opengl::convert_resource_desc(const api::resource_desc &desc, GLsi
 		break;
 	case api::memory_heap::cpu_only:
 		storage_flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_CLIENT_STORAGE_BIT;
+		break;
+	default:
+	case api::memory_heap::custom:
+		storage_flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 		break;
 	}
 
@@ -1703,9 +1703,6 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 
 	switch (storage_flags & (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT))
 	{
-	case GL_MAP_READ_BIT | GL_MAP_WRITE_BIT:
-		desc.heap = api::memory_heap::unknown;
-		break;
 	case 0:
 		desc.heap = api::memory_heap::gpu_only;
 		break;
@@ -1714,6 +1711,9 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 		break;
 	case GL_MAP_READ_BIT:
 		desc.heap = api::memory_heap::gpu_to_cpu;
+		break;
+	case GL_MAP_READ_BIT | GL_MAP_WRITE_BIT:
+		desc.heap = api::memory_heap::custom;
 		break;
 	}
 
