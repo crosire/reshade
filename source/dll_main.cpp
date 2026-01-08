@@ -93,17 +93,7 @@ std::filesystem::path get_base_path(bool default_to_target_executable_path = fal
 /// </summary>
 std::filesystem::path get_system_path()
 {
-	std::filesystem::path path_override;
-
-	if (reshade::global_config().get("INSTALL", "ModulePath", path_override) &&
-		resolve_env_path(path_override))
-		return path_override;
-
 	WCHAR buf[4096];
-	path_override.assign(buf, buf + GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)));
-	if (resolve_env_path(path_override))
-		return path_override;
-
 	return std::filesystem::path(buf, buf + GetSystemDirectoryW(buf, ARRAYSIZE(buf)));
 }
 
@@ -297,6 +287,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			// Register modules to hook
 			{
+				if (std::filesystem::path export_module_path;
+					reshade::global_config().get("PROXY", "EnableProxyLibrary") &&
+					reshade::global_config().get("PROXY", "ProxyLibrary", export_module_path))
+				{
+					reshade::hooks::register_export_module(g_reshade_base_path / export_module_path);
+				}
+
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_INPUT_HOOK", nullptr, 0))
 				{
 					g_exit_event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
@@ -324,7 +321,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_GRAPHICS_HOOK", nullptr, 0))
 				{
 					// Can optionally hook the graphics entry points exported by NVIDIA Streamline, instead of the system ones, to have ReShade apply before Streamline
-					// This does not work when module is called dxgi.dll though, as Streamline would then load the ReShade module itself again to continue its call chain 
+					// This does not work when module is called dxgi.dll though, as Streamline would then load the ReShade module itself again to continue its call chain
 					const bool streamline = !is_d3d && !is_dxgi && config.get("INSTALL", "HookStreamline");
 					if (streamline)
 					{
