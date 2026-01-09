@@ -354,9 +354,6 @@ void reshade::d3d9::convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPO
 
 	switch (heap)
 	{
-	case api::memory_heap::unknown:
-		d3d_pool = D3DPOOL_MANAGED;
-		break;
 	case api::memory_heap::gpu_only:
 		d3d_pool = D3DPOOL_DEFAULT;
 		break;
@@ -366,6 +363,9 @@ void reshade::d3d9::convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPO
 		break;
 	case api::memory_heap::cpu_only:
 		d3d_pool = D3DPOOL_SCRATCH;
+		break;
+	case api::memory_heap::custom:
+		d3d_pool = D3DPOOL_MANAGED;
 		break;
 	}
 }
@@ -378,7 +378,7 @@ void reshade::d3d9::convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memor
 		break;
 	case D3DPOOL_MANAGED:
 	case D3DPOOL_MANAGED_EX:
-		heap = api::memory_heap::unknown;
+		heap = api::memory_heap::custom;
 		break;
 	case D3DPOOL_SYSTEMMEM:
 		heap = api::memory_heap::cpu_to_gpu;
@@ -483,8 +483,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 	internal_desc.Height = desc.texture.height;
 	internal_desc.Depth = desc.texture.depth_or_layers;
 
-	if (const D3DFORMAT format = convert_format(desc.texture.format);
-		format != D3DFMT_UNKNOWN)
+	if (const D3DFORMAT format = convert_format(desc.texture.format))
 		internal_desc.Format = format;
 
 	assert(desc.texture.samples == 1);
@@ -519,8 +518,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 	internal_desc.Width = desc.texture.width;
 	internal_desc.Height = desc.texture.height;
 
-	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0, (desc.usage & api::resource_usage::shader_resource) != 0);
-		format != D3DFMT_UNKNOWN)
+	if (const D3DFORMAT format = convert_format(desc.texture.format, (desc.flags & api::resource_flags::dynamic) != 0, (desc.usage & api::resource_usage::shader_resource) != 0))
 		internal_desc.Format = format;
 
 	if (desc.texture.samples > 1)
@@ -621,7 +619,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) != 0 && desc.heap != api::memory_heap::unknown)
+		if ((desc.flags & api::resource_flags::dynamic) != 0 && desc.heap != api::memory_heap::custom)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
@@ -656,7 +654,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 				internal_desc.Usage |= D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
 		}
 
-		if ((desc.flags & api::resource_flags::dynamic) != 0 && desc.heap != api::memory_heap::unknown)
+		if ((desc.flags & api::resource_flags::dynamic) != 0 && desc.heap != api::memory_heap::custom)
 		{
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
