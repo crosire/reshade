@@ -13,7 +13,7 @@ struct D3D11Device;
 struct D3D12CommandQueue;
 namespace reshade::api { enum class device_api; struct swapchain; }
 
-MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : public IUnknown
+MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : IUnknown
 {
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) = 0;
 	virtual ULONG   STDMETHODCALLTYPE AddRef() = 0;

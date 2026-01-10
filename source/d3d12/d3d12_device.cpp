@@ -7,6 +7,7 @@
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
+#include "d3d12_extensions.hpp"
 #include "d3d12_descriptor_heap.hpp"
 #include "d3d12_pipeline_library.hpp"
 #include "d3d12_resource.hpp"
@@ -119,6 +120,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		*ppvObj = _orig;
 		return S_OK;
 	}
+
+#if RESHADE_ADDON >= 2
+	// Hook vkd3d device extension interfaces if they exist, to properly convert descriptor handles
+	if (riid == IID_ID3D12DeviceExt || riid == IID_ID3D12DeviceExt1)
+	{
+		const HRESULT hr = _orig->QueryInterface(riid, ppvObj);
+		if (SUCCEEDED(hr))
+		{
+			reshade::hooks::install("ID3D12DeviceExt::GetCudaTextureObject", reshade::hooks::vtable_from_instance(static_cast<IUnknown *>(*ppvObj)), 7, &ID3D12DeviceExt_GetCudaTextureObject);
+			reshade::hooks::install("ID3D12DeviceExt::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(static_cast<IUnknown *>(*ppvObj)), 8, &ID3D12DeviceExt_GetCudaSurfaceObject);
+		}
+		return hr;
+	}
+#endif
 
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12DeviceDownlevel)) // {74EAEE3F-2F4B-476D-82BA-2B85CB49E310}

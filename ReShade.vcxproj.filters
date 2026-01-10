@@ -189,6 +189,9 @@
     <ClCompile Include="source\d3d12\d3d12_device_downlevel.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_extensions.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_impl_command_list.cpp">
       <Filter>api\d3d12</Filter>
     </ClCompile>
@@ -570,6 +573,9 @@
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_device_downlevel.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_extensions.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_impl_command_list.hpp">
