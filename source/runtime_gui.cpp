@@ -4851,6 +4851,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 			const auto imgui_tex = _device->get_resource_from_view(imgui_srv);
 
 			_graphics_queue->get_immediate_command_list()->barrier(imgui_tex, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
+			_graphics_queue->wait_idle();
 			for (const ImTextureRect &update_rect : texture_data->Updates)
 			{
 				api::subresource_box box;

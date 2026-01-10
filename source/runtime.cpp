@@ -4430,6 +4430,7 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
+	_graphics_queue->wait_idle();
 	_device->update_texture_region({ upload_data, tex.width * pixel_size, tex.width * tex.height * pixel_size }, tex.resource, 0);
 	cmd_list->barrier(tex.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 

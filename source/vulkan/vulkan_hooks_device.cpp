@@ -165,14 +165,16 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
-	bool push_descriptor_ext = false;
-	bool dynamic_rendering_ext = false;
+	bool buffer_device_address_ext = false;
 	bool timeline_semaphore_ext = false;
-	bool custom_border_color_ext = false;
+	bool host_query_reset_ext = false;
+	bool dynamic_rendering_ext = false;
 	bool extended_dynamic_state_ext = false;
+	bool push_descriptor_ext = false;
+	bool host_image_copy_ext = false;
+	bool custom_border_color_ext = false;
 	bool conservative_rasterization_ext = false;
 	bool ray_tracing_ext = false;
-	bool buffer_device_address_ext = false;
 
 	{
 		uint32_t num_extensions = 0;
@@ -212,40 +214,58 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
 		// Enable extensions that ReShade requires
-#if VK_EXT_private_data
-		if (instance.api_version < VK_API_VERSION_1_3 && !add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
-			return VK_ERROR_EXTENSION_NOT_PRESENT;
+		if (instance.api_version < VK_API_VERSION_1_2)
+		{
+#if VK_KHR_timeline_semaphore
+			timeline_semaphore_ext = add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
+#endif
+#if VK_EXT_host_query_reset
+			host_query_reset_ext = add_extension(VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME, false);
+#endif
+		}
+
+		if (instance.api_version < VK_API_VERSION_1_3)
+		{
+#if VK_KHR_dynamic_rendering
+			dynamic_rendering_ext =
+				add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false) &&
+				// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
+				add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false) &&
+				add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
 #endif
 
-#if VK_KHR_push_descriptor
-		push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
+#if VK_EXT_extended_dynamic_state
+			extended_dynamic_state_ext = add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
 #endif
-		dynamic_rendering_ext = instance.api_version >= VK_API_VERSION_1_3;
-#if VK_KHR_dynamic_rendering
-		dynamic_rendering_ext = dynamic_rendering_ext || add_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME, false);
-		// Add extensions that are required by VK_KHR_dynamic_rendering when not using the core variant
-		if (dynamic_rendering_ext && instance.api_version < VK_API_VERSION_1_3)
-		{
-			add_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
-			add_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, false);
+
+#if VK_EXT_private_data
+			if (!add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
+#endif
+				return VK_ERROR_EXTENSION_NOT_PRESENT;
 		}
+
+		if (instance.api_version < VK_API_VERSION_1_4)
+		{
+#if VK_KHR_push_descriptor
+			push_descriptor_ext = add_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, false);
 #endif
-		timeline_semaphore_ext = instance.api_version >= VK_API_VERSION_1_2;
-#if VK_KHR_timeline_semaphore
-		timeline_semaphore_ext = timeline_semaphore_ext || add_extension(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME, false);
+#if VK_EXT_host_image_copy
+			host_image_copy_ext =
+				add_extension(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME, false) &&
+				// Add extensions that are required by VK_EXT_host_image_copy when not using the core variant
+				add_extension(VK_KHR_COPY_COMMANDS_2_EXTENSION_NAME, false) &&
+				add_extension(VK_KHR_FORMAT_FEATURE_FLAGS_2_EXTENSION_NAME, false);
+#endif
+		}
+
+#if VK_KHR_external_memory_win32
+		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
 #endif
 #if VK_EXT_custom_border_color
 		custom_border_color_ext = add_extension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME, false);
 #endif
-		extended_dynamic_state_ext = instance.api_version >= VK_API_VERSION_1_3;
-#if VK_EXT_extended_dynamic_state
-		extended_dynamic_state_ext = extended_dynamic_state_ext || add_extension(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME, false);
-#endif
 #if VK_EXT_conservative_rasterization
 		conservative_rasterization_ext = add_extension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME, false);
-#endif
-#if VK_KHR_external_memory_win32
-		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
 #endif
 
 #if 0
@@ -298,17 +318,68 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	else
 		create_info.pEnabledFeatures = &enabled_features;
 
+	VkPhysicalDeviceHostQueryResetFeatures host_query_reset_features;
+	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_features;
+	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features;
+	if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
+	{
+		assert(instance.api_version >= VK_API_VERSION_1_2);
+
+		buffer_device_address_ext = existing_vulkan_12_features->bufferDeviceAddress;
+
+		// Force enable timeline semaphore support (used for effect runtime present/graphics queue synchronization in case of present from compute, e.g. in Indiana Jones and the Great Circle and DOOM Eternal)
+		timeline_semaphore_ext = true;
+		const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
+
+		host_query_reset_ext = existing_vulkan_12_features->hostQueryReset;
+	}
+	else
+	{
+		if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
+		{
+			buffer_device_address_ext = existing_buffer_device_address_features->bufferDeviceAddress;
+		}
+		else if (buffer_device_address_ext)
+		{
+			buffer_device_address_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, const_cast<void *>(create_info.pNext) };
+			buffer_device_address_features.bufferDeviceAddress = VK_TRUE;
+
+			create_info.pNext = &buffer_device_address_features;
+		}
+
+		if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES))
+		{
+			timeline_semaphore_ext = true;
+			const_cast<VkPhysicalDeviceTimelineSemaphoreFeatures *>(existing_timeline_semaphore_features)->timelineSemaphore = VK_TRUE;
+		}
+		else if (timeline_semaphore_ext)
+		{
+			timeline_semaphore_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, const_cast<void *>(create_info.pNext) };
+			timeline_semaphore_features.timelineSemaphore = VK_TRUE;
+
+			create_info.pNext = &timeline_semaphore_features;
+		}
+
+		if (const auto existing_host_query_reset_features = find_in_structure_chain<VkPhysicalDeviceHostQueryResetFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES))
+		{
+			host_query_reset_ext = existing_host_query_reset_features->hostQueryReset;
+		}
+		else if (host_query_reset_ext)
+		{
+			host_query_reset_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES, const_cast<void *>(create_info.pNext) };
+			host_query_reset_features.hostQueryReset = VK_TRUE;
+
+			create_info.pNext = &host_query_reset_features;
+		}
+	}
+
 	// Enable private data feature
 	VkDevicePrivateDataCreateInfo private_data_info { VK_STRUCTURE_TYPE_DEVICE_PRIVATE_DATA_CREATE_INFO, create_info.pNext };
 	private_data_info.privateDataSlotRequestCount = 1;
-
-	if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES))
-	{
-		assert(instance.api_version >= VK_API_VERSION_1_4);
-
-		push_descriptor_ext = existing_vulkan_14_features->pushDescriptor;
-	}
 
 	VkPhysicalDevicePrivateDataFeatures private_data_features;
 	VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features;
@@ -355,28 +426,28 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		}
 	}
 
-	VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_features;
-	if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
+	VkPhysicalDeviceHostImageCopyFeatures host_image_copy_features;
+	if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES))
 	{
-		assert(instance.api_version >= VK_API_VERSION_1_2);
+		assert(instance.api_version >= VK_API_VERSION_1_4);
 
-		// Force enable timeline semaphore support (used for effect runtime present/graphics queue synchronization in case of present from compute, e.g. in Indiana Jones and the Great Circle and DOOM Eternal)
-		const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
+		push_descriptor_ext = existing_vulkan_14_features->pushDescriptor;
+		host_image_copy_ext = existing_vulkan_14_features->hostImageCopy;
 	}
 	else
 	{
-		if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES))
+		if (const auto existing_host_image_copy_features = find_in_structure_chain<VkPhysicalDeviceHostImageCopyFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES))
 		{
-			timeline_semaphore_ext = existing_timeline_semaphore_features->timelineSemaphore;
+			host_image_copy_ext = existing_host_image_copy_features->hostImageCopy;
 		}
-		else if (timeline_semaphore_ext)
+		else if (host_image_copy_ext)
 		{
-			timeline_semaphore_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, const_cast<void *>(create_info.pNext) };
-			timeline_semaphore_features.timelineSemaphore = VK_TRUE;
+			host_image_copy_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES, const_cast<void *>(create_info.pNext) };
+			host_image_copy_features.hostImageCopy = VK_TRUE;
 
-			create_info.pNext = &timeline_semaphore_features;
+			create_info.pNext = &host_image_copy_features;
 		}
 	}
 
@@ -445,20 +516,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		create_info.pNext = &acceleration_structure_features;
 	}
 #endif
-
-	VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features;
-	if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
-	{
-		buffer_device_address_ext = existing_buffer_device_address_features->bufferDeviceAddress;
-	}
-	else if (buffer_device_address_ext)
-	{
-		buffer_device_address_features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, const_cast<void *>(create_info.pNext) };
-		buffer_device_address_features.bufferDeviceAddress = VK_TRUE;
-
-		create_info.pNext = &buffer_device_address_features;
-	}
 	#pragma endregion
 
 	// Continue calling down the chain
@@ -520,23 +577,17 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			return reinterpret_cast<GLADapiproc>(device_proc_address);
 		}, &device);
 
-#if VK_KHR_push_descriptor
-	device.dispatch_table.KHR_push_descriptor &= push_descriptor_ext ? 1 : 0;
-#endif
-#if VK_KHR_dynamic_rendering
-	device.dispatch_table.KHR_dynamic_rendering &= dynamic_rendering_ext ? 1 : 0;
+#if VK_KHR_buffer_device_address
+	device.dispatch_table.KHR_buffer_device_address &= buffer_device_address_ext ? 1 : 0;
 #endif
 #if VK_KHR_timeline_semaphore
 	device.dispatch_table.KHR_timeline_semaphore &= timeline_semaphore_ext ? 1 : 0;
 #endif
-#if VK_EXT_custom_border_color
-	device.dispatch_table.EXT_custom_border_color &= custom_border_color_ext ? 1 : 0;
+#if VK_KHR_dynamic_rendering
+	device.dispatch_table.KHR_dynamic_rendering &= dynamic_rendering_ext ? 1 : 0;
 #endif
-#if VK_EXT_extended_dynamic_state
-	device.dispatch_table.EXT_extended_dynamic_state &= extended_dynamic_state_ext ? 1 : 0;
-#endif
-#if VK_EXT_conservative_rasterization
-	device.dispatch_table.EXT_conservative_rasterization &= conservative_rasterization_ext ? 1 : 0;
+#if VK_KHR_push_descriptor
+	device.dispatch_table.KHR_push_descriptor &= push_descriptor_ext ? 1 : 0;
 #endif
 #if VK_KHR_ray_tracing_pipeline
 	device.dispatch_table.KHR_ray_tracing_pipeline &= ray_tracing_ext ? 1 : 0;
@@ -544,36 +595,49 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #if VK_KHR_acceleration_structure
 	device.dispatch_table.KHR_acceleration_structure &= ray_tracing_ext ? 1 : 0;
 #endif
-#if VK_KHR_buffer_device_address
-	device.dispatch_table.KHR_buffer_device_address &= buffer_device_address_ext ? 1 : 0;
+#if VK_EXT_host_query_reset
+	device.dispatch_table.EXT_host_query_reset &= host_query_reset_ext ? 1 : 0;
+#endif
+#if VK_EXT_extended_dynamic_state
+	device.dispatch_table.EXT_extended_dynamic_state &= extended_dynamic_state_ext ? 1 : 0;
+#endif
+#if VK_EXT_host_image_copy
+	device.dispatch_table.EXT_host_image_copy &= host_image_copy_ext ? 1 : 0;
+#endif
+#if VK_EXT_custom_border_color
+	device.dispatch_table.EXT_custom_border_color &= custom_border_color_ext ? 1 : 0;
+#endif
+#if VK_EXT_conservative_rasterization
+	device.dispatch_table.EXT_conservative_rasterization &= conservative_rasterization_ext ? 1 : 0;
 #endif
 
 	if (instance.api_version < VK_API_VERSION_1_2)
 	{
 		device.dispatch_table.VERSION_1_2 = 0;
 
+#if VK_KHR_buffer_device_address
+		device.dispatch_table.GetBufferDeviceAddress = device.dispatch_table.GetBufferDeviceAddressKHR;
+#endif
+#if VK_KHR_draw_indirect_count
+		device.dispatch_table.CmdDrawIndirectCount = device.dispatch_table.CmdDrawIndirectCountKHR;
+		device.dispatch_table.CmdDrawIndexedIndirectCount = device.dispatch_table.CmdDrawIndexedIndirectCountKHR;
+#endif
 #if VK_KHR_create_renderpass2
 		device.dispatch_table.CreateRenderPass2 = device.dispatch_table.CreateRenderPass2KHR;
 		device.dispatch_table.CmdBeginRenderPass2 = device.dispatch_table.CmdBeginRenderPass2KHR;
 		device.dispatch_table.CmdNextSubpass2 = device.dispatch_table.CmdNextSubpass2KHR;
 		device.dispatch_table.CmdEndRenderPass2 = device.dispatch_table.CmdEndRenderPass2KHR;
 #endif
-
-#if VK_KHR_draw_indirect_count
-		device.dispatch_table.CmdDrawIndirectCount = device.dispatch_table.CmdDrawIndirectCountKHR;
-		device.dispatch_table.CmdDrawIndexedIndirectCount = device.dispatch_table.CmdDrawIndexedIndirectCountKHR;
-#endif
-
 #if VK_KHR_timeline_semaphore
 		device.dispatch_table.GetSemaphoreCounterValue = device.dispatch_table.GetSemaphoreCounterValueKHR;
 		device.dispatch_table.WaitSemaphores = device.dispatch_table.WaitSemaphoresKHR;
 		device.dispatch_table.SignalSemaphore = device.dispatch_table.SignalSemaphoreKHR;
 #endif
-
-#if VK_KHR_buffer_device_address
-		device.dispatch_table.GetBufferDeviceAddress = device.dispatch_table.GetBufferDeviceAddressKHR;
+#if VK_EXT_host_query_reset
+		device.dispatch_table.ResetQueryPool = device.dispatch_table.ResetQueryPoolEXT;
 #endif
 	}
+
 	if (instance.api_version < VK_API_VERSION_1_3)
 	{
 		device.dispatch_table.VERSION_1_3 = 0;
@@ -582,13 +646,11 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.dispatch_table.CmdBeginRendering = device.dispatch_table.CmdBeginRenderingKHR;
 		device.dispatch_table.CmdEndRendering = device.dispatch_table.CmdEndRenderingKHR;
 #endif
-
 #if VK_KHR_synchronization2
 		device.dispatch_table.CmdPipelineBarrier2 = device.dispatch_table.CmdPipelineBarrier2KHR;
 		device.dispatch_table.CmdWriteTimestamp2 = device.dispatch_table.CmdWriteTimestamp2KHR;
 		device.dispatch_table.QueueSubmit2 = device.dispatch_table.QueueSubmit2KHR;
 #endif
-
 #if VK_KHR_copy_commands2
 		device.dispatch_table.CmdCopyBuffer2 = device.dispatch_table.CmdCopyBuffer2KHR;
 		device.dispatch_table.CmdCopyImage2 = device.dispatch_table.CmdCopyImage2KHR;
@@ -597,7 +659,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.dispatch_table.CmdBlitImage2 = device.dispatch_table.CmdBlitImage2KHR;
 		device.dispatch_table.CmdResolveImage2 = device.dispatch_table.CmdResolveImage2KHR;
 #endif
-
 #if VK_EXT_extended_dynamic_state
 		device.dispatch_table.CmdSetCullMode = device.dispatch_table.CmdSetCullModeEXT;
 		device.dispatch_table.CmdSetFrontFace = device.dispatch_table.CmdSetFrontFaceEXT;
@@ -612,7 +673,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.dispatch_table.CmdSetStencilTestEnable = device.dispatch_table.CmdSetStencilTestEnableEXT;
 		device.dispatch_table.CmdSetStencilOp = device.dispatch_table.CmdSetStencilOpEXT;
 #endif
-
 #if VK_EXT_private_data
 		device.dispatch_table.CreatePrivateDataSlot = device.dispatch_table.CreatePrivateDataSlotEXT;
 		device.dispatch_table.DestroyPrivateDataSlot = device.dispatch_table.DestroyPrivateDataSlotEXT;
@@ -620,6 +680,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.dispatch_table.SetPrivateData = device.dispatch_table.SetPrivateDataEXT;
 #endif
 	}
+
 	if (instance.api_version < VK_API_VERSION_1_4)
 	{
 		device.dispatch_table.VERSION_1_4 = 0;
@@ -627,6 +688,12 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #if VK_KHR_push_descriptor
 		device.dispatch_table.CmdPushDescriptorSet = device.dispatch_table.CmdPushDescriptorSetKHR;
 		device.dispatch_table.CmdPushDescriptorSetWithTemplate = device.dispatch_table.CmdPushDescriptorSetWithTemplateKHR;
+#endif
+#if VK_EXT_host_image_copy
+		device.dispatch_table.CopyImageToImage = device.dispatch_table.CopyImageToImageEXT;
+		device.dispatch_table.CopyImageToMemory = device.dispatch_table.CopyImageToMemoryEXT;
+		device.dispatch_table.CopyMemoryToImage = device.dispatch_table.CopyMemoryToImageEXT;
+		device.dispatch_table.TransitionImageLayout = device.dispatch_table.TransitionImageLayoutEXT;
 #endif
 	}
 

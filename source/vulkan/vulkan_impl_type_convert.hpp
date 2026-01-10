@@ -202,6 +202,14 @@ namespace reshade::vulkan
 		return VK_IMAGE_ASPECT_COLOR_BIT;
 	}
 
+	inline void convert_subresource(uint32_t subresource, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info)
+	{
+		subresource_info.aspectMask = aspect_flags_from_format(create_info.format);
+		subresource_info.mipLevel = subresource % create_info.mipLevels;
+		subresource_info.baseArrayLayer = subresource / create_info.mipLevels;
+		subresource_info.layerCount = 1;
+	}
+
 	auto convert_access_to_usage(VkAccessFlags2 flags) -> api::resource_usage;
 	auto convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage;
 	void convert_image_usage_flags_to_usage(const VkImageUsageFlags image_flags, api::resource_usage &usage);
