@@ -266,7 +266,7 @@ protected:
 					IMPLEMENT_INTRINSIC_FALLBACK_FIRSTBITHIGH(4) "\n";
 		}
 
-		if (!_cbuffer_block.empty())
+		if (_uniforms_to_spec_constants)
 		{
 			// Apply any specialization constant values set between code generation and assembling
 			for (const uniform &spec_constant : _module.spec_constants)
@@ -311,7 +311,10 @@ protected:
 
 				preamble += '\n';
 			}
+		}
 
+		if (!_cbuffer_block.empty())
+		{
 			if (_shader_model >= 40)
 			{
 				if (_shader_model >= 60)

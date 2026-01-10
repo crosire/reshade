@@ -124,7 +124,7 @@ protected:
 				"uvec3 compCond(bvec3 cond, uvec3 a, uvec3 b) { return uvec3(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z); }\n"
 				"uvec4 compCond(bvec4 cond, uvec4 a, uvec4 b) { return uvec4(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z, cond.w ? a.w : b.w); }\n";
 
-		if (!_ubo_block.empty())
+		if (_uniforms_to_spec_constants)
 		{
 			// Apply any specialization constant values set between code generation and assembling
 			for (const uniform &spec_constant : _module.spec_constants)
@@ -169,7 +169,10 @@ protected:
 
 				preamble += '\n';
 			}
+		}
 
+		if (!_ubo_block.empty())
+		{
 			// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since GLSL uses column matrices)
 			// TODO: This technically only works with square matrices
 			preamble += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
