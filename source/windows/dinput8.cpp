@@ -12,7 +12,7 @@
 #include "input.hpp"
 #include "lockfree_linear_map.hpp"
 
-static lockfree_linear_map<IUnknown *, BYTE, 16> s_dinput_device_type;
+lockfree_linear_map<IUnknown *, BYTE, 64> g_dinput_device_type;
 
 #define IDirectInputDevice8_GetDeviceState_Impl(vtable_index, encoding) \
 	HRESULT STDMETHODCALLTYPE IDirectInputDevice8##encoding##_GetDeviceState(IDirectInputDevice8##encoding *pDevice, DWORD cbData, LPVOID lpvData) \
@@ -20,7 +20,7 @@ static lockfree_linear_map<IUnknown *, BYTE, 16> s_dinput_device_type;
 		const HRESULT hr = reshade::hooks::call(IDirectInputDevice8##encoding##_GetDeviceState, reshade::hooks::vtable_from_instance(pDevice) + vtable_index)(pDevice, cbData, lpvData); \
 		if (SUCCEEDED(hr)) \
 		{ \
-			switch (s_dinput_device_type.at(pDevice)) \
+			switch (g_dinput_device_type.at(pDevice)) \
 			{ \
 			case DI8DEVTYPE_MOUSE: \
 				if (reshade::input::is_blocking_any_mouse_input() && (cbData == sizeof(DIMOUSESTATE) || cbData == sizeof(DIMOUSESTATE2))) \
@@ -49,7 +49,7 @@ IDirectInputDevice8_GetDeviceState_Impl(9, W)
 			(dwFlags & DIGDD_PEEK) == 0 && \
 			(rgdod != nullptr && *pdwInOut != 0)) \
 		{ \
-			switch (s_dinput_device_type.at(pDevice)) \
+			switch (g_dinput_device_type.at(pDevice)) \
 			{ \
 			case DI8DEVTYPE_MOUSE: \
 				if (reshade::input::is_blocking_any_mouse_input()) \
@@ -88,7 +88,7 @@ IDirectInputDevice8_GetDeviceData_Impl(10, W)
 			\
 			DIDEVCAPS caps = { sizeof(caps) }; \
 			device->GetCapabilities(&caps); \
-			s_dinput_device_type.emplace(device, GET_DIDEVICE_TYPE(caps.dwDevType)); \
+			g_dinput_device_type.emplace(device, GET_DIDEVICE_TYPE(caps.dwDevType)); \
 			\
 			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceState", reshade::hooks::vtable_from_instance(device), 9, &IDirectInputDevice8##encoding##_GetDeviceState); \
 			reshade::hooks::install("IDirectInputDevice8" #encoding "::GetDeviceData", reshade::hooks::vtable_from_instance(device), 10, &IDirectInputDevice8##encoding##_GetDeviceData); \
