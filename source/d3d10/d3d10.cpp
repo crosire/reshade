@@ -21,7 +21,10 @@ extern "C" HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER
 		reshade::log::level::info,
 		"Redirecting D3D10CreateDevice(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, SDKVersion = %u, ppDevice = %p) ...",
 		pAdapter, DriverType, Software, Flags, SDKVersion, ppDevice);
-	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1:");
+	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1.");
+
+	// Initialize export hooks when installed as 'd3d10.dll' first, to ensure other 'D3D10*' entry points below resolve to those, instead of function hooks for 'd3d10_1.dll'
+	reshade::hooks::ensure_export_module_loaded();
 
 	// Only 'd3d10.dll' is guaranteed to be loaded at this point, but the 'D3D10CreateDeviceAndSwapChain1' entry point is in 'd3d10_1.dll', so load that now to make sure hooks can be resolved
 	LoadLibraryW(L"d3d10_1.dll");
@@ -54,7 +57,9 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 		reshade::log::level::info,
 		"Redirecting D3D10CreateDeviceAndSwapChain(pAdapter = %p, DriverType = %d, Software = %p, Flags = %#x, SDKVersion = %u, pSwapChainDesc = %p, ppSwapChain = %p, ppDevice = %p) ...",
 		pAdapter, DriverType, Software, Flags, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
-	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1:");
+	reshade::log::message(reshade::log::level::info, "> Passing on to D3D10CreateDeviceAndSwapChain1.");
+
+	reshade::hooks::ensure_export_module_loaded();
 
 	LoadLibraryW(L"d3d10_1.dll");
 
@@ -196,4 +201,84 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	}
 
 	return hr;
+}
+
+extern "C" HRESULT WINAPI D3D10CreateBlob(SIZE_T NumBytes, LPD3D10BLOB *ppBuffer)
+{
+	return reshade::hooks::call(D3D10CreateBlob)(NumBytes, ppBuffer);
+}
+
+extern "C" HRESULT WINAPI D3D10CreateEffectFromMemory(void *pData, SIZE_T DataLength, UINT FXFlags, ID3D10Device *pDevice, ID3D10EffectPool *pEffectPool, ID3D10Effect **ppEffect)
+{
+	return reshade::hooks::call(D3D10CreateEffectFromMemory)(pData, DataLength, FXFlags, pDevice, pEffectPool, ppEffect);
+}
+
+extern "C" HRESULT WINAPI D3D10CreateEffectPoolFromMemory(void *pData, SIZE_T DataLength, UINT FXFlags, ID3D10Device *pDevice, ID3D10EffectPool **ppEffectPool)
+{
+	return reshade::hooks::call(D3D10CreateEffectPoolFromMemory)(pData, DataLength, FXFlags, pDevice, ppEffectPool);
+}
+
+extern "C" HRESULT WINAPI D3D10CompileEffectFromMemory(void *pData, SIZE_T DataLength, LPCSTR pSrcFileName, CONST D3D10_SHADER_MACRO *pDefines, ID3D10Include *pInclude, UINT HLSLFlags, UINT FXFlags, ID3D10Blob **ppCompiledEffect, ID3D10Blob **ppErrors)
+{
+	return reshade::hooks::call(D3D10CompileEffectFromMemory)(pData, DataLength, pSrcFileName, pDefines, pInclude, HLSLFlags, FXFlags, ppCompiledEffect, ppErrors);
+}
+
+extern "C" HRESULT WINAPI D3D10CompileShader(LPCSTR pSrcData, SIZE_T SrcDataSize, LPCSTR pFileName, CONST D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, LPCSTR pFunctionName, LPCSTR pProfile, UINT Flags, ID3D10Blob **ppShader, ID3D10Blob **ppErrorMsgs)
+{
+	return reshade::hooks::call(D3D10CompileShader)(pSrcData, SrcDataSize, pFileName, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs);
+}
+
+extern "C" HRESULT WINAPI D3D10DisassembleEffect(ID3D10Effect *pEffect, BOOL EnableColorCode, ID3D10Blob **ppDisassembly)
+{
+	return reshade::hooks::call(D3D10DisassembleEffect)(pEffect, EnableColorCode, ppDisassembly);
+}
+
+extern "C" HRESULT WINAPI D3D10DisassembleShader(CONST void *pShader, SIZE_T BytecodeLength, BOOL EnableColorCode, LPCSTR pComments, ID3D10Blob **ppDisassembly)
+{
+	return reshade::hooks::call(D3D10DisassembleShader)(pShader, BytecodeLength, EnableColorCode, pComments, ppDisassembly);
+}
+
+extern "C" LPCSTR  WINAPI D3D10GetPixelShaderProfile(ID3D10Device *pDevice)
+{
+	return reshade::hooks::call(D3D10GetPixelShaderProfile)(pDevice);
+}
+
+extern "C" LPCSTR  WINAPI D3D10GetVertexShaderProfile(ID3D10Device *pDevice)
+{
+	return reshade::hooks::call(D3D10GetVertexShaderProfile)(pDevice);
+}
+
+extern "C" LPCSTR  WINAPI D3D10GetGeometryShaderProfile(ID3D10Device *pDevice)
+{
+	return reshade::hooks::call(D3D10GetGeometryShaderProfile)(pDevice);
+}
+
+extern "C" HRESULT WINAPI D3D10ReflectShader(CONST void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10ShaderReflection **ppReflector)
+{
+	return reshade::hooks::call(D3D10ReflectShader)(pShaderBytecode, BytecodeLength, ppReflector);
+}
+
+extern "C" HRESULT WINAPI D3D10PreprocessShader(LPCSTR pSrcData, SIZE_T SrcDataSize, LPCSTR pFileName, CONST D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, ID3D10Blob **ppShaderText, ID3D10Blob **ppErrorMsgs)
+{
+	return reshade::hooks::call(D3D10PreprocessShader)(pSrcData, SrcDataSize, pFileName, pDefines, pInclude, ppShaderText, ppErrorMsgs);
+}
+
+extern "C" HRESULT WINAPI D3D10GetInputSignatureBlob(CONST void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10Blob **ppSignatureBlob)
+{
+	return reshade::hooks::call(D3D10GetInputSignatureBlob)(pShaderBytecode, BytecodeLength, ppSignatureBlob);
+}
+
+extern "C" HRESULT WINAPI D3D10GetOutputSignatureBlob(CONST void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10Blob **ppSignatureBlob)
+{
+	return reshade::hooks::call(D3D10GetOutputSignatureBlob)(pShaderBytecode, BytecodeLength, ppSignatureBlob);
+}
+
+extern "C" HRESULT WINAPI D3D10GetInputAndOutputSignatureBlob(CONST void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10Blob **ppSignatureBlob)
+{
+	return reshade::hooks::call(D3D10GetInputAndOutputSignatureBlob)(pShaderBytecode, BytecodeLength, ppSignatureBlob);
+}
+
+extern "C" HRESULT WINAPI D3D10GetShaderDebugInfo(CONST void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10Blob **ppDebugInfo)
+{
+	return reshade::hooks::call(D3D10GetShaderDebugInfo)(pShaderBytecode, BytecodeLength, ppDebugInfo);
 }

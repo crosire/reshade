@@ -28,6 +28,22 @@ EXPORTS
 	; d3d10.dll
 	D3D10CreateDevice @4 PRIVATE
 	D3D10CreateDeviceAndSwapChain @5 PRIVATE
+	D3D10CreateBlob PRIVATE
+	D3D10CreateEffectFromMemory PRIVATE
+	D3D10CreateEffectPoolFromMemory PRIVATE
+	D3D10CompileEffectFromMemory PRIVATE
+	D3D10CompileShader PRIVATE
+	D3D10DisassembleEffect
+	D3D10DisassembleShader PRIVATE
+	D3D10GetPixelShaderProfile PRIVATE
+	D3D10GetVertexShaderProfile PRIVATE
+	D3D10GetGeometryShaderProfile PRIVATE
+	D3D10ReflectShader PRIVATE
+	D3D10PreprocessShader PRIVATE
+	D3D10GetInputSignatureBlob PRIVATE
+	D3D10GetOutputSignatureBlob PRIVATE
+	D3D10GetInputAndOutputSignatureBlob PRIVATE
+	D3D10GetShaderDebugInfo PRIVATE
 
 	; d3d10_1.dll
 	D3D10CreateDevice1 PRIVATE
