@@ -136,6 +136,8 @@ set(RESHADE_SOURCE_DIRECTX
   source/d3d12/d3d12_descriptor_heap.cpp
   source/d3d12/d3d12_device.cpp
   source/d3d12/d3d12_device_downlevel.cpp
+  source/d3d12/d3d12_extensions.cpp
+  source/d3d12/d3d12_extensions.hpp
   source/d3d12/d3d12_impl_command_list.cpp
   source/d3d12/d3d12_impl_command_list.hpp
   source/d3d12/d3d12_impl_command_list_immediate.cpp
