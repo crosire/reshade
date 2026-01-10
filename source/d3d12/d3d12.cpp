@@ -51,18 +51,20 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 	g_in_dxgi_runtime = false;
+
+	// Skip calls that only check feature level support
+	if (ppDevice == nullptr)
+		return hr;
+
 	if (FAILED(hr))
 	{
 #if RESHADE_ADDON >= 2
-		if (ppDevice != nullptr)
-			reshade::unload_addons();
+		reshade::unload_addons();
 #endif
+
 		reshade::log::message(reshade::log::level::warning, "D3D12CreateDevice failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
-
-	if (ppDevice == nullptr)
-		return hr;
 
 	// The returned device should alway implement the 'ID3D12Device' base interface
 	const auto device = static_cast<ID3D12Device *>(*ppDevice);
@@ -81,6 +83,7 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 	}
 
 #if RESHADE_ADDON >= 2
+	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the reference added above again
 	reshade::unload_addons();
 #endif
 

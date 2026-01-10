@@ -53,28 +53,29 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	}
 
 	// Use local feature level variable in case the application did not pass one in
-	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	D3D_FEATURE_LEVEL feature_level = D3D_FEATURE_LEVEL_11_0;
 
 	g_in_dxgi_runtime = true;
-	HRESULT hr = trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, command_queues.p, NumQueues, NodeMask, ppDevice, nullptr, &FeatureLevel);
+	HRESULT hr = trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, command_queues.p, NumQueues, NodeMask, ppDevice, nullptr, &feature_level);
 	g_in_dxgi_runtime = false;
+
+	if (pChosenFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
+		*pChosenFeatureLevel = feature_level;
+
+	// Skip calls that only check feature level support
+	if (ppDevice == nullptr)
+	{
+		assert(ppImmediateContext == nullptr);
+		return hr;
+	}
+
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "D3D11On12CreateDevice failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
 
-	if (pChosenFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
-		*pChosenFeatureLevel = FeatureLevel;
-
-	reshade::log::message(reshade::log::level::info, "Using feature level %x.", FeatureLevel);
-
-	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
-	if (ppDevice == nullptr)
-	{
-		assert(ppImmediateContext == nullptr);
-		return hr;
-	}
+	reshade::log::message(reshade::log::level::info, "Using feature level %x.", feature_level);
 
 	auto device = *ppDevice;
 	// Query for the DXGI device, D3D11on12 device and immediate device context since we need to reference them in the proxy device

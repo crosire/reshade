@@ -724,7 +724,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 		for (uint32_t queue_index = 0; queue_index < queue_create_info.queueCount; ++queue_index)
 		{
-			VkDeviceQueueInfo2 queue_info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2 };
+			VkDeviceQueueInfo2 queue_info { VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2 };
 			queue_info.flags = queue_create_info.flags;
 			queue_info.queueFamilyIndex = queue_create_info.queueFamilyIndex;
 			queue_info.queueIndex = queue_index;

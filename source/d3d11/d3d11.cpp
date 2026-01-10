@@ -84,15 +84,6 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	g_in_dxgi_runtime = true;
 	HRESULT hr = trampoline(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &feature_level, nullptr);
 	g_in_dxgi_runtime = false;
-	if (FAILED(hr))
-	{
-#if RESHADE_ADDON >= 2
-		if (ppDevice != nullptr)
-			reshade::unload_addons();
-#endif
-		reshade::log::message(reshade::log::level::warning, "D3D11CreateDeviceAndSwapChain failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
-		return hr;
-	}
 
 	if (pFeatureLevel != nullptr) // Copy feature level value to application variable if the argument exists
 	{
@@ -104,14 +95,24 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 			*pFeatureLevel = feature_level;
 	}
 
-	reshade::log::message(reshade::log::level::info, "Using feature level %x.", feature_level);
-
-	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
+	// Skip calls that only check feature level support
 	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr && ppImmediateContext == nullptr);
 		return hr;
 	}
+
+	if (FAILED(hr))
+	{
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
+
+		reshade::log::message(reshade::log::level::warning, "D3D11CreateDeviceAndSwapChain failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
+		return hr;
+	}
+
+	reshade::log::message(reshade::log::level::info, "Using feature level %x.", feature_level);
 
 	auto device = *ppDevice;
 	// Query for the DXGI device and immediate device context since we need to reference them in the proxy device
@@ -181,6 +182,7 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 	}
 
 #if RESHADE_ADDON >= 2
+	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the reference added above again
 	reshade::unload_addons();
 #endif
 

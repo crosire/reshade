@@ -105,20 +105,21 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	g_in_dxgi_runtime = true;
 	HRESULT hr = trampoline(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 	g_in_dxgi_runtime = false;
-	if (FAILED(hr))
-	{
-#if RESHADE_ADDON >= 2
-		if (ppDevice != nullptr)
-			reshade::unload_addons();
-#endif
-		reshade::log::message(reshade::log::level::warning, "D3D10CreateDeviceAndSwapChain1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
-		return hr;
-	}
 
-	// It is valid for the device out parameter to be NULL if the application wants to check feature level support, so just return early in that case
+	// Skip calls that only check feature level support
 	if (ppDevice == nullptr)
 	{
 		assert(ppSwapChain == nullptr);
+		return hr;
+	}
+
+	if (FAILED(hr))
+	{
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
+
+		reshade::log::message(reshade::log::level::warning, "D3D10CreateDeviceAndSwapChain1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
 		return hr;
 	}
 
@@ -176,6 +177,7 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 	}
 
 #if RESHADE_ADDON >= 2
+	// Device proxy was created at this point, which increased the add-on manager reference count, so can release the reference added above again
 	reshade::unload_addons();
 #endif
 
