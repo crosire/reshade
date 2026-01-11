@@ -2101,7 +2101,8 @@ private:
 			spv_op = spv::OpLogicalNot;
 			break;
 		default:
-			return assert(false), 0;
+			assert(false);
+			return 0;
 		}
 
 		add_location(loc, *_current_block_data);
@@ -2193,7 +2194,8 @@ private:
 				exp_type.is_boolean() ? spv::OpLogicalNotEqual : spv::OpINotEqual;
 			break;
 		default:
-			return assert(false), 0;
+			assert(false);
+			return 0;
 		}
 
 		add_location(loc, *_current_block_data);
@@ -2295,7 +2297,8 @@ private:
 		#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) case name##i: code
 			#include "effect_symbol_table_intrinsics.inl"
 		default:
-			return assert(false), 0;
+			assert(false);
+			return 0;
 		}
 	}
 	id   emit_construct(const location &loc, const type &res_type, const std::vector<expression> &args) override

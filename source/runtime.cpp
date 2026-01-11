@@ -698,15 +698,15 @@ void reshade::runtime::on_present()
 							// Change to next value if the associated shortcut key was pressed
 							switch (variable.type.base)
 							{
-								case reshadefx::type::t_bool:
+							case reshadefx::type::t_bool:
 								{
 									bool data = false;
 									get_uniform_value(variable, &data);
 									set_uniform_value(variable, !data);
-									break;
 								}
-								case reshadefx::type::t_int:
-								case reshadefx::type::t_uint:
+								break;
+							case reshadefx::type::t_int:
+							case reshadefx::type::t_uint:
 								{
 									int data[4] = {};
 									get_uniform_value(variable, data, 4);
@@ -716,8 +716,8 @@ void reshade::runtime::on_present()
 										num_items++;
 									data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
 									set_uniform_value(variable, data, 4);
-									break;
 								}
+								break;
 							}
 
 #if RESHADE_GUI
@@ -3704,27 +3704,23 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		{
 			switch (variable.special)
 			{
-				case special_uniform::frame_time:
-				{
-					set_uniform_value(variable, _last_frame_duration.count() * 1e-6f);
-					break;
-				}
-				case special_uniform::frame_count:
-				{
-					if (variable.type.is_boolean())
-						set_uniform_value(variable, (_frame_count % 2) == 0);
-					else
-						set_uniform_value(variable, static_cast<unsigned int>(_frame_count % UINT_MAX));
-					break;
-				}
-				case special_uniform::random:
+			case special_uniform::frame_time:
+				set_uniform_value(variable, _last_frame_duration.count() * 1e-6f);
+				break;
+			case special_uniform::frame_count:
+				if (variable.type.is_boolean())
+					set_uniform_value(variable, (_frame_count % 2) == 0);
+				else
+					set_uniform_value(variable, static_cast<unsigned int>(_frame_count % UINT_MAX));
+				break;
+			case special_uniform::random:
 				{
 					const int min = variable.annotation_as_int("min", 0, 0);
 					const int max = variable.annotation_as_int("max", 0, RAND_MAX);
 					set_uniform_value(variable, min + (std::rand() % (std::abs(max - min) + 1)));
-					break;
 				}
-				case special_uniform::ping_pong:
+				break;
+			case special_uniform::ping_pong:
 				{
 					const float min = variable.annotation_as_float("min", 0, 0.0f);
 					const float max = variable.annotation_as_float("max", 0, 1.0f);
@@ -3752,9 +3748,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 							value[0] = min, value[1] = +1;
 					}
 					set_uniform_value(variable, value, 2);
-					break;
 				}
-				case special_uniform::date:
+				break;
+			case special_uniform::date:
 				{
 					const std::time_t t = std::chrono::system_clock::to_time_t(_current_time);
 					struct tm tm; localtime_s(&tm, &t);
@@ -3766,86 +3762,72 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 						tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec
 					};
 					set_uniform_value(variable, value, 4);
-					break;
 				}
-				case special_uniform::timer:
+				break;
+			case special_uniform::timer:
 				{
 					const unsigned long long timer_ms = std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count();
 					set_uniform_value(variable, static_cast<unsigned int>(timer_ms));
-					break;
 				}
-				case special_uniform::key:
+				break;
+			case special_uniform::key:
+				if (_input != nullptr)
 				{
-					if (_input == nullptr)
+					const int keycode = variable.annotation_as_int("keycode");
+					if (keycode <= 7 || keycode >= 256)
 						break;
 
-					if (const int keycode = variable.annotation_as_int("keycode");
-						keycode > 7 && keycode < 256)
+					const std::string_view mode = variable.annotation_as_string("mode");
+					if (mode == "toggle" || variable.annotation_as_int("toggle"))
 					{
-						if (const std::string_view mode = variable.annotation_as_string("mode");
-							mode == "toggle" || variable.annotation_as_int("toggle"))
-						{
-							bool current_value = false;
-							get_uniform_value(variable, &current_value);
-							if (_input->is_key_pressed(keycode))
-								set_uniform_value(variable, !current_value);
-						}
-						else if (mode == "press")
-							set_uniform_value(variable, _input->is_key_pressed(keycode));
-						else
-							set_uniform_value(variable, _input->is_key_down(keycode));
+						bool current_value = false;
+						get_uniform_value(variable, &current_value);
+						if (_input->is_key_pressed(keycode))
+							set_uniform_value(variable, !current_value);
 					}
-					break;
+					else if (mode == "press")
+						set_uniform_value(variable, _input->is_key_pressed(keycode));
+					else
+						set_uniform_value(variable, _input->is_key_down(keycode));
 				}
-				case special_uniform::mouse_point:
-				{
-					if (_input == nullptr)
-						break;
-
+				break;
+			case special_uniform::mouse_point:
+				if (_input != nullptr)
 					set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
-					break;
-				}
-				case special_uniform::mouse_delta:
-				{
-					if (_input == nullptr)
-						break;
-
+				break;
+			case special_uniform::mouse_delta:
+				if (_input != nullptr)
 					set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
-					break;
-				}
-				case special_uniform::mouse_button:
+				break;
+			case special_uniform::mouse_button:
+				if (_input != nullptr)
 				{
-					if (_input == nullptr)
+					const int keycode = variable.annotation_as_int("keycode");
+					if (keycode < 0 || keycode >= 5)
 						break;
 
-					if (const int keycode = variable.annotation_as_int("keycode");
-						keycode >= 0 && keycode < 5)
+					const std::string_view mode = variable.annotation_as_string("mode");
+					if (mode == "toggle" || variable.annotation_as_int("toggle"))
 					{
-						if (const std::string_view mode = variable.annotation_as_string("mode");
-							mode == "toggle" || variable.annotation_as_int("toggle"))
-						{
-							bool current_value = false;
-							get_uniform_value(variable, &current_value);
-							if (_input->is_mouse_button_pressed(keycode))
-								set_uniform_value(variable, !current_value);
-						}
-						else if (mode == "press")
-							set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
-						else
-							set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+						bool current_value = false;
+						get_uniform_value(variable, &current_value);
+						if (_input->is_mouse_button_pressed(keycode))
+							set_uniform_value(variable, !current_value);
 					}
-					break;
+					else if (mode == "press")
+						set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
+					else
+						set_uniform_value(variable, _input->is_mouse_button_down(keycode));
 				}
-				case special_uniform::mouse_wheel:
+				break;
+			case special_uniform::mouse_wheel:
+				if (_input != nullptr)
 				{
-					if (_input == nullptr)
-						break;
-
 					const float min = variable.annotation_as_float("min");
 					const float max = variable.annotation_as_float("max");
 					float step = variable.annotation_as_float("step");
 					if (step == 0.0f)
-						step  = 1.0f;
+						step = 1.0f;
 
 					float value[2] = { 0, 0 };
 					get_uniform_value(variable, value, 2);
@@ -3857,28 +3839,22 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 						value[0] = std::min(value[0], max);
 					}
 					set_uniform_value(variable, value, 2);
-					break;
 				}
+				break;
 #if RESHADE_GUI
-				case special_uniform::overlay_open:
-				{
-					set_uniform_value(variable, _show_overlay);
-					break;
-				}
-				case special_uniform::overlay_active:
-				case special_uniform::overlay_hovered:
-				{
-					// These are set in 'draw_variable_editor' when overlay is open
-					if (!_show_overlay)
-						set_uniform_value(variable, 0);
-					break;
-				}
+			case special_uniform::overlay_open:
+				set_uniform_value(variable, _show_overlay);
+				break;
+			case special_uniform::overlay_active:
+			case special_uniform::overlay_hovered:
+				// These are set in 'draw_variable_editor' when overlay is open
+				if (!_show_overlay)
+					set_uniform_value(variable, 0);
+				break;
 #endif
-				case special_uniform::screenshot:
-				{
-					set_uniform_value(variable, _should_save_screenshot);
-					break;
-				}
+			case special_uniform::screenshot:
+				set_uniform_value(variable, _should_save_screenshot);
+				break;
 			}
 		}
 	}

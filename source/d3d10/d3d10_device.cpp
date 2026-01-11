@@ -496,33 +496,33 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 
 					switch (type)
 					{
-						case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
+					case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
 						{
 							D3D10_TEXTURE1D_DESC desc;
 							static_cast<ID3D10Texture1D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += 1;
 							dst_box.back += 1;
-							break;
 						}
-						case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
+						break;
+					case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 						{
 							D3D10_TEXTURE2D_DESC desc;
 							static_cast<ID3D10Texture2D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += desc.Height;
 							dst_box.back += 1;
-							break;
 						}
-						case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
+						break;
+					case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 						{
 							D3D10_TEXTURE3D_DESC desc;
 							static_cast<ID3D10Texture3D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += desc.Height;
 							dst_box.back += desc.Depth;
-							break;
 						}
+						break;
 					}
 				}
 			}

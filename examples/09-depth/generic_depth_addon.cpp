@@ -333,8 +333,6 @@ static bool check_depth_format(format format)
 {
 	switch (s_format_filtering)
 	{
-	default:
-		return false;
 	case 1:
 		return format == format::d16_unorm || format == format::r16_typeless;
 	case 2:
@@ -349,6 +347,8 @@ static bool check_depth_format(format format)
 		return format == format::d32_float_s8_uint || format == format::r32_g8_typeless;
 	case 7:
 		return format == format::intz;
+	default:
+		return false;
 	}
 }
 // Checks whether the aspect ratio of the two sets of dimensions is similar or not

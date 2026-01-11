@@ -146,8 +146,8 @@ namespace reshade::opengl
 	GLenum convert_stencil_op(api::stencil_op value);
 	auto   convert_primitive_topology(GLenum value) -> api::primitive_topology;
 	GLenum convert_primitive_topology(api::primitive_topology value);
-	GLenum convert_query_type(api::query_type type);
-	GLenum convert_shader_type(api::shader_stage type);
+	GLenum convert_query_type(api::query_type value);
+	GLenum convert_shader_type(api::shader_stage value);
 }
 
 template <typename T>

@@ -527,10 +527,10 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 	switch (IDirect3DResource9_GetType(src_object) | (IDirect3DResource9_GetType(dst_object) << 4))
 	{
-		case D3DRTYPE_SURFACE | (D3DRTYPE_SURFACE << 4): // Copy from surface to surface
-		{
-			assert(src_subresource == 0 && dst_subresource == 0);
+	case D3DRTYPE_SURFACE | (D3DRTYPE_SURFACE << 4): // Copy from surface to surface
+		assert(src_subresource == 0 && dst_subresource == 0);
 
+		{
 			com_ptr<IDirect3DSurface9> src_surface = static_cast<IDirect3DSurface9 *>(src_object);
 			com_ptr<IDirect3DSurface9> dst_surface = static_cast<IDirect3DSurface9 *>(dst_object);
 
@@ -561,15 +561,14 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				dst_surface.get(), convert_box_to_rect(dst_box, dst_rect), stretch_filter_type);
 			return;
 		}
-		case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4): // Copy from surface to texture
-		{
-			dst_is_regular_texture = true;
-			[[fallthrough]];
-		}
-		case D3DRTYPE_SURFACE | (D3DRTYPE_CUBETEXTURE << 4): // Copy from surface to cube texture
-		{
-			assert(src_subresource == 0);
+		break;
+	case D3DRTYPE_SURFACE | (D3DRTYPE_TEXTURE << 4): // Copy from surface to texture
+		dst_is_regular_texture = true;
+		[[fallthrough]];
+	case D3DRTYPE_SURFACE | (D3DRTYPE_CUBETEXTURE << 4): // Copy from surface to cube texture
+		assert(src_subresource == 0);
 
+		{
 			com_ptr<IDirect3DSurface9> src_surface = static_cast<IDirect3DSurface9 *>(src_object);
 
 			D3DSURFACE_DESC src_desc;
@@ -631,12 +630,11 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				dst_surface.get(), convert_box_to_rect(dst_box, dst_rect), stretch_filter_type);
 			return;
 		}
-		case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4): // Copy from texture to texture
-		{
-			src_is_regular_texture = true;
-			[[fallthrough]];
-		}
-		case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_TEXTURE << 4): // Copy from cube texture to texture
+		break;
+	case D3DRTYPE_TEXTURE | (D3DRTYPE_TEXTURE << 4): // Copy from texture to texture
+		src_is_regular_texture = true;
+		[[fallthrough]];
+	case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_TEXTURE << 4): // Copy from cube texture to texture
 		{
 			const DWORD src_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(src_object));
 			const DWORD src_level = src_subresource % src_level_count;
@@ -805,15 +803,14 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			}
 			return;
 		}
-		case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4): // Copy from texture to surface
-		{
-			src_is_regular_texture = true;
-			[[fallthrough]];
-		}
-		case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_SURFACE << 4): // Copy from cube texture to surface
-		{
-			assert(dst_subresource == 0);
+		break;
+	case D3DRTYPE_TEXTURE | (D3DRTYPE_SURFACE << 4): // Copy from texture to surface
+		src_is_regular_texture = true;
+		[[fallthrough]];
+	case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_SURFACE << 4): // Copy from cube texture to surface
+		assert(dst_subresource == 0);
 
+		{
 			const DWORD src_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(src_object));
 			const DWORD src_level = src_subresource % src_level_count;
 
@@ -870,11 +867,12 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			}
 			return;
 		}
-		case D3DRTYPE_VOLUMETEXTURE | (D3DRTYPE_VOLUMETEXTURE << 4): // Copy from volume texture to volume texture
-		{
-			if (src_subresource != 0 || dst_subresource != 0)
-				return;
+		break;
+	case D3DRTYPE_VOLUMETEXTURE | (D3DRTYPE_VOLUMETEXTURE << 4): // Copy from volume texture to volume texture
+		if (src_subresource != 0 || dst_subresource != 0)
+			return;
 
+		{
 			com_ptr<IDirect3DVolumeTexture9> src_volume = static_cast<IDirect3DVolumeTexture9 *>(src_object);
 			com_ptr<IDirect3DVolumeTexture9> dst_volume = static_cast<IDirect3DVolumeTexture9 *>(dst_object);
 
@@ -888,9 +886,9 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				_orig->UpdateTexture(src_volume.get(), dst_volume.get());
 				return;
 			}
-			break;
 		}
-		case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_CUBETEXTURE << 4): // Copy from cube texture to cube texture
+		break;
+	case D3DRTYPE_CUBETEXTURE | (D3DRTYPE_CUBETEXTURE << 4): // Copy from cube texture to cube texture
 		{
 			const DWORD src_level_count = IDirect3DBaseTexture9_GetLevelCount(static_cast<IDirect3DBaseTexture9 *>(src_object));
 			const DWORD src_level = src_subresource % src_level_count;
@@ -933,6 +931,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 				dst_surface.get(), convert_box_to_rect(dst_box, dst_rect), stretch_filter_type);
 			return;
 		}
+		break;
 	}
 
 	assert(false); // Not implemented

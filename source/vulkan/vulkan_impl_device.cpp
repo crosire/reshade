@@ -489,7 +489,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 	switch (desc.type)
 	{
-		case api::resource_type::buffer:
+	case api::resource_type::buffer:
 		{
 			VkBufferCreateInfo create_info { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
@@ -566,11 +566,11 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				}
 				return true;
 			}
-			break;
 		}
-		case api::resource_type::texture_1d:
-		case api::resource_type::texture_2d:
-		case api::resource_type::texture_3d:
+		break;
+	case api::resource_type::texture_1d:
+	case api::resource_type::texture_2d:
+	case api::resource_type::texture_3d:
 		{
 			VkImageCreateInfo create_info { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 			convert_resource_desc(desc, create_info);
@@ -728,8 +728,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				}
 				return true;
 			}
-			break;
 		}
+		break;
 	}
 
 	vmaDestroyPool(_alloc, alloc_info.pool);
@@ -2282,34 +2282,34 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 		switch (update.type)
 		{
 		case api::descriptor_type::sampler:
-		{
-			const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
-			write.pImageInfo = image_info;
-			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
-				const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[k];
-				image_info[k].sampler = (VkSampler)descriptor.handle;
-				image_info[k].imageView = VK_NULL_HANDLE;
-				image_info[k].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
+				write.pImageInfo = image_info;
+				for (uint32_t k = 0; k < update.count; ++k, ++j)
+				{
+					const auto &descriptor = static_cast<const api::sampler *>(update.descriptors)[k];
+					image_info[k].sampler = (VkSampler)descriptor.handle;
+					image_info[k].imageView = VK_NULL_HANDLE;
+					image_info[k].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				}
 			}
 			break;
-		}
 		case api::descriptor_type::sampler_with_resource_view:
-		{
-			const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
-			write.pImageInfo = image_info;
-			for (uint32_t k = 0; k < update.count; ++k, ++j)
 			{
-				const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k];
-				image_info[k].sampler = (VkSampler)descriptor.sampler.handle;
-				image_info[k].imageView = (VkImageView)descriptor.view.handle;
-				image_info[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
+				write.pImageInfo = image_info;
+				for (uint32_t k = 0; k < update.count; ++k, ++j)
+				{
+					const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[k];
+					image_info[k].sampler = (VkSampler)descriptor.sampler.handle;
+					image_info[k].imageView = (VkImageView)descriptor.view.handle;
+					image_info[k].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				}
 			}
 			break;
-		}
 		case api::descriptor_type::texture_shader_resource_view:
 		case api::descriptor_type::texture_unordered_access_view:
-		{
+			{
 				const auto image_info = reinterpret_cast<VkDescriptorImageInfo *>(extra_data.p + j * extra_data_size);
 				write.pImageInfo = image_info;
 				for (uint32_t k = 0; k < update.count; ++k, ++j)
@@ -2319,8 +2319,8 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 					image_info[k].imageView = (VkImageView)descriptor.handle;
 					image_info[k].imageLayout = (update.type == api::descriptor_type::texture_unordered_access_view) ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 				}
+			}
 			break;
-		}
 		case api::descriptor_type::buffer_shader_resource_view:
 		case api::descriptor_type::buffer_unordered_access_view:
 			write.pTexelBufferView = reinterpret_cast<const VkBufferView *>(update.descriptors);
@@ -2331,14 +2331,14 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 			break;
 #if VK_KHR_acceleration_structure
 		case api::descriptor_type::acceleration_structure:
-		{
-			const auto as_info = reinterpret_cast<VkWriteDescriptorSetAccelerationStructureKHR *>(extra_data.p + j++ * extra_data_size);
-			write.pNext = as_info;
-			as_info[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
-			as_info->accelerationStructureCount = update.count;
-			as_info->pAccelerationStructures = static_cast<const VkAccelerationStructureKHR *>(update.descriptors);
+			{
+				const auto as_info = reinterpret_cast<VkWriteDescriptorSetAccelerationStructureKHR *>(extra_data.p + j++ * extra_data_size);
+				write.pNext = as_info;
+				as_info[0] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
+				as_info->accelerationStructureCount = update.count;
+				as_info->pAccelerationStructures = static_cast<const VkAccelerationStructureKHR *>(update.descriptors);
+			}
 			break;
-		}
 #endif
 		default:
 			assert(false);

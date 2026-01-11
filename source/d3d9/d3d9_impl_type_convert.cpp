@@ -11,9 +11,6 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 {
 	switch (format)
 	{
-	default:
-		assert(false);
-		break;
 	case api::format::unknown:
 		return shader_usage ? D3DFMT_UNKNOWN : static_cast<D3DFORMAT>(MAKEFOURCC('N', 'U', 'L', 'L'));
 
@@ -204,6 +201,10 @@ auto reshade::d3d9::convert_format(api::format format, BOOL lockable, BOOL shade
 
 	case api::format::intz:
 		return static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
+
+	default:
+		assert(false);
+		break;
 	}
 
 	return D3DFMT_UNKNOWN;

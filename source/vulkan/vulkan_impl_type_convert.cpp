@@ -581,9 +581,6 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 {
 	switch (color_space)
 	{
-	default:
-		assert(false);
-		return api::color_space::unknown;
 	case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
 		return api::color_space::srgb;
 #if VK_EXT_swapchain_colorspace
@@ -594,6 +591,9 @@ auto reshade::vulkan::convert_color_space(VkColorSpaceKHR color_space) -> api::c
 	case VK_COLOR_SPACE_HDR10_HLG_EXT:
 		return api::color_space::hdr10_hlg;
 #endif
+	default:
+		assert(false);
+		return api::color_space::unknown;
 	}
 }
 
@@ -1260,9 +1260,6 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 {
 	switch (desc.type)
 	{
-	default:
-		assert(false);
-		break;
 	case api::resource_type::texture_1d:
 		create_info.imageType = VK_IMAGE_TYPE_1D;
 		create_info.extent = { desc.texture.width, 1u, 1u };
@@ -1277,6 +1274,9 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 		create_info.imageType = VK_IMAGE_TYPE_3D;
 		create_info.extent = { desc.texture.width, desc.texture.height, desc.texture.depth_or_layers };
 		create_info.arrayLayers = 1u;
+		break;
+	default:
+		assert(false);
 		break;
 	}
 
@@ -1441,9 +1441,6 @@ void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &
 {
 	switch (desc.type)
 	{
-	default:
-		assert(false);
-		break;
 	case api::resource_view_type::texture_1d:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_1D;
 		break;
@@ -1464,6 +1461,9 @@ void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &
 		break;
 	case api::resource_view_type::texture_cube_array:
 		create_info.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+		break;
+	default:
+		assert(false);
 		break;
 	}
 
@@ -2182,8 +2182,8 @@ auto reshade::vulkan::convert_primitive_topology(api::primitive_topology value) 
 	case api::primitive_topology::patch_list_32_cp:
 		// Also need to adjust 'patchControlPoints' externally
 		return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-	default:
 	case api::primitive_topology::undefined:
+	default:
 		assert(false);
 		return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 	}
@@ -2216,15 +2216,14 @@ auto reshade::vulkan::convert_primitive_topology(VkPrimitiveTopology value) -> a
 		// This needs to be adjusted externally based on 'patchControlPoints'
 		return api::primitive_topology::patch_list_01_cp;
 	default:
-	case VK_PRIMITIVE_TOPOLOGY_MAX_ENUM:
 		assert(false);
 		return api::primitive_topology::undefined;
 	}
 }
 
-auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
+auto reshade::vulkan::convert_query_type(api::query_type value) -> VkQueryType
 {
-	switch (type)
+	switch (value)
 	{
 	case api::query_type::occlusion:
 	case api::query_type::binary_occlusion:
@@ -2255,9 +2254,9 @@ auto reshade::vulkan::convert_query_type(api::query_type type) -> VkQueryType
 		return VK_QUERY_TYPE_MAX_ENUM;
 	}
 }
-auto reshade::vulkan::convert_query_type(VkQueryType type, uint32_t index) -> api::query_type
+auto reshade::vulkan::convert_query_type(VkQueryType value, uint32_t index) -> api::query_type
 {
-	switch (type)
+	switch (value)
 	{
 	case VK_QUERY_TYPE_OCCLUSION:
 		assert(index == 0);

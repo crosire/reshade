@@ -18,8 +18,6 @@ static int get_parenthesis_type(utf8::utfchar32_t c)
 {
 	switch (c)
 	{
-	default:
-		return  0;
 	case '(':
 		return -1;
 	case ')':
@@ -36,6 +34,8 @@ static int get_parenthesis_type(utf8::utfchar32_t c)
 		return -4;
 	case '}':
 		return +4;
+	default:
+		return  0;
 	}
 }
 

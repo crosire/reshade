@@ -583,9 +583,6 @@ void reshade::opengl::convert_pixel_format(api::format format, PIXELFORMATDESCRI
 {
 	switch (format)
 	{
-	default:
-		assert(false);
-		break;
 	case api::format::r8g8b8a8_unorm:
 	case api::format::r8g8b8a8_unorm_srgb:
 		pfd.iPixelType = PFD_TYPE_RGBA;
@@ -700,6 +697,9 @@ void reshade::opengl::convert_pixel_format(api::format format, PIXELFORMATDESCRI
 		pfd.cAlphaBits = 0;
 		pfd.cAlphaShift = 0;
 		break;
+	default:
+		assert(false);
+		break;
 	}
 }
 auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> api::format
@@ -708,9 +708,6 @@ auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> 
 
 	switch (pfd.cColorBits)
 	{
-	default:
-		assert(false);
-		return api::format::unknown;
 	case 16:
 		return api::format::b5g6r5_unorm;
 	case 24:
@@ -727,6 +724,9 @@ auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> 
 		return api::format::r16g16b16a16_float;
 	case 128:
 		return api::format::r32g32b32a32_float;
+	default:
+		assert(false);
+		return api::format::unknown;
 	}
 }
 
@@ -1561,8 +1561,6 @@ auto reshade::opengl::is_depth_stencil_format(api::format format) -> GLenum
 {
 	switch (format)
 	{
-	default:
-		return GL_NONE;
 	case api::format::s8_uint:
 		return GL_STENCIL_ATTACHMENT;
 	case api::format::d16_unorm:
@@ -1572,6 +1570,8 @@ auto reshade::opengl::is_depth_stencil_format(api::format format) -> GLenum
 	case api::format::d24_unorm_s8_uint:
 	case api::format::d32_float_s8_uint:
 		return GL_DEPTH_STENCIL_ATTACHMENT;
+	default:
+		return GL_NONE;
 	}
 }
 
@@ -1844,15 +1844,15 @@ GLuint reshade::opengl::get_index_type_size(GLenum index_type)
 #else
 	switch (index_type)
 	{
-	default:
-		assert(false);
-		return 0;
 	case GL_UNSIGNED_BYTE:
 		return 1;
 	case GL_UNSIGNED_SHORT:
 		return 2;
 	case GL_UNSIGNED_INT:
 		return 4;
+	default:
+		assert(false);
+		return 0;
 	}
 #endif
 }
@@ -2311,9 +2311,6 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 {
 	switch (value)
 	{
-	default:
-		assert(false);
-		return api::primitive_topology::undefined;
 	case GL_POINTS:
 		return api::primitive_topology::point_list;
 	case GL_LINES:
@@ -2345,6 +2342,9 @@ auto   reshade::opengl::convert_primitive_topology(GLenum value) -> api::primiti
 	case GL_PATCHES:
 		// This needs to be adjusted externally based on 'GL_PATCH_VERTICES'
 		return api::primitive_topology::patch_list_01_cp;
+	default:
+		assert(false);
+		return api::primitive_topology::undefined;
 	}
 }
 GLenum reshade::opengl::convert_primitive_topology(api::primitive_topology value)
@@ -2433,9 +2433,9 @@ GLenum reshade::opengl::convert_query_type(api::query_type value)
 		return GL_NONE;
 	}
 }
-GLenum reshade::opengl::convert_shader_type(api::shader_stage type)
+GLenum reshade::opengl::convert_shader_type(api::shader_stage value)
 {
-	switch (type)
+	switch (value)
 	{
 	case api::shader_stage::vertex:
 		return GL_VERTEX_SHADER;

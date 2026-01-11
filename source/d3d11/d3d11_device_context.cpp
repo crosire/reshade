@@ -639,33 +639,33 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resour
 
 					switch (type)
 					{
-						case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
+					case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
 						{
 							D3D11_TEXTURE1D_DESC desc;
 							static_cast<ID3D11Texture1D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += 1;
 							dst_box.back += 1;
-							break;
 						}
-						case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
+						break;
+					case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
 						{
 							D3D11_TEXTURE2D_DESC desc;
 							static_cast<ID3D11Texture2D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += desc.Height;
 							dst_box.back += 1;
-							break;
 						}
-						case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
+						break;
+					case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
 						{
 							D3D11_TEXTURE3D_DESC desc;
 							static_cast<ID3D11Texture3D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += desc.Height;
 							dst_box.back += desc.Depth;
-							break;
 						}
+						break;
 					}
 				}
 			}
@@ -1215,33 +1215,33 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resou
 
 					switch (type)
 					{
-						case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
+					case D3D11_RESOURCE_DIMENSION_TEXTURE1D:
 						{
 							D3D11_TEXTURE1D_DESC desc;
 							static_cast<ID3D11Texture1D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += 1;
 							dst_box.back += 1;
-							break;
 						}
-						case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
+						break;
+					case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
 						{
 							D3D11_TEXTURE2D_DESC desc;
 							static_cast<ID3D11Texture2D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += desc.Height;
 							dst_box.back += 1;
-							break;
 						}
-						case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
+						break;
+					case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
 						{
 							D3D11_TEXTURE3D_DESC desc;
 							static_cast<ID3D11Texture3D *>(pSrcResource)->GetDesc(&desc);
 							dst_box.right += desc.Width;
 							dst_box.bottom += desc.Height;
 							dst_box.back += desc.Depth;
-							break;
 						}
+						break;
 					}
 				}
 			}

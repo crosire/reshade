@@ -10,7 +10,7 @@
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
 
-std::shared_mutex g_adapter_mutex;
+std::shared_mutex g_d3d12_adapter_mutex;
 
 extern thread_local bool g_in_dxgi_runtime;
 
@@ -23,7 +23,7 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 		return trampoline(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 
 	// Need to lock during device creation to ensure an existing device proxy cannot be destroyed in while it is queried below
-	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
 
 	reshade::log::message(
 		reshade::log::level::info,

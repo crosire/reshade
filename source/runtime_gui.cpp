@@ -3798,7 +3798,7 @@ void reshade::runtime::draw_variable_editor()
 
 				switch (variable.type.base)
 				{
-					case reshadefx::type::t_bool:
+				case reshadefx::type::t_bool:
 					{
 						if (ui_type == "button")
 						{
@@ -3821,10 +3821,10 @@ void reshade::runtime::draw_variable_editor()
 
 						if (modified)
 							set_uniform_value(variable, value.as_uint, variable.type.components());
-						break;
 					}
-					case reshadefx::type::t_int:
-					case reshadefx::type::t_uint:
+					break;
+				case reshadefx::type::t_int:
+				case reshadefx::type::t_uint:
 					{
 						const int ui_min_val = variable.annotation_as_int("ui_min", 0, ui_type == "slider" ? 0 : std::numeric_limits<int>::lowest());
 						const int ui_max_val = variable.annotation_as_int("ui_max", 0, ui_type == "slider" ? 1 : std::numeric_limits<int>::max());
@@ -3854,9 +3854,9 @@ void reshade::runtime::draw_variable_editor()
 
 						if (modified)
 							set_uniform_value(variable, value.as_int, variable.type.components());
-						break;
 					}
-					case reshadefx::type::t_float:
+					break;
+				case reshadefx::type::t_float:
 					{
 						const float ui_min_val = variable.annotation_as_float("ui_min", 0, ui_type == "slider" ? 0.0f : std::numeric_limits<float>::lowest());
 						const float ui_max_val = variable.annotation_as_float("ui_max", 0, ui_type == "slider" ? 1.0f : std::numeric_limits<float>::max());
@@ -3890,8 +3890,8 @@ void reshade::runtime::draw_variable_editor()
 
 						if (modified)
 							set_uniform_value(variable, value.as_float, variable.type.components());
-						break;
 					}
+					break;
 				}
 
 				ImGui::EndDisabled();

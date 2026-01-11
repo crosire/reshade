@@ -470,9 +470,9 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 
 	switch (usage_type)
 	{
-		case api::resource_usage::depth_stencil:
-		case api::resource_usage::depth_stencil_read:
-		case api::resource_usage::depth_stencil_write:
+	case api::resource_usage::depth_stencil:
+	case api::resource_usage::depth_stencil_read:
+	case api::resource_usage::depth_stencil_write:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
 			if (!_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_DSV].allocate(descriptor_handle))
@@ -490,7 +490,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			*out_view = to_handle(descriptor_handle);
 			return true;
 		}
-		case api::resource_usage::render_target:
+	case api::resource_usage::render_target:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
 			if (!_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_RTV].allocate(descriptor_handle))
@@ -505,7 +505,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			*out_view = to_handle(descriptor_handle);
 			return true;
 		}
-		case api::resource_usage::shader_resource:
+	case api::resource_usage::shader_resource:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
 			if (!_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV].allocate(descriptor_handle))
@@ -521,7 +521,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			*out_view = to_handle(descriptor_handle);
 			return true;
 		}
-		case api::resource_usage::unordered_access:
+	case api::resource_usage::unordered_access:
 		{
 			D3D12_CPU_DESCRIPTOR_HANDLE descriptor_handle;
 			if (!_view_heaps[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV].allocate(descriptor_handle))
@@ -536,7 +536,7 @@ bool reshade::d3d12::device_impl::create_resource_view(api::resource resource, a
 			*out_view = to_handle(descriptor_handle);
 			return true;
 		}
-		case api::resource_usage::acceleration_structure:
+	case api::resource_usage::acceleration_structure:
 		{
 			assert(desc.type == api::resource_view_type::unknown || desc.type == api::resource_view_type::buffer || desc.type == api::resource_view_type::acceleration_structure);
 
@@ -1098,80 +1098,74 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 				switch (group.type)
 				{
 				case api::shader_group_type::raygen:
-				{
 					if (group.raygen.shader_index != UINT32_MAX && raygen_desc[group.raygen.shader_index].entry_point != nullptr)
 					{
 						const char *entry_point = raygen_desc[group.raygen.shader_index].entry_point;
 						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
 					break;
-				}
 				case api::shader_group_type::miss:
-				{
 					if (group.miss.shader_index != UINT32_MAX && miss_desc[group.miss.shader_index].entry_point != nullptr)
 					{
 						const char *entry_point = miss_desc[group.miss.shader_index].entry_point;
 						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
 					break;
-				}
 				case api::shader_group_type::callable:
-				{
 					if (group.callable.shader_index != UINT32_MAX && callable_desc[group.callable.shader_index].entry_point != nullptr)
 					{
 						const char *entry_point = callable_desc[group.callable.shader_index].entry_point;
 						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(group_exports[i]));
 					}
 					break;
-				}
 				case api::shader_group_type::hit_group_triangles:
 				case api::shader_group_type::hit_group_aabbs:
-				{
-					D3D12_HIT_GROUP_DESC &desc = hit_group_descs[i];
-					desc.Type = group.type == api::shader_group_type::hit_group_triangles ? D3D12_HIT_GROUP_TYPE_TRIANGLES : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
+					{
+						D3D12_HIT_GROUP_DESC &desc = hit_group_descs[i];
+						desc.Type = group.type == api::shader_group_type::hit_group_triangles ? D3D12_HIT_GROUP_TYPE_TRIANGLES : D3D12_HIT_GROUP_TYPE_PROCEDURAL_PRIMITIVE;
 
-					group_exports[i] = L"HitGroup" + std::to_wstring(i);
-					desc.HitGroupExport = group_exports[i].c_str();
+						group_exports[i] = L"HitGroup" + std::to_wstring(i);
+						desc.HitGroupExport = group_exports[i].c_str();
 
-					if (group.hit_group.any_hit_shader_index != UINT32_MAX && any_hit_desc[group.hit_group.any_hit_shader_index].entry_point != nullptr)
-					{
-						std::wstring &entry_point_wide = any_hit_imports[i];
-						const char *const entry_point = any_hit_desc[group.hit_group.any_hit_shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
-						desc.AnyHitShaderImport = entry_point_wide.c_str();
-					}
-					else
-					{
-						desc.AnyHitShaderImport = nullptr;
-					}
+						if (group.hit_group.any_hit_shader_index != UINT32_MAX && any_hit_desc[group.hit_group.any_hit_shader_index].entry_point != nullptr)
+						{
+							std::wstring &entry_point_wide = any_hit_imports[i];
+							const char *const entry_point = any_hit_desc[group.hit_group.any_hit_shader_index].entry_point;
+							utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
+							desc.AnyHitShaderImport = entry_point_wide.c_str();
+						}
+						else
+						{
+							desc.AnyHitShaderImport = nullptr;
+						}
 
-					if (group.hit_group.closest_hit_shader_index != UINT32_MAX && closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point != nullptr)
-					{
-						std::wstring &entry_point_wide = closest_hit_imports[i];
-						const char *const entry_point = closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
-						desc.ClosestHitShaderImport = entry_point_wide.c_str();
-					}
-					else
-					{
-						desc.ClosestHitShaderImport = nullptr;
-					}
+						if (group.hit_group.closest_hit_shader_index != UINT32_MAX && closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point != nullptr)
+						{
+							std::wstring &entry_point_wide = closest_hit_imports[i];
+							const char *const entry_point = closest_hit_desc[group.hit_group.closest_hit_shader_index].entry_point;
+							utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
+							desc.ClosestHitShaderImport = entry_point_wide.c_str();
+						}
+						else
+						{
+							desc.ClosestHitShaderImport = nullptr;
+						}
 
-					if (group.hit_group.intersection_shader_index != UINT32_MAX && intersection_desc[group.hit_group.intersection_shader_index].entry_point != nullptr)
-					{
-						std::wstring &entry_point_wide = intersection_imports[i];
-						const char *const entry_point = intersection_desc[group.hit_group.intersection_shader_index].entry_point;
-						utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
-						desc.IntersectionShaderImport = entry_point_wide.c_str();
-					}
-					else
-					{
-						desc.IntersectionShaderImport = nullptr;
-					}
+						if (group.hit_group.intersection_shader_index != UINT32_MAX && intersection_desc[group.hit_group.intersection_shader_index].entry_point != nullptr)
+						{
+							std::wstring &entry_point_wide = intersection_imports[i];
+							const char *const entry_point = intersection_desc[group.hit_group.intersection_shader_index].entry_point;
+							utf8::unchecked::utf8to16(entry_point, entry_point + std::strlen(entry_point), std::back_inserter(entry_point_wide));
+							desc.IntersectionShaderImport = entry_point_wide.c_str();
+						}
+						else
+						{
+							desc.IntersectionShaderImport = nullptr;
+						}
 
-					internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &desc });
+						internal_subobjects.push_back({ D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP, &desc });
+					}
 					break;
-				}
 				}
 
 				i++;

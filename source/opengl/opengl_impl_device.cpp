@@ -496,8 +496,6 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 	const auto convert_address_mode = [](api::texture_address_mode value) {
 		switch (value)
 		{
-		default:
-			return GL_NONE;
 		case api::texture_address_mode::wrap:
 			return GL_REPEAT;
 		case api::texture_address_mode::mirror:
@@ -506,6 +504,8 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 			return GL_CLAMP_TO_EDGE;
 		case api::texture_address_mode::border:
 			return GL_CLAMP_TO_BORDER;
+		default:
+			return GL_NONE;
 		}
 	};
 
@@ -881,9 +881,11 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
+	api::resource_desc desc;
+
 	switch (target)
 	{
-		case GL_BUFFER:
+	case GL_BUFFER:
 		{
 #ifndef _WIN64
 			GLint size = 0;
@@ -919,19 +921,20 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
-			return convert_resource_desc(target, size, storage_flags);
+			desc = convert_resource_desc(target, size, storage_flags);
 		}
-		case GL_TEXTURE_BUFFER:
-		case GL_TEXTURE_1D:
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D:
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_2D_MULTISAMPLE:
-		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		case GL_TEXTURE_3D:
-		case GL_TEXTURE_CUBE_MAP:
-		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_RECTANGLE:
+		break;
+	case GL_TEXTURE_BUFFER:
+	case GL_TEXTURE_1D:
+	case GL_TEXTURE_1D_ARRAY:
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+	case GL_TEXTURE_RECTANGLE:
 		{
 			GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE;
 			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
@@ -1015,9 +1018,10 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 			assert(width != 0);
 
-			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
+			desc = convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
 		}
-		case GL_RENDERBUFFER:
+		break;
+	case GL_RENDERBUFFER:
 		{
 			GLint width = 0, height = 1, samples = 1, internal_format = GL_NONE;
 
@@ -1049,27 +1053,26 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 			assert(width != 0);
 
-			return convert_resource_desc(target, 1, samples, internal_format, width, height);
+			desc = convert_resource_desc(target, 1, samples, internal_format, width, height);
 		}
-		case GL_FRAMEBUFFER_DEFAULT:
+		break;
+	case GL_FRAMEBUFFER_DEFAULT:
 		{
+			desc = _default_fbo_desc;
+
 			if (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT)
 			{
-				api::resource_desc default_fbo_depth_desc = _default_fbo_desc;
-				default_fbo_depth_desc.texture.format = _default_depth_format;
-				default_fbo_depth_desc.usage = (default_fbo_depth_desc.usage & ~reshade::api::resource_usage::render_target) | reshade::api::resource_usage::depth_stencil;
-
-				return default_fbo_depth_desc;
-			}
-			else
-			{
-				return _default_fbo_desc;
+				desc.texture.format = _default_depth_format;
+				desc.usage = (desc.usage & ~reshade::api::resource_usage::render_target) | reshade::api::resource_usage::depth_stencil;
 			}
 		}
+		break;
+	default:
+		assert(false); // Not implemented
+		break;
 	}
 
-	assert(false); // Not implemented
-	return api::resource_desc {};
+	return desc;
 }
 
 bool reshade::opengl::device_impl::create_resource_view(api::resource resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view *out_view)

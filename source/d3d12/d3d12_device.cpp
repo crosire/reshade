@@ -22,7 +22,7 @@
 
 using reshade::d3d12::to_handle;
 
-extern std::shared_mutex g_adapter_mutex;
+extern std::shared_mutex g_d3d12_adapter_mutex;
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	device_impl(original)
@@ -159,14 +159,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::AddRef()
 {
-	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
 
 	_orig->AddRef();
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 {
-	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
 
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
@@ -2776,116 +2776,116 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 				switch (param_type)
 				{
 				case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
-				{
-					const uint32_t range_count = param_data[0];
-					uint32_t descriptor_offset = 0;
-
-					ranges[param_index].resize(range_count);
-
-					// Convert descriptor ranges
-					switch (version)
 					{
-					case D3D_ROOT_SIGNATURE_VERSION_1_0:
-					{
-						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(part + (param_data[1] / sizeof(uint32_t)));
+						const uint32_t range_count = param_data[0];
+						uint32_t descriptor_offset = 0;
 
-						for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+						ranges[param_index].resize(range_count);
+
+						// Convert descriptor ranges
+						switch (version)
 						{
-							reshade::api::descriptor_range &range = ranges[param_index][range_index];
-							range.dx_register_index = range_data->BaseShaderRegister;
-							range.dx_register_space = range_data->RegisterSpace;
-							range.count = range_data->NumDescriptors;
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-							range.array_size = 1;
-							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+						case D3D_ROOT_SIGNATURE_VERSION_1_0:
+							{
+								auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(part + (param_data[1] / sizeof(uint32_t)));
 
-							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-								range.binding = descriptor_offset;
-							else
-								range.binding = range_data->OffsetInDescriptorsFromTableStart;
+								for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+								{
+									reshade::api::descriptor_range &range = ranges[param_index][range_index];
+									range.dx_register_index = range_data->BaseShaderRegister;
+									range.dx_register_space = range_data->RegisterSpace;
+									range.count = range_data->NumDescriptors;
+									range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+									range.array_size = 1;
+									range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
 
-							if (range_data->NumDescriptors == UINT_MAX)
-								// Only the last entry in a table can have an unbounded size
-								assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-							else
-								descriptor_offset = range.binding + range.count;
+									if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+										range.binding = descriptor_offset;
+									else
+										range.binding = range_data->OffsetInDescriptorsFromTableStart;
+
+									if (range_data->NumDescriptors == UINT_MAX)
+										// Only the last entry in a table can have an unbounded size
+										assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+									else
+										descriptor_offset = range.binding + range.count;
+								}
+							}
+							break;
+						case D3D_ROOT_SIGNATURE_VERSION_1_1:
+						case D3D_ROOT_SIGNATURE_VERSION_1_2:
+							{
+								auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(part + (param_data[1] / sizeof(uint32_t)));
+
+								for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+								{
+									reshade::api::descriptor_range &range = ranges[param_index][range_index];
+									range.dx_register_index = range_data->BaseShaderRegister;
+									range.dx_register_space = range_data->RegisterSpace;
+									range.count = range_data->NumDescriptors;
+									range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+									range.array_size = 1;
+									range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+
+									if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+										range.binding = descriptor_offset;
+									else
+										range.binding = range_data->OffsetInDescriptorsFromTableStart;
+
+									if (range_data->NumDescriptors == UINT_MAX)
+										// Only the last entry in a table can have an unbounded size
+										assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+									else
+										descriptor_offset = range.binding + range.count;
+								}
+							}
+							break;
 						}
-						break;
+
+						params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+						params[param_index].descriptor_table.count = range_count;
+						params[param_index].descriptor_table.ranges = ranges[param_index].data();
 					}
-					case D3D_ROOT_SIGNATURE_VERSION_1_1:
-					case D3D_ROOT_SIGNATURE_VERSION_1_2:
-					{
-						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(part + (param_data[1] / sizeof(uint32_t)));
-
-						for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
-						{
-							reshade::api::descriptor_range &range = ranges[param_index][range_index];
-							range.dx_register_index = range_data->BaseShaderRegister;
-							range.dx_register_space = range_data->RegisterSpace;
-							range.count = range_data->NumDescriptors;
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-							range.array_size = 1;
-							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-
-							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-								range.binding = descriptor_offset;
-							else
-								range.binding = range_data->OffsetInDescriptorsFromTableStart;
-
-							if (range_data->NumDescriptors == UINT_MAX)
-								// Only the last entry in a table can have an unbounded size
-								assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-							else
-								descriptor_offset = range.binding + range.count;
-						}
-						break;
-					}
-					}
-
-					params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-					params[param_index].descriptor_table.count = range_count;
-					params[param_index].descriptor_table.ranges = ranges[param_index].data();
 					break;
-				}
 				case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
-				{
-					auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
+					{
+						auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
 
-					params[param_index].type = reshade::api::pipeline_layout_param_type::push_constants;
+						params[param_index].type = reshade::api::pipeline_layout_param_type::push_constants;
 
-					// Convert root constant description
-					reshade::api::constant_range &root_constant = params[param_index].push_constants;
-					root_constant.binding = 0;
-					root_constant.dx_register_index = constant_data->ShaderRegister;
-					root_constant.dx_register_space = constant_data->RegisterSpace;
-					root_constant.count = constant_data->Num32BitValues;
-					root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						// Convert root constant description
+						reshade::api::constant_range &root_constant = params[param_index].push_constants;
+						root_constant.binding = 0;
+						root_constant.dx_register_index = constant_data->ShaderRegister;
+						root_constant.dx_register_space = constant_data->RegisterSpace;
+						root_constant.count = constant_data->Num32BitValues;
+						root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+					}
 					break;
-				}
 				case D3D12_ROOT_PARAMETER_TYPE_CBV:
 				case D3D12_ROOT_PARAMETER_TYPE_SRV:
 				case D3D12_ROOT_PARAMETER_TYPE_UAV:
-				{
-					auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
+					{
+						auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
 
-					params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+						params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors;
 
-					reshade::api::descriptor_range &range = params[param_index].push_descriptors;
-					range.binding = 0;
-					range.dx_register_index = descriptor_data->ShaderRegister;
-					range.dx_register_space = descriptor_data->RegisterSpace;
-					range.count = 1;
-					range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-					range.array_size = 1;
+						reshade::api::descriptor_range &range = params[param_index].push_descriptors;
+						range.binding = 0;
+						range.dx_register_index = descriptor_data->ShaderRegister;
+						range.dx_register_space = descriptor_data->RegisterSpace;
+						range.count = 1;
+						range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						range.array_size = 1;
 
-					if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
-						range.type = reshade::api::descriptor_type::constant_buffer;
-					else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
-						range.type = reshade::api::descriptor_type::buffer_shader_resource_view;
-					else
-						range.type = reshade::api::descriptor_type::buffer_unordered_access_view;
+						if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
+							range.type = reshade::api::descriptor_type::constant_buffer;
+						else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
+							range.type = reshade::api::descriptor_type::buffer_shader_resource_view;
+						else
+							range.type = reshade::api::descriptor_type::buffer_unordered_access_view;
+					}
 					break;
-				}
 				}
 			}
 		}

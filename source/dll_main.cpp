@@ -118,7 +118,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
 	switch (fdwReason)
 	{
-		case DLL_PROCESS_ATTACH:
+	case DLL_PROCESS_ATTACH:
 		{
 			// Do NOT call 'DisableThreadLibraryCalls', since we are linking against the static CRT, which requires the thread notifications to work properly
 			// It does not do anything when static TLS is used anyway, which is the case (see https://docs.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-disablethreadlibrarycalls)
@@ -385,9 +385,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				}
 			}
 #endif
-			break;
 		}
-		case DLL_PROCESS_DETACH:
+		break;
+	case DLL_PROCESS_DETACH:
 		{
 			reshade::log::message(reshade::log::level::info, "Exiting ...");
 
@@ -415,8 +415,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #endif
 
 			reshade::log::message(reshade::log::level::info, "Finished exiting.");
-			break;
 		}
+		break;
 	}
 
 	return TRUE;
