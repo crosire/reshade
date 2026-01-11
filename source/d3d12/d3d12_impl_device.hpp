@@ -119,7 +119,9 @@ namespace reshade::d3d12
 			return { handle.ptr };
 		}
 
+#if RESHADE_ADDON >= 2
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
+#endif
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE *type = nullptr) const;
 		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_table set) const;
 

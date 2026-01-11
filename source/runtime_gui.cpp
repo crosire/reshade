@@ -73,9 +73,10 @@ static std::string_view get_localized_annotation(T &object, const std::string_vi
 	if (language.size() >= 2)
 	{
 		// Transform language name from e.g. 'en-US' to 'en_us'
-		std::replace(language.begin(), language.end(), '-', '_');
 		std::transform(language.begin(), language.end(), language.begin(),
 			[](std::string::value_type c) {
+				if (c == '-')
+					return '_';
 				return static_cast<std::string::value_type>(std::tolower(c));
 			});
 
