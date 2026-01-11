@@ -1,19 +1,19 @@
 /*
  * Copyright (C) 2021 Patrick Mours
- * Copyright (C) 2014-2025 Omar Cornut
+ * Copyright (C) 2014-2026 Omar Cornut
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
 #if defined(IMGUI_VERSION_NUM)
 
-#if IMGUI_VERSION_NUM != 19222
-#error Unexpected ImGui version, please update the "imgui.h" header to version 19222!
+#if IMGUI_VERSION_NUM != 19250
+#error Unexpected ImGui version, please update the "imgui.h" header to version 19250!
 #endif
 
 // Check that the 'ImTextureID' type has the same size as 'reshade::api::resource_view'
 static_assert(sizeof(ImTextureID) == 8, "missing \"#define ImTextureID ImU64\" before \"#include <imgui.h>\"");
 
-struct imgui_function_table_19222
+struct imgui_function_table_19250
 {
 	ImGuiIO&(*GetIO)();
 	ImGuiStyle&(*GetStyle)();
@@ -439,7 +439,7 @@ struct imgui_function_table_19222
 
 };
 
-using imgui_function_table = imgui_function_table_19222;
+using imgui_function_table = imgui_function_table_19250;
 
 inline const imgui_function_table *&imgui_function_table_instance()
 {

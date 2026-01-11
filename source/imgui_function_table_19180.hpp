@@ -30,7 +30,7 @@ struct imgui_io_19180
 	ImFontAtlas *Fonts;
 	float FontGlobalScale;
 	bool FontAllowUserScaling;
-	ImFont *FontDefault;
+	imgui_font_19180 *FontDefault;
 	ImVec2 DisplayFramebufferScale;
 
 	bool ConfigNavSwapGamepadButtons;

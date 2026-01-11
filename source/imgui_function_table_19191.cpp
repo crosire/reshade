@@ -193,7 +193,7 @@ namespace
 		old_style.AntiAliasedFill = new_style.AntiAliasedFill;
 		old_style.CurveTessellationTol = new_style.CurveTessellationTol;
 		old_style.CircleTessellationMaxError = new_style.CircleTessellationMaxError;
-		for (ImGuiCol i = 0; i < 57; ++i)
+		for (ImGuiCol i = 0; i < 58; ++i)
 			old_style.Colors[i] = new_style.Colors[convert_style_col(i)];
 		old_style.HoverStationaryDelay = new_style.HoverStationaryDelay;
 		old_style.HoverDelayShort = new_style.HoverDelayShort;
@@ -660,20 +660,20 @@ const imgui_function_table_19191 init_imgui_function_table_19191() { return {
 	g_imgui_function_table_19222.GetAllocatorFunctions,
 	g_imgui_function_table_19222.MemAlloc,
 	g_imgui_function_table_19222.MemFree,
-	[](const imgui_storage_19191 *_this, ImGuiID key, int default_val) -> int { return _this->GetInt(key, default_val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, int val) -> void { _this->SetInt(key, val); },
-	[](const imgui_storage_19191 *_this, ImGuiID key, bool default_val) -> bool { return _this->GetBool(key, default_val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, bool val) -> void { _this->SetBool(key, val); },
-	[](const imgui_storage_19191 *_this, ImGuiID key, float default_val) -> float { return _this->GetFloat(key, default_val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, float val) -> void { _this->SetFloat(key, val); },
-	[](const imgui_storage_19191 *_this, ImGuiID key) -> void * { return _this->GetVoidPtr(key); },
-	[](imgui_storage_19191 *_this, ImGuiID key, void *val) -> void { _this->SetVoidPtr(key, val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, int default_val) -> int * { return _this->GetIntRef(key, default_val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, bool default_val) -> bool * { return _this->GetBoolRef(key, default_val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, float default_val) -> float * { return _this->GetFloatRef(key, default_val); },
-	[](imgui_storage_19191 *_this, ImGuiID key, void *default_val) -> void ** { return _this->GetVoidPtrRef(key, default_val); },
-	[](imgui_storage_19191 *_this) -> void { _this->BuildSortByKey(); },
-	[](imgui_storage_19191 *_this, int val) -> void { _this->SetAllInt(val); },
+	g_imgui_function_table_19222.ImGuiStorage_GetInt,
+	g_imgui_function_table_19222.ImGuiStorage_SetInt,
+	g_imgui_function_table_19222.ImGuiStorage_GetBool,
+	g_imgui_function_table_19222.ImGuiStorage_SetBool,
+	g_imgui_function_table_19222.ImGuiStorage_GetFloat,
+	g_imgui_function_table_19222.ImGuiStorage_SetFloat,
+	g_imgui_function_table_19222.ImGuiStorage_GetVoidPtr,
+	g_imgui_function_table_19222.ImGuiStorage_SetVoidPtr,
+	g_imgui_function_table_19222.ImGuiStorage_GetIntRef,
+	g_imgui_function_table_19222.ImGuiStorage_GetBoolRef,
+	g_imgui_function_table_19222.ImGuiStorage_GetFloatRef,
+	g_imgui_function_table_19222.ImGuiStorage_GetVoidPtrRef,
+	g_imgui_function_table_19222.ImGuiStorage_BuildSortByKey,
+	g_imgui_function_table_19222.ImGuiStorage_SetAllInt,
 	[](imgui_list_clipper_19191 *_this) -> void {
 		new(_this) imgui_list_clipper_19191();
 		memset(_this, 0, sizeof(*_this));

@@ -61,6 +61,8 @@ set(RESHADE_SOURCE
   source/imgui_function_table_19191.hpp
   source/imgui_function_table_19222.cpp
   source/imgui_function_table_19222.hpp
+  source/imgui_function_table_19250.cpp
+  source/imgui_function_table_19250.hpp
   source/imgui_widgets.cpp
   source/imgui_widgets.hpp
   source/ini_file.cpp
