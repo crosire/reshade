@@ -5,12 +5,8 @@
 
 #include "input_gamepad.hpp"
 #include <cassert>
-#include <shared_mutex>
 #include <Windows.h>
 #include <Xinput.h>
-
-static std::shared_mutex s_xinput_mutex;
-static std::weak_ptr<reshade::input_gamepad> s_xinput_instance;
 
 reshade::input_gamepad::input_gamepad()
 {
@@ -18,15 +14,8 @@ reshade::input_gamepad::input_gamepad()
 
 std::shared_ptr<reshade::input_gamepad> reshade::input_gamepad::load()
 {
-	const std::unique_lock<std::shared_mutex> lock(s_xinput_mutex);
-
-	if (!s_xinput_instance.expired())
-		return s_xinput_instance.lock();
-
-	const auto instance = std::make_shared<input_gamepad>();
-	s_xinput_instance = instance;
-
-	return instance;
+	static std::shared_ptr<reshade::input_gamepad> s_instance = std::make_shared<input_gamepad>();
+	return s_instance;
 }
 
 bool reshade::input_gamepad::is_button_down(unsigned int button) const
