@@ -44,11 +44,12 @@ public:
 	ID3D12DescriptorHeap *_orig;
 	LONG _ref = 1;
 
-	ID3D12Device *const _device;
-
 	D3D12_CPU_DESCRIPTOR_HANDLE _orig_base_cpu_handle = { 0 };
 	D3D12_GPU_DESCRIPTOR_HANDLE _orig_base_gpu_handle = { 0 };
 	D3D12_CPU_DESCRIPTOR_HANDLE _internal_base_cpu_handle = { 0 };
+
+private:
+	ID3D12Device *const _device;
 };
 
 #endif
