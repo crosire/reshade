@@ -8,9 +8,9 @@
 #include "reshade_api_object_impl.hpp"
 #include <openvr.h>
 
-struct D3D10Device;
-struct D3D11Device;
-struct D3D12CommandQueue;
+class D3D10Device;
+class D3D11Device;
+class D3D12CommandQueue;
 
 namespace reshade::openvr
 {

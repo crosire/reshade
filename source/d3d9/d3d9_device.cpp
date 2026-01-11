@@ -56,7 +56,6 @@ const reshade::api::subresource_box *convert_rect_to_box(const POINT *point, LON
 
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
-	_extended_interface(false),
 	_use_software_rendering(use_software_rendering)
 {
 	assert(_orig != nullptr);

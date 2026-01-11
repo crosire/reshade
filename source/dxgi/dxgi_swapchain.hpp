@@ -8,9 +8,9 @@
 #include <dxgi1_6.h>
 #include <mutex>
 
-struct D3D10Device;
-struct D3D11Device;
-struct D3D12CommandQueue;
+class D3D10Device;
+class D3D11Device;
+class D3D12CommandQueue;
 namespace reshade::api { enum class device_api; struct swapchain; }
 
 MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : IUnknown
@@ -28,8 +28,9 @@ MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : IUnk
 	virtual UINT    STDMETHODCALLTYPE GetBackBufferImplicitRotationCount() = 0;
 };
 
-struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : IDXGISwapChain4
+class DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : public IDXGISwapChain4
 {
+public:
 	DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain  *original);
 	DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain1 *original);
 	DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISwapChain  *original);
@@ -98,16 +99,17 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
-	void on_init([[maybe_unused]] bool resize);
-	void on_reset([[maybe_unused]] bool resize);
-	void on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params = nullptr);
-	void on_finish_present(HRESULT hr);
-
 	bool check_and_upgrade_interface(REFIID riid);
 
 	IDXGISwapChain *_orig;
 	LONG _ref = 1;
-	unsigned short _interface_version;
+	unsigned short _interface_version = 0;
+
+private:
+	void on_init([[maybe_unused]] bool resize);
+	void on_reset([[maybe_unused]] bool resize);
+	void on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params = nullptr);
+	void on_finish_present(HRESULT hr);
 
 	IUnknown *const _direct3d_device;
 	// The GOG Galaxy overlay scans the swap chain object memory for the D3D12 command queue, but fails if it cannot find at least two occurences of it.
@@ -126,6 +128,7 @@ struct DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final
 	bool _was_still_drawing_last_frame = false;
 
 #if RESHADE_ADDON
+public:
 	UINT _sync_interval = UINT_MAX;
 	BOOL _current_fullscreen_state = -1;
 	bool _is_desc_modified = false;

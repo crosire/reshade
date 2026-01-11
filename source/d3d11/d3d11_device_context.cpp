@@ -15,7 +15,6 @@ using reshade::d3d11::to_handle;
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
 	device_context_impl(device, original),
-	_interface_version(0),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);

@@ -7,10 +7,11 @@
 
 #include "d3d11_impl_device_context.hpp"
 
-struct D3D11Device;
+class D3D11Device;
 
-struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext final : ID3D11DeviceContext4, public reshade::d3d11::device_context_impl
+class DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext final : public ID3D11DeviceContext4, public reshade::d3d11::device_context_impl
 {
+public:
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original);
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original);
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original);
@@ -183,6 +184,11 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 
 	bool check_and_upgrade_interface(REFIID riid);
 
+	using device_context_impl::_orig;
+	LONG _ref = 1;
+	unsigned short _interface_version = 0;
+
+private:
 #if RESHADE_ADDON >= 2
 	void invoke_bind_default_state_events();
 	void invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11SamplerState *const *objects);
@@ -190,9 +196,6 @@ struct DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext 
 	void invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects);
 	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant = nullptr, const UINT *constant_count = nullptr);
 #endif
-
-	LONG _ref = 1;
-	unsigned short _interface_version;
 
 	D3D11Device *const _device;
 };

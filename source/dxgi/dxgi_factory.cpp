@@ -9,8 +9,7 @@
 #include "com_utils.hpp"
 
 DXGIFactory::DXGIFactory(IDXGIFactory  *original) :
-	_orig(original),
-	_interface_version(0)
+	_orig(original)
 {
 	assert(_orig != nullptr);
 

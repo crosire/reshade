@@ -7,8 +7,9 @@
 
 #include <dxgi1_6.h>
 
-struct DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final : IDXGIFactory7
+class DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final : public IDXGIFactory7
 {
+public:
 	DXGIFactory(IDXGIFactory  *original);
 	DXGIFactory(IDXGIFactory2 *original);
 	~DXGIFactory();
@@ -75,7 +76,7 @@ struct DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final :
 
 	IDXGIFactory *_orig;
 	LONG _ref = 1;
-	unsigned short _interface_version;
+	unsigned short _interface_version = 0;
 };
 
 extern HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain,

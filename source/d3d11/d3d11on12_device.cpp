@@ -11,7 +11,6 @@
 
 D3D11On12Device::D3D11On12Device(D3D11Device *device_11, D3D12Device *device_12, ID3D11On12Device *original) :
 	_orig(original),
-	_interface_version(0),
 	_parent_device_11(device_11),
 	_parent_device_12(device_12)
 {

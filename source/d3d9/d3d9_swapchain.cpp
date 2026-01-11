@@ -27,7 +27,6 @@ bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, H
 
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
 	swapchain_impl(device, original),
-	_extended_interface(0),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
@@ -38,7 +37,7 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original) :
 	Direct3DSwapChain9(device, static_cast<IDirect3DSwapChain9 *>(original))
 {
-	_extended_interface = 1;
+	_extended_interface = true;
 }
 Direct3DSwapChain9::~Direct3DSwapChain9()
 {

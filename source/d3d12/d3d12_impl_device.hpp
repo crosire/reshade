@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <concurrent_vector.h>
 
-struct D3D12DescriptorHeap;
+class D3D12DescriptorHeap;
 
 namespace reshade::d3d12
 {

@@ -7,10 +7,13 @@
 
 #include "d3d12_impl_device.hpp"
 
-struct D3D12DeviceDownlevel;
+class D3D12DeviceDownlevel;
 
-struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : ID3D12Device14, public reshade::d3d12::device_impl
+class DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : public ID3D12Device14, public reshade::d3d12::device_impl
 {
+	friend class D3D12DeviceDownlevel;
+
+public:
 	D3D12Device(ID3D12Device *original);
 	~D3D12Device();
 
@@ -145,7 +148,10 @@ struct DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final :
 	bool invoke_create_and_init_pipeline_layout_event(UINT node_mask, const void *blob, size_t blob_size, ID3D12RootSignature *&root_signature, HRESULT &hr);
 #endif
 
+	using device_impl::_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version = 0;
+
+private:
 	D3D12DeviceDownlevel *_downlevel = nullptr;
 };

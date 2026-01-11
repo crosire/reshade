@@ -483,10 +483,10 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
 
 #if RESHADE_ADDON
+#if VK_KHR_incremental_present
 		uint32_t dirty_rect_count = 0;
 		temp_mem<reshade::api::rect, 16> dirty_rects;
 
-#if VK_KHR_incremental_present
 		const auto present_regions = find_in_structure_chain<VkPresentRegionsKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR);
 		if (present_regions != nullptr)
 		{
@@ -535,16 +535,18 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 			swapchain_impl,
 			display_present_info != nullptr ? &source_rect : nullptr,
 			display_present_info != nullptr ? &dest_rect : nullptr,
-			dirty_rect_count,
-			dirty_rect_count != 0 ? dirty_rects.p : nullptr);
 #else
 		reshade::invoke_addon_event<reshade::addon_event::present>(
 			queue_impl,
 			swapchain_impl,
 			nullptr,
 			nullptr,
+#endif
+#if VK_KHR_incremental_present
 			dirty_rect_count,
 			dirty_rect_count != 0 ? dirty_rects.p : nullptr);
+#else
+			0, nullptr);
 #endif
 #endif
 

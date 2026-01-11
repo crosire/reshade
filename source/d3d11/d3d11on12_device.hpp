@@ -7,11 +7,12 @@
 
 #include <d3d11on12.h>
 
-struct D3D11Device;
-struct D3D12Device;
+class D3D11Device;
+class D3D12Device;
 
-struct DECLSPEC_UUID("6BE8CF18-2108-4506-AAA0-AD5A29812A31") D3D11On12Device final : ID3D11On12Device2
+class DECLSPEC_UUID("6BE8CF18-2108-4506-AAA0-AD5A29812A31") D3D11On12Device final : public ID3D11On12Device2
 {
+public:
 	D3D11On12Device(D3D11Device *device_11, D3D12Device *device_12, ID3D11On12Device *original);
 	~D3D11On12Device();
 
@@ -39,8 +40,9 @@ struct DECLSPEC_UUID("6BE8CF18-2108-4506-AAA0-AD5A29812A31") D3D11On12Device fin
 	bool check_and_upgrade_interface(REFIID riid);
 
 	ID3D11On12Device *_orig;
-	unsigned short _interface_version;
+	unsigned short _interface_version = 0;
 
+private:
 	D3D11Device *const _parent_device_11;
 	D3D12Device *const _parent_device_12;
 };

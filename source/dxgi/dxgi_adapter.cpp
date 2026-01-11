@@ -9,7 +9,6 @@
 
 DXGIAdapter::DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter  *original) :
 	_orig(original),
-	_interface_version(0),
 	_parent_factory(factory)
 {
 	assert(_orig != nullptr && _parent_factory != nullptr);
