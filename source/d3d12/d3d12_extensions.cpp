@@ -18,8 +18,8 @@ HRESULT ID3D12DeviceExt_GetCudaTextureObject(IUnknown *device_ext, D3D12_CPU_DES
 
 	if (const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(device.get()))
 	{
-		srv_handle = device_proxy->convert_to_original_cpu_descriptor_handle(device_proxy->convert_to_descriptor_table(srv_handle));
-		sampler_handle = device_proxy->convert_to_original_cpu_descriptor_handle(device_proxy->convert_to_descriptor_table(sampler_handle));
+		srv_handle = device_proxy->convert_to_original_cpu_descriptor_handle(srv_handle);
+		sampler_handle = device_proxy->convert_to_original_cpu_descriptor_handle(sampler_handle);
 	}
 
 	return reshade::hooks::call(ID3D12DeviceExt_GetCudaTextureObject, reshade::hooks::vtable_from_instance(device_ext) + 7)(device_ext, srv_handle, sampler_handle, cuda_texture_handle);
@@ -33,7 +33,7 @@ HRESULT ID3D12DeviceExt_GetCudaSurfaceObject(IUnknown *device_ext, D3D12_CPU_DES
 
 	if (const auto device_proxy = get_private_pointer_d3dx<D3D12Device>(device.get()))
 	{
-		uav_handle = device_proxy->convert_to_original_cpu_descriptor_handle(device_proxy->convert_to_descriptor_table(uav_handle));
+		uav_handle = device_proxy->convert_to_original_cpu_descriptor_handle(uav_handle);
 	}
 
 	return reshade::hooks::call(ID3D12DeviceExt_GetCudaSurfaceObject, reshade::hooks::vtable_from_instance(device_ext) + 8)(device_ext, uav_handle, cuda_surface_handle);

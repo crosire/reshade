@@ -729,9 +729,7 @@ static bool on_draw(command_list *cmd_list, uint32_t vertices, uint32_t instance
 }
 static bool on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t instances, uint32_t, int32_t, uint32_t)
 {
-	on_draw(cmd_list, indices, instances, 0, 0);
-
-	return false;
+	return on_draw(cmd_list, indices, instances, 0, 0);
 }
 static bool on_draw_indirect(command_list *cmd_list, indirect_command type, resource, uint64_t, uint32_t draw_count, uint32_t)
 {
