@@ -101,7 +101,6 @@ namespace reshade::opengl
 		int  _pixel_format;
 		api::format _default_depth_format;
 		api::resource_desc _default_fbo_desc = {};
-		bool _supports_dsa; // Direct State Access (core since OpenGL 4.5)
 		bool _compatibility_context;
 
 	private:

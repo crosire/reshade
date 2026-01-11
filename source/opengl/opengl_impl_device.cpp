@@ -213,9 +213,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, c
 		}
 	}
 
-	// Check whether this context supports Direct State Access
-	_supports_dsa = gl.VERSION_4_5;
-
 	// Check for special extension to detect whether this is a compatibility context (https://www.khronos.org/opengl/wiki/OpenGL_Context#OpenGL_3.1_and_ARB_compatibility)
 	GLint num_extensions = 0;
 	gl.GetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
@@ -894,7 +891,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #endif
 			GLbitfield storage_flags = GL_NONE;
 
-			if (_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 #ifndef _WIN64
 				gl.GetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &size);
@@ -939,7 +936,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 			GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE;
 			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 
-			if (_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_WIDTH, &width);
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
@@ -1025,7 +1022,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 		{
 			GLint width = 0, height = 1, samples = 1, internal_format = GL_NONE;
 
-			if (_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 				gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_WIDTH, &width);
 				gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
@@ -1247,7 +1244,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 			gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
@@ -1271,7 +1268,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 		}
 		break;
 	case GL_RENDERBUFFER:
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
 		}
@@ -1316,7 +1313,7 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 	{
 		GLint binding = 0;
 
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &binding);
 		}
@@ -1352,7 +1349,7 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	{
 		GLint min_level = 0, min_layer = 0, num_levels = 0, num_layers = 0, internal_format = GL_NONE;
 
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureParameteriv(object, GL_TEXTURE_VIEW_MIN_LEVEL, &min_level);
 			gl.GetTextureParameteriv(object, GL_TEXTURE_VIEW_MIN_LAYER, &min_layer);
@@ -1383,7 +1380,7 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	{
 		GLint offset = 0, size = 0, internal_format = GL_NONE;
 
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_OFFSET, &offset);
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_SIZE, &size);
@@ -1450,7 +1447,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 	}
 
 	GLenum target = GL_NONE, object = 0;
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 
@@ -1532,7 +1529,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		if (UINT64_MAX == size)
 		{
@@ -1582,7 +1579,7 @@ void reshade::opengl::device_impl::unmap_buffer_region(api::resource resource)
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		gl.UnmapNamedBuffer(object);
 	}
@@ -1726,7 +1723,7 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 
 		gl.GetTexImage(level_target, level, format, type, pixels);
 	}
-	else if (_supports_dsa)
+	else if (gl.VERSION_4_5)
 	{
 		switch (target)
 		{
@@ -1795,7 +1792,7 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		gl.NamedBufferSubData(object, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 	}
