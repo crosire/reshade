@@ -44,6 +44,8 @@ namespace reshade::opengl
 
 		api::format get_resource_format(GLenum target, GLenum object) const;
 
+		void register_resource_view(GLenum target, GLuint object, api::resource resource);
+
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 
@@ -119,5 +121,7 @@ namespace reshade::opengl
 
 		std::atomic<uint64_t> _fbo_lookup_version = 0;
 		std::atomic<uint64_t> _vao_lookup_version = 0;
+
+		std::unordered_map<GLuint, api::resource> _texture_view_lookup;
 	};
 }

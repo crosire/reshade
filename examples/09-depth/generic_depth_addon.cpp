@@ -650,7 +650,7 @@ static bool on_create_resource_view(device *device, resource resource, resource_
 }
 static void on_init_resource(device *device, const resource_desc &desc, const subresource_data *, resource_usage, resource resource)
 {
-	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d)
+	if (desc.type != resource_type::surface && desc.type != resource_type::texture_2d && (desc.type != resource_type::texture_3d || desc.texture.depth_or_layers > 1))
 		return;
 
 	if ((desc.usage & resource_usage::depth_stencil) == 0)

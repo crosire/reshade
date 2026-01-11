@@ -116,7 +116,7 @@ void reshade::opengl::device_context_impl::bind_render_targets_and_depth_stencil
 		temp_mem<GLenum, 8> draw_buffers(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			if (rtvs[i].handle == 0)
+			if (rtvs[i] == 0)
 			{
 				draw_buffers[i] = GL_NONE;
 			}
@@ -241,7 +241,7 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		if (rtvs[i].handle == 0)
+		if (rtvs[i] == 0)
 			continue;
 
 		switch (rtvs[i].handle >> 40)

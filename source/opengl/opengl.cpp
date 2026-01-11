@@ -288,6 +288,8 @@ public:
 
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
+		device->register_resource_view(_target, _object, _resource);
+
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			device, _resource, reshade::api::resource_usage::undefined, _desc, reshade::opengl::make_resource_view_handle(_target, _object));
 	}

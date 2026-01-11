@@ -1192,6 +1192,8 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 		gl.TextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, num_layers);
 
+		register_resource_view(target, object, resource);
+
 		gl.BindTexture(target, object);
 		gl.TexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
 	}
@@ -1213,7 +1215,11 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view view
 {
 	// Check if this is a standalone object (see 'make_resource_view_handle')
 	if (((view.handle >> 32) & 0x1) != 0)
+	{
 		destroy_resource({ view.handle });
+
+		_texture_view_lookup.erase(view.handle & 0xFFFFFFFF);
+	}
 
 	// Force all framebuffers to be destroyed, to ensure they are recreated even if a resource view handle is reused
 	// This is necessary since framebuffers include dimension information, so 'glBlitFramebuffer' etc. will clip the image if an outdated one is used
@@ -1295,6 +1301,14 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 	return convert_format(internal_format, swizzle_mask);
 }
 
+void reshade::opengl::device_impl::register_resource_view(GLenum target, GLuint object, api::resource resource)
+{
+	if (target != GL_TEXTURE_BUFFER)
+	{
+		_texture_view_lookup[object] = resource;
+	}
+}
+
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view != 0);
@@ -1307,6 +1321,10 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
+		if (const auto it = _texture_view_lookup.find(object);
+			it != _texture_view_lookup.end())
+			return it->second;
+
 		return make_resource_handle(target, object);
 	}
 	else
