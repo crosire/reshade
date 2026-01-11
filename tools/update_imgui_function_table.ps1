@@ -224,7 +224,7 @@ $function_table_init = @"
  * SPDX-License-Identifier: BSD-3-Clause OR MIT
  */
 
-#if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_ADDON && RESHADE_GUI
+#if defined(RESHADE_API_LIBRARY_EXPORT) && RESHADE_GUI && RESHADE_ADDON
 
 #include <new>
 #include "imgui_function_table_$version.hpp"
