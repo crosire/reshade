@@ -294,7 +294,7 @@ namespace ReShade.Setup
 			// Filter out invalid search paths (and those with remaining wildcards that were not handled above)
 			var validSearchPaths = searchPaths.Where(searchPath =>
 				{
-					if (searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.IndexOf('*') < 0)
+					if (searchPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || searchPath.IndexOf('*') >= 0)
 					{
 						return false;
 					}
@@ -373,7 +373,7 @@ namespace ReShade.Setup
 					.Select(searchPath => searchPath.EndsWith(wildcard) ? new KeyValuePair<string, bool>(searchPath.Remove(searchPath.Length - 1 - wildcard.Length), true) : new KeyValuePair<string, bool>(searchPath, false))
 					.Where(searchPath =>
 						{
-							if (searchPath.Key.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.Key.IndexOf('*') < 0)
+							if (searchPath.Key.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || searchPath.Key.IndexOf('*') >= 0)
 							{
 								return false;
 							}
