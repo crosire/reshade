@@ -1654,9 +1654,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			shader_model = 30; // D3D9
 		else if (_renderer_id < 0xa100)
 			shader_model = 40; // D3D10 (including feature level 9)
-		else if (_renderer_id < 0xb000)
+		else if (_renderer_id < 0xb000 || _device->get_api() == api::device_api::d3d10)
 			shader_model = 41; // D3D10.1
-		else if (_renderer_id < 0xc000)
+		else if (_renderer_id < 0xc000 || _device->get_api() == api::device_api::d3d11)
 			shader_model = 50; // D3D11
 		else
 			shader_model = 51; // D3D12
