@@ -89,7 +89,7 @@ std::filesystem::path get_base_path(bool default_to_target_executable_path = fal
 }
 
 /// <summary>
-/// Returns the path to the "System32" directory or the module path from global configuration if it exists.
+/// Returns the path to the Windows System32 directory.
 /// </summary>
 std::filesystem::path get_system_path()
 {
@@ -328,6 +328,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 						reshade::hooks::register_module(L"sl.interposer.dll");
 					}
 
+					const auto get_target_path = [](bool any, const wchar_t *dll) { return any ? dll : get_system_path() / dll; };
+
 					// Only register DirectX hooks when module is not called opengl32.dll
 					if ((!is_opengl && !streamline) || config.get("INSTALL", "HookDirectX"))
 					{
@@ -337,17 +339,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 						reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
 						reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
-						reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
-						reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
-						reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
+
+						reshade::hooks::register_module(get_target_path(is_dxgi, L"d3d10.dll"));
+						reshade::hooks::register_module(get_target_path(is_dxgi, L"d3d10_1.dll"));
+						reshade::hooks::register_module(get_target_path(is_dxgi, L"d3d11.dll"));
 
 						// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
-						if (is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0)
-							reshade::hooks::register_module(L"d3d12.dll");
-						else
-							reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
+						reshade::hooks::register_module(get_target_path(is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0 || is_dxgi, L"d3d12.dll"));
 
-						reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
+						reshade::hooks::register_module(get_target_path(is_d3d && !is_dxgi, L"dxgi.dll"));
 					}
 
 					// Only register OpenGL hooks when module is not called any D3D module name

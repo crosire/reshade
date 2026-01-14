@@ -558,7 +558,7 @@ void reshade::hooks::register_module(const std::filesystem::path &target_path)
 	const std::filesystem::path replacement_name = g_reshade_dll_path.filename();
 	if (_wcsicmp(target_name.c_str(), replacement_name.c_str()) == 0)
 	{
-		assert(target_path != g_reshade_dll_path);
+		assert(target_path != g_reshade_dll_path && target_path.is_absolute());
 
 		if (!s_export_module_path.empty())
 		{
