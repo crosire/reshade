@@ -344,7 +344,9 @@ namespace ReShade.Setup.Pages
 								path.ContainsIgnoreCase("webview") ||
 								path.Contains("7za") ||
 								path.Contains("createdump") ||
+								path.Contains("crs-") ||
 								path.Contains("fossilize") ||
+								path.Contains("fxc") ||
 								path.Contains("Rpt") || // CrashRpt, SndRpt
 								path.Contains("svc") ||
 								path.Contains("SystemSoftware") ||

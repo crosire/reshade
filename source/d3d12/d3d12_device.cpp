@@ -127,8 +127,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		const HRESULT hr = _orig->QueryInterface(riid, ppvObj);
 		if (SUCCEEDED(hr))
 		{
-			reshade::hooks::install("ID3D12DeviceExt::GetCudaTextureObject", reshade::hooks::vtable_from_instance(static_cast<IUnknown *>(*ppvObj)), 7, &ID3D12DeviceExt_GetCudaTextureObject);
-			reshade::hooks::install("ID3D12DeviceExt::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(static_cast<IUnknown *>(*ppvObj)), 8, &ID3D12DeviceExt_GetCudaSurfaceObject);
+			const auto device_ext = static_cast<IUnknown *>(*ppvObj);
+			reshade::hooks::install("ID3D12DeviceExt::GetCudaTextureObject", reshade::hooks::vtable_from_instance(device_ext), 7, &ID3D12DeviceExt_GetCudaTextureObject);
+			reshade::hooks::install("ID3D12DeviceExt::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(device_ext), 8, &ID3D12DeviceExt_GetCudaSurfaceObject);
 		}
 		return hr;
 	}
