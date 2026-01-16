@@ -260,17 +260,15 @@ namespace ReShade.Setup
 			}
 		}
 
-		static bool ModuleExists(string path, out bool isReShade)
+		static string GetModuleProductName(string path)
 		{
 			if (File.Exists(path))
 			{
-				isReShade = FileVersionInfo.GetVersionInfo(path).ProductName == "ReShade";
-				return true;
+				return FileVersionInfo.GetVersionInfo(path).ProductName;
 			}
 			else
 			{
-				isReShade = false;
-				return false;
+				return null;
 			}
 		}
 
@@ -734,6 +732,13 @@ namespace ReShade.Setup
 				}
 			}
 
+			// In case DXVK is installed, default to Vulkan
+			if (GetModuleProductName(Path.Combine(basePath, "d3d9.dll")) == "DXVK" ||
+				GetModuleProductName(Path.Combine(basePath, "dxgi.dll")) == "DXVK")
+			{
+				isApiVulkan = true;
+			}
+
 			// In case this game is modded with NVIDIA RTX Remix, install to the Remix Bridge
 			string targetPathRemixBridge = Path.Combine(basePath, ".trex", "NvRemixBridge.exe");
 			if (File.Exists(targetPathRemixBridge))
@@ -832,8 +837,6 @@ namespace ReShade.Setup
 
 			currentInfo.configPath = Path.Combine(basePath, "ReShade.ini");
 
-			bool isReShade = false;
-
 			if (currentInfo.targetApi == Api.Vulkan || currentInfo.targetOpenXR)
 			{
 				string moduleName = currentInfo.is64Bit ? "ReShade64" : "ReShade32";
@@ -887,9 +890,9 @@ namespace ReShade.Setup
 
 				currentInfo.modulePath = Path.Combine(basePath, currentInfo.modulePath);
 
-				if (currentOperation == InstallOperation.Install && ModuleExists(currentInfo.modulePath, out isReShade))
+				if (currentOperation == InstallOperation.Install && GetModuleProductName(currentInfo.modulePath) != null)
 				{
-					if (isReShade)
+					if (GetModuleProductName(currentInfo.modulePath) == "ReShade")
 					{
 						if (isHeadless)
 						{
@@ -914,7 +917,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (currentOperation == InstallOperation.Install && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (currentOperation == InstallOperation.Install && GetModuleProductName(conflictingModulePath) == "ReShade")
 				{
 					if (isHeadless)
 					{
@@ -993,7 +996,7 @@ namespace ReShade.Setup
 
 				try
 				{
-					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					if (GetModuleProductName(conflictingModulePath) == "ReShade")
 					{
 						File.Delete(conflictingModulePath);
 					}
@@ -1563,7 +1566,7 @@ In that event here are some steps you can try to resolve this:
 				{
 					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					if (GetModuleProductName(conflictingModulePath) == "ReShade")
 					{
 						File.Delete(conflictingModulePath);
 					}
