@@ -1953,7 +1953,8 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i - set_desc_count];
 
 		params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
-		params[i].push_constants.count = push_constant_range.offset + push_constant_range.size;
+		params[i].push_constants.binding = push_constant_range.offset / 4;
+		params[i].push_constants.count = push_constant_range.size / 4;
 		params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
 

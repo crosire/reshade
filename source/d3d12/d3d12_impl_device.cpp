@@ -1461,6 +1461,9 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		}
 		else
 		{
+			if (params[i].push_constants.binding != 0)
+				return false;
+
 			D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
 			internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			internal_param.Constants.ShaderRegister = params[i].push_constants.dx_register_index;

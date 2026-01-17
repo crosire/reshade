@@ -1979,133 +1979,127 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 	set_layouts.reserve(param_count);
 	push_constant_ranges.reserve(param_count);
 
-	uint32_t i = 0;
-
-	// Push constant ranges have to be at the end of the layout description
-	for (; i < param_count && params[i].type != api::pipeline_layout_param_type::push_constants; ++i)
+	for (uint32_t i = 0; i < param_count; ++i)
 	{
-		bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
-		const bool with_static_samplers = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_static_samplers || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
-		const uint32_t range_count = push_descriptors ? 1 : with_static_samplers ? params[i].descriptor_table_with_static_samplers.count : params[i].descriptor_table.count;
-		const api::descriptor_range_with_static_samplers *range = static_cast<const api::descriptor_range_with_static_samplers *>(push_descriptors ? &params[i].push_descriptors : with_static_samplers ? params[i].descriptor_table_with_static_samplers.ranges : params[i].descriptor_table.ranges);
-		push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
-
-		object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
-		data.ranges.reserve(range_count);
-		data.binding_to_offset.reserve(range_count);
-
-		std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-		std::vector<VkDescriptorSetLayoutCreateFlags> internal_binding_flags;
-		std::vector<std::vector<VkSampler>> internal_samplers;
-		internal_bindings.reserve(range_count);
-		internal_binding_flags.reserve(range_count);
-		internal_samplers.reserve(range_count);
-
-		for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_static_samplers ? range + 1 : reinterpret_cast<const api::descriptor_range_with_static_samplers *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
+		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
-			data.ranges.push_back(*static_cast<const api::descriptor_range *>(range));
+			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
+			const bool with_static_samplers = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_static_samplers || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
+			const uint32_t range_count = push_descriptors ? 1 : with_static_samplers ? params[i].descriptor_table_with_static_samplers.count : params[i].descriptor_table.count;
+			const api::descriptor_range_with_static_samplers *range = static_cast<const api::descriptor_range_with_static_samplers *>(push_descriptors ? &params[i].push_descriptors : with_static_samplers ? params[i].descriptor_table_with_static_samplers.ranges : params[i].descriptor_table.ranges);
+			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
 
-			if (range->count == 0)
-				continue;
+			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
+			data.ranges.reserve(range_count);
+			data.binding_to_offset.reserve(range_count);
 
-			const uint32_t max_binding = range->binding + (range->count - range->array_size);
-			if (max_binding >= data.binding_to_offset.size())
-				data.binding_to_offset.resize(max_binding + 1);
-			data.binding_to_offset[range->binding] = offset;
+			std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
+			std::vector<VkDescriptorSetLayoutCreateFlags> internal_binding_flags;
+			std::vector<std::vector<VkSampler>> internal_samplers;
+			internal_bindings.reserve(range_count);
+			internal_binding_flags.reserve(range_count);
+			internal_samplers.reserve(range_count);
 
-			VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
-			internal_binding.binding = range->binding;
-			internal_binding.descriptorType = convert_descriptor_type(range->type);
-			internal_binding.descriptorCount = range->array_size;
-			internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
-
-			offset += internal_binding.descriptorCount;
-
-			if (with_static_samplers && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && range->static_samplers != nullptr)
+			for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_static_samplers ? range + 1 : reinterpret_cast<const api::descriptor_range_with_static_samplers *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
 			{
-				if (range->array_size != 1 || range->count == UINT32_MAX)
-					goto exit_failure;
+				data.ranges.push_back(*static_cast<const api::descriptor_range *>(range));
 
-				std::vector<VkSampler> &internal_binding_samplers = internal_samplers.emplace_back();
-				internal_binding_samplers.resize(range->count);
+				if (range->count == 0)
+					continue;
 
-				for (uint32_t j = 0; j < range->count; ++j)
+				const uint32_t max_binding = range->binding + (range->count - range->array_size);
+				if (max_binding >= data.binding_to_offset.size())
+					data.binding_to_offset.resize(max_binding + 1);
+				data.binding_to_offset[range->binding] = offset;
+
+				VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
+				internal_binding.binding = range->binding;
+				internal_binding.descriptorType = convert_descriptor_type(range->type);
+				internal_binding.descriptorCount = range->array_size;
+				internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
+
+				offset += internal_binding.descriptorCount;
+
+				if (with_static_samplers && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && range->static_samplers != nullptr)
 				{
-					VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-					// Cannot have custom border color in immutable samplers
-					convert_sampler_desc(range->static_samplers[j], create_info);
-
-					if (vk.CreateSampler(_orig, &create_info, nullptr, &embedded_samplers.emplace_back()) != VK_SUCCESS)
+					if (range->array_size != 1 || range->count == UINT32_MAX)
 						goto exit_failure;
 
-					internal_binding_samplers[j] = embedded_samplers.back();
+					std::vector<VkSampler> &internal_binding_samplers = internal_samplers.emplace_back();
+					internal_binding_samplers.resize(range->count);
+
+					for (uint32_t j = 0; j < range->count; ++j)
+					{
+						VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+						// Cannot have custom border color in immutable samplers
+						convert_sampler_desc(range->static_samplers[j], create_info);
+
+						if (vk.CreateSampler(_orig, &create_info, nullptr, &embedded_samplers.emplace_back()) != VK_SUCCESS)
+							goto exit_failure;
+
+						internal_binding_samplers[j] = embedded_samplers.back();
+					}
+
+					internal_binding.pImmutableSamplers = internal_binding_samplers.data();
 				}
 
-				internal_binding.pImmutableSamplers = internal_binding_samplers.data();
+				if (range->count == UINT32_MAX)
+				{
+					internal_binding_flags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
+					break; // Unbounded range must be the last binding
+				}
+				else
+				{
+					internal_binding_flags.push_back(0);
+				}
+
+				// Add additional bindings if the total descriptor count exceeds the array size of the binding
+				for (uint32_t j = 0; j < (range->count - range->array_size); ++j)
+				{
+					data.binding_to_offset[range->binding + 1 + j] = offset;
+
+					VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
+					additional_binding.binding = range->binding + 1 + j;
+					additional_binding.descriptorType = convert_descriptor_type(range->type);
+					additional_binding.descriptorCount = 1;
+					additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
+
+					offset += additional_binding.descriptorCount;
+
+					internal_binding_flags.push_back(0);
+				}
 			}
 
-			if (range->count == UINT32_MAX)
+			VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+			binding_flags_info.bindingCount = static_cast<uint32_t>(internal_binding_flags.size());
+			binding_flags_info.pBindingFlags = internal_binding_flags.data();
+
+			VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, &binding_flags_info };
+			create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
+			create_info.pBindings = internal_bindings.data();
+
+#if VK_KHR_push_descriptor
+			if (push_descriptors && vk.KHR_push_descriptor)
+				create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
+#endif
+
+			if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
 			{
-				internal_binding_flags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
-				break; // Unbounded range must be the last binding
+				register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layouts.back(), std::move(data));
 			}
 			else
 			{
-				internal_binding_flags.push_back(0);
+				goto exit_failure;
 			}
-
-			// Add additional bindings if the total descriptor count exceeds the array size of the binding
-			for (uint32_t j = 0; j < (range->count - range->array_size); ++j)
-			{
-				data.binding_to_offset[range->binding + 1 + j] = offset;
-
-				VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
-				additional_binding.binding = range->binding + 1 + j;
-				additional_binding.descriptorType = convert_descriptor_type(range->type);
-				additional_binding.descriptorCount = 1;
-				additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
-
-				offset += additional_binding.descriptorCount;
-
-				internal_binding_flags.push_back(0);
-			}
-		}
-
-		VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
-		binding_flags_info.bindingCount = static_cast<uint32_t>(internal_binding_flags.size());
-		binding_flags_info.pBindingFlags = internal_binding_flags.data();
-
-		VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, &binding_flags_info };
-		create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
-		create_info.pBindings = internal_bindings.data();
-
-#if VK_KHR_push_descriptor
-		if (push_descriptors && vk.KHR_push_descriptor)
-			create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
-#endif
-
-		if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
-		{
-			register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layouts.back(), std::move(data));
 		}
 		else
 		{
-			goto exit_failure;
+			VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
+			push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(params[i].push_constants.visibility);
+			push_constant_range.offset = params[i].push_constants.binding * 4;
+			push_constant_range.size = params[i].push_constants.count * 4;
 		}
 	}
-
-	for (uint32_t offset = 0; i < param_count && params[i].type == api::pipeline_layout_param_type::push_constants; ++i)
-	{
-		VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
-		push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(params[i].push_constants.visibility);
-		push_constant_range.offset = offset;
-		push_constant_range.size = params[i].push_constants.count * 4;
-
-		offset += push_constant_range.size;
-	}
-
-	if (i < param_count)
-		goto exit_failure;
 
 	{
 		VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };

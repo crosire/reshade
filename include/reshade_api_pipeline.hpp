@@ -141,6 +141,7 @@ namespace reshade { namespace api
 	{
 		/// <summary>
 		/// OpenGL uniform buffer binding index.
+		/// In Vulkan this is equivalent to an offset for the range (in 32-bit values).
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
