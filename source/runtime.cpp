@@ -1650,6 +1650,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	std::unique_ptr<reshadefx::codegen> codegen;
+	size_t spec_constants_hash = 0;
 	if (!compiled && !source.empty())
 	{
 		unsigned shader_model;
@@ -1834,6 +1835,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			// Fill all specialization constants with values from the current preset
 			if (_performance_mode)
 			{
+				std::string spec_constant_attributes;
+
 				for (reshadefx::uniform &spec_constant : permutation.module.spec_constants)
 				{
 					switch (spec_constant.type.base)
@@ -1849,7 +1852,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						preset.get(effect_name, spec_constant.name, spec_constant.initializer_value.as_float);
 						break;
 					}
+
+					spec_constant_attributes += spec_constant.name;
+					for (uint32_t i = 0; i < spec_constant.size / 4; ++i)
+						spec_constant_attributes += std::to_string(spec_constant.initializer_value.as_uint[i]);
 				}
+
+				spec_constants_hash = std::hash<std::string>()(spec_constant_attributes);
 
 				// Update specialization constant values for when code is generated below in 'finalize_code' and 'assemble_code_for_entry_point'
 				codegen->module().spec_constants = permutation.module.spec_constants;
@@ -1882,7 +1891,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				std::string &cso = permutation.cso[entry_point.first];
 				std::string &assembly = permutation.assembly[entry_point.first];
 
-				const std::string cache_id = source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash) + '-' + entry_point.first;
+				const std::string cache_id = source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash) + '-' + std::to_string(spec_constants_hash) + '-' + entry_point.first;
 
 				if (load_effect_cache(cache_id, "cso", cso) &&
 					load_effect_cache(cache_id, "asm", assembly))
