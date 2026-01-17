@@ -1952,8 +1952,18 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	{
 		const VkPushConstantRange &push_constant_range = pCreateInfo->pPushConstantRanges[i - set_desc_count];
 
+#if RESHADE_VERBOSE_LOG
+		if (i == set_desc_count && push_constant_range.offset != 0)
+		{
+			reshade::log::message(reshade::log::level::error,
+			"vkCreatePipelineLayout: push constant range starts with non-zero offset (offset=%u, size=%u); ReShade does not preserve offsets.",
+				push_constant_range.offset, push_constant_range.size);
+		}
+#endif
+
 		params[i].type = reshade::api::pipeline_layout_param_type::push_constants;
-		params[i].push_constants.count = push_constant_range.offset + push_constant_range.size;
+		// WARNING: Non-zero push-constant offsets can produce incorrect layout.
+		params[i].push_constants.count = push_constant_range.size / 4; // create_pipeline_layout only uses size to calculate offsets
 		params[i].push_constants.visibility = static_cast<reshade::api::shader_stage>(push_constant_range.stageFlags);
 	}
 
