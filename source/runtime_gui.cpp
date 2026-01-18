@@ -1019,6 +1019,10 @@ void reshade::runtime::draw_gui()
 
 	ImGui::NewFrame();
 
+	// Reset input source to mouse when the cursor is moved
+	if (_input != nullptr && (_input->mouse_movement_delta_x() != 0 || _input->mouse_movement_delta_y() != 0))
+		_imgui_context->NavInputSource = ImGuiInputSource_Mouse;
+
 #if RESHADE_LOCALIZATION
 	const std::string prev_language = resources::set_current_language(_selected_language);
 	_current_language = resources::get_current_language();
@@ -1358,15 +1362,9 @@ void reshade::runtime::draw_gui()
 		ImGui::DockSpace(root_space_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
 		ImGui::End();
 
-		if (_imgui_context->NavInputSource > ImGuiInputSource_Mouse && _imgui_context->NavWindowingTarget == nullptr)
-		{
-			// Reset input source to mouse when the cursor is moved
-			if (_input != nullptr && (_input->mouse_movement_delta_x() != 0 || _input->mouse_movement_delta_y() != 0))
-				_imgui_context->NavInputSource = ImGuiInputSource_Mouse;
-			// Ensure there is always a window that has navigation focus when keyboard or gamepad navigation is used (choose the first overlay window created next)
-			else if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
-				ImGui::SetNextWindowFocus();
-		}
+		// Ensure there is always a window that has navigation focus when keyboard or gamepad navigation is used (choose the first overlay window created next)
+		if (_imgui_context->NavInputSource > ImGuiInputSource_Mouse && _imgui_context->NavWindowingTarget == nullptr && !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
+			ImGui::SetNextWindowFocus();
 
 		for (const std::pair<std::string, void(runtime:: *)()> &widget : overlay_callbacks)
 		{
