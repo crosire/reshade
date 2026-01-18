@@ -757,7 +757,7 @@ void reshade::runtime::draw_gui()
 	assert(_is_initialized);
 
 	bool show_overlay = _show_overlay;
-	api::input_source show_overlay_source = api::input_source::keyboard;
+	api::input_source show_overlay_source = _imgui_context->NavInputSource == ImGuiInputSource_Mouse ? api::input_source::mouse : api::input_source::keyboard;
 
 	if (_input != nullptr)
 	{
