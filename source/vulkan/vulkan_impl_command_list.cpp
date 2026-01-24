@@ -843,8 +843,20 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 	const auto src_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)src.handle);
 	const auto dst_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
-	if ((src_box == nullptr && dst_box == nullptr && std::memcmp(&src_data->create_info.extent, &dst_data->create_info.extent, sizeof(VkExtent3D)) == 0) ||
-		(src_box != nullptr && dst_box != nullptr && src_box->width() == dst_box->width() && src_box->height() == dst_box->height() && src_box->depth() == dst_box->depth()))
+	const auto src_format = convert_format(src_data->create_info.format);
+	const auto dst_format = convert_format(dst_data->create_info.format);
+	const bool size_compatible =
+		(src_format != api::format::unknown && dst_format != api::format::unknown) &&
+		(api::format_is_block_compressed(src_format) != api::format_is_block_compressed(dst_format)) &&
+		(api::format_row_pitch(api::format_is_block_compressed(src_format) ? dst_format : src_format, 1) ==
+		 api::format_row_pitch(api::format_is_block_compressed(src_format) ? src_format : dst_format, 1));
+	const bool format_compatible =
+		(src_data->create_info.format == dst_data->create_info.format) || size_compatible;
+	const bool copy_region_compatible =
+		(src_box == nullptr && dst_box == nullptr && std::memcmp(&src_data->create_info.extent, &dst_data->create_info.extent, sizeof(VkExtent3D)) == 0) ||
+		(src_box != nullptr && dst_box != nullptr && src_box->width() == dst_box->width() && src_box->height() == dst_box->height() && src_box->depth() == dst_box->depth());
+
+	if (format_compatible && copy_region_compatible)
 	{
 		VkImageCopy region;
 
