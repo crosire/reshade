@@ -8,7 +8,7 @@
 #include <cfloat>
 #include <cstdint>
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// Available data and texture formats.
@@ -601,4 +601,4 @@ namespace reshade { namespace api
 			return false;
 		}
 	}
-} }
+}

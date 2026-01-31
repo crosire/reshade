@@ -7,7 +7,7 @@
 
 #include "reshade_api_pipeline.hpp"
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// Underlying graphics API a device is using.
@@ -1331,4 +1331,4 @@ namespace reshade { namespace api
 		/// </summary>
 		virtual color_space get_color_space() const = 0;
 	};
-} }
+}

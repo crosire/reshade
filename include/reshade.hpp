@@ -54,7 +54,7 @@ RESHADE_API_LIBRARY_DECL void ReShadeUpdateAndPresentEffectRuntime(reshade::api:
 // Use the kernel32 variant of module enumeration functions so it can be safely called from 'DllMain'
 extern "C" BOOL WINAPI K32EnumProcessModules(HANDLE hProcess, HMODULE *lphModule, DWORD cb, LPDWORD lpcbNeeded);
 
-namespace reshade { namespace internal
+namespace reshade::internal
 {
 	/// <summary>
 	/// Gets the handle to the ReShade module.
@@ -92,7 +92,7 @@ namespace reshade { namespace internal
 		static HMODULE handle = initial_handle;
 		return handle;
 	}
-} }
+}
 
 #endif
 

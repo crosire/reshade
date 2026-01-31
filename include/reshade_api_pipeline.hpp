@@ -8,7 +8,7 @@
 #include "reshade_api_resource.hpp"
 #include <cstddef>
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// Flags that specify the shader stages in the render pipeline.
@@ -1389,4 +1389,4 @@ namespace reshade { namespace api
 	/// </para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(fence);
-} }
+}
