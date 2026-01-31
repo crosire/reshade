@@ -550,6 +550,40 @@ namespace reshade { namespace api
 	}
 
 	/// <summary>
+	/// Returns whether <paramref name="value"/> is a block compressed (BC) format.
+	/// </summary>
+	inline bool format_is_block_compressed(format value)
+	{
+		switch (value)
+		{
+		case format::bc1_typeless:
+		case format::bc1_unorm:
+		case format::bc1_unorm_srgb:
+		case format::bc2_typeless:
+		case format::bc2_unorm:
+		case format::bc2_unorm_srgb:
+		case format::bc3_typeless:
+		case format::bc3_unorm:
+		case format::bc3_unorm_srgb:
+		case format::bc4_typeless:
+		case format::bc4_unorm:
+		case format::bc4_snorm:
+		case format::bc5_typeless:
+		case format::bc5_unorm:
+		case format::bc5_snorm:
+		case format::bc6h_typeless:
+		case format::bc6h_ufloat:
+		case format::bc6h_sfloat:
+		case format::bc7_typeless:
+		case format::bc7_unorm:
+		case format::bc7_unorm_srgb:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/// <summary>
 	/// Gets the number of bytes a texture slice of the specified format <paramref name="value"/> occupies.
 	/// </summary>
 	inline const uint32_t format_slice_pitch(format value, uint32_t row_pitch, uint32_t height)
