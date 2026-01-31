@@ -1289,8 +1289,7 @@ void reshade::vulkan::convert_resource_desc(const api::resource_desc &desc, VkIm
 	convert_usage_to_image_usage_flags(desc.usage, create_info.usage);
 
 	// A typeless format indicates that views with different typed formats can be created, so set mutable flag
-	if (desc.texture.format == api::format_to_typeless(desc.texture.format) &&
-		desc.texture.format != api::format_to_default_typed(desc.texture.format))
+	if (api::format_is_typeless(desc.texture.format))
 		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
 	if ((desc.flags & api::resource_flags::sparse_binding) != 0)

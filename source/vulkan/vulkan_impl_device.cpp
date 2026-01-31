@@ -2211,23 +2211,23 @@ void reshade::vulkan::device_impl::get_descriptor_heap_offset(api::descriptor_ta
 {
 	assert(heap != nullptr && offset != nullptr);
 
+	*heap = { 0 };
+	if (offset != nullptr)
+		*offset = 0;
+
 	const auto set_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET>((VkDescriptorSet)table.handle);
 	if (set_data == nullptr)
-		goto invalid;
-	const auto set_layout_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
-	if (set_layout_data == nullptr || binding >= set_layout_data->binding_to_offset.size())
-		goto invalid;
+		return;
 
 	*heap = { (uint64_t)set_data->pool };
-	*offset = set_data->offset + set_layout_data->binding_to_offset[binding] + array_offset;
-	return;
+	if (offset != nullptr)
+	{
+		const auto set_layout_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_data->layout);
+		if (set_layout_data == nullptr || binding >= set_layout_data->binding_to_offset.size())
+			return;
 
-	invalid:
-		reshade::log::message(reshade::log::level::warning,
-			"get_descriptor_heap_offset: invalid table=%p binding=%u array_offset=%u",
-			reinterpret_cast<void *>(table.handle), binding, array_offset);
-	*heap = { 0 };
-	*offset = 0;
+		*offset = set_data->offset + set_layout_data->binding_to_offset[binding] + array_offset;
+	}
 }
 
 void reshade::vulkan::device_impl::copy_descriptor_tables(uint32_t count, const api::descriptor_table_copy *copies)

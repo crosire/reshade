@@ -845,6 +845,7 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 
 	const auto src_format = convert_format(src_data->create_info.format);
 	const auto dst_format = convert_format(dst_data->create_info.format);
+
 	const bool size_compatible =
 		(src_format != api::format::unknown && dst_format != api::format::unknown) &&
 		(api::format_is_block_compressed(src_format) != api::format_is_block_compressed(dst_format)) &&

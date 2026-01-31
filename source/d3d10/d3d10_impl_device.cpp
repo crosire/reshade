@@ -352,7 +352,7 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 		return false;
 
 	// Cannot create a resource view with a typeless format
-	assert(desc.format != api::format_to_typeless(desc.format) || api::format_to_typeless(desc.format) == api::format_to_default_typed(desc.format));
+	assert(!api::format_is_typeless(desc.format));
 
 	switch (usage_type)
 	{
