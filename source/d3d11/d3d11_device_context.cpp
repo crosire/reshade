@@ -713,17 +713,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 			{
 				assert(DstSubresource == 0);
 
-				com_ptr<ID3D11Buffer> pDstBuffer;
-				pDstResource->QueryInterface(&pDstBuffer);
-				D3D11_BUFFER_DESC desc;
-         		pDstBuffer->GetDesc(&desc);
-
 				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
 						_device,
 						pSrcData,
 						to_handle(pDstResource),
 						pDstBox != nullptr ? pDstBox->left : 0,
-						pDstBox != nullptr ? pDstBox->right - pDstBox->left : desc.ByteWidth))
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : UINT64_MAX))
 					return;
 			}
 			else
@@ -750,17 +745,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 			{
 				assert(DstSubresource == 0);
 
-				com_ptr<ID3D11Buffer> pDstBuffer;
-				pDstResource->QueryInterface(&pDstBuffer);
-				D3D11_BUFFER_DESC desc;
-		 		pDstBuffer->GetDesc(&desc);
-
 				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region_command>(
 						this,
 						pSrcData,
 						to_handle(pDstResource),
 						pDstBox != nullptr ? pDstBox->left : 0,
-						pDstBox != nullptr ? pDstBox->right - pDstBox->left : desc.ByteWidth))
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : UINT64_MAX))
 					return;
 			}
 			else
@@ -1291,17 +1281,12 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 			{
 				assert(DstSubresource == 0);
 
-				com_ptr<ID3D11Buffer> pDstBuffer;
-				pDstResource->QueryInterface(&pDstBuffer);
-				D3D11_BUFFER_DESC desc;
-		 		pDstBuffer->GetDesc(&desc);
-
 				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
 						_device,
 						pSrcData,
 						to_handle(pDstResource),
 						pDstBox != nullptr ? pDstBox->left : 0,
-						pDstBox != nullptr ? pDstBox->right - pDstBox->left : desc.ByteWidth))
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : UINT64_MAX))
 					return;
 			}
 			else
@@ -1327,18 +1312,13 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 			if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 			{
 				assert(DstSubresource == 0);
-
-				com_ptr<ID3D11Buffer> pDstBuffer;
-				pDstResource->QueryInterface(&pDstBuffer);
-				D3D11_BUFFER_DESC desc;
-		 		pDstBuffer->GetDesc(&desc);
 				
 				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region_command>(
 						this,
 						pSrcData,
 						to_handle(pDstResource),
 						pDstBox != nullptr ? pDstBox->left : 0,
-						pDstBox != nullptr ? pDstBox->right - pDstBox->left : desc.ByteWidth))
+						pDstBox != nullptr ? pDstBox->right - pDstBox->left : UINT64_MAX))
 					return;
 			}
 			else

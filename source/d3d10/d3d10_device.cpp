@@ -568,17 +568,12 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 		{
 			assert(DstSubresource == 0);
 			
-			com_ptr<ID3D10Buffer> pDstBuffer;
-			pDstResource->QueryInterface(&pDstBuffer);
-			D3D10_BUFFER_DESC desc;
-			pDstBuffer->GetDesc(&desc);
-
 			if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
 					this,
 					pSrcData,
 					to_handle(pDstResource),
 					pDstBox != nullptr ? pDstBox->left : 0,
-					pDstBox != nullptr ? pDstBox->right - pDstBox->left : desc.ByteWidth))
+					pDstBox != nullptr ? pDstBox->right - pDstBox->left : UINT64_MAX))
 				return;
 		}
 		else
