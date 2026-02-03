@@ -1033,38 +1033,24 @@ void reshade::d3d9::device_impl::unmap_texture_region(api::resource resource, ui
 void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource != 0);
-	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
+	assert(offset <= std::numeric_limits<UINT>::max() && (size == UINT64_MAX || size <= std::numeric_limits<UINT>::max()));
 
 	if (data == nullptr)
 		return;
 
 	const auto object = reinterpret_cast<IDirect3DResource9 *>(resource.handle);
 
-	switch (IDirect3DResource9_GetType(object))
+	// 'IDirect3DVertexBuffer9_Lock' and 'IDirect3DIndexBuffer9_Lock' are located at the same virtual function table index and have the same interface
+	if (void *mapped_data;
+		SUCCEEDED(IDirect3DVertexBuffer9_Lock(
+			static_cast<IDirect3DVertexBuffer9 *>(object),
+			static_cast<UINT>(offset),
+			size != UINT64_MAX ? static_cast<UINT>(size) : 0,
+			&mapped_data,
+			0)))
 	{
-	case D3DRTYPE_VERTEXBUFFER:
-		{
-			void *mapped_ptr;
-			if (SUCCEEDED(IDirect3DVertexBuffer9_Lock(static_cast<IDirect3DVertexBuffer9 *>(object), static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
-			{
-				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
-				IDirect3DVertexBuffer9_Unlock(static_cast<IDirect3DVertexBuffer9 *>(object));
-			}
-		}
-		break;
-	case D3DRTYPE_INDEXBUFFER:
-		{
-			void *mapped_ptr;
-			if (SUCCEEDED(IDirect3DIndexBuffer9_Lock(static_cast<IDirect3DIndexBuffer9 *>(object), static_cast<UINT>(offset), static_cast<UINT>(size), &mapped_ptr, 0)))
-			{
-				std::memcpy(mapped_ptr, data, static_cast<size_t>(size));
-				IDirect3DIndexBuffer9_Unlock(static_cast<IDirect3DIndexBuffer9 *>(object));
-			}
-		}
-		break;
-	default:
-		assert(false); // Not implemented
-		break;
+		std::memcpy(mapped_data, data, static_cast<size_t>(size));
+		IDirect3DVertexBuffer9_Unlock(static_cast<IDirect3DVertexBuffer9 *>(object));
 	}
 }
 void reshade::d3d9::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
@@ -1611,11 +1597,11 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 				goto exit_failure;
 			}
 
-			if (float *data;
-				SUCCEEDED(IDirect3DVertexBuffer9_Lock(_default_input_stream.get(), 0, max_vertices * sizeof(float), reinterpret_cast<void **>(&data), 0)))
+			if (float *mapped_data;
+				SUCCEEDED(IDirect3DVertexBuffer9_Lock(_default_input_stream.get(), 0, max_vertices * sizeof(float), reinterpret_cast<void **>(&mapped_data), 0)))
 			{
 				for (UINT i = 0; i < max_vertices; ++i)
-					data[i] = static_cast<float>(i);
+					mapped_data[i] = static_cast<float>(i);
 				IDirect3DVertexBuffer9_Unlock(_default_input_stream.get());
 			}
 		}

@@ -548,6 +548,14 @@ void reshade::d3d10::device_impl::unmap_texture_region(api::resource resource, u
 void reshade::d3d10::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource != 0);
+
+	if (UINT64_MAX == size)
+	{
+		D3D10_BUFFER_DESC desc;
+		reinterpret_cast<ID3D10Buffer *>(resource.handle)->GetDesc(&desc);
+		size = desc.ByteWidth;
+	}
+
 	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	if (data == nullptr)

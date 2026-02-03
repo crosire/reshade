@@ -567,7 +567,7 @@ void    STDMETHODCALLTYPE D3D10Device::UpdateSubresource(ID3D10Resource *pDstRes
 		if (type == D3D10_RESOURCE_DIMENSION_BUFFER)
 		{
 			assert(DstSubresource == 0);
-			
+
 			if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region>(
 					this,
 					pSrcData,

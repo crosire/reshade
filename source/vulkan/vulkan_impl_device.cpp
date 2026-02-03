@@ -1140,14 +1140,18 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 	if (data == nullptr)
 		return;
 
-	if (const auto immediate_command_list = get_immediate_command_list())
-	{
-		immediate_command_list->_has_commands = true;
+	const auto immediate_command_list = get_immediate_command_list();
+	if (immediate_command_list == nullptr)
+		return;
 
-		vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
+	if (UINT64_MAX == size)
+		size = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle)->create_info.size;
 
-		immediate_command_list->flush_and_wait();
-	}
+	immediate_command_list->_has_commands = true;
+
+	vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
+
+	immediate_command_list->flush_and_wait();
 }
 void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
 {

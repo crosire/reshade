@@ -768,7 +768,7 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::r
 
 	if (desc.type == api::resource_type::buffer)
 	{
-		copy_buffer_region(src, 0, dst, 0, ~0llu);
+		copy_buffer_region(src, 0, dst, 0, UINT64_MAX);
 	}
 	else
 	{

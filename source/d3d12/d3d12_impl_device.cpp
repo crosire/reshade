@@ -708,6 +708,9 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
+	if (UINT64_MAX == size)
+		size = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc().Width;
+
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
 	intermediate_desc.Width = size;

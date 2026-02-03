@@ -1187,7 +1187,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resou
 					pSrcBox != nullptr ? pSrcBox->left : 0,
 					to_handle(pDstResource),
 					DstX,
-					pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : ~0ull))
+					pSrcBox != nullptr ? pSrcBox->right - pSrcBox->left : UINT64_MAX))
 				return;
 		}
 		else
@@ -1312,7 +1312,7 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource 
 			if (type == D3D11_RESOURCE_DIMENSION_BUFFER)
 			{
 				assert(DstSubresource == 0);
-				
+
 				if (reshade::invoke_addon_event<reshade::addon_event::update_buffer_region_command>(
 						this,
 						pSrcData,
