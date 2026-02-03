@@ -190,6 +190,8 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource(GLenum
 	case GL_TEXTURE_2D_ARRAY:
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
 		gl.FramebufferTextureLayer(target, attachment, dst_object, dst_subresource % dst_desc.texture.levels, dst_subresource / dst_desc.texture.levels);
 		break;
 	case GL_RENDERBUFFER:

@@ -1914,14 +1914,16 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const auto row_pitch = api::format_row_pitch(desc.texture.format, width);
 	const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, height);
 	const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
+	const bool packed_data_layout =
+		(row_pitch == data.row_pitch || height == 1) &&
+		(slice_pitch == data.slice_pitch || depth == 1);
 
 	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
 	std::vector<uint8_t> temp_pixels;
 	const uint8_t *pixels = static_cast<const uint8_t *>(data.data);
 
-	if ((row_pitch != data.row_pitch && height == 1) ||
-		(slice_pitch != data.slice_pitch && depth == 1))
+	if (!packed_data_layout)
 	{
 		temp_pixels.resize(total_image_size);
 		uint8_t *dst_pixels = temp_pixels.data();
