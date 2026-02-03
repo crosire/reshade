@@ -765,17 +765,20 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	UINT width = static_cast<UINT>(desc.Width);
 	UINT height = desc.Height;
-	UINT num_slices = desc.DepthOrArraySize;
+	UINT depth = desc.DepthOrArraySize;
 	if (box != nullptr)
 	{
 		width = box->width();
 		height = box->height();
-		num_slices = box->depth();
+		depth = box->depth();
 	}
 	else
 	{
 		width = std::max(1u, width >> (subresource % desc.MipLevels));
 		height = std::max(1u, height >> (subresource % desc.MipLevels));
+
+		if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE3D)
+			depth = 1;
 	}
 
 	UINT row_pitch = api::format_row_pitch(convert_format(desc.Format), width);
@@ -785,7 +788,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
-	intermediate_desc.Width = static_cast<UINT64>(num_slices) * slice_pitch;
+	intermediate_desc.Width = static_cast<UINT64>(depth) * slice_pitch;
 	intermediate_desc.Height = 1;
 	intermediate_desc.DepthOrArraySize = 1;
 	intermediate_desc.MipLevels = 1;
@@ -809,7 +812,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	const size_t row_size = data.row_pitch < row_pitch ? data.row_pitch : static_cast<size_t>(row_pitch);
 
-	for (size_t z = 0; z < num_slices; ++z)
+	for (size_t z = 0; z < depth; ++z)
 	{
 		const auto dst_slice = mapped_data + z * slice_pitch;
 		const auto src_slice = static_cast<const uint8_t *>(data.data) + z * data.slice_pitch;
