@@ -1088,13 +1088,21 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 
 			const UINT width = (box != nullptr) ? box->width() : desc.Width;
 			const UINT height = (box != nullptr) ? box->height() : desc.Height;
+
 			const bool use_systemmem_texture = IDirect3DTexture9_GetLevelCount(static_cast<IDirect3DTexture9 *>(object)) == 1 && box == nullptr;
 
 			com_ptr<IDirect3DTexture9> intermediate;
-			if (FAILED(_orig->CreateTexture(width, height, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
+			if (desc.Pool == D3DPOOL_DEFAULT)
 			{
-				log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, levels = 1, usage = %s, format = %d)!", width, height, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
-				return;
+				if (FAILED(_orig->CreateTexture(width, height, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
+				{
+					log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, levels = 1, usage = %s, format = %d)!", width, height, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
+					return;
+				}
+			}
+			else
+			{
+				intermediate = static_cast<IDirect3DTexture9 *>(object);
 			}
 
 			D3DLOCKED_RECT locked_rect;
@@ -1146,22 +1154,25 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 
 			IDirect3DTexture9_UnlockRect(intermediate.get(), 0);
 
-			if (use_systemmem_texture)
+			if (intermediate.get() != object)
 			{
-				assert(subresource == 0);
+				if (use_systemmem_texture)
+				{
+					assert(subresource == 0);
 
-				_orig->UpdateTexture(intermediate.get(), static_cast<IDirect3DTexture9 *>(object));
-			}
-			else
-			{
-				RECT dst_rect;
+					_orig->UpdateTexture(intermediate.get(), static_cast<IDirect3DTexture9 *>(object));
+				}
+				else
+				{
+					RECT dst_rect;
 
-				com_ptr<IDirect3DSurface9> src_surface;
-				IDirect3DTexture9_GetSurfaceLevel(intermediate.get(), 0, &src_surface);
-				com_ptr<IDirect3DSurface9> dst_surface;
-				IDirect3DTexture9_GetSurfaceLevel(static_cast<IDirect3DTexture9 *>(object), subresource, &dst_surface);
+					com_ptr<IDirect3DSurface9> src_surface;
+					IDirect3DTexture9_GetSurfaceLevel(intermediate.get(), 0, &src_surface);
+					com_ptr<IDirect3DSurface9> dst_surface;
+					IDirect3DTexture9_GetSurfaceLevel(static_cast<IDirect3DTexture9 *>(object), subresource, &dst_surface);
 
-				_orig->StretchRect(src_surface.get(), nullptr, dst_surface.get(), convert_box_to_rect(box, dst_rect), D3DTEXF_NONE);
+					_orig->StretchRect(src_surface.get(), nullptr, dst_surface.get(), convert_box_to_rect(box, dst_rect), D3DTEXF_NONE);
+				}
 			}
 		}
 		break;
@@ -1175,10 +1186,11 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			const UINT width = (box != nullptr) ? box->width() : desc.Width;
 			const UINT height = (box != nullptr) ? box->height() : desc.Height;
 			const UINT depth = (box != nullptr) ? box->depth() : desc.Depth;
+
 			const bool use_systemmem_texture = IDirect3DVolumeTexture9_GetLevelCount(static_cast<IDirect3DVolumeTexture9 *>(object)) == 1 && box == nullptr;
 
 			com_ptr<IDirect3DVolumeTexture9> intermediate;
-			if (use_systemmem_texture)
+			if (desc.Pool == D3DPOOL_DEFAULT && use_systemmem_texture)
 			{
 				if (FAILED(_orig->CreateVolumeTexture(width, height, depth, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &intermediate, nullptr)))
 				{
@@ -1252,11 +1264,14 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 
 			IDirect3DVolumeTexture9_UnlockBox(intermediate.get(), 0);
 
-			if (use_systemmem_texture)
+			if (intermediate.get() != object)
 			{
-				assert(subresource == 0);
+				if (use_systemmem_texture)
+				{
+					assert(subresource == 0);
 
-				_orig->UpdateTexture(intermediate.get(), static_cast<IDirect3DVolumeTexture9 *>(object));
+					_orig->UpdateTexture(intermediate.get(), static_cast<IDirect3DVolumeTexture9 *>(object));
+				}
 			}
 		}
 		break;
@@ -1276,10 +1291,17 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 			const bool use_systemmem_texture = IDirect3DCubeTexture9_GetLevelCount(static_cast<IDirect3DCubeTexture9 *>(object)) == 1 && box == nullptr;
 
 			com_ptr<IDirect3DCubeTexture9> intermediate;
-			if (FAILED(_orig->CreateCubeTexture(width, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
+			if (desc.Pool == D3DPOOL_DEFAULT)
 			{
-				log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, levels = 1, usage = %s, format = %d)!", width, height, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
-				return;
+				if (FAILED(_orig->CreateCubeTexture(width, 1, use_systemmem_texture ? 0 : D3DUSAGE_DYNAMIC, desc.Format, use_systemmem_texture ? D3DPOOL_SYSTEMMEM : D3DPOOL_DEFAULT, &intermediate, nullptr)))
+				{
+					log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, levels = 1, usage = %s, format = %d)!", width, height, use_systemmem_texture ? "0" : "D3DUSAGE_DYNAMIC", desc.Format);
+					return;
+				}
+			}
+			else
+			{
+				intermediate = static_cast<IDirect3DCubeTexture9 *>(object);
 			}
 
 			D3DLOCKED_RECT locked_rect;
@@ -1335,24 +1357,27 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 				IDirect3DCubeTexture9_UnlockRect(intermediate.get(), face, 0);
 			}
 
-			if (use_systemmem_texture)
+			if (intermediate.get() != object)
 			{
-				assert(subresource == 0);
-
-				_orig->UpdateTexture(intermediate.get(), static_cast<IDirect3DCubeTexture9 *>(object));
-			}
-			else
-			{
-				RECT dst_rect;
-
-				for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+				if (use_systemmem_texture)
 				{
-					com_ptr<IDirect3DSurface9> src_surface;
-					IDirect3DCubeTexture9_GetCubeMapSurface(intermediate.get(), face, 0, &src_surface);
-					com_ptr<IDirect3DSurface9> dst_surface;
-					IDirect3DCubeTexture9_GetCubeMapSurface(static_cast<IDirect3DCubeTexture9 *>(object), face, subresource, &dst_surface);
-					
-					_orig->StretchRect(src_surface.get(), nullptr, dst_surface.get(), convert_box_to_rect(box, dst_rect), D3DTEXF_NONE);
+					assert(subresource == 0);
+
+					_orig->UpdateTexture(intermediate.get(), static_cast<IDirect3DCubeTexture9 *>(object));
+				}
+				else
+				{
+					RECT dst_rect;
+
+					for (D3DCUBEMAP_FACES face = D3DCUBEMAP_FACE_POSITIVE_X; face <= D3DCUBEMAP_FACE_NEGATIVE_Z; face = static_cast<D3DCUBEMAP_FACES>(face + 1))
+					{
+						com_ptr<IDirect3DSurface9> src_surface;
+						IDirect3DCubeTexture9_GetCubeMapSurface(intermediate.get(), face, 0, &src_surface);
+						com_ptr<IDirect3DSurface9> dst_surface;
+						IDirect3DCubeTexture9_GetCubeMapSurface(static_cast<IDirect3DCubeTexture9 *>(object), face, subresource, &dst_surface);
+
+						_orig->StretchRect(src_surface.get(), nullptr, dst_surface.get(), convert_box_to_rect(box, dst_rect), D3DTEXF_NONE);
+					}
 				}
 			}
 		}
