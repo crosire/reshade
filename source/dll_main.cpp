@@ -11,6 +11,9 @@
 #include <Windows.h>
 #include <Psapi.h>
 #include <delayimp.h> // Delay-load helpers
+#include <wincrypt.h>
+#include <iomanip>
+#pragma comment(lib, "advapi32.lib")
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
@@ -20,6 +23,113 @@ HMODULE g_module_handle = nullptr;
 std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
+
+/// <summary>
+/// Validates the integrity of a DLL file using SHA256 hash.
+/// </summary>
+/// <param name="dll_path">Full path to the DLL file to validate</param>
+/// <param name="expected_hash">Expected SHA256 hash (lowercase hex string)</param>
+/// <returns>True if hash matches, false otherwise</returns>
+static bool validate_dll_hash(const std::filesystem::path &dll_path, const std::string &expected_hash)
+{
+	std::error_code ec;
+	if (!std::filesystem::exists(dll_path, ec))
+	{
+		reshade::log::message(reshade::log::level::error, "ProxyLibrary file not found: '%s'", dll_path.u8string().c_str());
+		return false;
+	}
+
+	// Open file for reading
+	HANDLE file = CreateFileW(dll_path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (file == INVALID_HANDLE_VALUE)
+	{
+		reshade::log::message(reshade::log::level::error, "Failed to open ProxyLibrary for validation: '%s' (error: %lu)", dll_path.u8string().c_str(), GetLastError());
+		return false;
+	}
+
+	HCRYPTPROV hProv = 0;
+	HCRYPTHASH hHash = 0;
+	bool result = false;
+
+	// Create cryptographic context
+	if (!CryptCreateHash(PROV_RSA_AES, CALG_SHA_256, 0, 0, &hHash))
+	{
+		reshade::log::message(reshade::log::level::error, "Failed to create hash object (error: %lu)", GetLastError());
+		goto cleanup;
+	}
+
+	// Read file and update hash
+	{
+		const int BUFFER_SIZE = 65536;
+		std::vector<BYTE> buffer(BUFFER_SIZE);
+		DWORD bytes_read;
+
+		while (ReadFile(file, buffer.data(), BUFFER_SIZE, &bytes_read, nullptr) && bytes_read > 0)
+		{
+			if (!CryptHashData(hHash, buffer.data(), bytes_read, 0))
+			{
+				reshade::log::message(reshade::log::level::error, "Failed to hash file data (error: %lu)", GetLastError());
+				goto cleanup;
+			}
+		}
+	}
+
+	// Get hash value
+	{
+		DWORD hash_size = 0;
+		if (!CryptGetHashParam(hHash, HP_HASHVAL, nullptr, &hash_size, 0))
+		{
+			reshade::log::message(reshade::log::level::error, "Failed to get hash size (error: %lu)", GetLastError());
+			goto cleanup;
+		}
+
+		std::vector<BYTE> hash(hash_size);
+		if (!CryptGetHashParam(hHash, HP_HASHVAL, hash.data(), &hash_size, 0))
+		{
+			reshade::log::message(reshade::log::level::error, "Failed to get hash value (error: %lu)", GetLastError());
+			goto cleanup;
+		}
+
+		// Convert hash to hex string (lowercase)
+		std::stringstream ss;
+		for (BYTE byte : hash)
+		{
+			ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+		}
+		std::string computed_hash = ss.str();
+
+		// Compare hashes (case-insensitive)
+		std::string expected_lower = expected_hash;
+		std::transform(expected_lower.begin(), expected_lower.end(), expected_lower.begin(), ::tolower);
+		std::transform(computed_hash.begin(), computed_hash.end(), computed_hash.begin(), ::tolower);
+
+		if (computed_hash == expected_lower)
+		{
+			reshade::log::message(reshade::log::level::info, "ProxyLibrary hash validation successful for '%s'", dll_path.u8string().c_str());
+			result = true;
+		}
+		else
+		{
+			reshade::log::message(reshade::log::level::error,
+				"ProxyLibrary hash mismatch for '%s'!\n"
+				"  Expected: %s\n"
+				"  Computed: %s\n"
+				"  This could indicate DLL tampering or corruption. ProxyLibrary will not be loaded.",
+				dll_path.u8string().c_str(),
+				expected_lower.c_str(),
+				computed_hash.c_str());
+		}
+	}
+
+cleanup:
+	if (hHash != 0)
+		CryptDestroyHash(hHash);
+	if (hProv != 0)
+		CryptReleaseContext(hProv, 0);
+	CloseHandle(file);
+
+	return result;
+}
 
 /// <summary>
 /// Checks whether the current application is an UWP app.
@@ -291,7 +401,37 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 					reshade::global_config().get("PROXY", "EnableProxyLibrary") &&
 					reshade::global_config().get("PROXY", "ProxyLibrary", export_module_path))
 				{
-					reshade::hooks::register_export_module(g_reshade_base_path / export_module_path);
+					// NEW SECURITY VALIDATION: Check for ProxyLibrary hash
+					std::string proxy_library_hash;
+					const std::filesystem::path full_proxy_path = g_reshade_base_path / export_module_path;
+
+					if (reshade::global_config().get("PROXY", "ProxyLibraryHash", proxy_library_hash))
+					{
+						// Hash is configured, validate it before loading
+						if (!validate_dll_hash(full_proxy_path, proxy_library_hash))
+						{
+							reshade::log::message(reshade::log::level::error,
+								"ProxyLibrary validation failed! Module will not be loaded. "
+								"Please verify your reshade.ini and ProxyLibrary file are not corrupted or tampered with.");
+							// Do NOT register the module - it failed validation
+						}
+						else
+						{
+							// Validation passed, register for loading
+							reshade::hooks::register_export_module(full_proxy_path);
+						}
+					}
+					else
+					{
+						// No hash configured - log a warning but still load (backwards compatibility)
+						reshade::log::message(reshade::log::level::warning,
+							"ProxyLibrary is enabled but no ProxyLibraryHash is configured in reshade.ini! "
+							"For security reasons, consider adding a hash to validate the DLL integrity. "
+							"You can compute the SHA256 hash using: certUtil -hashfile \"%s\" SHA256",
+							full_proxy_path.u8string().c_str());
+
+						reshade::hooks::register_export_module(full_proxy_path);
+					}
 				}
 
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_INPUT_HOOK", nullptr, 0))
