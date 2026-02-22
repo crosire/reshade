@@ -38,12 +38,104 @@
 #include <stb_image_write_hdr_png.h>
 #include <stb_image_resize2.h>
 
+
+// This handles both the screenshot expansion and environment var resolution
+std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {})
+{
+	std::string result;
+	for (size_t offset = 0, macro_beg, macro_end; offset < input.size(); offset = macro_end + 1)
+	{
+		macro_beg = input.find('%', offset);
+		macro_end = input.find('%', macro_beg + 1);
+
+		if (macro_beg == std::string::npos || macro_end == std::string::npos)
+		{
+			result += input.substr(offset);
+			break;
+		}
+		else
+		{
+			result += input.substr(offset, macro_beg - offset);
+			if (macro_end == macro_beg + 1) // Handle case of %% to escape percentage symbol
+			{
+				result += '%';
+				continue;
+			}
+		}
+
+		std::string_view replacing(input);
+		replacing = replacing.substr(macro_beg + 1, macro_end - (macro_beg + 1));
+		size_t colon_pos = replacing.find(':');
+
+		std::string name;
+		if (colon_pos == std::string_view::npos)
+			name = replacing;
+		else
+			name = replacing.substr(0, colon_pos);
+
+		std::string value;
+
+		// Allow using this function to escape out the percentage symbols without needing to specify macros
+		// System dirs are manually restricted from screenshot pathing
+		if (macros.empty() && getenv(name.c_str()) != nullptr)
+		{
+			value = getenv(name.c_str());
+		}
+		else {
+			for (const std::pair<std::string, std::string> &macro : macros)
+			{
+				if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
+				{
+					value = macro.second;
+					break;
+				}
+				// Allow using env vars alongside macros
+				else if (getenv(name.c_str()) != nullptr)
+				{
+					value = getenv(name.c_str());
+					break;
+				}
+			}
+		}
+
+		if (colon_pos == std::string_view::npos)
+		{
+			result += value;
+		}
+		else
+		{
+			std::string_view param = replacing.substr(colon_pos + 1);
+
+			if (const size_t insert_pos = param.find('$');
+				insert_pos != std::string_view::npos)
+			{
+				result += param.substr(0, insert_pos);
+				result += value;
+				result += param.substr(insert_pos + 1);
+			}
+			else
+			{
+				result += param;
+			}
+		}
+	}
+	return result;
+}
+
+
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
+	// expand environment variables
+	std::string path_string = expand_macro_string(path.u8string(),{{
+		"AppName", g_target_executable_path.stem().u8string()
+	}});
+	const bool is_env_var = !path_string.empty() && path_string[0] == '%';
 	// First convert path to an absolute path
 	// Ignore the working directory and instead start relative paths at the DLL location
-	if (path.is_relative())
-		path = g_reshade_base_path / path;
+	path = std::filesystem::u8path(std::move(path_string));
+
+	// Don't make unresolved env var paths relative
+	if (path.is_relative() && !is_env_var)
 	// Finally try to canonicalize the path too
 	if (std::filesystem::path canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
@@ -175,6 +267,45 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 	return files;
 }
 
+// part of the screenshot macro functionality. needs to be with the other helpers or forward declared for correct access
+std::string setup_macros(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
+{
+	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+	char timestamp[21];
+	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
+	struct tm tm; localtime_s(&tm, &t);
+
+	std::snprintf(timestamp, std::size(timestamp), "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+	macros.emplace_back("Date", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.4d", tm.tm_year + 1900);
+	macros.emplace_back("DateYear", timestamp);
+	macros.emplace_back("Year", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mon + 1);
+	macros.emplace_back("DateMonth", timestamp);
+	macros.emplace_back("Month", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mday);
+	macros.emplace_back("DateDay", timestamp);
+	macros.emplace_back("Day", timestamp);
+
+	std::snprintf(timestamp, std::size(timestamp), "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+	macros.emplace_back("Time", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_hour);
+	macros.emplace_back("TimeHour", timestamp);
+	macros.emplace_back("Hour", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_min);
+	macros.emplace_back("TimeMinute", timestamp);
+	macros.emplace_back("Minute", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_sec);
+	macros.emplace_back("TimeSecond", timestamp);
+	macros.emplace_back("Second", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
+	macros.emplace_back("TimeMillisecond", timestamp);
+	macros.emplace_back("Millisecond", timestamp);
+	macros.emplace_back("TimeMS", timestamp);
+	
+	return expand_macro_string(input, macros);
+}
+
 reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr) :
 	_swapchain(swapchain),
 	_device(swapchain->get_device()),
@@ -187,7 +318,7 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	_texture_search_paths({ L".\\" }),
 	_config_path(config_path),
 	_screenshot_path(L".\\"),
-	_screenshot_name("%AppName% %Date% %Time%_%TimeMS%"), // Include milliseconds by default because users may request more than one screenshot per second
+	_screenshot_name("%AppName% %Date% %Time%_%Count%"), // Use count rather than Ms because its more readable and meaningful
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
@@ -4663,110 +4794,6 @@ template <> void reshade::runtime::set_uniform_value<uint32_t>(uniform &variable
 	}
 }
 
-static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
-{
-	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
-
-	char timestamp[21];
-	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
-	struct tm tm; localtime_s(&tm, &t);
-
-	std::snprintf(timestamp, std::size(timestamp), "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-	macros.emplace_back("Date", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.4d", tm.tm_year + 1900);
-	macros.emplace_back("DateYear", timestamp);
-	macros.emplace_back("Year", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mon + 1);
-	macros.emplace_back("DateMonth", timestamp);
-	macros.emplace_back("Month", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mday);
-	macros.emplace_back("DateDay", timestamp);
-	macros.emplace_back("Day", timestamp);
-
-	std::snprintf(timestamp, std::size(timestamp), "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-	macros.emplace_back("Time", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_hour);
-	macros.emplace_back("TimeHour", timestamp);
-	macros.emplace_back("Hour", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_min);
-	macros.emplace_back("TimeMinute", timestamp);
-	macros.emplace_back("Minute", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_sec);
-	macros.emplace_back("TimeSecond", timestamp);
-	macros.emplace_back("Second", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
-	macros.emplace_back("TimeMillisecond", timestamp);
-	macros.emplace_back("Millisecond", timestamp);
-	macros.emplace_back("TimeMS", timestamp);
-
-	std::string result;
-
-	for (size_t offset = 0, macro_beg, macro_end; offset < input.size(); offset = macro_end + 1)
-	{
-		macro_beg = input.find('%', offset);
-		macro_end = input.find('%', macro_beg + 1);
-
-		if (macro_beg == std::string::npos || macro_end == std::string::npos)
-		{
-			result += input.substr(offset);
-			break;
-		}
-		else
-		{
-			result += input.substr(offset, macro_beg - offset);
-
-			if (macro_end == macro_beg + 1) // Handle case of %% to escape percentage symbol
-			{
-				result += '%';
-				continue;
-			}
-		}
-
-		std::string_view replacing(input);
-		replacing = replacing.substr(macro_beg + 1, macro_end - (macro_beg + 1));
-		size_t colon_pos = replacing.find(':');
-
-		std::string name;
-		if (colon_pos == std::string_view::npos)
-			name = replacing;
-		else
-			name = replacing.substr(0, colon_pos);
-
-		std::string value;
-		for (const std::pair<std::string, std::string> &macro : macros)
-		{
-			if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
-			{
-				value = macro.second;
-				break;
-			}
-		}
-
-		if (colon_pos == std::string_view::npos)
-		{
-			result += value;
-		}
-		else
-		{
-			std::string_view param = replacing.substr(colon_pos + 1);
-
-			if (const size_t insert_pos = param.find('$');
-				insert_pos != std::string_view::npos)
-			{
-				result += param.substr(0, insert_pos);
-				result += value;
-				result += param.substr(insert_pos + 1);
-			}
-			else
-			{
-				result += param;
-			}
-		}
-	}
-
-	return result;
-}
-
 void reshade::runtime::save_screenshot(const char *postfix_in)
 {
 	std::string postfix;
@@ -4778,10 +4805,15 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 	const unsigned int screenshot_format =
 		(_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq) ? (_screenshot_format == 3 ? 5 : 4) : _screenshot_format;
 
-	std::string screenshot_name = expand_macro_string(_screenshot_name, {
+	std::string screenshot_name = setup_macros(_screenshot_name, { // this preserves all timedate-based macros while limiting their usage to screenshots 
+		{"SYSTEM", g_reshade_base_path.stem().u8string()}, // I may have missed a few but this is just some idiot proofing for screenshots
+		{"SYSTEM32", g_reshade_base_path.stem().u8string()}, // You can of course still use these macros for stuff like fonts
+		{"SYSTEMDRIVE", g_reshade_base_path.stem().u8string()},	// realistically this shouldn't be a concern but the risk is a possible crash due to access rights
+		{"SYSTEMROOT", g_reshade_base_path.stem().u8string()},
+		{"WINDIR", g_reshade_base_path.stem().u8string()},
 		{ "AppName", g_target_executable_path.stem().u8string() },
 		{ "PresetName", _current_preset_path.stem().u8string() },
-		{ "BeforeAfter", postfix },
+		{ "BeforeAfter", std::string(postfix) },
 		{ "Count", std::to_string(screenshot_count) }
 	}, _current_time);
 
@@ -5071,7 +5103,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	if (!_screenshot_post_save_command_arguments.empty())
 	{
 		command_line += ' ';
-		command_line += expand_macro_string(_screenshot_post_save_command_arguments, {
+		command_line += setup_macros(_screenshot_post_save_command_arguments, {
 			{ "AppName", g_target_executable_path.stem().u8string() },
 			{ "PresetName", _current_preset_path.stem().u8string() },
 			{ "BeforeAfter", std::string(postfix) },
