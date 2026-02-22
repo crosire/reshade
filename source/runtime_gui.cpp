@@ -25,6 +25,8 @@
 #include <algorithm> // std::any_of, std::count_if, std::find, std::find_if, std::max, std::min, std::replace, std::rotate, std::search, std::swap, std::transform
 
 extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+extern std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {});
+extern std::string setup_macros(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now);
 
 static bool string_contains(const std::string_view text, const std::string_view filter)
 {
@@ -42,6 +44,42 @@ static auto is_invalid_filename_element(ImGuiInputTextCallbackData *data) -> int
 {
 	// A file name cannot contain any of the following characters
 	return is_invalid_path_element(data) || data->EventChar == L'/' || data->EventChar == L'\\';
+}
+static auto is_macro_filename_element(ImGuiInputTextCallbackData *data) -> int
+{
+	// A file name cannot contain any of the following characters
+	return is_invalid_path_element(data) || data->EventChar == L'/' || data->EventChar == L'\\';
+}
+// custom callback to allow resolving environment vars in input_text fields when tab is pressed
+int resolve_macros(ImGuiInputTextCallbackData *data)
+{
+	std::string text = data->Buf;
+	std::string resolved = expand_macro_string(text, { { "AppName", g_target_executable_path.stem().u8string() } });
+	std::filesystem::path resolved_path = std::filesystem::u8path(resolved);
+	int cursor_pos = data->CursorPos;
+	cursor_pos += resolved.length() - text.length();
+	// This will allow paths to resolve if the macro is correct but the user has typed a nonexistent file or folder after it
+	// e.g. "%USERPROFILE%\Documents\SomeFileThatDoesntExist.txt" would simply not work otherwise 
+	// This only works if the error occurs later in the path than the correct macro
+	// Doesn't communicate to the user that the error has occurred but it should be easy to see what happened 
+	// And it does move the cursor position to the last real path
+	// Note that this also does not work if the user types into an input field on the main gui window and clicks to open the file browser popup without entering
+	while (!std::filesystem::exists(resolved_path) && !resolved_path.empty() && resolved_path.u8string().find_last_of("\\") != std::string::npos)
+	{
+		resolved_path = std::filesystem::path(resolved_path.u8string().substr(0, resolved_path.u8string().find_last_of("\\")));
+	}
+	if (!std::filesystem::exists(resolved_path)) return 1;
+	if (resolved_path.u8string() != resolved) {
+		resolved = resolved_path.u8string() + resolved.substr(resolved_path.u8string().length());
+		cursor_pos = resolved_path.u8string().length() + 1;
+	}
+
+	// Update the buffer with sanitized text
+	data->CursorPos = cursor_pos;
+	strcpy(data->Buf, resolved.c_str());
+	data->BufTextLen = resolved.length();
+	data->BufDirty = true;
+	return 0;
 }
 
 template <typename F>
@@ -2126,6 +2164,7 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
+		
 			ImGui::SetTooltip(_(
 				"Macros you can add that are resolved during saving:\n"
 				"  %%AppName%%         Name of the application (%s)\n"
