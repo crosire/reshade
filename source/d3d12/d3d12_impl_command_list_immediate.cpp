@@ -105,7 +105,20 @@ void reshade::d3d12::command_list_immediate_impl::query_acceleration_structures(
 	}
 }
 
-bool reshade::d3d12::command_list_immediate_impl::flush()
+void reshade::d3d12::command_list_immediate_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
+{
+	s_last_immediate_command_list = this;
+
+	_device_impl->update_buffer_region(data, dest, dest_offset, size);
+}
+void reshade::d3d12::command_list_immediate_impl::update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box)
+{
+	s_last_immediate_command_list = this;
+
+	_device_impl->update_texture_region(data, dest, dest_subresource, dest_box);
+}
+
+bool reshade::d3d12::command_list_immediate_impl::flush(bool wait)
 {
 	s_last_immediate_command_list = this;
 
@@ -148,8 +161,11 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 		_parent_queue->Signal(fence.first, fence.second);
 	_current_query_fences.clear();
 
-	// Continue with next command list now that the current one was submitted
-	_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
+	if (!wait)
+	{
+		// Continue with next command list now that the current one was submitted
+		_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
+	}
 
 	// Make sure all commands for the next command allocator have finished executing before reseting it
 	if (_fence[_cmd_index]->GetCompletedValue() < _fence_value[_cmd_index])
@@ -169,19 +185,4 @@ bool reshade::d3d12::command_list_immediate_impl::flush()
 	}
 
 	return true;
-}
-bool reshade::d3d12::command_list_immediate_impl::flush_and_wait()
-{
-	if (!_has_commands)
-		return true;
-
-	// Index is updated during flush below, so keep track of the current one to wait on
-	const UINT cmd_index_to_wait_on = _cmd_index;
-
-	if (!flush())
-		return false;
-
-	if (FAILED(_fence[cmd_index_to_wait_on]->SetEventOnCompletion(_fence_value[cmd_index_to_wait_on], _fence_event)))
-		return false;
-	return WaitForSingleObject(_fence_event, INFINITE) == WAIT_OBJECT_0;
 }

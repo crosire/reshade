@@ -4,6 +4,7 @@
  */
 
 #include "dll_log.hpp"
+#include <cstdarg>
 #include <Windows.h>
 
 struct scoped_file_handle
@@ -26,19 +27,19 @@ private:
 	HANDLE handle;
 };
 
-static scoped_file_handle s_file_handle;
+static scoped_file_handle s_log_file_handle;
 
 bool reshade::log::open_log_file(const std::filesystem::path &path, std::error_code &ec)
 {
 	// Close the previous file first
 	// Do this here, instead of in 'scoped_file_handle::operator=', so that the old handle is closed before the new handle is created
-	if (s_file_handle != INVALID_HANDLE_VALUE)
-		CloseHandle(s_file_handle);
+	if (s_log_file_handle != INVALID_HANDLE_VALUE)
+		CloseHandle(s_log_file_handle);
 
 	// Open the log file for writing (and flush on each write) and clear previous contents
-	s_file_handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
+	s_log_file_handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, NULL);
 
-	if (s_file_handle != INVALID_HANDLE_VALUE)
+	if (s_log_file_handle != INVALID_HANDLE_VALUE)
 	{
 		// Last error may be ERROR_ALREADY_EXISTS if an existing file was overwritten, which can be ignored
 		ec.clear();
@@ -98,10 +99,10 @@ void reshade::log::message(level level, const char *format, ...)
 		line_string.replace(offset, 1, "\r\n", 2);
 
 	// Write line to the log file
-	if (s_file_handle != INVALID_HANDLE_VALUE)
+	if (s_log_file_handle != INVALID_HANDLE_VALUE)
 	{
 		DWORD written = 0;
-		WriteFile(s_file_handle, line_string.data(), static_cast<DWORD>(line_string.size()), &written, nullptr);
+		WriteFile(s_log_file_handle, line_string.data(), static_cast<DWORD>(line_string.size()), &written, nullptr);
 		assert(written == line_string.size());
 	}
 

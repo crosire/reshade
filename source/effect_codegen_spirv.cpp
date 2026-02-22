@@ -371,65 +371,21 @@ private:
 			.write(spirv);
 	}
 
-	std::basic_string<char> finalize_code() const override
+	std::string finalize_code() const override
 	{
-		std::basic_string<char> spirv;
-		finalize_header_section(spirv);
-
-		// All entry point declarations
-		for (const spirv_instruction &inst : _entries.instructions)
-			inst.write(spirv);
-
-		// All execution mode declarations
-		for (const spirv_instruction &inst : _execution_modes.instructions)
-			inst.write(spirv);
-
-		finalize_debug_info_section(spirv);
-
-		for (const spirv_instruction &inst : _debug_b.instructions)
-			inst.write(spirv);
-
-		// All annotation instructions
-		for (const spirv_instruction &inst : _annotations.instructions)
-			inst.write(spirv);
-
-		finalize_type_and_constants_section(spirv);
-
-		for (const spirv_instruction &inst : _variables.instructions)
-			inst.write(spirv);
-
-		// All function definitions
-		for (const function_blocks &func : _functions_blocks)
-		{
-			if (func.definition.instructions.empty())
-				continue;
-
-			for (const spirv_instruction &inst : func.declaration.instructions)
-				inst.write(spirv);
-
-			// Grab first label and move it in front of variable declarations
-			func.definition.instructions.front().write(spirv);
-			assert(func.definition.instructions.front().op == spv::OpLabel);
-
-			for (const spirv_instruction &inst : func.variables.instructions)
-				inst.write(spirv);
-			for (auto inst_it = func.definition.instructions.begin() + 1; inst_it != func.definition.instructions.end(); ++inst_it)
-				inst_it->write(spirv);
-		}
-
-		return spirv;
+		// There is no high-level text representation
+		return std::string();
 	}
-	std::basic_string<char> finalize_code_for_entry_point(const std::string &entry_point_name) const override
+	bool assemble_code_for_entry_point(const std::string &entry_point_name, std::string &spirv, std::string &, std::string &) const override
 	{
 		const function *const entry_point = find_function(entry_point_name);
 		if (entry_point == nullptr)
-			return {};
+			return false;
 
 		// Build list of IDs to remove
 		std::vector<spv::Id> variables_to_remove;
 		std::vector<spv::Id> functions_to_remove;
 
-		std::basic_string<char> spirv;
 		finalize_header_section(spirv);
 
 		// The entry point and execution mode declaration
@@ -536,7 +492,7 @@ private:
 				inst_it->write(spirv);
 		}
 
-		return spirv;
+		return true;
 	}
 
 	spv::Id convert_type(type info, bool is_ptr = false, spv::StorageClass storage = spv::StorageClassFunction, spv::ImageFormat format = spv::ImageFormatUnknown, uint32_t array_stride = 0)
@@ -2145,7 +2101,8 @@ private:
 			spv_op = spv::OpLogicalNot;
 			break;
 		default:
-			return assert(false), 0;
+			assert(false);
+			return 0;
 		}
 
 		add_location(loc, *_current_block_data);
@@ -2237,7 +2194,8 @@ private:
 				exp_type.is_boolean() ? spv::OpLogicalNotEqual : spv::OpINotEqual;
 			break;
 		default:
-			return assert(false), 0;
+			assert(false);
+			return 0;
 		}
 
 		add_location(loc, *_current_block_data);
@@ -2339,7 +2297,8 @@ private:
 		#define IMPLEMENT_INTRINSIC_SPIRV(name, i, code) case name##i: code
 			#include "effect_symbol_table_intrinsics.inl"
 		default:
-			return assert(false), 0;
+			assert(false);
+			return 0;
 		}
 	}
 	id   emit_construct(const location &loc, const type &res_type, const std::vector<expression> &args) override
@@ -2512,6 +2471,10 @@ private:
 		_current_block_data->instructions.push_back(merge_label);
 	}
 
+	void emit_pragma(const std::string &) override
+	{
+	}
+
 	bool is_in_function() const { return _current_function_blocks != nullptr; }
 
 	id   set_block(id id) override
@@ -2621,7 +2584,9 @@ private:
 	}
 };
 
+#ifndef RESHADEFX_CODEGEN_SPIRV_INLINE
 codegen *reshadefx::create_codegen_spirv(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
 {
 	return new codegen_spirv(vulkan_semantics, debug_info, uniforms_to_spec_constants, enable_16bit_types, flip_vert_y);
 }
+#endif

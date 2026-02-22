@@ -7,11 +7,12 @@
 
 #include <d3d9on12.h>
 
-struct Direct3DDevice9;
-struct D3D12Device;
+class Direct3DDevice9;
+class D3D12Device;
 
-struct DECLSPEC_UUID("C09BBC5E-FC80-4D9A-A46E-F67542343008") Direct3DDevice9On12 final : IDirect3DDevice9On12
+class DECLSPEC_UUID("C09BBC5E-FC80-4D9A-A46E-F67542343008") Direct3DDevice9On12 final : public IDirect3DDevice9On12
 {
+public:
 	Direct3DDevice9On12(Direct3DDevice9 *device_9, D3D12Device *device_12, IDirect3DDevice9On12 *original);
 	~Direct3DDevice9On12();
 
@@ -33,6 +34,7 @@ struct DECLSPEC_UUID("C09BBC5E-FC80-4D9A-A46E-F67542343008") Direct3DDevice9On12
 
 	IDirect3DDevice9On12 *_orig;
 
+private:
 	Direct3DDevice9 *const _parent_device_9;
 	D3D12Device *const _parent_device_12;
 };

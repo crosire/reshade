@@ -26,7 +26,7 @@
 
 #include "reshade_api_format.hpp"
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// Comparison operations.
@@ -725,4 +725,4 @@ namespace reshade { namespace api
 		/// </summary>
 		acceleration_structure_build_input_flags flags = acceleration_structure_build_input_flags::none;
 	};
-} }
+}

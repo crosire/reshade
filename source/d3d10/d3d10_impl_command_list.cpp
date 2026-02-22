@@ -186,7 +186,12 @@ void reshade::d3d10::device_impl::bind_pipeline_states(uint32_t count, const api
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		case api::dynamic_state::blend_constant:
-			if (const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+			if (const float blend_constant[4] = {
+					((values[i]      ) & 0xFF) / 255.0f,
+					((values[i] >>  4) & 0xFF) / 255.0f,
+					((values[i] >>  8) & 0xFF) / 255.0f,
+					((values[i] >> 12) & 0xFF) / 255.0f
+				};
 				i + 1 < count &&
 				states[i + 1] == api::dynamic_state::sample_mask)
 			{

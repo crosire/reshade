@@ -189,6 +189,9 @@
     <ClCompile Include="source\d3d12\d3d12_device_downlevel.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
+    <ClCompile Include="source\d3d12\d3d12_extensions.cpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_impl_command_list.cpp">
       <Filter>api\d3d12</Filter>
     </ClCompile>
@@ -321,6 +324,9 @@
     <ClCompile Include="source\imgui_function_table_19222.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
+    <ClCompile Include="source\imgui_function_table_19250.cpp">
+      <Filter>core\utils</Filter>
+    </ClCompile>
     <ClCompile Include="source\imgui_widgets.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
@@ -333,7 +339,7 @@
     <ClCompile Include="source\input_gamepad.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\opengl_hooks.cpp">
+    <ClCompile Include="source\opengl\opengl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp">
@@ -360,13 +366,13 @@
     <ClCompile Include="source\opengl\opengl_impl_type_convert.cpp">
       <Filter>api\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\openvr\openvr_hooks.cpp">
+    <ClCompile Include="source\openvr\openvr.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
     <ClCompile Include="source\openvr\openvr_impl_swapchain.cpp">
       <Filter>hooks\openvr</Filter>
     </ClCompile>
-    <ClCompile Include="source\openxr\openxr_hooks.cpp">
+    <ClCompile Include="source\openxr\openxr.cpp">
       <Filter>hooks\openxr</Filter>
     </ClCompile>
     <ClCompile Include="source\openxr\openxr_hooks_instance.cpp">
@@ -402,16 +408,19 @@
     <ClCompile Include="source\state_block.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\vulkan_hooks.cpp">
+    <ClCompile Include="source\vulkan\vulkan.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="source\vulkan\vulkan_hooks_cmd.cpp">
+    <ClCompile Include="source\vulkan\vulkan_hooks_command_list.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks_device.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_hooks_instance.cpp">
+      <Filter>hooks\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="source\vulkan\vulkan_hooks_swapchain.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_impl_command_list.cpp">
@@ -475,9 +484,6 @@
     </ClInclude>
     <ClInclude Include="res\fonts\forkawesome.h">
       <Filter>resources\fonts</Filter>
-    </ClInclude>
-    <ClInclude Include="res\fonts\glyph_ranges.hpp">
-      <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>
@@ -570,6 +576,9 @@
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_device_downlevel.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_extensions.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_impl_command_list.hpp">
@@ -672,6 +681,9 @@
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_function_table_19222.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\imgui_function_table_19250.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\imgui_widgets.hpp">

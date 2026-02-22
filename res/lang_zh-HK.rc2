@@ -94,7 +94,6 @@ BEGIN
 8134 "截圖儲存路徑"
 25098 "截圖命名"
 30328 "可用的宏，儲存截圖時它們將被自動解析展開：\n  %%AppName%%         應用程式名 (%s)\n  %%PresetName%%      當前預設的文件名，不含擴展名後綴 (%s)\n  %%BeforeAfter%%     描述截圖拍攝時刻的術語 ('Before', 'After', 'Overlay')\n  %%Date%%            完整當前日期，形如 '%s'\n  %%DateYear%%        當前日期的年份\n  %%DateMonth%%       當前日期的月份\n  %%DateDay%%         當前日期的日數\n  %%Time%%            完整當前時間，形如 '%s'\n  %%TimeHour%%        當前時間的小時部分\n  %%TimeMinute%%      當前時間的分鐘部分\n  %%TimeSecond%%      當前時間的秒數部分\n  %%TimeMS%%          當前時間的毫秒部分\n  %%Count%%           本次會話的第幾次截圖\n"
-4289 "HDR PNG質量"
 24896 "截圖格式"
 3555 "JPEG質量"
 13473 "清除Alpha通道"

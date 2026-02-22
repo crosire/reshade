@@ -110,7 +110,7 @@ IDR_LICENSE_UTFCPP      RCDATA                  "..\\deps\\utfcpp\\LICENSE"
 
 IDR_LICENSE_VMA         RCDATA                  "..\\deps\\vma\\LICENSE.txt"
 
-IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\jxl_simple\\LICENSE"
+IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\jxl_simple_lossless\\LICENSE"
 #endif
 
 #endif    // Neutral (Default) resources
@@ -134,6 +134,7 @@ IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\jxl_simple\\LICENSE"
 #include "lang_ko-KR.rc2"
 #include "lang_pt-BR.rc2"
 #include "lang_ru-RU.rc2"
+#include "lang_sl-SI.rc2"
 #include "lang_th-TH.rc2"
 #include "lang_tr-TR.rc2"
 #include "lang_zh-CN.rc2"

@@ -157,6 +157,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\effect_codegen_dxbc.cpp" />
     <ClCompile Include="source\effect_codegen_glsl.cpp" />
     <ClCompile Include="source\effect_codegen_hlsl.cpp" />
     <ClCompile Include="source\effect_codegen_spirv.cpp" />

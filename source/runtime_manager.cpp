@@ -7,7 +7,6 @@
 #include "runtime_manager.hpp"
 #include "ini_file.hpp"
 #include <cassert>
-#include <shared_mutex>
 #include <unordered_set>
 
 static std::shared_mutex s_runtime_config_names_mutex;

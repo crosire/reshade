@@ -28,6 +28,7 @@ void reshade::api::create_state_block(api::device *device, state_block *out_stat
 		break;
 	default:
 		*out_state_block = { 0 };
+		break;
 	}
 }
 void reshade::api::destroy_state_block(api::device *device, state_block state_block)

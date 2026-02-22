@@ -8,10 +8,12 @@
 #include "reshade_api.hpp"
 #include "state_block.hpp"
 #include "imgui_code_editor.hpp"
+#include <atomic>
+#include <thread>
 #include <chrono>
 #include <memory>
 #include <filesystem>
-#include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 namespace reshade
@@ -66,7 +68,7 @@ namespace reshade
 		/// Captures a screenshot of the current back buffer resource and writes it to an image file on disk.
 		/// </summary>
 		void save_screenshot(const char *postfix) final;
-		bool capture_screenshot(void *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, static_cast<uint8_t *>(pixels)); }
+		bool capture_screenshot(void *pixels) final { return get_texture_data(_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(), _back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present, static_cast<uint8_t *>(pixels), _back_buffer_format); }
 
 		void get_screenshot_width_and_height(uint32_t *out_width, uint32_t *out_height) const final { *out_width = _width; *out_height = _height; }
 
@@ -230,7 +232,7 @@ namespace reshade
 
 		bool get_preprocessor_definition(const std::string &effect_name, const std::string &name, int scope_mask, std::vector<std::pair<std::string, std::string>> *&scope, std::vector<std::pair<std::string, std::string>>::iterator &value) const;
 
-		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels);
+		bool get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels, api::format quantization_format);
 
 		bool execute_screenshot_post_save_command(const std::filesystem::path &screenshot_path, unsigned int screenshot_count, std::string_view postfix);
 
@@ -295,7 +297,6 @@ namespace reshade
 		std::shared_mutex _reload_mutex;
 		std::vector<std::pair<size_t, size_t>> _reload_create_queue;
 		std::atomic<size_t> _reload_remaining_effects = std::numeric_limits<size_t>::max();
-		void *_d3d_compiler_module = nullptr;
 
 		std::vector<effect> _effects;
 		std::vector<texture> _textures;
@@ -349,7 +350,6 @@ namespace reshade
 		bool _screenshot_clear_alpha = true;
 		unsigned int _screenshot_count = 0;
 		unsigned int _screenshot_format = 1;
-		unsigned int _screenshot_hdr_bits = 11;
 		unsigned int _screenshot_jpeg_quality = 90;
 		unsigned int _screenshot_key_data[4] = {};
 		std::filesystem::path _screenshot_sound_path;

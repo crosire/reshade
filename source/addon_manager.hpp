@@ -59,7 +59,7 @@ namespace reshade
 	/// Checks whether any callbacks were registered for the specified <paramref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev>
-	__forceinline bool has_addon_event()
+	bool has_addon_event()
 	{
 		return !addon_event_list[static_cast<uint32_t>(ev)].empty();
 	}
@@ -68,7 +68,7 @@ namespace reshade
 	/// Invokes all registered callbacks for the specified <typeparamref name="ev"/>ent.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
+	std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, void>, void> invoke_addon_event(Args &&... args)
 	{
 #if RESHADE_ADDON == 1
 		// Ensure certain events are not compiled when only limited add-on support is enabled
@@ -150,7 +150,7 @@ namespace reshade
 	/// Invokes registered callbacks for the specified <typeparamref name="ev"/>ent until a callback reports back as having handled this event by returning <see langword="true"/>.
 	/// </summary>
 	template <addon_event ev, typename... Args>
-	__forceinline std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
+	std::enable_if_t<std::is_same_v<typename addon_event_traits<ev>::type, bool>, bool> invoke_addon_event(Args &&... args)
 	{
 #if RESHADE_ADDON == 1
 		static_assert(

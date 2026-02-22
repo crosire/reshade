@@ -7,8 +7,9 @@
 
 #include <dxgi1_5.h>
 
-struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGIDevice4
+class DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : public IDXGIDevice4
 {
+public:
 	DXGIDevice(IDXGIAdapter *adapter, IDXGIDevice1 *original);
 	~DXGIDevice();
 
@@ -45,6 +46,8 @@ struct DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : IDXGID
 	bool check_and_upgrade_interface(REFIID riid);
 
 	IDXGIDevice1 *_orig;
-	unsigned short _interface_version;
+	unsigned short _interface_version = 0;
+
+private:
 	IDXGIAdapter *const _parent_adapter;
 };

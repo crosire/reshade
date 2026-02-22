@@ -19,7 +19,6 @@
 #include "platform_utils.hpp"
 #include "reshade_api_object_impl.hpp"
 #include <set>
-#include <thread>
 #include <cmath> // std::abs, std::fmod
 #include <cctype> // std::toupper
 #include <cwctype> // std::towlower
@@ -28,14 +27,16 @@
 #include <cstring> // std::memcpy, std::memset, std::strlen
 #include <charconv> // std::to_chars
 #include <algorithm> // std::all_of, std::copy_n, std::equal, std::fill_n, std::find, std::find_if, std::for_each, std::max, std::min, std::replace, std::remove, std::remove_if, std::reverse, std::search, std::set_symmetric_difference, std::sort, std::stable_sort, std::swap, std::transform
+#include <emmintrin.h>
+#include <smmintrin.h>
+#include <immintrin.h>
 #include <fpng.h>
+#include <simple_lossless.h>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
+#include <stb_image_write_hdr_png.h>
 #include <stb_image_resize2.h>
-#include <d3dcompiler.h>
-#include <sk_hdr_png.hpp>
-#include <jxl_encode_reshade.hpp>
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -69,7 +70,7 @@ static std::filesystem::path make_relative_path(const std::filesystem::path &pat
 		return std::filesystem::path();
 	// Use ReShade DLL directory as base for relative paths (see 'resolve_path')
 	std::filesystem::path proximate_path = path.lexically_proximate(g_reshade_base_path);
-	if (proximate_path.native().rfind(L"..", 0) != std::wstring::npos)
+	if (proximate_path.wstring().rfind(L"..", 0) != std::wstring::npos)
 		return path; // Do not use relative path if preset is in a parent directory
 	if (proximate_path.is_relative() && !proximate_path.empty() && proximate_path.native().front() != L'.')
 		// Prefix preset path with dot character to better indicate it being a relative path
@@ -379,8 +380,9 @@ bool reshade::runtime::on_init()
 	}
 
 	// Create effect color and stencil resource
-	api::format stencil_format = api::format::unknown;
 	{
+		api::format stencil_format = api::format::unknown;
+
 		// Find a supported stencil format with the smallest footprint (since the depth component is not used)
 		constexpr api::format possible_stencil_formats[] = {
 			api::format::s8_uint,
@@ -397,10 +399,10 @@ bool reshade::runtime::on_init()
 				break;
 			}
 		}
-	}
 
-	if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
-		goto exit_failure;
+		if (add_effect_permutation(_width, _height, _back_buffer_format, stencil_format, _back_buffer_color_space) != 0)
+			goto exit_failure;
+	}
 
 	// Create render targets for the back buffer resources
 	for (uint32_t i = 0, count = _swapchain->get_back_buffer_count(); i < count; ++i)
@@ -437,21 +439,23 @@ bool reshade::runtime::on_init()
 		goto exit_failure;
 #endif
 
-	const input::window_handle window = get_hwnd();
-	if (window != nullptr && !_is_vr)
 	{
-		_input = input::register_window(window);
-		_primary_input_handler = _input.use_count() == 1;
-	}
-	else
-	{
-		_input.reset();
-		_primary_input_handler = _input_gamepad != nullptr;
-	}
+		const input::window_handle window = get_hwnd();
+		if (window != nullptr && !_is_vr)
+		{
+			_input = input::register_window(window);
+			_primary_input_handler = _input.use_count() == 1;
+		}
+		else
+		{
+			_input.reset();
+			_primary_input_handler = _input_gamepad != nullptr;
+		}
 
-	// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
-	if (window != nullptr)
-		utils::set_window_transparency(window, false);
+		// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
+		if (window != nullptr)
+			utils::set_window_transparency(window, false);
+	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
 	_frame_count = 0;
@@ -652,7 +656,7 @@ void reshade::runtime::on_present()
 	else
 		draw_gui();
 
-	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != 0 && _effects_enabled)))
+	if (_should_save_screenshot && _screenshot_save_gui && (_show_overlay || (_preview_texture != std::numeric_limits<size_t>::max() && _effects_enabled)))
 		save_screenshot("Overlay");
 
 	_block_input_next_frame = false;
@@ -697,15 +701,15 @@ void reshade::runtime::on_present()
 							// Change to next value if the associated shortcut key was pressed
 							switch (variable.type.base)
 							{
-								case reshadefx::type::t_bool:
+							case reshadefx::type::t_bool:
 								{
 									bool data = false;
 									get_uniform_value(variable, &data);
 									set_uniform_value(variable, !data);
-									break;
 								}
-								case reshadefx::type::t_int:
-								case reshadefx::type::t_uint:
+								break;
+							case reshadefx::type::t_int:
+							case reshadefx::type::t_uint:
 								{
 									int data[4] = {};
 									get_uniform_value(variable, data, 4);
@@ -715,8 +719,8 @@ void reshade::runtime::on_present()
 										num_items++;
 									data[0] = (data[0] + 1 >= num_items) ? 0 : data[0] + 1;
 									set_uniform_value(variable, data, 4);
-									break;
 								}
+								break;
 							}
 
 #if RESHADE_GUI
@@ -950,7 +954,6 @@ void reshade::runtime::load_config()
 	config_get("SCREENSHOT", "FileFormat", _screenshot_format);
 	config_get("SCREENSHOT", "FileNaming", _screenshot_name);
 	config_get("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
-	config_get("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config_get("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config_get("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #if RESHADE_GUI
@@ -1014,7 +1017,6 @@ void reshade::runtime::save_config() const
 	config.set("SCREENSHOT", "FileFormat", _screenshot_format);
 	config.set("SCREENSHOT", "FileNaming", _screenshot_name);
 	config.set("SCREENSHOT", "JPEGQuality", _screenshot_jpeg_quality);
-	config.set("SCREENSHOT", "HDRBitDepth", _screenshot_hdr_bits);
 	config.set("SCREENSHOT", "SaveBeforeShot", _screenshot_save_before);
 	config.set("SCREENSHOT", "SavePresetFile", _screenshot_include_preset);
 #if RESHADE_GUI
@@ -1319,7 +1321,7 @@ void reshade::runtime::save_current_preset(ini_file &preset) const
 bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, bool reversed)
 {
 	std::error_code ec; // This is here to ignore file system errors below
-	std::filesystem::path filter_text;
+	std::wstring filter_text;
 
 	resolve_path(filter_path, ec);
 
@@ -1328,9 +1330,9 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 	{
 		if (file_type == std::filesystem::file_type::not_found)
 		{
-			filter_text = filter_path.filename();
+			filter_text = filter_path.filename().wstring();
 			if (!filter_text.empty())
-				filter_path = filter_path.parent_path();
+				filter_path = filter_path.parent_path().wstring();
 		}
 		else
 		{
@@ -1359,10 +1361,10 @@ bool reshade::runtime::switch_to_next_preset(std::filesystem::path filter_path, 
 			continue;
 		}
 
-		const std::wstring preset_name = preset_path.stem();
+		const std::wstring preset_name = preset_path.stem().wstring();
 		// Only add those files that are matching the filter text
 		if (filter_text.empty() ||
-			std::search(preset_name.cbegin(), preset_name.cend(), filter_text.native().begin(), filter_text.native().end(),
+			std::search(preset_name.cbegin(), preset_name.cend(), filter_text.begin(), filter_text.end(),
 				[](auto c1, auto c2) { return std::towlower(c1) == std::towlower(c2); }) != preset_name.cend())
 			preset_paths.push_back(std::move(preset_path));
 	}
@@ -1534,8 +1536,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	bool preprocessed = effect.preprocessed && permutation_index == 0;
 	bool compiled = effect.compiled && permutation_index == 0;
 	bool source_cached = false;
-	bool skip_optimization = false;
-	std::string code_preamble;
 	std::string source;
 	std::string errors;
 
@@ -1591,21 +1591,6 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			source = pp.output();
 
-			for (const std::pair<std::string, std::string> &pragma : pp.used_pragma_directives())
-			{
-				if (pragma.first == "reshade")
-				{
-					if (pragma.second == "skipoptimization" || pragma.second == "nooptimization")
-						skip_optimization = true;
-					continue;
-				}
-
-				const std::string pragma_directive = "#pragma " + pragma.first + ' ' + pragma.second + '\n';
-
-				code_preamble += pragma_directive;
-				source = "// " + pragma_directive + source;
-			}
-
 			// Keep track of used preprocessor definitions (so they can be displayed in the overlay)
 			for (const std::pair<std::string, std::string> &definition : pp.used_macro_definitions())
 			{
@@ -1622,16 +1607,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				source = "// " + definition.first + '=' + definition.second + '\n' + source;
 			}
 
-			std::sort(preprocessor_definitions.begin(), preprocessor_definitions.end());
-
-			// Do not cache if any special pragma directives were used, to ensure they are read again next time
-			if (!skip_optimization)
-				source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
+			source_cached = save_effect_cache(source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash), "i", source);
 		}
 
 		if (permutation_index == 0)
 		{
 			effect.definitions = std::move(preprocessor_definitions);
+			std::sort(effect.definitions.begin(), effect.definitions.end());
 
 			// Keep track of included files
 			effect.included_files = pp.included_files();
@@ -1646,7 +1628,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		{
 			effect.definitions.clear();
 
-			// Read used preprocessor definitions and pragmas from the cached source
+			// Read used preprocessor definitions from the cached source
 			for (size_t offset = 0, next; source.compare(offset, 3, "// ") == 0; offset = next + 1)
 			{
 				offset += 3;
@@ -1654,11 +1636,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				if (next == std::string::npos)
 					break;
 
-				if (source.compare(offset, 7, "#pragma") == 0)
-				{
-					code_preamble += source.substr(offset, (next + 1) - offset);
-				}
-				else if (const size_t equals_index = source.find('=', offset);
+				if (const size_t equals_index = source.find('=', offset);
 					equals_index != std::string::npos)
 				{
 					effect.definitions.emplace_back(
@@ -1672,6 +1650,7 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 	}
 
 	std::unique_ptr<reshadefx::codegen> codegen;
+	size_t spec_constants_hash = 0;
 	if (!compiled && !source.empty())
 	{
 		unsigned shader_model;
@@ -1679,15 +1658,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			shader_model = 30; // D3D9
 		else if (_renderer_id < 0xa100)
 			shader_model = 40; // D3D10 (including feature level 9)
-		else if (_renderer_id < 0xb000)
+		else if (_renderer_id < 0xb000 || _device->get_api() == api::device_api::d3d10)
 			shader_model = 41; // D3D10.1
-		else if (_renderer_id < 0xc000)
+		else if (_renderer_id < 0xc000 || _device->get_api() == api::device_api::d3d11)
 			shader_model = 50; // D3D11
 		else
 			shader_model = 51; // D3D12
 
 		if ((_renderer_id & 0xF0000) == 0)
-			codegen.reset(reshadefx::create_codegen_hlsl(shader_model, !_no_debug_info, _performance_mode));
+			codegen.reset(reshadefx::create_codegen_dxbc(shader_model, !_no_debug_info, _performance_mode, _performance_mode ? 3 : 1));
 		else if (_renderer_id < 0x20000)
 			codegen.reset(reshadefx::create_codegen_glsl(false, !_no_debug_info, _performance_mode, false, true));
 		else // Vulkan uses SPIR-V input
@@ -1699,12 +1678,10 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 		compiled = parser.parse(std::move(source), codegen.get());
 
 		// Append parser errors to the error list
-		errors += parser.errors();
+		errors  += parser.errors();
 
 		// Write result to effect module
 		permutation.module = codegen->module();
-		if (_device->get_api() != api::device_api::vulkan)
-			permutation.generated_code = codegen->finalize_code();
 
 		if (compiled)
 		{
@@ -1858,6 +1835,8 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 			// Fill all specialization constants with values from the current preset
 			if (_performance_mode)
 			{
+				std::string spec_constant_attributes;
+
 				for (reshadefx::uniform &spec_constant : permutation.module.spec_constants)
 				{
 					switch (spec_constant.type.base)
@@ -1874,48 +1853,15 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 						break;
 					}
 
-					// Check if this is a split specialization constant and move data accordingly
-					if (spec_constant.type.is_scalar() && spec_constant.offset != 0)
-						spec_constant.initializer_value.as_uint[0] = spec_constant.initializer_value.as_uint[spec_constant.offset];
-
-					if (_renderer_id >= 0x20000)
-						continue;
-
-					code_preamble += "#define SPEC_CONSTANT_" + spec_constant.unique_name + ' ';
-
-					for (unsigned int i = 0; i < spec_constant.type.components(); ++i)
-					{
-						switch (spec_constant.type.base)
-						{
-						case reshadefx::type::t_bool:
-							code_preamble += spec_constant.initializer_value.as_uint[i] ? "true" : "false";
-							break;
-						case reshadefx::type::t_int:
-							code_preamble += std::to_string(spec_constant.initializer_value.as_int[i]);
-							break;
-						case reshadefx::type::t_uint:
-							code_preamble += std::to_string(spec_constant.initializer_value.as_uint[i]);
-							break;
-						case reshadefx::type::t_float:
-							char temp[64];
-							const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), spec_constant.initializer_value.as_float[i]
-#if !defined(_HAS_COMPLETE_CHARCONV) || _HAS_COMPLETE_CHARCONV
-								, std::chars_format::scientific, 8
-#endif
-								);
-							if (res.ec == std::errc())
-								code_preamble.append(temp, res.ptr);
-							else
-								assert(false);
-							break;
-						}
-
-						if (i + 1 < spec_constant.type.components())
-							code_preamble += ", ";
-					}
-
-					code_preamble += '\n';
+					spec_constant_attributes += spec_constant.name;
+					for (uint32_t i = 0; i < spec_constant.size / 4; ++i)
+						spec_constant_attributes += std::to_string(spec_constant.initializer_value.as_uint[i]);
 				}
+
+				spec_constants_hash = std::hash<std::string>()(spec_constant_attributes);
+
+				// Update specialization constant values for when code is generated below in 'finalize_code' and 'assemble_code_for_entry_point'
+				codegen->module().spec_constants = permutation.module.spec_constants;
 			}
 		}
 		else if (!preprocessed)
@@ -1924,11 +1870,13 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 
 			return load_effect(source_file, preset, effect_index, permutation_index, force_load, true);
 		}
+
+		permutation.generated_code = codegen->finalize_code();
 	}
 
 	if ((preprocessed || source_cached) && compiled)
 	{
-		if (permutation.assembly.empty())
+		if (permutation.cso.empty())
 		{
 			// Compile shader modules
 			for (const std::pair<std::string, reshadefx::shader_type> &entry_point : permutation.module.entry_points)
@@ -1940,184 +1888,26 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 					break;
 				}
 
-				std::string &cso = permutation.assembly[entry_point.first];
-				std::string &cso_text = permutation.assembly_text[entry_point.first];
+				std::string &cso = permutation.cso[entry_point.first];
+				std::string &assembly = permutation.assembly[entry_point.first];
 
-				if ((_renderer_id & 0xF0000) == 0)
+				const std::string cache_id = source_file.stem().u8string() + '-' + std::to_string(_renderer_id) + '-' + std::to_string(source_hash) + '-' + std::to_string(spec_constants_hash) + '-' + entry_point.first;
+
+				if (load_effect_cache(cache_id, "cso", cso) &&
+					load_effect_cache(cache_id, "asm", assembly))
 				{
-					assert(_d3d_compiler_module != nullptr);
-
-					// Copy string, since this has to be repeated for every entry point
-					std::string hlsl = code_preamble;
-
-					if (_renderer_id == 0x9000)
-					{
-						// Create SEMANTIC_PIXEL_SIZE constants
-						hlsl += "#define COLOR_PIXEL_SIZE 1.0 / " + std::to_string(_effect_permutations[permutation_index].width) + ", 1.0 / " + std::to_string(_effect_permutations[permutation_index].height) + '\n';
-
-						uint32_t semantic_index = 0;
-						for (const reshadefx::texture &tex : permutation.module.textures)
-						{
-							if (tex.semantic.empty() || tex.semantic == "COLOR")
-								continue;
-
-							semantic_index++;
-							assert((effect.uniform_data_storage.size() / 16) <= (224 - semantic_index));
-
-							// Avoid duplicate declarations if the semantic was used multiple times
-							if (hlsl.find(tex.semantic + "_PIXEL_SIZE") == std::string::npos)
-								hlsl += "uniform float2 " + tex.semantic + "_PIXEL_SIZE : register(c" + std::to_string(224 - semantic_index) + ");\n";
-						}
-					}
-
-					hlsl += "#line 1\n"; // Reset line number, so it matches what is shown when viewing the generated code
-					hlsl += codegen->finalize_code_for_entry_point(entry_point.first);
-
-					std::string profile;
-					switch (entry_point.second)
-					{
-					case reshadefx::shader_type::vertex:
-						profile = "vs";
-						break;
-					case reshadefx::shader_type::pixel:
-						profile = "ps";
-						break;
-					case reshadefx::shader_type::compute:
-						profile = "cs";
-						break;
-					}
-
-					switch (_renderer_id)
-					{
-					default:
-					case D3D_FEATURE_LEVEL_11_0:
-						profile += "_5_0";
-						break;
-					case D3D_FEATURE_LEVEL_10_1:
-						profile += "_4_1";
-						break;
-					case D3D_FEATURE_LEVEL_10_0:
-						profile += "_4_0";
-						break;
-					case D3D_FEATURE_LEVEL_9_1:
-					case D3D_FEATURE_LEVEL_9_2:
-						profile += "_4_0_level_9_1";
-						break;
-					case D3D_FEATURE_LEVEL_9_3:
-						profile += "_4_0_level_9_3";
-						break;
-					case 0x9000:
-						profile += "_3_0";
-						break;
-					}
-
-					UINT compile_flags = 0;
-					if (skip_optimization)
-						compile_flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-					else if (_performance_mode)
-						compile_flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
-					if (_renderer_id >= D3D_FEATURE_LEVEL_10_0)
-						compile_flags |= D3DCOMPILE_ENABLE_STRICTNESS;
-#ifndef NDEBUG
-					compile_flags |= D3DCOMPILE_DEBUG;
-#endif
-
-					std::string hlsl_attributes;
-					hlsl_attributes += "entrypoint=" + entry_point.first + ';';
-					hlsl_attributes += "profile=" + profile + ';';
-					hlsl_attributes += "flags=" + std::to_string(compile_flags) + ';';
-
-					const std::string cache_id =
-						effect.source_file.stem().u8string() + '-' + entry_point.first + '-' + std::to_string(_renderer_id) + '-' +
-						std::to_string(std::hash<std::string_view>()(hlsl_attributes) ^ std::hash<std::string_view>()(hlsl));
-
-					if (!load_effect_cache(cache_id, "cso", cso))
-					{
-						const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DCompile"));
-						assert(D3DCompile != nullptr);
-
-						com_ptr<ID3DBlob> d3d_compiled, d3d_errors;
-						const HRESULT hr = D3DCompile(
-							hlsl.data(), hlsl.size(),
-							nullptr, nullptr, nullptr,
-							entry_point.first.c_str(),
-							profile.c_str(),
-							compile_flags, 0,
-							&d3d_compiled, &d3d_errors);
-
-						std::string d3d_errors_string;
-						if (d3d_errors != nullptr) // Append warnings to the output error string as well
-							d3d_errors_string.assign(static_cast<const char *>(d3d_errors->GetBufferPointer()), d3d_errors->GetBufferSize() - 1); // Subtracting one to not append the null-terminator as well
-						d3d_errors.reset();
-
-						// De-duplicate error lines (D3DCompiler sometimes repeats the same error multiple times)
-						for (size_t line_offset = 0, next_line_offset; (next_line_offset = d3d_errors_string.find('\n', line_offset)) != std::string::npos; line_offset = next_line_offset + 1)
-						{
-							const std::string_view cur_line(d3d_errors_string.data() + line_offset, next_line_offset - line_offset);
-
-							if (const size_t end_offset = d3d_errors_string.find('\n', next_line_offset + 1);
-								end_offset != std::string::npos)
-							{
-								const std::string_view next_line(d3d_errors_string.data() + next_line_offset + 1, end_offset - next_line_offset - 1);
-								if (cur_line == next_line)
-								{
-									d3d_errors_string.erase(next_line_offset, end_offset - next_line_offset);
-									next_line_offset = line_offset - 1;
-								}
-							}
-
-							// Also remove D3DCompiler warnings about 'groupshared' specifier used in VS/PS modules
-							if (cur_line.find("X3579") != std::string_view::npos)
-							{
-								d3d_errors_string.erase(line_offset, next_line_offset + 1 - line_offset);
-								next_line_offset = line_offset - 1;
-							}
-						}
-
-						if (FAILED(hr))
-						{
-							// Add a prefix with the offending entry point name for generic error messages like an out of memory notification
-							if (d3d_errors_string.find("error") == std::string::npos)
-								errors += "error: " + entry_point.first + ": ";
-
-							errors += d3d_errors_string;
-							compiled = false;
-							break;
-						}
-						else
-						{
-							// Append warnings
-							errors += d3d_errors_string;
-						}
-
-						cso.resize(d3d_compiled->GetBufferSize());
-						std::memcpy(cso.data(), d3d_compiled->GetBufferPointer(), cso.size());
-
-						save_effect_cache(cache_id, "cso", cso);
-					}
-
-					if (!load_effect_cache(cache_id, "asm", cso_text))
-					{
-						const auto D3DDisassemble = reinterpret_cast<pD3DDisassemble>(GetProcAddress(static_cast<HMODULE>(_d3d_compiler_module), "D3DDisassemble"));
-						assert(D3DDisassemble != nullptr);
-
-						com_ptr<ID3DBlob> d3d_disassembled;
-						if (SUCCEEDED(D3DDisassemble(cso.data(), cso.size(), 0, nullptr, &d3d_disassembled)))
-							cso_text.assign(static_cast<const char *>(d3d_disassembled->GetBufferPointer()), d3d_disassembled->GetBufferSize() - 1);
-
-						save_effect_cache(cache_id, "asm", cso_text);
-					}
+					continue;
 				}
 				else
 				{
-					cso = codegen->finalize_code_for_entry_point(entry_point.first);
-
-					if (_renderer_id < 0x20000)
+					if (!codegen->assemble_code_for_entry_point(entry_point.first, cso, assembly, errors))
 					{
-						cso.insert(std::size("#version 430\n") - 1, code_preamble);
-
-						cso_text = cso;
+						compiled = false;
+						break;
 					}
+
+					save_effect_cache(cache_id, "cso", cso);
+					save_effect_cache(cache_id, "asm", assembly);
 				}
 			}
 		}
@@ -2554,7 +2344,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 			if (!pass.cs_entry_point.empty())
 			{
 				api::shader_desc cs_desc = {};
-				const std::string &cs = permutation.assembly.at(pass.cs_entry_point);
+				const std::string &cs = permutation.cso.at(pass.cs_entry_point);
 				cs_desc.code = cs.data();
 				cs_desc.code_size = cs.size();
 				if (_renderer_id & 0x20000)
@@ -2580,7 +2370,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 				api::shader_desc vs_desc = {};
 				if (!pass.vs_entry_point.empty())
 				{
-					const std::string &vs = permutation.assembly.at(pass.vs_entry_point);
+					const std::string &vs = permutation.cso.at(pass.vs_entry_point);
 					vs_desc.code = vs.data();
 					vs_desc.code_size = vs.size();
 					if (_renderer_id & 0x20000)
@@ -2597,7 +2387,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 				api::shader_desc ps_desc = {};
 				if (!pass.ps_entry_point.empty())
 				{
-					const std::string &ps = permutation.assembly.at(pass.ps_entry_point);
+					const std::string &ps = permutation.cso.at(pass.ps_entry_point);
 					ps_desc.code = ps.data();
 					ps_desc.code_size = ps.size();
 					if (_renderer_id & 0x20000)
@@ -3379,6 +3169,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::render_target);
 		cmd_list->clear_render_target_view(tex.rtv[0], clear_color);
 		cmd_list->barrier(tex.resource, api::resource_usage::render_target, api::resource_usage::shader_resource);
+
 		if (tex.levels > 1)
 			cmd_list->generate_mipmaps(tex.srv[0]);
 	}
@@ -3513,28 +3304,6 @@ void reshade::runtime::load_effects(bool force_load_all)
 	// Have to be initialized at this point or else the threads spawned below will immediately exit without reducing the remaining effects count
 	assert(_is_initialized);
 
-	// Ensure HLSL compiler is loaded before trying to compile effects in Direct3D
-	if (_d3d_compiler_module == nullptr && (_renderer_id & 0xF0000) == 0)
-	{
-		// Prefer loading up-to-date system D3DCompiler DLL over local variants
-		// Do not check system path when running in Wine though, since the D3DCompiler DLL there does not support various features
-		const auto ntdll_module = GetModuleHandleW(L"ntdll.dll");
-		assert(ntdll_module != nullptr);
-		if (GetProcAddress(ntdll_module, "wine_get_version") == nullptr)
-		{
-			extern std::filesystem::path get_system_path();
-			_d3d_compiler_module = LoadLibraryW((get_system_path() / L"d3dcompiler_47.dll").c_str());
-		}
-
-		if ((_d3d_compiler_module == nullptr) &&
-			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_47.dll")) == nullptr &&
-			(_d3d_compiler_module = LoadLibraryW(L"d3dcompiler_43.dll")) == nullptr)
-		{
-			log::message(log::level::error, "Unable to load HLSL compiler (\"d3dcompiler_47.dll\")!");
-			return;
-		}
-	}
-
 	// Reload preprocessor definitions from current preset before compiling to avoid having to recompile again when preset is applied in 'update_effects'
 	_preset_preprocessor_definitions.clear();
 	preset.get({}, "PreprocessorDefinitions", _preset_preprocessor_definitions[{}]);
@@ -3638,13 +3407,6 @@ void reshade::runtime::destroy_effects()
 		_device->destroy_sampler(sampler);
 	_effect_sampler_states.clear();
 
-	// Unload HLSL compiler which was previously loaded in 'load_effects' above
-	if (_d3d_compiler_module)
-	{
-		FreeLibrary(static_cast<HMODULE>(_d3d_compiler_module));
-		_d3d_compiler_module = nullptr;
-	}
-
 	// Textures and techniques should have been cleaned up by the calls to 'destroy_effect' above
 	assert(_textures.empty());
 	assert(_techniques.empty() && _technique_sorting.empty());
@@ -3699,7 +3461,7 @@ void reshade::runtime::clear_effect_cache()
 
 		const std::filesystem::path filename = entry.path().filename();
 		const std::filesystem::path extension = entry.path().extension();
-		if (filename.native().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
+		if (filename.wstring().compare(0, 8, L"reshade-") != 0 || (extension != L".i" && extension != L".cso" && extension != L".asm"))
 			continue;
 
 		std::filesystem::remove(entry, ec);
@@ -3913,7 +3675,7 @@ void reshade::runtime::update_effects()
 
 		const effect::permutation &permutation = effect.permutations[permutation_index];
 
-		if (permutation.assembly_text.find(instance.entry_point_name) != permutation.assembly_text.end())
+		if (permutation.assembly.find(instance.entry_point_name) != permutation.assembly.end())
 			open_code_editor(instance);
 	}
 #endif
@@ -3955,27 +3717,23 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 		{
 			switch (variable.special)
 			{
-				case special_uniform::frame_time:
-				{
-					set_uniform_value(variable, _last_frame_duration.count() * 1e-6f);
-					break;
-				}
-				case special_uniform::frame_count:
-				{
-					if (variable.type.is_boolean())
-						set_uniform_value(variable, (_frame_count % 2) == 0);
-					else
-						set_uniform_value(variable, static_cast<unsigned int>(_frame_count % UINT_MAX));
-					break;
-				}
-				case special_uniform::random:
+			case special_uniform::frame_time:
+				set_uniform_value(variable, _last_frame_duration.count() * 1e-6f);
+				break;
+			case special_uniform::frame_count:
+				if (variable.type.is_boolean())
+					set_uniform_value(variable, (_frame_count % 2) == 0);
+				else
+					set_uniform_value(variable, static_cast<unsigned int>(_frame_count % UINT_MAX));
+				break;
+			case special_uniform::random:
 				{
 					const int min = variable.annotation_as_int("min", 0, 0);
 					const int max = variable.annotation_as_int("max", 0, RAND_MAX);
 					set_uniform_value(variable, min + (std::rand() % (std::abs(max - min) + 1)));
-					break;
 				}
-				case special_uniform::ping_pong:
+				break;
+			case special_uniform::ping_pong:
 				{
 					const float min = variable.annotation_as_float("min", 0, 0.0f);
 					const float max = variable.annotation_as_float("max", 0, 1.0f);
@@ -4003,9 +3761,9 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 							value[0] = min, value[1] = +1;
 					}
 					set_uniform_value(variable, value, 2);
-					break;
 				}
-				case special_uniform::date:
+				break;
+			case special_uniform::date:
 				{
 					const std::time_t t = std::chrono::system_clock::to_time_t(_current_time);
 					struct tm tm; localtime_s(&tm, &t);
@@ -4017,86 +3775,72 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 						tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec
 					};
 					set_uniform_value(variable, value, 4);
-					break;
 				}
-				case special_uniform::timer:
+				break;
+			case special_uniform::timer:
 				{
 					const unsigned long long timer_ms = std::chrono::duration_cast<std::chrono::milliseconds>(_last_present_time - _start_time).count();
 					set_uniform_value(variable, static_cast<unsigned int>(timer_ms));
-					break;
 				}
-				case special_uniform::key:
+				break;
+			case special_uniform::key:
+				if (_input != nullptr)
 				{
-					if (_input == nullptr)
+					const int keycode = variable.annotation_as_int("keycode");
+					if (keycode <= 7 || keycode >= 256)
 						break;
 
-					if (const int keycode = variable.annotation_as_int("keycode");
-						keycode > 7 && keycode < 256)
+					const std::string_view mode = variable.annotation_as_string("mode");
+					if (mode == "toggle" || variable.annotation_as_int("toggle"))
 					{
-						if (const std::string_view mode = variable.annotation_as_string("mode");
-							mode == "toggle" || variable.annotation_as_int("toggle"))
-						{
-							bool current_value = false;
-							get_uniform_value(variable, &current_value);
-							if (_input->is_key_pressed(keycode))
-								set_uniform_value(variable, !current_value);
-						}
-						else if (mode == "press")
-							set_uniform_value(variable, _input->is_key_pressed(keycode));
-						else
-							set_uniform_value(variable, _input->is_key_down(keycode));
+						bool current_value = false;
+						get_uniform_value(variable, &current_value);
+						if (_input->is_key_pressed(keycode))
+							set_uniform_value(variable, !current_value);
 					}
-					break;
+					else if (mode == "press")
+						set_uniform_value(variable, _input->is_key_pressed(keycode));
+					else
+						set_uniform_value(variable, _input->is_key_down(keycode));
 				}
-				case special_uniform::mouse_point:
-				{
-					if (_input == nullptr)
-						break;
-
+				break;
+			case special_uniform::mouse_point:
+				if (_input != nullptr)
 					set_uniform_value(variable, _input->mouse_position_x(), _input->mouse_position_y());
-					break;
-				}
-				case special_uniform::mouse_delta:
-				{
-					if (_input == nullptr)
-						break;
-
+				break;
+			case special_uniform::mouse_delta:
+				if (_input != nullptr)
 					set_uniform_value(variable, _input->mouse_movement_delta_x(), _input->mouse_movement_delta_y());
-					break;
-				}
-				case special_uniform::mouse_button:
+				break;
+			case special_uniform::mouse_button:
+				if (_input != nullptr)
 				{
-					if (_input == nullptr)
+					const int keycode = variable.annotation_as_int("keycode");
+					if (keycode < 0 || keycode >= 5)
 						break;
 
-					if (const int keycode = variable.annotation_as_int("keycode");
-						keycode >= 0 && keycode < 5)
+					const std::string_view mode = variable.annotation_as_string("mode");
+					if (mode == "toggle" || variable.annotation_as_int("toggle"))
 					{
-						if (const std::string_view mode = variable.annotation_as_string("mode");
-							mode == "toggle" || variable.annotation_as_int("toggle"))
-						{
-							bool current_value = false;
-							get_uniform_value(variable, &current_value);
-							if (_input->is_mouse_button_pressed(keycode))
-								set_uniform_value(variable, !current_value);
-						}
-						else if (mode == "press")
-							set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
-						else
-							set_uniform_value(variable, _input->is_mouse_button_down(keycode));
+						bool current_value = false;
+						get_uniform_value(variable, &current_value);
+						if (_input->is_mouse_button_pressed(keycode))
+							set_uniform_value(variable, !current_value);
 					}
-					break;
+					else if (mode == "press")
+						set_uniform_value(variable, _input->is_mouse_button_pressed(keycode));
+					else
+						set_uniform_value(variable, _input->is_mouse_button_down(keycode));
 				}
-				case special_uniform::mouse_wheel:
+				break;
+			case special_uniform::mouse_wheel:
+				if (_input != nullptr)
 				{
-					if (_input == nullptr)
-						break;
-
 					const float min = variable.annotation_as_float("min");
 					const float max = variable.annotation_as_float("max");
 					float step = variable.annotation_as_float("step");
 					if (step == 0.0f)
-						step  = 1.0f;
+						step = 1.0f;
 
 					float value[2] = { 0, 0 };
 					get_uniform_value(variable, value, 2);
@@ -4108,28 +3852,22 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 						value[0] = std::min(value[0], max);
 					}
 					set_uniform_value(variable, value, 2);
-					break;
 				}
+				break;
 #if RESHADE_GUI
-				case special_uniform::overlay_open:
-				{
-					set_uniform_value(variable, _show_overlay);
-					break;
-				}
-				case special_uniform::overlay_active:
-				case special_uniform::overlay_hovered:
-				{
-					// These are set in 'draw_variable_editor' when overlay is open
-					if (!_show_overlay)
-						set_uniform_value(variable, 0);
-					break;
-				}
+			case special_uniform::overlay_open:
+				set_uniform_value(variable, _show_overlay);
+				break;
+			case special_uniform::overlay_active:
+			case special_uniform::overlay_hovered:
+				// These are set in 'draw_variable_editor' when overlay is open
+				if (!_show_overlay)
+					set_uniform_value(variable, 0);
+				break;
 #endif
-				case special_uniform::screenshot:
-				{
-					set_uniform_value(variable, _should_save_screenshot);
-					break;
-				}
+			case special_uniform::screenshot:
+				set_uniform_value(variable, _should_save_screenshot);
+				break;
 			}
 		}
 	}
@@ -4183,7 +3921,7 @@ void reshade::runtime::render_effects(api::command_list *cmd_list, api::resource
 			continue;
 
 		if (permutation_index >= tech.permutations.size() ||
-			(!tech.permutations[permutation_index].created && _effects[effect_index].permutations[permutation_index].assembly.empty()))
+			(!tech.permutations[permutation_index].created && _effects[effect_index].permutations[permutation_index].cso.empty()))
 		{
 			if (std::find(_reload_required_effects.begin(), _reload_required_effects.end(), std::make_pair(effect_index, permutation_index)) == _reload_required_effects.end())
 				_reload_required_effects.emplace_back(effect_index, permutation_index);
@@ -4403,17 +4141,22 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 				};
 				cmd_list->push_constants(api::shader_stage::vertex, permutation.layout, 0, 255 * 4, 4, texel_size);
 
-				// Set SEMANTIC_PIXEL_SIZE constants (see 'load_effect' above)
-				uint32_t semantic_index = 0;
+				// Set SEMANTIC_PIXEL_SIZE constants (see effect_codegen_hlsl.cpp)
 				for (const reshadefx::texture &tex : permutation.module.textures)
 				{
-					if (tex.semantic.empty() || tex.semantic == "COLOR")
+					if (tex.semantic.empty())
 						continue;
 
-					semantic_index++;
+					if (tex.semantic == "COLOR")
+					{
+						const float pixel_size[4] = {
+							1.0f / _effect_permutations[permutation_index].width,
+							1.0f / _effect_permutations[permutation_index].height
+						};
 
-					if (const auto it = _texture_semantic_bindings.find(tex.semantic);
-						it != _texture_semantic_bindings.end())
+						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, permutation.layout, 0, tex.semantic_binding * 4, 4, pixel_size);
+					}
+					else if (const auto it = _texture_semantic_bindings.find(tex.semantic); it != _texture_semantic_bindings.end())
 					{
 						const api::resource_desc desc = _device->get_resource_desc(_device->get_resource_from_view(it->second.first));
 
@@ -4422,7 +4165,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 							1.0f / desc.texture.height
 						};
 
-						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, permutation.layout, 0, (244 - semantic_index) * 4, 4, pixel_size);
+						cmd_list->push_constants(api::shader_stage::vertex | api::shader_stage::pixel, permutation.layout, 0, tex.semantic_binding * 4, 4, pixel_size);
 					}
 				}
 			}
@@ -4441,13 +4184,13 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 			cmd_list->end_query(effect.query_heap, api::query_type::timestamp, query_base_index + static_cast<uint32_t>((1 + pass_index) * 2) + 1);
 #endif
 
-		// Generate mipmaps for modified resources
-		for (const api::resource_view modified_texture : pass.generate_mipmap_views)
-			cmd_list->generate_mipmaps(modified_texture);
-
 #ifndef NDEBUG
 		cmd_list->end_debug_event();
 #endif
+
+		// Generate mipmaps for modified resources
+		for (const api::resource_view modified_texture : pass.generate_mipmap_views)
+			cmd_list->generate_mipmaps(modified_texture);
 	}
 
 #if RESHADE_GUI
@@ -4476,32 +4219,31 @@ void reshade::runtime::save_texture(const texture &tex)
 		return;
 	}
 
-	std::string filename = tex.unique_name;
+	std::string screenshot_name = tex.unique_name;
 	switch (_screenshot_format)
 	{
 	case 0:
-		filename += ".bmp";
+		screenshot_name += ".bmp";
 		break;
 	case 1:
-		filename += ".png";
+		screenshot_name += ".png";
 		break;
 	case 2:
-		filename += ".jpg";
+		screenshot_name += ".jpg";
 		break;
 	case 3:
-		filename += ".jxl";
+		screenshot_name += ".jxl";
 		break;
 	default:
-		filename += ".png";
-		break;
+		return;
 	}
 
-	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(filename);
+	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name);
 
 	_last_screenshot_save_successful = true;
 
 	if (std::vector<uint8_t> pixels(static_cast<size_t>(tex.width) * static_cast<size_t>(tex.height) * 4);
-		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data()))
+		get_texture_data(tex.resource, api::resource_usage::shader_resource, pixels.data(), api::format::r8g8b8a8_unorm))
 	{
 		_worker_threads.emplace_back([this, screenshot_path, pixels = std::move(pixels), width = tex.width, height = tex.height]() mutable {
 			// Default to a save failure unless it is reported to succeed below
@@ -4531,9 +4273,51 @@ void reshade::runtime::save_texture(const texture &tex)
 					save_success = stbi_write_jpg_to_func(write_callback, file, width, height, 4, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
 				case 3:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, width, height, 4))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+					JxlColorEncoding color_encoding;
+					color_encoding.color_space = JXL_COLOR_SPACE_RGB;
+					color_encoding.white_point = JXL_WHITE_POINT_D65;
+					color_encoding.primaries = JXL_PRIMARIES_SRGB;
+					color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+					color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+					color_encoding.is_float = false;
+
+					uint8_t *encoded_data = nullptr;
+					const size_t encoded_size = JxlSimpleLosslessEncode(
+						pixels.data(),
+						width,
+						static_cast<size_t>(width) * 4,
+						height,
+						4,
+						/* bitdepth = */ 8,
+						/* big_endian = */ false,
+						/* effort = */ 2,
+						&encoded_data,
+						nullptr,
+						[](void *, void *opaque, void fun(void *, size_t), size_t count) {
+							const size_t num_splits = std::min(count, static_cast<size_t>(std::thread::hardware_concurrency()));
+							if (num_splits == 1)
+							{
+								for (size_t i = 0; i < count; ++i)
+									fun(opaque, i);
+								return;
+							}
+							std::vector<std::thread> worker_threads;
+							for (size_t n = 0; n < num_splits; ++n)
+								worker_threads.emplace_back([count, opaque, fun, num_splits, n]() {
+									for (size_t i = 0; i < count; ++i)
+										if (i * num_splits / count == n)
+											fun(opaque, i);
+								});
+							for (std::thread &thread : worker_threads)
+								thread.join();
+						},
+						color_encoding);
+
+					if (encoded_data && encoded_size > 0)
+					{
+						save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+						free(encoded_data);
+					}
 					break;
 				}
 
@@ -4635,7 +4419,7 @@ void reshade::runtime::update_texture(texture &tex, uint32_t width, uint32_t hei
 
 	api::command_list *const cmd_list = _graphics_queue->get_immediate_command_list();
 	cmd_list->barrier(tex.resource, api::resource_usage::shader_resource, api::resource_usage::copy_dest);
-	_device->update_texture_region({ upload_data, tex.width * pixel_size, tex.width * tex.height * pixel_size }, tex.resource, 0);
+	cmd_list->update_texture_region({ upload_data, tex.width * pixel_size, tex.width * tex.height * pixel_size }, tex.resource, 0);
 	cmd_list->barrier(tex.resource, api::resource_usage::copy_dest, api::resource_usage::shader_resource);
 
 	if (tex.levels > 1)
@@ -4990,13 +4774,9 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		postfix = postfix_in;
 
 	const unsigned int screenshot_count = _screenshot_count;
-	unsigned int screenshot_format = _screenshot_format;
-
 	// Use PNG or JPEG XL for HDR (no tonemapping is implemented, so this is the only way to capture a screenshot in HDR)
-	if (((_back_buffer_format == api::format::r10g10b10a2_unorm ||
-		  _back_buffer_format == api::format::b10g10r10a2_unorm) && _back_buffer_color_space == api::color_space::hdr10_st2084) ||
-		 (_back_buffer_format == api::format::r16g16b16a16_float && _back_buffer_color_space == api::color_space::extended_srgb_linear))
-		screenshot_format = _screenshot_format == 3 ? 5 : 4;
+	const unsigned int screenshot_format =
+		(_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq) ? (_screenshot_format == 3 ? 5 : 4) : _screenshot_format;
 
 	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
@@ -5028,8 +4808,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		screenshot_name += ".jxl";
 		break;
 	default:
-		screenshot_name += ".png";
-		break;
+		return;
 	}
 
 	const std::filesystem::path screenshot_path = g_reshade_base_path / _screenshot_path / std::filesystem::u8path(screenshot_name).lexically_normal();
@@ -5038,8 +4817,12 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 
 	_last_screenshot_save_successful = true;
 
-	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * (_back_buffer_format == api::format::r16g16b16a16_float ? 8 : 4));
-		capture_screenshot(pixels.data()))
+	if (std::vector<uint8_t> pixels(static_cast<size_t>(_width) * static_cast<size_t>(_height) * (screenshot_format >= 4 ? 6 : 4));
+		get_texture_data(
+			_back_buffer_resolved != 0 ? _back_buffer_resolved : _swapchain->get_current_back_buffer(),
+			_back_buffer_resolved != 0 ? api::resource_usage::render_target : api::resource_usage::present,
+			pixels.data(),
+			screenshot_format >= 4 ? (_back_buffer_format == api::format::r16g16b16a16_float ? api::format::r16g16b16_float : api::format::r16g16b16_unorm) : api::format::r8g8b8a8_unorm))
 	{
 		const bool include_preset =
 			_screenshot_include_preset &&
@@ -5053,7 +4836,11 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		_worker_threads.emplace_back([this, screenshot_count, screenshot_format, screenshot_path, postfix, pixels = std::move(pixels), include_preset]() mutable {
 			// Remove alpha channel
 			int comp = 4;
-			if (_screenshot_clear_alpha && screenshot_format < 4)
+			if (screenshot_format >= 4)
+			{
+				comp = 3;
+			}
+			else if (_screenshot_clear_alpha)
 			{
 				comp = 3;
 				for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
@@ -5093,20 +4880,132 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 				case 2:
 					save_success = stbi_write_jpg_to_func(write_callback, file, _width, _height, comp, pixels.data(), _screenshot_jpeg_quality) != 0;
 					break;
+				case 4: // HDR PNG
+					if (_back_buffer_format == api::format::r16g16b16a16_float)
+					{
+						if (!fpng::fpng_cpu_supports_sse41())
+						{
+							// Technically requires F16C instruction set, not just SSE4.1
+							save_success = false;
+							break;
+						}
+
+						for (size_t i = 0; i < static_cast<size_t>(_width) * static_cast<size_t>(_height); ++i)
+						{
+							uint16_t *const pixel = reinterpret_cast<uint16_t *>(pixels.data()) + i * 3;
+							alignas(16) uint16_t result[4] = { pixel[0], pixel[1], pixel[2] };
+
+							// Convert 16-bit floating point values to 32-bit floating point
+							auto rgba_float_srgb = _mm_cvtph_ps(_mm_loadl_epi64(reinterpret_cast<const __m128i *>(result)));
+
+							// Convert BT.709/sRGB to BT.2020 primaries
+							auto rgba_float_bt2100 = _mm_max_ps(_mm_setzero_ps(),
+								_mm_add_ps(_mm_mul_ps(_mm_shuffle_ps(rgba_float_srgb, rgba_float_srgb, 0b00000000), _mm_setr_ps(0.627403914928436279296875f,     0.069097287952899932861328125f,    0.01639143936336040496826171875f, 0.0f)),
+								_mm_add_ps(_mm_mul_ps(_mm_shuffle_ps(rgba_float_srgb, rgba_float_srgb, 0b01010101), _mm_setr_ps(0.3292830288410186767578125f,    0.9195404052734375f,               0.08801330626010894775390625f,    0.0f)),
+								           _mm_mul_ps(_mm_shuffle_ps(rgba_float_srgb, rgba_float_srgb, 0b10101010), _mm_setr_ps(0.0433130674064159393310546875f, 0.011362315155565738677978515625f, 0.895595252513885498046875f,      0.0f)))));
+
+							// Convert linear to PQ
+							// PQ constants as per Rec. ITU-R BT.2100-3 Table 4
+							const float PQ_m1 = 0.1593017578125f;
+							const float PQ_m2 = 78.84375f;
+							const float PQ_c1 = 0.8359375f;
+							const float PQ_c2 = 18.8515625f;
+							const float PQ_c3 = 18.6875f;
+
+							auto rgba_float_bt2100_pq = _mm_div_ps(rgba_float_bt2100, _mm_set_ps1(125.0f));
+							alignas(16) float temp[4];
+							_mm_store_ps(temp, rgba_float_bt2100_pq);
+							rgba_float_bt2100_pq = _mm_setr_ps(std::powf(temp[0], PQ_m1), std::powf(temp[1], PQ_m1), std::powf(temp[2], PQ_m1), 0.0f);
+							rgba_float_bt2100_pq = _mm_div_ps(_mm_add_ps(_mm_mul_ps(_mm_set_ps1(PQ_c2), rgba_float_bt2100_pq), _mm_set_ps1(PQ_c1)), _mm_add_ps(_mm_mul_ps(_mm_set_ps1(PQ_c3), rgba_float_bt2100_pq), _mm_set_ps1(1.0f)));
+							_mm_store_ps(temp, rgba_float_bt2100_pq);
+							rgba_float_bt2100_pq = _mm_setr_ps(std::powf(temp[0], PQ_m2), std::powf(temp[1], PQ_m2), std::powf(temp[2], PQ_m2), 0.0f);
+
+							// Convert to integers and pack into 16-bit range
+							_mm_storel_epi64(reinterpret_cast<__m128i *>(result), _mm_packus_epi32(_mm_cvtps_epi32(_mm_mul_ps(rgba_float_bt2100_pq, _mm_set_ps1(65536.0f))), _mm_setzero_si128()));
+
+							pixel[0] = result[0];
+							pixel[1] = result[1];
+							pixel[2] = result[2];
+						}
+					}
+
+					save_success = stbi_write_hdr_png_to_func(
+						write_callback,
+						file,
+						_width,
+						_height,
+						comp,
+						reinterpret_cast<uint16_t *>(pixels.data()),
+						0,
+						static_cast<unsigned char>(JXL_PRIMARIES_2100),
+						static_cast<unsigned char>(_back_buffer_color_space == api::color_space::hdr10_hlg ? JXL_TRANSFER_FUNCTION_HLG : JXL_TRANSFER_FUNCTION_PQ)) != 0;
+					break;
 				case 3:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, comp))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
-					break;
-				// Implicit HDR PNG when running in HDR
-				case 4:
-					save_success = sk_hdr_png::write_image_to_disk(screenshot_path.c_str(), _width, _height, pixels.data(), _screenshot_hdr_bits, _back_buffer_format);
-					break;
-				// HDR JPEG XL
-				case 5:
-					if (std::vector<uint8_t> encoded_data;
-						simple_jxl::writer(pixels, encoded_data, _width, _height, comp, _back_buffer_format, _back_buffer_color_space))
-						save_success = fwrite(encoded_data.data(), 1, encoded_data.size(), file) == encoded_data.size();
+				case 5: // HDR JPEG XL
+					JxlColorEncoding color_encoding;
+					color_encoding.color_space = JXL_COLOR_SPACE_RGB;
+					color_encoding.white_point = JXL_WHITE_POINT_D65;
+					color_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
+					color_encoding.is_float = _back_buffer_format == api::format::r16g16b16a16_float;
+
+					switch (_back_buffer_color_space)
+					{
+					default:
+					case api::color_space::srgb:
+						color_encoding.primaries = JXL_PRIMARIES_SRGB;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+						break;
+					case api::color_space::scrgb:
+						color_encoding.primaries = JXL_PRIMARIES_SRGB;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
+						break;
+					case api::color_space::hdr10_pq:
+						color_encoding.primaries = JXL_PRIMARIES_2100;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
+						break;
+					case api::color_space::hdr10_hlg:
+						color_encoding.primaries = JXL_PRIMARIES_2100;
+						color_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
+						break;
+					}
+
+					uint8_t *encoded_data = nullptr;
+					const size_t encoded_size = JxlSimpleLosslessEncode(
+						pixels.data(),
+						_width,
+						static_cast<size_t>(_width) * comp * (screenshot_format >= 4 ? 2 : 1),
+						_height,
+						comp,
+						screenshot_format >= 4 ? 16 : 8,
+						/* big_endian = */ false,
+						/* effort = */ 2,
+						&encoded_data,
+						nullptr,
+						[](void *, void *opaque, void fun(void *, size_t), size_t count) {
+							const size_t num_splits = std::min(count, static_cast<size_t>(std::thread::hardware_concurrency()));
+							if (num_splits == 1)
+							{
+								for (size_t i = 0; i < count; ++i)
+									fun(opaque, i);
+								return;
+							}
+							std::vector<std::thread> worker_threads;
+							for (size_t n = 0; n < num_splits; ++n)
+								worker_threads.emplace_back([count, opaque, fun, num_splits, n]() {
+									for (size_t i = 0; i < count; ++i)
+										if (i * num_splits / count == n)
+											fun(opaque, i);
+								});
+							for (std::thread &thread : worker_threads)
+								thread.join();
+						},
+						color_encoding);
+
+					if (encoded_data && encoded_size > 0)
+					{
+						save_success = fwrite(encoded_data, 1, encoded_size, file) == encoded_size;
+						free(encoded_data);
+					}
 					break;
 				}
 
@@ -5153,7 +5052,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	if (_screenshot_post_save_command.empty())
 		return false;
 
-	const std::wstring ext = _screenshot_post_save_command.extension().native();
+	const std::wstring ext = _screenshot_post_save_command.extension().wstring();
 
 	std::string command_line;
 	if (ext == L".bat" || ext == L".cmd")
@@ -5194,28 +5093,16 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	return true;
 }
 
-bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels)
+bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels, api::format quantization_format)
 {
-	const api::resource_desc desc = _device->get_resource_desc(resource);
+	assert(quantization_format != api::format::unknown);
 
-	const api::format view_format = api::format_to_default_typed(desc.texture.format, 0);
-	if (view_format != api::format::r8_unorm &&
-		view_format != api::format::r8g8_unorm &&
-		view_format != api::format::r8g8b8a8_unorm &&
-		view_format != api::format::b8g8r8a8_unorm &&
-		view_format != api::format::r8g8b8x8_unorm &&
-		view_format != api::format::b8g8r8x8_unorm &&
-		view_format != api::format::r10g10b10a2_unorm &&
-		view_format != api::format::b10g10r10a2_unorm &&
-		view_format != api::format::r16g16b16a16_float)
-	{
-		log::message(log::level::error, "Screenshots are not supported for format %u!", static_cast<uint32_t>(desc.texture.format));
-		return false;
-	}
+	const api::resource_desc desc = _device->get_resource_desc(resource);
+	const api::format intermediate_format = api::format_to_default_typed(desc.texture.format, 0);
 
 	// Copy back buffer data into system memory buffer
 	api::resource intermediate;
-	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, view_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, intermediate_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 	{
 		log::message(log::level::error, "Failed to create system memory texture for screenshot capture!");
 		return false;
@@ -5238,76 +5125,130 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 	if (_device->map_texture_region(intermediate, 0, nullptr, api::map_access::read_only, &mapped_data))
 	{
 		auto mapped_pixels = static_cast<const uint8_t *>(mapped_data.data);
-		const uint32_t pixels_row_pitch = api::format_row_pitch(view_format, desc.texture.width);
+		const uint32_t pixels_row_pitch = api::format_row_pitch(quantization_format, desc.texture.width);
 
 		for (size_t y = 0; y < desc.texture.height; ++y, pixels += pixels_row_pitch, mapped_pixels += mapped_data.row_pitch)
 		{
-			switch (view_format)
+			if (quantization_format == intermediate_format)
 			{
-			case api::format::r8_unorm:
-				for (size_t x = 0; x < desc.texture.width; ++x)
-				{
-					pixels[x * 4 + 0] = mapped_pixels[x];
-					pixels[x * 4 + 1] = 0;
-					pixels[x * 4 + 2] = 0;
-					pixels[x * 4 + 3] = 0xFF;
-				}
-				break;
-			case api::format::r8g8_unorm:
-				for (size_t x = 0; x < desc.texture.width; ++x)
-				{
-					pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
-					pixels[x * 4 + 1] = mapped_pixels[x * 2 + 1];
-					pixels[x * 4 + 2] = 0;
-					pixels[x * 4 + 3] = 0xFF;
-				}
-				break;
-			case api::format::r8g8b8a8_unorm:
-			case api::format::r8g8b8x8_unorm:
 				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				if (view_format == api::format::r8g8b8x8_unorm)
-					for (size_t x = 0; x < pixels_row_pitch; x += 4)
-						pixels[x + 3] = 0xFF;
-				break;
-			case api::format::b8g8r8a8_unorm:
-			case api::format::b8g8r8x8_unorm:
-				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				// Format is BGRA, but output should be RGBA, so flip channels
-				for (size_t x = 0; x < pixels_row_pitch; x += 4)
-					std::swap(pixels[x + 0], pixels[x + 2]);
-				if (view_format == api::format::b8g8r8x8_unorm)
-					for (size_t x = 0; x < pixels_row_pitch; x += 4)
-						pixels[x + 3] = 0xFF;
-				break;
-			case api::format::r10g10b10a2_unorm:
-			case api::format::b10g10r10a2_unorm:
-				// SDR: Quantize the image down to 8-bpc for compatibility with standard screenshot formats
-				if (_back_buffer_color_space != api::color_space::hdr10_st2084)
+				continue;
+			}
+
+			if (quantization_format == api::format::r8g8b8a8_unorm)
+			{
+				switch (intermediate_format)
 				{
+				case api::format::r8_unorm:
+					for (size_t x = 0; x < desc.texture.width; ++x)
+					{
+						pixels[x * 4 + 0] = mapped_pixels[x];
+						pixels[x * 4 + 1] = 0;
+						pixels[x * 4 + 2] = 0;
+						pixels[x * 4 + 3] = 0xFF;
+					}
+					continue;
+				case api::format::r8g8_unorm:
+					for (size_t x = 0; x < desc.texture.width; ++x)
+					{
+						pixels[x * 4 + 0] = mapped_pixels[x * 2 + 0];
+						pixels[x * 4 + 1] = mapped_pixels[x * 2 + 1];
+						pixels[x * 4 + 2] = 0;
+						pixels[x * 4 + 3] = 0xFF;
+					}
+					continue;
+				case api::format::r8g8b8x8_unorm:
 					for (size_t x = 0; x < pixels_row_pitch; x += 4)
 					{
+						pixels[x + 0] = mapped_pixels[x + 0];
+						pixels[x + 1] = mapped_pixels[x + 1];
+						pixels[x + 2] = mapped_pixels[x + 2];
+						pixels[x + 3] = 0xFF;
+					}
+					continue;
+				case api::format::b8g8r8a8_unorm:
+					// Format is BGRA, but output should be RGBA, so flip channels
+					for (size_t x = 0; x < pixels_row_pitch; x += 4)
+					{
+						pixels[x + 0] = mapped_pixels[x + 2];
+						pixels[x + 1] = mapped_pixels[x + 1];
+						pixels[x + 2] = mapped_pixels[x + 0];
+						pixels[x + 3] = mapped_pixels[x + 3];
+					}
+					continue;
+				case api::format::b8g8r8x8_unorm:
+					for (size_t x = 0; x < pixels_row_pitch; x += 4)
+					{
+						pixels[x + 0] = mapped_pixels[x + 2];
+						pixels[x + 1] = mapped_pixels[x + 1];
+						pixels[x + 2] = mapped_pixels[x + 0];
+						pixels[x + 3] = 0xFF;
+					}
+					continue;
+				case api::format::r10g10b10a2_unorm:
+				case api::format::b10g10r10a2_unorm:
+					for (size_t x = 0; x < pixels_row_pitch; x += 4)
+					{
+						const auto offset_r = intermediate_format == api::format::b10g10r10a2_unorm ? 2 : 0;
+						const auto offset_g = 1;
+						const auto offset_b = intermediate_format == api::format::b10g10r10a2_unorm ? 0 : 2;
+						const auto offset_a = 3;
+
 						const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
 						// Divide by 4 to get 10-bit range (0-1023) into 8-bit range (0-255)
-						pixels[x + 0] = (( rgba & 0x000003FF)        /  4) & 0xFF;
-						pixels[x + 1] = (((rgba & 0x000FFC00) >> 10) /  4) & 0xFF;
-						pixels[x + 2] = (((rgba & 0x3FF00000) >> 20) /  4) & 0xFF;
-						pixels[x + 3] = (((rgba & 0xC0000000) >> 30) * 85) & 0xFF;
-						if (view_format == api::format::b10g10r10a2_unorm)
-							std::swap(pixels[x + 0], pixels[x + 2]);
+						pixels[x + offset_r] = (( rgba & 0x000003FFu)        /  4) & 0xFF;
+						pixels[x + offset_g] = (((rgba & 0x000FFC00u) >> 10) /  4) & 0xFF;
+						pixels[x + offset_b] = (((rgba & 0x3FF00000u) >> 20) /  4) & 0xFF;
+						pixels[x + offset_a] = (((rgba & 0xC0000000u) >> 30) * 85) & 0xFF;
 					}
+					continue;
 				}
-				// HDR10: Keep the original data, do not convert to 8-bpc
-				else
-				{
-					std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				}
-				break;
-			case api::format::r16g16b16a16_float:
-				// FP16 is implicitly always scRGB
-				assert(_back_buffer_color_space == api::color_space::extended_srgb_linear);
-				std::memcpy(pixels, mapped_pixels, pixels_row_pitch);
-				break;
 			}
+			else if (quantization_format == api::format::r16g16b16_unorm)
+			{
+				switch (intermediate_format)
+				{
+				case api::format::r10g10b10a2_unorm:
+				case api::format::b10g10r10a2_unorm:
+					for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+					{
+						const auto offset_r = intermediate_format == api::format::b10g10r10a2_unorm ? 2 : 0;
+						const auto offset_g = 1;
+						const auto offset_b = intermediate_format == api::format::b10g10r10a2_unorm ? 0 : 2;
+
+						const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + (x / (sizeof(uint16_t) * 3)) * 4);
+						// Multiply by 64 to get 10-bit range (0-1023) into 16-bit range (0-65535)
+						reinterpret_cast<uint16_t *>(pixels + x)[offset_r] = ( (rgba & 0x000003FFu)        * 64) & 0xFFFF;
+						reinterpret_cast<uint16_t *>(pixels + x)[offset_g] = (((rgba & 0x000FFC00u) >> 10) * 64) & 0xFFFF;
+						reinterpret_cast<uint16_t *>(pixels + x)[offset_b] = (((rgba & 0x3FF00000u) >> 20) * 64) & 0xFFFF;
+					}
+					continue;
+				}
+			}
+			else if (quantization_format == api::format::r16g16b16_float && intermediate_format == api::format::r16g16b16a16_float)
+			{
+				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint16_t) * 3)
+				{
+					std::memcpy(pixels + x, mapped_pixels + (x / 3) * 4, sizeof(uint16_t) * 3);
+				}
+				continue;
+			}
+			else if (quantization_format == api::format::r10g10b10a2_unorm && intermediate_format == api::format::b10g10r10a2_unorm)
+			{
+				// Format is BGRA, but output should be RGBA, so flip channels
+				for (size_t x = 0; x < pixels_row_pitch; x += sizeof(uint32_t))
+				{
+					const uint32_t rgba = *reinterpret_cast<const uint32_t *>(mapped_pixels + x);
+					*reinterpret_cast<uint32_t *>(pixels + x) = ((rgba & 0x000003FFu) << 20) | ((rgba & 0x3FF00000u) >> 20) | (rgba & 0xC00FFC00u);
+				}
+				continue;
+			}
+
+			// Unsupported quantization, return an error below
+			mapped_data.data = nullptr;
+
+			log::message(log::level::error, "Screenshots are not supported for format %u!", static_cast<uint32_t>(desc.texture.format));
+			break;
 		}
 
 		_device->unmap_texture_region(intermediate, 0);

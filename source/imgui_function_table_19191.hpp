@@ -34,7 +34,7 @@ struct imgui_font_19191
 	ImU8 Used8kPagesMap[(IM_UNICODE_CODEPOINT_MAX + 1) / 8192 / 8];
 };
 
-using imgui_storage_19191 = ImGuiStorage;
+using imgui_storage_19191 = imgui_storage_19222;
 
 struct imgui_list_clipper_19191
 {
@@ -83,7 +83,7 @@ struct imgui_io_19191
 	ImFontAtlas *Fonts;
 	float FontGlobalScale;
 	bool FontAllowUserScaling;
-	ImFont *FontDefault;
+	imgui_font_19191 *FontDefault;
 	ImVec2 DisplayFramebufferScale;
 
 	bool ConfigNavSwapGamepadButtons;

@@ -8,8 +8,9 @@
 #include "dxgi/dxgi_device.hpp"
 #include "d3d10_impl_device.hpp"
 
-struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : DXGIDevice, ID3D10Device1, public reshade::d3d10::device_impl
+class DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : public DXGIDevice, public ID3D10Device1, public reshade::d3d10::device_impl
 {
+public:
 	D3D10Device(IDXGIAdapter *adapter, IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original);
 	~D3D10Device();
 
@@ -123,15 +124,16 @@ struct DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final :
 
 	bool check_and_upgrade_interface(REFIID riid);
 
+	using device_impl::_orig;
+	LONG _ref = 1;
+
+private:
 #if RESHADE_ADDON >= 2
 	void invoke_bind_samplers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10SamplerState *const *objects);
 	void invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10ShaderResourceView *const *objects);
 	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D10Buffer *const *objects);
 #endif
 
-	using device_impl::_orig;
-
-	LONG _ref = 1;
 #if RESHADE_ADDON
 	reshade::api::pipeline_layout _global_pipeline_layout = {};
 #endif

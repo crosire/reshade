@@ -26,7 +26,7 @@ inline uint32_t align_up(uint32_t size, uint32_t alignment)
 	return ((size + alignment) & ~alignment);
 }
 
-class codegen_glsl final : public codegen
+class codegen_glsl : public codegen
 {
 public:
 	codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y) :
@@ -41,7 +41,7 @@ public:
 		block.reserve(8192);
 	}
 
-private:
+protected:
 	enum class naming
 	{
 		// After escaping, name should already be unique, so no additional steps are taken
@@ -124,10 +124,59 @@ private:
 				"uvec3 compCond(bvec3 cond, uvec3 a, uvec3 b) { return uvec3(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z); }\n"
 				"uvec4 compCond(bvec4 cond, uvec4 a, uvec4 b) { return uvec4(cond.x ? a.x : b.x, cond.y ? a.y : b.y, cond.z ? a.z : b.z, cond.w ? a.w : b.w); }\n";
 
+		if (_uniforms_to_spec_constants)
+		{
+			// Apply any specialization constant values set between code generation and assembling
+			for (const uniform &spec_constant : _module.spec_constants)
+			{
+				// Check if this is a split specialization constant and move data accordingly
+				constant initializer_value = spec_constant.initializer_value;
+				if (spec_constant.type.is_scalar() && spec_constant.offset != 0)
+					initializer_value.as_uint[0] = initializer_value.as_uint[spec_constant.offset];
+
+				preamble += "#define SPEC_CONSTANT_" + spec_constant.unique_name + ' ';
+
+				for (unsigned int i = 0; i < spec_constant.type.components(); ++i)
+				{
+					switch (spec_constant.type.base)
+					{
+					case type::t_bool:
+						preamble += initializer_value.as_uint[i] ? "true" : "false";
+						break;
+					case type::t_int:
+						preamble += std::to_string(initializer_value.as_int[i]);
+						break;
+					case type::t_uint:
+						preamble += std::to_string(initializer_value.as_uint[i]);
+						break;
+					case type::t_float:
+						char temp[64];
+						const std::to_chars_result res = std::to_chars(temp, temp + sizeof(temp), initializer_value.as_float[i]
+#if !defined(_HAS_COMPLETE_CHARCONV) || _HAS_COMPLETE_CHARCONV
+							, std::chars_format::scientific, 8
+#endif
+						);
+						if (res.ec == std::errc())
+							preamble.append(temp, res.ptr);
+						else
+							assert(false);
+						break;
+					}
+
+					if (i + 1 < spec_constant.type.components())
+						preamble += ", ";
+				}
+
+				preamble += '\n';
+			}
+		}
+
 		if (!_ubo_block.empty())
+		{
 			// Read matrices in column major layout, even though they are actually row major, to avoid transposing them on every access (since GLSL uses column matrices)
 			// TODO: This technically only works with square matrices
 			preamble += "layout(std140, column_major, binding = 0) uniform _Globals {\n" + _ubo_block + "};\n";
+		}
 
 		return preamble;
 	}
@@ -163,13 +212,13 @@ private:
 
 		return code;
 	}
-	std::string finalize_code_for_entry_point(const std::string &entry_point_name) const override
+	bool assemble_code_for_entry_point(const std::string &entry_point_name, std::string &code, std::string &, std::string &) const override
 	{
 		const function *const entry_point = find_function(entry_point_name);
 		if (entry_point == nullptr)
-			return {};
+			return false;
 
-		std::string code = finalize_preamble();
+		code = finalize_preamble();
 
 		if (entry_point->type != shader_type::pixel)
 			code +=
@@ -239,7 +288,7 @@ private:
 			code += _blocks.at(func->id);
 		}
 
-		return code;
+		return true;
 	}
 
 	template <bool is_param = false, bool is_decl = true, bool is_interface = false>
@@ -2239,6 +2288,10 @@ private:
 			_blocks.erase(case_block);
 	}
 
+	void emit_pragma(const std::string &) override
+	{
+	}
+
 	id   create_block() override
 	{
 		const id res = make_id();
@@ -2348,7 +2401,9 @@ private:
 	}
 };
 
+#ifndef RESHADEFX_CODEGEN_GLSL_INLINE
 codegen *reshadefx::create_codegen_glsl(bool vulkan_semantics, bool debug_info, bool uniforms_to_spec_constants, bool enable_16bit_types, bool flip_vert_y)
 {
 	return new codegen_glsl(vulkan_semantics, debug_info, uniforms_to_spec_constants, enable_16bit_types, flip_vert_y);
 }
+#endif

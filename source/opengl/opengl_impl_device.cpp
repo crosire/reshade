@@ -14,7 +14,7 @@
 
 #define RESHADE_OPENGL_IMPORT_WITH_VULKAN 1
 
-#if RESHADE_OPENGL_IMPORT_WITH_VULKAN
+#if RESHADE_OPENGL_IMPORT_WITH_VULKAN && GL_EXT_memory_object && GL_EXT_memory_object_win32
 #include "vulkan/vulkan_impl_type_convert.hpp"
 
 // There is no API in OpenGL to query the memory size of a resource, but that information is necessary to import an external resource
@@ -43,7 +43,7 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 		VkApplicationInfo app_info { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 		app_info.apiVersion = VK_API_VERSION_1_3;
 		app_info.pApplicationName = "ReShade";
-		VkInstanceCreateInfo instance_create_info = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+		VkInstanceCreateInfo instance_create_info { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
 		instance_create_info.pApplicationInfo = &app_info;
 
 		VkInstance instance = VK_NULL_HANDLE;
@@ -84,16 +84,19 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 				vk.CreateDevice = reinterpret_cast<PFN_vkCreateDevice>(vk.GetInstanceProcAddr(instance, "vkCreateDevice"));
 				assert(vk.CreateDevice != nullptr);
 
+#if VK_KHR_maintenance9
 				VkPhysicalDeviceFeatures2 features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
 				VkPhysicalDeviceMaintenance9FeaturesKHR maintenance9_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR };
 				features.pNext = &maintenance9_features;
 				vk.GetPhysicalDeviceFeatures2(physical_device, &features);
+#endif
 
 				// Create temporary Vulkan device
 				float queue_priority = 0.0f;
 				VkDeviceQueueCreateInfo queue_info;
 
 				VkDeviceCreateInfo device_create_info { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+#if VK_KHR_maintenance9
 				if (maintenance9_features.maintenance9)
 				{
 					static const char *maintenance9_name = VK_KHR_MAINTENANCE_9_EXTENSION_NAME;
@@ -103,6 +106,7 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 					device_create_info.ppEnabledExtensionNames = &maintenance9_name;
 				}
 				else
+#endif
 				{
 					queue_info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
 					queue_info.queueCount = 1;
@@ -209,9 +213,6 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, c
 		}
 	}
 
-	// Check whether this context supports Direct State Access
-	_supports_dsa = gl.VERSION_4_5;
-
 	// Check for special extension to detect whether this is a compatibility context (https://www.khronos.org/opengl/wiki/OpenGL_Context#OpenGL_3.1_and_ARB_compatibility)
 	GLint num_extensions = 0;
 	gl.GetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
@@ -308,11 +309,13 @@ bool reshade::opengl::device_impl::get_property(api::device_properties property,
 		return true;
 	}
 	case api::device_properties::adapter_luid:
+#if GL_EXT_memory_object
 		if (gl.EXT_memory_object)
 		{
 			gl.GetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, static_cast<GLubyte *>(data));
 			return true;
 		}
+#endif
 		return false;
 	default:
 		return false;
@@ -368,12 +371,20 @@ bool reshade::opengl::device_impl::check_capability(api::device_caps capability)
 		return true;
 	case api::device_caps::shared_resource:
 	case api::device_caps::shared_resource_nt_handle:
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		return gl.EXT_memory_object && gl.EXT_memory_object_win32;
+#else
+		return false;
+#endif
 	case api::device_caps::resolve_depth_stencil:
 		return true;
 	case api::device_caps::shared_fence:
 	case api::device_caps::shared_fence_nt_handle:
+#if GL_EXT_semaphore && GL_EXT_semaphore_win32
 		return gl.EXT_semaphore && gl.EXT_semaphore_win32;
+#else
+		return false;
+#endif
 	case api::device_caps::amplification_and_mesh_shader:
 	case api::device_caps::ray_tracing:
 		return false;
@@ -482,8 +493,6 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 	const auto convert_address_mode = [](api::texture_address_mode value) {
 		switch (value)
 		{
-		default:
-			return GL_NONE;
 		case api::texture_address_mode::wrap:
 			return GL_REPEAT;
 		case api::texture_address_mode::mirror:
@@ -492,6 +501,8 @@ bool reshade::opengl::device_impl::create_sampler(const api::sampler_desc &desc,
 			return GL_CLAMP_TO_EDGE;
 		case api::texture_address_mode::border:
 			return GL_CLAMP_TO_BORDER;
+		default:
+			return GL_NONE;
 		}
 	};
 
@@ -517,7 +528,7 @@ void reshade::opengl::device_impl::destroy_sampler(api::sampler sampler)
 	gl.DeleteSamplers(1, &object);
 }
 
-bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_resource, HANDLE *shared_handle)
+bool reshade::opengl::device_impl::create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage, api::resource *out_resource, void **shared_handle)
 {
 	*out_resource = { 0 };
 
@@ -589,6 +600,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 	GLenum shared_handle_type = GL_NONE;
 	if ((desc.flags & api::resource_flags::shared) != 0)
 	{
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		if (!gl.EXT_memory_object || !gl.EXT_memory_object_win32)
 			return false;
 
@@ -602,6 +614,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_EXT;
 		else
 			shared_handle_type = GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT;
+#else
+		return false;
+#endif
 	}
 
 	GLuint object = 0;
@@ -625,6 +640,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 		GLbitfield storage_flags = GL_NONE;
 		convert_resource_desc(desc, buffer_size, storage_flags);
 
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
@@ -636,6 +652,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			gl.DeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
+#endif
 		{
 			// Upload of initial data is using 'glBufferSubData', which requires the dynamic storage flag
 			if (initial_data != nullptr)
@@ -686,6 +703,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		GLuint depth_or_layers = desc.texture.depth_or_layers;
 
+#if GL_EXT_memory_object && GL_EXT_memory_object_win32
 		if (shared_handle_type != GL_NONE)
 		{
 			GLuint mem = 0;
@@ -740,6 +758,7 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			gl.DeleteMemoryObjectsEXT(1, &mem);
 		}
 		else
+#endif
 		{
 			switch (target)
 			{
@@ -859,9 +878,11 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 	const GLenum target = resource.handle >> 40;
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
+	api::resource_desc desc;
+
 	switch (target)
 	{
-		case GL_BUFFER:
+	case GL_BUFFER:
 		{
 #ifndef _WIN64
 			GLint size = 0;
@@ -870,7 +891,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 #endif
 			GLbitfield storage_flags = GL_NONE;
 
-			if (_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 #ifndef _WIN64
 				gl.GetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &size);
@@ -897,24 +918,25 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					gl.BindBuffer(GL_COPY_READ_BUFFER, prev_binding);
 			}
 
-			return convert_resource_desc(target, size, storage_flags);
+			desc = convert_resource_desc(target, size, storage_flags);
 		}
-		case GL_TEXTURE_BUFFER:
-		case GL_TEXTURE_1D:
-		case GL_TEXTURE_1D_ARRAY:
-		case GL_TEXTURE_2D:
-		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_2D_MULTISAMPLE:
-		case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-		case GL_TEXTURE_3D:
-		case GL_TEXTURE_CUBE_MAP:
-		case GL_TEXTURE_CUBE_MAP_ARRAY:
-		case GL_TEXTURE_RECTANGLE:
+		break;
+	case GL_TEXTURE_BUFFER:
+	case GL_TEXTURE_1D:
+	case GL_TEXTURE_1D_ARRAY:
+	case GL_TEXTURE_2D:
+	case GL_TEXTURE_2D_ARRAY:
+	case GL_TEXTURE_2D_MULTISAMPLE:
+	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+	case GL_TEXTURE_RECTANGLE:
 		{
 			GLint width = 0, height = 1, depth = 1, levels = 1, samples = 1, internal_format = GL_NONE;
 			GLint swizzle_mask[4] = { GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA };
 
-			if (_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_WIDTH, &width);
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
@@ -993,13 +1015,14 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 			assert(width != 0);
 
-			return convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
+			desc = convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
 		}
-		case GL_RENDERBUFFER:
+		break;
+	case GL_RENDERBUFFER:
 		{
 			GLint width = 0, height = 1, samples = 1, internal_format = GL_NONE;
 
-			if (_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 				gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_WIDTH, &width);
 				gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
@@ -1027,27 +1050,26 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 
 			assert(width != 0);
 
-			return convert_resource_desc(target, 1, samples, internal_format, width, height);
+			desc = convert_resource_desc(target, 1, samples, internal_format, width, height);
 		}
-		case GL_FRAMEBUFFER_DEFAULT:
+		break;
+	case GL_FRAMEBUFFER_DEFAULT:
 		{
+			desc = _default_fbo_desc;
+
 			if (object == GL_DEPTH_STENCIL_ATTACHMENT || object == GL_DEPTH_ATTACHMENT || object == GL_STENCIL_ATTACHMENT)
 			{
-				api::resource_desc default_fbo_depth_desc = _default_fbo_desc;
-				default_fbo_depth_desc.texture.format = _default_depth_format;
-				default_fbo_depth_desc.usage = (default_fbo_depth_desc.usage & ~reshade::api::resource_usage::render_target) | reshade::api::resource_usage::depth_stencil;
-
-				return default_fbo_depth_desc;
-			}
-			else
-			{
-				return _default_fbo_desc;
+				desc.texture.format = _default_depth_format;
+				desc.usage = (desc.usage & ~reshade::api::resource_usage::render_target) | reshade::api::resource_usage::depth_stencil;
 			}
 		}
+		break;
+	default:
+		assert(false); // Not implemented
+		break;
 	}
 
-	assert(false); // Not implemented
-	return api::resource_desc {};
+	return desc;
 }
 
 bool reshade::opengl::device_impl::create_resource_view(api::resource resource, api::resource_usage, const api::resource_view_desc &desc, api::resource_view *out_view)
@@ -1170,6 +1192,8 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 		gl.TextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, num_layers);
 
+		register_resource_view(target, object, resource);
+
 		gl.BindTexture(target, object);
 		gl.TexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
 	}
@@ -1191,7 +1215,11 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view view
 {
 	// Check if this is a standalone object (see 'make_resource_view_handle')
 	if (((view.handle >> 32) & 0x1) != 0)
+	{
 		destroy_resource({ view.handle });
+
+		_texture_view_lookup.erase(view.handle & 0xFFFFFFFF);
+	}
 
 	// Force all framebuffers to be destroyed, to ensure they are recreated even if a resource view handle is reused
 	// This is necessary since framebuffers include dimension information, so 'glBlitFramebuffer' etc. will clip the image if an outdated one is used
@@ -1222,7 +1250,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 			gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
@@ -1246,7 +1274,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 		}
 		break;
 	case GL_RENDERBUFFER:
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
 		}
@@ -1273,6 +1301,14 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 	return convert_format(internal_format, swizzle_mask);
 }
 
+void reshade::opengl::device_impl::register_resource_view(GLenum target, GLuint object, api::resource resource)
+{
+	if (target != GL_TEXTURE_BUFFER)
+	{
+		_texture_view_lookup[object] = resource;
+	}
+}
+
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const
 {
 	assert(view != 0);
@@ -1285,13 +1321,17 @@ reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api:
 
 	if (target != GL_TEXTURE_BUFFER)
 	{
+		if (const auto it = _texture_view_lookup.find(object);
+			it != _texture_view_lookup.end())
+			return it->second;
+
 		return make_resource_handle(target, object);
 	}
 	else
 	{
 		GLint binding = 0;
 
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &binding);
 		}
@@ -1327,7 +1367,7 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	{
 		GLint min_level = 0, min_layer = 0, num_levels = 0, num_layers = 0, internal_format = GL_NONE;
 
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureParameteriv(object, GL_TEXTURE_VIEW_MIN_LEVEL, &min_level);
 			gl.GetTextureParameteriv(object, GL_TEXTURE_VIEW_MIN_LAYER, &min_layer);
@@ -1358,7 +1398,7 @@ reshade::api::resource_view_desc reshade::opengl::device_impl::get_resource_view
 	{
 		GLint offset = 0, size = 0, internal_format = GL_NONE;
 
-		if (_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_OFFSET, &offset);
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_BUFFER_SIZE, &size);
@@ -1425,7 +1465,7 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 	}
 
 	GLenum target = GL_NONE, object = 0;
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		gl.GetNamedFramebufferAttachmentParameteriv(fbo, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, reinterpret_cast<GLint *>(&target));
 
@@ -1507,7 +1547,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		if (UINT64_MAX == size)
 		{
@@ -1557,7 +1597,7 @@ void reshade::opengl::device_impl::unmap_buffer_region(api::resource resource)
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		gl.UnmapNamedBuffer(object);
 	}
@@ -1701,7 +1741,7 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 
 		gl.GetTexImage(level_target, level, format, type, pixels);
 	}
-	else if (_supports_dsa)
+	else if (gl.VERSION_4_5)
 	{
 		switch (target)
 		{
@@ -1763,15 +1803,27 @@ void reshade::opengl::device_impl::unmap_texture_region(api::resource resource, 
 void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource != 0 && (resource.handle >> 40) == GL_BUFFER);
-	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max()));
+	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
 	if (data == nullptr)
 		return;
 
 	const GLuint object = resource.handle & 0xFFFFFFFF;
 
-	if (_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
+		if (UINT64_MAX == size)
+		{
+#ifndef _WIN64
+			GLint max_size = 0;
+			gl.GetNamedBufferParameteriv(object, GL_BUFFER_SIZE, &max_size);
+#else
+			GLint64 max_size = 0;
+			gl.GetNamedBufferParameteri64v(object, GL_BUFFER_SIZE, &max_size);
+#endif
+			size = max_size;
+		}
+
 		gl.NamedBufferSubData(object, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 	}
 	else
@@ -1780,6 +1832,18 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 		gl.GetIntegerv(GL_COPY_WRITE_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_binding));
 		if (object != prev_binding)
 			gl.BindBuffer(GL_COPY_WRITE_BUFFER, object);
+
+		if (UINT64_MAX == size)
+		{
+#ifndef _WIN64
+			GLint max_size = 0;
+			gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
+#else
+			GLint64 max_size = 0;
+			gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
+#endif
+			size = max_size;
+		}
 
 		gl.BufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
 
@@ -1874,14 +1938,16 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const auto row_pitch = api::format_row_pitch(desc.texture.format, width);
 	const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, height);
 	const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
+	const bool packed_data_layout =
+		(row_pitch == data.row_pitch || height == 1) &&
+		(slice_pitch == data.slice_pitch || depth == 1);
 
 	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
 	std::vector<uint8_t> temp_pixels;
 	const uint8_t *pixels = static_cast<const uint8_t *>(data.data);
 
-	if ((row_pitch != data.row_pitch && height == 1) ||
-		(slice_pitch != data.slice_pitch && depth == 1))
+	if (!packed_data_layout)
 	{
 		temp_pixels.resize(total_image_size);
 		uint8_t *dst_pixels = temp_pixels.data();
@@ -2516,22 +2582,27 @@ bool reshade::opengl::device_impl::get_query_heap_results(api::query_heap heap, 
 
 void reshade::opengl::device_impl::set_resource_name(api::resource resource, const char *name)
 {
+	assert(resource != 0);
+
 	gl.ObjectLabel((resource.handle >> 40) == GL_BUFFER ? GL_BUFFER : GL_TEXTURE, resource.handle & 0xFFFFFFFF, -1, name);
 }
 void reshade::opengl::device_impl::set_resource_view_name(api::resource_view view, const char *name)
 {
+	assert(view != 0);
+
 	if (((view.handle >> 32) & 0x1) == 0)
 		return; // This is not a standalone object, so name may have already been set via 'set_resource_name' before
 
 	gl.ObjectLabel(GL_TEXTURE, view.handle & 0xFFFFFFFF, -1, name);
 }
 
-bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, HANDLE *shared_handle)
+bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, void **shared_handle)
 {
 	*out_fence = { 0 };
 
 	if ((flags & api::fence_flags::shared) != 0)
 	{
+#if GL_EXT_semaphore && GL_EXT_semaphore_win32
 		if (!gl.EXT_semaphore || !gl.EXT_semaphore_win32)
 			return false;
 
@@ -2552,6 +2623,9 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 
 		*out_fence = { (0xFFFFFFFFull << 40) | object };
 		return true;
+#else
+		return false;
+#endif
 	}
 
 	fence_impl *const impl = new fence_impl();
@@ -2563,6 +2637,7 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 }
 void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
@@ -2573,6 +2648,7 @@ void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 		gl.DeleteSemaphoresEXT(1, &object);
 		return;
 	}
+#endif
 
 	if (fence == 0)
 		return;
@@ -2587,6 +2663,7 @@ void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 
 uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fence) const
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
@@ -2598,6 +2675,7 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 		gl.GetSemaphoreParameterui64vEXT(object, GL_D3D12_FENCE_VALUE_EXT, &value);
 		return value;
 	}
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 
@@ -2616,8 +2694,10 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 
 bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 		return false;
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value > impl->current_value)
@@ -2632,8 +2712,10 @@ bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64
 }
 bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
 {
+#if GL_EXT_semaphore
 	if ((fence.handle >> 40) == 0xFFFFFFFF)
 		return false;
+#endif
 
 	const auto impl = reinterpret_cast<fence_impl *>(fence.handle);
 	if (value < impl->current_value)

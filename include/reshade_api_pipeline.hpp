@@ -6,8 +6,9 @@
 #pragma once
 
 #include "reshade_api_resource.hpp"
+#include <cstddef>
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// Flags that specify the shader stages in the render pipeline.
@@ -117,7 +118,7 @@ namespace reshade { namespace api
 		/// <summary>
 		/// Descriptors are an array of <see cref="resource_view"/>.
 		/// </summary>
-		acceleration_structure = 8
+		acceleration_structure = 10
 	};
 
 	/// <summary>
@@ -140,6 +141,7 @@ namespace reshade { namespace api
 	{
 		/// <summary>
 		/// OpenGL uniform buffer binding index.
+		/// In Vulkan this is equivalent to an offset for the range (in 32-bit values).
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
@@ -1387,4 +1389,4 @@ namespace reshade { namespace api
 	/// </para>
 	/// </summary>
 	RESHADE_DEFINE_HANDLE(fence);
-} }
+}

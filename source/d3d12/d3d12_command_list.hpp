@@ -7,10 +7,11 @@
 
 #include "d3d12_impl_command_list.hpp"
 
-struct D3D12Device;
+class D3D12Device;
 
-struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList final : ID3D12GraphicsCommandList10, public reshade::d3d12::command_list_impl
+class DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList final : public ID3D12GraphicsCommandList10, public reshade::d3d12::command_list_impl
 {
+public:
 	D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);
 	~D3D12GraphicsCommandList();
 
@@ -133,7 +134,10 @@ struct DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsComman
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	ULONG _ref = 1;
+	using command_list_impl::_orig;
+	LONG _ref = 1;
 	unsigned short _interface_version = 0;
+
+private:
 	D3D12Device *const _device;
 };

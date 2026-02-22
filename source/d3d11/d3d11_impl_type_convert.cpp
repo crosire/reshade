@@ -26,11 +26,11 @@ auto reshade::d3d11::convert_color_space(api::color_space type) -> DXGI_COLOR_SP
 	default:
 		assert(false);
 		[[fallthrough]];
-	case api::color_space::srgb_nonlinear:
+	case api::color_space::srgb:
 		return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	case api::color_space::extended_srgb_linear:
+	case api::color_space::scrgb:
 		return DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
-	case api::color_space::hdr10_st2084:
+	case api::color_space::hdr10_pq:
 		return DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 	case api::color_space::hdr10_hlg:
 		return DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020;
@@ -40,17 +40,17 @@ auto reshade::d3d11::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 {
 	switch (type)
 	{
+	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
+		return api::color_space::srgb;
+	case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
+		return api::color_space::scrgb;
+	case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
+		return api::color_space::hdr10_pq;
+	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
+		return api::color_space::hdr10_hlg;
 	default:
 		assert(false);
 		return api::color_space::unknown;
-	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
-		return api::color_space::srgb_nonlinear;
-	case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
-		return api::color_space::extended_srgb_linear;
-	case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
-		return api::color_space::hdr10_st2084;
-	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
-		return api::color_space::hdr10_hlg;
 	}
 }
 
@@ -66,8 +66,6 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 		usage = D3D11_USAGE_DEFAULT;
 		break;
 	case api::memory_heap::cpu_to_gpu:
-		if (usage == D3D11_USAGE_DEFAULT && cpu_access_flags == D3D11_CPU_ACCESS_WRITE)
-			break;
 		usage = D3D11_USAGE_DYNAMIC;
 		cpu_access_flags |= D3D11_CPU_ACCESS_WRITE;
 		break;
@@ -80,6 +78,11 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 		if (cpu_access_flags == 0)
 			cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 		break;
+	case api::memory_heap::custom:
+		usage = D3D11_USAGE_DEFAULT;
+		if (cpu_access_flags == 0)
+			cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+		break;
 	}
 }
 static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, UINT cpu_access_flags, reshade::api::memory_heap &heap)
@@ -89,12 +92,9 @@ static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, UINT cpu_access_
 	switch (usage)
 	{
 	case D3D11_USAGE_DEFAULT:
-		if (cpu_access_flags == D3D11_CPU_ACCESS_WRITE)
-		{
-			heap = api::memory_heap::cpu_to_gpu;
-			break;
-		}
-		[[fallthrough]];
+		// The D3D11_FEATURE_DATA_D3D11_OPTIONS1::MapOnDefaultBuffers and D3D11_FEATURE_DATA_D3D11_OPTIONS2::MapOnDefaultTextures features allow default usage in combination with CPU access flags
+		heap = cpu_access_flags != 0 ? api::memory_heap::custom : api::memory_heap::gpu_only;
+		break;
 	case D3D11_USAGE_IMMUTABLE:
 		assert(cpu_access_flags == 0);
 		heap = api::memory_heap::gpu_only;

@@ -7,6 +7,7 @@
 #include "d3d12_device_downlevel.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
+#include "d3d12_extensions.hpp"
 #include "d3d12_descriptor_heap.hpp"
 #include "d3d12_pipeline_library.hpp"
 #include "d3d12_resource.hpp"
@@ -21,7 +22,7 @@
 
 using reshade::d3d12::to_handle;
 
-extern std::shared_mutex g_adapter_mutex;
+extern std::shared_mutex g_d3d12_adapter_mutex;
 
 D3D12Device::D3D12Device(ID3D12Device *original) :
 	device_impl(original)
@@ -112,13 +113,27 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 	}
 
 	// Interface ID to query the original object from a proxy object
-	constexpr GUID IID_UnwrappedObject = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } }; // {7F2C9A11-3B4E-4D6A-812F-5E9CD37A1B42}
 	if (riid == IID_UnwrappedObject)
 	{
 		_orig->AddRef();
 		*ppvObj = _orig;
 		return S_OK;
 	}
+
+#if RESHADE_ADDON >= 2
+	// Hook vkd3d device extension interfaces if they exist, to properly convert descriptor handles
+	if (riid == IID_ID3D12DeviceExt || riid == IID_ID3D12DeviceExt1)
+	{
+		const HRESULT hr = _orig->QueryInterface(riid, ppvObj);
+		if (SUCCEEDED(hr))
+		{
+			const auto device_ext = static_cast<IUnknown *>(*ppvObj);
+			reshade::hooks::install("ID3D12DeviceExt::GetCudaTextureObject", reshade::hooks::vtable_from_instance(device_ext), 7, &ID3D12DeviceExt_GetCudaTextureObject);
+			reshade::hooks::install("ID3D12DeviceExt::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(device_ext), 8, &ID3D12DeviceExt_GetCudaSurfaceObject);
+		}
+		return hr;
+	}
+#endif
 
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12DeviceDownlevel)) // {74EAEE3F-2F4B-476D-82BA-2B85CB49E310}
@@ -133,8 +148,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 
 		if (_downlevel != nullptr)
 			return _downlevel->QueryInterface(riid, ppvObj);
-		else
-			return E_NOINTERFACE;
+		return E_NOINTERFACE;
 	}
 
 	// Unimplemented interfaces:
@@ -146,14 +160,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::AddRef()
 {
-	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
 
 	_orig->AddRef();
 	return InterlockedIncrement(&_ref);
 }
 ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 {
-	const std::unique_lock<std::shared_mutex> lock(g_adapter_mutex);
+	const std::unique_lock<std::shared_mutex> lock(g_d3d12_adapter_mutex);
 
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
@@ -268,19 +282,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_G
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
-	assert(!g_in_d3d12_pipeline_creation);
-	g_in_d3d12_pipeline_creation = true;
-
 	if (ppPipelineState == nullptr || ( // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) &&
 		riid != __uuidof(ID3D12PipelineState1)) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
-
-#if RESHADE_ADDON >= 2
-	g_in_d3d12_pipeline_creation = false;
-#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -298,19 +305,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_CO
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
-	assert(!g_in_d3d12_pipeline_creation);
-	g_in_d3d12_pipeline_creation = true;
-
 	if (ppPipelineState == nullptr || ( // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) &&
 		riid != __uuidof(ID3D12PipelineState1)) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
-
-#if RESHADE_ADDON >= 2
-	g_in_d3d12_pipeline_creation = false;
-#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -447,7 +447,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 {
 #if RESHADE_ADDON >= 2
 	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
 #endif
 	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 
@@ -502,7 +502,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *
 
 #if RESHADE_ADDON >= 2
 	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
 #endif
 	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 
@@ -546,7 +546,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource 
 
 #if RESHADE_ADDON >= 2
 	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
 #endif
 	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
 
@@ -635,7 +635,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *p
 
 #if RESHADE_ADDON >= 2
 	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
 #endif
 	_orig->CreateSampler(pDesc, DestDescriptor);
 
@@ -727,9 +727,9 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 
 		temp_mem<D3D12_CPU_DESCRIPTOR_HANDLE, 32> descriptor_range_starts(NumDestDescriptorRanges + NumSrcDescriptorRanges);
 		for (UINT i = 0; i < NumDestDescriptorRanges; ++i)
-			descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pDestDescriptorRangeStarts[i]));
+			descriptor_range_starts[i] = convert_to_original_cpu_descriptor_handle(pDestDescriptorRangeStarts[i]);
 		for (UINT i = 0; i < NumSrcDescriptorRanges; ++i)
-			descriptor_range_starts[NumDestDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(pSrcDescriptorRangeStarts[i]));
+			descriptor_range_starts[NumDestDescriptorRanges + i] = convert_to_original_cpu_descriptor_handle(pSrcDescriptorRangeStarts[i]);
 
 		_orig->CopyDescriptors(NumDestDescriptorRanges, descriptor_range_starts.p, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, descriptor_range_starts.p + NumDestDescriptorRanges, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 		return;
@@ -771,15 +771,18 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors
 #if RESHADE_ADDON >= 2
 	if (DescriptorHeapsType <= D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
 	{
-		reshade::api::descriptor_table_copy copy;
-		copy.dest_table = convert_to_descriptor_table(DestDescriptorRangeStart);
-		copy.source_table = convert_to_descriptor_table(SrcDescriptorRangeStart);
-		copy.count = NumDescriptors;
+		if (reshade::has_addon_event<reshade::addon_event::copy_descriptor_tables>())
+		{
+			reshade::api::descriptor_table_copy copy;
+			copy.dest_table = convert_to_descriptor_table(DestDescriptorRangeStart);
+			copy.source_table = convert_to_descriptor_table(SrcDescriptorRangeStart);
+			copy.count = NumDescriptors;
 
-		if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_tables>(this, 1, &copy))
-			return;
+			if (reshade::invoke_addon_event<reshade::addon_event::copy_descriptor_tables>(this, 1, &copy))
+				return;
+		}
 
-		_orig->CopyDescriptorsSimple(NumDescriptors, convert_to_original_cpu_descriptor_handle(copy.dest_table), convert_to_original_cpu_descriptor_handle(copy.source_table), DescriptorHeapsType);
+		_orig->CopyDescriptorsSimple(NumDescriptors, convert_to_original_cpu_descriptor_handle(DestDescriptorRangeStart), convert_to_original_cpu_descriptor_handle(SrcDescriptorRangeStart), DescriptorHeapsType);
 		return;
 	}
 	else
@@ -1122,30 +1125,24 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 	assert(_interface_version >= 1);
 
 	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
-	if (SUCCEEDED(hr) && ppPipelineLibrary != nullptr)
+	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON >= 2
-		if (riid == __uuidof(ID3D12PipelineLibrary) ||
-			riid == __uuidof(ID3D12PipelineLibrary1))
+		if (ppPipelineLibrary != nullptr)
 		{
-			const auto pipeline_library = static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary);
+			const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
 
-			if (reshade::has_addon_event<reshade::addon_event::init_pipeline>() ||
-				reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
+			// Upgrade to the actual interface version requested here
+			if (pipeline_library_proxy->check_and_upgrade_interface(riid))
 			{
-				reshade::hooks::install("ID3D12PipelineLibrary::LoadGraphicsPipeline", reshade::hooks::vtable_from_instance(pipeline_library), 9, &ID3D12PipelineLibrary_LoadGraphicsPipeline);
-				reshade::hooks::install("ID3D12PipelineLibrary::LoadComputePipeline", reshade::hooks::vtable_from_instance(pipeline_library), 10, &ID3D12PipelineLibrary_LoadComputePipeline);
-
-				if (com_ptr<ID3D12PipelineLibrary1> pipeline_library1;
-					SUCCEEDED(pipeline_library->QueryInterface(IID_PPV_ARGS(&pipeline_library1))))
-				{
-					reshade::hooks::install("ID3D12PipelineLibrary1::LoadPipeline", reshade::hooks::vtable_from_instance(pipeline_library1.get()), 13, &ID3D12PipelineLibrary1_LoadPipeline);
-				}
+				*ppPipelineLibrary = pipeline_library_proxy;
 			}
-		}
-		else
-		{
-			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device1::CreatePipelineLibrary.", reshade::log::iid_to_string(riid).c_str());
+			else // Do not hook object if we do not support the requested interface
+			{
+				reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device1::CreatePipelineLibrary.", reshade::log::iid_to_string(riid).c_str());
+
+				delete pipeline_library_proxy; // Delete instead of release to keep reference count untouched
+			}
 		}
 #endif
 	}
@@ -1155,10 +1152,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 HRESULT STDMETHODCALLTYPE D3D12Device::SetEventOnMultipleFenceCompletion(ID3D12Fence *const *ppFences, const UINT64 *pFenceValues, UINT NumFences, D3D12_MULTIPLE_FENCE_WAIT_FLAGS Flags, HANDLE hEvent)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<ID3D12Device1 *>(_orig)->SetEventOnMultipleFenceCompletion(ppFences, pFenceValues, NumFences, Flags, hEvent);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetResidencyPriority(UINT NumObjects, ID3D12Pageable *const *ppObjects, const D3D12_RESIDENCY_PRIORITY *pPriorities)
 {
+	assert(_interface_version >= 1);
+
 #if RESHADE_ADDON >= 2
 	temp_mem<ID3D12Pageable *> objects(NumObjects);
 	for (UINT i = 0; i < NumObjects; ++i)
@@ -1172,7 +1172,6 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetResidencyPriority(UINT NumObjects, ID3
 	ppObjects = objects.p;
 #endif
 
-	assert(_interface_version >= 1);
 	return static_cast<ID3D12Device1 *>(_orig)->SetResidencyPriority(NumObjects, ppObjects, pPriorities);
 }
 
@@ -1185,19 +1184,12 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
-	assert(!g_in_d3d12_pipeline_creation);
-	g_in_d3d12_pipeline_creation = true;
-
 	if (ppPipelineState == nullptr || ( // This can happen when application only wants to validate input parameters
 		riid != __uuidof(ID3D12PipelineState) &&
 		riid != __uuidof(ID3D12PipelineState1)) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, *reinterpret_cast<ID3D12PipelineState **>(ppPipelineState), hr, true))
 #endif
 		hr = static_cast<ID3D12Device2 *>(_orig)->CreatePipelineState(pDesc, riid, ppPipelineState);
-
-#if RESHADE_ADDON >= 2
-	g_in_d3d12_pipeline_creation = false;
-#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppPipelineState != nullptr)
@@ -1212,15 +1204,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineState(const D3D12_PIPELINE_
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenExistingHeapFromAddress(const void *pAddress, REFIID riid, void **ppvHeap)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<ID3D12Device3 *>(_orig)->OpenExistingHeapFromAddress(pAddress, riid, ppvHeap);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenExistingHeapFromFileMapping(HANDLE hFileMapping, REFIID riid, void **ppvHeap)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<ID3D12Device3 *>(_orig)->OpenExistingHeapFromFileMapping(hFileMapping, riid, ppvHeap);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS Flags, UINT NumObjects, ID3D12Pageable *const *ppObjects, ID3D12Fence *pFenceToSignal, UINT64 FenceValueToSignal)
 {
+	assert(_interface_version >= 3);
+
 #if RESHADE_ADDON >= 2
 	temp_mem<ID3D12Pageable *> objects(NumObjects);
 	for (UINT i = 0; i < NumObjects; ++i)
@@ -1234,13 +1230,13 @@ HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS
 	ppObjects = objects.p;
 #endif
 
-	assert(_interface_version >= 3);
 	return static_cast<ID3D12Device3 *>(_orig)->EnqueueMakeResident(Flags, NumObjects, ppObjects, pFenceToSignal, FenceValueToSignal);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, D3D12_COMMAND_LIST_FLAGS flags, REFIID riid, void **ppCommandList)
 {
 	assert(_interface_version >= 4);
+
 	const HRESULT hr = static_cast<ID3D12Device4 *>(_orig)->CreateCommandList1(nodeMask, type, flags, riid, ppCommandList);
 	if (SUCCEEDED(hr))
 	{
@@ -1281,6 +1277,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList1(UINT nodeMask, D3D12_C
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession(const D3D12_PROTECTED_RESOURCE_SESSION_DESC *pDesc, REFIID riid, void **ppSession)
 {
 	assert(_interface_version >= 4);
+
 	return static_cast<ID3D12Device4 *>(_orig)->CreateProtectedResourceSession(pDesc, riid, ppSession);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvResource)
@@ -1343,6 +1340,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource1(const D3D12_HEAP
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap1(const D3D12_HEAP_DESC *pDesc, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvHeap)
 {
 	assert(_interface_version >= 4);
+
 	return static_cast<ID3D12Device4 *>(_orig)->CreateHeap1(pDesc, pProtectedSession, riid, ppvHeap);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvResource)
@@ -1403,32 +1401,38 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource1(const D3D12_RESOU
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo1(UINT VisibleMask, UINT NumResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)
 {
 	assert(_interface_version >= 4);
+
 	return static_cast<ID3D12Device4 *>(_orig)->GetResourceAllocationInfo1(VisibleMask, NumResourceDescs, pResourceDescs, pResourceAllocationInfo1);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateLifetimeTracker(ID3D12LifetimeOwner *pOwner, REFIID riid, void **ppvTracker)
 {
 	assert(_interface_version >= 5);
+
 	return static_cast<ID3D12Device5 *>(_orig)->CreateLifetimeTracker(pOwner, riid, ppvTracker);
 }
 void    STDMETHODCALLTYPE D3D12Device::RemoveDevice()
 {
 	assert(_interface_version >= 5);
+
 	static_cast<ID3D12Device5 *>(_orig)->RemoveDevice();
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::EnumerateMetaCommands(UINT *pNumMetaCommands, D3D12_META_COMMAND_DESC *pDescs)
 {
 	assert(_interface_version >= 5);
+
 	return static_cast<ID3D12Device5 *>(_orig)->EnumerateMetaCommands(pNumMetaCommands, pDescs);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::EnumerateMetaCommandParameters(REFGUID CommandId, D3D12_META_COMMAND_PARAMETER_STAGE Stage, UINT *pTotalStructureSizeInBytes, UINT *pParameterCount, D3D12_META_COMMAND_PARAMETER_DESC *pParameterDescs)
 {
 	assert(_interface_version >= 5);
+
 	return static_cast<ID3D12Device5 *>(_orig)->EnumerateMetaCommandParameters(CommandId, Stage, pTotalStructureSizeInBytes, pParameterCount, pParameterDescs);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateMetaCommand(REFGUID CommandId, UINT NodeMask, const void *pCreationParametersData, SIZE_T CreationParametersDataSizeInBytes, REFIID riid, void **ppMetaCommand)
 {
 	assert(_interface_version >= 5);
+
 	return static_cast<ID3D12Device5 *>(_orig)->CreateMetaCommand(CommandId, NodeMask, pCreationParametersData, CreationParametersDataSizeInBytes, riid, ppMetaCommand);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJECT_DESC *pDesc, REFIID riid, void **ppStateObject)
@@ -1440,18 +1444,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJEC
 
 	HRESULT hr = S_OK;
 #if RESHADE_ADDON >= 2
-	assert(!g_in_d3d12_pipeline_creation);
-	g_in_d3d12_pipeline_creation = true;
-
 	if (ppStateObject == nullptr ||
 		riid != __uuidof(ID3D12StateObject) ||
 		!invoke_create_and_init_pipeline_event(*pDesc, nullptr, *reinterpret_cast<ID3D12StateObject **>(ppStateObject), hr))
 #endif
 		hr = static_cast<ID3D12Device5 *>(_orig)->CreateStateObject(pDesc, riid, ppStateObject);
-
-#if RESHADE_ADDON >= 2
-	g_in_d3d12_pipeline_creation = false;
-#endif
 
 #if RESHADE_VERBOSE_LOG
 	if (FAILED(hr) && ppStateObject != nullptr)
@@ -1465,17 +1462,20 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateStateObject(const D3D12_STATE_OBJEC
 void    STDMETHODCALLTYPE D3D12Device::GetRaytracingAccelerationStructurePrebuildInfo(const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *pDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *pInfo)
 {
 	// assert(_interface_version >= 5); // Cyberpunk 2077 incorrectly calls this on a 'ID3D12Device3' object
+
 	static_cast<ID3D12Device5 *>(_orig)->GetRaytracingAccelerationStructurePrebuildInfo(pDesc, pInfo);
 }
 D3D12_DRIVER_MATCHING_IDENTIFIER_STATUS STDMETHODCALLTYPE D3D12Device::CheckDriverMatchingIdentifier(D3D12_SERIALIZED_DATA_TYPE SerializedDataType, const D3D12_SERIALIZED_DATA_DRIVER_MATCHING_IDENTIFIER *pIdentifierToCheck)
 {
 	assert(_interface_version >= 5);
+
 	return static_cast<ID3D12Device5 *>(_orig)->CheckDriverMatchingIdentifier(SerializedDataType, pIdentifierToCheck);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::SetBackgroundProcessingMode(D3D12_BACKGROUND_PROCESSING_MODE Mode, D3D12_MEASUREMENTS_ACTION MeasurementsAction, HANDLE hEventToSignalUponCompletion, BOOL *pbFurtherMeasurementsDesired)
 {
 	assert(_interface_version >= 6);
+
 	return static_cast<ID3D12Device6*>(_orig)->SetBackgroundProcessingMode(Mode, MeasurementsAction, hEventToSignalUponCompletion, pbFurtherMeasurementsDesired);
 }
 
@@ -1506,12 +1506,14 @@ HRESULT STDMETHODCALLTYPE D3D12Device::AddToStateObject(const D3D12_STATE_OBJECT
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateProtectedResourceSession1(const D3D12_PROTECTED_RESOURCE_SESSION_DESC1 *pDesc, REFIID riid, void **ppSession)
 {
 	assert(_interface_version >= 7);
+
 	return static_cast<ID3D12Device7 *>(_orig)->CreateProtectedResourceSession1(pDesc, riid, ppSession);
 }
 
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo2(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC1 *pResourceDescs, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)
 {
 	assert(_interface_version >= 8);
+
 	return static_cast<ID3D12Device8 *>(_orig)->GetResourceAllocationInfo2(visibleMask, numResourceDescs, pResourceDescs, pResourceAllocationInfo1);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource2(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1 *pDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, REFIID riid, void **ppvResource)
@@ -1631,26 +1633,30 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource1(ID3D12Heap *pHeap, 
 void    STDMETHODCALLTYPE D3D12Device::CreateSamplerFeedbackUnorderedAccessView(ID3D12Resource *pTargetedResource, ID3D12Resource *pFeedbackResource, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON >= 2
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(convert_to_descriptor_table(DestDescriptor));
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
 #endif
 
 	assert(_interface_version >= 8);
+
 	static_cast<ID3D12Device8 *>(_orig)->CreateSamplerFeedbackUnorderedAccessView(pTargetedResource, pFeedbackResource, DestDescriptor);
 }
 void    STDMETHODCALLTYPE D3D12Device::GetCopyableFootprints1(const D3D12_RESOURCE_DESC1 *pResourceDesc, UINT FirstSubresource, UINT NumSubresources, UINT64 BaseOffset, D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts, UINT *pNumRows, UINT64 *pRowSizeInBytes, UINT64 *pTotalBytes)
 {
 	assert(_interface_version >= 8);
+
 	static_cast<ID3D12Device8 *>(_orig)->GetCopyableFootprints1(pResourceDesc, FirstSubresource, NumSubresources, BaseOffset, pLayouts, pNumRows, pRowSizeInBytes, pTotalBytes);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateShaderCacheSession(const D3D12_SHADER_CACHE_SESSION_DESC *pDesc, REFIID riid, void **ppvSession)
 {
 	assert(_interface_version >= 9);
+
 	return static_cast<ID3D12Device9 *>(_orig)->CreateShaderCacheSession(pDesc, riid, ppvSession);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::ShaderCacheControl(D3D12_SHADER_CACHE_KIND_FLAGS Kinds, D3D12_SHADER_CACHE_CONTROL_FLAGS Control)
 {
 	assert(_interface_version >= 9);
+
 	return static_cast<ID3D12Device9 *>(_orig)->ShaderCacheControl(Kinds, Control);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue1(const D3D12_COMMAND_QUEUE_DESC *pDesc, REFIID CreatorID, REFIID riid, void **ppCommandQueue)
@@ -1897,7 +1903,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler2(const D3D12_SAMPLER_DESC2 
 
 #if RESHADE_ADDON >= 2
 	const reshade::api::descriptor_table table = convert_to_descriptor_table(DestDescriptor);
-	DestDescriptor = convert_to_original_cpu_descriptor_handle(table);
+	DestDescriptor = convert_to_original_cpu_descriptor_handle(DestDescriptor);
 #endif
 	static_cast<ID3D12Device11 *>(_orig)->CreateSampler2(pDesc, DestDescriptor);
 
@@ -1926,18 +1932,21 @@ void    STDMETHODCALLTYPE D3D12Device::CreateSampler2(const D3D12_SAMPLER_DESC2 
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo3(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC1 *pResourceDescs, const UINT32 *pNumCastableFormats, const DXGI_FORMAT *const *ppCastableFormats, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)
 {
 	assert(_interface_version >= 12);
+
 	return static_cast<ID3D12Device12 *>(_orig)->GetResourceAllocationInfo3(visibleMask, numResourceDescs, pResourceDescs, pNumCastableFormats, ppCastableFormats, pResourceAllocationInfo1);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenExistingHeapFromAddress1(const void *pAddress, SIZE_T size, REFIID riid, void **ppvHeap)
 {
 	assert(_interface_version >= 13);
+
 	return static_cast<ID3D12Device13 *>(_orig)->OpenExistingHeapFromAddress1(pAddress, size, riid, ppvHeap);
 }
 
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignatureFromSubobjectInLibrary(UINT nodeMask, const void *pLibraryBlob, SIZE_T blobLengthInBytes, LPCWSTR subobjectName, REFIID riid, void **ppvRootSignature)
 {
 	assert(_interface_version >= 14);
+
 	return static_cast<ID3D12Device14 *>(_orig)->CreateRootSignatureFromSubobjectInLibrary(nodeMask, pLibraryBlob, blobLengthInBytes, subobjectName, riid, ppvRootSignature);
 }
 
@@ -2771,116 +2780,116 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 				switch (param_type)
 				{
 				case D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
-				{
-					const uint32_t range_count = param_data[0];
-					uint32_t descriptor_offset = 0;
-
-					ranges[param_index].resize(range_count);
-
-					// Convert descriptor ranges
-					switch (version)
 					{
-					case D3D_ROOT_SIGNATURE_VERSION_1_0:
-					{
-						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(part + (param_data[1] / sizeof(uint32_t)));
+						const uint32_t range_count = param_data[0];
+						uint32_t descriptor_offset = 0;
 
-						for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+						ranges[param_index].resize(range_count);
+
+						// Convert descriptor ranges
+						switch (version)
 						{
-							reshade::api::descriptor_range &range = ranges[param_index][range_index];
-							range.dx_register_index = range_data->BaseShaderRegister;
-							range.dx_register_space = range_data->RegisterSpace;
-							range.count = range_data->NumDescriptors;
-							range.array_size = 1;
-							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						case D3D_ROOT_SIGNATURE_VERSION_1_0:
+							{
+								auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE *>(part + (param_data[1] / sizeof(uint32_t)));
 
-							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-								range.binding = descriptor_offset;
-							else
-								range.binding = range_data->OffsetInDescriptorsFromTableStart;
+								for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+								{
+									reshade::api::descriptor_range &range = ranges[param_index][range_index];
+									range.dx_register_index = range_data->BaseShaderRegister;
+									range.dx_register_space = range_data->RegisterSpace;
+									range.count = range_data->NumDescriptors;
+									range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+									range.array_size = 1;
+									range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
 
-							if (range_data->NumDescriptors == UINT_MAX)
-								// Only the last entry in a table can have an unbounded size
-								assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-							else
-								descriptor_offset = range.binding + range.count;
+									if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+										range.binding = descriptor_offset;
+									else
+										range.binding = range_data->OffsetInDescriptorsFromTableStart;
+
+									if (range_data->NumDescriptors == UINT_MAX)
+										// Only the last entry in a table can have an unbounded size
+										assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+									else
+										descriptor_offset = range.binding + range.count;
+								}
+							}
+							break;
+						case D3D_ROOT_SIGNATURE_VERSION_1_1:
+						case D3D_ROOT_SIGNATURE_VERSION_1_2:
+							{
+								auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(part + (param_data[1] / sizeof(uint32_t)));
+
+								for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
+								{
+									reshade::api::descriptor_range &range = ranges[param_index][range_index];
+									range.dx_register_index = range_data->BaseShaderRegister;
+									range.dx_register_space = range_data->RegisterSpace;
+									range.count = range_data->NumDescriptors;
+									range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+									range.array_size = 1;
+									range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
+
+									if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
+										range.binding = descriptor_offset;
+									else
+										range.binding = range_data->OffsetInDescriptorsFromTableStart;
+
+									if (range_data->NumDescriptors == UINT_MAX)
+										// Only the last entry in a table can have an unbounded size
+										assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+									else
+										descriptor_offset = range.binding + range.count;
+								}
+							}
+							break;
 						}
-						break;
+
+						params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
+						params[param_index].descriptor_table.count = range_count;
+						params[param_index].descriptor_table.ranges = ranges[param_index].data();
 					}
-					case D3D_ROOT_SIGNATURE_VERSION_1_1:
-					case D3D_ROOT_SIGNATURE_VERSION_1_2:
-					{
-						auto range_data = reinterpret_cast<const D3D12_DESCRIPTOR_RANGE1 *>(part + (param_data[1] / sizeof(uint32_t)));
-
-						for (uint32_t range_index = 0; range_index < range_count; ++range_index, ++range_data)
-						{
-							reshade::api::descriptor_range &range = ranges[param_index][range_index];
-							range.dx_register_index = range_data->BaseShaderRegister;
-							range.dx_register_space = range_data->RegisterSpace;
-							range.count = range_data->NumDescriptors;
-							range.array_size = 1;
-							range.type = reshade::d3d12::convert_descriptor_type(range_data->RangeType);
-							range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
-
-							if (range_data->OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND)
-								range.binding = descriptor_offset;
-							else
-								range.binding = range_data->OffsetInDescriptorsFromTableStart;
-
-							if (range_data->NumDescriptors == UINT_MAX)
-								// Only the last entry in a table can have an unbounded size
-								assert(range_index == (range_count - 1) || range_data[1].OffsetInDescriptorsFromTableStart != D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-							else
-								descriptor_offset = range.binding + range.count;
-						}
-						break;
-					}
-					}
-
-					params[param_index].type = reshade::api::pipeline_layout_param_type::descriptor_table;
-					params[param_index].descriptor_table.count = range_count;
-					params[param_index].descriptor_table.ranges = ranges[param_index].data();
 					break;
-				}
 				case D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS:
-				{
-					auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
+					{
+						auto constant_data = reinterpret_cast<const D3D12_ROOT_CONSTANTS *>(param_data);
 
-					params[param_index].type = reshade::api::pipeline_layout_param_type::push_constants;
+						params[param_index].type = reshade::api::pipeline_layout_param_type::push_constants;
 
-					// Convert root constant description
-					reshade::api::constant_range &root_constant = params[param_index].push_constants;
-					root_constant.binding = 0;
-					root_constant.dx_register_index = constant_data->ShaderRegister;
-					root_constant.dx_register_space = constant_data->RegisterSpace;
-					root_constant.count = constant_data->Num32BitValues;
-					root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						// Convert root constant description
+						reshade::api::constant_range &root_constant = params[param_index].push_constants;
+						root_constant.binding = 0;
+						root_constant.dx_register_index = constant_data->ShaderRegister;
+						root_constant.dx_register_space = constant_data->RegisterSpace;
+						root_constant.count = constant_data->Num32BitValues;
+						root_constant.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+					}
 					break;
-				}
 				case D3D12_ROOT_PARAMETER_TYPE_CBV:
 				case D3D12_ROOT_PARAMETER_TYPE_SRV:
 				case D3D12_ROOT_PARAMETER_TYPE_UAV:
-				{
-					auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
+					{
+						auto descriptor_data = reinterpret_cast<const D3D12_ROOT_DESCRIPTOR *>(param_data);
 
-					params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors;
+						params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors;
 
-					reshade::api::descriptor_range &range = params[param_index].push_descriptors;
-					range.binding = 0;
-					range.dx_register_index = descriptor_data->ShaderRegister;
-					range.dx_register_space = descriptor_data->RegisterSpace;
-					range.count = 1;
-					range.array_size = 1;
-					range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						reshade::api::descriptor_range &range = params[param_index].push_descriptors;
+						range.binding = 0;
+						range.dx_register_index = descriptor_data->ShaderRegister;
+						range.dx_register_space = descriptor_data->RegisterSpace;
+						range.count = 1;
+						range.visibility = reshade::d3d12::convert_shader_visibility(shader_visibility);
+						range.array_size = 1;
 
-					if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
-						range.type = reshade::api::descriptor_type::constant_buffer;
-					else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
-						range.type = reshade::api::descriptor_type::buffer_shader_resource_view;
-					else
-						range.type = reshade::api::descriptor_type::buffer_unordered_access_view;
+						if (param_type == D3D12_ROOT_PARAMETER_TYPE_CBV)
+							range.type = reshade::api::descriptor_type::constant_buffer;
+						else if (param_type == D3D12_ROOT_PARAMETER_TYPE_SRV)
+							range.type = reshade::api::descriptor_type::buffer_shader_resource_view;
+						else
+							range.type = reshade::api::descriptor_type::buffer_unordered_access_view;
+					}
 					break;
-				}
 				}
 			}
 		}

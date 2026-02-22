@@ -7,12 +7,17 @@
 
 #include "d3d9_impl_device.hpp"
 
-struct Direct3DSwapChain9;
-struct Direct3DDevice9On12;
-struct Direct3DDepthStencilSurface9;
+class Direct3DSwapChain9;
+class Direct3DDevice9On12;
+class Direct3DDepthStencilSurface9;
 
-struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 final : IDirect3DDevice9Ex, public reshade::d3d9::device_impl
+class DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 final : public IDirect3DDevice9Ex, public reshade::d3d9::device_impl
 {
+	friend class Direct3DSwapChain9;
+	friend class Direct3DDevice9On12;
+	friend class Direct3DDepthStencilSurface9;
+
+public:
 	Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering);
 	Direct3DDevice9(IDirect3DDevice9Ex *original, bool use_software_rendering);
 	~Direct3DDevice9();
@@ -158,6 +163,18 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
+	bool check_and_upgrade_interface(REFIID riid);
+
+	LONG _ref = 1;
+	LONG _resource_ref = 0;
+	bool _extended_interface = false;
+
+	const bool _use_software_rendering;
+	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
+	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
+	Direct3DDevice9On12 *_d3d9on12_device = nullptr;
+
+private:
 #if RESHADE_ADDON
 	void on_init();
 	void on_reset();
@@ -169,15 +186,6 @@ struct DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 fin
 	void resize_primitive_up_buffers(UINT vertex_buffer_size, UINT index_buffer_size, UINT index_size);
 #endif
 
-	bool check_and_upgrade_interface(REFIID riid);
-
-	LONG _ref = 1;
-	LONG _resource_ref = 0;
-	bool _extended_interface;
-	const bool _use_software_rendering;
-	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
-	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
-	Direct3DDevice9On12 *_d3d9on12_device = nullptr;
 #if RESHADE_ADDON
 	Direct3DDepthStencilSurface9 *_auto_depth_stencil = nullptr;
 	com_ptr<Direct3DDepthStencilSurface9> _current_depth_stencil;

@@ -10,8 +10,6 @@
 #include <cstring> // std::strlen, std::strncpy
 #include <algorithm> // std::copy_n, std::fill, std::max, std::min
 
-constexpr GUID IID_ID3D12GraphicsCommandListExt = { 0x77a86b09, 0x2bea, 0x4801, { 0xb8, 0x9a, 0x37, 0x64, 0x8e, 0x10, 0x4a, 0xf1 } };
-
 void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const float color[4])
 {
 	pix3blob[0] = (0x2ull /* PIXEvent_BeginEvent_NoArgs */ << 10);
@@ -249,7 +247,12 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			break;
 		case api::dynamic_state::blend_constant:
 			{
-				const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+				const float blend_constant[4] = {
+					((values[i]      ) & 0xFF) / 255.0f,
+					((values[i] >>  4) & 0xFF) / 255.0f,
+					((values[i] >>  8) & 0xFF) / 255.0f,
+					((values[i] >> 12) & 0xFF) / 255.0f
+				};
 				_orig->OMSetBlendFactor(blend_constant);
 			}
 			break;
@@ -353,23 +356,6 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 {
 	const auto root_signature = reinterpret_cast<ID3D12RootSignature *>(layout.handle);
 
-	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
-	{
-		if (root_signature != _current_root_signature[1])
-		{
-			_current_root_signature[1] = root_signature;
-			_orig->SetComputeRootSignature(root_signature);
-		}
-	}
-	if ((stages & api::shader_stage::all_graphics) != 0)
-	{
-		if (root_signature != _current_root_signature[0])
-		{
-			_current_root_signature[0] = root_signature;
-			_orig->SetGraphicsRootSignature(root_signature);
-		}
-	}
-
 	assert(update.table == 0 && update.array_offset == 0);
 
 	const D3D12_DESCRIPTOR_HEAP_TYPE heap_type = convert_descriptor_type_to_heap_type(update.type);
@@ -379,11 +365,28 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		update.type != api::descriptor_type::texture_shader_resource_view &&
 		update.type != api::descriptor_type::texture_unordered_access_view)
 	{
+		if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
+		{
+			if (root_signature != _current_root_signature[1])
+			{
+				_current_root_signature[1] = root_signature;
+				_orig->SetComputeRootSignature(root_signature);
+			}
+		}
+		if ((stages & api::shader_stage::all_graphics) != 0)
+		{
+			if (root_signature != _current_root_signature[0])
+			{
+				_current_root_signature[0] = root_signature;
+				_orig->SetGraphicsRootSignature(root_signature);
+			}
+		}
+
 		if (update.type == api::descriptor_type::constant_buffer)
 		{
 			const auto &view_range = *static_cast<const api::buffer_range *>(update.descriptors);
 
-			const D3D12_GPU_VIRTUAL_ADDRESS view_address = reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetGPUVirtualAddress() + view_range.offset;
+			const D3D12_GPU_VIRTUAL_ADDRESS view_address = _device_impl->get_resource_gpu_address(view_range.buffer) + view_range.offset;
 			assert(view_address != 0);
 
 			if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
@@ -434,7 +437,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			const auto &view_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-			view_desc.BufferLocation = reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetGPUVirtualAddress() + view_range.offset;
+			view_desc.BufferLocation = _device_impl->get_resource_gpu_address(view_range.buffer) + view_range.offset;
 			view_desc.SizeInBytes = static_cast<UINT>(view_range.size == UINT64_MAX ? reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetDesc().Width - view_range.offset : view_range.size);
 
 			_device_impl->_orig->CreateConstantBufferView(&view_desc, base_handle);
@@ -498,9 +501,25 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 #endif
 
 	if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
+	{
+		if (root_signature != _current_root_signature[1])
+		{
+			_current_root_signature[1] = root_signature;
+			_orig->SetComputeRootSignature(root_signature);
+		}
+
 		_orig->SetComputeRootDescriptorTable(layout_param, base_handle_gpu);
+	}
 	if ((stages & api::shader_stage::all_graphics) != 0)
+	{
+		if (root_signature != _current_root_signature[0])
+		{
+			_current_root_signature[0] = root_signature;
+			_orig->SetGraphicsRootSignature(root_signature);
+		}
+
 		_orig->SetGraphicsRootDescriptorTable(layout_param, base_handle_gpu);
+	}
 }
 void reshade::d3d12::command_list_impl::bind_descriptor_tables(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables)
 {
@@ -582,12 +601,10 @@ void reshade::d3d12::command_list_impl::bind_index_buffer(api::resource buffer, 
 	{
 		assert(index_size == 2 || index_size == 4);
 
-		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffer.handle);
-
 		D3D12_INDEX_BUFFER_VIEW view;
-		view.BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
+		view.BufferLocation = _device_impl->get_resource_gpu_address(buffer) + offset;
 		view.Format = (index_size == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-		view.SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offset);
+		view.SizeInBytes = static_cast<UINT>(reinterpret_cast<ID3D12Resource *>(buffer.handle)->GetDesc().Width - offset);
 
 		_orig->IASetIndexBuffer(&view);
 	}
@@ -603,11 +620,10 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 	temp_mem<D3D12_VERTEX_BUFFER_VIEW, D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> views(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
-		const auto offset = (offsets != nullptr ? offsets[i] : 0);
+		const uint64_t offset = (offsets != nullptr ? offsets[i] : 0);
 
-		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
-		views[i].SizeInBytes = static_cast<UINT>(buffer_resource->GetDesc().Width - offset);
+		views[i].BufferLocation = _device_impl->get_resource_gpu_address(buffers[i]) + offset;
+		views[i].SizeInBytes = static_cast<UINT>(reinterpret_cast<ID3D12Resource *>(buffers[i].handle)->GetDesc().Width - offset);
 		views[i].StrideInBytes = strides[i];
 	}
 
@@ -620,14 +636,12 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 	temp_mem<D3D12_STREAM_OUTPUT_BUFFER_VIEW, D3D12_SO_BUFFER_SLOT_COUNT> views(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		const auto buffer_resource = reinterpret_cast<ID3D12Resource *>(buffers[i].handle);
-		const auto offset = (offsets != nullptr) ? offsets[i] : 0;
-		const auto counter_buffer_resource = reinterpret_cast<ID3D12Resource *>(counter_buffers[i].handle);
-		const auto counter_offset = (counter_offsets != nullptr) ? counter_offsets[i] : 0;
+		const uint64_t offset = (offsets != nullptr) ? offsets[i] : 0;
+		const uint64_t counter_offset = (counter_offsets != nullptr) ? counter_offsets[i] : 0;
 
-		views[i].BufferLocation = buffer_resource->GetGPUVirtualAddress() + offset;
+		views[i].BufferLocation = _device_impl->get_resource_gpu_address(buffers[i]) + offset;
 		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[0] : 0;
-		views[i].BufferFilledSizeLocation = counter_buffer_resource->GetGPUVirtualAddress() + counter_offset;
+		views[i].BufferFilledSizeLocation = _device_impl->get_resource_gpu_address(counter_buffers[i]) + counter_offset;
 	}
 
 	_orig->SOSetTargets(first, count, views.p);
@@ -668,15 +682,15 @@ void reshade::d3d12::command_list_impl::dispatch_rays(api::resource raygen, uint
 	if (_supports_ray_tracing)
 	{
 		D3D12_DISPATCH_RAYS_DESC desc;
-		desc.RayGenerationShaderRecord.StartAddress = (raygen != 0 ? reinterpret_cast<ID3D12Resource *>(raygen.handle)->GetGPUVirtualAddress() : 0) + raygen_offset;
+		desc.RayGenerationShaderRecord.StartAddress = _device_impl->get_resource_gpu_address(raygen) + raygen_offset;
 		desc.RayGenerationShaderRecord.SizeInBytes = raygen_size;
-		desc.MissShaderTable.StartAddress = (miss != 0 ? reinterpret_cast<ID3D12Resource *>(miss.handle)->GetGPUVirtualAddress() : 0) + miss_offset;
+		desc.MissShaderTable.StartAddress = _device_impl->get_resource_gpu_address(miss) + miss_offset;
 		desc.MissShaderTable.SizeInBytes = miss_size;
 		desc.MissShaderTable.StrideInBytes = miss_stride;
-		desc.HitGroupTable.StartAddress = (hit_group != 0 ? reinterpret_cast<ID3D12Resource *>(hit_group.handle)->GetGPUVirtualAddress() : 0) + hit_group_offset;
+		desc.HitGroupTable.StartAddress = _device_impl->get_resource_gpu_address(hit_group) + hit_group_offset;
 		desc.HitGroupTable.SizeInBytes = hit_group_size;
 		desc.HitGroupTable.StrideInBytes = hit_group_stride;
-		desc.CallableShaderTable.StartAddress = (callable != 0 ? reinterpret_cast<ID3D12Resource *>(callable.handle)->GetGPUVirtualAddress() : 0) + callable_offset;
+		desc.CallableShaderTable.StartAddress = _device_impl->get_resource_gpu_address(callable) + callable_offset;
 		desc.CallableShaderTable.SizeInBytes = callable_size;
 		desc.CallableShaderTable.StrideInBytes = callable_stride;
 		desc.Width = width;
@@ -1089,7 +1103,6 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		const uint32_t height = std::max(1u, desc.Height >> (view_desc.texture.first_level + level));
 
 		_orig->SetComputeRoot32BitConstant(0, level_count - level, 0);
-
 		_orig->SetComputeRootDescriptorTable(1, _device_impl->offset_descriptor_handle(base_handle_gpu, level, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 		_orig->Dispatch(((width - 1) / 64) + 1, ((height - 1) / 64) + 1, desc.DepthOrArraySize);
@@ -1171,7 +1184,7 @@ void reshade::d3d12::command_list_impl::build_acceleration_structure(api::accele
 		desc.Inputs.Flags = convert_acceleration_structure_build_flags(flags, mode);
 		desc.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 		desc.SourceAccelerationStructureData = source.handle;
-		desc.ScratchAccelerationStructureData = (scratch != 0 ? reinterpret_cast<ID3D12Resource *>(scratch.handle)->GetGPUVirtualAddress() : 0) + scratch_offset;
+		desc.ScratchAccelerationStructureData = _device_impl->get_resource_gpu_address(scratch) + scratch_offset;
 
 		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
 
@@ -1181,7 +1194,7 @@ void reshade::d3d12::command_list_impl::build_acceleration_structure(api::accele
 
 			desc.Inputs.NumDescs = inputs->instances.count;
 			desc.Inputs.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
-			desc.Inputs.InstanceDescs = (inputs->instances.buffer != 0 ? reinterpret_cast<ID3D12Resource *>(inputs->instances.buffer.handle)->GetGPUVirtualAddress() : 0) + inputs->instances.offset;
+			desc.Inputs.InstanceDescs = _device_impl->get_resource_gpu_address(inputs->instances.buffer) + inputs->instances.offset;
 		}
 		else
 		{

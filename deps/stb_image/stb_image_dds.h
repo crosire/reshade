@@ -1,5 +1,5 @@
 /* DDS file support
-   License: Public Domain, http://lonesock.net/soil.html
+   License: Public Domain (for more information, please refer to https://unlicense.org/), http://lonesock.net/soil.html
    Modified fork that adds basic DDS_HEADER_DXT10 and volume support
  */
 

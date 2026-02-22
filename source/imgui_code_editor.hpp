@@ -10,6 +10,7 @@
 #include <string_view>
 #include <vector>
 #include <unordered_map>
+#include <cstdint>
 
 struct ImFont;
 struct ImDrawData;
@@ -288,6 +289,7 @@ namespace reshade::imgui
 		char _search_text[256] = "";
 		char _replace_text[256] = "";
 		bool _search_case_sensitive = false;
+		bool _search_whole_word = false;
 
 		size_t _colorize_line_beg = 0;
 		size_t _colorize_line_end = 0;

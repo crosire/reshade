@@ -7,6 +7,7 @@
 
 #include "effect_module.hpp"
 #include "moving_average.hpp"
+#include <algorithm>
 
 namespace reshade
 {
@@ -239,8 +240,8 @@ namespace reshade
 		{
 			reshadefx::effect_module module;
 			std::string generated_code;
+			std::unordered_map<std::string, std::string> cso;
 			std::unordered_map<std::string, std::string> assembly;
-			std::unordered_map<std::string, std::string> assembly_text;
 
 			api::pipeline_layout layout = {};
 			api::descriptor_table cb_table = {};

@@ -11,7 +11,6 @@
 
 D3D11On12Device::D3D11On12Device(D3D11Device *device_11, D3D12Device *device_12, ID3D11On12Device *original) :
 	_orig(original),
-	_interface_version(0),
 	_parent_device_11(device_11),
 	_parent_device_12(device_12)
 {
@@ -69,15 +68,6 @@ HRESULT STDMETHODCALLTYPE D3D11On12Device::QueryInterface(REFIID riid, void **pp
 	{
 		AddRef();
 		*ppvObj = this;
-		return S_OK;
-	}
-
-	// Interface ID to query the original object from a proxy object
-	constexpr GUID IID_UnwrappedObject = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } }; // {7F2C9A11-3B4E-4D6A-812F-5E9CD37A1B42}
-	if (riid == IID_UnwrappedObject)
-	{
-		_orig->AddRef();
-		*ppvObj = _orig;
 		return S_OK;
 	}
 

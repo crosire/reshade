@@ -7,11 +7,14 @@
 
 #include "d3d12_impl_command_queue.hpp"
 
-struct D3D12Device;
-struct D3D12CommandQueueDownlevel;
+class D3D12Device;
+class D3D12CommandQueueDownlevel;
 
-struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : ID3D12CommandQueue1, public reshade::d3d12::command_queue_impl
+class DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : public ID3D12CommandQueue1, public reshade::d3d12::command_queue_impl
 {
+	friend class D3D12CommandQueueDownlevel;
+
+public:
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original);
 	~D3D12CommandQueue();
 
@@ -51,8 +54,12 @@ struct DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue f
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	ULONG _ref = 1;
+	using command_queue_impl::_orig;
+	LONG _ref = 1;
 	unsigned short _interface_version = 0;
+
 	D3D12Device *const _device;
+
+private:
 	D3D12CommandQueueDownlevel *_downlevel = nullptr;
 };

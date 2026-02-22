@@ -10,11 +10,7 @@
 #include "addon_manager.hpp"
 #include <Windows.h>
 #include <Psapi.h>
-#ifndef NDEBUG
-#include <DbgHelp.h>
-
-static PVOID s_exception_handler_handle = nullptr;
-#endif
+#include <delayimp.h> // Delay-load helpers
 
 // Export special symbol to identify modules as ReShade instances
 extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
@@ -30,8 +26,7 @@ std::filesystem::path g_target_executable_path;
 /// </summary>
 bool is_uwp_app()
 {
-	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI *)(UINT32 *, PWSTR)>(
-		GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentPackageFullName"));
+	const auto GetCurrentPackageFullName = reinterpret_cast<LONG(WINAPI *)(UINT32 *, PWSTR)>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetCurrentPackageFullName"));
 	if (GetCurrentPackageFullName == nullptr)
 		return false;
 	// This will return APPMODEL_ERROR_NO_PACKAGE if not a packaged UWP app
@@ -57,6 +52,9 @@ bool is_windows7()
 /// </summary>
 static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
 {
+	if (path.empty())
+		return false;
+
 	WCHAR buf[4096];
 	if (ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
 		path = buf;
@@ -75,42 +73,28 @@ static bool resolve_env_path(std::filesystem::path &path, const std::filesystem:
 /// </summary>
 std::filesystem::path get_base_path(bool default_to_target_executable_path = false)
 {
-	std::filesystem::path result;
+	std::filesystem::path path_override;
 
 	// Cannot use global config here yet, since it uses base path for look up, so look at config file next to target executable instead
-	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", result) &&
-		resolve_env_path(result))
-		return result;
+	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", path_override) &&
+		resolve_env_path(path_override))
+		return path_override;
 
 	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
-		resolve_env_path(result = buf))
-		return result;
+	path_override.assign(buf, buf + GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)));
+	if (resolve_env_path(path_override))
+		return path_override;
 
 	return default_to_target_executable_path ? g_target_executable_path.parent_path() : g_reshade_dll_path.parent_path();
 }
 
 /// <summary>
-/// Returns the path to the "System32" directory or the module path from global configuration if it exists.
+/// Returns the path to the Windows System32 directory.
 /// </summary>
 std::filesystem::path get_system_path()
 {
-	static std::filesystem::path result;
-	if (!result.empty())
-		return result; // Return the cached path if it exists
-
-	if (reshade::global_config().get("INSTALL", "ModulePath", result) &&
-		resolve_env_path(result))
-		return result;
-
 	WCHAR buf[4096];
-	if (GetEnvironmentVariableW(L"RESHADE_MODULE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)) &&
-		resolve_env_path(result = buf))
-		return result;
-
-	// First try environment variable, use system directory if it does not exist or is empty
-	GetSystemDirectoryW(buf, ARRAYSIZE(buf));
-	return result = buf;
+	return std::filesystem::path(buf, buf + GetSystemDirectoryW(buf, ARRAYSIZE(buf)));
 }
 
 /// <summary>
@@ -119,16 +103,22 @@ std::filesystem::path get_system_path()
 std::filesystem::path get_module_path(HMODULE module)
 {
 	WCHAR buf[4096];
-	return GetModuleFileNameW(module, buf, ARRAYSIZE(buf)) ? buf : std::filesystem::path();
+	return std::filesystem::path(buf, buf + GetModuleFileNameW(module, buf, ARRAYSIZE(buf)));
 }
 
 #ifndef RESHADE_TEST_APPLICATION
+
+#ifndef NDEBUG
+#include <DbgHelp.h>
+
+static PVOID s_exception_handler_handle = nullptr;
+#endif
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 {
 	switch (fdwReason)
 	{
-		case DLL_PROCESS_ATTACH:
+	case DLL_PROCESS_ATTACH:
 		{
 			// Do NOT call 'DisableThreadLibraryCalls', since we are linking against the static CRT, which requires the thread notifications to work properly
 			// It does not do anything when static TLS is used anyway, which is the case (see https://docs.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-disablethreadlibrarycalls)
@@ -155,6 +145,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			// This e.g. prevents loading the implicit Vulkan layer when not explicitly enabled for an application
 			if (default_base_to_target_executable_path && !GetEnvironmentVariableW(L"RESHADE_DISABLE_LOADING_CHECK", nullptr, 0))
 			{
+#ifndef NDEBUG
+				// Avoid loading in the ReShade test application
+				if (g_target_executable_path.filename() ==
+#ifndef _WIN64
+						L"ReShade32.exe"
+#else
+						L"ReShade64.exe"
+#endif
+						)
+				{
+					return FALSE;
+				}
+#endif
+
 				std::error_code ec;
 				if (!std::filesystem::exists(config.path(), ec))
 				{
@@ -210,7 +214,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			// Check if another ReShade instance was already loaded into the process
 			if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
 			{
-				for (DWORD i = 0; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
+				// Skip first module (the main application module)
+				for (DWORD i = 1; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
 				{
 					if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 					{
@@ -282,6 +287,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			// Register modules to hook
 			{
+				std::filesystem::path export_module_path;
+				if (reshade::global_config().get("PROXY", "EnableProxyLibrary") &&
+					reshade::global_config().get("PROXY", "ProxyLibrary", export_module_path))
+				{
+					reshade::hooks::register_export_module(g_reshade_base_path / export_module_path);
+				}
+
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_INPUT_HOOK", nullptr, 0))
 				{
 					g_exit_event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
@@ -309,12 +321,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 				if (!GetEnvironmentVariableW(L"RESHADE_DISABLE_GRAPHICS_HOOK", nullptr, 0))
 				{
 					// Can optionally hook the graphics entry points exported by NVIDIA Streamline, instead of the system ones, to have ReShade apply before Streamline
-					// This does not work when module is called dxgi.dll though, as Streamline would then load the ReShade module itself again to continue its call chain 
+					// This does not work when module is called dxgi.dll though, as Streamline would then load the ReShade module itself again to continue its call chain
 					const bool streamline = !is_d3d && !is_dxgi && config.get("INSTALL", "HookStreamline");
 					if (streamline)
 					{
 						reshade::hooks::register_module(L"sl.interposer.dll");
 					}
+
+					const auto get_target_path = [](bool any, const wchar_t *dll) { return any ? dll : get_system_path() / dll; };
 
 					// Only register DirectX hooks when module is not called opengl32.dll
 					if ((!is_opengl && !streamline) || config.get("INSTALL", "HookDirectX"))
@@ -325,17 +339,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 						reshade::hooks::register_module(get_system_path() / L"d2d1.dll");
 						reshade::hooks::register_module(get_system_path() / L"d3d9.dll");
-						reshade::hooks::register_module(get_system_path() / L"d3d10.dll");
-						reshade::hooks::register_module(get_system_path() / L"d3d10_1.dll");
-						reshade::hooks::register_module(get_system_path() / L"d3d11.dll");
+
+						reshade::hooks::register_module(get_target_path(!export_module_path.empty() && is_dxgi, L"d3d10.dll"));
+						reshade::hooks::register_module(get_target_path(!export_module_path.empty() && is_dxgi, L"d3d10_1.dll"));
+						reshade::hooks::register_module(get_target_path(!export_module_path.empty() && is_dxgi, L"d3d11.dll"));
 
 						// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
-						if (is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0)
-							reshade::hooks::register_module(L"d3d12.dll");
-						else
-							reshade::hooks::register_module(get_system_path() / L"d3d12.dll");
+						reshade::hooks::register_module(get_target_path(is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0 || (!export_module_path.empty() && is_dxgi), L"d3d12.dll"));
 
-						reshade::hooks::register_module(get_system_path() / L"dxgi.dll");
+						reshade::hooks::register_module(get_target_path(!export_module_path.empty() && is_d3d && !is_dxgi, L"dxgi.dll"));
 					}
 
 					// Only register OpenGL hooks when module is not called any D3D module name
@@ -352,27 +364,36 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 
 			reshade::log::message(reshade::log::level::info, "Initialized.");
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON >= 2
 			// It is not safe to call 'LoadLibrary' from 'DllMain', but there are cases where add-ons want to be loaded as early as possible, so at least give the option
-			if (config.get("ADDON", "LoadFromDllMain"))
+			if (std::vector<std::filesystem::path> addons;
+				config.get("ADDON", "LoadFromDllMain", addons))
 			{
-				reshade::load_addons();
+				std::filesystem::path addon_search_path = g_reshade_base_path;
+				if (config.get("ADDON", "AddonPath", addon_search_path))
+					addon_search_path = g_reshade_base_path / addon_search_path;
+
+				for (std::filesystem::path &path : addons)
+				{
+					path = addon_search_path / path;
+
+					reshade::log::message(reshade::log::level::info, "Loading add-on module \"%s\" ...", path.u8string().c_str());
+
+					// Any add-ons registered by this module are marked external by default
+					if (!LoadLibraryExW(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS))
+						reshade::log::message(reshade::log::level::error, "Failed to load add-on from '%s' with error code %lu!", path.u8string().c_str(), GetLastError());
+				}
 			}
 #endif
-			break;
 		}
-		case DLL_PROCESS_DETACH:
+		break;
+	case DLL_PROCESS_DETACH:
 		{
 			reshade::log::message(reshade::log::level::info, "Exiting ...");
 
-#if RESHADE_ADDON
+#if RESHADE_ADDON >= 2
 			if (reshade::has_loaded_addons())
-			{
-				if (reshade::global_config().get("ADDON", "LoadFromDllMain"))
-					reshade::unload_addons();
-				else
-					reshade::log::message(reshade::log::level::warning, "Add-ons are still loaded! Application may crash on exit.");
-			}
+				reshade::log::message(reshade::log::level::warning, "Add-ons are still loaded! Application may crash on exit.");
 #endif
 
 			reshade::hooks::uninstall();
@@ -394,11 +415,41 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #endif
 
 			reshade::log::message(reshade::log::level::info, "Finished exiting.");
-			break;
 		}
+		break;
 	}
 
 	return TRUE;
 }
+
+static FARPROC WINAPI DliNotifyHook2(unsigned dliNotify, PDelayLoadInfo pdli)
+{
+	if (dliNotify == dliNotePreLoadLibrary && _stricmp(pdli->szDll, "D3DCompiler_47.dll") == 0)
+	{
+		// Prefer loading up-to-date system D3DCompiler DLL over local variants
+		// Do not check system path when running in Wine though, since the D3DCompiler DLL there does not support various features
+		if (GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version") == nullptr)
+		{
+			const HMODULE d3dcompiler_47_module = LoadLibraryW((get_system_path() / L"D3DCompiler_47.dll").c_str());
+			return reinterpret_cast<FARPROC>(d3dcompiler_47_module);
+		}
+
+		if (const HMODULE d3dcompiler_47_module = LoadLibraryW(L"D3DCompiler_47.dll"))
+		{
+			return reinterpret_cast<FARPROC>(d3dcompiler_47_module);
+		}
+
+		// Fall back to older D3DCompiler version
+		if (const HMODULE d3dcompiler_43_module = LoadLibraryW(L"D3DCompiler_43.dll"))
+		{
+			return reinterpret_cast<FARPROC>(d3dcompiler_43_module);
+		}
+	}
+
+	return nullptr;
+}
+
+// See https://learn.microsoft.com/cpp/build/reference/understanding-the-helper-function
+extern "C" const PfnDliHook __pfnDliNotifyHook2 = DliNotifyHook2;
 
 #endif

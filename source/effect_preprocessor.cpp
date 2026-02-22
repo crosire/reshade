@@ -679,10 +679,6 @@ void reshadefx::preprocessor::parse_pragma()
 		return;
 
 	std::string pragma = std::move(_token.literal_as_string);
-	std::string pragma_args;
-
-	// Ignore whitespace preceding the argument list
-	accept(tokenid::space);
 
 	while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 	{
@@ -693,9 +689,9 @@ void reshadefx::preprocessor::parse_pragma()
 
 		// Collapse all whitespace down to a single space
 		if (_token == tokenid::space)
-			pragma_args += ' ';
+			pragma += ' ';
 		else
-			pragma_args += _current_token_raw_data;
+			pragma += _current_token_raw_data;
 	}
 
 	if (pragma == "once")
@@ -709,13 +705,8 @@ void reshadefx::preprocessor::parse_pragma()
 		return;
 	}
 
-	if (pragma == "warning" || pragma == "reshade")
-	{
-		_used_pragmas.emplace_back(std::move(pragma), std::move(pragma_args));
-		return;
-	}
-
-	warning(keyword_location, "unknown pragma ignored");
+	// Convert preprocessor pragma directive to pragma operator
+	_output += "_Pragma(\"" + pragma + "\")\n";
 }
 
 void reshadefx::preprocessor::parse_include()

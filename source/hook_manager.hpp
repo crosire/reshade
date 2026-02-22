@@ -43,6 +43,12 @@ namespace reshade::hooks
 	void register_module(const std::filesystem::path &path);
 
 	/// <summary>
+	/// Overrides the target module used for export hooks.
+	/// </summary>
+	/// <param name="path">File path to the target module.</param>
+	void register_export_module(const std::filesystem::path &path);
+
+	/// <summary>
 	/// Loads the module for export hooks if it has not been loaded yet.
 	/// </summary>
 	void ensure_export_module_loaded();

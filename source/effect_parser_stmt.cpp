@@ -24,13 +24,10 @@ private:
 	LEAVE_TYPE leave_lambda;
 };
 
-bool reshadefx::parser::parse(std::string input, codegen *backend)
+bool reshadefx::parser::parse(std::string source, codegen *backend)
 {
-	_lexer = std::make_unique<lexer>(std::move(input));
-
-	// Set backend for subsequent code-generation
+	_lexer = new lexer(std::move(source));
 	_codegen = backend;
-	assert(backend != nullptr);
 
 	consume();
 
@@ -40,19 +37,45 @@ bool reshadefx::parser::parse(std::string input, codegen *backend)
 	while (!peek(tokenid::end_of_file))
 	{
 		if (!parse_top(current_success))
-			return false;
-		if (!current_success)
+		{
 			parse_success = false;
+			break;
+		}
+		if (!current_success)
+		{
+			parse_success = false;
+			continue;
+		}
 	}
 
+	delete _lexer;
+
 	if (parse_success)
+	{
 		backend->optimize_bindings();
+
+		assert(_loop_break_target_stack.empty() && _loop_continue_target_stack.empty());
+	}
+
+	_loop_break_target_stack.clear();
+	_loop_continue_target_stack.clear();
 
 	return parse_success;
 }
 
 bool reshadefx::parser::parse_top(bool &parse_success)
 {
+	if (accept(tokenid::pragma))
+	{
+		if (!expect('(') || !expect(tokenid::string_literal))
+			return false;
+
+		_codegen->emit_pragma(_token.literal_as_string);
+
+		if (!expect(')'))
+			return false;
+	}
+
 	if (accept(tokenid::namespace_))
 	{
 		// Anonymous namespaces are not supported right now, so an identifier is a must
@@ -73,9 +96,14 @@ bool reshadefx::parser::parse_top(bool &parse_success)
 		while (!peek('}') && !peek(tokenid::end_of_file)) // Empty namespaces are valid
 		{
 			if (!parse_top(current_success))
+			{
 				return false;
+			}
 			if (!current_success)
+			{
 				parse_success_namespace = false;
+				continue;
+			}
 		}
 
 		leave_namespace();

@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory>
+#include <cstdint>
 
 namespace reshade
 {
@@ -30,8 +31,7 @@ namespace reshade
 			button_right_shoulder = 0x0200,
 		};
 
-		explicit input_gamepad(void *xinput_module);
-		~input_gamepad();
+		explicit input_gamepad();
 
 		/// <summary>
 		/// Loads XInput and creates or gets the gamepad input manager singleton.
@@ -62,9 +62,6 @@ namespace reshade
 		void next_frame();
 
 	private:
-		void *_xinput_module = nullptr;
-		void *_xinput_get_state = nullptr;
-
 		uint16_t _buttons = 0;
 		uint16_t _last_buttons = 0;
 		float _left_trigger = 0.0f;

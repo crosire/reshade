@@ -7,10 +7,11 @@
 
 #if RESHADE_ADDON
 
-struct Direct3DDevice9;
+class Direct3DDevice9;
 
-struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStencilSurface9 final : IDirect3DSurface9
+class DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStencilSurface9 final : public IDirect3DSurface9
 {
+public:
 	Direct3DDepthStencilSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc);
 
 	#pragma region IUnknown
@@ -38,10 +39,12 @@ struct DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStenci
 	#pragma endregion
 
 	IDirect3DSurface9 *_orig;
-	ULONG _ref = 1;
+	LONG _ref = 1;
 
+private:
 	Direct3DDevice9 *const _device;
-	const  D3DSURFACE_DESC _orig_desc;
+
+	const D3DSURFACE_DESC _orig_desc;
 };
 
 #endif

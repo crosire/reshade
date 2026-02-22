@@ -76,19 +76,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="minhook\src\buffer.c" />
-    <ClCompile Include="minhook\src\HDE\hde32.c" />
-    <ClCompile Include="minhook\src\HDE\hde64.c" />
+    <ClCompile Include="minhook\src\hde\hde32.c" />
+    <ClCompile Include="minhook\src\hde\hde64.c" />
     <ClCompile Include="minhook\src\hook.c" />
     <ClCompile Include="minhook\src\trampoline.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\include\MinHook.h" />
     <ClInclude Include="minhook\src\buffer.h" />
-    <ClInclude Include="minhook\src\HDE\hde32.h" />
-    <ClInclude Include="minhook\src\HDE\hde64.h" />
-    <ClInclude Include="minhook\src\HDE\pstdint.h" />
-    <ClInclude Include="minhook\src\HDE\table32.h" />
-    <ClInclude Include="minhook\src\HDE\table64.h" />
+    <ClInclude Include="minhook\src\hde\hde32.h" />
+    <ClInclude Include="minhook\src\hde\hde64.h" />
+    <ClInclude Include="minhook\src\hde\pstdint.h" />
+    <ClInclude Include="minhook\src\hde\table32.h" />
+    <ClInclude Include="minhook\src\hde\table64.h" />
     <ClInclude Include="minhook\src\trampoline.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

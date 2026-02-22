@@ -30,3 +30,7 @@
 [submodule "openxr"]
 	path = deps/openxr
 	url = https://github.com/KhronosGroup/OpenXR-SDK.git
+[submodule "jxl_simple_lossless"]
+	path = deps/jxl_simple_lossless
+	url = https://github.com/kampidh/simple-lossless-encoder.git
+	branch = headers-and-color-profile

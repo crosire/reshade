@@ -838,9 +838,6 @@ bool reshade::imgui::drag_with_buttons(const char *label, ImGuiDataType data_typ
 {
 	switch (data_type)
 	{
-	default:
-		assert(false); // Not implemented
-		return false;
 	case ImGuiDataType_S32:
 		return ::drag_with_buttons<ImS32, ImGuiDataType_S32>(label, static_cast<ImS32 *>(v), components, *static_cast<const ImS32 *>(v_speed), *static_cast<const ImS32 *>(v_min), *static_cast<const ImS32 *>(v_max), format);
 	case ImGuiDataType_U32:
@@ -855,6 +852,9 @@ bool reshade::imgui::drag_with_buttons(const char *label, ImGuiDataType data_typ
 	case ImGuiDataType_Double:
 		return ::drag_with_buttons<double, ImGuiDataType_Double>(label, static_cast<double *>(v), components, *static_cast<const double *>(v_speed), *static_cast<const double *>(v_min), *static_cast<const double *>(v_max), format);
 #endif
+	default:
+		assert(false); // Not implemented
+		return false;
 	}
 }
 
@@ -956,9 +956,6 @@ bool reshade::imgui::slider_with_buttons(const char *label, ImGuiDataType data_t
 {
 	switch (data_type)
 	{
-	default:
-		assert(false); // Not implemented
-		return false;
 	case ImGuiDataType_S32:
 		return ::slider_with_buttons<ImS32, ImGuiDataType_S32>(label, static_cast<ImS32 *>(v), components, *static_cast<const ImS32 *>(v_speed), *static_cast<const ImS32 *>(v_min), *static_cast<const ImS32 *>(v_max), format);
 	case ImGuiDataType_U32:
@@ -973,6 +970,9 @@ bool reshade::imgui::slider_with_buttons(const char *label, ImGuiDataType data_t
 	case ImGuiDataType_Double:
 		return ::slider_with_buttons<double, ImGuiDataType_Double>(label, static_cast<double *>(v), components, *static_cast<const double *>(v_speed), *static_cast<const double *>(v_min), *static_cast<const double *>(v_max), format);
 #endif
+	default:
+		assert(false); // Not implemented
+		return false;
 	}
 }
 

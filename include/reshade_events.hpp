@@ -1063,8 +1063,8 @@ namespace reshade
 		/// <item><description>glBindImageTextures</description></item>
 		/// <item><description>glBindTextureUnit</description></item>
 		/// <item><description>glBindMultiTextureEXT</description></item>
-		/// <item><description>vkCmdPushDescriptorSetKHR</description></item>
-		/// <item><description>vkCmdPushDescriptorSetWithTemplateKHR</description></item>
+		/// <item><description>vkCmdPushDescriptorSet</description></item>
+		/// <item><description>vkCmdPushDescriptorSetWithTemplate</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, api::shader_stage stages, api::pipeline_layout layout, uint32_t layout_param, const api::descriptor_table_update &amp;update)</c></para>
 		/// </summary>

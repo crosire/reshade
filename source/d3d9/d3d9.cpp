@@ -248,11 +248,9 @@ static void init_device_proxy(T *&device, D3DDEVTYPE device_type, HWND device_wi
 	// Check if this device was created via D3D9on12 and hook it too if so
 	init_device_proxy_for_d3d9on12(device_proxy);
 
-#if 1
 	// Upgrade to extended interface if available to prevent compatibility issues with some games
 	com_ptr<IDirect3DDevice9Ex> deviceex;
 	device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
-#endif
 
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(

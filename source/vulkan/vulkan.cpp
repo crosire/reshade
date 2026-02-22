@@ -5,7 +5,9 @@
 
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_device.hpp"
+#ifdef RESHADE_TEST_APPLICATION
 #include "hook_manager.hpp"
+#endif
 #include "lockfree_linear_map.hpp"
 #include <cstring> // std::strcmp
 
@@ -13,18 +15,22 @@ extern lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #define RESHADE_VULKAN_HOOK_PROC(name) \
-	if (0 == std::strcmp(pName, "vk" #name)) \
+	if (0 == std::strcmp(name_without_prefix, #name)) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name)
 #define RESHADE_VULKAN_HOOK_PROC_OPTIONAL(name, suffix) \
-	if (0 == std::strcmp(pName, "vk" #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
+	if (0 == std::strcmp(name_without_prefix, #name #suffix) && g_vulkan_devices.at(dispatch_key_from_handle(device))->_dispatch_table.name != nullptr) \
 		return reinterpret_cast<PFN_vkVoidFunction>(vk##name);
 
 PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *pName)
 {
+	if (pName == nullptr || pName[0] != 'v' || pName[1] != 'k')
+		return nullptr;
+	const char *name_without_prefix = pName + 2;
+
 	// The Vulkan loader gets the 'vkDestroyDevice' function from the device dispatch table
 	RESHADE_VULKAN_HOOK_PROC(DestroyDevice);
 
-	// Core 1_0
+#if VK_VERSION_1_0
 #if RESHADE_ADDON
 	RESHADE_VULKAN_HOOK_PROC(QueueSubmit);
 	RESHADE_VULKAN_HOOK_PROC(BindBufferMemory);
@@ -131,15 +137,21 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	RESHADE_VULKAN_HOOK_PROC(CmdNextSubpass);
 	RESHADE_VULKAN_HOOK_PROC(CmdEndRenderPass);
 	RESHADE_VULKAN_HOOK_PROC(CmdExecuteCommands);
+#endif
+#endif
 
-	// Core 1_1
+#if VK_VERSION_1_1
+#if RESHADE_ADDON
 	RESHADE_VULKAN_HOOK_PROC(BindBufferMemory2);
 	RESHADE_VULKAN_HOOK_PROC(BindImageMemory2);
 	RESHADE_VULKAN_HOOK_PROC(CreateDescriptorUpdateTemplate);
 	RESHADE_VULKAN_HOOK_PROC(DestroyDescriptorUpdateTemplate);
 	RESHADE_VULKAN_HOOK_PROC(UpdateDescriptorSetWithTemplate);
+#endif
+#endif
 
-	// Core 1_2
+#if VK_VERSION_1_2
+#if RESHADE_ADDON
 	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndirectCount);
 	RESHADE_VULKAN_HOOK_PROC(CmdDrawIndexedIndirectCount);
 	RESHADE_VULKAN_HOOK_PROC(CreateRenderPass2);
@@ -147,8 +159,9 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	RESHADE_VULKAN_HOOK_PROC(CmdNextSubpass2);
 	RESHADE_VULKAN_HOOK_PROC(CmdEndRenderPass2);
 #endif
+#endif
 
-	// Core 1_3
+#if VK_VERSION_1_3
 #if RESHADE_ADDON >= 2
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdWriteTimestamp2, );
@@ -171,105 +184,132 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 #if RESHADE_ADDON >= 2
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, );
 #endif
+#endif
 
-	// VK_KHR_swapchain
+#if VK_VERSION_1_4
+#if RESHADE_ADDON >= 2
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSet, );
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplate, );
+#endif
+#endif
+
+#if VK_KHR_swapchain
 	RESHADE_VULKAN_HOOK_PROC(CreateSwapchainKHR);
 	RESHADE_VULKAN_HOOK_PROC(DestroySwapchainKHR);
 	RESHADE_VULKAN_HOOK_PROC(AcquireNextImageKHR);
 	RESHADE_VULKAN_HOOK_PROC(QueuePresentKHR);
 	RESHADE_VULKAN_HOOK_PROC(AcquireNextImage2KHR);
+#endif
 
 #if RESHADE_ADDON
-	// VK_KHR_dynamic_rendering
+#if VK_KHR_dynamic_rendering
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginRendering, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRendering, KHR);
 #endif
+#endif
 
 #if RESHADE_ADDON >= 2
-	// VK_KHR_push_descriptor
-	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetKHR, );
-	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplateKHR, );
+#if VK_KHR_push_descriptor
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSet, KHR);
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPushDescriptorSetWithTemplate, KHR);
+#endif
 
-	// VK_KHR_descriptor_update_template
+#if VK_KHR_descriptor_update_template
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateDescriptorUpdateTemplate, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(DestroyDescriptorUpdateTemplate, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(UpdateDescriptorSetWithTemplate, KHR);
 #endif
+#endif
 
 #if RESHADE_ADDON
-	// VK_KHR_create_renderpass2
+#if VK_KHR_create_renderpass2
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateRenderPass2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginRenderPass2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdNextSubpass2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRenderPass2, KHR);
+#endif
 
-	// VK_KHR_bind_memory2
+#if VK_KHR_bind_memory2
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(BindBufferMemory2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(BindImageMemory2, KHR);
+#endif
 
-	// VK_KHR_draw_indirect_count
+#if VK_KHR_draw_indirect_count
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawIndirectCount, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawIndexedIndirectCount, KHR);
 #endif
+#endif
 
+#if VK_KHR_synchronization2
 #if RESHADE_ADDON >= 2
-	// VK_KHR_synchronization2
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdPipelineBarrier2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdWriteTimestamp2, KHR);
 #endif
 #if RESHADE_ADDON
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(QueueSubmit2, KHR);
 #endif
+#endif
 
 #if RESHADE_ADDON >= 2
-	// VK_KHR_copy_commands2
+#if VK_KHR_copy_commands2
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyBuffer2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyImage2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyBufferToImage2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyImageToBuffer2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBlitImage2, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdResolveImage2, KHR);
+#endif
 
-	// VK_EXT_transform_feedback
+#if VK_EXT_transform_feedback
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindTransformFeedbackBuffersEXT, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginQueryIndexedEXT, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndQueryIndexedEXT, );
+#endif
 
-	// VK_EXT_extended_dynamic_state
+#if VK_EXT_extended_dynamic_state
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBindVertexBuffers2, EXT);
+#endif
 #endif
 
 #if RESHADE_ADDON
-	// VK_EXT_full_screen_exclusive
+#if VK_EXT_full_screen_exclusive
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(AcquireFullScreenExclusiveModeEXT, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(ReleaseFullScreenExclusiveModeEXT, );
+#endif
 
-	// VK_EXT_multi_draw
+#if VK_EXT_multi_draw
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMultiEXT, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMultiIndexedEXT, );
+#endif
 
-	// VK_KHR_acceleration_structure
+#if VK_KHR_acceleration_structure
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateAccelerationStructureKHR, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(DestroyAccelerationStructureKHR, );
 #endif
+#endif
 #if RESHADE_ADDON >= 2
+#if VK_KHR_acceleration_structure
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresKHR, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBuildAccelerationStructuresIndirectKHR, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdCopyAccelerationStructureKHR, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdWriteAccelerationStructuresPropertiesKHR, );
+#endif
 
-	// VK_KHR_ray_tracing_pipeline
+#if VK_KHR_ray_tracing_pipeline
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdTraceRaysKHR, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CreateRayTracingPipelinesKHR, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdTraceRaysIndirectKHR, );
+#endif
 
-	// VK_KHR_ray_tracing_maintenance1
+#if VK_KHR_ray_tracing_maintenance1
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdTraceRaysIndirect2KHR, );
+#endif
 
-	// VK_EXT_mesh_shader
+#if VK_EXT_mesh_shader
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMeshTasksEXT, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectEXT, );
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdDrawMeshTasksIndirectCountEXT, );
+#endif
 #endif
 
 	// Need to self-intercept as well, since some layers rely on this (e.g. Steam overlay)
@@ -289,21 +329,32 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 
 PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *pName)
 {
-	// Core 1_0
+	if (pName == nullptr || pName[0] != 'v' || pName[1] != 'k')
+		return nullptr;
+	const char *name_without_prefix = pName + 2;
+
+#if VK_VERSION_1_0
 	RESHADE_VULKAN_HOOK_PROC(CreateInstance);
 	RESHADE_VULKAN_HOOK_PROC(DestroyInstance);
 	RESHADE_VULKAN_HOOK_PROC(CreateDevice);
 	RESHADE_VULKAN_HOOK_PROC(DestroyDevice);
+#endif
 
-	// Core 1_3
+#if VK_VERSION_1_3
 	RESHADE_VULKAN_HOOK_PROC(GetPhysicalDeviceToolProperties);
+#endif
 
-	// VK_KHR_surface
+#if VK_KHR_win32_surface
 	RESHADE_VULKAN_HOOK_PROC(CreateWin32SurfaceKHR);
-	RESHADE_VULKAN_HOOK_PROC(DestroySurfaceKHR);
+#endif
 
-	// VK_EXT_tooling_info
+#if VK_KHR_surface
+	RESHADE_VULKAN_HOOK_PROC(DestroySurfaceKHR);
+#endif
+
+#if VK_EXT_tooling_info
 	RESHADE_VULKAN_HOOK_PROC(GetPhysicalDeviceToolPropertiesEXT);
+#endif
 
 	// Self-intercept here as well to stay consistent with 'vkGetDeviceProcAddr' implementation
 	RESHADE_VULKAN_HOOK_PROC(GetInstanceProcAddr);
@@ -319,9 +370,15 @@ PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const c
 	return trampoline(instance, pName);
 }
 
+enum VkNegotiateLayerStructType
+{
+	LAYER_NEGOTIATE_UNINTIALIZED = 0,
+	LAYER_NEGOTIATE_INTERFACE_STRUCT = 1,
+};
+
 struct VkNegotiateLayerInterface
 {
-	enum VkNegotiateLayerStructType sType;
+	VkNegotiateLayerStructType sType;
 	void *pNext;
 	uint32_t loaderLayerInterfaceVersion;
 	PFN_vkGetInstanceProcAddr pfnGetInstanceProcAddr;
@@ -329,10 +386,10 @@ struct VkNegotiateLayerInterface
 	PFN_vkGetInstanceProcAddr pfnGetPhysicalDeviceProcAddr;
 };
 
-VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
+extern "C" VkResult VKAPI_CALL vkNegotiateLoaderLayerInterfaceVersion(VkNegotiateLayerInterface *pVersionStruct)
 {
 	if (pVersionStruct == nullptr ||
-		pVersionStruct->sType != 1 /* LAYER_NEGOTIATE_INTERFACE_STRUCT */)
+		pVersionStruct->sType != LAYER_NEGOTIATE_INTERFACE_STRUCT)
 		return VK_ERROR_INITIALIZATION_FAILED;
 
 	pVersionStruct->loaderLayerInterfaceVersion = 2; // Version 2 added 'vkNegotiateLoaderLayerInterfaceVersion'

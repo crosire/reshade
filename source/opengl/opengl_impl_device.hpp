@@ -12,6 +12,8 @@
 
 namespace reshade::opengl
 {
+	class device_context_impl;
+
 	class device_impl : public api::api_object_impl<HGLRC, api::device>
 	{
 		friend class device_context_impl;
@@ -32,7 +34,7 @@ namespace reshade::opengl
 		bool create_sampler(const api::sampler_desc &desc, api::sampler *out_sampler) final;
 		void destroy_sampler(api::sampler sampler) final;
 
-		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_resource, HANDLE *shared_handle = nullptr) final;
+		bool create_resource(const api::resource_desc &desc, const api::subresource_data *initial_data, api::resource_usage initial_state, api::resource *out_resource, void **shared_handle = nullptr) final;
 		void destroy_resource(api::resource resource) final;
 
 		api::resource_desc get_resource_desc(api::resource resource) const override;
@@ -41,6 +43,8 @@ namespace reshade::opengl
 		void destroy_resource_view(api::resource_view view) final;
 
 		api::format get_resource_format(GLenum target, GLenum object) const;
+
+		void register_resource_view(GLenum target, GLuint object, api::resource resource);
 
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
@@ -80,7 +84,7 @@ namespace reshade::opengl
 		void set_resource_name(api::resource resource, const char *name) final;
 		void set_resource_view_name(api::resource_view view, const char *name) final;
 
-		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, HANDLE *shared_handle = nullptr) final;
+		bool create_fence(uint64_t initial_value, api::fence_flags flags, api::fence *out_fence, void **shared_handle = nullptr) final;
 		void destroy_fence(api::fence fence) final;
 
 		uint64_t get_completed_fence_value(api::fence fence) const final;
@@ -99,7 +103,6 @@ namespace reshade::opengl
 		int  _pixel_format;
 		api::format _default_depth_format;
 		api::resource_desc _default_fbo_desc = {};
-		bool _supports_dsa; // Direct State Access (core since OpenGL 4.5)
 		bool _compatibility_context;
 
 	private:
@@ -118,5 +121,7 @@ namespace reshade::opengl
 
 		std::atomic<uint64_t> _fbo_lookup_version = 0;
 		std::atomic<uint64_t> _vao_lookup_version = 0;
+
+		std::unordered_map<GLuint, api::resource> _texture_view_lookup;
 	};
 }

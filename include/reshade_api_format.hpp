@@ -8,7 +8,7 @@
 #include <cfloat>
 #include <cstdint>
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// Available data and texture formats.
@@ -186,10 +186,18 @@ namespace reshade { namespace api
 	{
 		unknown = 0,
 
-		srgb_nonlinear,
-		extended_srgb_linear,
-		hdr10_st2084,
+		// BT.709/sRGB primaries
+		srgb,
+		// BT.709/sRGB primaries + linear
+		scrgb,
+		// BT.2020 primaries + PQ transfer function
+		hdr10_pq,
+		// BT.2020 primaries + HLG transfer function
 		hdr10_hlg,
+
+		srgb_nonlinear = srgb,
+		extended_srgb_linear = scrgb,
+		hdr10_st2084 = hdr10_pq,
 	};
 
 	/// <summary>
@@ -551,4 +559,46 @@ namespace reshade { namespace api
 
 		return row_pitch * height;
 	}
-} }
+
+	/// <summary>
+	/// Checks whether the specified format <paramref name="value"/> is a typeless format.
+	/// </summary>
+	inline bool format_is_typeless(format value)
+	{
+		return value == api::format_to_typeless(value) && value != api::format_to_default_typed(value);
+	}
+
+	/// <summary>
+	/// Checks whether the specified format <paramref name="value"/> is a block compressed (BC) format.
+	/// </summary>
+	inline bool format_is_block_compressed(format value)
+	{
+		switch (value)
+		{
+		case format::bc1_typeless:
+		case format::bc1_unorm:
+		case format::bc1_unorm_srgb:
+		case format::bc2_typeless:
+		case format::bc2_unorm:
+		case format::bc2_unorm_srgb:
+		case format::bc3_typeless:
+		case format::bc3_unorm:
+		case format::bc3_unorm_srgb:
+		case format::bc4_typeless:
+		case format::bc4_unorm:
+		case format::bc4_snorm:
+		case format::bc5_typeless:
+		case format::bc5_unorm:
+		case format::bc5_snorm:
+		case format::bc6h_typeless:
+		case format::bc6h_ufloat:
+		case format::bc6h_sfloat:
+		case format::bc7_typeless:
+		case format::bc7_unorm:
+		case format::bc7_unorm_srgb:
+			return true;
+		default:
+			return false;
+		}
+	}
+}

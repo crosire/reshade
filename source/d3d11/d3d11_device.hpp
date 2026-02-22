@@ -8,11 +8,15 @@
 #include "dxgi/dxgi_device.hpp"
 #include "d3d11_impl_device.hpp"
 
-struct D3D11On12Device;
-struct D3D11DeviceContext;
+class D3D11On12Device;
+class D3D11DeviceContext;
 
-struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final : DXGIDevice, ID3D11Device5, public reshade::d3d11::device_impl
+class DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final : public DXGIDevice, public ID3D11Device5, public reshade::d3d11::device_impl
 {
+	friend class D3D11On12Device;
+	friend class D3D11DeviceContext;
+
+public:
 	D3D11Device(IDXGIAdapter *adapter, IDXGIDevice1 *original_dxgi_device, ID3D11Device *original);
 	~D3D11Device();
 
@@ -103,15 +107,19 @@ struct DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final :
 	bool check_and_upgrade_interface(REFIID riid);
 
 	using device_impl::_orig;
-
 	LONG _ref = 1;
 	unsigned short _interface_version = 0;
+
 	D3D11On12Device *_d3d11on12_device = nullptr;
 	D3D11DeviceContext *_immediate_context = nullptr;
+
+private:
 #if RESHADE_ADDON
 	reshade::api::pipeline_layout _global_pipeline_layout = {};
 #endif
+
 #if RESHADE_ADDON >= 2
+public:
 	D3D_FEATURE_LEVEL _orig_feature_level = static_cast<D3D_FEATURE_LEVEL>(0);
 #endif
 };

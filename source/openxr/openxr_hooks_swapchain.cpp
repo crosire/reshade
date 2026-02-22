@@ -184,7 +184,25 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 
 	XrSwapchainCreateInfo create_info = *pCreateInfo;
 	// Add required usage flags to create info
-	create_info.usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
+	create_info.usageFlags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT | XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT | XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT;
+
+	// Dump swap chain description
+	{
+		reshade::log::message(reshade::log::level::info, "> Dumping swap chain description:");
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+		reshade::log::message(reshade::log::level::info, "  | Parameter                               | Value                                   |");
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+		reshade::log::message(reshade::log::level::info, "  | createFlags                             |"                               " %-#39x |", static_cast<unsigned int>(create_info.createFlags));
+		reshade::log::message(reshade::log::level::info, "  | usageFlags                              |"                               " %-#39x |", static_cast<unsigned int>(create_info.usageFlags));
+		reshade::log::message(reshade::log::level::info, "  | format                                  |"                              " %-39lld |", create_info.format);
+		reshade::log::message(reshade::log::level::info, "  | sampleCount                             |"                                " %-39u |", create_info.sampleCount);
+		reshade::log::message(reshade::log::level::info, "  | width                                   |"                                " %-39u |", create_info.width);
+		reshade::log::message(reshade::log::level::info, "  | height                                  |"                                " %-39u |", create_info.height);
+		reshade::log::message(reshade::log::level::info, "  | faceCount                               |"                                " %-39u |", create_info.faceCount);
+		reshade::log::message(reshade::log::level::info, "  | arraySize                               |"                                " %-39u |", create_info.arraySize);
+		reshade::log::message(reshade::log::level::info, "  | mipCount                                |"                                " %-39u |", create_info.mipCount);
+		reshade::log::message(reshade::log::level::info, "  +-----------------------------------------+-----------------------------------------+");
+	}
 
 	const XrResult result = trampoline(session, &create_info, pSwapchain);
 	if (XR_FAILED(result))
@@ -207,37 +225,37 @@ XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreate
 		switch (data.swapchain_impl->get_device()->get_api())
 		{
 		case reshade::api::device_api::d3d11:
-		{
-			std::vector<XrSwapchainImageD3D11KHR> images_d3d11(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
-			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d11.data()));
-			for (const XrSwapchainImageD3D11KHR &image_d3d11 : images_d3d11)
-				images.push_back({ reinterpret_cast<uintptr_t>(image_d3d11.texture) });
+			{
+				std::vector<XrSwapchainImageD3D11KHR> images_d3d11(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR });
+				enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d11.data()));
+				for (const XrSwapchainImageD3D11KHR &image_d3d11 : images_d3d11)
+					images.push_back({ reinterpret_cast<uintptr_t>(image_d3d11.texture) });
+			}
 			break;
-		}
 		case reshade::api::device_api::d3d12:
-		{
-			std::vector<XrSwapchainImageD3D12KHR> images_d3d12(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR });
-			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d12.data()));
-			for (const XrSwapchainImageD3D12KHR &image_d3d12 : images_d3d12)
-				images.push_back({ reinterpret_cast<uintptr_t>(image_d3d12.texture) });
+			{
+				std::vector<XrSwapchainImageD3D12KHR> images_d3d12(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR });
+				enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_d3d12.data()));
+				for (const XrSwapchainImageD3D12KHR &image_d3d12 : images_d3d12)
+					images.push_back({ reinterpret_cast<uintptr_t>(image_d3d12.texture) });
+			}
 			break;
-		}
 		case reshade::api::device_api::opengl:
-		{
-			std::vector<XrSwapchainImageOpenGLKHR> images_opengl(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR });
-			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_opengl.data()));
-			for (const XrSwapchainImageOpenGLKHR &image_opengl : images_opengl)
-				images.push_back(reshade::opengl::make_resource_handle(GL_TEXTURE_2D, image_opengl.image));
+			{
+				std::vector<XrSwapchainImageOpenGLKHR> images_opengl(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR });
+				enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_opengl.data()));
+				for (const XrSwapchainImageOpenGLKHR &image_opengl : images_opengl)
+					images.push_back(reshade::opengl::make_resource_handle(GL_TEXTURE_2D, image_opengl.image));
+			}
 			break;
-		}
 		case reshade::api::device_api::vulkan:
-		{
-			std::vector<XrSwapchainImageVulkanKHR> images_vulkan(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
-			enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_vulkan.data()));
-			for (const XrSwapchainImageVulkanKHR &image_vulkan : images_vulkan)
-				images.push_back({ (uint64_t)image_vulkan.image });
+			{
+				std::vector<XrSwapchainImageVulkanKHR> images_vulkan(num_images, { XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR });
+				enum_swapchain_images(*pSwapchain, num_images, &num_images, reinterpret_cast<XrSwapchainImageBaseHeader *>(images_vulkan.data()));
+				for (const XrSwapchainImageVulkanKHR &image_vulkan : images_vulkan)
+					images.push_back({ (uint64_t)image_vulkan.image });
+			}
 			break;
-		}
 		}
 	}
 

@@ -9,7 +9,6 @@
 
 DXGIAdapter::DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter  *original) :
 	_orig(original),
-	_interface_version(0),
 	_parent_factory(factory)
 {
 	assert(_orig != nullptr && _parent_factory != nullptr);
@@ -84,7 +83,6 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryInterface(REFIID riid, void **ppvObj
 	}
 
 	// Interface ID to query the original object from a proxy object
-	constexpr GUID IID_UnwrappedObject = { 0x7f2c9a11, 0x3b4e, 0x4d6a, { 0x81, 0x2f, 0x5e, 0x9c, 0xd3, 0x7a, 0x1b, 0x42 } }; // {7F2C9A11-3B4E-4D6A-812F-5E9CD37A1B42}
 	if (riid == IID_UnwrappedObject)
 	{
 		_orig->AddRef();
@@ -154,49 +152,58 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::CheckInterfaceSupport(REFGUID InterfaceNa
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc1(DXGI_ADAPTER_DESC1 *pDesc)
 {
 	assert(_interface_version >= 1);
+
 	return static_cast<IDXGIAdapter1 *>(_orig)->GetDesc1(pDesc);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc2(DXGI_ADAPTER_DESC2 *pDesc)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<IDXGIAdapter2 *>(_orig)->GetDesc2(pDesc);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterHardwareContentProtectionTeardownStatusEvent(HANDLE hEvent, DWORD *pdwCookie)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->RegisterHardwareContentProtectionTeardownStatusEvent(hEvent, pdwCookie);
 }
 void    STDMETHODCALLTYPE DXGIAdapter::UnregisterHardwareContentProtectionTeardownStatus(DWORD dwCookie)
 {
 	assert(_interface_version >= 3);
+
 	static_cast<IDXGIAdapter3 *>(_orig)->UnregisterHardwareContentProtectionTeardownStatus(dwCookie);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::QueryVideoMemoryInfo(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, DXGI_QUERY_VIDEO_MEMORY_INFO *pVideoMemoryInfo)
 {
 	// assert(_interface_version >= 3); // Grand Theft Auto V Enhanced Edition incorrectly calls this on a 'IDXGIAdapter' object
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->QueryVideoMemoryInfo(NodeIndex, MemorySegmentGroup, pVideoMemoryInfo);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::SetVideoMemoryReservation(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, UINT64 Reservation)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->SetVideoMemoryReservation(NodeIndex, MemorySegmentGroup, Reservation);
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::RegisterVideoMemoryBudgetChangeNotificationEvent(HANDLE hEvent, DWORD *pdwCookie)
 {
 	assert(_interface_version >= 3);
+
 	return static_cast<IDXGIAdapter3 *>(_orig)->RegisterVideoMemoryBudgetChangeNotificationEvent(hEvent, pdwCookie);
 }
 void    STDMETHODCALLTYPE DXGIAdapter::UnregisterVideoMemoryBudgetChangeNotification(DWORD dwCookie)
 {
 	assert(_interface_version >= 3);
+
 	static_cast<IDXGIAdapter3 *>(_orig)->UnregisterVideoMemoryBudgetChangeNotification(dwCookie);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetDesc3(DXGI_ADAPTER_DESC3 *pDesc)
 {
 	assert(_interface_version >= 4);
+
 	return static_cast<IDXGIAdapter4 *>(_orig)->GetDesc3(pDesc);
 }
 

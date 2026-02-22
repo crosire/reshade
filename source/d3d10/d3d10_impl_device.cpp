@@ -13,18 +13,16 @@
 static auto adapter_from_device(ID3D10Device *device, DXGI_ADAPTER_DESC *adapter_desc = nullptr) -> const com_ptr<IDXGIAdapter>
 {
 	com_ptr<IDXGIDevice> dxgi_device;
-	if (SUCCEEDED(device->QueryInterface(&dxgi_device)))
-	{
-		com_ptr<IDXGIAdapter> dxgi_adapter;
-		if (SUCCEEDED(dxgi_device->GetAdapter(&dxgi_adapter)))
-		{
-			if (adapter_desc != nullptr)
-				dxgi_adapter->GetDesc(adapter_desc);
-			return dxgi_adapter;
-		}
-	}
+	if (FAILED(device->QueryInterface(&dxgi_device)))
+		return nullptr;
 
-	return nullptr;
+	com_ptr<IDXGIAdapter> dxgi_adapter;
+	if (FAILED(dxgi_device->GetAdapter(&dxgi_adapter)))
+		return nullptr;
+
+	if (adapter_desc != nullptr)
+		dxgi_adapter->GetDesc(adapter_desc);
+	return dxgi_adapter;
 }
 
 reshade::d3d10::device_impl::device_impl(ID3D10Device1 *device) :
@@ -226,7 +224,7 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 
 	switch (desc.type)
 	{
-		case api::resource_type::buffer:
+	case api::resource_type::buffer:
 		{
 			D3D10_BUFFER_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
@@ -240,9 +238,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 				*out_resource = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
-		case api::resource_type::texture_1d:
+		break;
+	case api::resource_type::texture_1d:
 		{
 			D3D10_TEXTURE1D_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
@@ -256,9 +254,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 				*out_resource = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
-		case api::resource_type::texture_2d:
+		break;
+	case api::resource_type::texture_2d:
 		{
 			D3D10_TEXTURE2D_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
@@ -272,9 +270,9 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 				*out_resource = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
-		case api::resource_type::texture_3d:
+		break;
+	case api::resource_type::texture_3d:
 		{
 			D3D10_TEXTURE3D_DESC internal_desc = {};
 			convert_resource_desc(desc, internal_desc);
@@ -288,8 +286,8 @@ bool reshade::d3d10::device_impl::create_resource(const api::resource_desc &desc
 				*out_resource = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
+		break;
 	}
 
 	return false;
@@ -310,34 +308,40 @@ reshade::api::resource_desc reshade::d3d10::device_impl::get_resource_desc(api::
 	object->GetType(&dimension);
 	switch (dimension)
 	{
-		case D3D10_RESOURCE_DIMENSION_BUFFER:
+	case D3D10_RESOURCE_DIMENSION_BUFFER:
 		{
 			D3D10_BUFFER_DESC internal_desc;
 			static_cast<ID3D10Buffer *>(object)->GetDesc(&internal_desc);
+
 			return convert_resource_desc(internal_desc);
 		}
-		case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
+	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
 		{
 			D3D10_TEXTURE1D_DESC internal_desc;
 			static_cast<ID3D10Texture1D *>(object)->GetDesc(&internal_desc);
+
 			return convert_resource_desc(internal_desc);
 		}
-		case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
+	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 		{
 			D3D10_TEXTURE2D_DESC internal_desc;
 			static_cast<ID3D10Texture2D *>(object)->GetDesc(&internal_desc);
+
 			return convert_resource_desc(internal_desc);
 		}
-		case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
+	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 		{
 			D3D10_TEXTURE3D_DESC internal_desc;
 			static_cast<ID3D10Texture3D *>(object)->GetDesc(&internal_desc);
+
 			return convert_resource_desc(internal_desc);
 		}
+	default:
+		{
+			assert(false); // Not implemented
+			return api::resource_desc();
+		}
 	}
-
-	assert(false); // Not implemented
-	return api::resource_desc {};
 }
 
 bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_view)
@@ -348,13 +352,13 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 		return false;
 
 	// Cannot create a resource view with a typeless format
-	assert(desc.format != api::format_to_typeless(desc.format) || api::format_to_typeless(desc.format) == api::format_to_default_typed(desc.format));
+	assert(!api::format_is_typeless(desc.format));
 
 	switch (usage_type)
 	{
-		case api::resource_usage::depth_stencil:
-		case api::resource_usage::depth_stencil_read:
-		case api::resource_usage::depth_stencil_write:
+	case api::resource_usage::depth_stencil:
+	case api::resource_usage::depth_stencil_read:
+	case api::resource_usage::depth_stencil_write:
 		{
 			D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
@@ -365,9 +369,9 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 				*out_view = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
-		case api::resource_usage::render_target:
+		break;
+	case api::resource_usage::render_target:
 		{
 			D3D10_RENDER_TARGET_VIEW_DESC internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
@@ -378,9 +382,9 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 				*out_view = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
-		case api::resource_usage::shader_resource:
+		break;
+	case api::resource_usage::shader_resource:
 		{
 			D3D10_SHADER_RESOURCE_VIEW_DESC1 internal_desc = {};
 			convert_resource_view_desc(desc, internal_desc);
@@ -391,8 +395,8 @@ bool reshade::d3d10::device_impl::create_resource_view(api::resource resource, a
 				*out_view = to_handle(object.release());
 				return true;
 			}
-			break;
 		}
+		break;
 	}
 
 	return false;
@@ -421,6 +425,7 @@ reshade::api::resource_view_desc reshade::d3d10::device_impl::get_resource_view_
 	{
 		D3D10_RENDER_TARGET_VIEW_DESC internal_desc;
 		object->GetDesc(&internal_desc);
+
 		return convert_resource_view_desc(internal_desc);
 	}
 	if (com_ptr<ID3D10DepthStencilView> object;
@@ -428,6 +433,7 @@ reshade::api::resource_view_desc reshade::d3d10::device_impl::get_resource_view_
 	{
 		D3D10_DEPTH_STENCIL_VIEW_DESC internal_desc;
 		object->GetDesc(&internal_desc);
+
 		return convert_resource_view_desc(internal_desc);
 	}
 	if (com_ptr<ID3D10ShaderResourceView1> object;
@@ -435,6 +441,7 @@ reshade::api::resource_view_desc reshade::d3d10::device_impl::get_resource_view_
 	{
 		D3D10_SHADER_RESOURCE_VIEW_DESC1 internal_desc;
 		object->GetDesc1(&internal_desc);
+
 		return convert_resource_view_desc(internal_desc);
 	}
 	if (com_ptr<ID3D10ShaderResourceView> object;
@@ -442,6 +449,7 @@ reshade::api::resource_view_desc reshade::d3d10::device_impl::get_resource_view_
 	{
 		D3D10_SHADER_RESOURCE_VIEW_DESC internal_desc;
 		object->GetDesc(&internal_desc);
+
 		return convert_resource_view_desc(internal_desc);
 	}
 
@@ -471,6 +479,7 @@ bool reshade::d3d10::device_impl::map_buffer_region(api::resource resource, uint
 	}
 	else
 	{
+		*out_data = 0;
 		return false;
 	}
 }
@@ -497,6 +506,9 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 
 	const auto object = reinterpret_cast<ID3D10Resource *>(resource.handle);
 
+	static_assert(sizeof(api::subresource_data) >= sizeof(D3D10_MAPPED_TEXTURE2D));
+	static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
+
 	D3D10_RESOURCE_DIMENSION dimension;
 	object->GetType(&dimension);
 	switch (dimension)
@@ -504,10 +516,8 @@ bool reshade::d3d10::device_impl::map_texture_region(api::resource resource, uin
 	case D3D10_RESOURCE_DIMENSION_TEXTURE1D:
 		return SUCCEEDED(ID3D10Texture1D_Map(static_cast<ID3D10Texture1D *>(object), subresource, convert_access_flags(access), 0, &out_data->data));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
-		static_assert(sizeof(api::subresource_data) >= sizeof(D3D10_MAPPED_TEXTURE2D));
 		return SUCCEEDED(ID3D10Texture2D_Map(static_cast<ID3D10Texture2D *>(object), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE2D *>(out_data)));
 	case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
-		static_assert(sizeof(api::subresource_data) == sizeof(D3D10_MAPPED_TEXTURE3D));
 		return SUCCEEDED(ID3D10Texture3D_Map(static_cast<ID3D10Texture3D *>(object), subresource, convert_access_flags(access), 0, reinterpret_cast<D3D10_MAPPED_TEXTURE3D *>(out_data)));
 	}
 
@@ -538,6 +548,14 @@ void reshade::d3d10::device_impl::unmap_texture_region(api::resource resource, u
 void reshade::d3d10::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
 {
 	assert(resource != 0);
+
+	if (UINT64_MAX == size)
+	{
+		D3D10_BUFFER_DESC desc;
+		reinterpret_cast<ID3D10Buffer *>(resource.handle)->GetDesc(&desc);
+		size = desc.ByteWidth;
+	}
+
 	assert(offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	if (data == nullptr)

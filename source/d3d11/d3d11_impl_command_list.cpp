@@ -280,7 +280,12 @@ void reshade::d3d11::device_context_impl::bind_pipeline_states(uint32_t count, c
 			_orig->IASetPrimitiveTopology(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
 		case api::dynamic_state::blend_constant:
-			if (const float blend_constant[4] = { ((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f };
+			if (const float blend_constant[4] = {
+					((values[i]      ) & 0xFF) / 255.0f,
+					((values[i] >>  4) & 0xFF) / 255.0f,
+					((values[i] >>  8) & 0xFF) / 255.0f,
+					((values[i] >> 12) & 0xFF) / 255.0f
+				};
 				i + 1 < count &&
 				states[i + 1] == api::dynamic_state::sample_mask)
 			{
@@ -811,6 +816,15 @@ void reshade::d3d11::device_context_impl::query_acceleration_structures(uint32_t
 void reshade::d3d11::device_context_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
 {
 	assert(dest != 0);
+
+	if (UINT64_MAX == size)
+	{
+		D3D11_BUFFER_DESC desc;
+		reinterpret_cast<ID3D11Buffer *>(dest.handle)->GetDesc(&desc);
+		size = desc.ByteWidth;
+	}
+
+	assert(dest_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
 	const D3D11_BOX box = { static_cast<UINT>(dest_offset), 0, 0, static_cast<UINT>(dest_offset + size), 1, 1 };
 

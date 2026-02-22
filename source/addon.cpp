@@ -12,7 +12,7 @@
 #include "ini_file.hpp"
 #include <cstring> // std::strlen
 
-void ReShadeLogMessage([[maybe_unused]] HMODULE module, int level, const char *message)
+void ReShadeLogMessage([[maybe_unused]] void *module, int level, const char *message)
 {
 #if RESHADE_ADDON
 	if (reshade::addon_info *const info = reshade::find_addon(module))
@@ -40,7 +40,7 @@ void ReShadeGetBasePath(char *path, size_t *size)
 	}
 }
 
-bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
+bool ReShadeGetConfigValue(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, char *value, size_t *size)
 {
 	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
@@ -77,11 +77,11 @@ bool ReShadeGetConfigValue(HMODULE, reshade::api::effect_runtime *runtime, const
 	return !elements.empty();
 }
 
-void ReShadeSetConfigValue(HMODULE module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
+void ReShadeSetConfigValue(void *module, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value)
 {
 	return ReShadeSetConfigArray(module, runtime, section, key, value, value != nullptr ? std::strlen(value) : 0);
 }
-void ReShadeSetConfigArray(HMODULE, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
+void ReShadeSetConfigArray(void *, reshade::api::effect_runtime *runtime, const char *section, const char *key, const char *value, size_t size)
 {
 	reshade::ini_file &config = (runtime != nullptr) ? reshade::ini_file::load_cache(static_cast<reshade::runtime *>(runtime)->get_config_path()) : reshade::global_config();
 
@@ -136,77 +136,77 @@ bool ReShadeCreateEffectRuntime(reshade::api::device_api api, void *opaque_devic
 	switch (api)
 	{
 	case reshade::api::device_api::d3d9:
-	{
-		com_ptr<IDirect3DDevice9> device;
-		com_ptr<IDirect3DSwapChain9> swapchain;
-		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
-			return false;
-		if (FAILED(swapchain->GetDevice(&device)) || device.get() != opaque_device)
-			return false;
-
-		const auto device_impl = new reshade::d3d9::device_impl(device.get());
-		swapchain_impl = new reshade::d3d9::swapchain_impl(device_impl, swapchain.get());
-		graphics_queue_impl = device_impl;
-		break;
-	}
-	case reshade::api::device_api::d3d10:
-	{
-		com_ptr<ID3D10Device1> device;
-		com_ptr<IDXGISwapChain> swapchain;
-		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
-			return false;
-		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
-			return false;
-
-		const auto device_impl = new reshade::d3d10::device_impl(device.get());
-		swapchain_impl = new reshade::d3d10::swapchain_impl(device_impl, swapchain.get());
-		graphics_queue_impl = device_impl;
-		break;
-	}
-	case reshade::api::device_api::d3d11:
-	{
-		com_ptr<ID3D11Device> device;
-		com_ptr<IDXGISwapChain> swapchain;
-		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
-			return false;
-		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
-			return false;
-
-		com_ptr<ID3D11DeviceContext> device_context;
-		if (opaque_command_queue != nullptr)
 		{
-			if (FAILED(static_cast<IUnknown *>(opaque_command_queue)->QueryInterface(&device_context)))
+			com_ptr<IDirect3DDevice9> device;
+			com_ptr<IDirect3DSwapChain9> swapchain;
+			if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
 				return false;
+			if (FAILED(swapchain->GetDevice(&device)) || device.get() != opaque_device)
+				return false;
+
+			const auto device_impl = new reshade::d3d9::device_impl(device.get());
+			swapchain_impl = new reshade::d3d9::swapchain_impl(device_impl, swapchain.get());
+			graphics_queue_impl = device_impl;
 		}
-		else
+		break;
+	case reshade::api::device_api::d3d10:
 		{
-			device->GetImmediateContext(&device_context);
+			com_ptr<ID3D10Device1> device;
+			com_ptr<IDXGISwapChain> swapchain;
+			if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
+				return false;
+			if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
+				return false;
+
+			const auto device_impl = new reshade::d3d10::device_impl(device.get());
+			swapchain_impl = new reshade::d3d10::swapchain_impl(device_impl, swapchain.get());
+			graphics_queue_impl = device_impl;
 		}
-
-		const auto device_impl = new reshade::d3d11::device_impl(device.get());
-		swapchain_impl = new reshade::d3d11::swapchain_impl(device_impl, swapchain.get());
-		graphics_queue_impl = new reshade::d3d11::device_context_impl(device_impl, device_context.get());
 		break;
-	}
+	case reshade::api::device_api::d3d11:
+		{
+			com_ptr<ID3D11Device> device;
+			com_ptr<IDXGISwapChain> swapchain;
+			if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
+				return false;
+			if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
+				return false;
+
+			com_ptr<ID3D11DeviceContext> device_context;
+			if (opaque_command_queue != nullptr)
+			{
+				if (FAILED(static_cast<IUnknown *>(opaque_command_queue)->QueryInterface(&device_context)))
+					return false;
+			}
+			else
+			{
+				device->GetImmediateContext(&device_context);
+			}
+
+			const auto device_impl = new reshade::d3d11::device_impl(device.get());
+			swapchain_impl = new reshade::d3d11::swapchain_impl(device_impl, swapchain.get());
+			graphics_queue_impl = new reshade::d3d11::device_context_impl(device_impl, device_context.get());
+		}
+		break;
 	case reshade::api::device_api::d3d12:
-	{
-		com_ptr<ID3D12Device> device;
-		com_ptr<IDXGISwapChain3> swapchain;
-		if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
-			return false;
-		if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
-			return false;
+		{
+			com_ptr<ID3D12Device> device;
+			com_ptr<IDXGISwapChain3> swapchain;
+			if (FAILED(static_cast<IUnknown *>(opaque_swapchain)->QueryInterface(&swapchain)))
+				return false;
+			if (FAILED(swapchain->GetDevice(IID_PPV_ARGS(&device))) || device.get() != opaque_device)
+				return false;
 
-		com_ptr<ID3D12CommandQueue> command_queue;
-		if (opaque_command_queue == nullptr ||
-			FAILED(static_cast<IUnknown *>(opaque_command_queue)->QueryInterface(IID_PPV_ARGS(&command_queue))))
-			return false;
+			com_ptr<ID3D12CommandQueue> command_queue;
+			if (opaque_command_queue == nullptr ||
+				FAILED(static_cast<IUnknown *>(opaque_command_queue)->QueryInterface(IID_PPV_ARGS(&command_queue))))
+				return false;
 
-		const auto device_impl = new reshade::d3d12::device_impl(device.get());
-		swapchain_impl = new reshade::d3d12::swapchain_impl(device_impl, swapchain.get());
-		graphics_queue_impl = new reshade::d3d12::command_queue_impl(device_impl, command_queue.get());
+			const auto device_impl = new reshade::d3d12::device_impl(device.get());
+			swapchain_impl = new reshade::d3d12::swapchain_impl(device_impl, swapchain.get());
+			graphics_queue_impl = new reshade::d3d12::command_queue_impl(device_impl, command_queue.get());
+		}
 		break;
-	}
 	default:
 		return false;
 	}

@@ -116,7 +116,7 @@ void reshade::opengl::device_context_impl::bind_render_targets_and_depth_stencil
 		temp_mem<GLenum, 8> draw_buffers(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			if (rtvs[i].handle == 0)
+			if (rtvs[i] == 0)
 			{
 				draw_buffers[i] = GL_NONE;
 			}
@@ -190,6 +190,8 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource(GLenum
 	case GL_TEXTURE_2D_ARRAY:
 	case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
 	case GL_TEXTURE_3D:
+	case GL_TEXTURE_CUBE_MAP:
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
 		gl.FramebufferTextureLayer(target, attachment, dst_object, dst_subresource % dst_desc.texture.levels, dst_subresource / dst_desc.texture.levels);
 		break;
 	case GL_RENDERBUFFER:
@@ -241,7 +243,7 @@ void reshade::opengl::device_context_impl::bind_framebuffer_with_resource_views(
 
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		if (rtvs[i].handle == 0)
+		if (rtvs[i] == 0)
 			continue;
 
 		switch (rtvs[i].handle >> 40)
@@ -335,7 +337,7 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		if (_device_impl->_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_HEIGHT, &height);
 		}
@@ -357,7 +359,7 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 		}
 		break;
 	case GL_RENDERBUFFER:
-		if (_device_impl->_supports_dsa)
+		if (gl.VERSION_4_5)
 		{
 			gl.GetNamedRenderbufferParameteriv(object, GL_RENDERBUFFER_HEIGHT, &height);
 		}
@@ -692,7 +694,11 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 			gl.LogicOp(convert_logic_op(static_cast<api::logic_op>(values[i])));
 			break;
 		case api::dynamic_state::blend_constant:
-			gl.BlendColor(((values[i]) & 0xFF) / 255.0f, ((values[i] >> 4) & 0xFF) / 255.0f, ((values[i] >> 8) & 0xFF) / 255.0f, ((values[i] >> 12) & 0xFF) / 255.0f);
+			gl.BlendColor(
+				((values[i]      ) & 0xFF) / 255.0f,
+				((values[i] >>  4) & 0xFF) / 255.0f,
+				((values[i] >>  8) & 0xFF) / 255.0f,
+				((values[i] >> 12) & 0xFF) / 255.0f);
 			break;
 		case api::dynamic_state::render_target_write_mask:
 			gl.ColorMask(values[i] & 0x1, (values[i] >> 1) & 0x1, (values[i] >> 2) & 0x1, (values[i] >> 3) & 0x1);
@@ -1109,7 +1115,7 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 			if (descriptor.view == 0)
 				continue;
 
-			if (_device_impl->_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 				gl.BindTextureUnit(first + i, descriptor.view.handle & 0xFFFFFFFF);
 			}
@@ -1130,7 +1136,7 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 			if (descriptor == 0)
 				continue;
 
-			if (_device_impl->_supports_dsa)
+			if (gl.VERSION_4_5)
 			{
 				gl.BindTextureUnit(first + i, descriptor.handle & 0xFFFFFFFF);
 			}
@@ -1346,7 +1352,7 @@ void reshade::opengl::device_context_impl::copy_buffer_region(api::resource src,
 	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) &&
 		   dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
-	if (_device_impl->_supports_dsa)
+	if (gl.VERSION_4_5)
 	{
 		if (UINT64_MAX == size)
 		{
@@ -1830,7 +1836,7 @@ void reshade::opengl::device_context_impl::copy_texture_to_buffer(api::resource 
 
 			gl.GetTexImage(level_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
-		else if (_device_impl->_supports_dsa)
+		else if (gl.VERSION_4_5)
 		{
 			switch (src_target)
 			{
@@ -1895,7 +1901,7 @@ void reshade::opengl::device_context_impl::clear_depth_stencil_view(api::resourc
 	GLuint prev_draw_binding = 0;
 	gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
-	const bool binding_has_this_dsv = _device_impl->_supports_dsa && (dsv == _device_impl->get_framebuffer_attachment(prev_draw_binding, GL_DEPTH, 0));
+	const bool binding_has_this_dsv = gl.VERSION_4_5 && (dsv == _device_impl->get_framebuffer_attachment(prev_draw_binding, GL_DEPTH, 0));
 	if (!binding_has_this_dsv)
 		bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 0, nullptr, dsv);
 
@@ -1924,7 +1930,7 @@ void reshade::opengl::device_context_impl::clear_render_target_view(api::resourc
 	GLuint prev_draw_binding = 0;
 	gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&prev_draw_binding));
 
-	const bool binding_has_this_rtv = _device_impl->_supports_dsa && (rtv == _device_impl->get_framebuffer_attachment(prev_draw_binding, GL_COLOR, 0));
+	const bool binding_has_this_rtv = gl.VERSION_4_5 && (rtv == _device_impl->get_framebuffer_attachment(prev_draw_binding, GL_COLOR, 0));
 	if (!binding_has_this_rtv)
 		bind_framebuffer_with_resource_views(GL_DRAW_FRAMEBUFFER, 1, &rtv, { 0 });
 

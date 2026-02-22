@@ -7,10 +7,11 @@
 
 #include <D3D12Downlevel.h>
 
-struct D3D12Device;
+class D3D12Device;
 
-struct DECLSPEC_UUID("918B5021-E085-430C-BA85-D9C0EFE6FAA0") D3D12DeviceDownlevel final : ID3D12DeviceDownlevel
+class DECLSPEC_UUID("918B5021-E085-430C-BA85-D9C0EFE6FAA0") D3D12DeviceDownlevel final : public ID3D12DeviceDownlevel
 {
+public:
 	D3D12DeviceDownlevel(D3D12Device *device, ID3D12DeviceDownlevel *original);
 
 	D3D12DeviceDownlevel(const D3D12DeviceDownlevel &) = delete;
@@ -25,6 +26,8 @@ struct DECLSPEC_UUID("918B5021-E085-430C-BA85-D9C0EFE6FAA0") D3D12DeviceDownleve
 	HRESULT STDMETHODCALLTYPE QueryVideoMemoryInfo(UINT NodeIndex, DXGI_MEMORY_SEGMENT_GROUP MemorySegmentGroup, DXGI_QUERY_VIDEO_MEMORY_INFO *pVideoMemoryInfo) override;
 	#pragma endregion
 
-	ID3D12DeviceDownlevel *const _orig;
+	ID3D12DeviceDownlevel *_orig;
+
+private:
 	D3D12Device *const _parent_device;
 };

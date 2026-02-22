@@ -11,10 +11,14 @@
 #include <unordered_map>
 #include <concurrent_vector.h>
 
-struct D3D12DescriptorHeap;
+class D3D12DescriptorHeap;
 
 namespace reshade::d3d12
 {
+	class command_list_impl;
+	class command_list_immediate_impl;
+	class command_queue_impl;
+
 	class device_impl : public api::api_object_impl<ID3D12Device *, api::device>
 	{
 		friend class command_list_impl;
@@ -46,6 +50,7 @@ namespace reshade::d3d12
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
 
+		uint64_t get_resource_gpu_address(api::resource resource) const;
 		uint64_t get_resource_view_gpu_address(api::resource_view view) const final;
 
 		bool map_buffer_region(api::resource resource, uint64_t offset, uint64_t size, api::map_access access, void **out_data) final;
@@ -68,7 +73,7 @@ namespace reshade::d3d12
 
 		void get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *out_heap, uint32_t *out_offset) const final;
 
-		__forceinline ID3D12DescriptorHeap *get_descriptor_heap(api::descriptor_table table) const
+		PFORCEINLINE ID3D12DescriptorHeap *get_descriptor_heap(api::descriptor_table table) const
 		{
 			api::descriptor_heap heap;
 			get_descriptor_heap_offset(table, 0, 0, &heap, nullptr);
@@ -103,27 +108,30 @@ namespace reshade::d3d12
 #if RESHADE_ADDON >= 2
 		bool resolve_gpu_address(D3D12_GPU_VIRTUAL_ADDRESS address, api::resource *out_resource, uint64_t *out_offset, bool *out_acceleration_structure = nullptr) const;
 
-		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+		static PFORCEINLINE api::descriptor_table convert_to_descriptor_table(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 		{
 			assert((handle.ptr & 0xF000000000000000ull) == 0);
 			return { 0xF000000000000000ull | handle.ptr }; // Add bit to be able to distinguish this handle CPU and GPU descriptor handles
 		}
 #endif
-		static __forceinline api::descriptor_table convert_to_descriptor_table(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+		static PFORCEINLINE api::descriptor_table convert_to_descriptor_table(D3D12_GPU_DESCRIPTOR_HANDLE handle)
 		{
 			assert((handle.ptr & 0xF000000000000000ull) != 0xF000000000000000ull);
 			return { handle.ptr };
 		}
 
+#if RESHADE_ADDON >= 2
+		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
+#endif
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE *type = nullptr) const;
 		D3D12_GPU_DESCRIPTOR_HANDLE convert_to_original_gpu_descriptor_handle(api::descriptor_table set) const;
 
-		__forceinline D3D12_CPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
+		PFORCEINLINE D3D12_CPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
 			handle.ptr += offset * _descriptor_handle_size[type];
 			return handle;
 		}
-		__forceinline D3D12_GPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
+		PFORCEINLINE D3D12_GPU_DESCRIPTOR_HANDLE offset_descriptor_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle, SIZE_T offset, D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
 			handle.ptr += offset * _descriptor_handle_size[type];
 			return handle;

@@ -7,8 +7,9 @@
 
 #include <dxgi1_6.h>
 
-struct DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final : IDXGIAdapter4
+class DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final : public IDXGIAdapter4
 {
+public:
 	DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter  *original);
 	DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter1 *original);
 	~DXGIAdapter();
@@ -54,6 +55,8 @@ struct DECLSPEC_UUID("F978E25F-2217-49E0-A893-CDAFD6EE48B5") DXGIAdapter final :
 
 	IDXGIAdapter *_orig;
 	LONG _ref = 1;
-	unsigned short _interface_version;
+	unsigned short _interface_version = 0;
+
+private:
 	IDXGIFactory *const _parent_factory;
 };

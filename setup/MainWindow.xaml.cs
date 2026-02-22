@@ -260,17 +260,15 @@ namespace ReShade.Setup
 			}
 		}
 
-		static bool ModuleExists(string path, out bool isReShade)
+		static string GetModuleProductName(string path)
 		{
 			if (File.Exists(path))
 			{
-				isReShade = FileVersionInfo.GetVersionInfo(path).ProductName == "ReShade";
-				return true;
+				return FileVersionInfo.GetVersionInfo(path).ProductName;
 			}
 			else
 			{
-				isReShade = false;
-				return false;
+				return null;
 			}
 		}
 
@@ -294,7 +292,7 @@ namespace ReShade.Setup
 			// Filter out invalid search paths (and those with remaining wildcards that were not handled above)
 			var validSearchPaths = searchPaths.Where(searchPath =>
 				{
-					if (searchPath.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.IndexOf('*') < 0)
+					if (searchPath.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || searchPath.IndexOf('*') >= 0)
 					{
 						return false;
 					}
@@ -373,7 +371,7 @@ namespace ReShade.Setup
 					.Select(searchPath => searchPath.EndsWith(wildcard) ? new KeyValuePair<string, bool>(searchPath.Remove(searchPath.Length - 1 - wildcard.Length), true) : new KeyValuePair<string, bool>(searchPath, false))
 					.Where(searchPath =>
 						{
-							if (searchPath.Key.IndexOfAny(Path.GetInvalidPathChars()) < 0 && searchPath.Key.IndexOf('*') < 0)
+							if (searchPath.Key.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || searchPath.Key.IndexOf('*') >= 0)
 							{
 								return false;
 							}
@@ -649,6 +647,7 @@ namespace ReShade.Setup
 			bool isApiDDraw = false;
 			bool isApiOpenGL = false;
 			bool isApiVulkan = false;
+			currentInfo.targetApi = Api.Unknown;
 			currentInfo.targetOpenXR = false;
 
 			string basePath = Path.GetDirectoryName(currentInfo.targetPath);
@@ -662,6 +661,11 @@ namespace ReShade.Setup
 			string executableName = Path.GetFileName(currentInfo.targetPath);
 			if (compatibilityIni?.GetString(executableName, "Banned") == "1")
 			{
+				// Automatically uninstall ReShade from banned applications
+				currentInfo.configPath = Path.Combine(basePath, "ReShade.ini");
+
+				InstallStep_UninstallReShadeModule();
+
 				UpdateStatusAndFinish(false, "The target application is known to have blocked or banned the usage of ReShade. Cannot continue installation.");
 				return;
 			}
@@ -671,6 +675,11 @@ namespace ReShade.Setup
 				if (compatibilityIni.HasValue(executableName, "InstallTarget"))
 				{
 					basePath = Path.Combine(basePath, compatibilityIni.GetString(executableName, "InstallTarget"));
+
+					if (compatibilityIni.HasValue(executableName, "Is64Bit"))
+					{
+						currentInfo.is64Bit = compatibilityIni.GetString(executableName, "Is64Bit") == "1";
+					}
 				}
 
 				string api = compatibilityIni.GetString(executableName, "RenderApi");
@@ -727,6 +736,13 @@ namespace ReShade.Setup
 				{
 					isApiOpenGL = false; // Prefer Vulkan and Direct3D over OpenGL
 				}
+			}
+
+			// In case DXVK is installed, default to Vulkan
+			if (GetModuleProductName(Path.Combine(basePath, "d3d9.dll")) == "DXVK" ||
+				GetModuleProductName(Path.Combine(basePath, "dxgi.dll")) == "DXVK")
+			{
+				isApiVulkan = true;
 			}
 
 			// In case this game is modded with NVIDIA RTX Remix, install to the Remix Bridge
@@ -827,8 +843,6 @@ namespace ReShade.Setup
 
 			currentInfo.configPath = Path.Combine(basePath, "ReShade.ini");
 
-			bool isReShade = false;
-
 			if (currentInfo.targetApi == Api.Vulkan || currentInfo.targetOpenXR)
 			{
 				string moduleName = currentInfo.is64Bit ? "ReShade64" : "ReShade32";
@@ -882,9 +896,9 @@ namespace ReShade.Setup
 
 				currentInfo.modulePath = Path.Combine(basePath, currentInfo.modulePath);
 
-				if (currentOperation == InstallOperation.Install && ModuleExists(currentInfo.modulePath, out isReShade))
+				if (currentOperation == InstallOperation.Install && GetModuleProductName(currentInfo.modulePath) != null)
 				{
-					if (isReShade)
+					if (GetModuleProductName(currentInfo.modulePath) == "ReShade")
 					{
 						if (isHeadless)
 						{
@@ -909,7 +923,7 @@ namespace ReShade.Setup
 			{
 				string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				if (currentOperation == InstallOperation.Install && ModuleExists(conflictingModulePath, out isReShade) && isReShade)
+				if (currentOperation == InstallOperation.Install && GetModuleProductName(conflictingModulePath) == "ReShade")
 				{
 					if (isHeadless)
 					{
@@ -988,7 +1002,7 @@ namespace ReShade.Setup
 
 				try
 				{
-					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					if (GetModuleProductName(conflictingModulePath) == "ReShade")
 					{
 						File.Delete(conflictingModulePath);
 					}
@@ -1508,7 +1522,7 @@ In that event here are some steps you can try to resolve this:
 			{
 				string basePath = Path.GetDirectoryName(currentInfo.configPath);
 
-				if (currentInfo.targetApi != Api.Vulkan && !currentInfo.targetOpenXR)
+				if (currentInfo.modulePath != null && currentInfo.targetApi != Api.Vulkan && !currentInfo.targetOpenXR)
 				{
 					File.Delete(currentInfo.modulePath);
 				}
@@ -1558,7 +1572,7 @@ In that event here are some steps you can try to resolve this:
 				{
 					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-					if (ModuleExists(conflictingModulePath, out bool isReShade) && isReShade)
+					if (GetModuleProductName(conflictingModulePath) == "ReShade")
 					{
 						File.Delete(conflictingModulePath);
 					}
@@ -1901,8 +1915,15 @@ In that event here are some steps you can try to resolve this:
 		}
 		void InstallStep_Finish()
 		{
-			UpdateStatusAndFinish(true, (currentOperation != InstallOperation.Uninstall ? "Successfully installed ReShade." : "Successfully uninstalled ReShade.") +
-				(isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
+			if (currentOperation != InstallOperation.Uninstall)
+			{
+				UpdateStatusAndFinish(true, "Successfully installed ReShade." +
+					(isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool.\n\nTo uninstall, run this setup tool and select the application again to be presented with an uninstall option."));
+			}
+			else
+			{
+				UpdateStatusAndFinish(true, "Successfully uninstalled ReShade." + (isHeadless ? string.Empty : "\nClick the \"Finish\" button to exit the setup tool."));
+			}
 		}
 
 		void OnWindowInit(object sender, EventArgs e)
