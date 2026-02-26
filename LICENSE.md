@@ -1,4 +1,4 @@
-Copyright 2014 Patrick Mours. All rights reserved.
+Copyright 2025 Patrick Mours. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
