@@ -2031,6 +2031,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 				else
 				{
+					cso.clear();
+					assembly.clear();
+
 					if (!codegen->assemble_code_for_entry_point(entry_point.first, cso, assembly, errors))
 					{
 						compiled = false;

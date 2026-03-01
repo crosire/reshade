@@ -49,8 +49,6 @@ static void convert_cube_uv_to_vec(D3DCUBEMAP_FACES face, float u, float v, floa
 	}
 }
 
-extern const RECT *convert_box_to_rect(const reshade::api::subresource_box *box, RECT &rect);
-
 void reshade::d3d9::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
 {
 	DWORD clear_flags = 0;
@@ -598,8 +596,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	if (dst_desc.Pool == D3DPOOL_DEFAULT && src_desc.Pool == D3DPOOL_SYSTEMMEM)
 	{
 		_orig->UpdateSurface(
-			src_surface.get(), convert_box_to_rect(src_box, src_rect),
-			dst_surface.get(), reinterpret_cast<const POINT *>(convert_box_to_rect(dst_box, dst_rect)));
+			src_surface.get(), convert_subresource_box_to_rect(src_box, src_rect),
+			dst_surface.get(), reinterpret_cast<const POINT *>(convert_subresource_box_to_rect(dst_box, dst_rect)));
 		return;
 	}
 	if (dst_desc.Pool == D3DPOOL_SYSTEMMEM)
@@ -675,7 +673,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 		if (dst_box != nullptr)
 		{
-			convert_box_to_rect(dst_box, dst_rect);
+			convert_subresource_box_to_rect(dst_box, dst_rect);
 
 			D3DVIEWPORT9 viewport;
 			viewport.X = dst_rect.left;
@@ -767,8 +765,8 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 	else
 	{
 		_orig->StretchRect(
-			src_surface.get(), convert_box_to_rect(src_box, src_rect),
-			target_surface.get(), convert_box_to_rect(dst_box, dst_rect), stretch_filter_type);
+			src_surface.get(), convert_subresource_box_to_rect(src_box, src_rect),
+			target_surface.get(), convert_subresource_box_to_rect(dst_box, dst_rect), stretch_filter_type);
 	}
 
 	if (target_surface != dst_surface)

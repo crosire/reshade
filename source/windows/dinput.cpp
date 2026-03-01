@@ -92,10 +92,12 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 		{ \
 			const LPDIRECTINPUTDEVICE##device_interface_version##encoding device = *lplpDirectInputDevice; \
 			\
-			DIDEVCAPS caps = { sizeof(caps) }; \
-			device->GetCapabilities(&caps); \
-			\
-			const BYTE device_type = GET_DIDEVICE_TYPE(caps.dwDevType); \
+			/* DIDEVICEINSTANCE##encoding instance = { sizeof(instance) }; \
+			   device->GetDeviceInfo(&instance); \
+			   const BYTE device_type = GET_DIDEVICE_TYPE(instance.dwDevType); */ \
+			const BYTE device_type = \
+				(rguid == GUID_SysMouse) ? DIDEVTYPE_MOUSE : \
+				(rguid == GUID_SysKeyboard) ? DIDEVTYPE_KEYBOARD : 0; \
 			g_dinput_device_type.emplace(device, device_type); \
 			\
 			if (device_type == DIDEVTYPE_MOUSE || device_type == DIDEVTYPE_KEYBOARD) \
@@ -123,10 +125,12 @@ IDirectInputDevice_GetDeviceData_Impl(10, 7, W)
 		{ \
 			const LPDIRECTINPUTDEVICE##device_interface_version##encoding device = static_cast<LPDIRECTINPUTDEVICE##device_interface_version##encoding>(*ppvOut); \
 			\
-			DIDEVCAPS caps = { sizeof(caps) }; \
-			device->GetCapabilities(&caps); \
-			\
-			const BYTE device_type = GET_DIDEVICE_TYPE(caps.dwDevType); \
+			/* DIDEVICEINSTANCE##encoding instance = { sizeof(instance) }; \
+			   device->GetDeviceInfo(&instance); \
+			   const BYTE device_type = GET_DIDEVICE_TYPE(instance.dwDevType); */ \
+			const BYTE device_type = \
+				(rguid == GUID_SysMouse) ? DIDEVTYPE_MOUSE : \
+				(rguid == GUID_SysKeyboard) ? DIDEVTYPE_KEYBOARD : 0; \
 			g_dinput_device_type.emplace(device, device_type); \
 			\
 			if (device_type == DIDEVTYPE_MOUSE || device_type == DIDEVTYPE_KEYBOARD) \

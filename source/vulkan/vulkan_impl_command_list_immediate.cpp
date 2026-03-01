@@ -217,12 +217,6 @@ void reshade::vulkan::command_list_immediate_impl::update_texture_region(const a
 {
 	s_last_immediate_command_list = this;
 
-#if VK_EXT_host_image_copy
-	// Make sure image layout transitions have completed before doing update using host image copy
-	if (vk.EXT_host_image_copy)
-		flush(nullptr);
-#endif
-
 	_device_impl->update_texture_region(data, dest, dest_subresource, dest_box);
 }
 

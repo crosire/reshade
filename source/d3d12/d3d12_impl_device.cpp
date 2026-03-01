@@ -704,9 +704,9 @@ void reshade::d3d12::device_impl::unmap_texture_region(api::resource resource, u
 	ID3D12Resource_Unmap(reinterpret_cast<ID3D12Resource *>(resource.handle), subresource, nullptr);
 }
 
-void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
+void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(resource != 0);
+	assert(dst != 0);
 
 	if (data == nullptr)
 		return;
@@ -715,8 +715,9 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
+	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
 	if (UINT64_MAX == size)
-		size = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc().Width;
+		size = desc.Width;
 
 	// Allocate host memory for upload
 	D3D12_RESOURCE_DESC intermediate_desc = { D3D12_RESOURCE_DIMENSION_BUFFER };
@@ -747,49 +748,34 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
 	// Copy data from upload buffer into target texture using the first available immediate command list
-	immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, resource, offset, size);
+	immediate_command_list->copy_buffer_region(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, dst, dst_offset, size);
 
 	// Wait for command to finish executing before destroying the upload buffer
 	immediate_command_list->flush(true);
 }
-void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
+void reshade::d3d12::device_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
-	assert(resource != 0);
+	assert(dst != 0);
 
 	if (data.data == nullptr)
 		return;
-
-	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
-	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-	{
-		if (subresource != 0 || box != nullptr)
-			return;
-
-		update_buffer_region(data.data, resource, 0, data.slice_pitch);
-		return;
-	}
 
 	const auto immediate_command_list = get_immediate_command_list();
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
-	UINT width = static_cast<UINT>(desc.Width);
-	UINT height = desc.Height;
-	UINT depth = desc.DepthOrArraySize;
-	if (box != nullptr)
+	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		width = box->width();
-		height = box->height();
-		depth = box->depth();
-	}
-	else
-	{
-		width = std::max(1u, width >> (subresource % desc.MipLevels));
-		height = std::max(1u, height >> (subresource % desc.MipLevels));
+		if (dst_subresource != 0 || dst_box != nullptr)
+			return;
 
-		if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE3D)
-			depth = 1;
+		update_buffer_region(data.data, dst, 0, data.slice_pitch);
+		return;
 	}
+
+	UINT width, height, depth;
+	convert_subresource_box(dst_box, desc, dst_subresource, width, height, depth);
 
 	UINT row_pitch = api::format_row_pitch(convert_format(desc.Format), width);
 	row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
@@ -838,7 +824,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	ID3D12Resource_Unmap(intermediate.get(), 0, nullptr);
 
 	// Copy data from upload buffer into target texture using the first available immediate command list
-	immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, resource, subresource, box);
+	immediate_command_list->copy_buffer_to_texture(api::resource { reinterpret_cast<uintptr_t>(intermediate.get()) }, 0, 0, 0, dst, dst_subresource, dst_box);
 
 	// Wait for command to finish executing before destroying the upload buffer
 	immediate_command_list->flush(true);

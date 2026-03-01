@@ -558,12 +558,12 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 			// Initial data upload requires the image to be transferable to
 			if (create_info.usage == 0 || initial_data != nullptr)
-				create_info.usage |=
+				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 #if VK_EXT_host_image_copy
-					vk.EXT_host_image_copy ?
-						VK_IMAGE_USAGE_HOST_TRANSFER_BIT :
+			// Only use host image copy for host-coherent images
+			if (desc.heap == api::memory_heap::cpu_to_gpu && (desc.usage & api::resource_usage::copy_dest) != 0 && vk.EXT_host_image_copy)
+				create_info.usage |= VK_IMAGE_USAGE_HOST_TRANSFER_BIT;
 #endif
-						VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 			// Default view creation for resolving requires image to have a usage usable for view creation
 			if (desc.heap != api::memory_heap::unknown && !is_shared && (desc.usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0)
 				create_info.usage |= (aspect_flags_from_format(create_info.format) & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0 ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -644,37 +644,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 
 				if (initial_state != api::resource_usage::undefined)
 				{
-#if VK_EXT_host_image_copy
-					if (vk.EXT_host_image_copy && (create_info.usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT) != 0)
-					{
-						VkHostImageLayoutTransitionInfo transition { VK_STRUCTURE_TYPE_HOST_IMAGE_LAYOUT_TRANSITION_INFO };
-						transition.image = object;
-						transition.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-						transition.subresourceRange = { aspect_flags_from_format(create_info.format), 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-
-						if (initial_data != nullptr)
-						{
-							transition.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-
-							vk.TransitionImageLayout(_orig, 1, &transition);
-
-							for (uint32_t subresource = 0; subresource < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)) * desc.texture.levels; ++subresource)
-								update_texture_region(initial_data[subresource], *out_resource, subresource, nullptr);
-
-							transition.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-							transition.newLayout = convert_usage_to_image_layout(initial_state);
-
-							vk.TransitionImageLayout(_orig, 1, &transition);
-						}
-						else
-						{
-							transition.newLayout = convert_usage_to_image_layout(initial_state);
-
-							vk.TransitionImageLayout(_orig, 1, &transition);
-						}
-					}
-					else
-#endif
 					// Transition resource into the initial state using the first available immediate command list
 					if (const auto immediate_command_list = get_immediate_command_list())
 					{
@@ -1117,9 +1086,9 @@ void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, 
 	}
 }
 
-void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
+void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(resource != 0);
+	assert(dst != 0);
 
 	if (data == nullptr)
 		return;
@@ -1129,53 +1098,28 @@ void reshade::vulkan::device_impl::update_buffer_region(const void *data, api::r
 		return;
 
 	if (UINT64_MAX == size)
-		size = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)resource.handle)->create_info.size;
+		size = get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)dst.handle)->create_info.size;
 
 	immediate_command_list->_has_commands = true;
 
-	vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)resource.handle, offset, size, data);
+	vk.CmdUpdateBuffer(immediate_command_list->_orig, (VkBuffer)dst.handle, dst_offset, size, data);
 
 	immediate_command_list->flush(nullptr);
 }
-void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
+void reshade::vulkan::device_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
-	assert(resource != 0);
+	assert(dst != 0);
 
 	if (data.data == nullptr)
 		return;
 
-	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
+	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 	if (resource_data == nullptr)
 		return;
 
 	VkMemoryToImageCopy region { VK_STRUCTURE_TYPE_MEMORY_TO_IMAGE_COPY };
 	region.pHostPointer = data.data;
-
-	convert_subresource(subresource, resource_data->create_info, region.imageSubresource);
-	if (box != nullptr)
-	{
-		region.imageOffset.x = static_cast<int32_t>(box->left);
-		region.imageOffset.y = static_cast<int32_t>(box->top);
-		region.imageOffset.z = static_cast<int32_t>(box->front);
-
-		region.imageExtent.width = box->width();
-		region.imageExtent.height = box->height();
-		region.imageExtent.depth = box->depth();
-
-		if (resource_data->create_info.imageType != VK_IMAGE_TYPE_3D)
-		{
-			region.imageSubresource.layerCount = region.imageExtent.depth;
-			region.imageExtent.depth = 1;
-		}
-	}
-	else
-	{
-		region.imageOffset = { 0, 0, 0 };
-
-		region.imageExtent.width = std::max(1u, resource_data->create_info.extent.width >> region.imageSubresource.mipLevel);
-		region.imageExtent.height = std::max(1u, resource_data->create_info.extent.height >> region.imageSubresource.mipLevel);
-		region.imageExtent.depth = std::max(1u, resource_data->create_info.extent.depth >> region.imageSubresource.mipLevel);
-	}
+	convert_subresource_box(dst_subresource, dst_box, resource_data->create_info, region.imageSubresource, region.imageOffset, region.imageExtent);
 
 	const auto row_pitch = api::format_row_pitch(convert_format(resource_data->create_info.format), region.imageExtent.width);
 	const auto slice_pitch = api::format_slice_pitch(convert_format(resource_data->create_info.format), row_pitch, region.imageExtent.height);
@@ -1188,7 +1132,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	if (vk.EXT_host_image_copy && (resource_data->create_info.usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT) != 0 && packed_data_layout)
 	{
 		VkCopyMemoryToImageInfo copy_info { VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO };
-		copy_info.dstImage = (VkImage)resource.handle;
+		copy_info.dstImage = (VkImage)dst.handle;
 		copy_info.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		copy_info.regionCount = 1;
 		copy_info.pRegions = &region;
@@ -1240,7 +1184,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 		vmaUnmapMemory(_alloc, intermediate_mem);
 
 		// Copy data from upload buffer into target texture using the first available immediate command list
-		immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, resource, subresource, box);
+		immediate_command_list->copy_buffer_to_texture({ (uint64_t)intermediate }, 0, 0, 0, dst, dst_subresource, dst_box);
 
 		// Wait for command to finish executing before destroying the upload buffer
 		immediate_command_list->flush(nullptr);

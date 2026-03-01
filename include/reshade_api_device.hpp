@@ -429,19 +429,25 @@ namespace reshade::api
 		/// <summary>
 		/// Uploads data to a buffer resource immediately.
 		/// </summary>
+		/// <remarks>
+		/// The <paramref name="dest"/>ination resource has to be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
 		/// <param name="data">Pointer to the data to upload.</param>
-		/// <param name="resource">Buffer resource to upload to.</param>
-		/// <param name="offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
+		/// <param name="dest">Buffer resource to upload to.</param>
+		/// <param name="dest_offset">Offset (in bytes) into the buffer resource to start uploading to.</param>
 		/// <param name="size">Number of bytes to upload. Set to -1 (UINT64_MAX) to indicate that the entire buffer should be updated.</param>
-		virtual void update_buffer_region(const void *data, resource resource, uint64_t offset, uint64_t size) = 0;
+		virtual void update_buffer_region(const void *data, resource dest, uint64_t dest_offset, uint64_t size) = 0;
 		/// <summary>
 		/// Uploads data to a texture resource immediately.
 		/// </summary>
+		/// <remarks>
+		/// The <paramref name="dest"/>ination has to be in the <see cref="resource_usage::copy_dest"/> state.
+		/// </remarks>
 		/// <param name="data">Pointer to the data to upload.</param>
-		/// <param name="resource">Texture resource to upload to.</param>
-		/// <param name="subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
-		/// <param name="box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to.</param>
-		virtual void update_texture_region(const subresource_data &data, resource resource, uint32_t subresource, const subresource_box *box = nullptr) = 0;
+		/// <param name="dest">Texture resource to upload to.</param>
+		/// <param name="dest_subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
+		/// <param name="dest_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to.</param>
+		virtual void update_texture_region(const subresource_data &data, resource dest, uint32_t dest_subresource, const subresource_box *dest_box = nullptr) = 0;
 
 		/// <summary>
 		/// Creates a new pipeline state object.

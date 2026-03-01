@@ -44,6 +44,26 @@ namespace reshade::d3d12
 	auto convert_color_space(api::color_space type) -> DXGI_COLOR_SPACE_TYPE;
 	auto convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space;
 
+	inline void convert_subresource_box(const reshade::api::subresource_box *box, const D3D12_RESOURCE_DESC &desc, uint32_t subresource, UINT &width, UINT &height, UINT &depth)
+	{
+		if (box != nullptr)
+		{
+			width = box->width();
+			height = box->height();
+			depth = box->depth();
+		}
+		else
+		{
+			width = std::max(1u, static_cast<UINT>(desc.Width) >> (subresource % desc.MipLevels));
+			height = std::max(1u, desc.Height >> (subresource % desc.MipLevels));
+
+			if (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
+				depth = std::max(1u, static_cast<UINT>(desc.DepthOrArraySize) >> (subresource % desc.MipLevels));
+			else
+				depth = 1;
+		}
+	}
+
 	auto convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage;
 	auto convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage;
 	auto convert_resource_states_to_usage(D3D12_RESOURCE_STATES states) -> api::resource_usage;
