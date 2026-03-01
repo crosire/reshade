@@ -134,8 +134,9 @@ bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 	// Ignore the working directory and instead start relative paths at the DLL location
 	path = std::filesystem::u8path(std::move(path_string));
 
-	// Don't make unresolved env var paths relative
+	// Don't make unresolved env var paths relative since those will become full paths
 	if (path.is_relative() && !is_env_var)
+		path = g_reshade_base_path / path;
 	// Finally try to canonicalize the path too
 	if (std::filesystem::path canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
@@ -2031,6 +2032,9 @@ bool reshade::runtime::load_effect(const std::filesystem::path &source_file, con
 				}
 				else
 				{
+					cso.clear();
+					assembly.clear();
+
 					if (!codegen->assemble_code_for_entry_point(entry_point.first, cso, assembly, errors))
 					{
 						compiled = false;

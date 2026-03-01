@@ -382,11 +382,13 @@ private:
 		if (entry_point == nullptr)
 			return false;
 
+		spirv.clear();
+
+		finalize_header_section(spirv);
+
 		// Build list of IDs to remove
 		std::vector<spv::Id> variables_to_remove;
 		std::vector<spv::Id> functions_to_remove;
-
-		finalize_header_section(spirv);
 
 		// The entry point and execution mode declaration
 		for (const spirv_instruction &inst : _entries.instructions)

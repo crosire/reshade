@@ -1800,15 +1800,15 @@ void reshade::opengl::device_impl::unmap_texture_region(api::resource resource, 
 	}
 }
 
-void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size)
+void reshade::opengl::device_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
 {
-	assert(resource != 0 && (resource.handle >> 40) == GL_BUFFER);
-	assert(offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
+	assert(dest != 0 && (dest.handle >> 40) == GL_BUFFER);
+	assert(dest_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
 	if (data == nullptr)
 		return;
 
-	const GLuint object = resource.handle & 0xFFFFFFFF;
+	const GLuint object = dest.handle & 0xFFFFFFFF;
 
 	if (gl.VERSION_4_5)
 	{
@@ -1824,7 +1824,7 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 			size = max_size;
 		}
 
-		gl.NamedBufferSubData(object, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
+		gl.NamedBufferSubData(object, static_cast<GLintptr>(dest_offset), static_cast<GLsizeiptr>(size), data);
 	}
 	else
 	{
@@ -1845,20 +1845,20 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 			size = max_size;
 		}
 
-		gl.BufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), data);
+		gl.BufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(dest_offset), static_cast<GLsizeiptr>(size), data);
 
 		// The 'GL_COPY_WRITE_BUFFER' target does not affect other OpenGL state, so should be fine to leave it bound
 	}
 }
-void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box)
+void reshade::opengl::device_impl::update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box)
 {
-	assert(resource != 0);
+	assert(dest != 0);
 
 	if (data.data == nullptr)
 		return;
 
-	const GLenum target = resource.handle >> 40;
-	const GLuint object = resource.handle & 0xFFFFFFFF;
+	const GLenum target = dest.handle >> 40;
+	const GLuint object = dest.handle & 0xFFFFFFFF;
 
 	// Get current state
 	GLint prev_unpack_lsb = GL_FALSE;
@@ -1902,20 +1902,20 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	if (object != prev_binding)
 		gl.BindTexture(target, object);
 
-	const api::resource_desc desc = get_resource_desc(resource);
+	const api::resource_desc desc = get_resource_desc(dest);
 
-	const GLuint level = subresource % desc.texture.levels;
-	      GLuint layer = subresource / desc.texture.levels;
+	const GLuint level = dest_subresource % desc.texture.levels;
+	      GLuint layer = dest_subresource / desc.texture.levels;
 
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
-	if (box != nullptr)
+	if (dest_box != nullptr)
 	{
-		xoffset = box->left;
-		yoffset = box->top;
-		zoffset = box->front;
-		width   = box->width();
-		height  = box->height();
-		depth   = box->depth();
+		xoffset = dest_box->left;
+		yoffset = dest_box->top;
+		zoffset = dest_box->front;
+		width   = dest_box->width();
+		height  = dest_box->height();
+		depth   = dest_box->depth();
 	}
 	else
 	{

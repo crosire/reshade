@@ -58,8 +58,8 @@ namespace reshade::opengl
 		bool map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_texture_region(api::resource resource, uint32_t subresource) final;
 
-		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
-		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
+		void update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box) final;
 
 		bool create_shader(GLenum type, const reshade::api::shader_desc &desc, GLuint &out_shader);
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobjecte_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline) final;

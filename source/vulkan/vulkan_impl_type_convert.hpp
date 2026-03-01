@@ -209,6 +209,56 @@ namespace reshade::vulkan
 		subresource_info.baseArrayLayer = subresource / create_info.mipLevels;
 		subresource_info.layerCount = 1;
 	}
+	inline void convert_subresource_box(uint32_t subresource, const reshade::api::subresource_box *box, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info, VkOffset3D &offset, VkExtent3D &extent)
+	{
+		convert_subresource(subresource, create_info, subresource_info);
+
+		if (box != nullptr)
+		{
+			std::copy_n(&box->left, 3, &offset.x);
+
+			extent.width  = box->width();
+			extent.height = box->height();
+			extent.depth  = box->depth();
+
+			if (create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				subresource_info.layerCount = extent.depth;
+				extent.depth = 1;
+			}
+		}
+		else
+		{
+			offset = { 0, 0, 0 };
+
+			extent.width  = std::max(1u, create_info.extent.width  >> (subresource % create_info.mipLevels));
+			extent.height = std::max(1u, create_info.extent.height >> (subresource % create_info.mipLevels));
+			extent.depth  = std::max(1u, create_info.extent.depth  >> (subresource % create_info.mipLevels));
+		}
+	}
+	inline void convert_subresource_box(uint32_t subresource, const reshade::api::subresource_box *box, const VkImageCreateInfo &create_info, VkImageSubresourceLayers &subresource_info, VkOffset3D(&offsets)[2])
+	{
+		convert_subresource(subresource, create_info, subresource_info);
+
+		if (box != nullptr)
+		{
+			std::copy_n(&box->left, 6, &offsets[0].x);
+
+			if (create_info.imageType != VK_IMAGE_TYPE_3D)
+			{
+				subresource_info.layerCount = box->depth();
+				offsets[1].z = offsets[0].z + 1;
+			}
+		}
+		else
+		{
+			offsets[0] = { 0, 0, 0 };
+			offsets[1] = {
+				static_cast<int32_t>(std::max(1u, create_info.extent.width  >> subresource_info.mipLevel)),
+				static_cast<int32_t>(std::max(1u, create_info.extent.height >> subresource_info.mipLevel)),
+				static_cast<int32_t>(std::max(1u, create_info.extent.depth  >> subresource_info.mipLevel)) };
+		}
+	}
 
 	auto convert_access_to_usage(VkAccessFlags2 flags) -> api::resource_usage;
 	auto convert_image_layout_to_usage(VkImageLayout layout) -> api::resource_usage;

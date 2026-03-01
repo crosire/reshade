@@ -63,7 +63,6 @@ int resolve_macros(ImGuiInputTextCallbackData *data)
 	// This only works if the error occurs later in the path than the correct macro
 	// Doesn't communicate to the user that the error has occurred but it should be easy to see what happened 
 	// And it does move the cursor position to the last real path
-	// Note that this also does not work if the user types into an input field on the main gui window and clicks to open the file browser popup without entering
 	while (!std::filesystem::exists(resolved_path) && !resolved_path.empty() && resolved_path.u8string().find_last_of("\\") != std::string::npos)
 	{
 		resolved_path = std::filesystem::path(resolved_path.u8string().substr(0, resolved_path.u8string().find_last_of("\\")));

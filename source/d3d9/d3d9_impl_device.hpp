@@ -45,8 +45,8 @@ namespace reshade::d3d9
 		bool map_texture_region(api::resource resource, uint32_t subresource, const api::subresource_box *box, api::map_access access, api::subresource_data *out_data) final;
 		void unmap_texture_region(api::resource resource, uint32_t subresource) final;
 
-		void update_buffer_region(const void *data, api::resource resource, uint64_t offset, uint64_t size) final;
-		void update_texture_region(const api::subresource_data &data, api::resource resource, uint32_t subresource, const api::subresource_box *box) final;
+		void update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size) final;
+		void update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box) final;
 
 		bool create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_pipeline);
 		bool create_vertex_shader(const api::shader_desc &desc, api::pipeline *out_pipeline);

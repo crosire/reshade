@@ -662,9 +662,23 @@ namespace ReShade.Setup
 			if (compatibilityIni?.GetString(executableName, "Banned") == "1")
 			{
 				// Automatically uninstall ReShade from banned applications
-				currentInfo.configPath = Path.Combine(basePath, "ReShade.ini");
+				foreach (string conflictingModuleName in new[] { "d3d9.dll", "d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "opengl32.dll" })
+				{
+					string conflictingModulePath = Path.Combine(basePath, conflictingModuleName);
 
-				InstallStep_UninstallReShadeModule();
+					try
+					{
+						if (GetModuleProductName(conflictingModulePath) == "ReShade")
+						{
+							File.Delete(conflictingModulePath);
+						}
+					}
+					catch (SystemException)
+					{
+						// Ignore errors
+						continue;
+					}
+				}
 
 				UpdateStatusAndFinish(false, "The target application is known to have blocked or banned the usage of ReShade. Cannot continue installation.");
 				return;

@@ -58,6 +58,21 @@ namespace reshade::d3d9
 	auto convert_format(api::format format, BOOL lockable = FALSE, BOOL shader_usage = FALSE) -> D3DFORMAT;
 	auto convert_format(D3DFORMAT d3d_format, BOOL *lockable = nullptr) -> api::format;
 
+	inline const RECT *convert_subresource_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
+	{
+		if (box == nullptr)
+			return nullptr;
+
+		rect.left = static_cast<LONG>(box->left);
+		rect.top = static_cast<LONG>(box->top);
+		assert(box->front == 0);
+		rect.right = static_cast<LONG>(box->right);
+		rect.bottom = static_cast<LONG>(box->bottom);
+		assert(box->back == 1);
+
+		return &rect;
+	}
+
 	void convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPOOL &d3d_pool);
 	void convert_d3d_pool_to_memory_heap(D3DPOOL d3d_pool, api::memory_heap &heap);
 

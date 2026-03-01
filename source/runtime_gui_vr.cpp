@@ -27,6 +27,15 @@ bool reshade::runtime::init_gui_vr()
 	if (s_vr_overlay_handle != vr::k_ulOverlayHandleInvalid)
 		return true;
 
+	// OpenComposite aborts because it does not recognize the "IVROverlay_028" interface, so detect it via an export not present in the real OpenVR library
+	if (const HMODULE openvr_module = GetModuleHandleW(L"openvr_api.dll");
+		openvr_module != nullptr &&
+		GetProcAddress(openvr_module, "HmdSystemFactory") != nullptr)
+	{
+		log::message(log::level::error, "Failed to create VR dashboard overlay because SteamVR is not loaded!");
+		return true;
+	}
+
 	if (vr::VROverlay() == nullptr)
 	{
 		log::message(log::level::error, "Failed to create VR dashboard overlay because SteamVR is not loaded!");
