@@ -126,9 +126,7 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
 	// expand environment variables
-	std::string path_string = expand_macro_string(path.u8string(),{{
-		"AppName", g_target_executable_path.stem().u8string()
-	}});
+	std::string path_string = expand_macro_string(path.u8string());
 	const bool is_env_var = !path_string.empty() && path_string[0] == '%';
 	// First convert path to an absolute path
 	// Ignore the working directory and instead start relative paths at the DLL location
