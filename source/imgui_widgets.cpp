@@ -13,7 +13,7 @@
 
 extern std::filesystem::path g_reshade_base_path;
 extern int resolve_macros(ImGuiInputTextCallbackData *data);
-
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 static bool is_activate_key_pressed()
 {
 	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_RightArrow) || ImGui::IsKeyPressed(ImGui::GetIO().ConfigNavSwapGamepadButtons ? ImGuiKey_GamepadFaceRight : ImGuiKey_GamepadFaceDown); // See 'ImGuiKey_NavGamepadActivate'
@@ -148,6 +148,8 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	}
 
 	std::vector<std::filesystem::path> file_entries;
+	std::error_code &ec1 = std::error_code();
+	resolve_path(parent_path, ec1);
 	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.path().has_filename() && entry.path().filename().native().front() == L'.')
@@ -234,7 +236,9 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
-	
+
+	std::error_code &ec2 = std::error_code();
+	resolve_path(parent_path, ec2);
 	// Convert entry extension to lowercase before parsing
 	std::wstring path_ext = path.extension().wstring();
 	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), std::towlower);
@@ -372,6 +376,8 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue| ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 	{
 		dialog_path = std::filesystem::u8path(buf);
+		std::error_code& ec5 = std::error_code();
+		resolve_path(dialog_path, ec5);
 		// Convert path extension to lowercase before parsing
 		std::wstring dialog_path_ext = dialog_path.extension().wstring();
 		std::transform(dialog_path_ext.begin(), dialog_path_ext.end(), dialog_path_ext.begin(), std::towlower);
