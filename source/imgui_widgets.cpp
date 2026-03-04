@@ -130,7 +130,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	std::error_code ec;
 	if (path.empty())
 		path = L".\\";
-	const bool is_env_var = !path.empty() && path.generic_u8string()[0] == '%';
+	const bool is_env_var = !path.empty() && path.native()[0] == L'%';
 	if (path.is_relative() && !is_env_var)
 		path = g_reshade_base_path / path;
 	std::filesystem::path parent_path = path.parent_path();
