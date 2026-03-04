@@ -25,8 +25,6 @@
 #include <algorithm> // std::any_of, std::count_if, std::find, std::find_if, std::max, std::min, std::replace, std::rotate, std::search, std::swap, std::transform
 
 extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
-extern std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {});
-extern std::string setup_macros(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now);
 
 static bool string_contains(const std::string_view text, const std::string_view filter)
 {
@@ -2128,7 +2126,6 @@ void reshade::runtime::draw_gui_settings()
 
 		if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
 		{
-		
 			ImGui::SetTooltip(_(
 				"Macros you can add that are resolved during saving:\n"
 				"  %%AppName%%         Name of the application (%s)\n"
