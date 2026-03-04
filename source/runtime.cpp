@@ -75,29 +75,21 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 
 		std::string value;
 
-		// Allow using this function to escape out the percentage symbols without needing to specify macros
-		// System dirs are manually restricted from screenshot pathing
-		if (macros.empty() && getenv(name.c_str()) != nullptr)
+		for (const std::pair<std::string, std::string> &macro : macros)
 		{
-			value = getenv(name.c_str());
-		}
-		else {
-			for (const std::pair<std::string, std::string> &macro : macros)
+			if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
 			{
-				if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
-				{
-					value = macro.second;
-					break;
-				}
-				// Allow using env vars alongside macros
-				else if (getenv(name.c_str()) != nullptr)
-				{
-					value = getenv(name.c_str());
-					break;
-				}
+				value = macro.second;
+				break;
 			}
 		}
-
+		
+	
+		// Allow using env vars alongside macros
+		if (value.empty())
+		{
+			value = std::getenv(name.c_str());
+		}
 		if (colon_pos == std::string_view::npos)
 		{
 			result += value;
