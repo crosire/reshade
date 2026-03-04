@@ -309,7 +309,7 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	_texture_search_paths({ L".\\" }),
 	_config_path(config_path),
 	_screenshot_path(L".\\"),
-	_screenshot_name("%AppName% %Date% %Time%_%Count%"), // Use count rather than Ms because its more readable and meaningful
+	_screenshot_name("%AppName% %Date% %Time%_%Count%"), // Ensure unique naming with screenshot count since screenshots can occur multiple times per second
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
@@ -4800,11 +4800,6 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 		(_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq) ? (_screenshot_format == 3 ? 5 : 4) : _screenshot_format;
 
 	std::string screenshot_name = setup_macros(_screenshot_name, { // this preserves all timedate-based macros while limiting their usage to screenshots 
-		{"SYSTEM", g_reshade_base_path.stem().u8string()}, // I may have missed a few but this is just some idiot proofing for screenshots
-		{"SYSTEM32", g_reshade_base_path.stem().u8string()}, // You can of course still use these macros for stuff like fonts
-		{"SYSTEMDRIVE", g_reshade_base_path.stem().u8string()},	// realistically this shouldn't be a concern but the risk is a possible crash due to access rights
-		{"SYSTEMROOT", g_reshade_base_path.stem().u8string()},
-		{"WINDIR", g_reshade_base_path.stem().u8string()},
 		{ "AppName", g_target_executable_path.stem().u8string() },
 		{ "PresetName", _current_preset_path.stem().u8string() },
 		{ "BeforeAfter", std::string(postfix) },
