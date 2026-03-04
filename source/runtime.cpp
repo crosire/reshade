@@ -74,7 +74,6 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 			name = replacing.substr(0, colon_pos);
 
 		std::string value;
-
 		for (const std::pair<std::string, std::string> &macro : macros)
 		{
 			if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
@@ -114,6 +113,44 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 	return result;
 }
 
+// This overload processes datetime based macros before calling the main expand_macro function
+std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
+{
+	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+	char timestamp[21];
+	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
+	struct tm tm; localtime_s(&tm, &t);
+
+	std::snprintf(timestamp, std::size(timestamp), "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+	macros.emplace_back("Date", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.4d", tm.tm_year + 1900);
+	macros.emplace_back("DateYear", timestamp);
+	macros.emplace_back("Year", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mon + 1);
+	macros.emplace_back("DateMonth", timestamp);
+	macros.emplace_back("Month", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mday);
+	macros.emplace_back("DateDay", timestamp);
+	macros.emplace_back("Day", timestamp);
+
+	std::snprintf(timestamp, std::size(timestamp), "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+	macros.emplace_back("Time", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_hour);
+	macros.emplace_back("TimeHour", timestamp);
+	macros.emplace_back("Hour", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_min);
+	macros.emplace_back("TimeMinute", timestamp);
+	macros.emplace_back("Minute", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_sec);
+	macros.emplace_back("TimeSecond", timestamp);
+	macros.emplace_back("Second", timestamp);
+	std::snprintf(timestamp, std::size(timestamp), "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
+	macros.emplace_back("TimeMillisecond", timestamp);
+	macros.emplace_back("Millisecond", timestamp);
+	macros.emplace_back("TimeMS", timestamp);
+
+	return expand_macro_string(input, macros);
+}
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
@@ -256,45 +293,6 @@ static std::vector<std::filesystem::path> find_files(const std::vector<std::file
 	}
 
 	return files;
-}
-
-// part of the screenshot macro functionality. needs to be with the other helpers or forward declared for correct access
-std::string setup_macros(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
-{
-	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
-	char timestamp[21];
-	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
-	struct tm tm; localtime_s(&tm, &t);
-
-	std::snprintf(timestamp, std::size(timestamp), "%.4d-%.2d-%.2d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-	macros.emplace_back("Date", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.4d", tm.tm_year + 1900);
-	macros.emplace_back("DateYear", timestamp);
-	macros.emplace_back("Year", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mon + 1);
-	macros.emplace_back("DateMonth", timestamp);
-	macros.emplace_back("Month", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_mday);
-	macros.emplace_back("DateDay", timestamp);
-	macros.emplace_back("Day", timestamp);
-
-	std::snprintf(timestamp, std::size(timestamp), "%.2d-%.2d-%.2d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-	macros.emplace_back("Time", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_hour);
-	macros.emplace_back("TimeHour", timestamp);
-	macros.emplace_back("Hour", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_min);
-	macros.emplace_back("TimeMinute", timestamp);
-	macros.emplace_back("Minute", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.2d", tm.tm_sec);
-	macros.emplace_back("TimeSecond", timestamp);
-	macros.emplace_back("Second", timestamp);
-	std::snprintf(timestamp, std::size(timestamp), "%.3lld", std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count());
-	macros.emplace_back("TimeMillisecond", timestamp);
-	macros.emplace_back("Millisecond", timestamp);
-	macros.emplace_back("TimeMS", timestamp);
-	
-	return expand_macro_string(input, macros);
 }
 
 reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphics_queue, const std::filesystem::path &config_path, bool is_vr) :
@@ -4799,7 +4797,7 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 	const unsigned int screenshot_format =
 		(_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq) ? (_screenshot_format == 3 ? 5 : 4) : _screenshot_format;
 
-	std::string screenshot_name = setup_macros(_screenshot_name, { // this preserves all timedate-based macros while limiting their usage to screenshots 
+	std::string screenshot_name = expand_macro_string(_screenshot_name, { // this overload preserves all timedate-based macros while limiting their usage to screenshots 
 		{ "AppName", g_target_executable_path.stem().u8string() },
 		{ "PresetName", _current_preset_path.stem().u8string() },
 		{ "BeforeAfter", std::string(postfix) },
@@ -5092,7 +5090,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 	if (!_screenshot_post_save_command_arguments.empty())
 	{
 		command_line += ' ';
-		command_line += setup_macros(_screenshot_post_save_command_arguments, {
+		command_line += expand_macro_string(_screenshot_post_save_command_arguments, {
 			{ "AppName", g_target_executable_path.stem().u8string() },
 			{ "PresetName", _current_preset_path.stem().u8string() },
 			{ "BeforeAfter", std::string(postfix) },
