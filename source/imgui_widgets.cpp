@@ -13,11 +13,11 @@
 
 extern std::filesystem::path g_reshade_base_path;
 
-extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec, const std::filesystem::path &base = g_reshade_base_path);
 extern std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {});
 
 // Resolve environment variables in input text widgets when tab is pressed
-static int  resolve_macros(ImGuiInputTextCallbackData *data)
+static auto resolve_macros(ImGuiInputTextCallbackData *data) -> int
 {
 	const std::string text(data->Buf, data->BufTextLen);
 	const std::string resolved = expand_macro_string(text);

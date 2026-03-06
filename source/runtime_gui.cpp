@@ -24,7 +24,7 @@
 #include <cstring> // std::memcmp, std::memcpy
 #include <algorithm> // std::any_of, std::count_if, std::find, std::find_if, std::max, std::min, std::replace, std::rotate, std::search, std::swap, std::transform
 
-extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec, const std::filesystem::path &base = g_reshade_base_path);
 
 static bool string_contains(const std::string_view text, const std::string_view filter)
 {

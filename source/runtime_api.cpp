@@ -10,7 +10,7 @@
 #include "input.hpp"
 #include <algorithm> // std::all_of, std::find, std::find_if, std::for_each, std::remove_if
 
-extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec, const std::filesystem::path &base = g_reshade_base_path);
 extern bool resolve_preset_path(std::filesystem::path &path, std::error_code &ec);
 
 bool reshade::runtime::is_key_down(uint32_t keycode) const

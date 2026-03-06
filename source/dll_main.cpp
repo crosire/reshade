@@ -21,6 +21,8 @@ std::filesystem::path g_reshade_dll_path;
 std::filesystem::path g_reshade_base_path;
 std::filesystem::path g_target_executable_path;
 
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec, const std::filesystem::path &base);
+
 /// <summary>
 /// Checks whether the current application is an UWP app.
 /// </summary>
@@ -48,41 +50,21 @@ bool is_windows7()
 }
 
 /// <summary>
-/// Expands any environment variables in the path (like "%USERPROFILE%") and checks whether it points towards an existing directory.
-/// </summary>
-static bool resolve_env_path(std::filesystem::path &path, const std::filesystem::path &base = g_reshade_dll_path.parent_path())
-{
-	if (path.empty())
-		return false;
-
-	WCHAR buf[4096];
-	if (ExpandEnvironmentStringsW(path.c_str(), buf, ARRAYSIZE(buf)))
-		path = buf;
-	else
-		return false;
-
-	path = base / path;
-
-	std::error_code ec;
-	path = std::filesystem::canonical(path, ec);
-	return !ec && std::filesystem::is_directory(path, ec);
-}
-
-/// <summary>
 /// Returns the path that should be used as base for relative paths.
 /// </summary>
 std::filesystem::path get_base_path(bool default_to_target_executable_path = false)
 {
+	std::error_code ec;
 	std::filesystem::path path_override;
 
 	// Cannot use global config here yet, since it uses base path for look up, so look at config file next to target executable instead
 	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", path_override) &&
-		resolve_env_path(path_override))
+		resolve_path(path_override, ec, g_reshade_dll_path.parent_path()) && std::filesystem::is_directory(path_override, ec))
 		return path_override;
 
 	WCHAR buf[4096];
 	path_override.assign(buf, buf + GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)));
-	if (resolve_env_path(path_override))
+	if (resolve_path(path_override, ec, g_reshade_dll_path.parent_path()) && std::filesystem::is_directory(path_override, ec))
 		return path_override;
 
 	return default_to_target_executable_path ? g_target_executable_path.parent_path() : g_reshade_dll_path.parent_path();
