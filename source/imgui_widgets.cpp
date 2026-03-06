@@ -393,7 +393,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue| ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 	{
 		dialog_path = std::filesystem::u8path(buf);
-		std::error_code& ec = std::error_code();
+		std::error_code ec = std::error_code();
 		resolve_path(dialog_path, ec);
 		// Convert path extension to lowercase before parsing
 		std::wstring dialog_path_ext = dialog_path.extension().wstring();
