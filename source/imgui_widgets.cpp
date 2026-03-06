@@ -13,9 +13,33 @@
 
 extern std::filesystem::path g_reshade_base_path;
 
+extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
+extern std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {});
+
+// Resolve environment variables in input text widgets when tab is pressed
+static int  resolve_macros(ImGuiInputTextCallbackData *data)
+{
+	const std::string text(data->Buf, data->BufTextLen);
+	const std::string resolved = expand_macro_string(text);
+
+	if (resolved != text)
+	{
+		const int buf_len = static_cast<int>(resolved.copy(data->Buf, data->BufSize - 1));
+		data->Buf[buf_len] = '\0';
+
+		data->CursorPos += buf_len - data->BufTextLen;
+		data->BufTextLen = buf_len;
+		data->BufDirty = true;
+	}
+
+	return 0;
+}
+
 static bool is_activate_key_pressed()
 {
-	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGui::GetIO().ConfigNavSwapGamepadButtons ? ImGuiKey_GamepadFaceRight : ImGuiKey_GamepadFaceDown); // See 'ImGuiKey_NavGamepadActivate'
+	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) ||
+		ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_RightArrow) ||
+		ImGui::IsKeyPressed(ImGui::GetIO().ConfigNavSwapGamepadButtons ? ImGuiKey_GamepadFaceRight : ImGuiKey_GamepadFaceDown); // See 'ImGuiKey_NavGamepadActivate'
 }
 
 bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
@@ -42,7 +66,7 @@ bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::p
 			buf[buf_len] = '\0';
 
 			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - (button_spacing + button_size));
-			if (ImGui::InputText("##path", buf, sizeof(buf)))
+			if (ImGui::InputText("##path", buf, sizeof(buf), ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 			{
 				res = true;
 				paths[i] = std::filesystem::u8path(buf);
@@ -110,7 +134,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	std::error_code ec;
 	if (path.empty())
 		path = L".\\";
-	if (path.is_relative())
+	if (path.is_relative() && path.native()[0] != L'%')
 		path = g_reshade_base_path / path;
 	std::filesystem::path parent_path = path.parent_path();
 
@@ -119,7 +143,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		buf[buf_len] = '\0';
 
 		ImGui::SetNextItemWidth(width);
-		if (ImGui::InputText("##path", buf, sizeof(buf)))
+		if (ImGui::InputText("##path", buf, sizeof(buf), ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 		{
 			path = std::filesystem::u8path(buf);
 			if ((path.has_stem() && std::filesystem::is_directory(path, ec)) || (path.has_root_name() && path == path.root_name()))
@@ -145,13 +169,15 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		}
 	}
 
+	resolve_path(parent_path, ec);
+
 	std::vector<std::filesystem::path> file_entries;
 	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.path().has_filename() && entry.path().filename().native().front() == L'.')
 			continue; // Skip "hidden" files and directories
 
-		if (entry.is_directory())
+		if (entry.is_directory(ec))
 		{
 			const bool selected = (entry == path);
 
@@ -220,7 +246,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		buf[buf_len] = '\0';
 
 		ImGui::SetNextItemWidth(std::max(0.0f, width - (2 * (button_spacing + button_size))));
-		if (ImGui::InputText("##name", buf, sizeof(buf)))
+		if (ImGui::InputText("##name", buf, sizeof(buf), ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 			path = path.parent_path() / buf;
 	}
 
@@ -232,7 +258,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
-	
+
 	// Convert entry extension to lowercase before parsing
 	std::wstring path_ext = path.extension().wstring();
 	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), std::towlower);
@@ -367,7 +393,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	buf[buf_len] = '\0'; // Null-terminate string
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
-	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 	{
 		dialog_path = std::filesystem::u8path(buf);
 		// Convert path extension to lowercase before parsing
@@ -416,8 +442,10 @@ bool reshade::imgui::directory_input_box(const char *name, std::filesystem::path
 	buf[buf_len] = '\0'; // Null-terminate string
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
-	if (ImGui::InputText("##path", buf, sizeof(buf)))
+	if (ImGui::InputText("##path", buf, sizeof(buf), ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
+	{
 		path = std::filesystem::u8path(buf), res = true;
+	}
 
 	ImGui::SameLine(0, button_spacing);
 	if (ImGui::Button(ICON_FK_FOLDER_OPEN, ImVec2(button_size, 0)))
