@@ -17,22 +17,24 @@ extern std::string expand_macro_string(const std::string &input, std::vector<std
 // custom callback to allow resolving environment vars in input_text fields when tab is pressed
 int resolve_macros(ImGuiInputTextCallbackData *data)
 {
-	std::error_code ec = std::error_code();
+	std::error_code ec;
 	std::string text = data->Buf;
-	const auto text_len = text.length();
+	const auto text_len = static_cast<int>(text.length());
 	std::string resolved = expand_macro_string(text);
 	int cursor_pos = data->CursorPos;
 	// Update the buffer with sanitized text
 	strcpy(data->Buf, resolved.c_str());
 
 	// shift the cursor accordingly. note that if undo is pressed it will jump to the position of the last %
-	// not a big deal imo but the issue would be in imgui source code 
-	cursor_pos += resolved.length() - text_len;
+	// not a big deal imo but the issue would be in imgui source code
+	const auto resolved_len = static_cast<int>(resolved.length());
+	cursor_pos += resolved_len- text_len;
 	data->CursorPos = cursor_pos;
-	data->BufTextLen = resolved.length();
+	data->BufTextLen = resolved_len;
 	data->BufDirty = true;
 	return 0;
 }
+
 static bool is_activate_key_pressed()
 {
 	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_RightArrow) || ImGui::IsKeyPressed(ImGui::GetIO().ConfigNavSwapGamepadButtons ? ImGuiKey_GamepadFaceRight : ImGuiKey_GamepadFaceDown); // See 'ImGuiKey_NavGamepadActivate'
@@ -393,7 +395,7 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue| ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 	{
 		dialog_path = std::filesystem::u8path(buf);
-		std::error_code ec = std::error_code();
+		std::error_code ec;
 		resolve_path(dialog_path, ec);
 		// Convert path extension to lowercase before parsing
 		std::wstring dialog_path_ext = dialog_path.extension().wstring();
