@@ -12,32 +12,34 @@
 #include <algorithm> // std::find, std::max, std::min, std::replace std::transform
 
 extern std::filesystem::path g_reshade_base_path;
+
 extern bool resolve_path(std::filesystem::path &path, std::error_code &ec);
 extern std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {});
-// custom callback to allow resolving environment vars in input_text fields when tab is pressed
-int resolve_macros(ImGuiInputTextCallbackData *data)
-{
-	std::error_code ec;
-	std::string text = data->Buf;
-	const auto text_len = static_cast<int>(text.length());
-	std::string resolved = expand_macro_string(text);
-	int cursor_pos = data->CursorPos;
-	// Update the buffer with sanitized text
-	strcpy(data->Buf, resolved.c_str());
 
-	// shift the cursor accordingly. note that if undo is pressed it will jump to the position of the last %
-	// not a big deal imo but the issue would be in imgui source code
-	const auto resolved_len = static_cast<int>(resolved.length());
-	cursor_pos += resolved_len- text_len;
-	data->CursorPos = cursor_pos;
-	data->BufTextLen = resolved_len;
-	data->BufDirty = true;
+// Resolve environment variables in input text widgets when tab is pressed
+static int  resolve_macros(ImGuiInputTextCallbackData *data)
+{
+	const std::string text(data->Buf, data->BufTextLen);
+	const std::string resolved = expand_macro_string(text);
+
+	if (resolved != text)
+	{
+		const int buf_len = static_cast<int>(resolved.copy(data->Buf, data->BufSize - 1));
+		data->Buf[buf_len] = '\0';
+
+		data->CursorPos += buf_len - data->BufTextLen;
+		data->BufTextLen = buf_len;
+		data->BufDirty = true;
+	}
+
 	return 0;
 }
 
 static bool is_activate_key_pressed()
 {
-	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_RightArrow) || ImGui::IsKeyPressed(ImGui::GetIO().ConfigNavSwapGamepadButtons ? ImGuiKey_GamepadFaceRight : ImGuiKey_GamepadFaceDown); // See 'ImGuiKey_NavGamepadActivate'
+	return ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) ||
+		ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_RightArrow) ||
+		ImGui::IsKeyPressed(ImGui::GetIO().ConfigNavSwapGamepadButtons ? ImGuiKey_GamepadFaceRight : ImGuiKey_GamepadFaceDown); // See 'ImGuiKey_NavGamepadActivate'
 }
 
 bool reshade::imgui::path_list(const char *label, std::vector<std::filesystem::path> &paths, std::filesystem::path &dialog_path, const std::filesystem::path &default_path)
@@ -132,8 +134,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	std::error_code ec;
 	if (path.empty())
 		path = L".\\";
-	const bool is_env_var = !path.empty() && path.native()[0] == L'%';
-	if (path.is_relative() && !is_env_var)
+	if (path.is_relative() && path.native()[0] != L'%')
 		path = g_reshade_base_path / path;
 	std::filesystem::path parent_path = path.parent_path();
 
@@ -168,14 +169,14 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		}
 	}
 
-	std::vector<std::filesystem::path> file_entries;
 	resolve_path(parent_path, ec);
+
+	std::vector<std::filesystem::path> file_entries;
 	for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(parent_path, std::filesystem::directory_options::skip_permission_denied, ec))
 	{
 		if (entry.path().has_filename() && entry.path().filename().native().front() == L'.')
 			continue; // Skip "hidden" files and directories
 
-		// fixes crash caused when the popup is open and you navigate to C:
 		if (entry.is_directory(ec))
 		{
 			const bool selected = (entry == path);
@@ -245,7 +246,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 		buf[buf_len] = '\0';
 
 		ImGui::SetNextItemWidth(std::max(0.0f, width - (2 * (button_spacing + button_size))));
-		if (ImGui::InputText("##name", buf, sizeof(buf),ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
+		if (ImGui::InputText("##name", buf, sizeof(buf), ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 			path = path.parent_path() / buf;
 	}
 
@@ -257,7 +258,7 @@ bool reshade::imgui::file_dialog(const char *name, std::filesystem::path &path, 
 	// Navigate into directory when clicking select button
 	if (select && path.has_stem() && std::filesystem::is_directory(path, ec))
 		path += std::filesystem::path::preferred_separator;
-	resolve_path(parent_path, ec);
+
 	// Convert entry extension to lowercase before parsing
 	std::wstring path_ext = path.extension().wstring();
 	std::transform(path_ext.begin(), path_ext.end(), path_ext.begin(), std::towlower);
@@ -392,11 +393,9 @@ bool reshade::imgui::file_input_box(const char *name, const char *hint, std::fil
 	buf[buf_len] = '\0'; // Null-terminate string
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
-	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue| ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
+	if (ImGui::InputTextWithHint("##path", hint, buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCompletion, &resolve_macros))
 	{
 		dialog_path = std::filesystem::u8path(buf);
-		std::error_code ec;
-		resolve_path(dialog_path, ec);
 		// Convert path extension to lowercase before parsing
 		std::wstring dialog_path_ext = dialog_path.extension().wstring();
 		std::transform(dialog_path_ext.begin(), dialog_path_ext.end(), dialog_path_ext.begin(), std::towlower);

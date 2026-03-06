@@ -38,11 +38,10 @@
 #include <stb_image_write_hdr_png.h>
 #include <stb_image_resize2.h>
 
-
-// This handles both the screenshot expansion and environment var resolution
 std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {})
 {
 	std::string result;
+
 	for (size_t offset = 0, macro_beg, macro_end; offset < input.size(); offset = macro_end + 1)
 	{
 		macro_beg = input.find('%', offset);
@@ -56,6 +55,7 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 		else
 		{
 			result += input.substr(offset, macro_beg - offset);
+
 			if (macro_end == macro_beg + 1) // Handle case of %% to escape percentage symbol
 			{
 				result += '%';
@@ -82,13 +82,16 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 				break;
 			}
 		}
-		
-	
-		// Allow using env vars alongside macros
+
+		// Allow using environment variables alongside macros
 		if (value.empty())
 		{
-			value = std::getenv(name.c_str());
+			char buf[512] = "";
+			size_t buf_len = 0;
+			if (getenv_s(&buf_len, buf, sizeof(buf) - 1, name.c_str()) == 0)
+				value = buf;
 		}
+
 		if (colon_pos == std::string_view::npos)
 		{
 			result += value;
@@ -110,13 +113,13 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 			}
 		}
 	}
+
 	return result;
 }
-
-// This overload processes datetime based macros before calling the main expand_macro function
 std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
 {
 	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+
 	char timestamp[21];
 	const std::time_t t = std::chrono::system_clock::to_time_t(now_seconds);
 	struct tm tm; localtime_s(&tm, &t);
@@ -154,21 +157,18 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec)
 {
-	// expand environment variables
-	std::string path_string = expand_macro_string(path.u8string());
-	const bool is_env_var = !path_string.empty() && path_string[0] == '%';
+	path = std::filesystem::u8path(expand_macro_string(path.u8string()));
+
 	// First convert path to an absolute path
 	// Ignore the working directory and instead start relative paths at the DLL location
-	path = std::filesystem::u8path(std::move(path_string));
-
-	// Don't make unresolved env var paths relative since those will become full paths
-	if (path.is_relative() && !is_env_var)
+	if (path.is_relative())
 		path = g_reshade_base_path / path;
 	// Finally try to canonicalize the path too
 	if (std::filesystem::path canonical_path = std::filesystem::canonical(path, ec); !ec)
 		path = std::move(canonical_path);
 	else
 		path = path.lexically_normal();
+
 	return !ec; // The canonicalization step fails if the path does not exist
 }
 
@@ -307,7 +307,7 @@ reshade::runtime::runtime(api::swapchain *swapchain, api::command_queue *graphic
 	_texture_search_paths({ L".\\" }),
 	_config_path(config_path),
 	_screenshot_path(L".\\"),
-	_screenshot_name("%AppName% %Date% %Time%_%Count%"), // Ensure unique naming with screenshot count since screenshots can occur multiple times per second
+	_screenshot_name("%AppName% %Date% %Time%_%Count%"), // Ensure unique naming with screenshot count because users may request more than one screenshot per second
 	_screenshot_post_save_command_arguments("\"%TargetPath%\""),
 	_screenshot_post_save_command_working_directory(L".\\")
 {
@@ -4797,10 +4797,10 @@ void reshade::runtime::save_screenshot(const char *postfix_in)
 	const unsigned int screenshot_format =
 		(_back_buffer_format == api::format::r16g16b16a16_float || _back_buffer_color_space == api::color_space::hdr10_pq) ? (_screenshot_format == 3 ? 5 : 4) : _screenshot_format;
 
-	std::string screenshot_name = expand_macro_string(_screenshot_name, { // this overload preserves all timedate-based macros while limiting their usage to screenshots 
+	std::string screenshot_name = expand_macro_string(_screenshot_name, {
 		{ "AppName", g_target_executable_path.stem().u8string() },
 		{ "PresetName", _current_preset_path.stem().u8string() },
-		{ "BeforeAfter", std::string(postfix) },
+		{ "BeforeAfter", postfix },
 		{ "Count", std::to_string(screenshot_count) }
 	}, _current_time);
 
