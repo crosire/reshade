@@ -507,7 +507,7 @@ extern "C" BOOL  WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXEL
 	reshade::api::swapchain_desc desc = {};
 	desc.back_buffer.type = reshade::api::resource_type::surface;
 	desc.back_buffer.texture.format = reshade::opengl::convert_pixel_format(pfd);
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.heap = reshade::api::memory_heap::default_;
 	desc.back_buffer.usage = reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source | reshade::api::resource_usage::resolve_dest;
 	desc.back_buffer_count = 1;
 

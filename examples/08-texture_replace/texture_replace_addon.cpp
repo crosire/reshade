@@ -21,7 +21,7 @@ extern bool load_texture_image(const resource_desc &desc, subresource_data &data
 
 static inline bool filter_texture(device *device, const resource_desc &desc, const subresource_box *box)
 {
-	if (desc.type != resource_type::texture_2d || (desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (desc.heap != memory_heap::unknown && desc.heap != memory_heap::gpu_only) || (desc.flags & resource_flags::dynamic) == resource_flags::dynamic)
+	if (desc.type != resource_type::texture_2d || (desc.usage & resource_usage::shader_resource) == resource_usage::undefined || (desc.heap != memory_heap::unknown && desc.heap != memory_heap::default_) || (desc.flags & resource_flags::dynamic) == resource_flags::dynamic)
 		return false; // Ignore resources that are not static 2D textures that can be used as shader input
 
 	if (device->get_api() != device_api::opengl && (desc.usage & (resource_usage::shader_resource | resource_usage::depth_stencil | resource_usage::render_target)) != resource_usage::shader_resource)
@@ -60,7 +60,7 @@ static bool on_copy_texture(command_list *cmd_list, resource source, uint32_t so
 	device *const device = cmd_list->get_device();
 
 	const resource_desc source_desc = device->get_resource_desc(source);
-	if (source_desc.heap != memory_heap::cpu_to_gpu)
+	if (source_desc.heap != memory_heap::upload)
 		return false; // Ignore copies that are not from a buffer in host memory
 
 	const resource_desc dest_desc = device->get_resource_desc(dest);

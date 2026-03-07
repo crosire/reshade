@@ -2769,7 +2769,7 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 {
 	const bool reset = (vertex_buffer_size == 0);
 
-	reshade::api::resource_desc vertex_buffer_desc(0, reshade::api::memory_heap::cpu_to_gpu, reshade::api::resource_usage::vertex_buffer, reshade::api::resource_flags::dynamic);
+	reshade::api::resource_desc vertex_buffer_desc(0, reshade::api::memory_heap::upload, reshade::api::resource_usage::vertex_buffer, reshade::api::resource_flags::dynamic);
 	if (_primitive_up_vertex_buffer != 0)
 		vertex_buffer_desc = device_impl::get_resource_desc(_primitive_up_vertex_buffer);
 
@@ -2796,7 +2796,7 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 		}
 	}
 
-	reshade::api::resource_desc index_buffer_desc(0, reshade::api::memory_heap::cpu_to_gpu, reshade::api::resource_usage::index_buffer, reshade::api::resource_flags::dynamic);
+	reshade::api::resource_desc index_buffer_desc(0, reshade::api::memory_heap::upload, reshade::api::resource_usage::index_buffer, reshade::api::resource_flags::dynamic);
 	if (_primitive_up_index_buffer != 0)
 		index_buffer_desc = device_impl::get_resource_desc(_primitive_up_index_buffer);
 

@@ -250,7 +250,7 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		}
 
 		desc.type = resource_type::texture_2d;
-		desc.heap = memory_heap::gpu_only;
+		desc.heap = memory_heap::default_;
 		desc.usage = resource_usage::shader_resource | resource_usage::copy_dest;
 
 		if (desc.texture.samples > 1)

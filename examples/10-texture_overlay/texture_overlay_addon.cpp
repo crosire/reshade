@@ -66,7 +66,7 @@ static void on_init_device(device *device)
 	initial_data.row_pitch = sizeof(GREEN);
 	initial_data.slice_pitch = sizeof(GREEN);
 
-	if (!device->create_resource(resource_desc(1, 1, 1, 1, format::r8g8b8a8_unorm, 1, memory_heap::gpu_only, resource_usage::shader_resource), &initial_data, resource_usage::shader_resource, &data->green_texture))
+	if (!device->create_resource(resource_desc(1, 1, 1, 1, format::r8g8b8a8_unorm, 1, memory_heap::default_, resource_usage::shader_resource), &initial_data, resource_usage::shader_resource, &data->green_texture))
 	{
 		reshade::log::message(reshade::log::level::error, "Failed to create green texture!");
 		return;
@@ -291,7 +291,7 @@ static bool save_texture_image(command_queue *queue, resource tex, const resourc
 	device *const device = queue->get_device();
 
 	resource intermediate;
-	if (desc.heap != memory_heap::gpu_only)
+	if (desc.heap != memory_heap::default_)
 	{
 		// Avoid copying to temporary system memory resource if texture is accessible directly
 		intermediate = tex;
@@ -301,7 +301,7 @@ static bool save_texture_image(command_queue *queue, resource tex, const resourc
 		if ((desc.usage & resource_usage::copy_source) != resource_usage::copy_source)
 			return false;
 
-		if (!device->create_resource(resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_default_typed(desc.texture.format), 1, memory_heap::gpu_to_cpu, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
+		if (!device->create_resource(resource_desc(desc.texture.width, desc.texture.height, 1, 1, format_to_default_typed(desc.texture.format), 1, memory_heap::readback, resource_usage::copy_dest), nullptr, resource_usage::copy_dest, &intermediate))
 		{
 			reshade::log::message(reshade::log::level::error, "Failed to create system memory texture for texture dumping!");
 			return false;

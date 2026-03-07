@@ -419,7 +419,7 @@ bool reshade::runtime::on_init()
 			usage |= api::resource_usage::copy_source;
 
 		if (!_device->create_resource(
-				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::gpu_only, usage),
+				api::resource_desc(_width, _height, 1, 1, api::format_to_typeless(_back_buffer_format), 1, api::memory_heap::default_, usage),
 				nullptr, back_buffer_desc.texture.samples == 1 ? api::resource_usage::copy_dest : api::resource_usage::resolve_dest, &_back_buffer_resolved) ||
 			!_device->create_resource_view(
 				_back_buffer_resolved,
@@ -483,7 +483,7 @@ bool reshade::runtime::on_init()
 	{
 		// Use VK_FORMAT_R16_SFLOAT format, since it is mandatory according to the spec (see https://www.khronos.org/registry/vulkan/specs/1.1/html/vkspec.html#features-required-format-support)
 		if (!_device->create_resource(
-				api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource),
+				api::resource_desc(1, 1, 1, 1, api::format::r16_float, 1, api::memory_heap::default_, api::resource_usage::shader_resource),
 				nullptr, api::resource_usage::shader_resource, &_empty_tex))
 		{
 			log::message(log::level::error, "Failed to create empty texture resource!");
@@ -2384,7 +2384,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		if (permutation_index == 0)
 		{
 			if (!_device->create_resource(
-					api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::cpu_to_gpu, api::resource_usage::constant_buffer),
+					api::resource_desc(effect.uniform_data_storage.size(), api::memory_heap::upload, api::resource_usage::constant_buffer),
 					nullptr, api::resource_usage::cpu_access, &effect.cb))
 			{
 				log::message(log::level::error, "Failed to create constant buffer for effect file '%s'!", effect.source_file.u8string().c_str());
@@ -3250,7 +3250,7 @@ bool reshade::runtime::create_texture(texture &tex)
 		}
 	}
 
-	if (!_device->create_resource(api::resource_desc(type, tex.width, tex.height, tex.depth, tex.levels, format, 1, api::memory_heap::gpu_only, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
+	if (!_device->create_resource(api::resource_desc(type, tex.width, tex.height, tex.depth, tex.levels, format, 1, api::memory_heap::default_, usage, flags), initial_data.data(), api::resource_usage::shader_resource, &tex.resource))
 	{
 		log::message(log::level::error, "Failed to create texture '%s' (width = %u, height = %u, levels = %hu, format = %u, usage = %#x)! Make sure the texture dimensions are reasonable.", tex.unique_name.c_str(), tex.width, tex.height, tex.levels, static_cast<uint32_t>(format), static_cast<uint32_t>(usage));
 		return false;
@@ -3622,7 +3622,7 @@ auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, a
 	permutation.color_format = color_format;
 
 	if (!_device->create_resource(
-			api::resource_desc(width, height, 1, 1, api::format_to_typeless(color_format), 1, api::memory_heap::gpu_only, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
+			api::resource_desc(width, height, 1, 1, api::format_to_typeless(color_format), 1, api::memory_heap::default_, api::resource_usage::copy_dest | api::resource_usage::shader_resource),
 			nullptr, api::resource_usage::shader_resource, &permutation.color_tex))
 	{
 		log::message(log::level::error, "Failed to create effect color resource (width = %u, height = %u, format = %u)!", width, height, static_cast<uint32_t>(api::format_to_typeless(color_format)));
@@ -3640,7 +3640,7 @@ auto reshade::runtime::add_effect_permutation(uint32_t width, uint32_t height, a
 
 	if (stencil_format != api::format::unknown &&
 		_device->create_resource(
-			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::gpu_only, api::resource_usage::depth_stencil),
+			api::resource_desc(width, height, 1, 1, stencil_format, 1, api::memory_heap::default_, api::resource_usage::depth_stencil),
 			nullptr, api::resource_usage::depth_stencil_write, &permutation.stencil_tex))
 	{
 		permutation.stencil_format = stencil_format;
@@ -5127,7 +5127,7 @@ bool reshade::runtime::get_texture_data(api::resource resource, api::resource_us
 
 	// Copy back buffer data into system memory buffer
 	api::resource intermediate;
-	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, intermediate_format, 1, api::memory_heap::gpu_to_cpu, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
+	if (!_device->create_resource(api::resource_desc(desc.texture.width, desc.texture.height, 1, 1, intermediate_format, 1, api::memory_heap::readback, api::resource_usage::copy_dest), nullptr, api::resource_usage::copy_dest, &intermediate))
 	{
 		log::message(log::level::error, "Failed to create system memory texture for screenshot capture!");
 		return false;

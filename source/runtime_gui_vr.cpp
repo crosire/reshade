@@ -67,7 +67,7 @@ bool reshade::runtime::init_gui_vr()
 
 	vr::VROverlay()->SetOverlayWidthInMeters(s_vr_overlay_handle, 1.5f);
 
-	if (!_device->create_resource(api::resource_desc(VR_OVERLAY_WIDTH, VR_OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::gpu_only, api::resource_usage::render_target | api::resource_usage::copy_source), nullptr, api::resource_usage::copy_source, &_vr_overlay_tex))
+	if (!_device->create_resource(api::resource_desc(VR_OVERLAY_WIDTH, VR_OVERLAY_HEIGHT, 1, 1, api::format::r8g8b8a8_unorm, 1, api::memory_heap::default_, api::resource_usage::render_target | api::resource_usage::copy_source), nullptr, api::resource_usage::copy_source, &_vr_overlay_tex))
 	{
 		log::message(log::level::error, "Failed to create VR dashboard overlay texture!");
 		return false;

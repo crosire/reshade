@@ -43,7 +43,7 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 	desc.back_buffer.texture.levels = 1;
 	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.BufferDesc.Format);
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.heap = reshade::api::memory_heap::default_;
 
 	// If either the width or height are zero, then the swap chain will be sized to the current window size
 	if (internal_desc.BufferDesc.Width == 0 || internal_desc.BufferDesc.Height == 0)
@@ -118,7 +118,7 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 	desc.back_buffer.texture.levels = 1;
 	desc.back_buffer.texture.format = static_cast<reshade::api::format>(internal_desc.Format);
 	desc.back_buffer.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.heap = reshade::api::memory_heap::default_;
 
 	// If either the width or height are zero, then the swap chain will be sized to the current window size
 	if (window != nullptr && (internal_desc.Width == 0 || internal_desc.Height == 0))

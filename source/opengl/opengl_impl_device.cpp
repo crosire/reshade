@@ -197,7 +197,7 @@ reshade::opengl::device_impl::device_impl(HDC initial_hdc, HGLRC shared_hglrc, c
 	_default_fbo_desc.texture.levels = 1;
 	_default_fbo_desc.texture.format = convert_pixel_format(pfd);
 	_default_fbo_desc.texture.samples = 1;
-	_default_fbo_desc.heap = reshade::api::memory_heap::gpu_only;
+	_default_fbo_desc.heap = reshade::api::memory_heap::default_;
 	_default_fbo_desc.usage = reshade::api::resource_usage::render_target | reshade::api::resource_usage::copy_dest | reshade::api::resource_usage::copy_source | reshade::api::resource_usage::resolve_dest;
 
 	if (pfd.dwFlags & PFD_STEREO)
@@ -552,9 +552,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			break;
 		default:
 			target = GL_COPY_WRITE_BUFFER;
-			if (desc.heap == api::memory_heap::gpu_to_cpu)
+			if (desc.heap == api::memory_heap::readback)
 				target = GL_PIXEL_PACK_BUFFER;
-			else if (desc.heap == api::memory_heap::cpu_to_gpu)
+			else if (desc.heap == api::memory_heap::upload)
 				target = GL_PIXEL_UNPACK_BUFFER;
 			break;
 		}

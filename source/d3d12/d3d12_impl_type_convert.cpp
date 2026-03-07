@@ -392,14 +392,14 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 
 	switch (desc.heap)
 	{
-	case api::memory_heap::gpu_only:
+	case api::memory_heap::default_:
 		heap_props.Type = D3D12_HEAP_TYPE_DEFAULT;
 		break;
-	case api::memory_heap::cpu_only:
-	case api::memory_heap::cpu_to_gpu:
+	case api::memory_heap::upload:
+	case api::memory_heap::scratch:
 		heap_props.Type = D3D12_HEAP_TYPE_UPLOAD;
 		break;
-	case api::memory_heap::gpu_to_cpu:
+	case api::memory_heap::readback:
 		heap_props.Type = D3D12_HEAP_TYPE_READBACK;
 		break;
 	case api::memory_heap::custom:
@@ -493,13 +493,13 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 		desc.flags |= api::resource_flags::sparse_binding;
 		break;
 	case D3D12_HEAP_TYPE_DEFAULT:
-		desc.heap = api::memory_heap::gpu_only;
+		desc.heap = api::memory_heap::default_;
 		break;
 	case D3D12_HEAP_TYPE_UPLOAD:
-		desc.heap = api::memory_heap::cpu_to_gpu;
+		desc.heap = api::memory_heap::upload;
 		break;
 	case D3D12_HEAP_TYPE_READBACK:
-		desc.heap = api::memory_heap::gpu_to_cpu;
+		desc.heap = api::memory_heap::readback;
 		break;
 	case D3D12_HEAP_TYPE_CUSTOM:
 		desc.heap = api::memory_heap::custom;

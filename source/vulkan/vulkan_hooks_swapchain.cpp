@@ -192,7 +192,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	desc.back_buffer.texture.levels = 1;
 	desc.back_buffer.texture.format = reshade::vulkan::convert_format(create_info.imageFormat);
 	desc.back_buffer.texture.samples = 1;
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.heap = reshade::api::memory_heap::default_;
 	reshade::vulkan::convert_image_usage_flags_to_usage(create_info.imageUsage, desc.back_buffer.usage);
 
 	desc.back_buffer_count = create_info.minImageCount;

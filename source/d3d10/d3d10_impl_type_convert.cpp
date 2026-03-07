@@ -25,20 +25,20 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 
 	switch (heap)
 	{
-	case api::memory_heap::gpu_only:
+	case api::memory_heap::default_:
 		if (usage == D3D10_USAGE_IMMUTABLE)
 			break;
 		usage = D3D10_USAGE_DEFAULT;
 		break;
-	case api::memory_heap::cpu_to_gpu:
+	case api::memory_heap::upload:
 		usage = D3D10_USAGE_DYNAMIC;
 		cpu_access_flags |= D3D10_CPU_ACCESS_WRITE;
 		break;
-	case api::memory_heap::gpu_to_cpu:
+	case api::memory_heap::readback:
 		usage = D3D10_USAGE_STAGING;
 		cpu_access_flags |= D3D10_CPU_ACCESS_READ;
 		break;
-	case api::memory_heap::cpu_only:
+	case api::memory_heap::scratch:
 		usage = D3D10_USAGE_STAGING;
 		if (cpu_access_flags == 0)
 			cpu_access_flags |= D3D10_CPU_ACCESS_READ | D3D10_CPU_ACCESS_WRITE;
@@ -54,14 +54,14 @@ static void convert_d3d_usage_to_memory_heap(D3D10_USAGE usage, UINT cpu_access_
 	case D3D10_USAGE_DEFAULT:
 	case D3D10_USAGE_IMMUTABLE:
 		assert(cpu_access_flags == 0);
-		heap = api::memory_heap::gpu_only;
+		heap = api::memory_heap::default_;
 		break;
 	case D3D10_USAGE_DYNAMIC:
 		assert(cpu_access_flags == D3D10_CPU_ACCESS_WRITE);
-		heap = api::memory_heap::cpu_to_gpu;
+		heap = api::memory_heap::upload;
 		break;
 	case D3D10_USAGE_STAGING:
-		heap = cpu_access_flags == D3D10_CPU_ACCESS_READ ? api::memory_heap::gpu_to_cpu : api::memory_heap::cpu_only;
+		heap = cpu_access_flags == D3D10_CPU_ACCESS_READ ? api::memory_heap::readback : api::memory_heap::scratch;
 		break;
 	}
 }

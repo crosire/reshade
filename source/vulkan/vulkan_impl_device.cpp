@@ -407,18 +407,18 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 	case api::memory_heap::unknown:
 		alloc_info.usage = VMA_MEMORY_USAGE_UNKNOWN;
 		break;
-	case api::memory_heap::gpu_only:
+	case api::memory_heap::default_:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		break;
-	case api::memory_heap::cpu_to_gpu:
+	case api::memory_heap::upload:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 		// Make sure host visible allocations are coherent, since no explicit flushing is performed
 		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		break;
-	case api::memory_heap::gpu_to_cpu:
+	case api::memory_heap::readback:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
 		break;
-	case api::memory_heap::cpu_only:
+	case api::memory_heap::scratch:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 		break;
 	}
@@ -498,26 +498,47 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 #endif
 
 			if (VkBuffer object = VK_NULL_HANDLE;
-				(desc.heap == api::memory_heap::unknown ?
-					vk.CreateBuffer(_orig, &create_info, _alloc->GetAllocationCallbacks(), &object) :
-					vmaCreateBuffer(_alloc, &create_info, &alloc_info, &object, &allocation, &allocation_info)) == VK_SUCCESS)
+				vk.CreateBuffer(_orig, &create_info, _alloc->GetAllocationCallbacks(), &object) == VK_SUCCESS)
 			{
-#if VK_KHR_external_memory_win32
-				if (allocation != VMA_NULL && is_shared && *shared_handle == nullptr)
+				if (desc.heap != api::memory_heap::unknown)
 				{
-					assert(allocation_info.offset == 0);
+					VkMemoryRequirements reqs = {};
+					bool dedicated_allocation = false;
+					bool prefers_dedicated_allocation = false;
+					_alloc->GetBufferMemoryRequirements(object, reqs, dedicated_allocation, prefers_dedicated_allocation);
 
-					VkMemoryGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
-					handle_info.memory = allocation_info.deviceMemory;
-					handle_info.handleType = handle_type;
-
-					if (vk.GetMemoryWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+					if (_alloc->AllocateMemory(
+							reqs, dedicated_allocation, prefers_dedicated_allocation,
+							object, VK_NULL_HANDLE,
+							VmaBufferImageUsage(create_info, _alloc->m_UseKhrMaintenance5),
+							alloc_info,
+							VMA_SUBALLOCATION_TYPE_BUFFER,
+							1, &allocation) != VK_SUCCESS ||
+						_alloc->BindBufferMemory(allocation, 0, object, nullptr) != VK_SUCCESS)
 					{
 						vmaDestroyBuffer(_alloc, object, allocation);
 						break;
 					}
-				}
+
+					_alloc->GetAllocationInfo(allocation, &allocation_info);
+
+#if VK_KHR_external_memory_win32
+					if (is_shared && *shared_handle == nullptr)
+					{
+						assert(dedicated_allocation && allocation != VMA_NULL && allocation_info.offset == 0);
+
+						VkMemoryGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
+						handle_info.memory = allocation_info.deviceMemory;
+						handle_info.handleType = handle_type;
+
+						if (vk.GetMemoryWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+						{
+							vmaDestroyBuffer(_alloc, object, allocation);
+							break;
+						}
+					}
 #endif
+				}
 
 				object_data<VK_OBJECT_TYPE_BUFFER> data;
 				data.allocation = allocation;
@@ -561,14 +582,14 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 #if VK_EXT_host_image_copy
 			// Only use host image copy for host-coherent images
-			if (desc.heap == api::memory_heap::cpu_to_gpu && (desc.usage & api::resource_usage::copy_dest) != 0 && vk.EXT_host_image_copy)
+			if (desc.heap == api::memory_heap::upload && (desc.usage & api::resource_usage::copy_dest) != 0 && vk.EXT_host_image_copy)
 				create_info.usage |= VK_IMAGE_USAGE_HOST_TRANSFER_BIT;
 #endif
 			// Default view creation for resolving requires image to have a usage usable for view creation
 			if (desc.heap != api::memory_heap::unknown && !is_shared && (desc.usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0)
 				create_info.usage |= (aspect_flags_from_format(create_info.format) & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0 ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 			// Mapping images is only really useful with linear tiling
-			if (desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only)
+			if (desc.heap == api::memory_heap::readback || desc.heap == api::memory_heap::scratch)
 				create_info.tiling = VK_IMAGE_TILING_LINEAR;
 
 #if VK_KHR_external_memory_win32
@@ -590,26 +611,47 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 #endif
 
 			if (VkImage object = VK_NULL_HANDLE;
-				(desc.heap == api::memory_heap::unknown ?
-					vk.CreateImage(_orig, &create_info, _alloc->GetAllocationCallbacks(), &object) :
-					vmaCreateImage(_alloc, &create_info, &alloc_info, &object, &allocation, &allocation_info)) == VK_SUCCESS)
+				vk.CreateImage(_orig, &create_info, _alloc->GetAllocationCallbacks(), &object) == VK_SUCCESS)
 			{
-#if VK_KHR_external_memory_win32
-				if (allocation != VMA_NULL && is_shared && *shared_handle == nullptr)
+				if (desc.heap != api::memory_heap::unknown)
 				{
-					assert(allocation_info.offset == 0);
+					VkMemoryRequirements reqs = {};
+					bool dedicated_allocation = false;
+					bool prefers_dedicated_allocation = false;
+					_alloc->GetImageMemoryRequirements(object, reqs, dedicated_allocation, prefers_dedicated_allocation);
 
-					VkMemoryGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
-					handle_info.memory = allocation_info.deviceMemory;
-					handle_info.handleType = handle_type;
-
-					if (vk.GetMemoryWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+					if (_alloc->AllocateMemory(
+							reqs, dedicated_allocation, prefers_dedicated_allocation,
+							VK_NULL_HANDLE, object,
+							VmaBufferImageUsage(create_info),
+							alloc_info,
+							create_info.tiling == VK_IMAGE_TILING_OPTIMAL ? VMA_SUBALLOCATION_TYPE_IMAGE_OPTIMAL : VMA_SUBALLOCATION_TYPE_IMAGE_LINEAR,
+							1, &allocation) != VK_SUCCESS ||
+						_alloc->BindImageMemory(allocation, 0, object, nullptr) != VK_SUCCESS)
 					{
 						vmaDestroyImage(_alloc, object, allocation);
 						break;
 					}
-				}
+
+					_alloc->GetAllocationInfo(allocation, &allocation_info);
+
+#if VK_KHR_external_memory_win32
+					if (is_shared && *shared_handle == nullptr)
+					{
+						assert(dedicated_allocation && allocation != VMA_NULL && allocation_info.offset == 0);
+
+						VkMemoryGetWin32HandleInfoKHR handle_info { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
+						handle_info.memory = allocation_info.deviceMemory;
+						handle_info.handleType = handle_type;
+
+						if (vk.GetMemoryWin32HandleKHR(_orig, &handle_info, shared_handle) != VK_SUCCESS)
+						{
+							vmaDestroyImage(_alloc, object, allocation);
+							break;
+						}
+					}
 #endif
+				}
 
 				object_data<VK_OBJECT_TYPE_IMAGE> data;
 				data.allocation = allocation;
@@ -1144,7 +1186,7 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 
 	// Allocate host memory for upload
 	api::resource intermediate;
-	if (!create_resource(api::resource_desc(total_image_size, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
+	if (!create_resource(api::resource_desc(total_image_size, api::memory_heap::upload, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
 	{
 		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", total_image_size);
 		return;

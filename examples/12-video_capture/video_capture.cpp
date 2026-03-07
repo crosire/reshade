@@ -268,7 +268,7 @@ static void on_reshade_finish_effects(reshade::api::effect_runtime *runtime, res
 				return;
 
 			desc.type = reshade::api::resource_type::texture_2d;
-			desc.heap = reshade::api::memory_heap::gpu_to_cpu;
+			desc.heap = reshade::api::memory_heap::readback;
 			desc.usage = reshade::api::resource_usage::copy_dest;
 			desc.flags = reshade::api::resource_flags::none;
 

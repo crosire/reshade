@@ -58,7 +58,7 @@ static bool capture_impl_init(reshade::api::device *device, const reshade::api::
 		data.using_shtex = true;
 
 		if (!device->create_resource(
-				reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::gpu_only, reshade::api::resource_usage::shader_resource | copy_state, reshade::api::resource_flags::shared),
+				reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::default_, reshade::api::resource_usage::shader_resource | copy_state, reshade::api::resource_flags::shared),
 				nullptr,
 				copy_state,
 				&data.shtex.texture,
@@ -77,7 +77,7 @@ static bool capture_impl_init(reshade::api::device *device, const reshade::api::
 		for (int i = 0; i < NUM_BUFFERS; i++)
 		{
 			if (!device->create_resource(
-					reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::gpu_to_cpu, copy_state),
+					reshade::api::resource_desc(data.cx, data.cy, 1, 1, data.format, 1, reshade::api::memory_heap::readback, copy_state),
 					nullptr,
 					copy_state,
 					&data.shmem.copy_surfaces[i]))

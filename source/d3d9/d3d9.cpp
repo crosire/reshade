@@ -66,7 +66,7 @@ void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, [[maybe_unuse
 	desc.back_buffer.texture.depth_or_layers = 1;
 	desc.back_buffer.texture.levels = 1;
 	desc.back_buffer.texture.format = reshade::d3d9::convert_format(pp.BackBufferFormat);
-	desc.back_buffer.heap = reshade::api::memory_heap::gpu_only;
+	desc.back_buffer.heap = reshade::api::memory_heap::default_;
 	desc.back_buffer.usage = reshade::api::resource_usage::render_target;
 
 	if (pp.MultiSampleType >= D3DMULTISAMPLE_2_SAMPLES)

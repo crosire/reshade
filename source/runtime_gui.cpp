@@ -4795,7 +4795,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 
 			api::resource imgui_tex;
 			if (!_device->create_resource(
-					api::resource_desc(texture_data->Width, texture_data->Height, 1, 1, format, 1, api::memory_heap::gpu_only, api::resource_usage::shader_resource | api::resource_usage::copy_dest),
+					api::resource_desc(texture_data->Width, texture_data->Height, 1, 1, format, 1, api::memory_heap::default_, api::resource_usage::shader_resource | api::resource_usage::copy_dest),
 					&initial_data, api::resource_usage::shader_resource, &imgui_tex))
 			{
 				log::message(log::level::error, "Failed to create imgui texture resource!");
@@ -4877,7 +4877,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		}
 
 		const int new_size = draw_data->TotalIdxCount + 10000;
-		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::cpu_to_gpu, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
+		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawIdx), api::memory_heap::upload, api::resource_usage::index_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_indices[buffer_index]))
 		{
 			log::message(log::level::error, "Failed to create ImGui index buffer!");
 			return;
@@ -4897,7 +4897,7 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 		}
 
 		const int new_size = draw_data->TotalVtxCount + 5000;
-		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::cpu_to_gpu, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
+		if (!_device->create_resource(api::resource_desc(new_size * sizeof(ImDrawVert), api::memory_heap::upload, api::resource_usage::vertex_buffer), nullptr, api::resource_usage::cpu_access, &_imgui_vertices[buffer_index]))
 		{
 			log::message(log::level::error, "Failed to create ImGui vertex buffer!");
 			return;

@@ -1072,7 +1072,7 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 		subresource = 0;
 		src_box = nullptr;
 
-		if (!create_resource(api::resource_desc(desc.type, width, height, static_cast<uint16_t>(depth), 1, desc.texture.format, 1, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
+		if (!create_resource(api::resource_desc(desc.type, width, height, static_cast<uint16_t>(depth), 1, desc.texture.format, 1, api::memory_heap::upload, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
 		{
 			log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, depth = %u, format = %d)!", width, height, depth, static_cast<int>(desc.texture.format));
 			return;

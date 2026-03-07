@@ -344,7 +344,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		if ((desc.usage & (api::resource_usage::constant_buffer)) != 0)
 			internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
 	}
-	else if ((desc.heap == api::memory_heap::cpu_to_gpu || desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only) && desc.texture.levels == 1)
+	else if ((desc.heap == api::memory_heap::upload || desc.heap == api::memory_heap::readback || desc.heap == api::memory_heap::scratch) && desc.texture.levels == 1)
 	{
 		_orig->GetCopyableFootprints(&internal_desc, 0, 1, 0, &placed_footprint, nullptr, nullptr, &internal_desc.Width);
 
@@ -709,7 +709,7 @@ void reshade::d3d12::device_impl::update_buffer_region(const void *data, api::re
 
 	// Allocate host memory for upload
 	api::resource intermediate;
-	if (!create_resource(api::resource_desc(size, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
+	if (!create_resource(api::resource_desc(size, api::memory_heap::upload, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
 	{
 		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", size);
 		return;
@@ -767,7 +767,7 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 
 	// Allocate host memory for upload
 	api::resource intermediate;
-	if (!create_resource(api::resource_desc(internal_desc.Width, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
+	if (!create_resource(api::resource_desc(internal_desc.Width, api::memory_heap::upload, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
 	{
 		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", internal_desc.Width);
 		return;
