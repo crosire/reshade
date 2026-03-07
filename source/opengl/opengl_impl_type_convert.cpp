@@ -1628,6 +1628,7 @@ void reshade::opengl::convert_resource_desc(const api::resource_desc &desc, GLsi
 		break;
 	default:
 	case api::memory_heap::custom:
+	case api::memory_heap::gpu_upload:
 		storage_flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT;
 		break;
 	}

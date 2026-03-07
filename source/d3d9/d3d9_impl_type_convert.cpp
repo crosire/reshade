@@ -500,7 +500,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVOL
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
 			// Keep dynamic textures in the default pool
-			if (desc.heap == api::memory_heap::upload)
+			if (desc.heap == api::memory_heap::upload || desc.heap == api::memory_heap::gpu_upload)
 				internal_desc.Pool = D3DPOOL_DEFAULT;
 		}
 	}
@@ -557,7 +557,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DSUR
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
 			// Keep dynamic textures in the default pool
-			if (desc.heap == api::memory_heap::upload)
+			if (desc.heap == api::memory_heap::upload || desc.heap == api::memory_heap::gpu_upload)
 				internal_desc.Pool = D3DPOOL_DEFAULT;
 		}
 	}
@@ -625,7 +625,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DIND
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
 			// Keep dynamic buffers in the default pool
-			if (desc.heap == api::memory_heap::upload)
+			if (desc.heap == api::memory_heap::upload || desc.heap == api::memory_heap::gpu_upload)
 				internal_desc.Pool = D3DPOOL_DEFAULT;
 		}
 	}
@@ -660,7 +660,7 @@ void reshade::d3d9::convert_resource_desc(const api::resource_desc &desc, D3DVER
 			internal_desc.Usage |= D3DUSAGE_DYNAMIC;
 
 			// Keep dynamic buffers in the default pool
-			if (desc.heap == api::memory_heap::upload)
+			if (desc.heap == api::memory_heap::upload || desc.heap == api::memory_heap::gpu_upload)
 				internal_desc.Pool = D3DPOOL_DEFAULT;
 		}
 	}

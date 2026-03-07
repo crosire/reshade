@@ -79,6 +79,7 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, res
 			cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 		break;
 	case api::memory_heap::custom:
+	case api::memory_heap::gpu_upload:
 		usage = D3D11_USAGE_DEFAULT;
 		if (cpu_access_flags == 0)
 			cpu_access_flags |= D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
@@ -93,7 +94,7 @@ static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, UINT cpu_access_
 	{
 	case D3D11_USAGE_DEFAULT:
 		// The D3D11_FEATURE_DATA_D3D11_OPTIONS1::MapOnDefaultBuffers and D3D11_FEATURE_DATA_D3D11_OPTIONS2::MapOnDefaultTextures features allow default usage in combination with CPU access flags
-		heap = cpu_access_flags != 0 ? api::memory_heap::custom : api::memory_heap::default_;
+		heap = cpu_access_flags != 0 ? api::memory_heap::gpu_upload : api::memory_heap::default_;
 		break;
 	case D3D11_USAGE_IMMUTABLE:
 		assert(cpu_access_flags == 0);

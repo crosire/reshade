@@ -503,6 +503,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	case D3D12_HEAP_TYPE_CUSTOM:
 		desc.heap = api::memory_heap::custom;
 		break;
+	case D3D12_HEAP_TYPE_GPU_UPLOAD:
+		desc.heap = api::memory_heap::gpu_upload;
+		break;
 	}
 
 	// Resources are generally copyable in D3D12

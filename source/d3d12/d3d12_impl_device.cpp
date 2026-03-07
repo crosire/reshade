@@ -251,6 +251,12 @@ bool reshade::d3d12::device_impl::check_capability(api::device_caps capability) 
 		return false;
 	case api::device_caps::update_buffer_region_command:
 	case api::device_caps::update_texture_region_command:
+		return false;
+	case api::device_caps::gpu_upload_heap:
+		if (D3D12_FEATURE_DATA_D3D12_OPTIONS16 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS16, &options, sizeof(options))))
+			return options.GPUUploadHeapSupported;
+		return false;
 	default:
 		return false;
 	}

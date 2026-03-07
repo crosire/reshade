@@ -156,6 +156,11 @@ bool reshade::d3d11::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::update_buffer_region_command:
 	case api::device_caps::update_texture_region_command:
 		return true;
+	case api::device_caps::gpu_upload_heap:
+		if (D3D11_FEATURE_DATA_D3D11_OPTIONS2 options;
+			SUCCEEDED(_orig->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS2, &options, sizeof(options))))
+			return options.MapOnDefaultTextures;
+		return false;
 	default:
 		return false;
 	}

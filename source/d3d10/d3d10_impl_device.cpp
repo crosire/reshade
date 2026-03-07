@@ -135,6 +135,8 @@ bool reshade::d3d10::device_impl::check_capability(api::device_caps capability) 
 	case api::device_caps::update_buffer_region_command:
 	case api::device_caps::update_texture_region_command:
 		return true;
+	case api::device_caps::gpu_upload_heap:
+		return false;
 	default:
 		return false;
 	}

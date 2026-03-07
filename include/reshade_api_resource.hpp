@@ -185,6 +185,10 @@ namespace reshade::api
 		/// This heap is only accessible by the CPU.
 		/// </summary>
 		scratch = 4,
+		/// <summary>
+		/// CPU visible GPU memory, when available via Resizable BAR.
+		/// </summary>
+		gpu_upload = 6,
 
 		gpu_only = default_,
 		cpu_to_gpu = upload,

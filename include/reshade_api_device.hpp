@@ -196,6 +196,11 @@ namespace reshade::api
 		/// If this feature is not present, <see cref="command_list::update_texture_region"/> must not be used.
 		/// </summary>
 		update_texture_region_command,
+		/// <summary>
+		/// Specifies whether GPU upload heaps are supported.
+		/// If this feature is not present, <see cref="memory_heap::gpu_upload"/> must not be used.
+		/// </summary>
+		gpu_upload_heap,
 	};
 
 	/// <summary>

@@ -325,6 +325,9 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 	case api::device_caps::update_buffer_region_command:
 		return true;
 	case api::device_caps::update_texture_region_command:
+		return false;
+	case api::device_caps::gpu_upload_heap:
+		return true;
 	default:
 		return false;
 	}
@@ -411,6 +414,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		break;
 	case api::memory_heap::upload:
+	case api::memory_heap::gpu_upload:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 		// Make sure host visible allocations are coherent, since no explicit flushing is performed
 		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
