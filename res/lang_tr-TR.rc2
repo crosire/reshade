@@ -149,7 +149,7 @@ BEGIN
 52454 "%s kaydediliyor"
 30153 "Ölçekli önizleme"
 35129 "Orijinal önizleme"
-36347 "Toplam bellek kullanımı: %lld.%03lld %s"
+36016 "Toplam bellek kullanımı: %.3f MiB"
 42207 "Satır Kaydırma"
 16256 "Günlüğü temizle"
 40136 "Crosire tarafından geliştirildi ve sürdürülmektedir."

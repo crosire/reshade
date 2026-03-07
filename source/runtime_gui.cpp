@@ -20,7 +20,7 @@
 #include "fonts/forkawesome.inl"
 #include <cmath> // std::abs, std::ceil, std::floor
 #include <cctype> // std::tolower
-#include <cstdlib> // std::lldiv, std::strtol
+#include <cstdlib> // std::strtol
 #include <cstring> // std::memcmp, std::memcpy
 #include <algorithm> // std::any_of, std::count_if, std::find, std::find_if, std::max, std::min, std::replace, std::rotate, std::search, std::swap, std::transform
 
@@ -2824,9 +2824,8 @@ void reshade::runtime::draw_gui_statistics()
 		const float single_image_width = (total_width / num_columns) - 5.0f;
 
 		// Variables used to calculate memory size of textures
-		lldiv_t memory_view;
-		int64_t post_processing_memory_size = 0;
-		const char *memory_size_unit;
+		size_t post_processing_memory_size = 0;
+		const float memory_size_unit = 1024 * 1024;
 
 		for (size_t texture_index = 0; texture_index < _textures.size(); ++texture_index)
 		{
@@ -2840,50 +2839,39 @@ void reshade::runtime::draw_gui_statistics()
 			ImGui::PushID(texture_count);
 			ImGui::BeginGroup();
 
-			int64_t memory_size = 0;
+			size_t memory_size = 0;
+
 			for (uint32_t level = 0, width = tex.width, height = tex.height, depth = tex.depth; level < tex.levels; ++level, width /= 2, height /= 2, depth /= 2)
 				memory_size += static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(depth) * texture_format_info(tex.format).bytes_per_pixel;
 
 			post_processing_memory_size += memory_size;
 
-			if (memory_size >= 1024 * 1024)
-			{
-				memory_view = std::lldiv(memory_size, 1024 * 1024);
-				memory_view.rem /= 1000;
-				memory_size_unit = "MiB";
-			}
-			else
-			{
-				memory_view = std::lldiv(memory_size, 1024);
-				memory_size_unit = "KiB";
-			}
-
 			ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s%s", tex.unique_name.c_str(), tex.shared.size() > 1 ? " (pooled)" : "");
 			switch (tex.type)
 			{
 			case reshadefx::texture_type::texture_1d:
-				ImGui::Text("%u | %u mipmap(s) | %s | %lld.%03lld %s",
+				ImGui::Text("%u | %u mipmap(s) | %s | %.3f MiB",
 					tex.width,
 					tex.levels - 1,
 					texture_format_info(tex.format).name,
-					memory_view.quot, memory_view.rem, memory_size_unit);
+					memory_size / memory_size_unit);
 				break;
 			case reshadefx::texture_type::texture_2d:
-				ImGui::Text("%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
+				ImGui::Text("%ux%u | %u mipmap(s) | %s | %.3f MiB",
 					tex.width,
 					tex.height,
 					tex.levels - 1,
 					texture_format_info(tex.format).name,
-					memory_view.quot, memory_view.rem, memory_size_unit);
+					memory_size / memory_size_unit);
 				break;
 			case reshadefx::texture_type::texture_3d:
-				ImGui::Text("%ux%ux%u | %u mipmap(s) | %s | %lld.%03lld %s",
+				ImGui::Text("%ux%ux%u | %u mipmap(s) | %s | %.3f MiB",
 					tex.width,
 					tex.height,
 					tex.depth,
 					tex.levels - 1,
 					texture_format_info(tex.format).name,
-					memory_view.quot, memory_view.rem, memory_size_unit);
+					memory_size / memory_size_unit);
 				break;
 			}
 
@@ -3047,19 +3035,7 @@ void reshade::runtime::draw_gui_statistics()
 
 		ImGui::Separator();
 
-		if (post_processing_memory_size >= 1024 * 1024)
-		{
-			memory_view = std::lldiv(post_processing_memory_size, 1024 * 1024);
-			memory_view.rem /= 1000;
-			memory_size_unit = "MiB";
-		}
-		else
-		{
-			memory_view = std::lldiv(post_processing_memory_size, 1024);
-			memory_size_unit = "KiB";
-		}
-
-		ImGui::Text(_("Total memory usage: %lld.%03lld %s"), memory_view.quot, memory_view.rem, memory_size_unit);
+		ImGui::Text(_("Total memory usage: %.3f MiB"), post_processing_memory_size / memory_size_unit);
 	}
 }
 void reshade::runtime::draw_gui_log()

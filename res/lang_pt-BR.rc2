@@ -149,7 +149,7 @@ BEGIN
 52454 "Salvar %s"
 30153 "Pré-visualização escalada"
 35129 "Pré-visualização original"
-36347 "Uso total de memória: %lld.%03lld %s"
+36016 "Uso total de memória: %.3f MiB"
 42207 "Quebra automática de linha"
 16256 "Limpar Log"
 40136 "Desenvolvido e mantido por crosire."

@@ -149,7 +149,7 @@ BEGIN
 52454 "%s speichern"
 30153 "Skalierte Vorschau"
 35129 "Originale Vorschau"
-36347 "Gesamte Speichernutzung: %lld.%03lld %s"
+36016 "Gesamte Speichernutzung: %.3f MiB"
 42207 "Zeilenumbruch"
 16256 "Log leeren"
 40136 "Entwickelt von crosire."

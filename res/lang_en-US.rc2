@@ -149,7 +149,7 @@ BEGIN
 52454 "Save %s"
 30153 "Preview scaled"
 35129 "Preview original"
-36347 "Total memory usage: %lld.%03lld %s"
+36016 "Total memory usage: %.3f MiB"
 42207 "Word Wrap"
 16256 "Clear Log"
 40136 "Developed and maintained by crosire."

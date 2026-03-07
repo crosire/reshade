@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Chinese (Traditional, Hong Kong) resources
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ZHH)
 LANGUAGE 4, 3
 
 /////////////////////////////////////////////////////////////////////////////
@@ -149,7 +149,7 @@ BEGIN
 52454 "儲存 %s"
 30153 "縮放預覽"
 35129 "原始預覽"
-36347 "內存總使用量: %lld.%03lld %s"
+36016 "內存總使用量: %.3f MiB"
 42207 "自動換行"
 16256 "清除日誌"
 40136 "由 crosire 開發和維護。"
