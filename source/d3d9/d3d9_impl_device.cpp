@@ -1069,20 +1069,12 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 
 	if ((desc.flags & api::resource_flags::dynamic) == 0)
 	{
-		api::resource_desc intermediate_desc = desc;
-		intermediate_desc.texture.width = width;
-		intermediate_desc.texture.height = height;
-		intermediate_desc.texture.depth_or_layers = static_cast<uint16_t>(depth);
-		intermediate_desc.texture.levels = 1;
-		intermediate_desc.heap = api::memory_heap::cpu_to_gpu;
-		intermediate_desc.usage = api::resource_usage::copy_source;
-
 		subresource = 0;
 		src_box = nullptr;
 
-		if (!create_resource(intermediate_desc, nullptr, api::resource_usage::cpu_access, &intermediate))
+		if (!create_resource(api::resource_desc(desc.type, width, height, static_cast<uint16_t>(depth), 1, desc.texture.format, 1, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
 		{
-			log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, format = %d)!", width, height, static_cast<int>(desc.texture.format));
+			log::message(log::level::error, "Failed to create upload buffer (width = %u, height = %u, depth = %u, format = %d)!", width, height, depth, static_cast<int>(desc.texture.format));
 			return;
 		}
 	}
@@ -1152,14 +1144,15 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 		}
 
 		unmap_texture_region(intermediate, subresource);
+
+		if (intermediate != dst)
+		{
+			copy_texture_region(intermediate, subresource, src_box, dst, dst_subresource, dst_box, api::filter_mode::min_mag_mip_point);
+		}
 	}
 
 	if (intermediate != dst)
-	{
-		copy_texture_region(intermediate, subresource, src_box, dst, dst_subresource, dst_box, api::filter_mode::min_mag_mip_point);
-
 		destroy_resource(intermediate);
-	}
 }
 
 bool reshade::d3d9::device_impl::create_input_layout(uint32_t count, const api::input_element *desc, api::pipeline *out_pipeline)

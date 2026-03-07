@@ -742,21 +742,19 @@ void reshade::d3d12::command_list_impl::copy_buffer_to_texture(api::resource src
 
 	assert(src != 0 && dst != 0);
 
-	D3D12_RESOURCE_DESC const dst_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+	D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
 
 	D3D12_BOX src_box = {};
-	convert_subresource_box(dst_box, dst_desc, dst_subresource, src_box.right, src_box.bottom, src_box.back);
+	convert_subresource_box(dst_box, internal_desc, dst_subresource, src_box.right, src_box.bottom, src_box.back);
+	internal_desc.Width = (row_length != 0) ? row_length : src_box.right;
+	internal_desc.Height = (slice_height != 0) ? slice_height : src_box.bottom;
+	internal_desc.DepthOrArraySize = static_cast<UINT16>(src_box.back);
+	internal_desc.MipLevels = 1;
 
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
 	src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	src_copy_location.PlacedFootprint.Offset = src_offset;
-	src_copy_location.PlacedFootprint.Footprint.Format = dst_desc.Format;
-	src_copy_location.PlacedFootprint.Footprint.Width = (row_length != 0) ? row_length : src_box.right - src_box.left;
-	src_copy_location.PlacedFootprint.Footprint.Height = (slice_height != 0) ? slice_height : src_box.bottom - src_box.top;
-	src_copy_location.PlacedFootprint.Footprint.Depth = src_box.back - src_box.front;
-	src_copy_location.PlacedFootprint.Footprint.RowPitch = api::format_row_pitch(convert_format(dst_desc.Format), src_copy_location.PlacedFootprint.Footprint.Width);
-	src_copy_location.PlacedFootprint.Footprint.RowPitch = (src_copy_location.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+	_device_impl->_orig->GetCopyableFootprints(&internal_desc, 0, 1, src_offset, &src_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
 
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
 	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
@@ -775,22 +773,26 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	// Blit between different region dimensions is not supported
 	assert(dst_box == nullptr || (src_box != nullptr && dst_box != nullptr && dst_box->width() == src_box->width() && dst_box->height() == src_box->height() && dst_box->depth() == src_box->depth()));
 
-	D3D12_RESOURCE_DESC src_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
-	D3D12_RESOURCE_DESC dst_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+	const D3D12_RESOURCE_DESC src_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
 
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
 	if (src_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-		src_copy_location.PlacedFootprint.Offset = 0;
 
 		UINT extra_data_size = sizeof(src_copy_location.PlacedFootprint.Footprint);
-		if (FAILED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &src_copy_location.PlacedFootprint.Footprint)))
+		if (SUCCEEDED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &src_copy_location.PlacedFootprint.Footprint)))
 		{
-			assert(dst_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+			assert(src_subresource == 0);
 
-			_device_impl->_orig->GetCopyableFootprints(&dst_desc, dst_subresource, 1, 0, &src_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
+			src_copy_location.PlacedFootprint.Offset = 0;
+		}
+		else
+		{
+			assert(src_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+
+			_device_impl->_orig->GetCopyableFootprints(&src_desc, src_subresource, 1, 0, &src_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
 		}
 	}
 	else
@@ -799,19 +801,26 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 		src_copy_location.SubresourceIndex = src_subresource;
 	}
 
+	const D3D12_RESOURCE_DESC dst_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
 	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
 	if (dst_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-		dst_copy_location.PlacedFootprint.Offset = 0;
 
 		UINT extra_data_size = sizeof(dst_copy_location.PlacedFootprint.Footprint);
-		if (FAILED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &dst_copy_location.PlacedFootprint.Footprint)))
+		if (SUCCEEDED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &dst_copy_location.PlacedFootprint.Footprint)))
 		{
-			assert(src_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+			assert(dst_subresource == 0);
 
-			_device_impl->_orig->GetCopyableFootprints(&src_desc, src_subresource, 1, 0, &dst_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
+			dst_copy_location.PlacedFootprint.Offset = 0;
+		}
+		else
+		{
+			assert(dst_desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER);
+
+			_device_impl->_orig->GetCopyableFootprints(&dst_desc, dst_subresource, 1, 0, &dst_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
 		}
 	}
 	else
@@ -830,10 +839,14 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 
 	assert(src != 0 && dst != 0);
 
-	D3D12_RESOURCE_DESC const src_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
+	D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc();
 
 	D3D12_BOX dst_box = {};
-	convert_subresource_box(src_box, src_desc, src_subresource, dst_box.right, dst_box.bottom, dst_box.back);
+	convert_subresource_box(src_box, internal_desc, src_subresource, dst_box.right, dst_box.bottom, dst_box.back);
+	internal_desc.Width = (row_length != 0) ? row_length : dst_box.right;
+	internal_desc.Height = (slice_height != 0) ? slice_height : dst_box.bottom;
+	internal_desc.DepthOrArraySize = static_cast<UINT16>(dst_box.back);
+	internal_desc.MipLevels = 1;
 
 	D3D12_TEXTURE_COPY_LOCATION src_copy_location;
 	src_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(src.handle);
@@ -843,13 +856,7 @@ void reshade::d3d12::command_list_impl::copy_texture_to_buffer(api::resource src
 	D3D12_TEXTURE_COPY_LOCATION dst_copy_location;
 	dst_copy_location.pResource = reinterpret_cast<ID3D12Resource *>(dst.handle);
 	dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	dst_copy_location.PlacedFootprint.Offset = dst_offset;
-	dst_copy_location.PlacedFootprint.Footprint.Format = src_desc.Format;
-	dst_copy_location.PlacedFootprint.Footprint.Width = (row_length != 0) ? row_length : dst_box.right - dst_box.left;
-	dst_copy_location.PlacedFootprint.Footprint.Height = (slice_height != 0) ? slice_height : dst_box.bottom - dst_box.top;
-	dst_copy_location.PlacedFootprint.Footprint.Depth = dst_box.back - dst_box.front;
-	dst_copy_location.PlacedFootprint.Footprint.RowPitch = api::format_row_pitch(convert_format(src_desc.Format), dst_copy_location.PlacedFootprint.Footprint.Width);
-	dst_copy_location.PlacedFootprint.Footprint.RowPitch = (dst_copy_location.PlacedFootprint.Footprint.RowPitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+	_device_impl->_orig->GetCopyableFootprints(&internal_desc, 0, 1, dst_offset, &dst_copy_location.PlacedFootprint, nullptr, nullptr, nullptr);
 
 	_orig->CopyTextureRegion(
 		&dst_copy_location, 0, 0, 0,

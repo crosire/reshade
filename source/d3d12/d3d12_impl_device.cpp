@@ -335,8 +335,7 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 	D3D12_HEAP_PROPERTIES heap_props = {};
 	convert_resource_desc(desc, internal_desc, heap_props, heap_flags);
 
-	D3D12_SUBRESOURCE_FOOTPRINT footprint = {};
-
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint = {};
 	if (desc.type == api::resource_type::buffer)
 	{
 		internal_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
@@ -345,22 +344,12 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		if ((desc.usage & (api::resource_usage::constant_buffer)) != 0)
 			internal_desc.Width = (internal_desc.Width + D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u) & ~(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT - 1u);
 	}
-	else if ((desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only) && desc.texture.levels == 1)
+	else if ((desc.heap == api::memory_heap::cpu_to_gpu || desc.heap == api::memory_heap::gpu_to_cpu || desc.heap == api::memory_heap::cpu_only) && desc.texture.levels == 1)
 	{
+		_orig->GetCopyableFootprints(&internal_desc, 0, 1, 0, &placed_footprint, nullptr, nullptr, &internal_desc.Width);
+
 		// Textures in the upload or readback heap are created as buffers, so that they can be mapped
 		internal_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-
-		auto row_pitch = api::format_row_pitch(desc.texture.format, desc.texture.width);
-		row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-		const auto slice_pitch = api::format_slice_pitch(desc.texture.format, row_pitch, desc.texture.height);
-
-		footprint.Format = internal_desc.Format;
-		footprint.Width = static_cast<UINT>(internal_desc.Width);
-		footprint.Height = internal_desc.Height;
-		footprint.Depth = internal_desc.DepthOrArraySize;
-		footprint.RowPitch = row_pitch;
-
-		internal_desc.Width = static_cast<UINT64>(slice_pitch) * desc.texture.depth_or_layers;
 		internal_desc.Height = 1;
 		internal_desc.DepthOrArraySize = 1;
 		internal_desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -385,8 +374,8 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 		if (is_shared && FAILED(_orig->CreateSharedHandle(object.get(), nullptr, GENERIC_ALL, nullptr, shared_handle)))
 			return false;
 
-		if (footprint.Format != DXGI_FORMAT_UNKNOWN)
-			object->SetPrivateData(extra_data_guid, sizeof(footprint), &footprint);
+		if (placed_footprint.Footprint.Format != DXGI_FORMAT_UNKNOWN)
+			object->SetPrivateData(extra_data_guid, sizeof(placed_footprint.Footprint), &placed_footprint.Footprint);
 
 		register_resource(object.get(), initial_state == api::resource_usage::acceleration_structure);
 
@@ -672,27 +661,27 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 
 	const D3D12_RANGE no_read = { 0, 0 };
 
-	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
+	const D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
+	if (internal_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		if (subresource != 0)
 			return false;
 
-		UINT extra_data_size = sizeof(layout.Footprint);
-		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &layout.Footprint)))
+		UINT extra_data_size = sizeof(placed_footprint.Footprint);
+		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &placed_footprint.Footprint)))
 			return false;
 
-		out_data->slice_pitch = layout.Footprint.Height;
+		out_data->slice_pitch = placed_footprint.Footprint.Height;
 	}
 	else
 	{
-		_orig->GetCopyableFootprints(&desc, subresource, 1, 0, &layout, &out_data->slice_pitch, nullptr, nullptr);
+		_orig->GetCopyableFootprints(&internal_desc, subresource, 1, 0, &placed_footprint, &out_data->slice_pitch, nullptr, nullptr);
 	}
 
-	out_data->row_pitch = layout.Footprint.RowPitch;
-	out_data->slice_pitch *= layout.Footprint.RowPitch;
+	out_data->row_pitch = placed_footprint.Footprint.RowPitch;
+	out_data->slice_pitch *= placed_footprint.Footprint.RowPitch;
 
 	return SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle),
 		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
@@ -758,8 +747,8 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	if (immediate_command_list == nullptr)
 		return; // No point in creating upload buffer when it cannot be uploaded
 
-	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
-	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+	D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(dst.handle)->GetDesc();
+	if (internal_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		if (dst_subresource == 0 && dst_box == nullptr)
 			update_buffer_region(data.data, dst, 0, data.slice_pitch);
@@ -767,20 +756,20 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	}
 
 	UINT width, height, depth;
-	convert_subresource_box(dst_box, desc, dst_subresource, width, height, depth);
+	convert_subresource_box(dst_box, internal_desc, dst_subresource, width, height, depth);
+	internal_desc.Width = width;
+	internal_desc.Height = height;
+	internal_desc.DepthOrArraySize = static_cast<UINT16>(depth);
+	internal_desc.MipLevels = 1;
 
-	UINT row_pitch = api::format_row_pitch(convert_format(desc.Format), width);
-	row_pitch = (row_pitch + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
-	UINT slice_pitch = api::format_slice_pitch(convert_format(desc.Format), row_pitch, height);
-	height = slice_pitch / row_pitch;
-
-	const uint64_t total_image_size = static_cast<uint64_t>(depth) * static_cast<uint64_t>(slice_pitch);
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
+	_orig->GetCopyableFootprints(&internal_desc, 0, 1, 0, &placed_footprint, &height, nullptr, &internal_desc.Width);
 
 	// Allocate host memory for upload
 	api::resource intermediate;
-	if (!create_resource(api::resource_desc(total_image_size, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
+	if (!create_resource(api::resource_desc(internal_desc.Width, api::memory_heap::cpu_to_gpu, api::resource_usage::copy_source), nullptr, api::resource_usage::cpu_access, &intermediate))
 	{
-		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", total_image_size);
+		log::message(log::level::error, "Failed to create upload buffer (width = %llu)!", internal_desc.Width);
 		return;
 	}
 
@@ -792,17 +781,17 @@ void reshade::d3d12::device_impl::update_texture_region(const api::subresource_d
 	if (void *mapped_data;
 		map_buffer_region(intermediate, 0, UINT64_MAX, api::map_access::write_only, &mapped_data))
 	{
-		const size_t row_size = std::min(row_pitch, data.row_pitch);
+		const size_t row_size = std::min(placed_footprint.Footprint.RowPitch, data.row_pitch);
 
 		for (size_t z = 0; z < depth; ++z)
 		{
-			const auto dst_slice = static_cast<uint8_t *>(mapped_data) + z * slice_pitch;
+			const auto dst_slice = static_cast<uint8_t *>(mapped_data) + z * placed_footprint.Footprint.RowPitch * height;
 			const auto src_slice = static_cast<const uint8_t *>(data.data) + z * data.slice_pitch;
 
 			for (size_t y = 0; y < height; ++y)
 			{
 				std::memcpy(
-					dst_slice + y * row_pitch,
+					dst_slice + y * placed_footprint.Footprint.RowPitch,
 					src_slice + y * data.row_pitch, row_size);
 			}
 		}

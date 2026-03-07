@@ -72,10 +72,11 @@ HRESULT STDMETHODCALLTYPE ID3D12Resource_Map(ID3D12Resource *pResource, UINT Sub
 			reshade::api::subresource_data data;
 			data.data = *ppData;
 
-			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-			device->GetCopyableFootprints(&desc, Subresource, 1, 0, &layout, &data.slice_pitch, nullptr, nullptr);
-			data.row_pitch = layout.Footprint.RowPitch;
-			data.slice_pitch *= layout.Footprint.RowPitch;
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
+			device->GetCopyableFootprints(&desc, Subresource, 1, 0, &placed_footprint, &data.slice_pitch, nullptr, nullptr);
+
+			data.row_pitch = placed_footprint.Footprint.RowPitch;
+			data.slice_pitch *= placed_footprint.Footprint.RowPitch;
 
 			reshade::invoke_addon_event<reshade::addon_event::map_texture_region>(
 				device_proxy,
