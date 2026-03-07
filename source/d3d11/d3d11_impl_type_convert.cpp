@@ -54,7 +54,7 @@ auto reshade::d3d11::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 	}
 }
 
-static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D11_USAGE &usage, UINT &cpu_access_flags)
+static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, reshade::api::resource_flags flags, D3D11_USAGE &usage, UINT &cpu_access_flags)
 {
 	using namespace reshade;
 
@@ -63,7 +63,7 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 	case api::memory_heap::default_:
 		if (usage == D3D11_USAGE_IMMUTABLE)
 			break;
-		usage = D3D11_USAGE_DEFAULT;
+		usage = (flags & api::resource_flags::immutable) != 0 ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DEFAULT;
 		break;
 	case api::memory_heap::upload:
 		usage = D3D11_USAGE_DYNAMIC;
@@ -85,7 +85,7 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, D3D
 		break;
 	}
 }
-static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, UINT cpu_access_flags, reshade::api::memory_heap &heap)
+static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, UINT cpu_access_flags, reshade::api::memory_heap &heap, reshade::api::resource_flags &flags)
 {
 	using namespace reshade;
 
@@ -98,10 +98,12 @@ static void convert_d3d_usage_to_memory_heap(D3D11_USAGE usage, UINT cpu_access_
 	case D3D11_USAGE_IMMUTABLE:
 		assert(cpu_access_flags == 0);
 		heap = api::memory_heap::default_;
+		flags |= api::resource_flags::immutable;
 		break;
 	case D3D11_USAGE_DYNAMIC:
 		assert(cpu_access_flags == D3D11_CPU_ACCESS_WRITE);
 		heap = api::memory_heap::upload;
+		flags |= api::resource_flags::dynamic;
 		break;
 	case D3D11_USAGE_STAGING:
 		heap = cpu_access_flags == D3D11_CPU_ACCESS_READ ? api::memory_heap::readback : api::memory_heap::scratch;
@@ -288,7 +290,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	assert(desc.type == api::resource_type::buffer);
 	assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
 	internal_desc.ByteWidth = static_cast<UINT>(desc.buffer.size);
-	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, desc.flags, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 	internal_desc.StructureByteStride = desc.buffer.stride;
@@ -310,7 +312,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	internal_desc.ArraySize = desc.texture.depth_or_layers;
 	internal_desc.Format = convert_format(desc.texture.format);
 	assert(desc.texture.samples == 1);
-	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, desc.flags, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 
@@ -327,7 +329,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	internal_desc.ArraySize = desc.texture.depth_or_layers;
 	internal_desc.Format = convert_format(desc.texture.format);
 	internal_desc.SampleDesc.Count = desc.texture.samples;
-	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, desc.flags, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 
@@ -348,7 +350,7 @@ void reshade::d3d11::convert_resource_desc(const api::resource_desc &desc, D3D11
 	internal_desc.MipLevels = desc.texture.levels;
 	internal_desc.Format = convert_format(desc.texture.format);
 	assert(desc.texture.samples == 1);
-	convert_memory_heap_to_d3d_usage(desc.heap, internal_desc.Usage, internal_desc.CPUAccessFlags);
+	convert_memory_heap_to_d3d_usage(desc.heap, desc.flags, internal_desc.Usage, internal_desc.CPUAccessFlags);
 	convert_resource_usage_to_bind_flags(desc.usage, internal_desc.BindFlags);
 	convert_resource_flags_to_misc_flags(desc.flags, internal_desc.MiscFlags);
 
@@ -366,14 +368,9 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_BU
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.ByteWidth;
 	desc.buffer.stride = 0; // Clear value that was set by default constructor of 'resource_desc'
-	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap, desc.flags);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
-
-	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
-		desc.flags |= api::resource_flags::dynamic;
-	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
-		desc.flags |= api::resource_flags::immutable;
 
 	if ((internal_desc.MiscFlags & D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS) != 0)
 		desc.usage |= api::resource_usage::indirect_argument;
@@ -398,14 +395,9 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 	desc.texture.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.texture.format = convert_format(internal_desc.Format);
 	desc.texture.samples = 1;
-	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap, desc.flags);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
-
-	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
-		desc.flags |= api::resource_flags::dynamic;
-	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
-		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -421,15 +413,10 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 	desc.texture.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.texture.format = convert_format(internal_desc.Format);
 	desc.texture.samples = static_cast<uint16_t>(internal_desc.SampleDesc.Count);
-	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap, desc.flags);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	desc.usage |= desc.texture.samples > 1 ? api::resource_usage::resolve_source : api::resource_usage::resolve_dest;
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
-
-	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
-		desc.flags |= api::resource_flags::dynamic;
-	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
-		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
@@ -450,14 +437,9 @@ reshade::api::resource_desc reshade::d3d11::convert_resource_desc(const D3D11_TE
 	desc.texture.levels = static_cast<uint16_t>(internal_desc.MipLevels);
 	desc.texture.format = convert_format(internal_desc.Format);
 	desc.texture.samples = 1;
-	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap);
+	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap, desc.flags);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
-
-	if (internal_desc.Usage == D3D11_USAGE_DYNAMIC)
-		desc.flags |= api::resource_flags::dynamic;
-	else if (internal_desc.Usage == D3D11_USAGE_IMMUTABLE)
-		desc.flags |= api::resource_flags::immutable;
 
 	return desc;
 }
