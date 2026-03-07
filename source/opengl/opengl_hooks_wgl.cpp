@@ -1042,16 +1042,26 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		// Load original OpenGL functions instead of using the hooked ones
 		const GLADloadfunc get_proc_address =
-			[](const char *name) {
-				extern std::filesystem::path get_system_path();
+			[](const char *name) -> GLADapiproc {
 				// First attempt to load from the OpenGL ICD
 				FARPROC proc_address = reshade::hooks::call(wglGetProcAddress)(name);
+
 				if (nullptr == proc_address)
+				{
+					extern std::filesystem::path get_system_path();
+
 					// Load from the Windows OpenGL DLL if that fails
-					proc_address = GetProcAddress(GetModuleHandleW((get_system_path() / L"opengl32.dll").c_str()), name);
+					const HMODULE opengl_module = GetModuleHandleW((get_system_path() / L"opengl32.dll").c_str());
+					assert(opengl_module != nullptr);
+					proc_address = GetProcAddress(opengl_module, name);
+				}
+
 				// Get trampoline pointers to any hooked functions, so that effect runtime always calls into original OpenGL functions
 				if (nullptr != proc_address && reshade::hooks::is_hooked(proc_address))
+				{
 					proc_address = reshade::hooks::call<FARPROC>(nullptr, proc_address);
+				}
+
 				return reinterpret_cast<GLADapiproc>(proc_address);
 			};
 		gladLoadWGL(hdc, get_proc_address);

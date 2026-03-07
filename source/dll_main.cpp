@@ -54,20 +54,23 @@ bool is_windows7()
 /// </summary>
 std::filesystem::path get_base_path(bool default_to_target_executable_path = false)
 {
+	const std::filesystem::path reshade_dll_parent_path = g_reshade_dll_path.parent_path();
+	const std::filesystem::path target_executable_parent_path = g_target_executable_path.parent_path();
+
 	std::error_code ec;
 	std::filesystem::path path_override;
 
 	// Cannot use global config here yet, since it uses base path for look up, so look at config file next to target executable instead
-	if (reshade::ini_file::load_cache(g_target_executable_path.parent_path() / L"ReShade.ini").get("INSTALL", "BasePath", path_override) &&
-		resolve_path(path_override, ec, g_reshade_dll_path.parent_path()) && std::filesystem::is_directory(path_override, ec))
+	if (reshade::ini_file(target_executable_parent_path / L"ReShade.ini").get("INSTALL", "BasePath", path_override) &&
+		resolve_path(path_override, ec, reshade_dll_parent_path) && std::filesystem::is_directory(path_override, ec))
 		return path_override;
 
 	WCHAR buf[4096];
 	path_override.assign(buf, buf + GetEnvironmentVariableW(L"RESHADE_BASE_PATH_OVERRIDE", buf, ARRAYSIZE(buf)));
-	if (resolve_path(path_override, ec, g_reshade_dll_path.parent_path()) && std::filesystem::is_directory(path_override, ec))
+	if (resolve_path(path_override, ec, reshade_dll_parent_path) && std::filesystem::is_directory(path_override, ec))
 		return path_override;
 
-	return default_to_target_executable_path ? g_target_executable_path.parent_path() : g_reshade_dll_path.parent_path();
+	return default_to_target_executable_path ? target_executable_parent_path : reshade_dll_parent_path;
 }
 
 /// <summary>
@@ -270,8 +273,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			// Register modules to hook
 			{
 				std::filesystem::path export_module_path;
-				if (reshade::global_config().get("PROXY", "EnableProxyLibrary") &&
-					reshade::global_config().get("PROXY", "ProxyLibrary", export_module_path))
+				if (config.get("PROXY", "EnableProxyLibrary") &&
+					config.get("PROXY", "ProxyLibrary", export_module_path))
 				{
 					reshade::hooks::register_export_module(g_reshade_base_path / export_module_path);
 				}

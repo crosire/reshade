@@ -27,13 +27,11 @@ constexpr size_t heap_index_start = 28;
 
 static auto adapter_from_device(ID3D12Device *device, DXGI_ADAPTER_DESC *adapter_desc) -> const com_ptr<IDXGIAdapter>
 {
-	const auto dxgi_module = GetModuleHandleW(L"dxgi.dll");
-	assert(dxgi_module != nullptr);
-	auto CreateDXGIFactory1_orig = reinterpret_cast<decltype(&CreateDXGIFactory1)>(GetProcAddress(dxgi_module, "CreateDXGIFactory1"));
+	auto CreateDXGIFactory1_orig = reinterpret_cast<decltype(&CreateDXGIFactory1)>(GetProcAddress(GetModuleHandleW(L"dxgi.dll"), "CreateDXGIFactory1"));
 	if (reshade::hooks::is_hooked(CreateDXGIFactory1_orig))
 		CreateDXGIFactory1_orig = reshade::hooks::call<decltype(&CreateDXGIFactory1)>(nullptr, CreateDXGIFactory1_orig);
 	assert(CreateDXGIFactory1_orig != nullptr);
-	auto CreateDXGIFactory2_orig = reinterpret_cast<decltype(&CreateDXGIFactory2)>(GetProcAddress(dxgi_module, "CreateDXGIFactory2"));
+	auto CreateDXGIFactory2_orig = reinterpret_cast<decltype(&CreateDXGIFactory2)>(GetProcAddress(GetModuleHandleW(L"dxgi.dll"), "CreateDXGIFactory2"));
 	if (reshade::hooks::is_hooked(CreateDXGIFactory2_orig))
 		CreateDXGIFactory2_orig = reshade::hooks::call<decltype(&CreateDXGIFactory2)>(nullptr, CreateDXGIFactory2_orig);
 	assert(CreateDXGIFactory2_orig != nullptr || is_windows7());
@@ -1458,10 +1456,9 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		}
 	}
 
-	const auto d3d12_module = GetModuleHandleW(L"d3d12.dll");
-	assert(d3d12_module != nullptr);
-	const auto D3D12SerializeRootSignature = reinterpret_cast<HRESULT(WINAPI *)(const D3D12_ROOT_SIGNATURE_DESC *pRootSignature, D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob **ppBlob, ID3DBlob **ppErrorBlob)>(GetProcAddress(d3d12_module, "D3D12SerializeRootSignature"));
-	assert(D3D12SerializeRootSignature != nullptr);
+	const auto D3D12SerializeRootSignature_orig = reinterpret_cast<decltype(&D3D12SerializeRootSignature)>(
+		GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeRootSignature"));
+	assert(D3D12SerializeRootSignature_orig != nullptr);
 
 	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
 	internal_desc.NumParameters = static_cast<uint32_t>(internal_params.size());
@@ -1508,7 +1505,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 	com_ptr<ID3DBlob> signature_blob, error_blob;
 	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob)) &&
+	if (SUCCEEDED(D3D12SerializeRootSignature_orig(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob)) &&
 		SUCCEEDED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
 		pipeline_layout_extra_data extra_data;
