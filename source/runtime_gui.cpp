@@ -4887,7 +4887,8 @@ void reshade::runtime::render_imgui_draw_data(api::command_list *cmd_list, ImDra
 	}
 
 	// Need to multi-buffer vertex data so not to modify data below when the previous frame is still in flight
-	const size_t buffer_index = _frame_count % std::size(_imgui_vertices);
+	const size_t buffer_index = _frame_count % (_renderer_id & 0x20000 ? 8 : 4);
+	assert(buffer_index < std::size(_imgui_vertices));
 
 	// Create and grow vertex/index buffers if needed
 	if (_imgui_num_indices[buffer_index] < draw_data->TotalIdxCount)

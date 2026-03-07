@@ -444,10 +444,10 @@ namespace reshade
 		api::pipeline_layout _imgui_pipeline_layout = {};
 		api::sampler  _imgui_sampler_state = {};
 
-		int _imgui_num_indices[4] = {};
-		api::resource _imgui_indices[4] = {};
-		int _imgui_num_vertices[4] = {};
-		api::resource _imgui_vertices[4] = {};
+		int _imgui_num_indices[8] = {};
+		api::resource _imgui_indices[8] = {};
+		int _imgui_num_vertices[8] = {};
+		api::resource _imgui_vertices[8] = {};
 
 		api::resource _vr_overlay_tex = {};
 		api::resource_view _vr_overlay_target = {};
