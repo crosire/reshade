@@ -1283,6 +1283,12 @@ In that event here are some steps you can try to resolve this:
 				config.SetValue("INPUT", "GamepadNavigation", currentInfo.targetPath.Contains("WindowsApps") || Path.GetFileName(currentInfo.targetPath) == "NvRemixBridge.exe" ? "1" : "0");
 			}
 
+			if (!config.HasValue("PROXY"))
+			{
+				config.SetValue("PROXY", "EnableProxyLibrary", "0");
+				config.SetValue("PROXY", "ProxyLibrary", "");
+			}
+
 			config.SaveFile();
 
 			// Change file permissions for files ReShade needs write access to
