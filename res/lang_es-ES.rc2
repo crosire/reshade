@@ -149,7 +149,7 @@ BEGIN
 52454 "Guardar %s"
 30153 "Mostrar estirada"
 35129 "Mostrar original"
-36347 "Uso de memoria total: %lld.%03lld %s"
+36016 "Uso de memoria total: %.3f MiB"
 42207 "Ajuste de línea"
 16256 "Limpiar log"
 40136 "Desarrollado y mantenido por crosire."

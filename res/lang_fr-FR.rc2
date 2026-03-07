@@ -149,7 +149,7 @@ BEGIN
 52454 "Enregistrer %s"
 30153 "Aperçu redimensionné"
 35129 "Aperçu original"
-36347 "Utilisation mémoire totale : %lld.%03lld %s"
+36016 "Utilisation mémoire totale : %.3f MiB"
 42207 "Retour à la ligne"
 16256 "Effacer les Logs"
 40136 "Developpé et maintenu par crosire."

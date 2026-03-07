@@ -149,7 +149,7 @@ BEGIN
 52454 "Shrani %s"
 30153 "Predogled pomanjšan"
 35129 "Predogled originalen"
-36347 "Skupna poraba pomnilnika: %lld.%03lld %s"
+36016 "Skupna poraba pomnilnika: %.3f MiB"
 42207 "Prelom besed"
 16256 "Počisti dnevnik"
 40136 "Razvil in vzdržuje crosire."
