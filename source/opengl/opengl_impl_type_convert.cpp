@@ -101,10 +101,24 @@ auto reshade::opengl::convert_format(api::format format, GLint swizzle_mask[4]) 
 	case api::format::r8g8b8x8_unorm:
 	case api::format::b8g8r8x8_typeless:
 	case api::format::b8g8r8x8_unorm:
-		return GL_RGB8;
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_RED;
+			swizzle_mask[1] = GL_GREEN;
+			swizzle_mask[2] = GL_BLUE;
+			swizzle_mask[3] = GL_ONE;
+		}
+		return GL_RGBA8;
 	case api::format::r8g8b8x8_unorm_srgb:
 	case api::format::b8g8r8x8_unorm_srgb:
-		return GL_SRGB8;
+		if (swizzle_mask != nullptr)
+		{
+			swizzle_mask[0] = GL_RED;
+			swizzle_mask[1] = GL_GREEN;
+			swizzle_mask[2] = GL_BLUE;
+			swizzle_mask[3] = GL_ONE;
+		}
+		return GL_SRGB8_ALPHA8;
 
 	case api::format::r10g10b10a2_typeless:
 	case api::format::r10g10b10a2_unorm:
