@@ -405,6 +405,9 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	case api::memory_heap::custom:
 		heap_props.Type = D3D12_HEAP_TYPE_CUSTOM;
 		break;
+	case api::memory_heap::gpu_upload:
+		heap_props.Type = D3D12_HEAP_TYPE_GPU_UPLOAD;
+		break;
 	}
 
 	if ((desc.usage & api::resource_usage::depth_stencil) != 0)

@@ -365,6 +365,7 @@ void reshade::d3d9::convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPO
 	case api::memory_heap::scratch:
 		d3d_pool = D3DPOOL_SCRATCH;
 		break;
+	default:
 	case api::memory_heap::custom:
 		d3d_pool = D3DPOOL_MANAGED;
 		break;
