@@ -157,6 +157,9 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 
 bool resolve_path(std::filesystem::path &path, std::error_code &ec, const std::filesystem::path &base = g_reshade_base_path)
 {
+	if (path.empty())
+		return false;
+
 	path = std::filesystem::u8path(expand_macro_string(path.u8string()));
 
 	// First convert path to an absolute path
@@ -1039,7 +1042,7 @@ void reshade::runtime::load_config()
 
 	// Fall back to temp directory if cache path does not exist
 	std::error_code ec;
-	if (_effect_cache_path.empty() || !resolve_path(_effect_cache_path, ec))
+	if (!resolve_path(_effect_cache_path, ec))
 	{
 		_effect_cache_path = std::filesystem::temp_directory_path(ec) / "ReShade";
 		std::filesystem::create_directory(_effect_cache_path, ec);
