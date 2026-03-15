@@ -2351,6 +2351,8 @@ void     VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t descriptorW
 				break;
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 				static_assert(sizeof(reshade::api::buffer_range) == sizeof(VkDescriptorBufferInfo));
 				update.descriptors = write.pBufferInfo;
 				break;
@@ -2492,6 +2494,8 @@ void     VKAPI_CALL vkUpdateDescriptorSetWithTemplate(VkDevice device, VkDescrip
 				break;
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 				update.descriptors = static_cast<const VkDescriptorBufferInfo *>(base);
 				break;
 #if VK_KHR_acceleration_structure
