@@ -170,11 +170,11 @@ namespace reshade
 
 		void reload_effect_next_frame(const char *effect_name) final;
 
-	private:
-		static void check_for_update();
-
 		void load_config();
 		void save_config() const;
+
+	private:
+		static void check_for_update();
 
 		void load_current_preset();
 		void save_current_preset(class ini_file &preset) const;

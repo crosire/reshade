@@ -103,6 +103,10 @@ void ReShadeSetConfigArray(void *, reshade::api::effect_runtime *runtime, const 
 		}
 
 		config.set(section != nullptr ? section : std::string(), key != nullptr ? key : std::string(), elements);
+
+		// Reload configuration after it was modified
+		if (runtime != nullptr)
+			static_cast<reshade::runtime *>(runtime)->load_config();
 	}
 	else
 	{
