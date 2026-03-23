@@ -2309,6 +2309,8 @@ void reshade::vulkan::device_impl::update_descriptor_tables(uint32_t count, cons
 			break;
 		case api::descriptor_type::constant_buffer:
 		case api::descriptor_type::shader_storage_buffer:
+		case static_cast<api::descriptor_type>(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC):
+		case static_cast<api::descriptor_type>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC):
 			write.pBufferInfo = static_cast<const VkDescriptorBufferInfo *>(update.descriptors);
 			break;
 #if VK_KHR_acceleration_structure
