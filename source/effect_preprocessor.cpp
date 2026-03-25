@@ -894,7 +894,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			while (stack_index > 0)
 			{
 				const int op2 = stack[--stack_index];
-				if (op2 == op_parentheses)
+				if (op2 == op_parentheses || rpn_index >= STACK_SIZE)
 				{
 					parenthesis_matched = true;
 					break;
@@ -972,7 +972,7 @@ bool reshadefx::preprocessor::evaluate_expression()
 			while (stack_index > 0)
 			{
 				const int prev_op = stack[stack_index - 1];
-				if (prev_op == op_parentheses)
+				if (prev_op == op_parentheses || rpn_index >= STACK_SIZE)
 					break;
 
 				if (left_associative ?
@@ -996,6 +996,9 @@ bool reshadefx::preprocessor::evaluate_expression()
 		const int op = stack[--stack_index];
 		if (op == op_parentheses)
 			return error(_token.location, "unmatched ')'"), false;
+
+		if (rpn_index >= STACK_SIZE)
+			return error(_token.location, "expression evaluator ran out of stack space"), false;
 
 		rpn[rpn_index++] = { op, true };
 	}
