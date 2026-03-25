@@ -417,7 +417,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *z, int *co
 				//	now drop our decompressed data into the buffer
 				for (by = 0; by < bh; ++by)
 				{
-					int idx = 4 * ((ref_y + by + cf * s->img_x) * s->img_x + ref_x);
+					int idx = 4 * ((ref_y + by + cf * s->img_y) * s->img_x + ref_x);
 					for (bx = 0; bx < bw * 4; ++bx)
 					{
 						dds_data[idx + bx] = block[by * 16 + bx];
