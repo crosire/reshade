@@ -5,10 +5,12 @@
 
 #include <imgui.h>
 #include <reshade.hpp>
-#include <vector>
+#include <mutex>
 #include <shared_mutex>
+#include <vector>
 #include <unordered_map>
 #include <cmath> // std::abs, std::modf
+#include <cstdio> // std::snprintf
 #include <cstring> // std::strcmp
 #include <algorithm> // std::find_if, std::remove, std::sort
 #include <Unknwn.h>

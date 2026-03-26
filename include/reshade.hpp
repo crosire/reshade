@@ -309,7 +309,7 @@ namespace reshade
 	inline void register_event(typename addon_event_traits<ev>::decl callback)
 	{
 #if defined(RESHADE_API_LIBRARY)
-		ReShadeRegisterEvent(ev, static_cast<void *>(callback));
+		ReShadeRegisterEvent(ev, reinterpret_cast<void *>(callback));
 #else
 		static const auto func = reinterpret_cast<void(*)(addon_event, void *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeRegisterEvent"));
@@ -326,7 +326,7 @@ namespace reshade
 	inline void unregister_event(typename addon_event_traits<ev>::decl callback)
 	{
 #if defined(RESHADE_API_LIBRARY)
-		ReShadeUnregisterEvent(ev, static_cast<void *>(callback));
+		ReShadeUnregisterEvent(ev, reinterpret_cast<void *>(callback));
 #else
 		static const auto func = reinterpret_cast<void(*)(addon_event, void *)>(
 			GetProcAddress(internal::get_reshade_module_handle(), "ReShadeUnregisterEvent"));
