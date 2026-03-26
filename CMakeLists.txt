@@ -274,6 +274,7 @@ target_sources(
 
 set_source_files_properties(source/input_gamepad.cpp PROPERTIES COMPILE_DEFINITIONS _WIN32_WINNT=_WIN32_WINNT_WIN7)
 set_source_files_properties(source/vulkan/vulkan_impl_device.cpp PROPERTIES COMPILE_DEFINITIONS VMA_IMPLEMENTATION)
+
 set_source_files_properties(examples/09-depth/generic_depth_addon.cpp PROPERTIES COMPILE_DEFINITIONS BUILTIN_ADDON)
 set_source_files_properties(examples/15-effect_runtime_sync/runtime_sync_addon.cpp PROPERTIES COMPILE_DEFINITIONS BUILTIN_ADDON)
 if(MSVC)
@@ -356,7 +357,6 @@ target_sources(
       source/effect_symbol_table.hpp
       source/effect_token.hpp
   PRIVATE
-    source/effect_codegen_dxbc.cpp
     source/effect_codegen_glsl.cpp
     source/effect_codegen_hlsl.cpp
     source/effect_codegen_spirv.cpp
@@ -368,6 +368,14 @@ target_sources(
     source/effect_symbol_table.cpp
     source/effect_symbol_table_intrinsics.inl
 )
+if(WIN32)
+  target_sources(
+    ReShadeFX 
+    PRIVATE
+      source/effect_codegen_dxbc.cpp
+      source/effect_codegen_dxil.cpp
+  )
+endif()
 
 target_compile_definitions(
   ReShadeFX

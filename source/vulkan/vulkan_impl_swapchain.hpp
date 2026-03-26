@@ -48,6 +48,8 @@ namespace reshade::vulkan
 		using swapchain_impl::_hwnd;
 		using swapchain_impl::_swap_index;
 
+#if VK_EXT_full_screen_exclusive
 		HMONITOR hmonitor = nullptr;
+#endif
 	};
 }
