@@ -82,8 +82,10 @@ Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software
 
 	device_impl::on_init();
 
+#if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_command_list>(this);
 	reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
+#endif
 
 	// Delay initialization of auto depth-stencil until after implicit swap chain proxy was created (see 'Direct3DSwapChain9::Direct3DSwapChain9')
 }
