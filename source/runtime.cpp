@@ -5123,7 +5123,7 @@ bool reshade::runtime::execute_screenshot_post_save_command(const std::filesyste
 
 bool reshade::runtime::get_texture_data(api::resource resource, api::resource_usage state, uint8_t *pixels, api::format quantization_format)
 {
-	assert(quantization_format != api::format::unknown);
+	assert(quantization_format != api::format::unknown && quantization_format == api::format_to_default_typed(quantization_format, 0));
 
 	const api::resource_desc desc = _device->get_resource_desc(resource);
 	const api::format intermediate_format = api::format_to_default_typed(desc.texture.format, 0);
