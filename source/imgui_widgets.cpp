@@ -335,11 +335,13 @@ bool reshade::imgui::font_input_box(const char *name, const char *hint, std::fil
 
 	if (item_width > 100.0f)
 	{
-		ImGui::SameLine(0, spacing);
-		ImGui::SetNextItemWidth(5.0f * ImGui::GetFrameHeight());
 		const float size_min = 8;
 		const float size_max = 32;
 		const float size_speed = 1.0f;
+		assert(size >= size_min);
+
+		ImGui::SameLine(0, spacing);
+		ImGui::SetNextItemWidth(5.0f * ImGui::GetFrameHeight());
 		if (slider_with_buttons("##size", ImGuiDataType_Float, &size, 1, &size_speed, &size_min, &size_max, "%.0f"))
 			res = true;
 	}
