@@ -76,7 +76,7 @@ bool D3D12Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12Device14), // {5F6E592D-D895-44C2-8E4A-88AD4926D323}
 	};
 
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

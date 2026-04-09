@@ -627,10 +627,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			create_info.pApplicationInfo = &app_info;
 			if (validation)
 			{
-				create_info.enabledLayerCount = ARRAYSIZE(enabled_layers);
+				create_info.enabledLayerCount = std::size(enabled_layers);
 				create_info.ppEnabledLayerNames = enabled_layers;
 			}
-			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
+			create_info.enabledExtensionCount = std::size(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
 			VK_CHECK(vk.CreateInstance(&create_info, nullptr, &instance));
@@ -704,10 +704,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR lpCmdLine, int nCmdShow
 			create_info.pQueueCreateInfos = &queue_info;
 			if (validation)
 			{
-				create_info.enabledLayerCount = ARRAYSIZE(enabled_layers);
+				create_info.enabledLayerCount = std::size(enabled_layers);
 				create_info.ppEnabledLayerNames = enabled_layers;
 			}
-			create_info.enabledExtensionCount = ARRAYSIZE(enabled_extensions);
+			create_info.enabledExtensionCount = std::size(enabled_extensions);
 			create_info.ppEnabledExtensionNames = enabled_extensions;
 
 			VK_CHECK(vk.CreateDevice(physical_device, &create_info, nullptr, &device));

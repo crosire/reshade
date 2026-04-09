@@ -200,7 +200,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 			if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
 			{
 				// Skip first module (the main application module)
-				for (DWORD i = 1; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), ARRAYSIZE(modules)); ++i)
+				for (DWORD i = 1; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), std::size(modules)); ++i)
 				{
 					if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
 					{

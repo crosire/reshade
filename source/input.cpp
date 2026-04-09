@@ -224,7 +224,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
-		assert(details.wParam > 0 && details.wParam < ARRAYSIZE(input->_keys));
+		assert(details.wParam > 0 && details.wParam < std::size(input->_keys));
 		input->_keys[details.wParam] = 0x88;
 		input->_keys_time[details.wParam] = details.time;
 		if (input->is_blocking_keyboard_input())
@@ -232,7 +232,7 @@ bool reshade::input::handle_window_message(const void *message_data)
 		break;
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
-		assert(details.wParam > 0 && details.wParam < ARRAYSIZE(input->_keys));
+		assert(details.wParam > 0 && details.wParam < std::size(input->_keys));
 		// Do not block key up messages if the key down one was not blocked previously (so key does not get stuck for the application)
 		if (input->is_blocking_keyboard_input() && (input->_keys[details.wParam] & 0x04) == 0)
 			is_keyboard_message = false;
@@ -278,13 +278,13 @@ bool reshade::input::handle_window_message(const void *message_data)
 
 bool reshade::input::is_key_down(unsigned int keycode) const
 {
-	assert(keycode < ARRAYSIZE(_keys));
-	return keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x80) == 0x80;
+	assert(keycode < std::size(_keys));
+	return keycode < std::size(_keys) && (_keys[keycode] & 0x80) == 0x80;
 }
 bool reshade::input::is_key_pressed(unsigned int keycode) const
 {
-	assert(keycode < ARRAYSIZE(_keys));
-	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x88 && !is_key_repeated(keycode);
+	assert(keycode < std::size(_keys));
+	return keycode > 0 && keycode < std::size(_keys) && (_keys[keycode] & 0x88) == 0x88 && !is_key_repeated(keycode);
 }
 bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt, bool force_modifiers) const
 {
@@ -299,19 +299,19 @@ bool reshade::input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift,
 }
 bool reshade::input::is_key_released(unsigned int keycode) const
 {
-	assert(keycode < ARRAYSIZE(_keys));
-	return keycode > 0 && keycode < ARRAYSIZE(_keys) && (_keys[keycode] & 0x88) == 0x08;
+	assert(keycode < std::size(_keys));
+	return keycode > 0 && keycode < std::size(_keys) && (_keys[keycode] & 0x88) == 0x08;
 }
 bool reshade::input::is_key_repeated(unsigned int keycode) const
 {
-	assert(keycode < ARRAYSIZE(_keys));
-	return keycode < ARRAYSIZE(_keys) && (_last_keys[keycode] & 0x80) == 0x80 && (_keys[keycode] & 0x80) == 0x80;
+	assert(keycode < std::size(_keys));
+	return keycode < std::size(_keys) && (_last_keys[keycode] & 0x80) == 0x80 && (_keys[keycode] & 0x80) == 0x80;
 }
 
 bool reshade::input::is_any_key_down() const
 {
 	// Skip mouse buttons
-	for (unsigned int i = VK_XBUTTON2 + 1; i < ARRAYSIZE(_keys); i++)
+	for (unsigned int i = VK_XBUTTON2 + 1; i < std::size(_keys); i++)
 		if (is_key_down(i))
 			return true;
 	return false;
@@ -327,14 +327,14 @@ bool reshade::input::is_any_key_released() const
 
 unsigned int reshade::input::last_key_pressed() const
 {
-	for (unsigned int i = VK_MBUTTON; i < ARRAYSIZE(_keys); i++)
+	for (unsigned int i = VK_MBUTTON; i < std::size(_keys); i++)
 		if (is_key_pressed(i))
 			return i;
 	return 0;
 }
 unsigned int reshade::input::last_key_released() const
 {
-	for (unsigned int i = VK_MBUTTON; i < ARRAYSIZE(_keys); i++)
+	for (unsigned int i = VK_MBUTTON; i < std::size(_keys); i++)
 		if (is_key_released(i))
 			return i;
 	return 0;
@@ -398,7 +398,7 @@ void reshade::input::next_frame()
 
 	for (uint8_t &state : _keys)
 		state &= ~0x08;
-
+		
 	// Reset any pressed down key states (apart from mouse buttons) that have not been updated for more than 5 seconds
 	// Do not check mouse buttons here, since 'GetAsyncKeyState' always returns the state of the physical mouse buttons, not the logical ones in case they were remapped
 	// See https://docs.microsoft.com/windows/win32/api/winuser/nf-winuser-getasynckeystate
@@ -520,7 +520,7 @@ bool reshade::input::is_blocking_any_mouse_input(window_handle target)
 				return !input_window.second.expired() && input_window.first == target && input_window.second.lock()->is_blocking_mouse_input();
 			});
 	}
-
+	
 	return s_block_mouse.load();
 }
 bool reshade::input::is_blocking_any_keyboard_input(window_handle target)
@@ -534,7 +534,7 @@ bool reshade::input::is_blocking_any_keyboard_input(window_handle target)
 				return !input_window.second.expired() && input_window.first == target && input_window.second.lock()->is_blocking_keyboard_input();
 			});
 	}
-
+	
 	return s_block_keyboard.load();
 }
 bool reshade::input::is_blocking_any_mouse_cursor_warping()

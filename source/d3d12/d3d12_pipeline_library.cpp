@@ -30,7 +30,7 @@ bool D3D12PipelineLibrary::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12PipelineLibrary1),
 	};
 
-	for (unsigned int version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

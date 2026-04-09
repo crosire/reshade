@@ -40,7 +40,7 @@ D3D11Device::D3D11Device(IDXGIAdapter *adapter, IDXGIDevice1 *original_dxgi_devi
 			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
 			feature_level >= D3D_FEATURE_LEVEL_10_0 ? D3D11_CS_4_X_UAV_REGISTER_COUNT : 0u, reshade::api::shader_stage::pixel | reshade::api::shader_stage::compute, 1, reshade::api::descriptor_type::unordered_access_view },
 	};
-	device_impl::create_pipeline_layout(static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, &_global_pipeline_layout);
+	device_impl::create_pipeline_layout(std::size(global_pipeline_layout_params), global_pipeline_layout_params, &_global_pipeline_layout);
 	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(this, static_cast<uint32_t>(std::size(global_pipeline_layout_params)), global_pipeline_layout_params, _global_pipeline_layout);
 #endif
 }
@@ -78,7 +78,7 @@ bool D3D11Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D11Device5), // {8FFDE202-A0E7-45DF-9E01-E837801B5EA0}
 	};
 
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

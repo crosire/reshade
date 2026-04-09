@@ -46,7 +46,7 @@ public:
 
 	ID3D12PipelineLibrary *_orig;
 	LONG _ref = 1;
-	unsigned int _interface_version = 0;
+	unsigned short _interface_version = 0;
 
 private:
 	D3D12Device *const _device;

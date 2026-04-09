@@ -64,7 +64,7 @@ bool D3D11DeviceContext::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D11DeviceContext4), // {917600DA-F58C-4C33-98D8-3E15B390FA24}
 	};
 
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

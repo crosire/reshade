@@ -46,7 +46,7 @@ bool DXGIFactory::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGIFactory7), // {A4966EED-76DB-44DA-84C1-EE9A7AFB20A8}
 	};
 
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;
@@ -74,8 +74,7 @@ void DXGIFactory::check_and_proxy_adapter_interface(REFIID riid, void **out_adap
 {
 	IDXGIAdapter *const adapter = static_cast<IDXGIAdapter *>(*out_adapter);
 
-	DXGIAdapter *adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter);
-	if (adapter_proxy != nullptr)
+	if (auto adapter_proxy = get_private_pointer_d3dx<DXGIAdapter>(adapter))
 	{
 		if (adapter_proxy->check_and_upgrade_interface(riid))
 		{
@@ -94,6 +93,7 @@ void DXGIFactory::check_and_proxy_adapter_interface(REFIID riid, void **out_adap
 	else
 	{
 		adapter_proxy = new DXGIAdapter(this, adapter);
+
 		if (adapter_proxy->check_and_upgrade_interface(riid))
 		{
 			*out_adapter = adapter_proxy;

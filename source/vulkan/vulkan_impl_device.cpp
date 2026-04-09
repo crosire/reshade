@@ -87,7 +87,7 @@ reshade::vulkan::device_impl::device_impl(
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 		create_info.maxSets = 512;
-		create_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+		create_info.poolSizeCount = std::size(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
 
 		if (vk.CreateDescriptorPool(_orig, &create_info, nullptr, &_descriptor_pool) != VK_SUCCESS)

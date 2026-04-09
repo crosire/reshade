@@ -80,7 +80,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 
 			VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 			create_info.maxSets = 32;
-			create_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+			create_info.poolSizeCount = std::size(pool_sizes);
 			create_info.pPoolSizes = pool_sizes;
 
 			if (vk.CreateDescriptorPool(_device_impl->_orig, &create_info, nullptr, &_transient_descriptor_pool[i]) != VK_SUCCESS)

@@ -46,7 +46,7 @@ bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGIAdapter4), // {3C8D99D1-4FBF-4181-A82C-AF66BF7BD24E}
 	};
 
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

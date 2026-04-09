@@ -149,7 +149,7 @@ bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
 		__uuidof(IDXGISwapChain4),
 	};
 
-	for (unsigned short version = 0; version < ARRAYSIZE(iid_lookup); ++version)
+	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
 	{
 		if (riid != iid_lookup[version])
 			continue;

@@ -67,7 +67,7 @@ public:
 
 		com_ptr<IDxcResult> result;
 
-		HRESULT hr = compiler->Compile(&hlsl_buffer, arguments, static_cast<UINT32>(std::size(arguments)), nullptr, IID_PPV_ARGS(&result));
+		HRESULT hr = compiler->Compile(&hlsl_buffer, arguments, std::size(arguments), nullptr, IID_PPV_ARGS(&result));
 		if (result != nullptr)
 		{
 			result->GetStatus(&hr);
