@@ -1,3 +1,5 @@
+$env:Path += ".\gettext"
+
 if ((Get-Command "xgettext.exe" -ErrorAction SilentlyContinue) -eq $null) 
 { 
 	Write-Host "Unable to find xgettext.exe. Please download https://gnuwin32.sourceforge.net/packages/gettext.htm."
@@ -12,6 +14,7 @@ $languages = @(
 	"fr-FR",
 	"ja-JP",
 	"ko-KR",
+	"pl-PL",
 	"pt-BR",
 	"ru-RU",
 	"sl-SI",

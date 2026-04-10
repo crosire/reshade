@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Turkish (Turkiye) resources
+// Turkish (Türkiye) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_TRK)
 LANGUAGE 31, 1
@@ -198,5 +198,5 @@ BEGIN
 
 END
 
-#endif    // Turkish (Turkiye) resources
+#endif    // Turkish (Türkiye) resources
 /////////////////////////////////////////////////////////////////////////////
