@@ -3283,7 +3283,7 @@ void reshade::runtime::draw_gui_addons()
 
 			ImGui::BeginChild(info.name.c_str(), ImVec2(child_window_width, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar);
 
-			const bool builtin = (info.file == g_reshade_dll_path.filename().u8string());
+			const bool builtin = !info.external && info.file.empty();
 			const std::string unique_name = builtin ? info.name : info.name + '@' + info.file;
 
 			const auto collapsed_it = std::find(collapsed_or_expanded_addons.begin(), collapsed_or_expanded_addons.end(), unique_name);
