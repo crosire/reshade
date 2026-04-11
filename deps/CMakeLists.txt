@@ -345,9 +345,10 @@ if(WIN32)
       dwmapi.lib
       dxguid.lib
       ShLwApi.lib
-      wininet.lib
-      WS2_32.lib
       Version.lib
+      wininet.lib
       WinMM.lib
+      WS2_32.lib
+      Xinput9_1_0.lib
   )
 endif()
