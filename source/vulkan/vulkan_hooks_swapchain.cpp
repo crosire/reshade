@@ -416,51 +416,6 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	trampoline(device, swapchain, pAllocator);
 }
 
-VkResult VKAPI_CALL vkAcquireNextImageKHR(VkDevice device, VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t *pImageIndex)
-{
-	assert(pImageIndex != nullptr);
-
-	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(AcquireNextImageKHR, device_impl);
-
-	const VkResult result = trampoline(device, swapchain, timeout, semaphore, fence, pImageIndex);
-	if (result == VK_SUCCESS)
-	{
-		if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain))
-			swapchain_impl->_swap_index = *pImageIndex;
-	}
-#if RESHADE_VERBOSE_LOG
-	else if (result < VK_SUCCESS)
-	{
-		reshade::log::message(reshade::log::level::warning, "vkAcquireNextImageKHR failed with error code %d.", static_cast<int>(result));
-	}
-#endif
-
-	return result;
-}
-VkResult VKAPI_CALL vkAcquireNextImage2KHR(VkDevice device, const VkAcquireNextImageInfoKHR *pAcquireInfo, uint32_t *pImageIndex)
-{
-	assert(pAcquireInfo != nullptr && pImageIndex != nullptr);
-
-	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
-	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(AcquireNextImage2KHR, device_impl);
-
-	const VkResult result = trampoline(device, pAcquireInfo, pImageIndex);
-	if (result == VK_SUCCESS)
-	{
-		if (reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pAcquireInfo->swapchain))
-			swapchain_impl->_swap_index = *pImageIndex;
-	}
-#if RESHADE_VERBOSE_LOG
-	else if (result < VK_SUCCESS)
-	{
-		reshade::log::message(reshade::log::level::warning, "vkAcquireNextImage2KHR failed with error code %d.", static_cast<int>(result));
-	}
-#endif
-
-	return result;
-}
-
 VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPresentInfo)
 {
 	assert(pPresentInfo != nullptr);
@@ -478,7 +433,10 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
-		reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
+
+		// 'vkAcquireNextImageKHR' may be called for the next frame before this frame was presented (e.g. in DOOM Eternal), so correct swap index must be obtained from the present info
+		swapchain_impl->_swap_index = pPresentInfo->pImageIndices[i];
 
 #if RESHADE_ADDON
 #if VK_KHR_incremental_present

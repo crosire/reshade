@@ -196,9 +196,7 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 #if VK_KHR_swapchain
 	RESHADE_VULKAN_HOOK_PROC(CreateSwapchainKHR);
 	RESHADE_VULKAN_HOOK_PROC(DestroySwapchainKHR);
-	RESHADE_VULKAN_HOOK_PROC(AcquireNextImageKHR);
 	RESHADE_VULKAN_HOOK_PROC(QueuePresentKHR);
-	RESHADE_VULKAN_HOOK_PROC(AcquireNextImage2KHR);
 #endif
 
 #if RESHADE_ADDON
