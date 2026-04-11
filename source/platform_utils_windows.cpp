@@ -28,7 +28,7 @@ bool reshade::utils::execute_command(const std::string &command_line, const std:
 	utf8::unchecked::utf8to16(command_line.cbegin(), command_line.cend(), std::back_inserter(command_line_wide));
 
 	// Check if this is actually a website URL that should be opened in the default web browser via the shell
-	if (command_line.find("http") == 0 && command_line.find_first_of(" \t") == std::string::npos)
+	if (command_line.compare(0, 4, "http") == 0 && command_line.find_first_of(" \t") == std::string::npos)
 		return ShellExecuteW(nullptr, L"open", command_line_wide.c_str(), nullptr, nullptr, SW_SHOWDEFAULT) != nullptr;
 
 	DWORD state_buffer_size;

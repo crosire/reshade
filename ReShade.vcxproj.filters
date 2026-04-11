@@ -336,7 +336,10 @@
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\input_gamepad.cpp">
+    <ClCompile Include="source\input_windows.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\input_windows_xinput.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl.cpp">
@@ -384,7 +387,7 @@
     <ClCompile Include="source\openxr\openxr_impl_swapchain.cpp">
       <Filter>hooks\openxr</Filter>
     </ClCompile>
-    <ClCompile Include="source\platform_utils.cpp">
+    <ClCompile Include="source\platform_utils_windows.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime.cpp">
@@ -693,9 +696,6 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="source\input.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\input_gamepad.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\localization.hpp">

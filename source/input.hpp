@@ -8,12 +8,96 @@
 #include <mutex>
 #include <memory>
 #include <string>
+#include <cstdint>
 
 namespace reshade
 {
 	class input
 	{
 	public:
+		enum key
+		{
+			key_button_left = 0x01, // VK_LBUTTON
+			key_button_right = 0x02, // VK_RBUTTON
+			key_button_middle = 0x04, // VK_MBUTTON
+			key_button_xbutton1 = 0x05, // VK_XBUTTON1
+			key_button_xbutton2 = 0x06, // VK_XBUTTON2
+
+			key_ctrl = 0x11, // VK_CONTROL
+			key_left_ctrl = 0xA2, // VK_LCONTROL
+			key_right_ctrl = 0xA3, // VK_RCONTROL
+			key_shift = 0x10, // VK_SHIFT
+			key_left_shift = 0xA0, // VK_LSHIFT
+			key_right_shift = 0xA1, // VK_RSHIFT
+			key_alt = 0x12, // VK_MENU
+			key_left_alt = 0xA4, // VK_LMENU
+			key_right_alt = 0xA5, // VK_RMENU
+			key_left_windows = 0x5B, // VK_LWIN
+			key_right_windows = 0x5C, // VK_RWIN
+
+			key_space = 0x20, // VK_SPACE
+			key_backspace = 0x08, // VK_BACK
+			key_tab = 0x09, // VK_TAB
+			key_return = 0x0D, // VK_RETURN
+			key_pause = 0x13, // VK_PAUSE
+			key_caps_lock = 0x14, // VK_CAPITAL
+			key_escape = 0x1B, // VK_ESCAPE
+			key_left = 0x25, // VK_LEFT
+			key_right = 0x27, // VK_RIGHT
+			key_up = 0x26, // VK_UP
+			key_down = 0x28, // VK_DOWN
+			key_page_up = 0x21, // VK_PRIOR
+			key_page_down = 0x22, // VK_NEXT
+			key_end = 0x23, // VK_END
+			key_home = 0x24, // VK_HOME
+			key_print_screen = 0x2C, // VK_SNAPSHOT
+			key_insert = 0x2D, // VK_INSERT
+			key_delete = 0x2E, // VK_DELETE
+			key_application = 0x5D, // VK_APPS
+			key_num_lock = 0x90, // VK_NUMLOCK
+			key_scroll_lock = 0x91, // VK_SCROLL
+
+			key_comma = 0xBC, // VK_OEM_COMMA
+			key_minus = 0xBD, // VK_OEM_MINUS
+			key_period = 0xBE, // VK_OEM_PERIOD
+			key_slash = 0xBF, // VK_OEM_2
+			key_semicolon = 0xBA, // VK_OEM_1
+			key_plus = 0xBB, // VK_OEM_PLUS
+			key_left_bracket = 0xDB, // VK_OEM_4
+			key_backslash = 0xDC, // VK_OEM_5
+			key_right_bracket = 0xDD, // VK_OEM_6
+			key_apostrophe = 0xDE, // VK_OEM_7
+			key_grave_accent = 0xC0, // VK_OEM_3
+
+			key_f1 = 0x70, // VK_F1
+			key_f2 = 0x71, // VK_F2
+			key_f3 = 0x72, // VK_F3
+			key_f4 = 0x73, // VK_F4
+			key_f5 = 0x74, // VK_F5
+			key_f6 = 0x75, // VK_F6
+			key_f7 = 0x76, // VK_F7
+			key_f8 = 0x77, // VK_F8
+			key_f9 = 0x78, // VK_F9
+			key_f10 = 0x79, // VK_F10
+			key_f11 = 0x80, // VK_F11
+			key_f12 = 0x81, // VK_F12
+
+			key_numpad_0 = 0x60, // VK_NUMPAD0
+			key_numpad_1 = 0x61, // VK_NUMPAD1
+			key_numpad_2 = 0x62, // VK_NUMPAD2
+			key_numpad_3 = 0x63, // VK_NUMPAD3
+			key_numpad_4 = 0x64, // VK_NUMPAD4
+			key_numpad_5 = 0x65, // VK_NUMPAD5
+			key_numpad_6 = 0x66, // VK_NUMPAD6
+			key_numpad_7 = 0x67, // VK_NUMPAD7
+			key_numpad_8 = 0x68, // VK_NUMPAD8
+			key_numpad_9 = 0x69, // VK_NUMPAD9
+			key_numpad_multiply = 0x6A, // VK_MULTIPLY
+			key_numpad_add = 0x6B, // VK_ADD
+			key_numpad_subtract = 0x6D, // VK_SUBTRACT
+			key_numpad_decimal = 0x6E, // VK_DECIMAL
+			key_numpad_divide = 0x6F, // VK_DIVIDE
+		};
 		enum button
 		{
 			button_left,
@@ -138,5 +222,68 @@ namespace reshade
 		unsigned int _last_mouse_position[2] = {};
 		uint64_t _frame_count = 0; // Keep track of frame count to identify windows with a lot of rendering
 		std::wstring _text_input;
+	};
+
+	class input_gamepad
+	{
+	public:
+		enum button
+		{
+			button_a = 0x1000,
+			button_b = 0x2000,
+			button_x = 0x4000,
+			button_y = 0x8000,
+			button_dpad_up = 0x0001,
+			button_dpad_down = 0x0002,
+			button_dpad_left = 0x0004,
+			button_dpad_right = 0x0008,
+			button_back = 0x0020,
+			button_start = 0x0010,
+			button_left_thumb = 0x0040,
+			button_right_thumb = 0x0080,
+			button_left_shoulder = 0x0100,
+			button_right_shoulder = 0x0200,
+		};
+
+		explicit input_gamepad();
+
+		/// <summary>
+		/// Loads XInput and creates or gets the gamepad input manager singleton.
+		/// </summary>
+		/// <returns>Pointer to the input manager.</returns>
+		static std::shared_ptr<input_gamepad> load();
+
+		/// <summary>
+		/// Gets the connection status of the gamepad.
+		/// </summary>
+		bool is_connected() const { return _last_packet_num != 0; }
+
+		bool is_button_down(unsigned int button) const;
+		bool is_button_pressed(unsigned int button) const;
+		bool is_button_released(unsigned int button) const;
+
+		auto left_thumb_axis_x() const { return _left_thumb_axis_x; }
+		auto left_thumb_axis_y() const { return _left_thumb_axis_y; }
+		auto right_thumb_axis_x() const { return _right_thumb_axis_x; }
+		auto right_thumb_axis_y() const { return _right_thumb_axis_y; }
+
+		auto left_trigger_position() const { return _left_trigger; }
+		auto right_trigger_position() const { return _right_trigger; }
+
+		/// <summary>
+		/// Notifies the gamepad input manager to advance a frame.
+		/// </summary>
+		void next_frame();
+
+	private:
+		uint16_t _buttons = 0;
+		uint16_t _last_buttons = 0;
+		float _left_trigger = 0.0f;
+		float _right_trigger = 0.0f;
+		float _left_thumb_axis_x = 0.0f;
+		float _left_thumb_axis_y = 0.0f;
+		float _right_thumb_axis_x = 0.0f;
+		float _right_thumb_axis_y = 0.0f;
+		uint32_t _last_packet_num = 0;
 	};
 }

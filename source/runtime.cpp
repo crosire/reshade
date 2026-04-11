@@ -14,8 +14,6 @@
 #include "ini_file.hpp"
 #include "addon_manager.hpp"
 #include "input.hpp"
-#include "input_gamepad.hpp"
-#include "com_ptr.hpp"
 #include "platform_utils.hpp"
 #include "reshade_api_object_impl.hpp"
 #include <set>
