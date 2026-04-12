@@ -342,7 +342,6 @@ if(WIN32)
     Windows
     INTERFACE
       d3dcompiler.lib
-      dwmapi.lib
       dxguid.lib
       ShLwApi.lib
       Version.lib

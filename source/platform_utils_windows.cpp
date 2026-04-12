@@ -7,7 +7,6 @@
 #include <utf8/unchecked.h>
 #include <Windows.h>
 #include <Shellapi.h>
-#include <dwmapi.h>
 #include <mmsystem.h>
 
 bool reshade::utils::open_explorer(const std::filesystem::path &path)
@@ -122,12 +121,4 @@ void reshade::utils::play_sound_async(const std::filesystem::path &audio_file)
 	if (normalized_audio_file_path.empty() || normalized_audio_file_path.native().length() >= 256)
 		return;
 	PlaySoundW(normalized_audio_file_path.c_str(), nullptr, SND_ASYNC | SND_NOSTOP | SND_FILENAME);
-}
-
-void reshade::utils::set_window_transparency(void *window, bool enabled)
-{
-	DWM_BLURBEHIND blur_behind = {};
-	blur_behind.dwFlags = DWM_BB_ENABLE;
-	blur_behind.fEnable = enabled;
-	DwmEnableBlurBehindWindow(GetAncestor(static_cast<HWND>(window), GA_ROOT), &blur_behind);
 }

@@ -87,3 +87,7 @@ ForceResolution=0,0
 ## [17-screenshot_to_clipboard](/examples/17-screenshot_to_clipboard)
 
 Copies the saved image file to the Windows clipboard every time a screenshot is taken.
+
+## [18-window_transparency](/examples/18-window_transparency)
+
+Disables transparency for windows, since it messes with effects that do not return an alpha value.

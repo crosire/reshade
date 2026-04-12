@@ -572,10 +572,6 @@ bool reshade::runtime::on_init()
 			_input.reset();
 			_primary_input_handler = _input_gamepad != nullptr;
 		}
-
-		// GTK 3 enables transparency for windows, which messes with effects that do not return an alpha value, so disable that again
-		if (window != nullptr)
-			utils::set_window_transparency(window, false);
 	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'

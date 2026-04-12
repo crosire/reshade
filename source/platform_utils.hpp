@@ -23,10 +23,4 @@ namespace reshade::utils
 	/// Plays the specified audio file asynchronously.
 	/// </summary>
 	void play_sound_async(const std::filesystem::path &audio_file);
-
-	/// <summary>
-	/// Changes the window background to be transparent or opaque.
-	/// Alpha values in the swap chain are only respected when the window is transparent.
-	/// </summary>
-	void set_window_transparency(void *window, bool enabled);
 }
