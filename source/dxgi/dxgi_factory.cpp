@@ -107,6 +107,9 @@ void DXGIFactory::check_and_proxy_adapter_interface(REFIID riid, void **out_adap
 		}
 		else
 		{
+#if RESHADE_VERBOSE_LOG
+			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in IDXGIFactory4::EnumAdapterByLuid.", reshade::log::iid_to_string(riid).c_str());
+#endif
 			delete adapter_proxy;
 		}
 	}
@@ -180,10 +183,12 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::GetParent(REFIID riid, void **ppParent)
 
 HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters(UINT Adapter, IDXGIAdapter **ppAdapter)
 {
+#if RESHADE_VERBOSE_LOG
 	reshade::log::message(
 		reshade::log::level::info,
 		"Redirecting IDXGIFactory::EnumAdapters(this = %p, Adapter = %u, ppAdapter = %p) ...",
 		this, Adapter, ppAdapter);
+#endif
 
 	const HRESULT hr = _orig->EnumAdapters(Adapter, ppAdapter);
 	if (SUCCEEDED(hr))
@@ -214,10 +219,12 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapters1(UINT Adapter, IDXGIAdapter1
 {
 	assert(_interface_version >= 1);
 
+#if RESHADE_VERBOSE_LOG
 	reshade::log::message(
 		reshade::log::level::info,
 		"Redirecting IDXGIFactory1::EnumAdapters1(this = %p, Adapter = %u, ppAdapter = %p) ...",
 		this, Adapter, ppAdapter);
+#endif
 
 	const HRESULT hr = static_cast<IDXGIFactory1 *>(_orig)->EnumAdapters1(Adapter, ppAdapter);
 	if (SUCCEEDED(hr))
@@ -318,10 +325,12 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapterByLuid(LUID AdapterLuid, REFII
 {
 	assert(_interface_version >= 4);
 
+#if RESHADE_VERBOSE_LOG
 	reshade::log::message(
 		reshade::log::level::info,
 		"Redirecting IDXGIFactory4::EnumAdapterByLuid(this = %p, AdapterLuid = %llx, riid = %s, ppvAdapter = %p) ...",
 		this, reinterpret_cast<const LARGE_INTEGER &>(AdapterLuid).QuadPart, reshade::log::iid_to_string(riid).c_str(), ppvAdapter);
+#endif
 
 	const HRESULT hr = static_cast<IDXGIFactory4 *>(_orig)->EnumAdapterByLuid(AdapterLuid, riid, ppvAdapter);
 	if (SUCCEEDED(hr))
@@ -346,10 +355,12 @@ HRESULT STDMETHODCALLTYPE DXGIFactory::EnumAdapterByGpuPreference(UINT Adapter, 
 {
 	assert(_interface_version >= 6);
 
+#if RESHADE_VERBOSE_LOG
 	reshade::log::message(
 		reshade::log::level::info,
 		"Redirecting IDXGIFactory6::EnumAdapterByGpuPreference(this = %p, Adapter = %u, GpuPreference = %d, riid = %s, ppvAdapter = %p) ...",
 		this, Adapter, GpuPreference, reshade::log::iid_to_string(riid).c_str(), ppvAdapter);
+#endif
 
 	const HRESULT hr = static_cast<IDXGIFactory6 *>(_orig)->EnumAdapterByGpuPreference(Adapter, GpuPreference, riid, ppvAdapter);
 	if (SUCCEEDED(hr))
