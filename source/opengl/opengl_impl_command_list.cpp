@@ -19,8 +19,6 @@
 		gl.Disable(cap); \
 	}
 
-extern "C" void APIENTRY glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
-
 void reshade::opengl::device_context_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
 {
 	GLbitfield barriers = 0;
@@ -1463,7 +1461,7 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 
 		// This is deprecated and not available in core contexts!
 		assert(_device_impl->_compatibility_context);
-		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+		gl.DrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 
 		if (0 != prev_binding)
 			gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_binding);
@@ -1487,7 +1485,7 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 
 		// This is deprecated and not available in core contexts!
 		assert(_device_impl->_compatibility_context);
-		glDrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+		gl.DrawPixels(width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
 
 		gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_fbo_binding);
 		if (dst_object != prev_rbo_binding)
