@@ -283,6 +283,8 @@ namespace reshade::vulkan
 	auto convert_descriptor_type(api::descriptor_type value) -> VkDescriptorType;
 	auto convert_descriptor_type(VkDescriptorType value) -> api::descriptor_type;
 
+	auto convert_render_pass_flags(api::render_pass_flags value) -> VkRenderingFlags;
+	auto convert_render_pass_flags(VkRenderingFlags value) -> api::render_pass_flags;
 	auto convert_render_pass_load_op(api::render_pass_load_op value) -> VkAttachmentLoadOp;
 	auto convert_render_pass_load_op(VkAttachmentLoadOp value) -> api::render_pass_load_op;
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;

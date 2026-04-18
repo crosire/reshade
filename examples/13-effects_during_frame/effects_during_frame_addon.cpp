@@ -100,7 +100,7 @@ static void on_end_render_pass(command_list *cmd_list)
 	}
 }
 
-static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *)
+static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *, render_pass_flags)
 {
 	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
 	cmd_data.has_multiple_rtvs = count > 1;

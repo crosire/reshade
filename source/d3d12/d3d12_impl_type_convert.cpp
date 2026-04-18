@@ -1812,6 +1812,18 @@ auto reshade::d3d12::convert_shader_visibility(D3D12_SHADER_VISIBILITY value) ->
 	}
 }
 
+auto reshade::d3d12::convert_render_pass_flags(api::render_pass_flags value) -> D3D12_RENDER_PASS_FLAGS
+{
+	static_assert(
+		api::render_pass_flags::resume == D3D12_RENDER_PASS_FLAG_RESUMING_PASS &&
+		api::render_pass_flags::suspend == D3D12_RENDER_PASS_FLAG_SUSPENDING_PASS);
+
+	return static_cast<D3D12_RENDER_PASS_FLAGS>(value);
+}
+auto reshade::d3d12::convert_render_pass_flags(D3D12_RENDER_PASS_FLAGS value) -> api::render_pass_flags
+{
+	return static_cast<api::render_pass_flags>(value);
+}
 auto reshade::d3d12::convert_render_pass_load_op(api::render_pass_load_op value) -> D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE
 {
 	switch (value)

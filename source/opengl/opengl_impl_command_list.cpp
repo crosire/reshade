@@ -60,7 +60,7 @@ void reshade::opengl::device_context_impl::barrier(uint32_t count, const api::re
 	gl.MemoryBarrier(barriers);
 }
 
-void reshade::opengl::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
+void reshade::opengl::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags)
 {
 	temp_mem<api::resource_view, 8> rtv_handles(count);
 	for (uint32_t i = 0; i < count; ++i)

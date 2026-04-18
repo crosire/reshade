@@ -162,6 +162,8 @@ namespace reshade::d3d12
 	auto convert_shader_visibility(api::shader_stage value) -> D3D12_SHADER_VISIBILITY;
 	auto convert_shader_visibility(D3D12_SHADER_VISIBILITY value) -> api::shader_stage;
 
+	auto convert_render_pass_flags(api::render_pass_flags value) -> D3D12_RENDER_PASS_FLAGS;
+	auto convert_render_pass_flags(D3D12_RENDER_PASS_FLAGS value) -> api::render_pass_flags;
 	auto convert_render_pass_load_op(api::render_pass_load_op value) -> D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE;
 	auto convert_render_pass_load_op(D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE value) -> api::render_pass_load_op;
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> D3D12_RENDER_PASS_ENDING_ACCESS_TYPE;

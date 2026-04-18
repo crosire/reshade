@@ -2404,6 +2404,26 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 	}
 }
 
+auto reshade::vulkan::convert_render_pass_flags(api::render_pass_flags value) -> VkRenderingFlags
+{
+	VkRenderingFlags result = 0;
+	if ((value & api::render_pass_flags::resume) != 0)
+		result |= VK_RENDERING_RESUMING_BIT;
+	if ((value & api::render_pass_flags::suspend) != 0)
+		result |= VK_RENDERING_SUSPENDING_BIT;
+
+	return result;
+}
+auto reshade::vulkan::convert_render_pass_flags(VkRenderingFlags value) -> api::render_pass_flags
+{
+	api::render_pass_flags result = api::render_pass_flags::none;
+	if ((value & VK_RENDERING_RESUMING_BIT) != 0)
+		result |= api::render_pass_flags::resume;
+	if ((value & (VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT | VK_RENDERING_SUSPENDING_BIT)) != 0)
+		result |= api::render_pass_flags::suspend;
+
+	return result;
+}
 auto reshade::vulkan::convert_render_pass_load_op(api::render_pass_load_op value) -> VkAttachmentLoadOp
 {
 	switch (value)

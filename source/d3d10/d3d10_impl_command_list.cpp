@@ -85,7 +85,7 @@ void reshade::d3d10::device_impl::barrier(uint32_t count, const api::resource *r
 	}
 }
 
-void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
+void reshade::d3d10::device_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags)
 {
 	assert(count <= D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT);
 

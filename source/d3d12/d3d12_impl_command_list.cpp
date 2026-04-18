@@ -111,7 +111,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 	_orig->ResourceBarrier(k, barriers.p);
 }
 
-void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
+void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags)
 {
 	_has_commands = true;
 
@@ -154,7 +154,7 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 			}
 		}
 
-		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(count, rt_desc.p, ds != nullptr && ds->view != 0 ? &depth_stencil_desc : nullptr, D3D12_RENDER_PASS_FLAG_NONE);
+		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(count, rt_desc.p, ds != nullptr && ds->view != 0 ? &depth_stencil_desc : nullptr, convert_render_pass_flags(flags));
 	}
 	else
 	{

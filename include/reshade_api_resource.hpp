@@ -530,6 +530,17 @@ namespace reshade::api
 	};
 
 	/// <summary>
+	/// Flags that specify additional parameters of a render pass.
+	/// </summary>
+	enum class render_pass_flags : uint32_t
+	{
+		none = 0,
+		resume = 1 << 2,
+		suspend = 1 << 1,
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(render_pass_flags);
+
+	/// <summary>
 	/// Specifies how the contents of a render target or depth-stencil view are treated at the start of a render pass.
 	/// </summary>
 	enum class render_pass_load_op : uint32_t

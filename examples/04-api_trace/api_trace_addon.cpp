@@ -436,7 +436,7 @@ static void on_barrier(command_list *, uint32_t num_resources, const resource *r
 	}
 }
 
-static void on_begin_render_pass(command_list *, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds)
+static void on_begin_render_pass(command_list *, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds, render_pass_flags flags)
 {
 	if (!s_do_capture)
 		return;
@@ -445,7 +445,7 @@ static void on_begin_render_pass(command_list *, uint32_t count, const render_pa
 	s << "begin_render_pass(" << count << ", { ";
 	for (uint32_t i = 0; i < count; ++i)
 		s << (void *)rts[i].view.handle << ", ";
-	s << " }, " << (ds != nullptr ? (void *)ds->view.handle : 0) << ")";
+	s << " }, " << (ds != nullptr ? (void *)ds->view.handle : 0) << ", " << std::hex << static_cast<uint32_t>(flags) << std::dec << ")";
 
 	reshade::log::message(reshade::log::level::info, s.str().c_str());
 }

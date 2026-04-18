@@ -96,7 +96,7 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 	vk.CmdPipelineBarrier(_orig, src_stage_mask, dst_stage_mask, 0, num_mem_barriers, mem_barriers.p, num_buffer_barriers, buffer_barriers.p, num_image_barriers, image_barriers.p);
 }
 
-void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds)
+void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags)
 {
 	_has_commands = true;
 	_is_in_render_pass = true;
@@ -105,6 +105,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 	if (vk.KHR_dynamic_rendering)
 	{
 		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
+		rendering_info.flags = convert_render_pass_flags(flags);
 		rendering_info.renderArea.extent.width = std::numeric_limits<uint32_t>::max();
 		rendering_info.renderArea.extent.height = std::numeric_limits<uint32_t>::max();
 		rendering_info.layerCount = std::numeric_limits<uint32_t>::max();
@@ -332,7 +333,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		begin_info.clearValueCount = count + (ds != nullptr ? 1 : 0);
 		begin_info.pClearValues = clear_values.p;
 
-		vk.CmdBeginRenderPass(_orig, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+		vk.CmdBeginRenderPass(_orig, &begin_info, (flags & api::render_pass_flags::suspend) != 0 ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 	}
 }
 void reshade::vulkan::command_list_impl::end_render_pass()

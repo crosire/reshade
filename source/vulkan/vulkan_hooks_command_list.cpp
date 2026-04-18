@@ -16,7 +16,7 @@
 extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #if RESHADE_ADDON
-static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info)
+static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *device_impl, reshade::vulkan::object_data<VK_OBJECT_TYPE_COMMAND_BUFFER> *cmd_impl, const VkRenderPassBeginInfo *begin_info, VkSubpassContents contents)
 {
 	const auto render_pass_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_RENDER_PASS>(cmd_impl->current_render_pass);
 	const reshade::vulkan::object_data<VK_OBJECT_TYPE_RENDER_PASS>::subpass &subpass = render_pass_data->subpasses[cmd_impl->current_subpass];
@@ -149,7 +149,11 @@ static void invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 	if (num_transitions != 0)
 		device_impl->_dispatch_table.CmdPipelineBarrier(cmd_impl->_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
 
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, subpass.num_color_attachments, rts.p, subpass.depth_stencil_attachment != VK_ATTACHMENT_UNUSED ? &ds : nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(
+		cmd_impl,
+		subpass.num_color_attachments, rts.p,
+		subpass.depth_stencil_attachment != VK_ATTACHMENT_UNUSED ? &ds : nullptr,
+		contents == VK_SUBPASS_CONTENTS_INLINE ? reshade::api::render_pass_flags::none : begin_info != nullptr ? reshade::api::render_pass_flags::suspend : reshade::api::render_pass_flags::resume);
 
 	// Revert back to previous state
 	for (uint32_t i = 0; i < num_transitions; ++i)
@@ -212,7 +216,11 @@ static void invoke_begin_render_pass_event(reshade::vulkan::object_data<VK_OBJEC
 		ds.clear_stencil = 0;
 	}
 
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, rendering_info->colorAttachmentCount, rts.p, rendering_info->pDepthAttachment != nullptr || rendering_info->pStencilAttachment != nullptr ? &ds : nullptr);
+	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(
+		cmd_impl,
+		rendering_info->colorAttachmentCount, rts.p,
+		rendering_info->pDepthAttachment != nullptr || rendering_info->pStencilAttachment != nullptr ? &ds : nullptr,
+		reshade::vulkan::convert_render_pass_flags(rendering_info->flags));
 }
 #endif
 
@@ -251,12 +259,12 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 			{
 				cmd_impl->current_framebuffer = inheritance_info.framebuffer;
 
-				invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
+				invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 			}
 			else
 			{
 				// Framebuffer is not known and therefore cannot provide any attachment information
-				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr);
+				reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr, reshade::api::render_pass_flags::resume);
 			}
 		}
 		else if (const auto rendering_info =
@@ -265,7 +273,7 @@ VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffer, const Vk
 		{
 			cmd_impl->_is_in_render_pass = true;
 
-			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr);
+			reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(cmd_impl, 0, nullptr, nullptr, reshade::api::render_pass_flags::resume);
 		}
 	}
 #endif
@@ -1230,7 +1238,7 @@ void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, const VkRend
 	cmd_impl->current_render_pass = pRenderPassBegin->renderPass;
 	cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
 
-	invoke_begin_render_pass_event(device_impl, cmd_impl, pRenderPassBegin);
+	invoke_begin_render_pass_event(device_impl, cmd_impl, pRenderPassBegin, contents);
 
 	cmd_impl->_is_in_render_pass = true;
 #endif
@@ -1252,7 +1260,7 @@ void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
 
 	cmd_impl->current_subpass++;
 
-	invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
+	invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr, contents);
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdNextSubpass, device_impl);
@@ -1349,7 +1357,9 @@ void VKAPI_CALL vkCmdBeginRenderPass2(VkCommandBuffer commandBuffer, const VkRen
 	cmd_impl->current_render_pass = pRenderPassBegin->renderPass;
 	cmd_impl->current_framebuffer = pRenderPassBegin->framebuffer;
 
-	invoke_begin_render_pass_event(device_impl, cmd_impl, pRenderPassBegin);
+	assert(pSubpassBeginInfo != nullptr);
+
+	invoke_begin_render_pass_event(device_impl, cmd_impl, pRenderPassBegin, pSubpassBeginInfo->contents);
 
 	cmd_impl->_is_in_render_pass = true;
 #endif
@@ -1371,7 +1381,9 @@ void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpass
 
 	cmd_impl->current_subpass++;
 
-	invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr);
+	assert(pSubpassBeginInfo != nullptr);
+
+	invoke_begin_render_pass_event(device_impl, cmd_impl, nullptr, pSubpassBeginInfo->contents);
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdNextSubpass2, device_impl);
