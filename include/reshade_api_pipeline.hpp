@@ -122,16 +122,29 @@ namespace reshade::api
 	};
 
 	/// <summary>
+	/// Flags that specify the volatility of descriptors and the data they reference.
+	/// </summary>
+	enum class descriptor_range_flags : uint32_t
+	{
+		none = 0,
+		descriptors_volatile = 0x1,
+		data_volatile = 0x2,
+		data_static_while_set_at_execute = 0x4,
+		data_static = 0x8,
+	};
+	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(descriptor_range_flags);
+
+	/// <summary>
 	/// Type of a pipeline layout parameter.
 	/// </summary>
 	enum class pipeline_layout_param_type : uint32_t
 	{
 		push_constants = 1,
 		descriptor_table = 0,
-		descriptor_table_with_static_samplers = 4,
+		descriptor_table_with_flags = 6,
 		push_descriptors = 2,
 		push_descriptors_with_ranges = 3,
-		push_descriptors_with_static_samplers = 5
+		push_descriptors_with_ranges_and_flags = 7,
 	};
 
 	/// <summary>
@@ -200,12 +213,16 @@ namespace reshade::api
 		/// </summary>
 		descriptor_type type = descriptor_type::sampler;
 	};
-	struct descriptor_range_with_static_samplers : public descriptor_range
+	struct descriptor_range_with_flags : public descriptor_range
 	{
 		/// <summary>
 		/// Optional array of sampler descriptions to statically embed into the descriptor table when the descriptor type is <see cref="descriptor_type::sampler"/> or <see cref="descriptor_type::sampler_with_resource_view"/>.
 		/// </summary>
 		const sampler_desc *static_samplers = nullptr;
+		/// <summary>
+		/// Optional flags specifying the volatility of the descriptors and data they reference.
+		/// </summary>
+		descriptor_range_flags flags = descriptor_range_flags::none;
 	};
 
 	/// <summary>
@@ -216,9 +233,9 @@ namespace reshade::api
 		constexpr pipeline_layout_param() : push_descriptors() {}
 		constexpr pipeline_layout_param(const constant_range &push_constants) : type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
 		constexpr pipeline_layout_param(const descriptor_range &push_descriptors) : type(pipeline_layout_param_type::push_descriptors), push_descriptors(push_descriptors) {}
-		constexpr pipeline_layout_param(const descriptor_range_with_static_samplers &push_descriptors) : type(pipeline_layout_param_type::push_descriptors_with_static_samplers), descriptor_table_with_static_samplers({ 1, &push_descriptors }) {}
+		constexpr pipeline_layout_param(const descriptor_range_with_flags &push_descriptors) : type(pipeline_layout_param_type::push_descriptors_with_ranges_and_flags), descriptor_table_with_flags({ 1, &push_descriptors }) {}
 		constexpr pipeline_layout_param(uint32_t count, const descriptor_range *ranges) : type(pipeline_layout_param_type::descriptor_table), descriptor_table({ count, ranges }) {}
-		constexpr pipeline_layout_param(uint32_t count, const descriptor_range_with_static_samplers *ranges) : type(pipeline_layout_param_type::descriptor_table_with_static_samplers), descriptor_table_with_static_samplers({ count, ranges }) {}
+		constexpr pipeline_layout_param(uint32_t count, const descriptor_range_with_flags *ranges) : type(pipeline_layout_param_type::descriptor_table_with_flags), descriptor_table_with_flags({ count, ranges }) {}
 
 		/// <summary>
 		/// Type of the parameter.
@@ -247,13 +264,13 @@ namespace reshade::api
 			} descriptor_table;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_static_samplers"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_static_samplers"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_flags"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges_and_flags"/>.
 			/// </summary>
 			struct
 			{
 				uint32_t count;
-				const descriptor_range_with_static_samplers *ranges;
-			} descriptor_table_with_static_samplers;
+				const descriptor_range_with_flags *ranges;
+			} descriptor_table_with_flags;
 		};
 	};
 

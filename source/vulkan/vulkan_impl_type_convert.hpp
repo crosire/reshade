@@ -130,7 +130,7 @@ namespace reshade::vulkan
 
 		uint32_t num_descriptors;
 		std::vector<api::descriptor_range> ranges;
-		std::vector<api::descriptor_range_with_static_samplers> ranges_with_static_samplers;
+		std::vector<api::descriptor_range_with_flags> ranges_with_flags;
 		std::vector<std::vector<api::sampler_desc>> static_samplers;
 		std::vector<uint32_t> binding_to_offset;
 		bool push_descriptors;
@@ -282,6 +282,8 @@ namespace reshade::vulkan
 
 	auto convert_descriptor_type(api::descriptor_type value) -> VkDescriptorType;
 	auto convert_descriptor_type(VkDescriptorType value) -> api::descriptor_type;
+	auto convert_descriptor_range_flags(api::descriptor_range_flags value) -> VkDescriptorBindingFlags;
+	auto convert_descriptor_range_flags(VkDescriptorBindingFlags value) -> api::descriptor_range_flags;
 
 	auto convert_render_pass_flags(api::render_pass_flags value) -> VkRenderingFlags;
 	auto convert_render_pass_flags(VkRenderingFlags value) -> api::render_pass_flags;

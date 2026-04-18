@@ -175,6 +175,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	bool custom_border_color_ext = false;
 	bool conservative_rasterization_ext = false;
 	bool ray_tracing_ext = false;
+	bool descriptor_indexing_ext = false;
 
 	{
 		uint32_t num_extensions = 0;
@@ -335,6 +336,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
 
 		host_query_reset_ext = existing_vulkan_12_features->hostQueryReset;
+		descriptor_indexing_ext = existing_vulkan_12_features->descriptorIndexing;
 	}
 	else
 	{
@@ -612,6 +614,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 #if VK_EXT_conservative_rasterization
 	device.dispatch_table.EXT_conservative_rasterization &= conservative_rasterization_ext ? 1 : 0;
+#endif
+#if VK_EXT_descriptor_indexing
+	device.dispatch_table.EXT_descriptor_indexing &= descriptor_indexing_ext ? 1 : 0;
 #endif
 
 	if (instance.api_version < VK_API_VERSION_1_2)
@@ -1919,11 +1924,11 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 		if (set_layout_impl->push_descriptors)
 		{
-			if (!set_layout_impl->ranges_with_static_samplers.empty())
+			if (!set_layout_impl->ranges_with_flags.empty())
 			{
-				params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_static_samplers;
-				params[i].descriptor_table_with_static_samplers.count = static_cast<uint32_t>(set_layout_impl->ranges_with_static_samplers.size());
-				params[i].descriptor_table_with_static_samplers.ranges = set_layout_impl->ranges_with_static_samplers.data();
+				params[i].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags;
+				params[i].descriptor_table_with_flags.count = static_cast<uint32_t>(set_layout_impl->ranges_with_flags.size());
+				params[i].descriptor_table_with_flags.ranges = set_layout_impl->ranges_with_flags.data();
 			}
 			else if (set_layout_impl->ranges.size() == 1)
 			{
@@ -1939,11 +1944,11 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 		}
 		else
 		{
-			if (!set_layout_impl->ranges_with_static_samplers.empty())
+			if (!set_layout_impl->ranges_with_flags.empty())
 			{
-				params[i].type = reshade::api::pipeline_layout_param_type::descriptor_table_with_static_samplers;
-				params[i].descriptor_table_with_static_samplers.count = static_cast<uint32_t>(set_layout_impl->ranges_with_static_samplers.size());
-				params[i].descriptor_table_with_static_samplers.ranges = set_layout_impl->ranges_with_static_samplers.data();
+				params[i].type = reshade::api::pipeline_layout_param_type::descriptor_table_with_flags;
+				params[i].descriptor_table_with_flags.count = static_cast<uint32_t>(set_layout_impl->ranges_with_flags.size());
+				params[i].descriptor_table_with_flags.ranges = set_layout_impl->ranges_with_flags.data();
 			}
 			else
 			{
@@ -2103,9 +2108,9 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		const auto binding_flags_info = find_in_structure_chain<VkDescriptorSetLayoutBindingFlagsCreateInfo>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO);
 
-		bool has_static_samplers = false;
+		bool has_static_samplers_or_flags = false;
 
-		data.ranges_with_static_samplers.resize(pCreateInfo->bindingCount);
+		data.ranges_with_flags.resize(pCreateInfo->bindingCount);
 		data.static_samplers.resize(pCreateInfo->bindingCount);
 		data.binding_to_offset.reserve(pCreateInfo->bindingCount);
 
@@ -2118,14 +2123,14 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 
 			if ((binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) && binding.pImmutableSamplers != nullptr)
 			{
-				has_static_samplers = true;
+				has_static_samplers_or_flags = true;
 
 				for (uint32_t k = 0; k < binding.descriptorCount; ++k)
 					data.static_samplers[i].push_back(reshade::vulkan::convert_sampler_desc(
 						device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SAMPLER>(binding.pImmutableSamplers[k])->create_info));
 			}
 
-			reshade::api::descriptor_range_with_static_samplers &range = data.ranges_with_static_samplers[i];
+			reshade::api::descriptor_range_with_flags &range = data.ranges_with_flags[i];
 			range.binding = binding.binding;
 			range.dx_register_index = 0;
 			range.dx_register_space = 0;
@@ -2133,11 +2138,15 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 			range.visibility = static_cast<reshade::api::shader_stage>(binding.stageFlags);
 			range.array_size = binding.descriptorCount;
 			range.type = reshade::vulkan::convert_descriptor_type(binding.descriptorType);
+			range.flags = reshade::api::descriptor_range_flags::none;
 			range.static_samplers = data.static_samplers[i].data();
 
 			if (binding_flags_info != nullptr && i < binding_flags_info->bindingCount)
 			{
+				has_static_samplers_or_flags = true;
+
 				const VkDescriptorBindingFlags binding_flags = binding_flags_info->pBindingFlags[i];
+				range.flags = reshade::vulkan::convert_descriptor_range_flags(binding_flags);
 
 				if ((binding_flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0)
 					range.count = UINT32_MAX;
@@ -2149,10 +2158,10 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 		for (size_t i = 1; i < data.binding_to_offset.size(); ++i)
 			data.binding_to_offset[i] += data.binding_to_offset[i - 1];
 
-		if (!has_static_samplers)
+		if (!has_static_samplers_or_flags)
 		{
-			data.ranges.assign(data.ranges_with_static_samplers.begin(), data.ranges_with_static_samplers.end());
-			data.ranges_with_static_samplers.clear();
+			data.ranges.assign(data.ranges_with_flags.begin(), data.ranges_with_flags.end());
+			data.ranges_with_flags.clear();
 			data.static_samplers.clear();
 		}
 	}

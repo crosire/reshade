@@ -343,12 +343,6 @@ reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_STAT
 
 	return desc;
 }
-reshade::api::sampler_desc reshade::d3d12::convert_sampler_desc(const D3D12_STATIC_SAMPLER_DESC1 &internal_desc)
-{
-	// D3D12_STATIC_SAMPLER_DESC1 is a superset of D3D12_STATIC_SAMPLER_DESC
-	// Missing fields: Flags
-	return convert_sampler_desc(reinterpret_cast<const D3D12_STATIC_SAMPLER_DESC &>(internal_desc));
-}
 
 void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags)
 {
@@ -1728,6 +1722,15 @@ auto reshade::d3d12::convert_descriptor_type(api::descriptor_type type) -> D3D12
 		return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	}
 }
+auto reshade::d3d12::convert_descriptor_type(D3D12_ROOT_PARAMETER_TYPE type) -> api::descriptor_type
+{
+	if (type == D3D12_ROOT_PARAMETER_TYPE_CBV)
+		return api::descriptor_type::constant_buffer;
+	else if (type == D3D12_ROOT_PARAMETER_TYPE_SRV)
+		return api::descriptor_type::buffer_shader_resource_view;
+	else
+		return api::descriptor_type::buffer_unordered_access_view;
+}
 auto reshade::d3d12::convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -> api::descriptor_type
 {
 	switch (type)
@@ -1762,6 +1765,18 @@ auto reshade::d3d12::convert_descriptor_type_to_heap_type(api::descriptor_type t
 	case api::descriptor_type::acceleration_structure:
 		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	}
+}
+auto reshade::d3d12::convert_descriptor_range_flags(api::descriptor_range_flags value) -> D3D12_DESCRIPTOR_RANGE_FLAGS
+{
+	return static_cast<D3D12_DESCRIPTOR_RANGE_FLAGS>(value);
+}
+auto reshade::d3d12::convert_descriptor_range_flags(D3D12_ROOT_DESCRIPTOR_FLAGS value) -> api::descriptor_range_flags
+{
+	return static_cast<api::descriptor_range_flags>(value);
+}
+auto reshade::d3d12::convert_descriptor_range_flags(D3D12_DESCRIPTOR_RANGE_FLAGS value) -> api::descriptor_range_flags
+{
+	return static_cast<api::descriptor_range_flags>(value);
 }
 
 auto reshade::d3d12::convert_shader_visibility(api::shader_stage value) -> D3D12_SHADER_VISIBILITY

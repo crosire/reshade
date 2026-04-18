@@ -78,7 +78,6 @@ namespace reshade::d3d12
 	api::sampler_desc convert_sampler_desc(const D3D12_SAMPLER_DESC &internal_desc);
 	api::sampler_desc convert_sampler_desc(const D3D12_SAMPLER_DESC2 &internal_desc);
 	api::sampler_desc convert_sampler_desc(const D3D12_STATIC_SAMPLER_DESC &internal_desc);
-	api::sampler_desc convert_sampler_desc(const D3D12_STATIC_SAMPLER_DESC1 &internal_desc);
 
 	void convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags);
 	void convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC1 &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags);
@@ -156,8 +155,12 @@ namespace reshade::d3d12
 	auto convert_query_heap_type_to_type(D3D12_QUERY_HEAP_TYPE type) -> api::query_type;
 
 	auto convert_descriptor_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_RANGE_TYPE;
+	auto convert_descriptor_type(D3D12_ROOT_PARAMETER_TYPE type) -> api::descriptor_type;
 	auto convert_descriptor_type(D3D12_DESCRIPTOR_RANGE_TYPE type) -> api::descriptor_type;
 	auto convert_descriptor_type_to_heap_type(api::descriptor_type type) -> D3D12_DESCRIPTOR_HEAP_TYPE;
+	auto convert_descriptor_range_flags(api::descriptor_range_flags value) -> D3D12_DESCRIPTOR_RANGE_FLAGS;
+	auto convert_descriptor_range_flags(D3D12_ROOT_DESCRIPTOR_FLAGS value) -> api::descriptor_range_flags;
+	auto convert_descriptor_range_flags(D3D12_DESCRIPTOR_RANGE_FLAGS value) -> api::descriptor_range_flags;
 
 	auto convert_shader_visibility(api::shader_stage value) -> D3D12_SHADER_VISIBILITY;
 	auto convert_shader_visibility(D3D12_SHADER_VISIBILITY value) -> api::shader_stage;

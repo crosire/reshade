@@ -1959,23 +1959,24 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
 			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
-			const bool with_static_samplers = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_static_samplers || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
-			const uint32_t range_count = push_descriptors ? 1 : with_static_samplers ? params[i].descriptor_table_with_static_samplers.count : params[i].descriptor_table.count;
-			const api::descriptor_range_with_static_samplers *range = static_cast<const api::descriptor_range_with_static_samplers *>(push_descriptors ? &params[i].push_descriptors : with_static_samplers ? params[i].descriptor_table_with_static_samplers.ranges : params[i].descriptor_table.ranges);
-			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
+			bool update_after_bind_pool = false;
+			const bool with_flags = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_flags || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
+			const uint32_t range_count = push_descriptors ? 1 : with_flags ? params[i].descriptor_table_with_flags.count : params[i].descriptor_table.count;
+			const api::descriptor_range_with_flags *range = static_cast<const api::descriptor_range_with_flags *>(push_descriptors ? &params[i].push_descriptors : with_flags ? params[i].descriptor_table_with_flags.ranges : params[i].descriptor_table.ranges);
+			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
 
 			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 			data.ranges.reserve(range_count);
 			data.binding_to_offset.reserve(range_count);
 
 			std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-			std::vector<VkDescriptorSetLayoutCreateFlags> internal_binding_flags;
+			std::vector<VkDescriptorBindingFlags> internal_binding_flags;
 			std::vector<std::vector<VkSampler>> internal_samplers;
 			internal_bindings.reserve(range_count);
 			internal_binding_flags.reserve(range_count);
 			internal_samplers.reserve(range_count);
 
-			for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_static_samplers ? range + 1 : reinterpret_cast<const api::descriptor_range_with_static_samplers *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
+			for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_flags ? range + 1 : reinterpret_cast<const api::descriptor_range_with_flags *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
 			{
 				data.ranges.push_back(*static_cast<const api::descriptor_range *>(range));
 
@@ -1995,7 +1996,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 				offset += internal_binding.descriptorCount;
 
-				if (with_static_samplers && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && range->static_samplers != nullptr)
+				if (with_flags && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && range->static_samplers != nullptr)
 				{
 					if (range->array_size != 1 || range->count == UINT32_MAX)
 						goto exit_failure;
@@ -2018,14 +2019,25 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 					internal_binding.pImmutableSamplers = internal_binding_samplers.data();
 				}
 
+				VkDescriptorBindingFlags binding_flags = 0;
+#if VK_EXT_descriptor_indexing
+				if (with_flags && vk.EXT_descriptor_indexing)
+				{
+					binding_flags = convert_descriptor_range_flags(range->flags);
+
+					if ((binding_flags & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) != 0)
+						update_after_bind_pool = true;
+				}
+#endif
+
 				if (range->count == UINT32_MAX)
 				{
-					internal_binding_flags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
+					internal_binding_flags.push_back(binding_flags | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
 					break; // Unbounded range must be the last binding
 				}
 				else
 				{
-					internal_binding_flags.push_back(0);
+					internal_binding_flags.push_back(binding_flags);
 				}
 
 				// Add additional bindings if the total descriptor count exceeds the array size of the binding
@@ -2041,7 +2053,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 					offset += additional_binding.descriptorCount;
 
-					internal_binding_flags.push_back(0);
+					internal_binding_flags.push_back(binding_flags);
 				}
 			}
 
@@ -2055,7 +2067,11 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 #if VK_KHR_push_descriptor
 			if (push_descriptors && vk.KHR_push_descriptor)
-				create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
+				create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
+#endif
+#if VK_EXT_descriptor_indexing
+			if (update_after_bind_pool && vk.EXT_descriptor_indexing)
+				create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
 #endif
 
 			if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)

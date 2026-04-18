@@ -1309,13 +1309,13 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 {
 	*out_layout = { 0 };
 
-	std::vector<D3D12_ROOT_PARAMETER> internal_params;
+	std::vector<D3D12_ROOT_PARAMETER1> internal_params;
 	std::vector<D3D12_STATIC_SAMPLER_DESC> internal_static_samplers;
-	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE>> internal_ranges(param_count);
+	std::vector<std::vector<D3D12_DESCRIPTOR_RANGE1>> internal_ranges(param_count);
 	std::vector<std::pair<D3D12_DESCRIPTOR_HEAP_TYPE, UINT>> set_ranges(param_count);
 	api::shader_stage global_visibility_mask = static_cast<api::shader_stage>(0);
 
-	const auto add_internal_param = [&internal_params](uint32_t index) -> D3D12_ROOT_PARAMETER & {
+	const auto add_internal_param = [&internal_params](uint32_t index) -> D3D12_ROOT_PARAMETER1 & {
 		const uint32_t prev_size = static_cast<uint32_t>(internal_params.size());
 		if (index >= prev_size)
 			internal_params.resize(index + 1);
@@ -1323,7 +1323,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		// Pad with dummy parameters (to prevent root signature creation from failing)
 		for (uint32_t i = prev_size; i < index; ++i)
 		{
-			D3D12_ROOT_PARAMETER &param = internal_params[i];
+			D3D12_ROOT_PARAMETER1 &param = internal_params[i];
 			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			param.Constants.ShaderRegister = i;
 			param.Constants.RegisterSpace = 255;
@@ -1342,10 +1342,10 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		if (params[i].type != api::pipeline_layout_param_type::push_constants)
 		{
 			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
-			const bool with_static_samplers = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_static_samplers || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
-			const uint32_t range_count = push_descriptors ? 1 : with_static_samplers ? params[i].descriptor_table_with_static_samplers.count : params[i].descriptor_table.count;
-			const api::descriptor_range_with_static_samplers *range = static_cast<const api::descriptor_range_with_static_samplers *>(push_descriptors ? &params[i].push_descriptors : with_static_samplers ? params[i].descriptor_table_with_static_samplers.ranges : params[i].descriptor_table.ranges);
-			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
+			const bool with_flags = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_flags || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
+			const uint32_t range_count = push_descriptors ? 1 : with_flags ? params[i].descriptor_table_with_flags.count : params[i].descriptor_table.count;
+			const api::descriptor_range_with_flags *range = static_cast<const api::descriptor_range_with_flags *>(push_descriptors ? &params[i].push_descriptors : with_flags ? params[i].descriptor_table_with_flags.ranges : params[i].descriptor_table.ranges);
+			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
 
 			if (range_count == 0 || range->count == 0)
 				continue;
@@ -1358,7 +1358,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				range->type != api::descriptor_type::texture_shader_resource_view &&
 				range->type != api::descriptor_type::texture_unordered_access_view)
 			{
-				D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
+				D3D12_ROOT_PARAMETER1 &internal_param = add_internal_param(i);
 
 				switch (range->type)
 				{
@@ -1388,14 +1388,14 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 
 				api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
 
-				for (uint32_t k = 0; k < range_count; ++k, range = (with_static_samplers ? range + 1 : reinterpret_cast<const api::descriptor_range_with_static_samplers *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
+				for (uint32_t k = 0; k < range_count; ++k, range = (with_flags ? range + 1 : reinterpret_cast<const api::descriptor_range_with_flags *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
 				{
 					assert(range->array_size <= 1);
 
 					if (range->count == 0)
 						continue;
 
-					if (with_static_samplers && range->type == api::descriptor_type::sampler && range->static_samplers != nullptr)
+					if (with_flags && range->type == api::descriptor_type::sampler && range->static_samplers != nullptr)
 					{
 						for (uint32_t j = 0; j < range->count; ++j)
 						{
@@ -1409,11 +1409,14 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 						continue;
 					}
 
-					D3D12_DESCRIPTOR_RANGE &internal_range = internal_ranges[i].emplace_back();
+					D3D12_DESCRIPTOR_RANGE1 &internal_range = internal_ranges[i].emplace_back();
 					internal_range.RangeType = convert_descriptor_type(range->type);
 					internal_range.NumDescriptors = range->count;
 					internal_range.BaseShaderRegister = range->dx_register_index;
 					internal_range.RegisterSpace = range->dx_register_space;
+					internal_range.Flags = with_flags ?
+						convert_descriptor_range_flags(range->flags) :
+						range->type == api::descriptor_type::sampler ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE;
 					internal_range.OffsetInDescriptorsFromTableStart = range->binding;
 
 					visibility_mask |= range->visibility;
@@ -1429,7 +1432,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				if (internal_ranges[i].empty())
 					continue; // Parameter only contains static samplers
 
-				D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
+				D3D12_ROOT_PARAMETER1 &internal_param = add_internal_param(i);
 				internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 				internal_param.DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
 				internal_param.DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
@@ -1445,7 +1448,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			if (params[i].push_constants.binding != 0)
 				return false;
 
-			D3D12_ROOT_PARAMETER &internal_param = add_internal_param(i);
+			D3D12_ROOT_PARAMETER1 &internal_param = add_internal_param(i);
 			internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			internal_param.Constants.ShaderRegister = params[i].push_constants.dx_register_index;
 			internal_param.Constants.RegisterSpace = params[i].push_constants.dx_register_space;
@@ -1456,40 +1459,40 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 		}
 	}
 
-	const auto D3D12SerializeRootSignature_orig = reinterpret_cast<decltype(&D3D12SerializeRootSignature)>(
-		GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeRootSignature"));
-	assert(D3D12SerializeRootSignature_orig != nullptr);
+	const auto D3D12SerializeVersionedRootSignature_orig = reinterpret_cast<decltype(&D3D12SerializeVersionedRootSignature)>(
+		GetProcAddress(GetModuleHandleW(L"d3d12.dll"), "D3D12SerializeVersionedRootSignature"));
+	assert(D3D12SerializeVersionedRootSignature_orig != nullptr);
 
-	D3D12_ROOT_SIGNATURE_DESC internal_desc = {};
-	internal_desc.NumParameters = static_cast<uint32_t>(internal_params.size());
-	internal_desc.pParameters = internal_params.data();
-	internal_desc.NumStaticSamplers = static_cast<uint32_t>(internal_static_samplers.size());
-	internal_desc.pStaticSamplers = internal_static_samplers.data();
-	internal_desc.Flags = flags;
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC internal_desc = { D3D_ROOT_SIGNATURE_VERSION_1_1 };
+	internal_desc.Desc_1_1.NumParameters = static_cast<uint32_t>(internal_params.size());
+	internal_desc.Desc_1_1.pParameters = internal_params.data();
+	internal_desc.Desc_1_1.NumStaticSamplers = static_cast<uint32_t>(internal_static_samplers.size());
+	internal_desc.Desc_1_1.pStaticSamplers = internal_static_samplers.data();
+	internal_desc.Desc_1_1.Flags = flags;
 
 	if (flags == D3D12_ROOT_SIGNATURE_FLAG_NONE)
 	{
-		internal_desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		internal_desc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 		if ((global_visibility_mask & api::shader_stage::vertex) == 0)
-			internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS;
+			internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS;
 		if ((global_visibility_mask & api::shader_stage::hull) == 0)
-			internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
+			internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
 		if ((global_visibility_mask & api::shader_stage::domain) == 0)
-			internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+			internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
 		if ((global_visibility_mask & api::shader_stage::geometry) == 0)
-			internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+			internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 		if ((global_visibility_mask & api::shader_stage::pixel) == 0)
-			internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+			internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
 		if (D3D12_FEATURE_DATA_D3D12_OPTIONS7 options;
 			SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &options, sizeof(options))) &&
 			options.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED)
 		{
 			if ((global_visibility_mask & api::shader_stage::amplification) == 0)
-				internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+				internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
 			if ((global_visibility_mask & api::shader_stage::mesh) == 0)
-				internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
+				internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
 		}
 
 		if (!has_descriptor_tables)
@@ -1499,13 +1502,13 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				SUCCEEDED(_orig->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options.second, sizeof(options.second))) &&
 				options.first.HighestShaderModel >= D3D_SHADER_MODEL_6_6 &&
 				options.second.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3)
-				internal_desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED | D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
+				internal_desc.Desc_1_1.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED | D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
 		}
 	}
 
 	com_ptr<ID3DBlob> signature_blob, error_blob;
 	com_ptr<ID3D12RootSignature> signature;
-	if (SUCCEEDED(D3D12SerializeRootSignature_orig(&internal_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob)) &&
+	if (SUCCEEDED(D3D12SerializeVersionedRootSignature_orig(&internal_desc, &signature_blob, &error_blob)) &&
 		SUCCEEDED(_orig->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&signature))))
 	{
 		pipeline_layout_extra_data extra_data;

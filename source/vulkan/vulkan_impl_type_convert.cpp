@@ -2403,6 +2403,26 @@ auto reshade::vulkan::convert_descriptor_type(VkDescriptorType value) -> api::de
 		return static_cast<api::descriptor_type>(value);
 	}
 }
+auto reshade::vulkan::convert_descriptor_range_flags(api::descriptor_range_flags value) -> VkDescriptorBindingFlags
+{
+	VkDescriptorBindingFlags result = 0;
+	if ((value & (api::descriptor_range_flags::descriptors_volatile | api::descriptor_range_flags::data_volatile)) != 0)
+		result |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+	if ((value & api::descriptor_range_flags::data_static_while_set_at_execute) != 0)
+		result |= VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+
+	return result;
+}
+auto reshade::vulkan::convert_descriptor_range_flags(VkDescriptorBindingFlags value) -> api::descriptor_range_flags
+{
+	api::descriptor_range_flags result = api::descriptor_range_flags::none;
+	if ((value & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) != 0)
+		result |= api::descriptor_range_flags::descriptors_volatile | api::descriptor_range_flags::data_volatile;
+	if ((value & VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT) != 0)
+		result |= api::descriptor_range_flags::data_static_while_set_at_execute;
+
+	return result;
+}
 
 auto reshade::vulkan::convert_render_pass_flags(api::render_pass_flags value) -> VkRenderingFlags
 {
