@@ -32,7 +32,7 @@ namespace reshade::api
 		opengl = 0x10000,
 		/// <summary>Vulkan</summary>
 		/// <remarks>https://www.khronos.org/vulkan/</remarks>
-		vulkan = 0x20000
+		vulkan = 0x20000,
 	};
 
 	/// <summary>
@@ -674,7 +674,7 @@ namespace reshade::api
 		draw_indexed,
 		dispatch,
 		dispatch_mesh,
-		dispatch_rays
+		dispatch_rays,
 	};
 
 	/// <summary>
@@ -1177,7 +1177,7 @@ namespace reshade::api
 	{
 		graphics = 0x1,
 		compute = 0x2,
-		copy = 0x4
+		copy = 0x4,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(command_queue_type);
 

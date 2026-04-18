@@ -12,12 +12,6 @@
 
 #define vk _device_impl->_dispatch_table
 
-template <typename T>
-inline void hash_combine(size_t &seed, const T &v)
-{
-	seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
 reshade::vulkan::command_list_impl::command_list_impl(device_impl *device, VkCommandBuffer cmd_buffer) :
 	api_object_impl(cmd_buffer),
 	_device_impl(device)

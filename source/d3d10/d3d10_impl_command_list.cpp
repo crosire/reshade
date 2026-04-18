@@ -242,18 +242,18 @@ void reshade::d3d10::device_impl::bind_viewports(uint32_t first, uint32_t count,
 
 	assert(count <= D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
 
-	temp_mem<D3D10_VIEWPORT, D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE> viewport_data(count);
+	temp_mem<D3D10_VIEWPORT, D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE> internal_viewports(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
-		viewport_data[i].TopLeftX = static_cast<INT>(viewports[i].x);
-		viewport_data[i].TopLeftY = static_cast<INT>(viewports[i].y);
-		viewport_data[i].Width = static_cast<UINT>(viewports[i].width);
-		viewport_data[i].Height = static_cast<UINT>(viewports[i].height);
-		viewport_data[i].MinDepth = viewports[i].min_depth;
-		viewport_data[i].MaxDepth = viewports[i].max_depth;
+		internal_viewports[i].TopLeftX = static_cast<INT>(viewports[i].x);
+		internal_viewports[i].TopLeftY = static_cast<INT>(viewports[i].y);
+		internal_viewports[i].Width = static_cast<UINT>(viewports[i].width);
+		internal_viewports[i].Height = static_cast<UINT>(viewports[i].height);
+		internal_viewports[i].MinDepth = viewports[i].min_depth;
+		internal_viewports[i].MaxDepth = viewports[i].max_depth;
 	}
 
-	_orig->RSSetViewports(count, viewport_data.p);
+	_orig->RSSetViewports(count, internal_viewports.p);
 }
 void reshade::d3d10::device_impl::bind_scissor_rects(uint32_t first, uint32_t count, const api::rect *rects)
 {

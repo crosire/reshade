@@ -652,30 +652,29 @@ void reshade::d3d12::command_list_impl::dispatch_rays(api::resource raygen, uint
 {
 	_has_commands = true;
 
-	if (_supports_ray_tracing)
-	{
-		D3D12_DISPATCH_RAYS_DESC desc;
-		desc.RayGenerationShaderRecord.StartAddress = _device_impl->get_resource_gpu_address(raygen) + raygen_offset;
-		desc.RayGenerationShaderRecord.SizeInBytes = raygen_size;
-		desc.MissShaderTable.StartAddress = _device_impl->get_resource_gpu_address(miss) + miss_offset;
-		desc.MissShaderTable.SizeInBytes = miss_size;
-		desc.MissShaderTable.StrideInBytes = miss_stride;
-		desc.HitGroupTable.StartAddress = _device_impl->get_resource_gpu_address(hit_group) + hit_group_offset;
-		desc.HitGroupTable.SizeInBytes = hit_group_size;
-		desc.HitGroupTable.StrideInBytes = hit_group_stride;
-		desc.CallableShaderTable.StartAddress = _device_impl->get_resource_gpu_address(callable) + callable_offset;
-		desc.CallableShaderTable.SizeInBytes = callable_size;
-		desc.CallableShaderTable.StrideInBytes = callable_stride;
-		desc.Width = width;
-		desc.Height = height;
-		desc.Depth = depth;
-
-		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(&desc);
-	}
-	else
+	if (!_supports_ray_tracing)
 	{
 		assert(false);
+		return;
 	}
+
+	D3D12_DISPATCH_RAYS_DESC desc;
+	desc.RayGenerationShaderRecord.StartAddress = _device_impl->get_resource_gpu_address(raygen) + raygen_offset;
+	desc.RayGenerationShaderRecord.SizeInBytes = raygen_size;
+	desc.MissShaderTable.StartAddress = _device_impl->get_resource_gpu_address(miss) + miss_offset;
+	desc.MissShaderTable.SizeInBytes = miss_size;
+	desc.MissShaderTable.StrideInBytes = miss_stride;
+	desc.HitGroupTable.StartAddress = _device_impl->get_resource_gpu_address(hit_group) + hit_group_offset;
+	desc.HitGroupTable.SizeInBytes = hit_group_size;
+	desc.HitGroupTable.StrideInBytes = hit_group_stride;
+	desc.CallableShaderTable.StartAddress = _device_impl->get_resource_gpu_address(callable) + callable_offset;
+	desc.CallableShaderTable.SizeInBytes = callable_size;
+	desc.CallableShaderTable.StrideInBytes = callable_stride;
+	desc.Width = width;
+	desc.Height = height;
+	desc.Depth = depth;
+
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->DispatchRays(&desc);
 }
 void reshade::d3d12::command_list_impl::draw_or_dispatch_indirect(api::indirect_command, api::resource, uint64_t, uint32_t, uint32_t)
 {
@@ -1127,69 +1126,70 @@ void reshade::d3d12::command_list_impl::copy_acceleration_structure(api::resourc
 {
 	_has_commands = true;
 
-	if (_supports_ray_tracing)
-		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->CopyRaytracingAccelerationStructure(dest.handle, source.handle, convert_acceleration_structure_copy_mode(mode));
-	else
+	if (!_supports_ray_tracing)
+	{
 		assert(false);
+		return;
+	}
+
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->CopyRaytracingAccelerationStructure(dest.handle, source.handle, convert_acceleration_structure_copy_mode(mode));
 }
 void reshade::d3d12::command_list_impl::build_acceleration_structure(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, api::resource scratch, uint64_t scratch_offset, api::resource_view source, api::resource_view dest, api::acceleration_structure_build_mode mode)
 {
 	_has_commands = true;
 
-	if (_supports_ray_tracing)
+	if (!_supports_ray_tracing)
 	{
-		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC desc = {};
-		desc.DestAccelerationStructureData = dest.handle;
-		desc.Inputs.Type = static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE>(type);
-		desc.Inputs.Flags = convert_acceleration_structure_build_flags(flags, mode);
-		desc.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-		desc.SourceAccelerationStructureData = source.handle;
-		desc.ScratchAccelerationStructureData = _device_impl->get_resource_gpu_address(scratch) + scratch_offset;
+		assert(false);
+		return;
+	}
 
-		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC desc = {};
+	desc.DestAccelerationStructureData = dest.handle;
+	desc.Inputs.Type = static_cast<D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE>(type);
+	desc.Inputs.Flags = convert_acceleration_structure_build_flags(flags, mode);
+	desc.Inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	desc.SourceAccelerationStructureData = source.handle;
+	desc.ScratchAccelerationStructureData = _device_impl->get_resource_gpu_address(scratch) + scratch_offset;
 
-		if (type == api::acceleration_structure_type::top_level)
-		{
-			assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
 
-			desc.Inputs.NumDescs = inputs->instances.count;
-			desc.Inputs.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
-			desc.Inputs.InstanceDescs = _device_impl->get_resource_gpu_address(inputs->instances.buffer) + inputs->instances.offset;
-		}
-		else
-		{
-			for (uint32_t i = 0; i < input_count; ++i)
-				convert_acceleration_structure_build_input(inputs[i], geometries[i]);
+	if (type == api::acceleration_structure_type::top_level)
+	{
+		assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
 
-			desc.Inputs.NumDescs = static_cast<UINT>(geometries.size());
-			desc.Inputs.pGeometryDescs = geometries.data();
-		}
-
-		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
+		desc.Inputs.NumDescs = inputs->instances.count;
+		desc.Inputs.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
+		desc.Inputs.InstanceDescs = _device_impl->get_resource_gpu_address(inputs->instances.buffer) + inputs->instances.offset;
 	}
 	else
 	{
-		assert(false);
+		for (uint32_t i = 0; i < input_count; ++i)
+			convert_acceleration_structure_build_input(inputs[i], geometries[i]);
+
+		desc.Inputs.NumDescs = static_cast<UINT>(geometries.size());
+		desc.Inputs.pGeometryDescs = geometries.data();
 	}
+
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BuildRaytracingAccelerationStructure(&desc, 0, nullptr);
 }
 void reshade::d3d12::command_list_impl::query_acceleration_structures(uint32_t count, const api::resource_view *acceleration_structures, api::query_heap heap, api::query_type type, uint32_t first)
 {
 	_has_commands = true;
 
-	if (_supports_ray_tracing)
-	{
-		assert(heap != 0);
-
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC desc = {};
-		desc.DestBuffer = reinterpret_cast<ID3D12Resource *>(heap.handle)->GetGPUVirtualAddress() + static_cast<UINT64>(first) * get_query_size(type).first;
-		desc.InfoType = convert_acceleration_structure_post_build_info_type(type);
-
-		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EmitRaytracingAccelerationStructurePostbuildInfo(&desc, count, reinterpret_cast<const D3D12_GPU_VIRTUAL_ADDRESS *>(acceleration_structures));
-	}
-	else
+	if (!_supports_ray_tracing)
 	{
 		assert(false);
+		return;
 	}
+
+	assert(heap != 0);
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC desc = {};
+	desc.DestBuffer = reinterpret_cast<ID3D12Resource *>(heap.handle)->GetGPUVirtualAddress() + static_cast<UINT64>(first) * get_query_size(type).first;
+	desc.InfoType = convert_acceleration_structure_post_build_info_type(type);
+
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EmitRaytracingAccelerationStructurePostbuildInfo(&desc, count, reinterpret_cast<const D3D12_GPU_VIRTUAL_ADDRESS *>(acceleration_structures));
 }
 
 void reshade::d3d12::command_list_impl::update_buffer_region(const void *, api::resource, uint64_t, uint64_t)

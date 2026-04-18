@@ -35,7 +35,7 @@ namespace reshade::api
 		all = 0x7FFFFFFF,
 		all_compute = compute,
 		all_graphics = vertex | hull | domain | geometry | pixel | amplification | mesh,
-		all_ray_tracing = raygen | any_hit | closest_hit | miss | intersection | callable
+		all_ray_tracing = raygen | any_hit | closest_hit | miss | intersection | callable,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -66,7 +66,7 @@ namespace reshade::api
 		all_compute = compute_shader,
 		all_graphics = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | input_assembler | stream_output | rasterizer | depth_stencil | output_merger,
 		all_ray_tracing = ray_tracing_shader,
-		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
+		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
 
@@ -118,7 +118,7 @@ namespace reshade::api
 		/// <summary>
 		/// Descriptors are an array of <see cref="resource_view"/>.
 		/// </summary>
-		acceleration_structure = 10
+		acceleration_structure = 10,
 	};
 
 	/// <summary>
@@ -297,7 +297,7 @@ namespace reshade::api
 	{
 		solid = 0,
 		wireframe = 1,
-		point = 2
+		point = 2,
 	};
 
 	/// <summary>
@@ -308,7 +308,7 @@ namespace reshade::api
 		none = 0,
 		front = 1,
 		back = 2,
-		front_and_back = front | back
+		front_and_back = front | back,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(cull_mode);
 
@@ -332,7 +332,7 @@ namespace reshade::api
 		copy_inverted = 12,
 		bitwise_or_inverted = 13,
 		bitwise_nand = 14,
-		set = 15
+		set = 15,
 	};
 
 	/// <summary>
@@ -344,7 +344,7 @@ namespace reshade::api
 		subtract = 1,
 		reverse_subtract = 2,
 		min = 3,
-		max = 4
+		max = 4,
 	};
 
 	/// <summary>
@@ -370,7 +370,7 @@ namespace reshade::api
 		source1_color = 15,
 		one_minus_source1_color = 16,
 		source1_alpha = 17,
-		one_minus_source1_alpha = 18
+		one_minus_source1_alpha = 18,
 	};
 
 	/// <summary>
@@ -385,7 +385,7 @@ namespace reshade::api
 		decrement_saturate = 4,
 		invert = 5,
 		increment = 6,
-		decrement = 7
+		decrement = 7,
 	};
 
 	/// <summary>
@@ -439,7 +439,7 @@ namespace reshade::api
 		patch_list_29_cp,
 		patch_list_30_cp,
 		patch_list_31_cp,
-		patch_list_32_cp
+		patch_list_32_cp,
 	};
 
 	/// <summary>
@@ -821,9 +821,9 @@ namespace reshade::api
 	enum class pipeline_flags : uint32_t
 	{
 		none = 0,
-		library = (1 << 0),
-		skip_triangles = (1 << 1),
-		skip_aabbs = (1 << 2),
+		library = 0x1,
+		skip_triangles = 0x2,
+		skip_aabbs = 0x4,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_flags);
 
@@ -833,7 +833,6 @@ namespace reshade::api
 	enum class pipeline_subobject_type : uint32_t
 	{
 		unknown,
-
 		/// <summary>
 		/// Vertex shader to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
@@ -1031,7 +1030,7 @@ namespace reshade::api
 		/// Additional pipeline creation flags.
 		/// Sub-object data is a pointer to a <see cref="pipeline_flags"/> value.
 		/// </summary>
-		flags
+		flags,
 	};
 
 	/// <summary>
@@ -1264,7 +1263,7 @@ namespace reshade::api
 		/// Data is a 64-bit unsigned integer value.
 		/// </summary>
 		/// <seealso cref="command_list::query_acceleration_structures"/>
-		acceleration_structure_bottom_level_acceleration_structure_pointers
+		acceleration_structure_bottom_level_acceleration_structure_pointers,
 	};
 
 	/// <summary>
@@ -1349,7 +1348,7 @@ namespace reshade::api
 
 		// Ray tracing state
 
-		ray_tracing_pipeline_stack_size = 2000
+		ray_tracing_pipeline_stack_size = 2000,
 	};
 
 	/// <summary>
@@ -1385,9 +1384,13 @@ namespace reshade::api
 	enum class fence_flags : uint32_t
 	{
 		none = 0,
-		shared = (1 << 1),
-		shared_nt_handle = (1 << 11),
-		non_monitored = (1 << 3)
+		non_monitored = 0x8,
+		/// <summary>
+		/// Shared fences can be imported/exported from/to different graphics APIs and/or processes.
+		/// Required to use the "shared_handle" parameter of <see cref="device::create_fence"/>.
+		/// </summary>
+		shared = 0x2,
+		shared_nt_handle = 0x800,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(fence_flags);
 

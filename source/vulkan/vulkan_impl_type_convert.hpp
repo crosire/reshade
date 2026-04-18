@@ -185,6 +185,12 @@ namespace reshade::vulkan
 	};
 #endif
 
+	template <typename T>
+	void hash_combine(size_t &seed, const T &v)
+	{
+		seed ^= std::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+	}
+
 	auto convert_format(api::format format, VkComponentMapping *components = nullptr) -> VkFormat;
 	auto convert_format(VkFormat vk_format, const VkComponentMapping *components = nullptr) -> api::format;
 

@@ -40,7 +40,7 @@ namespace reshade::api
 		greater = 4,
 		not_equal = 5,
 		greater_equal = 6,
-		always = 7
+		always = 7,
 	};
 
 	/// <summary>
@@ -58,16 +58,16 @@ namespace reshade::api
 		min_mag_mip_linear = 0x15,
 		min_mag_anisotropic_mip_point = 0x54,
 		anisotropic = 0x55,
-		compare_min_mag_mip_point = 0x80,
-		compare_min_mag_point_mip_linear = 0x81,
-		compare_min_point_mag_linear_mip_point = 0x84,
-		compare_min_point_mag_mip_linear = 0x85,
-		compare_min_linear_mag_mip_point = 0x90,
-		compare_min_linear_mag_point_mip_linear = 0x91,
-		compare_min_mag_linear_mip_point = 0x94,
-		compare_min_mag_mip_linear = 0x95,
-		compare_min_mag_anisotropic_mip_point = 0xd4,
-		compare_anisotropic = 0xd5
+		compare_min_mag_mip_point = min_mag_mip_point | 0x80,
+		compare_min_mag_point_mip_linear = min_mag_point_mip_linear | 0x80,
+		compare_min_point_mag_linear_mip_point = min_point_mag_linear_mip_point | 0x80,
+		compare_min_point_mag_mip_linear = min_point_mag_mip_linear | 0x80,
+		compare_min_linear_mag_mip_point = min_linear_mag_mip_point | 0x80,
+		compare_min_linear_mag_point_mip_linear = min_linear_mag_point_mip_linear | 0x80,
+		compare_min_mag_linear_mip_point = min_mag_linear_mip_point | 0x80,
+		compare_min_mag_mip_linear = min_mag_mip_linear | 0x80,
+		compare_min_mag_anisotropic_mip_point = min_mag_anisotropic_mip_point | 0x80,
+		compare_anisotropic = anisotropic | 0x80,
 	};
 
 	/// <summary>
@@ -79,7 +79,7 @@ namespace reshade::api
 		mirror = 2,
 		clamp = 3,
 		border = 4,
-		mirror_once = 5
+		mirror_once = 5,
 	};
 
 	/// <summary>
@@ -153,7 +153,7 @@ namespace reshade::api
 		read_only = 1,
 		write_only,
 		read_write,
-		write_discard
+		write_discard,
 	};
 
 	/// <summary>
@@ -186,14 +186,14 @@ namespace reshade::api
 		/// </summary>
 		scratch = 4,
 		/// <summary>
-		/// CPU visible GPU memory, when available via Resizable BAR.
+		/// CPU visible GPU memory, when available (Resizable BAR).
 		/// </summary>
 		gpu_upload = 6,
 
 		gpu_only = default_,
 		cpu_to_gpu = upload,
 		gpu_to_cpu = readback,
-		cpu_only = scratch
+		cpu_only = scratch,
 	};
 
 	/// <summary>
@@ -207,7 +207,7 @@ namespace reshade::api
 		texture_1d,
 		texture_2d,
 		texture_3d,
-		surface // Special type for resources that are implicitly both resource and render target view.
+		surface, // Special type for resources that are implicitly both resource and render target view.
 	};
 
 	/// <summary>
@@ -218,32 +218,32 @@ namespace reshade::api
 		none = 0,
 		/// <summary>
 		/// Dynamic resources can be frequently updated during a frame, with previous contents automatically being shadowed so to no affect already executing operations on the GPU.
-		/// Required for <see cref="map_access::write_discard"/>. The flag is not supported in D3D12 or Vulkan.
+		/// Required for <see cref="map_access::write_discard"/>. This flag is not supported in D3D12 or Vulkan.
 		/// </summary>
-		dynamic = (1 << 3),
+		dynamic = 0x8,
 		/// <summary>
 		/// Immutable resources can never be written to again after creationn, either by the CPU or the GPU.
-		/// The flag is only supported in D3D10 and D3D11.
+		/// This flag is only supported in D3D10 and D3D11.
 		/// </summary>
-		immutable = (1 << 4),
+		immutable = 0x10,
 		/// <summary>
 		/// Required to create <see cref="resource_view_type::texture_cube"/> or <see cref="resource_view_type::texture_cube_array"/> views of the resource.
 		/// </summary>
-		cube_compatible = (1 << 2),
+		cube_compatible = 0x4,
 		/// <summary>
 		/// Required to use the resource with <see cref="command_list::generate_mipmaps"/>.
 		/// </summary>
-		generate_mipmaps = (1 << 0),
+		generate_mipmaps = 0x1,
 		/// <summary>
 		/// Shared resources can be imported/exported from/to different graphics APIs and/or processes.
 		/// Required to use the "shared_handle" parameter of <see cref="device::create_resource"/>.
 		/// </summary>
-		shared = (1 << 1),
-		shared_nt_handle = (1 << 11),
+		shared = 0x2,
+		shared_nt_handle = 0x800,
 		/// <summary>
-		/// Resource is backed using sparse memory binding.
+		/// Resource is backed by sparse memory.
 		/// </summary>
-		sparse_binding = (1 << 18),
+		sparse_binding = 0x40000,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(resource_flags);
 
@@ -401,7 +401,7 @@ namespace reshade::api
 		texture_3d,
 		texture_cube,
 		texture_cube_array,
-		acceleration_structure
+		acceleration_structure,
 	};
 
 	/// <summary>
@@ -535,8 +535,8 @@ namespace reshade::api
 	enum class render_pass_flags : uint32_t
 	{
 		none = 0,
-		resume = 1 << 2,
-		suspend = 1 << 1,
+		resume = 0x4,
+		suspend = 0x2,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(render_pass_flags);
 
@@ -548,7 +548,7 @@ namespace reshade::api
 		load,
 		clear,
 		discard,
-		no_access
+		no_access,
 	};
 
 	/// <summary>
@@ -558,7 +558,7 @@ namespace reshade::api
 	{
 		store,
 		discard,
-		no_access
+		no_access,
 	};
 
 	/// <summary>
@@ -624,9 +624,9 @@ namespace reshade::api
 	/// </summary>
 	enum class acceleration_structure_type
 	{
+		generic = 2,
 		top_level = 0,
 		bottom_level = 1,
-		generic = 2
 	};
 
 	/// <summary>
@@ -637,7 +637,7 @@ namespace reshade::api
 		clone = 0,
 		compact = 1,
 		serialize = 2,
-		deserialize = 3
+		deserialize = 3,
 	};
 
 	/// <summary>
@@ -646,7 +646,7 @@ namespace reshade::api
 	enum class acceleration_structure_build_mode
 	{
 		build = 0,
-		update = 1
+		update = 1,
 	};
 
 	/// <summary>
@@ -655,11 +655,11 @@ namespace reshade::api
 	enum class acceleration_structure_build_flags : uint32_t
 	{
 		none = 0,
-		allow_update = (1 << 0),
-		allow_compaction = (1 << 1),
-		prefer_fast_trace = (1 << 2),
-		prefer_fast_build = (1 << 3),
-		minimize_memory_usage = (1 << 4)
+		allow_update = 0x1,
+		allow_compaction = 0x2,
+		prefer_fast_trace = 0x4,
+		prefer_fast_build = 0x8,
+		minimize_memory_usage = 0x10,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(acceleration_structure_build_flags);
 
@@ -670,7 +670,7 @@ namespace reshade::api
 	{
 		triangles = 0,
 		aabbs = 1,
-		instances = 2
+		instances = 2,
 	};
 
 	/// <summary>
@@ -679,8 +679,8 @@ namespace reshade::api
 	enum class acceleration_structure_build_input_flags : uint32_t
 	{
 		none = 0,
-		opaque = (1 << 0),
-		no_duplicate_any_hit_invocation = (1 << 1)
+		opaque = 0x1,
+		no_duplicate_any_hit_invocation = 0x2,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(acceleration_structure_build_input_flags);
 
@@ -704,9 +704,9 @@ namespace reshade::api
 	struct acceleration_structure_build_input
 	{
 		constexpr acceleration_structure_build_input() : triangles() {}
-		constexpr acceleration_structure_build_input(api::resource vertex_buffer, uint64_t vertex_offset, uint32_t vertex_count, uint64_t vertex_stride, api::format vertex_format, api::resource index_buffer, uint64_t index_offset, uint32_t index_count, api::format index_format, uint64_t transform_address = 0) : type(acceleration_structure_build_input_type::triangles), triangles({ vertex_buffer, vertex_offset, vertex_count, vertex_stride, vertex_format, index_buffer, index_offset, index_count, index_format, transform_address }) {}
-		constexpr acceleration_structure_build_input(api::resource aabb_buffer, uint64_t aabb_offset, uint32_t aabb_count, uint64_t aabb_stride) : type(acceleration_structure_build_input_type::aabbs), aabbs({ aabb_buffer, aabb_offset, aabb_count, aabb_stride }) {}
-		constexpr acceleration_structure_build_input(api::resource instance_buffer, uint64_t instance_offset, uint32_t instance_count, bool array_of_pointers = false) : type(acceleration_structure_build_input_type::instances), instances({ instance_buffer, instance_offset, instance_count, array_of_pointers }) {}
+		constexpr acceleration_structure_build_input(resource vertex_buffer, uint64_t vertex_offset, uint32_t vertex_count, uint64_t vertex_stride, format vertex_format, resource index_buffer, uint64_t index_offset, uint32_t index_count, format index_format, uint64_t transform_address = 0) : type(acceleration_structure_build_input_type::triangles), triangles({ vertex_buffer, vertex_offset, vertex_count, vertex_stride, vertex_format, index_buffer, index_offset, index_count, index_format, transform_address }) {}
+		constexpr acceleration_structure_build_input(resource aabb_buffer, uint64_t aabb_offset, uint32_t aabb_count, uint64_t aabb_stride) : type(acceleration_structure_build_input_type::aabbs), aabbs({ aabb_buffer, aabb_offset, aabb_count, aabb_stride }) {}
+		constexpr acceleration_structure_build_input(resource instance_buffer, uint64_t instance_offset, uint32_t instance_count, bool array_of_pointers = false) : type(acceleration_structure_build_input_type::instances), instances({ instance_buffer, instance_offset, instance_count, array_of_pointers }) {}
 
 		/// <summary>
 		/// Type of the acceleration structure build input.
@@ -720,16 +720,16 @@ namespace reshade::api
 			/// </summary>
 			struct
 			{
-				api::resource vertex_buffer = {};
+				resource vertex_buffer = {};
 				uint64_t vertex_offset = 0;
 				uint32_t vertex_count = 0;
 				uint64_t vertex_stride = 0;
-				api::format vertex_format = api::format::unknown;
-				api::resource index_buffer = {};
+				format vertex_format = api::format::unknown;
+				resource index_buffer = {};
 				uint64_t index_offset = 0;
 				uint32_t index_count = 0;
-				api::format index_format = api::format::unknown;
-				api::resource transform_buffer = {};
+				format index_format = api::format::unknown;
+				resource transform_buffer = {};
 				uint64_t transform_offset = 0;
 			} triangles;
 
@@ -738,7 +738,7 @@ namespace reshade::api
 			/// </summary>
 			struct
 			{
-				api::resource buffer = {};
+				resource buffer = {};
 				uint64_t offset = 0;
 				uint32_t count = 0;
 				uint64_t stride = 0;
@@ -749,7 +749,7 @@ namespace reshade::api
 			/// </summary>
 			struct
 			{
-				api::resource buffer = {};
+				resource buffer = {};
 				uint64_t offset = 0;
 				uint32_t count = 0;
 				bool array_of_pointers = false;
