@@ -1890,6 +1890,61 @@ auto reshade::d3d12::convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCES
 	}
 }
 
+void reshade::d3d12::convert_render_pass_render_target_desc(const api::render_pass_render_target_desc &desc, api::format clear_format, D3D12_RENDER_PASS_RENDER_TARGET_DESC &internal_desc)
+{
+	internal_desc.cpuDescriptor = { static_cast<SIZE_T>(desc.view.handle) };
+	internal_desc.BeginningAccess.Type = convert_render_pass_load_op(desc.load_op);
+	internal_desc.EndingAccess.Type = convert_render_pass_store_op(desc.store_op);
+
+	if (desc.load_op == api::render_pass_load_op::clear)
+	{
+		internal_desc.BeginningAccess.Clear.ClearValue.Format = convert_format(clear_format);
+		std::copy_n(desc.clear_color, 4, internal_desc.BeginningAccess.Clear.ClearValue.Color);
+	}
+}
+reshade::api::render_pass_render_target_desc reshade::d3d12::convert_render_pass_render_target_desc(const D3D12_RENDER_PASS_RENDER_TARGET_DESC &internal_desc)
+{
+	api::render_pass_render_target_desc desc;
+	desc.view = to_handle(internal_desc.cpuDescriptor);
+	desc.load_op = convert_render_pass_load_op(internal_desc.BeginningAccess.Type);
+	desc.store_op = convert_render_pass_store_op(internal_desc.EndingAccess.Type);
+	std::copy_n(internal_desc.BeginningAccess.Clear.ClearValue.Color, 4, desc.clear_color);
+
+	return desc;
+}
+void reshade::d3d12::convert_render_pass_depth_stencil_desc(const api::render_pass_depth_stencil_desc &desc, api::format clear_format, D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &internal_desc)
+{
+	internal_desc.cpuDescriptor = { static_cast<SIZE_T>(desc.view.handle) };
+	internal_desc.DepthBeginningAccess.Type = convert_render_pass_load_op(desc.depth_load_op);
+	internal_desc.StencilBeginningAccess.Type = convert_render_pass_load_op(desc.stencil_load_op);
+	internal_desc.DepthEndingAccess.Type = convert_render_pass_store_op(desc.depth_store_op);
+	internal_desc.StencilEndingAccess.Type = convert_render_pass_store_op(desc.stencil_store_op);
+
+	if (desc.depth_load_op == api::render_pass_load_op::clear)
+	{
+		internal_desc.DepthBeginningAccess.Clear.ClearValue.Format = convert_format(clear_format);
+		internal_desc.DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth = desc.clear_depth;
+	}
+	if (desc.stencil_load_op == api::render_pass_load_op::clear)
+	{
+		internal_desc.StencilBeginningAccess.Clear.ClearValue.Format = convert_format(clear_format);
+		internal_desc.StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil = desc.clear_stencil;
+	}
+}
+reshade::api::render_pass_depth_stencil_desc reshade::d3d12::convert_render_pass_depth_stencil_desc(const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &internal_desc)
+{
+	api::render_pass_depth_stencil_desc desc;
+	desc.view = to_handle(internal_desc.cpuDescriptor);
+	desc.depth_load_op = convert_render_pass_load_op(internal_desc.DepthBeginningAccess.Type);
+	desc.depth_store_op = convert_render_pass_store_op(internal_desc.DepthEndingAccess.Type);
+	desc.stencil_load_op = convert_render_pass_load_op(internal_desc.StencilBeginningAccess.Type);
+	desc.stencil_store_op = convert_render_pass_store_op(internal_desc.StencilEndingAccess.Type);
+	desc.clear_depth = internal_desc.DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth;
+	desc.clear_stencil = internal_desc.StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil;
+
+	return desc;
+}
+
 auto reshade::d3d12::convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_FLAGS
 {
 	D3D12_FENCE_FLAGS result = D3D12_FENCE_FLAG_NONE;

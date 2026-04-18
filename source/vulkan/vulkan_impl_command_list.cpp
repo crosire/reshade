@@ -112,14 +112,9 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		temp_mem<VkRenderingAttachmentInfo, 8> color_attachments(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			color_attachments[i] = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-			color_attachments[i].imageView = (VkImageView)rts[i].view.handle;
-			color_attachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			color_attachments[i].loadOp = convert_render_pass_load_op(rts[i].load_op);
-			color_attachments[i].storeOp = convert_render_pass_store_op(rts[i].store_op);
-			std::copy_n(rts[i].clear_color, 4, color_attachments[i].clearValue.color.float32);
+			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)rts[i].view.handle);
 
-			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(color_attachments[i].imageView);
+			convert_render_pass_render_target_desc(rts[i], color_attachments[i]);
 
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, view_data->image_extent.width);
 			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, view_data->image_extent.height);
@@ -135,28 +130,12 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
 
 			const VkImageAspectFlags aspect_flags = aspect_flags_from_format(view_data->create_info.format);
+			convert_render_pass_depth_stencil_desc(*ds, aspect_flags, depth_attachment, stencil_attachment);
+
 			if ((aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0)
-			{
-				depth_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-				depth_attachment.imageView = (VkImageView)ds->view.handle;
-				depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				depth_attachment.loadOp = convert_render_pass_load_op(ds->depth_load_op);
-				depth_attachment.storeOp = convert_render_pass_store_op(ds->depth_store_op);
-				depth_attachment.clearValue.depthStencil.depth = ds->clear_depth;
-
 				rendering_info.pDepthAttachment = &depth_attachment;
-			}
 			if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
-			{
-				stencil_attachment = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-				stencil_attachment.imageView = (VkImageView)ds->view.handle;
-				stencil_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				stencil_attachment.loadOp = convert_render_pass_load_op(ds->stencil_load_op);
-				stencil_attachment.storeOp = convert_render_pass_store_op(ds->stencil_store_op);
-				stencil_attachment.clearValue.depthStencil.stencil = ds->clear_stencil;
-
 				rendering_info.pStencilAttachment = &stencil_attachment;
-			}
 
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, view_data->image_extent.width);
 			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, view_data->image_extent.height);
@@ -322,14 +301,9 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		temp_mem<VkClearValue, 9> clear_values(max_attachments);
 		for (uint32_t i = 0; i < count; ++i)
-		{
 			std::copy_n(rts[i].clear_color, 4, clear_values[i].color.float32);
-		}
 		if (ds != nullptr)
-		{
-			clear_values[count].depthStencil.depth = ds->clear_depth;
-			clear_values[count].depthStencil.stencil = ds->clear_stencil;
-		}
+			clear_values[count].depthStencil = { ds->clear_depth, ds->clear_stencil };
 
 		begin_info.clearValueCount = count + (ds != nullptr ? 1 : 0);
 		begin_info.pClearValues = clear_values.p;

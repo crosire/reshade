@@ -2489,6 +2489,81 @@ auto reshade::vulkan::convert_render_pass_store_op(VkAttachmentStoreOp value) ->
 	}
 }
 
+void reshade::vulkan::convert_render_pass_render_target_desc(const api::render_pass_render_target_desc &desc, VkRenderingAttachmentInfo &color_attachment_info)
+{
+	color_attachment_info = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+	color_attachment_info.imageView = (VkImageView)desc.view.handle;
+	color_attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	color_attachment_info.loadOp = convert_render_pass_load_op(desc.load_op);
+	color_attachment_info.storeOp = convert_render_pass_store_op(desc.store_op);
+	std::copy_n(desc.clear_color, 4, color_attachment_info.clearValue.color.float32);
+}
+reshade::api::render_pass_render_target_desc reshade::vulkan::convert_render_pass_render_target_desc(const VkRenderingAttachmentInfo *color_attachment_info)
+{
+	reshade::api::render_pass_render_target_desc desc;
+	desc.view = { (uint64_t)color_attachment_info->imageView };
+	desc.load_op = convert_render_pass_load_op(color_attachment_info->loadOp);
+	desc.store_op = convert_render_pass_store_op(color_attachment_info->storeOp);
+	std::copy_n(color_attachment_info->clearValue.color.float32, 4, desc.clear_color);
+
+	return desc;
+}
+void reshade::vulkan::convert_render_pass_depth_stencil_desc(const api::render_pass_depth_stencil_desc &desc, VkImageAspectFlags aspect_flags, VkRenderingAttachmentInfo &depth_attachment_info, VkRenderingAttachmentInfo &stencil_attachment_info)
+{
+	if ((aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0)
+	{
+		depth_attachment_info = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		depth_attachment_info.imageView = (VkImageView)desc.view.handle;
+		depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		depth_attachment_info.loadOp = convert_render_pass_load_op(desc.depth_load_op);
+		depth_attachment_info.storeOp = convert_render_pass_store_op(desc.depth_store_op);
+		depth_attachment_info.clearValue.depthStencil.depth = desc.clear_depth;
+	}
+	if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
+	{
+		stencil_attachment_info = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+		stencil_attachment_info.imageView = (VkImageView)desc.view.handle;
+		stencil_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		stencil_attachment_info.loadOp = convert_render_pass_load_op(desc.stencil_load_op);
+		stencil_attachment_info.storeOp = convert_render_pass_store_op(desc.stencil_store_op);
+		stencil_attachment_info.clearValue.depthStencil.stencil = desc.clear_stencil;
+	}
+}
+reshade::api::render_pass_depth_stencil_desc reshade::vulkan::convert_render_pass_depth_stencil_desc(const VkRenderingAttachmentInfo *depth_attachment_info, const VkRenderingAttachmentInfo *stencil_attachment_info)
+{
+	api::render_pass_depth_stencil_desc desc;
+	if (depth_attachment_info != nullptr)
+	{
+		desc.view = { (uint64_t)depth_attachment_info->imageView };
+		desc.depth_load_op = convert_render_pass_load_op(depth_attachment_info->loadOp);
+		desc.depth_store_op = convert_render_pass_store_op(depth_attachment_info->storeOp);
+		desc.clear_depth = depth_attachment_info->clearValue.depthStencil.depth;
+	}
+	else
+	{
+		desc.depth_load_op = api::render_pass_load_op::discard;
+		desc.depth_store_op = api::render_pass_store_op::discard;
+		desc.clear_depth = 0.0f;
+	}
+	if (stencil_attachment_info != nullptr)
+	{
+		assert(depth_attachment_info == nullptr || depth_attachment_info->imageView == stencil_attachment_info->imageView);
+
+		desc.view = { (uint64_t)stencil_attachment_info->imageView };
+		desc.stencil_load_op = convert_render_pass_load_op(stencil_attachment_info->loadOp);
+		desc.stencil_store_op = convert_render_pass_store_op(stencil_attachment_info->storeOp);
+		desc.clear_stencil = static_cast<uint8_t>(stencil_attachment_info->clearValue.depthStencil.stencil);
+	}
+	else
+	{
+		desc.stencil_load_op = api::render_pass_load_op::discard;
+		desc.stencil_store_op = api::render_pass_store_op::discard;
+		desc.clear_stencil = 0;
+	}
+
+	return desc;
+}
+
 auto reshade::vulkan::convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags
 {
 	VkPipelineCreateFlags result = 0;

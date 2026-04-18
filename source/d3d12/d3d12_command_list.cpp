@@ -1039,24 +1039,11 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 #if RESHADE_ADDON
 	temp_mem<reshade::api::render_pass_render_target_desc, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rts(NumRenderTargets);
 	for (UINT i = 0; i < NumRenderTargets; ++i)
-	{
-		rts[i].view = to_handle(pRenderTargets[i].cpuDescriptor);
-		rts[i].load_op = reshade::d3d12::convert_render_pass_load_op(pRenderTargets[i].BeginningAccess.Type);
-		rts[i].store_op = reshade::d3d12::convert_render_pass_store_op(pRenderTargets[i].EndingAccess.Type);
-		std::copy_n(pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color, 4, rts[i].clear_color);
-	}
+		rts[i] = reshade::d3d12::convert_render_pass_render_target_desc(pRenderTargets[i]);
 
 	reshade::api::render_pass_depth_stencil_desc ds;
 	if (pDepthStencil != nullptr)
-	{
-		ds.view = to_handle(pDepthStencil->cpuDescriptor);
-		ds.depth_load_op = reshade::d3d12::convert_render_pass_load_op(pDepthStencil->DepthBeginningAccess.Type);
-		ds.depth_store_op = reshade::d3d12::convert_render_pass_store_op(pDepthStencil->DepthEndingAccess.Type);
-		ds.stencil_load_op = reshade::d3d12::convert_render_pass_load_op(pDepthStencil->StencilBeginningAccess.Type);
-		ds.stencil_store_op = reshade::d3d12::convert_render_pass_store_op(pDepthStencil->StencilEndingAccess.Type);
-		ds.clear_depth = pDepthStencil->DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth;
-		ds.clear_stencil = pDepthStencil->StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil;
-	}
+		ds = reshade::d3d12::convert_render_pass_depth_stencil_desc(*pDepthStencil);
 
 	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargets, rts.p, pDepthStencil != nullptr ? &ds : nullptr, reshade::d3d12::convert_render_pass_flags(Flags));
 #endif

@@ -239,7 +239,6 @@ namespace reshade
 		/// <list type="bullet">
 		/// <item><description>ID3D10SamplerState::Release</description></item>
 		/// <item><description>ID3D11SamplerState::Release</description></item>
-		/// <item><description>glDeleteSamplers</description></item>
 		/// <item><description>vkDestroySampler</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::sampler sampler)</c></para>

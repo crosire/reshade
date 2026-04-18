@@ -121,38 +121,11 @@ void reshade::d3d12::command_list_impl::begin_render_pass(uint32_t count, const 
 	{
 		temp_mem<D3D12_RENDER_PASS_RENDER_TARGET_DESC, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rt_desc(count);
 		for (uint32_t i = 0; i < count; ++i)
-		{
-			rt_desc[i].cpuDescriptor = { static_cast<SIZE_T>(rts[i].view.handle) };
-			rt_desc[i].BeginningAccess.Type = convert_render_pass_load_op(rts[i].load_op);
-			rt_desc[i].EndingAccess.Type = convert_render_pass_store_op(rts[i].store_op);
-
-			if (rts[i].load_op == api::render_pass_load_op::clear)
-			{
-				rt_desc[i].BeginningAccess.Clear.ClearValue.Format = convert_format(_device_impl->get_resource_view_desc(rts[i].view).format);
-				std::copy_n(rts[i].clear_color, 4, rt_desc[i].BeginningAccess.Clear.ClearValue.Color);
-			}
-		}
+			convert_render_pass_render_target_desc(rts[i], _device_impl->get_resource_view_desc(rts[i].view).format, rt_desc[i]);
 
 		D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depth_stencil_desc;
 		if (ds != nullptr && ds->view != 0)
-		{
-			depth_stencil_desc.cpuDescriptor = { static_cast<SIZE_T>(ds->view.handle) };
-			depth_stencil_desc.DepthBeginningAccess.Type = convert_render_pass_load_op(ds->depth_load_op);
-			depth_stencil_desc.StencilBeginningAccess.Type = convert_render_pass_load_op(ds->stencil_load_op);
-			depth_stencil_desc.DepthEndingAccess.Type = convert_render_pass_store_op(ds->depth_store_op);
-			depth_stencil_desc.StencilEndingAccess.Type = convert_render_pass_store_op(ds->stencil_store_op);
-
-			if (ds->depth_load_op == api::render_pass_load_op::clear)
-			{
-				depth_stencil_desc.DepthBeginningAccess.Clear.ClearValue.Format = convert_format(_device_impl->get_resource_view_desc(ds->view).format);
-				depth_stencil_desc.DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth = ds->clear_depth;
-			}
-			if (ds->stencil_load_op == api::render_pass_load_op::clear)
-			{
-				depth_stencil_desc.StencilBeginningAccess.Clear.ClearValue.Format = convert_format(_device_impl->get_resource_view_desc(ds->view).format);
-				depth_stencil_desc.StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil = ds->clear_stencil;
-			}
-		}
+			convert_render_pass_depth_stencil_desc(*ds, _device_impl->get_resource_view_desc(ds->view).format, depth_stencil_desc);
 
 		static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(count, rt_desc.p, ds != nullptr && ds->view != 0 ? &depth_stencil_desc : nullptr, convert_render_pass_flags(flags));
 	}

@@ -2835,6 +2835,8 @@ void reshade::runtime::draw_gui_statistics()
 					[this](size_t effect_index) { return _effects[effect_index].rendering; }))
 				continue;
 
+			const texture_format_info format_info(tex.format);
+
 			ImGui::PushID(texture_count);
 			ImGui::BeginGroup();
 
@@ -2852,7 +2854,7 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::Text("%u | %u mipmap(s) | %s | %.3f MiB",
 					tex.width,
 					tex.levels - 1,
-					texture_format_info(tex.format).name,
+					format_info.name,
 					memory_size / memory_size_unit);
 				break;
 			case reshadefx::texture_type::texture_2d:
@@ -2860,7 +2862,7 @@ void reshade::runtime::draw_gui_statistics()
 					tex.width,
 					tex.height,
 					tex.levels - 1,
-					texture_format_info(tex.format).name,
+					format_info.name,
 					memory_size / memory_size_unit);
 				break;
 			case reshadefx::texture_type::texture_3d:
@@ -2869,7 +2871,7 @@ void reshade::runtime::draw_gui_statistics()
 					tex.height,
 					tex.depth,
 					tex.levels - 1,
-					texture_format_info(tex.format).name,
+					format_info.name,
 					memory_size / memory_size_unit);
 				break;
 			}
@@ -2999,13 +3001,13 @@ void reshade::runtime::draw_gui_statistics()
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 0, 0, 1));
 				imgui::toggle_button("R", r, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 				ImGui::PopStyleColor();
-				if (texture_format_info(tex.format).components >= 2)
+				if (format_info.components >= 2)
 				{
 					ImGui::SameLine(0, 1);
 					ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 1, 0, 1));
 					imgui::toggle_button("G", g, 0.0f, ImGuiButtonFlags_AlignTextBaseLine);
 					ImGui::PopStyleColor();
-					if (texture_format_info(tex.format).components >= 3)
+					if (format_info.components >= 3)
 					{
 						ImGui::SameLine(0, 1);
 						ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 1, 1));
@@ -3638,8 +3640,10 @@ void reshade::runtime::draw_variable_editor()
 					std::string category_label(get_localized_annotation(variable, "ui_category", _current_language));
 					if (!_variable_editor_tabs)
 					{
+						size_t num_spaces = 0;
 						for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(category_label.data()).x - 45) / 2; x < width; x += space_x)
-							category_label.insert(0, " ");
+							num_spaces++;
+						category_label.insert(0, num_spaces, ' ');
 						// Ensure widget ID does not change with varying width
 						category_label += "###" + current_category;
 						// Append a unique value so that the context menu does not contain duplicated widgets when a category is made current multiple times

@@ -169,6 +169,11 @@ namespace reshade::d3d12
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> D3D12_RENDER_PASS_ENDING_ACCESS_TYPE;
 	auto convert_render_pass_store_op(D3D12_RENDER_PASS_ENDING_ACCESS_TYPE value) -> api::render_pass_store_op;
 
+	void convert_render_pass_render_target_desc(const api::render_pass_render_target_desc &desc, api::format clear_format, D3D12_RENDER_PASS_RENDER_TARGET_DESC &internal_desc);
+	api::render_pass_render_target_desc convert_render_pass_render_target_desc(const D3D12_RENDER_PASS_RENDER_TARGET_DESC &internal_desc);
+	void convert_render_pass_depth_stencil_desc(const api::render_pass_depth_stencil_desc &desc, api::format clear_format, D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &internal_desc);
+	api::render_pass_depth_stencil_desc convert_render_pass_depth_stencil_desc(const D3D12_RENDER_PASS_DEPTH_STENCIL_DESC &internal_desc);
+
 	auto convert_fence_flags(api::fence_flags value) -> D3D12_FENCE_FLAGS;
 
 	auto convert_pipeline_flags(api::pipeline_flags value) -> D3D12_RAYTRACING_PIPELINE_FLAGS;

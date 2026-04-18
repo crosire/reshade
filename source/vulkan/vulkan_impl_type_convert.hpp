@@ -290,6 +290,11 @@ namespace reshade::vulkan
 	auto convert_render_pass_store_op(api::render_pass_store_op value) -> VkAttachmentStoreOp;
 	auto convert_render_pass_store_op(VkAttachmentStoreOp value) -> api::render_pass_store_op;
 
+	void convert_render_pass_render_target_desc(const api::render_pass_render_target_desc &desc, VkRenderingAttachmentInfo &color_attachment_info);
+	api::render_pass_render_target_desc convert_render_pass_render_target_desc(const VkRenderingAttachmentInfo *color_attachment_info);
+	void convert_render_pass_depth_stencil_desc(const api::render_pass_depth_stencil_desc &desc, VkImageAspectFlags aspect_flags, VkRenderingAttachmentInfo &depth_attachment_info, VkRenderingAttachmentInfo &stencil_attachment_info);
+	api::render_pass_depth_stencil_desc convert_render_pass_depth_stencil_desc(const VkRenderingAttachmentInfo *depth_attachment_info, const VkRenderingAttachmentInfo *stencil_attachment_info);
+
 	auto convert_pipeline_flags(api::pipeline_flags value) -> VkPipelineCreateFlags;
 	auto convert_pipeline_flags(VkPipelineCreateFlags2 value) -> api::pipeline_flags;
 #if VK_KHR_ray_tracing_pipeline

@@ -279,7 +279,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 
 		// If an add-on forces VSync or disabled tearing, ensure tearing is not requested
 		if (DXGI_SWAP_CHAIN_DESC desc;
-			SyncInterval > 0 || (SUCCEEDED(_orig->GetDesc(&desc)) && (desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) == 0))
+			SyncInterval > 0 || (_is_desc_modified && SUCCEEDED(_orig->GetDesc(&desc)) && (desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) == 0))
 			Flags &= ~DXGI_PRESENT_ALLOW_TEARING;
 	}
 #endif
@@ -572,7 +572,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 
 		// If an add-on forces VSync or disabled tearing, ensure tearing is not requested
 		if (DXGI_SWAP_CHAIN_DESC desc;
-			SyncInterval > 0 || (SUCCEEDED(_orig->GetDesc(&desc)) && (desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) == 0))
+			SyncInterval > 0 || (_is_desc_modified && SUCCEEDED(_orig->GetDesc(&desc)) && (desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) == 0))
 			PresentFlags &= ~DXGI_PRESENT_ALLOW_TEARING;
 	}
 #endif
