@@ -138,7 +138,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		vk.CmdBeginRendering(_orig, &rendering_info);
 
-		_is_in_render_pass = 3;
+		_is_in_render_pass = 0x80 | 3;
 	}
 	else
 #endif
@@ -304,7 +304,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 		vk.CmdBeginRenderPass(_orig, &begin_info, (flags & api::render_pass_flags::suspend) != 0 ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
-		_is_in_render_pass = 1;
+		_is_in_render_pass = 0x80 | 1;
 	}
 }
 void reshade::vulkan::command_list_impl::end_render_pass()
@@ -313,7 +313,7 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 	assert(_is_in_render_pass);
 
 #if VK_KHR_dynamic_rendering
-	if (_is_in_render_pass == 3)
+	if ((_is_in_render_pass & 0x7F) == 3)
 	{
 		vk.CmdEndRendering(_orig);
 	}

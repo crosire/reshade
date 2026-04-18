@@ -169,11 +169,11 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
-		cmd_impl->_is_in_render_pass = 0;
-
 		cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 		cmd_impl->current_render_pass = VK_NULL_HANDLE;
 		cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+
+		cmd_impl->_is_in_render_pass = 0;
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::close_command_list>(cmd_impl);
@@ -1235,6 +1235,12 @@ void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	if (cmd_impl->_is_in_render_pass & 0x80)
+	{
+		// Render pass was overriden by an add-on, so there are no subpasses
+		return;
+	}
+
 	assert(cmd_impl->_is_in_render_pass == 1);
 	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
@@ -1257,12 +1263,9 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	assert(cmd_impl->_is_in_render_pass == 1);
-	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
+	assert(cmd_impl->_is_in_render_pass == 1 || cmd_impl->_is_in_render_pass & 0x80);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
-
-	cmd_impl->_is_in_render_pass = 0;
 
 	cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 	cmd_impl->current_render_pass = VK_NULL_HANDLE;
@@ -1270,6 +1273,15 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	if (cmd_impl->_is_in_render_pass & 0x80)
+	{
+		// Render pass was overriden by an add-on, so need to end it the same way
+		cmd_impl->end_render_pass();
+		return;
+	}
+
+	cmd_impl->_is_in_render_pass = 0;
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdEndRenderPass, device_impl);
@@ -1476,6 +1488,12 @@ void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpass
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
+	if (cmd_impl->_is_in_render_pass & 0x80)
+	{
+		// Render pass was overriden by an add-on, so there are no subpasses
+		return;
+	}
+
 	assert(cmd_impl->_is_in_render_pass == 2);
 	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
 
@@ -1500,12 +1518,9 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	assert(cmd_impl->_is_in_render_pass == 2);
-	assert(cmd_impl->current_render_pass != VK_NULL_HANDLE);
+	assert(cmd_impl->_is_in_render_pass == 2 || cmd_impl->_is_in_render_pass & 0x80);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
-
-	cmd_impl->_is_in_render_pass = 0;
 
 	cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 	cmd_impl->current_render_pass = VK_NULL_HANDLE;
@@ -1513,6 +1528,15 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	if (cmd_impl->_is_in_render_pass & 0x80)
+	{
+		// Render pass was overriden by an add-on, so need to end it the same way
+		cmd_impl->end_render_pass();
+		return;
+	}
+
+	cmd_impl->_is_in_render_pass = 0;
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdEndRenderPass2, device_impl);
@@ -1940,14 +1964,21 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	assert(cmd_impl->_is_in_render_pass == 3);
+	assert(cmd_impl->_is_in_render_pass == 3 || cmd_impl->_is_in_render_pass & 0x80);
 
 	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
-	cmd_impl->_is_in_render_pass = 0;
-
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	if (cmd_impl->_is_in_render_pass & 0x80)
+	{
+		// Render pass was overriden by an add-on, so need to end it the same way
+		cmd_impl->end_render_pass();
+		return;
+	}
+
+	cmd_impl->_is_in_render_pass = 0;
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdEndRendering, device_impl);
