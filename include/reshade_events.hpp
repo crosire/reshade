@@ -860,7 +860,7 @@ namespace reshade
 		barrier,
 
 		/// <summary>
-		/// Called before:
+		/// Called after:
 		/// <list type="bullet">
 		/// <item><description>ID3D12GraphicsCommandList4::BeginRenderPass</description></item>
 		/// <item><description>vkCmdBeginRenderPass</description></item>
@@ -1394,6 +1394,7 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::ClearDepthStencilView</description></item>
 		/// <item><description>ID3D11DeviceContext1::ClearView (for depth-stencil views)</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::ClearDepthStencilView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList4::BeginRenderPass</description></item>
 		/// <item><description>glClear</description></item>
 		/// <item><description>glClearBufferfi</description></item>
 		/// <item><description>glClearBufferfv</description></item>
@@ -1401,6 +1402,9 @@ namespace reshade
 		/// <item><description>glClearNamedFramebufferfv</description></item>
 		/// <item><description>vkCmdClearDepthStencilImage</description></item>
 		/// <item><description>vkCmdClearAttachments</description></item>
+		/// <item><description>vkCmdBeginRenderPass</description></item>
+		/// <item><description>vkCmdBeginRenderPass2</description></item>
+		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects)</c></para>
 		/// </summary>
@@ -1420,11 +1424,15 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::ClearRenderTargetView</description></item>
 		/// <item><description>ID3D11DeviceContext1::ClearView (for render target views)</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::ClearRenderTargetView</description></item>
+		/// <item><description>ID3D12GraphicsCommandList4::BeginRenderPass</description></item>
 		/// <item><description>glClear</description></item>
 		/// <item><description>glClearBufferfv</description></item>
 		/// <item><description>glClearNamedFramebufferfv</description></item>
 		/// <item><description>vkCmdClearColorImage</description></item>
 		/// <item><description>vkCmdClearAttachments</description></item>
+		/// <item><description>vkCmdBeginRenderPass</description></item>
+		/// <item><description>vkCmdBeginRenderPass2</description></item>
+		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)</c></para>
 		/// </summary>

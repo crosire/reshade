@@ -99,7 +99,6 @@ void reshade::vulkan::command_list_impl::barrier(uint32_t count, const api::reso
 void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags)
 {
 	_has_commands = true;
-	_is_in_render_pass = true;
 
 #if VK_KHR_dynamic_rendering
 	if (vk.KHR_dynamic_rendering)
@@ -165,6 +164,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		}
 
 		vk.CmdBeginRendering(_orig, &rendering_info);
+
+		_is_in_render_pass = 3;
 	}
 	else
 #endif
@@ -334,15 +335,17 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		begin_info.pClearValues = clear_values.p;
 
 		vk.CmdBeginRenderPass(_orig, &begin_info, (flags & api::render_pass_flags::suspend) != 0 ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
+
+		_is_in_render_pass = 1;
 	}
 }
 void reshade::vulkan::command_list_impl::end_render_pass()
 {
 	assert(_has_commands);
-	_is_in_render_pass = false;
+	assert(_is_in_render_pass);
 
 #if VK_KHR_dynamic_rendering
-	if (vk.KHR_dynamic_rendering)
+	if (_is_in_render_pass == 3)
 	{
 		vk.CmdEndRendering(_orig);
 	}
@@ -351,6 +354,8 @@ void reshade::vulkan::command_list_impl::end_render_pass()
 	{
 		vk.CmdEndRenderPass(_orig);
 	}
+
+	_is_in_render_pass = 0;
 }
 void reshade::vulkan::command_list_impl::bind_render_targets_and_depth_stencil(uint32_t, const api::resource_view *, api::resource_view)
 {

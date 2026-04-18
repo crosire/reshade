@@ -1006,6 +1006,37 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	assert(_interface_version >= 4);
 
 #if RESHADE_ADDON
+	for (UINT i = 0; i < NumRenderTargets; ++i)
+	{
+		if (pRenderTargets[i].BeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
+				this,
+				to_handle(pRenderTargets[i].cpuDescriptor),
+				pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color,
+				0, nullptr);
+		}
+	}
+
+	if (pDepthStencil != nullptr)
+	{
+		const bool clear_depth = pDepthStencil->DepthBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+		const bool clear_stencil = pDepthStencil->StencilBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
+		if (clear_depth || clear_stencil)
+		{
+			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
+				this,
+				to_handle(pDepthStencil->cpuDescriptor),
+				clear_depth ? &pDepthStencil->DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth : nullptr,
+				clear_stencil ? &pDepthStencil->StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil : nullptr,
+				0, nullptr);
+		}
+	}
+#endif
+
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
+
+#if RESHADE_ADDON
 	temp_mem<reshade::api::render_pass_render_target_desc, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rts(NumRenderTargets);
 	for (UINT i = 0; i < NumRenderTargets; ++i)
 	{
@@ -1029,8 +1060,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 
 	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargets, rts.p, pDepthStencil != nullptr ? &ds : nullptr, reshade::d3d12::convert_render_pass_flags(Flags));
 #endif
-
-	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass()
 {
