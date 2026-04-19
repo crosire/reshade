@@ -151,13 +151,19 @@ void reshade::runtime::build_font_atlas()
 	if (language.empty())
 		language = resources::get_current_language();
 
-	if (language.find("ar") == 0 || language.find("bg") == 0 || language.find("pl") == 0 || language.find("ru") == 0 || language.find("sl") == 0 || language.find("tr") == 0 || language.find("th") == 0)
+	if (language.compare(0, 2, "ar") == 0 ||
+		language.compare(0, 2, "bg") == 0 ||
+		language.compare(0, 2, "pl") == 0 ||
+		language.compare(0, 2, "ru") == 0 ||
+		language.compare(0, 2, "sl") == 0 ||
+		language.compare(0, 2, "tr") == 0 ||
+		language.compare(0, 2, "th") == 0)
 	{
 		// Microsoft Sans Serif
 		_default_font_path = L"C:\\Windows\\Fonts\\micross.ttf";
 	}
 	else
-	if (language.find("ja") == 0)
+	if (language.compare(0, 2, "ja") == 0)
 	{
 		// Morisawa BIZ UDGothic Regular, available since Windows 10 October 2018 Update (1809) Build 17763.1
 		_default_font_path = L"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc";
@@ -166,13 +172,13 @@ void reshade::runtime::build_font_atlas()
 			_default_font_path = L"C:\\Windows\\Fonts\\msgothic.ttc";
 	}
 	else
-	if (language.find("ko") == 0)
+	if (language.compare(0, 2, "ko") == 0)
 	{
 		// Malgun Gothic
 		_default_font_path = L"C:\\Windows\\Fonts\\malgun.ttf";
 	}
 	else
-	if (language.find("zh") == 0)
+	if (language.compare(0, 2, "zh") == 0)
 	{
 		// Simplified Chinese (zh-CN, zh-SG, ...)
 		if (language.find("HK") == std::string::npos && language.find("TW") == std::string::npos && language.find("Hant") == std::string::npos)
