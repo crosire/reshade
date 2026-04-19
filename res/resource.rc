@@ -125,6 +125,7 @@ IDR_LICENSE_S_JXL       RCDATA                  "..\\deps\\jxl_simple_lossless\\
 //
 #include "version.rc2"
 #if defined(RESHADE_LOCALIZATION)
+#include "lang_ar-SA.rc2"
 #include "lang_bg-BG.rc2"
 #include "lang_de-DE.rc2"
 #include "lang_en-US.rc2"
