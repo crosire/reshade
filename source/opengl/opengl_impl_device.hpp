@@ -8,6 +8,7 @@
 #include <glad/wgl.h>
 #include "reshade_api_object_impl.hpp"
 #include <atomic>
+#include <vector>
 #include <unordered_map>
 
 namespace reshade::opengl

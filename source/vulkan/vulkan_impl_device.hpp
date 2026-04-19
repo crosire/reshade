@@ -139,7 +139,7 @@ namespace reshade::vulkan
 		}
 
 		template <VkObjectType type, bool optional = false>
-		PFORCEINLINE object_data<type> *get_private_data_for_object(typename object_data<type>::Handle object) const
+		object_data<type> *get_private_data_for_object(typename object_data<type>::Handle object) const
 		{
 			assert(object != VK_NULL_HANDLE);
 			uint64_t private_data = 0;

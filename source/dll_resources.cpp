@@ -24,6 +24,7 @@ reshade::resources::data_resource reshade::resources::load_data_resource(unsigne
 	return result;
 }
 
+#if RESHADE_LOCALIZATION
 std::string reshade::resources::load_string(unsigned short id)
 {
 	LPCWSTR s = nullptr;
@@ -37,7 +38,6 @@ std::string reshade::resources::load_string(unsigned short id)
 	return utf8_string;
 }
 
-#if RESHADE_LOCALIZATION
 std::string reshade::resources::get_current_language()
 {
 	ULONG num = 0, size = 0;

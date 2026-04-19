@@ -23,6 +23,7 @@ namespace reshade::resources
 	/// <param name="id">Resource identifier of the raw data resource.</param>
 	data_resource load_data_resource(unsigned short id);
 
+#if RESHADE_LOCALIZATION
 	/// <summary>
 	/// Loads the localized string associated with the specified <paramref name="id"/> from the DLL resources.
 	/// </summary>
@@ -31,7 +32,6 @@ namespace reshade::resources
 	template <unsigned short id>
 	inline std::string load_string() { return load_string(id); }
 
-#if RESHADE_LOCALIZATION
 	/// <summary>
 	/// Gets the preferred UI language used to look up resources for the current thread.
 	/// </summary>
