@@ -1062,10 +1062,22 @@ VkResult VKAPI_CALL vkGetQueryPoolResults(VkDevice device, VkQueryPool queryPool
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(GetQueryPoolResults, device_impl);
 
 #if RESHADE_ADDON >= 2
-	assert(stride <= std::numeric_limits<uint32_t>::max());
+	if (reshade::has_addon_event<reshade::addon_event::get_query_heap_results>())
+	{
+		const auto pool_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_QUERY_POOL>(queryPool);
 
-	if (reshade::invoke_addon_event<reshade::addon_event::get_query_heap_results>(device_impl, reshade::api::query_heap { (uint64_t)queryPool }, firstQuery, queryCount, pData, static_cast<uint32_t>(stride)))
-		return VK_SUCCESS;
+		assert(stride <= std::numeric_limits<uint32_t>::max());
+
+		if (reshade::invoke_addon_event<reshade::addon_event::get_query_heap_results>(
+				device_impl,
+				reshade::api::query_heap { (uint64_t)queryPool },
+				reshade::vulkan::convert_query_type(pool_data->type),
+				firstQuery,
+				queryCount,
+				pData,
+				static_cast<uint32_t>(stride)))
+			return VK_SUCCESS;
+	}
 #endif
 
 	return trampoline(device, queryPool, firstQuery, queryCount, dataSize, pData, stride, flags);

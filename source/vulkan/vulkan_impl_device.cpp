@@ -2417,7 +2417,7 @@ void reshade::vulkan::device_impl::destroy_query_heap(api::query_heap heap)
 	vk.DestroyQueryPool(_orig, (VkQueryPool)heap.handle, nullptr);
 }
 
-bool reshade::vulkan::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::vulkan::device_impl::get_query_heap_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(heap != 0);
 	assert(stride >= sizeof(uint64_t));

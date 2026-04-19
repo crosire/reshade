@@ -1406,7 +1406,7 @@ void reshade::d3d11::device_impl::destroy_query_heap(api::query_heap heap)
 	delete reinterpret_cast<query_heap_impl *>(heap.handle);
 }
 
-bool reshade::d3d11::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d11::device_impl::get_query_heap_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(heap != 0);
 

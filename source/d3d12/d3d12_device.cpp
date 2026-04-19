@@ -2290,7 +2290,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::ResolveQueryData(ID3D12QueryHeap *pQueryH
 
 #if RESHADE_ADDON >= 2
 	if (const reshade::api::query_type query_type = reshade::d3d12::convert_query_type(Type);
-		reshade::invoke_addon_event<reshade::addon_event::get_query_heap_results>(this, to_handle(pQueryHeap), StartIndex, NumQueries, pResolved, reshade::d3d12::get_query_size(query_type).first))
+		reshade::invoke_addon_event<reshade::addon_event::get_query_heap_results>(this, to_handle(pQueryHeap), query_type, StartIndex, NumQueries, pResolved, reshade::d3d12::get_query_size(query_type).first))
 		return S_OK;
 #endif
 

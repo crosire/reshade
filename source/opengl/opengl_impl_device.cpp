@@ -2560,7 +2560,7 @@ void reshade::opengl::device_impl::destroy_query_heap(api::query_heap heap)
 	delete impl;
 }
 
-bool reshade::opengl::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::opengl::device_impl::get_query_heap_results(api::query_heap heap, api::query_type, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(heap != 0);
 	assert(stride >= sizeof(uint64_t));

@@ -861,7 +861,7 @@ namespace reshade
 		/// <item><description>ID3D12Device15::ResolveQueryData</description></item>
 		/// <item><description>vkGetQueryPoolResults</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>bool (api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
+		/// <para>Callback function signature: <c>bool (api::device *device, api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
 		/// </summary>
 		get_query_heap_results,
 
@@ -1880,7 +1880,7 @@ namespace reshade
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::create_query_heap, bool, api::device *device, api::query_type type, uint32_t &count);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::destroy_query_heap, void, api::device *device, api::query_heap heap);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::get_query_heap_results, bool, api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::get_query_heap_results, bool, api::device *device, api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, void *results, uint32_t stride);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 

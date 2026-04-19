@@ -30,7 +30,6 @@ namespace reshade::d3d12
 
 	struct query_heap_extra_data
 	{
-		api::query_type type;
 		UINT count;
 		ID3D12Resource *readback_resource;
 		std::pair<ID3D12Fence *, UINT64> *fences;

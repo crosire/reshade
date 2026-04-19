@@ -1796,7 +1796,6 @@ bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32
 	*out_heap = { 0 };
 
 	query_heap_extra_data extra_data;
-	extra_data.type = type;
 	extra_data.count = count;
 
 	D3D12_RESOURCE_DESC readback_desc = {};
@@ -1869,7 +1868,7 @@ void reshade::d3d12::device_impl::destroy_query_heap(api::query_heap heap)
 	if (heap == 0)
 		return;
 
-	const auto heap_object = reinterpret_cast<ID3D12Object *>(heap.handle);
+	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
 
 	query_heap_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
@@ -1885,12 +1884,21 @@ void reshade::d3d12::device_impl::destroy_query_heap(api::query_heap heap)
 	heap_object->Release();
 }
 
-bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)
+bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, api::query_type type, uint32_t first, uint32_t count, void *results, uint32_t stride)
 {
 	assert(heap != 0);
 	assert(stride >= sizeof(uint64_t));
 
-	const auto heap_object = reinterpret_cast<ID3D12Object *>(heap.handle);
+	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
+
+	com_ptr<ID3D12Device15> device15;
+	if (SUCCEEDED(_orig->QueryInterface(&device15)))
+	{
+		if (stride != get_query_size(type).first)
+			return false;
+
+		return SUCCEEDED(device15->ResolveQueryData(heap_object, convert_query_type(type), first, count, results));
+	}
 
 	query_heap_extra_data extra_data;
 	UINT extra_data_size = sizeof(extra_data);
@@ -1905,7 +1913,7 @@ bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, u
 				return false;
 		}
 
-		const std::pair<uint32_t, uint32_t> query_size_and_offset = get_query_size(extra_data.type);
+		const std::pair<uint32_t, uint32_t> query_size_and_offset = get_query_size(type);
 
 		const D3D12_RANGE read_range = { static_cast<SIZE_T>(first) * query_size_and_offset.first, (static_cast<SIZE_T>(first) + static_cast<SIZE_T>(count)) * query_size_and_offset.first };
 		const D3D12_RANGE write_range = { 0, 0 };

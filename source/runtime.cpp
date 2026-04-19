@@ -4088,7 +4088,7 @@ void reshade::runtime::render_technique(technique &tech, api::command_list *cmd_
 
 		// Evaluate queries from oldest frame in queue
 		if (temp_mem<uint64_t> timestamps(query_count);
-			_device->get_query_heap_results(effect.query_heap, query_base_index, query_count, timestamps.p, sizeof(uint64_t)))
+			_device->get_query_heap_results(effect.query_heap, api::query_type::timestamp, query_base_index, query_count, timestamps.p, sizeof(uint64_t)))
 		{
 			const uint64_t tech_duration = timestamps[1] - timestamps[0];
 			tech.average_gpu_duration.append(tech_duration * 1'000'000'000ull / _timestamp_frequency);

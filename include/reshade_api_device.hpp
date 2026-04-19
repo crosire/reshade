@@ -557,12 +557,13 @@ namespace reshade::api
 		/// Gets the results of queries in a query heap.
 		/// </summary>
 		/// <param name="heap">Query heap that contains the queries.</param>
+		/// <param name="type">Type of the queries to copy.</param>
 		/// <param name="first">Index of the first query in the query heap to copy the results from.</param>
 		/// <param name="count">Number of query results to copy.</param>
 		/// <param name="results">Pointer to the first element of an array that is filled with the results. The necessary data type is documented at the <see cref="query_type"/> enumeration.</param>
 		/// <param name="stride">Size (in bytes) of each element in the <paramref name="results"/> array.</param>
 		/// <returns><see langword="true"/> if the query results were successfully downloaded from the GPU, <see langword="false"/> otherwise.</returns>
-		virtual bool get_query_heap_results(query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
+		virtual bool get_query_heap_results(query_heap heap, query_type type, uint32_t first, uint32_t count, void *results, uint32_t stride) = 0;
 
 		/// <summary>
 		/// Associates a name with a resource, for easier debugging in external tools.

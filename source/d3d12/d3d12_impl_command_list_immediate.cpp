@@ -63,9 +63,9 @@ void reshade::d3d12::command_list_immediate_impl::end_query(api::query_heap heap
 	UINT extra_data_size = sizeof(extra_data);
 	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
-		assert(extra_data.type == type);
+		const uint32_t query_size = get_query_size(type).first;
 
-		_orig->ResolveQueryData(heap_object, convert_query_type(type), index, 1, extra_data.readback_resource, static_cast<UINT64>(index) * get_query_size(type).first);
+		_orig->ResolveQueryData(heap_object, convert_query_type(type), index, 1, extra_data.readback_resource, static_cast<UINT64>(index) * query_size);
 
 		extra_data.fences[index].second++;
 		_current_query_fences.push_back(extra_data.fences[index]);
@@ -81,8 +81,6 @@ void reshade::d3d12::command_list_immediate_impl::query_acceleration_structures(
 	UINT extra_data_size = sizeof(extra_data);
 	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
-		assert(extra_data.type == type);
-
 		const uint32_t query_size = get_query_size(type).first;
 
 		for (uint32_t i = 0; i < std::min(count, extra_data.count); ++i)
