@@ -208,6 +208,8 @@ namespace reshade
 		/// <item><description>ID3D10Device::CreateSamplerState</description></item>
 		/// <item><description>ID3D11Device::CreateSamplerState</description></item>
 		/// <item><description>ID3D12Device::CreateSampler</description></item>
+		/// <item><description>ID3D12Device11::CreateSampler2</description></item>
+		/// <item><description>ID3D12Device15::TryCreateSampler2</description></item>
 		/// <item><description>vkCreateSampler</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, const api::sampler_desc &amp;desc, api::sampler sampler)</c></para>
@@ -224,6 +226,8 @@ namespace reshade
 		/// <item><description>ID3D11Device::CreateSamplerState</description></item>
 		/// <item><description>ID3D12Device::CreateSampler</description></item>
 		/// <item><description>ID3D12Device::CreateRootSignature</description></item>
+		/// <item><description>ID3D12Device11::CreateSampler2</description></item>
+		/// <item><description>ID3D12Device15::TryCreateSampler2</description></item>
 		/// <item><description>vkCreateSampler</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, api::sampler_desc &amp;desc)</c></para>
@@ -277,6 +281,8 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateReservedResource</description></item>
 		/// <item><description>ID3D12Device4::CreateCommittedResource1</description></item>
 		/// <item><description>ID3D12Device4::CreateReservedResource1</description></item>
+		/// <item><description>ID3D12Device8::CreateCommittedResource2</description></item>
+		/// <item><description>ID3D12Device10::CreateReservedResource2</description></item>
 		/// <item><description>glBufferData</description></item>
 		/// <item><description>glBufferStorage</description></item>
 		/// <item><description>glNamedBufferData</description></item>
@@ -344,6 +350,8 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateReservedResource</description></item>
 		/// <item><description>ID3D12Device4::CreateCommittedResource1</description></item>
 		/// <item><description>ID3D12Device4::CreateReservedResource1</description></item>
+		/// <item><description>ID3D12Device8::CreateCommittedResource2</description></item>
+		/// <item><description>ID3D12Device10::CreateReservedResource2</description></item>
 		/// <item><description>glBufferData</description></item>
 		/// <item><description>glBufferStorage</description></item>
 		/// <item><description>glNamedBufferData</description></item>
@@ -418,6 +426,10 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateUnorderedAccessView</description></item>
 		/// <item><description>ID3D12Device::CreateRenderTargetView</description></item>
 		/// <item><description>ID3D12Device::CreateDepthStencilView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateShaderResourceView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateUnorderedAccessView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateRenderTargetView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateDepthStencilView</description></item>
 		/// <item><description>glTexBuffer</description></item>
 		/// <item><description>glTextureBuffer</description></item>
 		/// <item><description>glTextureView</description></item>
@@ -450,6 +462,10 @@ namespace reshade
 		/// <item><description>ID3D12Device::CreateUnorderedAccessView</description></item>
 		/// <item><description>ID3D12Device::CreateRenderTargetView</description></item>
 		/// <item><description>ID3D12Device::CreateDepthStencilView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateShaderResourceView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateUnorderedAccessView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateRenderTargetView</description></item>
+		/// <item><description>ID3D12Device15::TryCreateDepthStencilView</description></item>
 		/// <item><description>glTexBuffer</description></item>
 		/// <item><description>glTextureBuffer</description></item>
 		/// <item><description>glTextureView</description></item>
@@ -811,6 +827,7 @@ namespace reshade
 		/// Called after successful query heap creation from:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateQueryHeap</description></item>
+		/// <item><description>ID3D12Device15::CreateQueryHeap1</description></item>
 		/// <item><description>vkCreateQueryPool</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::query_type type, uint32_t count, api::query_heap heap)</c></para>
@@ -821,6 +838,7 @@ namespace reshade
 		/// Called on query heap creation, before:
 		/// <list type="bullet">
 		/// <item><description>ID3D12Device::CreateQueryHeap</description></item>
+		/// <item><description>ID3D12Device15::CreateQueryHeap1</description></item>
 		/// <item><description>vkCreateQueryPool</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, api::query_type type, uint32_t &amp;count)</c></para>
@@ -840,6 +858,7 @@ namespace reshade
 		/// <summary>
 		/// Called before:
 		/// <list type="bullet">
+		/// <item><description>ID3D12Device15::ResolveQueryData</description></item>
 		/// <item><description>vkGetQueryPoolResults</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::device *device, api::query_heap heap, uint32_t first, uint32_t count, void *results, uint32_t stride)</c></para>
