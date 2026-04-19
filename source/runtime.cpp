@@ -35,7 +35,7 @@
 #include <stb_image_write_hdr_png.h>
 #include <stb_image_resize2.h>
 
-std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros = {})
+std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string_view, std::string>> macros = {})
 {
 	std::string result;
 
@@ -60,20 +60,15 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 			}
 		}
 
-		std::string_view replacing(input);
-		replacing = replacing.substr(macro_beg + 1, macro_end - (macro_beg + 1));
-		size_t colon_pos = replacing.find(':');
+		const std::string_view input_macro(input.c_str() + macro_beg + 1, macro_end - (macro_beg + 1));
 
-		std::string name;
-		if (colon_pos == std::string_view::npos)
-			name = replacing;
-		else
-			name = replacing.substr(0, colon_pos);
+		size_t colon_pos = input_macro.find(':');
+		const std::string_view input_macro_name = (colon_pos == std::string_view::npos) ? input_macro : input_macro.substr(0, colon_pos);
 
 		std::string value;
-		for (const std::pair<std::string, std::string> &macro : macros)
+		for (const std::pair<std::string_view, std::string> &macro : macros)
 		{
-			if (_stricmp(name.c_str(), macro.first.c_str()) == 0)
+			if (macro.first == input_macro_name)
 			{
 				value = macro.second;
 				break;
@@ -83,9 +78,8 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 		// Allow using environment variables alongside macros
 		if (value.empty())
 		{
-			char buf[512] = "";
-			size_t buf_len = 0;
-			if (getenv_s(&buf_len, buf, sizeof(buf) - 1, name.c_str()) == 0)
+			char buf[512] = ""; size_t buf_len = 0;
+			if (getenv_s(&buf_len, buf, sizeof(buf) - 1, std::string(input_macro_name).c_str()) == 0)
 				value = buf;
 		}
 
@@ -95,25 +89,25 @@ std::string expand_macro_string(const std::string &input, std::vector<std::pair<
 		}
 		else
 		{
-			std::string_view param = replacing.substr(colon_pos + 1);
+			const std::string_view input_macro_param = input_macro.substr(colon_pos + 1);
 
-			if (const size_t insert_pos = param.find('$');
+			if (const size_t insert_pos = input_macro_param.find('$');
 				insert_pos != std::string_view::npos)
 			{
-				result += param.substr(0, insert_pos);
+				result += input_macro_param.substr(0, insert_pos);
 				result += value;
-				result += param.substr(insert_pos + 1);
+				result += input_macro_param.substr(insert_pos + 1);
 			}
 			else
 			{
-				result += param;
+				result += input_macro_param;
 			}
 		}
 	}
 
 	return result;
 }
-std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string, std::string>> macros, std::chrono::system_clock::time_point now)
+static std::string expand_macro_string(const std::string &input, std::vector<std::pair<std::string_view, std::string>> macros, std::chrono::system_clock::time_point now)
 {
 	const auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
 
