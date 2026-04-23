@@ -1352,8 +1352,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		case api::pipeline_subobject_type::primitive_topology:
 			assert(subobjects[i].count == 1);
 			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
-			if (topology == api::primitive_topology::triangle_fan)
-				goto exit_failure;
 			break;
 		case api::pipeline_subobject_type::depth_stencil_format:
 			assert(subobjects[i].count == 1);

@@ -227,6 +227,14 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.imageArrayLayers = desc.back_buffer.texture.depth_or_layers;
 		reshade::vulkan::convert_usage_to_image_usage_flags(desc.back_buffer.usage, create_info.imageUsage);
 
+		if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
+				create_info.pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO);
+			format_list_info != nullptr &&
+			std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.imageFormat) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
+		{
+			const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
+		}
+
 		create_info.minImageCount = desc.back_buffer_count;
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
 		create_info.flags = static_cast<uint32_t>(desc.present_flags);
