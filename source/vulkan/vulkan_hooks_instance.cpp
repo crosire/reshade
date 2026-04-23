@@ -156,7 +156,7 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 #endif
 
 		add_extension(VK_KHR_SURFACE_EXTENSION_NAME, false);
-#if VK_EXT_swapchain_color_space
+#if VK_EXT_swapchain_colorspace
 		add_extension(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, false);
 #endif
 	}

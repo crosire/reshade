@@ -199,6 +199,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	desc.present_mode = static_cast<uint32_t>(create_info.presentMode);
 	desc.present_flags = create_info.flags;
 	desc.sync_interval = create_info.presentMode == VK_PRESENT_MODE_IMMEDIATE_KHR ? 0 : UINT32_MAX;
+	desc.color_space = reshade::vulkan::convert_color_space(create_info.imageColorSpace);
 
 #if VK_EXT_full_screen_exclusive
 	// Optionally change fullscreen state
@@ -220,6 +221,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (reshade::invoke_addon_event<reshade::addon_event::create_swapchain>(reshade::api::device_api::vulkan, desc, hwnd))
 	{
 		create_info.imageFormat = reshade::vulkan::convert_format(desc.back_buffer.texture.format);
+		create_info.imageColorSpace = reshade::vulkan::convert_color_space(desc.color_space);
 		create_info.imageExtent.width = desc.back_buffer.texture.width;
 		create_info.imageExtent.height = desc.back_buffer.texture.height;
 		create_info.imageArrayLayers = desc.back_buffer.texture.depth_or_layers;

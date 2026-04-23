@@ -1300,6 +1300,11 @@ namespace reshade::api
 		/// </list>
 		/// </summary>
 		uint32_t sync_interval = UINT32_MAX;
+
+		/// <summary>
+		/// Color space used for presentation.
+		/// </summary>
+		color_space color_space = color_space::unknown;
 	};
 
 	/// <summary>

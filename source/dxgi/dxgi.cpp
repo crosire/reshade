@@ -103,6 +103,9 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 		if ((internal_desc.Flags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && sync_interval == 0)
 			sync_interval = 0x10000000;
 
+		// TODO: Allow add-ons to change the color space (by calling 'SetColorSpace' after swap chain creation)
+		assert(desc.color_space == reshade::api::color_space::unknown || desc.color_space == (internal_desc.BufferDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ? reshade::api::color_space::scrgb : reshade::api::color_space::srgb));
+
 		return true;
 	}
 
@@ -186,6 +189,8 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 			fullscreen_desc->RefreshRate = floating_point_to_rational(desc.fullscreen_refresh_rate);
 			fullscreen_desc->Windowed = !desc.fullscreen_state;
 		}
+
+		assert(desc.color_space == reshade::api::color_space::unknown || desc.color_space == (internal_desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ? reshade::api::color_space::scrgb : reshade::api::color_space::srgb));
 
 		return true;
 	}
