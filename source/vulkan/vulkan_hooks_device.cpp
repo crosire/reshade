@@ -24,13 +24,6 @@ extern lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_devices;
 
 #if RESHADE_ADDON
-void clear_image_format_list(const void *pNext)
-{
-	if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
-			pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
-		const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
-}
-
 void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image)
 {
 	if (image == VK_NULL_HANDLE)
@@ -1213,9 +1206,16 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined))
 	{
 		reshade::vulkan::convert_resource_desc(desc, create_info);
-		if ((create_info.flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
-			clear_image_format_list(create_info.pNext);
 		pCreateInfo = &create_info;
+
+		if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
+		{
+			// Remove format list info if format was overriden
+			if (std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.format) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
+				// This is evil, because writing into application memory, but it is what it is
+				const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
+		}
 	}
 #endif
 

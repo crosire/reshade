@@ -22,7 +22,6 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 #if RESHADE_ADDON
 extern void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image);
 extern void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkImage image);
-extern void clear_image_format_list(const void *pNext);
 #endif
 
 #if VK_KHR_swapchain
@@ -231,8 +230,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			format_list_info != nullptr &&
 			std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.imageFormat) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
 		{
-			// Keeping the function centralized
-			clear_image_format_list(create_info.pNext);
+			const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
 		}
 
 		create_info.minImageCount = desc.back_buffer_count;
