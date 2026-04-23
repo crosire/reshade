@@ -1317,7 +1317,7 @@ VkResult reshade::vulkan::device_impl::create_graphics_pipeline(const VkGraphics
 	};
 
 	VkGraphicsPipelineCreateInfo create_info = original_create_info != nullptr ? *original_create_info : VkGraphicsPipelineCreateInfo { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-	create_info.layout = reinterpret_cast<VkPipelineLayout>(layout.handle);
+	create_info.layout = (VkPipelineLayout)layout.handle;
 
 	if (find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO) == nullptr)
 		create_info.flags = convert_pipeline_flags(desc.flags);
@@ -1694,7 +1694,7 @@ VkResult reshade::vulkan::device_impl::create_graphics_pipeline(const VkGraphics
 	if (result == VK_SUCCESS)
 	{
 		destroy_intermediates();
-		*out_pipeline = { reinterpret_cast<uint64_t>(object) };
+		*out_pipeline = { (uint64_t)object };
 		return VK_SUCCESS;
 	}
 
@@ -1732,7 +1732,7 @@ VkResult reshade::vulkan::device_impl::create_pipeline(const VkComputePipelineCr
 	}
 
 	VkComputePipelineCreateInfo create_info = original_create_info;
-	create_info.layout = reinterpret_cast<VkPipelineLayout>(layout.handle);
+	create_info.layout = (VkPipelineLayout)layout.handle;
 
 	if (find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO) == nullptr)
 		create_info.flags = convert_pipeline_flags(flags);
@@ -1751,7 +1751,7 @@ VkResult reshade::vulkan::device_impl::create_pipeline(const VkComputePipelineCr
 		{
 			vk.DestroyShaderModule(_orig, create_info.stage.module, nullptr);
 
-			*out_pipeline = { reinterpret_cast<uint64_t>(object) };
+			*out_pipeline = { (uint64_t)object };
 			return VK_SUCCESS;
 		}
 
@@ -1763,7 +1763,7 @@ VkResult reshade::vulkan::device_impl::create_pipeline(const VkComputePipelineCr
 	const VkResult result = vk.CreateComputePipelines(_orig, pipeline_cache, 1, &create_info, nullptr, &object);
 	if (result == VK_SUCCESS)
 	{
-		*out_pipeline = { reinterpret_cast<uint64_t>(object) };
+		*out_pipeline = { (uint64_t)object };
 		return VK_SUCCESS;
 	}
 
