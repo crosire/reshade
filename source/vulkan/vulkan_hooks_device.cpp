@@ -1590,10 +1590,9 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
-			assert(create_info.pNext == nullptr); // 'device_impl::create_pipeline' does not support extension structures apart from dynamic rendering
-
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				create_info, pipelineCache,
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]));
 		}
 		else
 		{
@@ -1674,7 +1673,8 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				create_info, pipelineCache,
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]));
 		}
 		else
 		{
@@ -1983,14 +1983,14 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	reshade::api::pipeline_layout_param *param_data = params.data();
 
+	bool registered_pipeline_layout = false;
 	if (pAllocator == nullptr && // Cannot replace pipeline layout if custom allocator is used, since corresponding 'vkDestroyPipelineLayout' would be called with mismatching allocator callbacks
 		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, param_count, param_data))
 	{
 		static_assert(sizeof(*pPipelineLayout) == sizeof(reshade::api::pipeline_layout));
 
-		assert(pCreateInfo->pNext == nullptr); // 'device_impl::create_pipeline_layout' does not support extension structures
-
-		result = device_impl->create_pipeline_layout(param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+		result = device_impl->create_pipeline_layout(*pCreateInfo, param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+		registered_pipeline_layout = result == VK_SUCCESS;
 	}
 	else
 #endif
@@ -2007,8 +2007,11 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	}
 
 #if RESHADE_ADDON >= 2
+	if (!registered_pipeline_layout)
+	{
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout);
 	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+	}
 
 	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, param_count, param_data, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
 #endif
@@ -2031,6 +2034,14 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 	// Clean up any samplers that may have been created when an add-on modified the creation of the pipeline layout
 	for (const VkSampler sampler : data.embedded_samplers)
 		device_impl->destroy_sampler({ (uint64_t)sampler });
+
+	const auto destroy_descriptor_set_layout = device_impl->_dispatch_table.DestroyDescriptorSetLayout;
+	assert(destroy_descriptor_set_layout != nullptr);
+	for (const VkDescriptorSetLayout set_layout : data.owned_set_layouts)
+	{
+		device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
+		destroy_descriptor_set_layout(device, set_layout, nullptr);
+	}
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
 #endif
