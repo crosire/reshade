@@ -22,6 +22,7 @@ extern lockfree_linear_map<void *, reshade::vulkan::device_impl *, 8> g_vulkan_d
 #if RESHADE_ADDON
 extern void create_default_view(reshade::vulkan::device_impl *device_impl, VkImage image);
 extern void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkImage image);
+extern void clear_image_format_list(const void *pNext);
 #endif
 
 #if VK_KHR_swapchain
@@ -94,6 +95,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			create_info.pQueueFamilyIndices = queue_family_list.data();
 		}
 	}
+
+#if RESHADE_ADDON
+	if (reshade::has_addon_event<reshade::addon_event::create_resource_view>())
+		clear_image_format_list(create_info.pNext);
+#endif
 
 	// Dump swap chain description
 	{
@@ -224,6 +230,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.imageExtent.height = desc.back_buffer.texture.height;
 		create_info.imageArrayLayers = desc.back_buffer.texture.depth_or_layers;
 		reshade::vulkan::convert_usage_to_image_usage_flags(desc.back_buffer.usage, create_info.imageUsage);
+		clear_image_format_list(create_info.pNext);
 
 		create_info.minImageCount = desc.back_buffer_count;
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);

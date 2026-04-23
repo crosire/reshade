@@ -106,10 +106,12 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		temp_mem<VkRenderingAttachmentInfo, 8> color_attachments(count);
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)rts[i].view.handle);
-
 			convert_render_pass_render_target_desc(rts[i], color_attachments[i]);
 
+			if (rts[i].view == 0)
+				continue;
+
+			const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)rts[i].view.handle);
 			rendering_info.renderArea.extent.width = std::min(rendering_info.renderArea.extent.width, view_data->image_extent.width);
 			rendering_info.renderArea.extent.height = std::min(rendering_info.renderArea.extent.height, view_data->image_extent.height);
 			rendering_info.layerCount = std::min(rendering_info.layerCount, view_data->create_info.subresourceRange.layerCount);
@@ -199,7 +201,6 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 			subpass.pDepthStencilAttachment = (ds != nullptr && ds->view != 0) ? &attach_refs[count] : nullptr;
 
 			VkRenderPassCreateInfo render_pass_create_info { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-			render_pass_create_info.attachmentCount = subpass.colorAttachmentCount + (subpass.pDepthStencilAttachment != nullptr ? 1 : 0);
 			render_pass_create_info.pAttachments = attach_descs.p;
 			render_pass_create_info.subpassCount = 1;
 			render_pass_create_info.pSubpasses = &subpass;
@@ -208,23 +209,37 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 			VkFramebufferCreateInfo framebuffer_create_info { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 			framebuffer_create_info.width = framebuffer_create_info.height = framebuffer_create_info.layers = std::numeric_limits<uint32_t>::max();
-			framebuffer_create_info.attachmentCount = render_pass_create_info.attachmentCount;
 			framebuffer_create_info.pAttachments = attach_views.p;
 
 			for (uint32_t i = 0; i < subpass.colorAttachmentCount; ++i)
 			{
-				attach_views[i] = (VkImageView)rts[i].view.handle;
-
-				const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(attach_views[i]);
-
 				VkAttachmentReference &attach_ref = attach_refs[i];
-				if ((rts[i].load_op == api::render_pass_load_op::discard && rts[i].store_op == api::render_pass_store_op::discard))
+				if (rts[i].view == 0 || (rts[i].load_op == api::render_pass_load_op::discard && rts[i].store_op == api::render_pass_store_op::discard))
+				{
 					attach_ref.attachment = VK_ATTACHMENT_UNUSED;
+					attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+					if (rts[i].view != 0)
+					{
+						const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)rts[i].view.handle);
+						framebuffer_create_info.width = std::min(framebuffer_create_info.width,  view_data->image_extent.width);
+						framebuffer_create_info.height = std::min(framebuffer_create_info.height, view_data->image_extent.height);
+						framebuffer_create_info.layers = std::min(framebuffer_create_info.layers, view_data->create_info.subresourceRange.layerCount);
+					}
+
+					continue;
+				}
 				else
-					attach_ref.attachment = i;
+				{
+					attach_ref.attachment = render_pass_create_info.attachmentCount++;
+				}
 				attach_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-				VkAttachmentDescription &attach_desc = attach_descs[i];
+				attach_views[attach_ref.attachment] = (VkImageView)rts[i].view.handle;
+
+				const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(attach_views[attach_ref.attachment]);
+
+				VkAttachmentDescription &attach_desc = attach_descs[attach_ref.attachment];
 				attach_desc.flags = 0;
 				attach_desc.format = view_data->create_info.format;
 				attach_desc.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -242,19 +257,28 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 
 			if (subpass.pDepthStencilAttachment != nullptr)
 			{
-				attach_views[count] = (VkImageView)ds->view.handle;
-
-				const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(attach_views[count]);
-
 				VkAttachmentReference &attach_ref = attach_refs[count];
 				if ((ds->depth_load_op == api::render_pass_load_op::discard && ds->depth_store_op == api::render_pass_store_op::discard) &&
 					(ds->stencil_load_op == api::render_pass_load_op::discard && ds->stencil_store_op == api::render_pass_store_op::discard))
+				{
 					attach_ref.attachment = VK_ATTACHMENT_UNUSED;
+					attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+					const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>((VkImageView)ds->view.handle);
+					framebuffer_create_info.width = std::min(framebuffer_create_info.width, view_data->image_extent.width);
+					framebuffer_create_info.height = std::min(framebuffer_create_info.height, view_data->image_extent.height);
+					framebuffer_create_info.layers = std::min(framebuffer_create_info.layers, view_data->create_info.subresourceRange.layerCount);
+				}
 				else
-					attach_ref.attachment = count;
+				{
+					attach_ref.attachment = render_pass_create_info.attachmentCount++;
 				attach_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-				VkAttachmentDescription &attach_desc = attach_descs[count];
+					attach_views[attach_ref.attachment] = (VkImageView)ds->view.handle;
+
+					const auto view_data = _device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE_VIEW>(attach_views[attach_ref.attachment]);
+
+					VkAttachmentDescription &attach_desc = attach_descs[attach_ref.attachment];
 				attach_desc.flags = 0;
 				attach_desc.format = view_data->create_info.format;
 				attach_desc.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -269,6 +293,8 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 				framebuffer_create_info.height = std::min(framebuffer_create_info.height, view_data->image_extent.height);
 				framebuffer_create_info.layers = std::min(framebuffer_create_info.layers, view_data->create_info.subresourceRange.layerCount);
 			}
+			}
+			framebuffer_create_info.attachmentCount = render_pass_create_info.attachmentCount;
 
 			if (vk.CreateRenderPass(_device_impl->_orig, &render_pass_create_info, nullptr, &begin_info.renderPass) != VK_SUCCESS)
 			{
@@ -294,12 +320,22 @@ void reshade::vulkan::command_list_impl::begin_render_pass(uint32_t count, const
 		lock.unlock();
 
 		temp_mem<VkClearValue, 9> clear_values(max_attachments);
+		uint32_t clear_value_count = 0;
 		for (uint32_t i = 0; i < count; ++i)
-			std::copy_n(rts[i].clear_color, 4, clear_values[i].color.float32);
-		if (ds != nullptr)
-			clear_values[count].depthStencil = { ds->clear_depth, ds->clear_stencil };
+		{
+			if (rts[i].view == 0 || (rts[i].load_op == api::render_pass_load_op::discard && rts[i].store_op == api::render_pass_store_op::discard))
+				continue;
 
-		begin_info.clearValueCount = count + (ds != nullptr ? 1 : 0);
+			std::copy_n(rts[i].clear_color, 4, clear_values[clear_value_count++].color.float32);
+		}
+		if (ds != nullptr && ds->view != 0 &&
+			(ds->depth_load_op != api::render_pass_load_op::discard || ds->depth_store_op != api::render_pass_store_op::discard ||
+			 ds->stencil_load_op != api::render_pass_load_op::discard || ds->stencil_store_op != api::render_pass_store_op::discard))
+		{
+			clear_values[clear_value_count++].depthStencil = { ds->clear_depth, ds->clear_stencil };
+		}
+
+		begin_info.clearValueCount = clear_value_count;
 		begin_info.pClearValues = clear_values.p;
 
 		vk.CmdBeginRenderPass(_orig, &begin_info, (flags & api::render_pass_flags::suspend) != 0 ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
