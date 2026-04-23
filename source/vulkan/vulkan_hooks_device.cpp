@@ -28,7 +28,6 @@ void clear_image_format_list(const void *pNext)
 {
 	if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
 			pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
-		// This is evil, because writing into application memory, but it is what it is
 		const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
 }
 
@@ -1214,15 +1213,8 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device_impl, desc, nullptr, pCreateInfo->initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED ? reshade::api::resource_usage::cpu_access : reshade::api::resource_usage::undefined))
 	{
 		reshade::vulkan::convert_resource_desc(desc, create_info);
-		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-		clear_image_format_list(create_info.pNext);
-		pCreateInfo = &create_info;
-	}
-
-	if (reshade::has_addon_event<reshade::addon_event::create_resource_view>())
-		{
-		create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-		clear_image_format_list(create_info.pNext);
+		if ((create_info.flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
+			clear_image_format_list(create_info.pNext);
 		pCreateInfo = &create_info;
 	}
 #endif
@@ -1277,10 +1269,6 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(device_impl, reshade::api::resource { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, desc))
 	{
 		reshade::vulkan::convert_resource_view_desc(desc, create_info);
-
-		if (auto resource_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE, true>(create_info.image))
-			resource_data->create_info.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-
 		pCreateInfo = &create_info;
 	}
 #endif

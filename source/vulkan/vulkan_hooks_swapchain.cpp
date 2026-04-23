@@ -96,11 +96,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 	}
 
-#if RESHADE_ADDON
-	if (reshade::has_addon_event<reshade::addon_event::create_resource_view>())
-		clear_image_format_list(create_info.pNext);
-#endif
-
 	// Dump swap chain description
 	{
 		const char *format_string = nullptr;
@@ -230,7 +225,15 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		create_info.imageExtent.height = desc.back_buffer.texture.height;
 		create_info.imageArrayLayers = desc.back_buffer.texture.depth_or_layers;
 		reshade::vulkan::convert_usage_to_image_usage_flags(desc.back_buffer.usage, create_info.imageUsage);
-		clear_image_format_list(create_info.pNext);
+
+		if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
+				create_info.pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO);
+			format_list_info != nullptr &&
+			std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.imageFormat) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
+		{
+			// Keeping the function centralized
+			clear_image_format_list(create_info.pNext);
+		}
 
 		create_info.minImageCount = desc.back_buffer_count;
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
