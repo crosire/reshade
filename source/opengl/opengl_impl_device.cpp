@@ -1479,6 +1479,12 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 			if (target == GL_TEXTURE)
 			{
 				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+				if (target == GL_TEXTURE)
+				{
+					// Object does not have a texture target and is therefore likely no longer valid
+					assert(!gl.IsTexture(object));
+					return { 0 };
+				}
 
 				// Layered attachments are only valid for texture target types
 				GLint layered = GL_FALSE;
