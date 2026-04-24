@@ -1196,8 +1196,9 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			struct
 			{
 				D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
-				D3D12_PIPELINE_STATE_STREAM_MS as;
+				D3D12_PIPELINE_STATE_STREAM_AS as;
 				D3D12_PIPELINE_STATE_STREAM_MS ms;
+				D3D12_PIPELINE_STATE_STREAM_PS ps;
 				D3D12_PIPELINE_STATE_STREAM_BLEND_DESC blend_state;
 				D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK sample_mask;
 				D3D12_PIPELINE_STATE_STREAM_RASTERIZER rasterizer_state;
@@ -1213,6 +1214,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			reshade::d3d12::convert_shader_desc(as_desc, stream_data.as.data);
 			stream_data.ms.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
 			reshade::d3d12::convert_shader_desc(ms_desc, stream_data.ms.data);
+			stream_data.ps.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS;
+			reshade::d3d12::convert_shader_desc(ps_desc, stream_data.ps.data);
 			stream_data.blend_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
 			reshade::d3d12::convert_blend_desc(blend_desc, stream_data.blend_state.data);
 			stream_data.sample_mask.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
@@ -1232,7 +1235,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 
 			D3D12_PIPELINE_STATE_STREAM_DESC stream_desc;
 			stream_desc.pPipelineStateSubobjectStream = &stream_data;
-			stream_desc.SizeInBytes = sizeof(stream_desc);
+			stream_desc.SizeInBytes = sizeof(stream_data);
 
 			if (com_ptr<ID3D12PipelineState> pipeline;
 				SUCCEEDED(device2->CreatePipelineState(&stream_desc, IID_PPV_ARGS(&pipeline))))
