@@ -1208,13 +1208,13 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 		reshade::vulkan::convert_resource_desc(desc, create_info);
 		pCreateInfo = &create_info;
 
-		if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
+		if (const auto existing_format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
 		{
 			// Remove format list info if format was overriden
-			if (std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.format) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
+			if (std::find(existing_format_list_info->pViewFormats, existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount, create_info.format) == (existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount))
 				// This is evil, because writing into application memory, but it is what it is
-				const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
+				const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = 0;
 		}
 	}
 #endif
