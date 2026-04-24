@@ -119,8 +119,9 @@ namespace reshade::vulkan
 	{
 		using Handle = VkPipelineLayout;
 
-		std::vector<VkDescriptorSetLayout> set_layouts;
 		std::vector<VkSampler> embedded_samplers;
+		std::vector<VkDescriptorSetLayout> set_layouts;
+		bool owns_set_layouts;
 	};
 
 	template <>

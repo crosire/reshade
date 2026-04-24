@@ -255,11 +255,12 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		if (desc.sync_interval == 0)
 			create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
+		// Remove format list info if format was overriden
 		if (const auto existing_format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
 				create_info.pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
 		{
-			// Remove format list info if format was overriden
 			if (std::find(existing_format_list_info->pViewFormats, existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount, create_info.imageFormat) == (existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount))
+				// This is evil, because potentially writing into application memory, but it is what it is
 				const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = 0;
 		}
 	}

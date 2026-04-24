@@ -2101,8 +2101,9 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 			vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
 			object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
-			data.set_layouts = std::move(set_layouts);
 			data.embedded_samplers = std::move(embedded_samplers);
+			data.set_layouts = std::move(set_layouts);
+			data.owns_set_layouts = true;
 
 			register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(object, std::move(data));
 
@@ -2139,11 +2140,14 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 		vk.DestroySampler(_orig, sampler, nullptr);
 	}
 
-	for (const VkDescriptorSetLayout set_layout : layout_data->set_layouts)
+	if (layout_data->owns_set_layouts)
 	{
-		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
+		for (const VkDescriptorSetLayout set_layout : layout_data->set_layouts)
+		{
+			unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
 
-		vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
+			vk.DestroyDescriptorSetLayout(_orig, set_layout, nullptr);
+		}
 	}
 
 	unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle);

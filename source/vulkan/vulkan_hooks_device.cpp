@@ -1208,10 +1208,10 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 		reshade::vulkan::convert_resource_desc(desc, create_info);
 		pCreateInfo = &create_info;
 
+		// Remove format list info if format was overriden
 		if (const auto existing_format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
+				create_info.pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
 		{
-			// Remove format list info if format was overriden
 			if (std::find(existing_format_list_info->pViewFormats, existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount, create_info.format) == (existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount))
 				// This is evil, because writing into application memory, but it is what it is
 				const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = 0;
@@ -1908,6 +1908,12 @@ void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, cons
 
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_impl, reshade::api::pipeline { (uint64_t)pipeline });
+
+	if (pAllocator == nullptr)
+	{
+		device_impl->destroy_pipeline(reshade::api::pipeline { (uint64_t)pipeline });
+		return;
+	}
 #endif
 
 	trampoline(device, pipeline, pAllocator);
@@ -2009,6 +2015,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 #if RESHADE_ADDON >= 2
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout);
 	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+	data.owns_set_layouts = false;
 
 	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, param_count, param_data, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
 #endif
@@ -2026,11 +2033,12 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
 
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
-
-	// Clean up any samplers that may have been created when an add-on modified the creation of the pipeline layout
-	for (const VkSampler sampler : data.embedded_samplers)
-		device_impl->destroy_sampler({ (uint64_t)sampler });
+	if (pAllocator == nullptr)
+	{
+		// Clean up any samplers and descriptor set layouts that may have been created when an add-on modified the creation of the pipeline layout
+		device_impl->destroy_pipeline_layout(reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
+		return;
+	}
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
 #endif
