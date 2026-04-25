@@ -687,7 +687,7 @@ void reshade::d3d12::command_list_impl::copy_resource(api::resource src, api::re
 
 	assert(src != 0 && dst != 0);
 
-	UINT extra_data_size = sizeof(D3D12_SUBRESOURCE_FOOTPRINT);
+	UINT extra_data_size = sizeof(resource_extra_data);
 	if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(src.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr)) ||
 		SUCCEEDED(reinterpret_cast<ID3D12Resource *>(dst.handle)->GetPrivateData(extra_data_guid, &extra_data_size, nullptr)))
 	{
@@ -753,12 +753,14 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	{
 		src_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
-		UINT extra_data_size = sizeof(src_copy_location.PlacedFootprint.Footprint);
-		if (SUCCEEDED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &src_copy_location.PlacedFootprint.Footprint)))
+		resource_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(src_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			assert(src_subresource == 0);
 
 			src_copy_location.PlacedFootprint.Offset = 0;
+			src_copy_location.PlacedFootprint.Footprint = extra_data.footprint;
 		}
 		else
 		{
@@ -781,12 +783,14 @@ void reshade::d3d12::command_list_impl::copy_texture_region(api::resource src, u
 	{
 		dst_copy_location.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
-		UINT extra_data_size = sizeof(dst_copy_location.PlacedFootprint.Footprint);
-		if (SUCCEEDED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &dst_copy_location.PlacedFootprint.Footprint)))
+		resource_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(dst_copy_location.pResource->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			assert(dst_subresource == 0);
 
 			dst_copy_location.PlacedFootprint.Offset = 0;
+			dst_copy_location.PlacedFootprint.Footprint = extra_data.footprint;
 		}
 		else
 		{

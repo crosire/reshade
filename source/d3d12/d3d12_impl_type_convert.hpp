@@ -17,6 +17,11 @@ namespace reshade::d3d12
 	static_assert(sizeof(D3D12_VIEWPORT) == sizeof(api::viewport));
 	static_assert(sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) == sizeof(api::descriptor_table));
 
+	struct resource_extra_data
+	{
+		D3D12_SUBRESOURCE_FOOTPRINT footprint;
+	};
+
 	struct pipeline_extra_data
 	{
 		D3D12_PRIMITIVE_TOPOLOGY topology;

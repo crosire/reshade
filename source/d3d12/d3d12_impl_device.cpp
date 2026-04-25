@@ -379,7 +379,11 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 			return false;
 
 		if (placed_footprint.Footprint.Format != DXGI_FORMAT_UNKNOWN)
-			object->SetPrivateData(extra_data_guid, sizeof(placed_footprint.Footprint), &placed_footprint.Footprint);
+		{
+			resource_extra_data extra_data;
+			extra_data.footprint = placed_footprint.Footprint;
+			object->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+		}
 
 		register_resource(object.get(), initial_state == api::resource_usage::acceleration_structure);
 
@@ -439,15 +443,15 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		D3D12_SUBRESOURCE_FOOTPRINT footprint;
-		UINT extra_data_size = sizeof(footprint);
-		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &footprint)))
+		resource_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			desc.Width = footprint.Width;
-			desc.Height = footprint.Height;
-			desc.DepthOrArraySize = static_cast<UINT16>(footprint.Depth);
-			desc.Format = footprint.Format;
+			desc.Width = extra_data.footprint.Width;
+			desc.Height = extra_data.footprint.Height;
+			desc.DepthOrArraySize = static_cast<UINT16>(extra_data.footprint.Depth);
+			desc.Format = extra_data.footprint.Format;
 		}
 	}
 
@@ -667,25 +671,27 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 
 	const D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
 	if (internal_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		if (subresource != 0)
 			return false;
 
-		UINT extra_data_size = sizeof(placed_footprint.Footprint);
-		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &placed_footprint.Footprint)))
+		resource_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 			return false;
 
-		out_data->slice_pitch = placed_footprint.Footprint.Height;
+		out_data->row_pitch = extra_data.footprint.RowPitch;
+		out_data->slice_pitch = extra_data.footprint.RowPitch * extra_data.footprint.Height;
 	}
 	else
 	{
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
 		_orig->GetCopyableFootprints(&internal_desc, subresource, 1, 0, &placed_footprint, &out_data->slice_pitch, nullptr, nullptr);
-	}
 
-	out_data->row_pitch = placed_footprint.Footprint.RowPitch;
-	out_data->slice_pitch *= placed_footprint.Footprint.RowPitch;
+		out_data->row_pitch = placed_footprint.Footprint.RowPitch;
+		out_data->slice_pitch *= placed_footprint.Footprint.RowPitch;
+	}
 
 	return SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle),
 		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
