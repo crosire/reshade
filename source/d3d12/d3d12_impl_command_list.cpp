@@ -1005,18 +1005,18 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 	const api::resource_view_desc view_desc = _device_impl->get_resource_view_desc(srv);
 
-	const uint32_t level_count = std::min(view_desc.texture.level_count, static_cast<uint32_t>(desc.MipLevels));
-	if (level_count == 1)
+	const uint32_t levels = std::min(view_desc.texture.levels, static_cast<uint32_t>(desc.MipLevels));
+	if (levels == 1)
 		return; // There are no mipmaps to generate
 
-	const uint32_t multiple_of_6_remainder = (level_count - 1) % 6;
-	const uint32_t level_count_multiple_of_6 = (multiple_of_6_remainder != 0) ? level_count + 6 - multiple_of_6_remainder : level_count;
+	const uint32_t multiple_of_6_remainder = (levels - 1) % 6;
+	const uint32_t levels_multiple_of_6 = (multiple_of_6_remainder != 0) ? levels + 6 - multiple_of_6_remainder : levels;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE base_handle;
 	D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu;
-	if (!_device_impl->_gpu_view_heap.allocate_transient(level_count_multiple_of_6, base_handle, base_handle_gpu))
+	if (!_device_impl->_gpu_view_heap.allocate_transient(levels_multiple_of_6, base_handle, base_handle_gpu))
 	{
-		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", level_count_multiple_of_6, static_cast<uint32_t>(api::descriptor_type::unordered_access_view));
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", levels_multiple_of_6, static_cast<uint32_t>(api::descriptor_type::unordered_access_view));
 		return;
 	}
 
@@ -1028,12 +1028,12 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	uav_desc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
 	uav_desc.Texture2DArray.PlaneSlice = 0;
 
-	for (uint32_t level = 0; level < level_count; ++level, ++uav_desc.Texture2DArray.MipSlice,
+	for (uint32_t level = 0; level < levels; ++level, ++uav_desc.Texture2DArray.MipSlice,
 			base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 		_device_impl->_orig->CreateUnorderedAccessView(reinterpret_cast<ID3D12Resource *>(resource.handle), nullptr, &uav_desc, base_handle);
 
 	// Clear out remaining descriptors
-	for (uint32_t level = level_count; level < level_count_multiple_of_6; ++level,
+	for (uint32_t level = levels; level < levels_multiple_of_6; ++level,
 			base_handle = _device_impl->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 		_device_impl->_orig->CreateUnorderedAccessView(nullptr, nullptr, &uav_desc, base_handle);
 
@@ -1065,14 +1065,14 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 		const uint32_t width = std::max(1u, static_cast<uint32_t>(desc.Width) >> (view_desc.texture.first_level + level));
 		const uint32_t height = std::max(1u, desc.Height >> (view_desc.texture.first_level + level));
 
-		_orig->SetComputeRoot32BitConstant(0, level_count - level, 0);
+		_orig->SetComputeRoot32BitConstant(0, levels - level, 0);
 		_orig->SetComputeRootDescriptorTable(1, _device_impl->offset_descriptor_handle(base_handle_gpu, level, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
 		_orig->Dispatch(((width - 1) / 64) + 1, ((height - 1) / 64) + 1, desc.DepthOrArraySize);
 
 		level += 6;
 
-		if (level + 1 < level_count)
+		if (level + 1 < levels)
 		{
 			_orig->ResourceBarrier(1, &barriers[1]);
 		}

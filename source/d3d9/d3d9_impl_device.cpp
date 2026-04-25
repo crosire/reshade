@@ -563,9 +563,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			if (desc.type != api::resource_view_type::unknown)
 			{
 				assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-				assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == UINT32_MAX));
+				assert(desc.texture.first_layer == 0 && (desc.texture.layers == 1 || desc.texture.layers == UINT32_MAX));
 
-				if (desc.texture.first_level != 0 || (desc.texture.level_count != 1 && desc.texture.level_count != UINT32_MAX))
+				if (desc.texture.first_level != 0 || (desc.texture.levels != 1 && desc.texture.levels != UINT32_MAX))
 					break;
 
 				D3DSURFACE_DESC internal_desc;
@@ -591,9 +591,9 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			if (desc.type != api::resource_view_type::unknown)
 			{
 				assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-				assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == UINT32_MAX));
+				assert(desc.texture.first_layer == 0 && (desc.texture.layers == 1 || desc.texture.layers == UINT32_MAX));
 
-				if (desc.texture.level_count != 1 && !(desc.texture.level_count == UINT32_MAX && IDirect3DTexture9_GetLevelCount(static_cast<IDirect3DTexture9 *>(object)) == 1))
+				if (desc.texture.levels != 1 && !(desc.texture.levels == UINT32_MAX && IDirect3DTexture9_GetLevelCount(static_cast<IDirect3DTexture9 *>(object)) == 1))
 					break;
 
 				level = desc.texture.first_level;
@@ -618,7 +618,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			if (desc.type != api::resource_view_type::unknown)
 			{
 				assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
-				assert(desc.texture.first_layer == 0 && (desc.texture.layer_count == 1 || desc.texture.layer_count == UINT32_MAX));
+				assert(desc.texture.first_layer == 0 && (desc.texture.layers == 1 || desc.texture.layers == UINT32_MAX));
 
 				if (desc.texture.first_level != 0)
 					break;
@@ -673,7 +673,7 @@ bool reshade::d3d9::device_impl::create_resource_view(api::resource resource, ap
 			{
 				assert(desc.type == api::resource_view_type::texture_2d || desc.type == api::resource_view_type::texture_2d_multisample);
 
-				if (desc.texture.level_count != 1 && !(desc.texture.level_count == UINT32_MAX && IDirect3DCubeTexture9_GetLevelCount(static_cast<IDirect3DTexture9 *>(object)) == 1) || desc.texture.layer_count != 1)
+				if (desc.texture.levels != 1 && !(desc.texture.levels == UINT32_MAX && IDirect3DCubeTexture9_GetLevelCount(static_cast<IDirect3DTexture9 *>(object)) == 1) || desc.texture.layers != 1)
 					break;
 
 				face = static_cast<D3DCUBEMAP_FACES>(desc.texture.first_layer);

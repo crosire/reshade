@@ -2003,8 +2003,8 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 			internal_format == GL_R16_SNORM ||
 			internal_format == GL_R8_SNORM)
 		{
-			GLuint level_count = 0;
-			gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&level_count));
+			GLuint levels = 0;
+			gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&levels));
 			GLuint base_level_width = 0;
 			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_level_width));
 			GLuint base_level_height = 0;
@@ -2013,7 +2013,7 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 			// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
 			gl.UseProgram(_device_impl->_mipmap_program);
 
-			for (GLuint level = 1; level < level_count; ++level)
+			for (GLuint level = 1; level < levels; ++level)
 			{
 				const GLuint width = std::max(1u, base_level_width >> level);
 				const GLuint height = std::max(1u, base_level_height >> level);

@@ -1523,9 +1523,9 @@ void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &
 		create_info.format = format;
 
 	create_info.subresourceRange.baseMipLevel = desc.texture.first_level;
-	create_info.subresourceRange.levelCount = desc.texture.level_count;
+	create_info.subresourceRange.levelCount = desc.texture.levels;
 	create_info.subresourceRange.baseArrayLayer = desc.texture.first_layer;
-	create_info.subresourceRange.layerCount = desc.texture.layer_count;
+	create_info.subresourceRange.layerCount = desc.texture.layers;
 }
 void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
@@ -1581,9 +1581,9 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 
 	desc.format = convert_format(create_info.format, &create_info.components);
 	desc.texture.first_level = create_info.subresourceRange.baseMipLevel;
-	desc.texture.level_count = create_info.subresourceRange.levelCount;
+	desc.texture.levels = create_info.subresourceRange.levelCount;
 	desc.texture.first_layer = create_info.subresourceRange.baseArrayLayer;
-	desc.texture.layer_count = create_info.subresourceRange.layerCount;
+	desc.texture.layers = create_info.subresourceRange.layerCount;
 
 	return desc;
 }

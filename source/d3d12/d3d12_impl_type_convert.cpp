@@ -563,7 +563,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MipSlice = desc.texture.first_level;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture1DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture1DArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
@@ -573,7 +573,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MipSlice = desc.texture.first_level;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_2d_multisample:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
@@ -581,7 +581,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 	case api::resource_view_type::texture_2d_multisample_array:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
 		internal_desc.Texture2DMSArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DMSArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DMSArray.ArraySize = desc.texture.layers;
 		break;
 	}
 }
@@ -604,7 +604,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MipSlice = desc.texture.first_level;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture1DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture1DArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -614,7 +614,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MipSlice = desc.texture.first_level;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_2d_multisample:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
@@ -622,13 +622,13 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 	case api::resource_view_type::texture_2d_multisample_array:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
 		internal_desc.Texture2DMSArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DMSArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DMSArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_3d:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
 		internal_desc.Texture3D.MipSlice = desc.texture.first_level;
 		internal_desc.Texture3D.FirstWSlice = desc.texture.first_layer;
-		internal_desc.Texture3D.WSize = desc.texture.layer_count;
+		internal_desc.Texture3D.WSize = desc.texture.layers;
 		break;
 	}
 }
@@ -663,29 +663,29 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 	case api::resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
 		internal_desc.Texture1D.MostDetailedMip = desc.texture.first_level;
-		internal_desc.Texture1D.MipLevels = desc.texture.level_count;
+		internal_desc.Texture1D.MipLevels = desc.texture.levels;
 		// Missing fields: D3D12_TEX1D_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::texture_1d_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MostDetailedMip = desc.texture.first_level;
-		internal_desc.Texture1DArray.MipLevels = desc.texture.level_count;
+		internal_desc.Texture1DArray.MipLevels = desc.texture.levels;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture1DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture1DArray.ArraySize = desc.texture.layers;
 		// Missing fields: D3D12_TEX1D_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		internal_desc.Texture2D.MostDetailedMip = desc.texture.first_level;
-		internal_desc.Texture2D.MipLevels = desc.texture.level_count;
+		internal_desc.Texture2D.MipLevels = desc.texture.levels;
 		// Missing fields: D3D12_TEX2D_SRV::PlaneSlice, D3D12_TEX2D_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::texture_2d_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MostDetailedMip = desc.texture.first_level;
-		internal_desc.Texture2DArray.MipLevels = desc.texture.level_count;
+		internal_desc.Texture2DArray.MipLevels = desc.texture.levels;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DArray.ArraySize = desc.texture.layers;
 		// Missing fields D3D12_TEX2D_ARRAY_SRV::PlaneSlice, D3D12_TEX2D_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::texture_2d_multisample:
@@ -694,29 +694,29 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 	case api::resource_view_type::texture_2d_multisample_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
 		internal_desc.Texture2DMSArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DMSArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DMSArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_3d:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
 		internal_desc.Texture3D.MostDetailedMip = desc.texture.first_level;
-		internal_desc.Texture3D.MipLevels = desc.texture.level_count;
+		internal_desc.Texture3D.MipLevels = desc.texture.levels;
 		// Missing fields: D3D12_TEX3D_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::texture_cube:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 		internal_desc.TextureCube.MostDetailedMip = desc.texture.first_level;
-		internal_desc.TextureCube.MipLevels = desc.texture.level_count;
+		internal_desc.TextureCube.MipLevels = desc.texture.levels;
 		// Missing fields: D3D12_TEXCUBE_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::texture_cube_array:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
 		internal_desc.TextureCubeArray.MostDetailedMip = desc.texture.first_level;
-		internal_desc.TextureCubeArray.MipLevels = desc.texture.level_count;
+		internal_desc.TextureCubeArray.MipLevels = desc.texture.levels;
 		internal_desc.TextureCubeArray.First2DArrayFace = desc.texture.first_layer;
-		if (desc.texture.layer_count == UINT32_MAX)
+		if (desc.texture.layers == UINT32_MAX)
 			internal_desc.TextureCubeArray.NumCubes = UINT_MAX;
 		else
-			internal_desc.TextureCubeArray.NumCubes = desc.texture.layer_count / 6;
+			internal_desc.TextureCubeArray.NumCubes = desc.texture.layers / 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case api::resource_view_type::acceleration_structure:
@@ -728,7 +728,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_UNORDERED_ACCESS_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = convert_format(desc.format);
-	assert(desc.type == api::resource_view_type::buffer || desc.texture.level_count == 1);
+	assert(desc.type == api::resource_view_type::buffer || desc.texture.levels == 1);
 	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:
@@ -762,7 +762,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
 		internal_desc.Texture1DArray.MipSlice = desc.texture.first_level;
 		internal_desc.Texture1DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture1DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture1DArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_2d:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
@@ -772,13 +772,13 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
 		internal_desc.Texture2DArray.MipSlice = desc.texture.first_level;
 		internal_desc.Texture2DArray.FirstArraySlice = desc.texture.first_layer;
-		internal_desc.Texture2DArray.ArraySize = desc.texture.layer_count;
+		internal_desc.Texture2DArray.ArraySize = desc.texture.layers;
 		break;
 	case api::resource_view_type::texture_3d:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
 		internal_desc.Texture3D.MipSlice = desc.texture.first_level;
 		internal_desc.Texture3D.FirstWSlice = desc.texture.first_layer;
-		internal_desc.Texture3D.WSize = desc.texture.layer_count;
+		internal_desc.Texture3D.WSize = desc.texture.layers;
 		break;
 	}
 }
@@ -796,23 +796,23 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
 		desc.type = api::resource_view_type::texture_1d;
 		desc.texture.first_level = 0;
-		desc.texture.level_count = UINT32_MAX;
+		desc.texture.levels = UINT32_MAX;
 		desc.texture.first_layer = 0;
-		desc.texture.layer_count = UINT32_MAX;
+		desc.texture.layers = UINT32_MAX;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
 		desc.type = api::resource_view_type::texture_2d;
 		desc.texture.first_level = 0;
-		desc.texture.level_count = UINT32_MAX;
+		desc.texture.levels = UINT32_MAX;
 		desc.texture.first_layer = 0;
-		desc.texture.layer_count = UINT32_MAX;
+		desc.texture.layers = UINT32_MAX;
 		break;
 	case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
 		desc.type = api::resource_view_type::texture_3d;
 		desc.texture.first_level = 0;
-		desc.texture.level_count = UINT32_MAX;
+		desc.texture.levels = UINT32_MAX;
 		desc.texture.first_layer = 0;
-		desc.texture.layer_count = UINT32_MAX;
+		desc.texture.layers = UINT32_MAX;
 		break;
 	}
 
@@ -823,7 +823,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
 	api::resource_view_desc desc = {};
 	desc.format = convert_format(internal_desc.Format);
-	desc.texture.level_count = 1;
+	desc.texture.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_DSV_DIMENSION_TEXTURE1D:
@@ -834,7 +834,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.type = api::resource_view_type::texture_1d_array;
 		desc.texture.first_level = internal_desc.Texture1DArray.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture1DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture1DArray.ArraySize;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE2D:
 		desc.type = api::resource_view_type::texture_2d;
@@ -844,7 +844,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.type = api::resource_view_type::texture_2d_array;
 		desc.texture.first_level = internal_desc.Texture2DArray.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DArray.ArraySize;
 		break;
 	case D3D12_DSV_DIMENSION_TEXTURE2DMS:
 		desc.type = api::resource_view_type::texture_2d_multisample;
@@ -852,7 +852,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY:
 		desc.type = api::resource_view_type::texture_2d_multisample_array;
 		desc.texture.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DMSArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DMSArray.ArraySize;
 		break;
 	}
 	return desc;
@@ -861,7 +861,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 {
 	api::resource_view_desc desc = {};
 	desc.format = convert_format(internal_desc.Format);
-	desc.texture.level_count = 1;
+	desc.texture.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_RTV_DIMENSION_BUFFER:
@@ -877,7 +877,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.type = api::resource_view_type::texture_1d_array;
 		desc.texture.first_level = internal_desc.Texture1DArray.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture1DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture1DArray.ArraySize;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE2D:
 		desc.type = api::resource_view_type::texture_2d;
@@ -887,7 +887,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.type = api::resource_view_type::texture_2d_array;
 		desc.texture.first_level = internal_desc.Texture2DArray.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DArray.ArraySize;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE2DMS:
 		desc.type = api::resource_view_type::texture_2d_multisample;
@@ -895,13 +895,13 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY:
 		desc.type = api::resource_view_type::texture_2d_multisample_array;
 		desc.texture.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DMSArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DMSArray.ArraySize;
 		break;
 	case D3D12_RTV_DIMENSION_TEXTURE3D:
 		desc.type = api::resource_view_type::texture_3d;
 		desc.texture.first_level = internal_desc.Texture3D.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture3D.FirstWSlice;
-		desc.texture.layer_count = internal_desc.Texture3D.WSize;
+		desc.texture.layers = internal_desc.Texture3D.WSize;
 		break;
 	}
 	return desc;
@@ -933,29 +933,29 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_SRV_DIMENSION_TEXTURE1D:
 		desc.type = api::resource_view_type::texture_1d;
 		desc.texture.first_level = internal_desc.Texture1D.MostDetailedMip;
-		desc.texture.level_count = internal_desc.Texture1D.MipLevels;
+		desc.texture.levels = internal_desc.Texture1D.MipLevels;
 		// Missing fields: D3D12_TEX1D_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE1DARRAY:
 		desc.type = api::resource_view_type::texture_1d_array;
 		desc.texture.first_level = internal_desc.Texture1DArray.MostDetailedMip;
-		desc.texture.level_count = internal_desc.Texture1DArray.MipLevels;
+		desc.texture.levels = internal_desc.Texture1DArray.MipLevels;
 		desc.texture.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture1DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture1DArray.ArraySize;
 		// Missing fields: D3D12_TEX1D_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2D:
 		desc.type = api::resource_view_type::texture_2d;
 		desc.texture.first_level = internal_desc.Texture2D.MostDetailedMip;
-		desc.texture.level_count = internal_desc.Texture2D.MipLevels;
+		desc.texture.levels = internal_desc.Texture2D.MipLevels;
 		// Missing fields: D3D12_TEX2D_SRV::PlaneSlice, D3D12_TEX2D_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2DARRAY:
 		desc.type = api::resource_view_type::texture_2d_array;
 		desc.texture.first_level = internal_desc.Texture2DArray.MostDetailedMip;
-		desc.texture.level_count = internal_desc.Texture2DArray.MipLevels;
+		desc.texture.levels = internal_desc.Texture2DArray.MipLevels;
 		desc.texture.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DArray.ArraySize;
 		// Missing fields D3D12_TEX2D_ARRAY_SRV::PlaneSlice, D3D12_TEX2D_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE2DMS:
@@ -964,29 +964,29 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY:
 		desc.type = api::resource_view_type::texture_2d_multisample_array;
 		desc.texture.first_layer = internal_desc.Texture2DMSArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DMSArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DMSArray.ArraySize;
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE3D:
 		desc.type = api::resource_view_type::texture_3d;
 		desc.texture.first_level = internal_desc.Texture3D.MostDetailedMip;
-		desc.texture.level_count = internal_desc.Texture3D.MipLevels;
+		desc.texture.levels = internal_desc.Texture3D.MipLevels;
 		// Missing fields: D3D12_TEX3D_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURECUBE:
 		desc.type = api::resource_view_type::texture_cube;
 		desc.texture.first_level = internal_desc.TextureCube.MostDetailedMip;
-		desc.texture.level_count = internal_desc.TextureCube.MipLevels;
+		desc.texture.levels = internal_desc.TextureCube.MipLevels;
 		// Missing fields: D3D12_TEXCUBE_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURECUBEARRAY:
 		desc.type = api::resource_view_type::texture_cube_array;
 		desc.texture.first_level = internal_desc.TextureCubeArray.MostDetailedMip;
-		desc.texture.level_count = internal_desc.TextureCubeArray.MipLevels;
+		desc.texture.levels = internal_desc.TextureCubeArray.MipLevels;
 		desc.texture.first_layer = internal_desc.TextureCubeArray.First2DArrayFace;
 		if (internal_desc.TextureCubeArray.NumCubes == UINT_MAX)
-			desc.texture.layer_count = UINT32_MAX;
+			desc.texture.layers = UINT32_MAX;
 		else
-			desc.texture.layer_count = internal_desc.TextureCubeArray.NumCubes * 6;
+			desc.texture.layers = internal_desc.TextureCubeArray.NumCubes * 6;
 		// Missing fields: D3D12_TEXCUBE_ARRAY_SRV::ResourceMinLODClamp
 		break;
 	case D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE:
@@ -1025,7 +1025,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 {
 	api::resource_view_desc desc = {};
 	desc.format = convert_format(internal_desc.Format);
-	desc.texture.level_count = 1;
+	desc.texture.levels = 1;
 	switch (internal_desc.ViewDimension)
 	{
 	case D3D12_UAV_DIMENSION_BUFFER:
@@ -1054,7 +1054,7 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.type = api::resource_view_type::texture_1d_array;
 		desc.texture.first_level = internal_desc.Texture1DArray.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture1DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture1DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture1DArray.ArraySize;
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE2D:
 		desc.type = api::resource_view_type::texture_2d;
@@ -1064,13 +1064,13 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.type = api::resource_view_type::texture_2d_array;
 		desc.texture.first_level = internal_desc.Texture2DArray.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture2DArray.FirstArraySlice;
-		desc.texture.layer_count = internal_desc.Texture2DArray.ArraySize;
+		desc.texture.layers = internal_desc.Texture2DArray.ArraySize;
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE3D:
 		desc.type = api::resource_view_type::texture_3d;
 		desc.texture.first_level = internal_desc.Texture3D.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture3D.FirstWSlice;
-		desc.texture.layer_count = internal_desc.Texture3D.WSize;
+		desc.texture.layers = internal_desc.Texture3D.WSize;
 		break;
 	case D3D12_UAV_DIMENSION_BUFFER_BYTE_OFFSET:
 		desc.type = api::resource_view_type::buffer;
