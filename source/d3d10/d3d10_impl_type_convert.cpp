@@ -289,7 +289,7 @@ reshade::api::resource_desc reshade::d3d10::convert_resource_desc(const D3D10_BU
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = internal_desc.ByteWidth;
-	desc.buffer.stride = 0;
+	desc.buffer.structured.stride = 0;
 	convert_d3d_usage_to_memory_heap(internal_desc.Usage, internal_desc.CPUAccessFlags, desc.heap, desc.flags);
 	convert_bind_flags_to_resource_usage(internal_desc.BindFlags, desc.usage);
 	convert_misc_flags_to_resource_flags(internal_desc.MiscFlags, desc.flags);
@@ -356,7 +356,7 @@ void reshade::d3d10::convert_resource_view_desc(const api::resource_view_desc &d
 {
 	internal_desc.Format = convert_format(desc.format);
 	assert(desc.type != api::resource_view_type::buffer);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE1D;
@@ -391,7 +391,7 @@ void reshade::d3d10::convert_resource_view_desc(const api::resource_view_desc &d
 void reshade::d3d10::convert_resource_view_desc(const api::resource_view_desc &desc, D3D10_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = convert_format(desc.format);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D10_RTV_DIMENSION_BUFFER;
@@ -439,7 +439,7 @@ void reshade::d3d10::convert_resource_view_desc(const api::resource_view_desc &d
 void reshade::d3d10::convert_resource_view_desc(const api::resource_view_desc &desc, D3D10_SHADER_RESOURCE_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = convert_format(desc.format);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D10_SRV_DIMENSION_BUFFER;

@@ -452,7 +452,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView(ID3D11Resource *
 		return _orig->CreateShaderResourceView(pResource, pDesc, ppShaderResourceView);
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
-	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
+	auto desc = reshade::d3d11::convert_resource_view_desc(pResource, internal_desc);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc))
 	{
@@ -495,7 +495,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView(ID3D11Resource 
 		return _orig->CreateUnorderedAccessView(pResource, pDesc, ppUnorderedAccessView);
 
 	D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D11_UNORDERED_ACCESS_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_UNKNOWN };
-	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
+	auto desc = reshade::d3d11::convert_resource_view_desc(pResource, internal_desc);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::unordered_access, desc))
 	{
@@ -2007,7 +2007,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource 
 		return static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, ppShaderResourceView1);
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC1 internal_desc = (pDesc1 != nullptr) ? *pDesc1 : D3D11_SHADER_RESOURCE_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_SRV_DIMENSION_UNKNOWN };
-	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
+	auto desc = reshade::d3d11::convert_resource_view_desc(pResource, internal_desc);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::shader_resource, desc))
 	{
@@ -2052,7 +2052,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource
 		return static_cast<ID3D11Device3 *>(_orig)->CreateUnorderedAccessView1(pResource, pDesc1, ppUnorderedAccessView1);
 
 	D3D11_UNORDERED_ACCESS_VIEW_DESC1 internal_desc = (pDesc1 != nullptr) ? *pDesc1 : D3D11_UNORDERED_ACCESS_VIEW_DESC1 { DXGI_FORMAT_UNKNOWN, D3D11_UAV_DIMENSION_UNKNOWN };
-	auto desc = reshade::d3d11::convert_resource_view_desc(internal_desc);
+	auto desc = reshade::d3d11::convert_resource_view_desc(pResource, internal_desc);
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_resource_view>(this, to_handle(pResource), reshade::api::resource_usage::unordered_access, desc))
 	{

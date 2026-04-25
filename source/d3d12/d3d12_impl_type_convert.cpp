@@ -425,6 +425,14 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	else
 		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
+#if 0
+	// Requires the DirectX 12 Agility SDK 1.608.0 or later
+	if ((desc.usage & api::resource_usage::acceleration_structure) != 0)
+		internal_desc.Flags |= D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE;
+	else
+		internal_desc.Flags &= ~D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE;
+#endif
+
 	if ((desc.flags & api::resource_flags::shared) != 0)
 		heap_flags |= D3D12_HEAP_FLAG_SHARED;
 
@@ -462,7 +470,7 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 	if (desc.type == api::resource_type::buffer)
 	{
 		desc.buffer.size = internal_desc.Width;
-		desc.buffer.stride = 0;
+		desc.buffer.structured.stride = 0;
 
 		// Buffers may be of any type in D3D12, so add all possible usage flags
 		desc.usage |= api::resource_usage::vertex_buffer | api::resource_usage::index_buffer | api::resource_usage::constant_buffer | api::resource_usage::stream_output;
@@ -526,6 +534,9 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 			desc.flags |= api::resource_flags::generate_mipmaps;
 	}
 
+	if ((internal_desc.Flags & D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE) != 0)
+		desc.usage |= api::resource_usage::acceleration_structure;
+
 	if ((heap_flags & D3D12_HEAP_FLAG_SHARED) != 0)
 		desc.flags |= api::resource_flags::shared | api::resource_flags::shared_nt_handle;
 
@@ -542,7 +553,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 	// Missing fields: D3D12_DEPTH_STENCIL_VIEW_DESC::Flags
 	internal_desc.Format = convert_format(desc.format);
 	assert(desc.type != api::resource_view_type::buffer);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::texture_1d:
 		internal_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE1D;
@@ -577,7 +588,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &desc, D3D12_RENDER_TARGET_VIEW_DESC &internal_desc)
 {
 	internal_desc.Format = convert_format(desc.format);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D12_RTV_DIMENSION_BUFFER;
@@ -625,14 +636,24 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 {
 	// Missing fields: D3D12_SHADER_RESOURCE_VIEW_DESC::Shader4ComponentMapping
 	internal_desc.Format = convert_format(desc.format);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		internal_desc.Buffer.FirstElement = desc.buffer.offset;
-		assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
-		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride
+		if (internal_desc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			internal_desc.Buffer.NumElements = desc.buffer.structured.count;
+			internal_desc.Buffer.StructureByteStride = desc.buffer.structured.stride;
+			if (desc.buffer.structured.stride != 0)
+				internal_desc.Buffer.FirstElement /= desc.buffer.structured.stride;
+		}
+		else
+		{
+			assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
+			internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
+			internal_desc.Buffer.StructureByteStride = 0;
+		}
 
 		if (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS)
 			internal_desc.Buffer.Flags |= D3D12_BUFFER_SRV_FLAG_RAW;
@@ -708,14 +729,25 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 {
 	internal_desc.Format = convert_format(desc.format);
 	assert(desc.type == api::resource_view_type::buffer || desc.texture.level_count == 1);
-	switch (desc.type) // Do not modifiy description in case type is 'resource_view_type::unknown'
+	switch (desc.type) // Do not modify description in case type is 'resource_view_type::unknown'
 	{
 	case api::resource_view_type::buffer:
 		internal_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 		internal_desc.Buffer.FirstElement = desc.buffer.offset;
-		assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
-		internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
-		// Missing fields: D3D12_BUFFER_UAV::StructureByteStride, D3D12_BUFFER_UAV::CounterOffsetInBytes
+		if (internal_desc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			internal_desc.Buffer.NumElements = desc.buffer.structured.count;
+			internal_desc.Buffer.StructureByteStride = desc.buffer.structured.stride;
+			if (desc.buffer.structured.stride != 0)
+				internal_desc.Buffer.FirstElement /= desc.buffer.structured.stride;
+		}
+		else
+		{
+			assert(desc.buffer.size <= std::numeric_limits<UINT>::max());
+			internal_desc.Buffer.NumElements = static_cast<UINT>(desc.buffer.size);
+			internal_desc.Buffer.StructureByteStride = 0;
+		}
+		// Missing fields: D3D12_BUFFER_UAV::CounterOffsetInBytes
 
 		if (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS)
 			internal_desc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
@@ -753,6 +785,7 @@ void reshade::d3d12::convert_resource_view_desc(const api::resource_view_desc &d
 reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(const D3D12_RESOURCE_DESC &resource_desc)
 {
 	api::resource_view_desc desc = {};
+	desc.format = convert_format(resource_desc.Format);
 	switch (resource_desc.Dimension)
 	{
 	case D3D12_RESOURCE_DIMENSION_BUFFER:
@@ -782,8 +815,6 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.texture.layer_count = UINT32_MAX;
 		break;
 	}
-
-	desc.format = convert_format(resource_desc.Format);
 
 	return desc;
 }
@@ -885,9 +916,19 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_SRV_DIMENSION_BUFFER:
 		desc.type = api::resource_view_type::buffer;
 		desc.buffer.offset = internal_desc.Buffer.FirstElement;
-		desc.buffer.size = internal_desc.Buffer.NumElements;
+		if (internal_desc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			desc.buffer.structured.count = internal_desc.Buffer.NumElements;
+			desc.buffer.structured.stride = internal_desc.Buffer.StructureByteStride;
+			if (desc.buffer.structured.stride != 0)
+				desc.buffer.offset *= desc.buffer.structured.stride;
+		}
+		else
+		{
+			desc.buffer.size = internal_desc.Buffer.NumElements;
+		}
+
 		assert(((internal_desc.Buffer.Flags & D3D12_BUFFER_SRV_FLAG_RAW) != 0) == (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS));
-		// Missing fields: D3D12_BUFFER_SRV::StructureByteStride
 		break;
 	case D3D12_SRV_DIMENSION_TEXTURE1D:
 		desc.type = api::resource_view_type::texture_1d;
@@ -953,6 +994,30 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.buffer.offset = internal_desc.RaytracingAccelerationStructure.Location;
 		desc.buffer.size = UINT64_MAX;
 		break;
+	case D3D12_SRV_DIMENSION_BUFFER_BYTE_OFFSET:
+		desc.type = api::resource_view_type::buffer;
+		desc.buffer.offset = internal_desc.BufferByteOffset.Offset;
+		if (internal_desc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			if (internal_desc.BufferByteOffset.StructureByteStride != 0)
+			{
+				assert(internal_desc.BufferByteOffset.Size / internal_desc.BufferByteOffset.StructureByteStride <= std::numeric_limits<UINT>::max());
+				desc.buffer.structured.count = static_cast<UINT>(internal_desc.BufferByteOffset.Size / internal_desc.BufferByteOffset.StructureByteStride);
+			}
+			else
+			{
+				assert(internal_desc.BufferByteOffset.Size <= std::numeric_limits<UINT>::max());
+				desc.buffer.structured.count = static_cast<UINT>(internal_desc.BufferByteOffset.Size);
+			}
+			desc.buffer.structured.stride = internal_desc.BufferByteOffset.StructureByteStride;
+		}
+		else
+		{
+			desc.buffer.size = internal_desc.BufferByteOffset.Size;
+		}
+
+		assert(((internal_desc.BufferByteOffset.Flags & D3D12_BUFFER_SRV_FLAG_RAW) != 0) == (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS));
+		break;
 	}
 	return desc;
 }
@@ -966,9 +1031,20 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 	case D3D12_UAV_DIMENSION_BUFFER:
 		desc.type = api::resource_view_type::buffer;
 		desc.buffer.offset = internal_desc.Buffer.FirstElement;
-		desc.buffer.size = internal_desc.Buffer.NumElements;
+		if (internal_desc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			desc.buffer.structured.count = internal_desc.Buffer.NumElements;
+			desc.buffer.structured.stride = internal_desc.Buffer.StructureByteStride;
+			if (desc.buffer.structured.stride != 0)
+				desc.buffer.offset *= desc.buffer.structured.stride;
+		}
+		else
+		{
+			desc.buffer.size = internal_desc.Buffer.NumElements;
+		}
+		// Missing fields: D3D12_BUFFER_UAV::CounterOffsetInBytes
+
 		assert(((internal_desc.Buffer.Flags & D3D12_BUFFER_UAV_FLAG_RAW) != 0) == (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS));
-		// Missing fields: D3D12_BUFFER_UAV::StructureByteStride, D3D12_BUFFER_UAV::CounterOffsetInBytes
 		break;
 	case D3D12_UAV_DIMENSION_TEXTURE1D:
 		desc.type = api::resource_view_type::texture_1d;
@@ -995,6 +1071,31 @@ reshade::api::resource_view_desc reshade::d3d12::convert_resource_view_desc(cons
 		desc.texture.first_level = internal_desc.Texture3D.MipSlice;
 		desc.texture.first_layer = internal_desc.Texture3D.FirstWSlice;
 		desc.texture.layer_count = internal_desc.Texture3D.WSize;
+		break;
+	case D3D12_UAV_DIMENSION_BUFFER_BYTE_OFFSET:
+		desc.type = api::resource_view_type::buffer;
+		desc.buffer.offset = internal_desc.BufferByteOffset.Offset;
+		if (internal_desc.Format == DXGI_FORMAT_UNKNOWN)
+		{
+			if (internal_desc.BufferByteOffset.StructureByteStride != 0)
+			{
+				assert(internal_desc.BufferByteOffset.Size / internal_desc.BufferByteOffset.StructureByteStride <= std::numeric_limits<UINT>::max());
+				desc.buffer.structured.count = static_cast<UINT>(internal_desc.BufferByteOffset.Size / internal_desc.BufferByteOffset.StructureByteStride);
+			}
+			else
+			{
+				assert(internal_desc.BufferByteOffset.Size <= std::numeric_limits<UINT>::max());
+				desc.buffer.structured.count = static_cast<UINT>(internal_desc.BufferByteOffset.Size);
+			}
+			desc.buffer.structured.stride = internal_desc.BufferByteOffset.StructureByteStride;
+		}
+		else
+		{
+			desc.buffer.size = internal_desc.BufferByteOffset.Size;
+		}
+		// Missing fields: D3D12_BUFFER_UAV_BYTE_OFFSET::CounterOffsetInBytes
+
+		assert(((internal_desc.BufferByteOffset.Flags & D3D12_BUFFER_UAV_FLAG_RAW) != 0) == (internal_desc.Format == DXGI_FORMAT_R32_TYPELESS));
 		break;
 	}
 	return desc;

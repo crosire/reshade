@@ -314,10 +314,14 @@ namespace reshade::api
 				/// Size of the buffer (in bytes).
 				/// </summary>
 				uint64_t size = 0;
-				/// <summary>
-				/// Structure stride for structured buffers (in bytes), otherwise zero.
-				/// </summary>
-				uint32_t stride = 0;
+
+				struct
+				{
+					/// <summary>
+					/// Structure stride for structured buffers (in bytes), otherwise zero.
+					/// </summary>
+					uint32_t stride = 0;
+				} structured;
 			} buffer;
 
 			/// <summary>
@@ -440,11 +444,29 @@ namespace reshade::api
 				/// Offset from the start of the buffer resource (in bytes).
 				/// </summary>
 				uint64_t offset = 0;
-				/// <summary>
-				/// Number of elements this view covers in the buffer resource (in bytes).
-				/// Set to -1 (UINT64_MAX) to indicate that the entire buffer resource should be used.
-				/// </summary>
-				uint64_t size = UINT64_MAX;
+				union
+				{
+					/// <summary>
+					/// Size of the view in the buffer resource (in bytes).
+					/// Set to -1 (UINT64_MAX) to indicate that the entire buffer resource should be used.
+					/// </summary>
+					uint64_t size = UINT64_MAX;
+
+					/// <summary>
+					/// Used instead of size when format is <see cref="format::unknown"/>.
+					/// </summary>
+					struct
+					{
+						/// <summary>
+						/// Number of elements this view covers for structured buffers.
+						/// </summary>
+						uint32_t count;
+						/// <summary>
+						/// Structure stride for structured buffers (in bytes).
+						/// </summary>
+						uint32_t stride;
+					} structured;
+				};
 			} buffer;
 
 			/// <summary>
