@@ -6,8 +6,6 @@
 #include "input.hpp"
 #include <cassert>
 
-extern bool is_keyboard_layout_german();
-
 reshade::input::input(window_handle window)
 	: _window(window)
 {

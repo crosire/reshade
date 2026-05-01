@@ -815,13 +815,14 @@ protected:
 
 	static std::string escape_name(std::string name)
 	{
-		static const auto stringicmp = [](const std::string &a, const std::string &b) {
+		static const auto stringicmp =
+			[](const std::string &a, const std::string &b) {
 #ifdef _WIN32
-			return _stricmp(a.c_str(), b.c_str()) == 0;
+				return _stricmp(a.c_str(), b.c_str()) == 0;
 #else
-			return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](std::string::value_type a, std::string::value_type b) { return std::tolower(a) == std::tolower(b); });
+				return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](std::string::value_type a, std::string::value_type b) { return std::tolower(a) == std::tolower(b); });
 #endif
-		};
+			};
 
 		// HLSL compiler complains about "technique" and "pass" names in strict mode (no matter the casing)
 		if (stringicmp(name, "line") ||
