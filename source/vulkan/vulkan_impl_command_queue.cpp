@@ -8,15 +8,15 @@
 #include "dll_log.hpp"
 #include <algorithm> // std::find
 
-#define vk _device_impl->_dispatch_table
+#define vk _device->_dispatch_table
 
 reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uint32_t queue_family_index, const VkQueueFamilyProperties &queue_family, VkQueue queue) :
 	api_object_impl(queue),
-	_device_impl(device),
+	_device(device),
 	_queue_family_props(queue_family)
 {
 	// Register queue to device (no need to lock, since all command queues are created single threaded in 'vkCreateDevice')
-	_device_impl->_queues.push_back(this);
+	_device->_queues.push_back(this);
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
@@ -37,12 +37,12 @@ reshade::vulkan::command_queue_impl::~command_queue_impl()
 	delete _immediate_cmd_list;
 
 	// Unregister queue from device
-	_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), this));
+	_device->_queues.erase(std::find(_device->_queues.begin(), _device->_queues.end(), this));
 }
 
 reshade::api::device *reshade::vulkan::command_queue_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 reshade::api::command_queue_type reshade::vulkan::command_queue_impl::get_type() const
@@ -172,7 +172,7 @@ uint64_t reshade::vulkan::command_queue_impl::get_timestamp_frequency() const
 		return 0;
 
 	VkPhysicalDeviceProperties device_props = {};
-	vk.GetPhysicalDeviceProperties(_device_impl->_physical_device, &device_props);
+	vk.GetPhysicalDeviceProperties(_device->_physical_device, &device_props);
 
 	return static_cast<uint64_t>(1000000000ull / device_props.limits.timestampPeriod);
 }

@@ -83,7 +83,7 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISw
 DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D12CommandQueue *command_queue, IDXGISwapChain3 *original) :
 	_orig(original),
 	_interface_version(3),
-	_direct3d_device(static_cast<ID3D12Device *>(command_queue->_device)), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
+	_direct3d_device(static_cast<ID3D12Device *>(static_cast<D3D12Device *>(command_queue->_device))), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_command_queue(command_queue),
 	_direct3d_version(reshade::api::device_api::d3d12),
 	_parent_factory(factory),

@@ -137,7 +137,4 @@ public:
 	using command_list_impl::_orig;
 	LONG _ref = 1;
 	unsigned short _interface_version = 0;
-
-private:
-	D3D12Device *const _device;
 };

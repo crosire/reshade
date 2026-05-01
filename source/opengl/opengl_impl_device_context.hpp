@@ -109,7 +109,7 @@ namespace reshade::opengl
 		unsigned int _default_fbo_height = 0;
 
 	private:
-		device_impl *const _device_impl;
+		device_impl *const _device;
 
 		std::vector<GLuint> _push_constants;
 		std::vector<GLuint> _push_constants_size;

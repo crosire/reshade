@@ -44,13 +44,13 @@ void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipelin
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
 	api_object_impl(cmd_list),
-	_device_impl(device)
+	_device(device)
 {
 }
 
 reshade::api::device *reshade::d3d11::command_list_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
@@ -116,7 +116,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	}
 	if (transitions_away_from_unordered_access_usage != 0)
 	{
-		const D3D_FEATURE_LEVEL feature_level = _device_impl->_orig->GetFeatureLevel();
+		const D3D_FEATURE_LEVEL feature_level = _device->_orig->GetFeatureLevel();
 		const UINT max_uav_bindings =
 			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
 			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
@@ -519,7 +519,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 
 		_push_constants[push_constants_slot].reset();
 
-		if (FAILED(_device_impl->_orig->CreateBuffer(&desc, nullptr, &_push_constants[push_constants_slot])))
+		if (FAILED(_device->_orig->CreateBuffer(&desc, nullptr, &_push_constants[push_constants_slot])))
 		{
 			_push_constants_data[push_constants_slot].clear();
 
@@ -527,7 +527,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 			return;
 		}
 
-		_device_impl->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants[push_constants_slot].get()) }, "Push constants");
+		_device->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants[push_constants_slot].get()) }, "Push constants");
 	}
 
 	std::memcpy(_push_constants_data[push_constants_slot].data() + first, values, (count - first) * sizeof(uint32_t));

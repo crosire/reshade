@@ -38,10 +38,13 @@ namespace reshade::vulkan
 
 		mutable std::recursive_mutex _mutex;
 
+	protected:
+		device_impl *const _device;
+
 	private:
-		device_impl *const _device_impl;
-		VkQueueFamilyProperties _queue_family_props;
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
+
+		VkQueueFamilyProperties _queue_family_props;
 	};
 
 	template <>

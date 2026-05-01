@@ -8,7 +8,7 @@
 #include "vulkan_impl_type_convert.hpp"
 #include "dll_log.hpp"
 
-#define vk _device_impl->_dispatch_table
+#define vk _device->_dispatch_table
 
 thread_local reshade::vulkan::command_list_immediate_impl *reshade::vulkan::command_list_immediate_impl::s_last_immediate_command_list = nullptr;
 
@@ -20,7 +20,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		create_info.queueFamilyIndex = queue_family_index;
 
-		if (vk.CreateCommandPool(_device_impl->_orig, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
+		if (vk.CreateCommandPool(_device->_orig, &create_info, nullptr, &_cmd_pool) != VK_SUCCESS)
 			return;
 	}
 
@@ -29,7 +29,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		alloc_info.commandBufferCount = NUM_COMMAND_FRAMES;
 
-		if (vk.AllocateCommandBuffers(_device_impl->_orig, &alloc_info, _cmd_buffers) != VK_SUCCESS)
+		if (vk.AllocateCommandBuffers(_device->_orig, &alloc_info, _cmd_buffers) != VK_SUCCESS)
 			return;
 	}
 
@@ -49,20 +49,20 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 			name_info.objectHandle = (uint64_t)_cmd_buffers[i];
 			name_info.pObjectName = debug_name.c_str();
 
-			vk.SetDebugUtilsObjectNameEXT(_device_impl->_orig, &name_info);
+			vk.SetDebugUtilsObjectNameEXT(_device->_orig, &name_info);
 		}
 #endif
 
 		{	VkFenceCreateInfo create_info { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 			create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; // Create signaled so waiting on it when no commands where submitted succeeds
 
-			if (vk.CreateFence(_device_impl->_orig, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
+			if (vk.CreateFence(_device->_orig, &create_info, nullptr, &_cmd_fences[i]) != VK_SUCCESS)
 				return;
 		}
 
 		{	VkSemaphoreCreateInfo create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
-			if (vk.CreateSemaphore(_device_impl->_orig, &create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
+			if (vk.CreateSemaphore(_device->_orig, &create_info, nullptr, &_cmd_semaphores[i]) != VK_SUCCESS)
 				return;
 		}
 
@@ -83,7 +83,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 			create_info.poolSizeCount = std::size(pool_sizes);
 			create_info.pPoolSizes = pool_sizes;
 
-			if (vk.CreateDescriptorPool(_device_impl->_orig, &create_info, nullptr, &_transient_descriptor_pool[i]) != VK_SUCCESS)
+			if (vk.CreateDescriptorPool(_device->_orig, &create_info, nullptr, &_transient_descriptor_pool[i]) != VK_SUCCESS)
 			{
 				log::message(log::level::error, "Failed to create transient descriptor pool!");
 			}
@@ -108,15 +108,15 @@ reshade::vulkan::command_list_immediate_impl::~command_list_immediate_impl()
 		s_last_immediate_command_list = nullptr;
 
 	for (VkDescriptorPool pool : _transient_descriptor_pool)
-		vk.DestroyDescriptorPool(_device_impl->_orig, pool, nullptr);
+		vk.DestroyDescriptorPool(_device->_orig, pool, nullptr);
 
 	for (VkFence fence : _cmd_fences)
-		vk.DestroyFence(_device_impl->_orig, fence, nullptr);
+		vk.DestroyFence(_device->_orig, fence, nullptr);
 	for (VkSemaphore semaphore : _cmd_semaphores)
-		vk.DestroySemaphore(_device_impl->_orig, semaphore, nullptr);
+		vk.DestroySemaphore(_device->_orig, semaphore, nullptr);
 
-	vk.FreeCommandBuffers(_device_impl->_orig, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
-	vk.DestroyCommandPool(_device_impl->_orig, _cmd_pool, nullptr);
+	vk.FreeCommandBuffers(_device->_orig, _cmd_pool, NUM_COMMAND_FRAMES, _cmd_buffers);
+	vk.DestroyCommandPool(_device->_orig, _cmd_pool, nullptr);
 
 	// Signal to 'command_list_impl' destructor that this is an immediate command list
 	_orig = VK_NULL_HANDLE;
@@ -192,20 +192,20 @@ void reshade::vulkan::command_list_immediate_impl::push_descriptors(api::shader_
 
 	assert(update.binding == 0 && update.array_offset == 0);
 
-	VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle)->set_layouts[layout_param];
+	VkDescriptorSetLayout set_layout = (VkDescriptorSetLayout)_device->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>((VkPipelineLayout)layout.handle)->set_layouts[layout_param];
 
 	VkDescriptorSetAllocateInfo alloc_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	alloc_info.descriptorPool = _transient_descriptor_pool[_cmd_index];
 	alloc_info.descriptorSetCount = 1;
 	alloc_info.pSetLayouts = &set_layout;
 
-	if (vk.AllocateDescriptorSets(_device_impl->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
+	if (vk.AllocateDescriptorSets(_device->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 	{
 		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", static_cast<unsigned int>(update.type), update.count);
 		return;
 	}
 
-	vk.UpdateDescriptorSets(_device_impl->_orig, 1, &write, 0, nullptr);
+	vk.UpdateDescriptorSets(_device->_orig, 1, &write, 0, nullptr);
 
 	bind_descriptor_tables(stages, layout, layout_param, 1, reinterpret_cast<const api::descriptor_table *>(&write.dstSet));
 }
@@ -220,7 +220,7 @@ void reshade::vulkan::command_list_immediate_impl::update_texture_region(const a
 {
 	s_last_immediate_command_list = this;
 
-	_device_impl->update_texture_region(data, dest, dest_subresource, dest_box);
+	_device->update_texture_region(data, dest, dest_subresource, dest_box);
 }
 
 bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_semaphore_info)
@@ -265,7 +265,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_sema
 	}
 
 	// Only reset fence before an actual submit which can signal it again
-	vk.ResetFences(_device_impl->_orig, 1, &_cmd_fences[_cmd_index]);
+	vk.ResetFences(_device->_orig, 1, &_cmd_fences[_cmd_index]);
 
 	if (vk.QueueSubmit(_parent_queue, 1, &submit_info, _cmd_fences[_cmd_index]) != VK_SUCCESS)
 	{
@@ -289,9 +289,9 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_sema
 	}
 
 	// Make sure the next command buffer has finished executing before reusing it this frame
-	if (vk.GetFenceStatus(_device_impl->_orig, _cmd_fences[_cmd_index]) == VK_NOT_READY)
+	if (vk.GetFenceStatus(_device->_orig, _cmd_fences[_cmd_index]) == VK_NOT_READY)
 	{
-		vk.WaitForFences(_device_impl->_orig, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
+		vk.WaitForFences(_device->_orig, 1, &_cmd_fences[_cmd_index], VK_TRUE, UINT64_MAX);
 	}
 
 	// Advance transient descriptor pool
@@ -300,7 +300,7 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_sema
 #endif
 	{
 		const VkDescriptorPool next_pool = _transient_descriptor_pool[_cmd_index];
-		vk.ResetDescriptorPool(_device_impl->_orig, next_pool, 0);
+		vk.ResetDescriptorPool(_device->_orig, next_pool, 0);
 	}
 
 	// Command buffer is now ready for a reset

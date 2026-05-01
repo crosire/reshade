@@ -10,13 +10,13 @@
 
 reshade::d3d12::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain3 *swapchain) :
 	api_object_impl(swapchain),
-	_device_impl(device)
+	_device(device)
 {
 }
 
 reshade::api::device *reshade::d3d12::swapchain_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void *reshade::d3d12::swapchain_impl::get_hwnd() const
@@ -88,7 +88,7 @@ reshade::api::color_space reshade::d3d12::swapchain_impl::get_color_space() cons
 
 reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *device, ID3D12CommandQueueDownlevel *command_queue_downlevel) :
 	api_object_impl(command_queue_downlevel),
-	_device_impl(device)
+	_device(device)
 {
 	// Default to three back buffers for d3d12on7
 	_back_buffers.resize(3);
@@ -96,7 +96,7 @@ reshade::d3d12::swapchain_d3d12on7_impl::swapchain_d3d12on7_impl(device_impl *de
 
 reshade::api::device *reshade::d3d12::swapchain_d3d12on7_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void *reshade::d3d12::swapchain_d3d12on7_impl::get_hwnd() const

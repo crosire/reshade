@@ -14,8 +14,7 @@
 using reshade::d3d11::to_handle;
 
 D3D11DeviceContext::D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
-	device_context_impl(device, original),
-	_device(device)
+	device_context_impl(device, original)
 {
 	assert(_orig != nullptr && _device != nullptr);
 
@@ -120,7 +119,7 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 {
 	// The immediate device context is tightly coupled with its device, so simply use the device reference count
 	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
-		return _device->AddRef() - 1;
+		return static_cast<D3D11Device *>(_device)->AddRef() - 1;
 
 	_orig->AddRef();
 	return InterlockedIncrement(&_ref);
@@ -128,7 +127,7 @@ ULONG   STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 ULONG   STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
 	if (_orig->GetType() == D3D11_DEVICE_CONTEXT_IMMEDIATE)
-		return _device->Release() - 1;
+		return static_cast<D3D11Device *>(_device)->Release() - 1;
 
 	const ULONG ref = InterlockedDecrement(&_ref);
 	if (ref != 0)
@@ -155,8 +154,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::GetDevice(ID3D11Device **ppDevice)
 	if (ppDevice == nullptr)
 		return;
 
-	_device->AddRef();
-	*ppDevice = _device;
+	static_cast<D3D11Device *>(_device)->AddRef();
+	*ppDevice = static_cast<D3D11Device *>(_device);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData)
 {
@@ -1142,7 +1141,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 	{
 		assert(ppCommandList != nullptr);
 
-		const auto command_list_proxy = new D3D11CommandList(_device, *ppCommandList);
+		const auto command_list_proxy = new D3D11CommandList(static_cast<D3D11Device *>(_device), *ppCommandList);
 		*ppCommandList = command_list_proxy;
 
 #if RESHADE_ADDON
@@ -1632,7 +1631,7 @@ void D3D11DeviceContext::invoke_bind_samplers_event(reshade::api::shader_stage s
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		stage,
-		_device->_global_pipeline_layout, 0,
+		static_cast<D3D11Device *>(_device)->_global_pipeline_layout, 0,
 		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::sampler, descriptors });
 }
 void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11ShaderResourceView *const *objects)
@@ -1655,7 +1654,7 @@ void D3D11DeviceContext::invoke_bind_shader_resource_views_event(reshade::api::s
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		stage,
-		_device->_global_pipeline_layout, 1,
+		static_cast<D3D11Device *>(_device)->_global_pipeline_layout, 1,
 		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::shader_resource_view, descriptors });
 }
 void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects)
@@ -1678,7 +1677,7 @@ void D3D11DeviceContext::invoke_bind_unordered_access_views_event(reshade::api::
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		stage,
-		_device->_global_pipeline_layout, 3,
+		static_cast<D3D11Device *>(_device)->_global_pipeline_layout, 3,
 		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::unordered_access_view, descriptors });
 }
 void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant, const UINT *constant_count)
@@ -1696,7 +1695,7 @@ void D3D11DeviceContext::invoke_bind_constant_buffers_event(reshade::api::shader
 	reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 		this,
 		stage,
-		_device->_global_pipeline_layout, 2,
+		static_cast<D3D11Device *>(_device)->_global_pipeline_layout, 2,
 		reshade::api::descriptor_table_update { {}, first, 0, count, reshade::api::descriptor_type::constant_buffer, descriptors });
 }
 #endif

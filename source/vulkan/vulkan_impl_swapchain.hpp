@@ -27,10 +27,9 @@ namespace reshade::vulkan
 
 		api::color_space get_color_space() const final;
 
-	private:
-		device_impl *const _device_impl;
-
 	protected:
+		device_impl *const _device;
+
 		VkSwapchainCreateInfoKHR _create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 		HWND _hwnd = nullptr;
 		uint32_t _swap_index = 0;

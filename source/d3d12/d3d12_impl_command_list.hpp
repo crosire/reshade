@@ -77,10 +77,7 @@ namespace reshade::d3d12
 	protected:
 		void on_init();
 
-		device_impl *const _device_impl;
-		bool _has_commands = false;
-		bool _supports_ray_tracing = false;
-		bool _supports_render_passes = false;
+		device_impl *const _device;
 
 		// Currently bound root signature (graphics at index 0, compute at index 1)
 		ID3D12RootSignature *_current_root_signature[2] = {};
@@ -89,5 +86,11 @@ namespace reshade::d3d12
 #if RESHADE_ADDON >= 2
 		ID3D12DescriptorHeap *_previous_descriptor_heaps[2] = {};
 #endif
+
+		bool _has_commands = false;
+
+	private:
+		bool _supports_ray_tracing = false;
+		bool _supports_render_passes = false;
 	};
 }

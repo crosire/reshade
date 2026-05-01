@@ -10,8 +10,7 @@
 #include "addon_manager.hpp"
 
 D3D11CommandList::D3D11CommandList(D3D11Device *device, ID3D11CommandList *original) :
-	command_list_impl(device, original),
-	_device(device)
+	command_list_impl(device, original)
 {
 	assert(_orig != nullptr && _device != nullptr);
 
@@ -87,8 +86,8 @@ ULONG   STDMETHODCALLTYPE D3D11CommandList::Release()
 
 void    STDMETHODCALLTYPE D3D11CommandList::GetDevice(ID3D11Device **ppDevice)
 {
-	_device->AddRef();
-	*ppDevice = _device;
+	static_cast<D3D11Device *>(_device)->AddRef();
+	*ppDevice = static_cast<D3D11Device *>(_device);
 }
 HRESULT STDMETHODCALLTYPE D3D11CommandList::GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData)
 {

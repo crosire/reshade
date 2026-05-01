@@ -26,8 +26,7 @@ bool Direct3DSwapChain9::is_presenting_entire_surface(const RECT *source_rect, H
 }
 
 Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original) :
-	swapchain_impl(device, original),
-	_device(device)
+	swapchain_impl(device, original)
 {
 	assert(_orig != nullptr && _device != nullptr);
 
@@ -114,11 +113,13 @@ ULONG   STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		return ref;
 	}
 
-	const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);
-	if (it != _device->_additional_swapchains.end())
+	const auto device = static_cast<Direct3DDevice9 *>(_device);
+
+	if (const auto it = std::find(device->_additional_swapchains.begin(), device->_additional_swapchains.end(), this);
+		it != device->_additional_swapchains.end())
 	{
-		_device->_additional_swapchains.erase(it);
-		_device->Release(); // Remove the reference that was added in 'Direct3DDevice9::CreateAdditionalSwapChain'
+		device->_additional_swapchains.erase(it);
+		device->Release(); // Remove the reference that was added in 'Direct3DDevice9::CreateAdditionalSwapChain'
 	}
 
 	const auto orig = _orig;
@@ -168,8 +169,8 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDevice(IDirect3DDevice9 **ppDev
 	if (ppDevice == nullptr)
 		return D3DERR_INVALIDCALL;
 
-	_device->AddRef();
-	*ppDevice = _device;
+	static_cast<Direct3DDevice9 *>(_device)->AddRef();
+	*ppDevice = static_cast<Direct3DDevice9 *>(_device);
 
 	return D3D_OK;
 }

@@ -31,8 +31,8 @@ namespace reshade::d3d12
 
 		api::color_space get_color_space() const final;
 
-	private:
-		device_impl *const _device_impl;
+	protected:
+		device_impl *const _device;
 	};
 
 	class swapchain_d3d12on7_impl : public api::api_object_impl<ID3D12CommandQueueDownlevel *, api::swapchain>
@@ -53,10 +53,9 @@ namespace reshade::d3d12
 
 		api::color_space get_color_space() const final { return api::color_space::unknown; }
 
-	private:
-		device_impl *const _device_impl;
-
 	protected:
+		device_impl *const _device;
+
 		std::vector<com_ptr<ID3D12Resource>> _back_buffers;
 		HWND _hwnd = nullptr;
 		UINT _swap_index = 0;

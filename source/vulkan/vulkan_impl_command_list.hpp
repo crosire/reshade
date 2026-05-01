@@ -74,7 +74,8 @@ namespace reshade::vulkan
 		void insert_debug_marker(const char *label, const float color[4]) final;
 
 	protected:
-		device_impl *const _device_impl;
+		device_impl *const _device;
+
 		bool _has_commands = false;
 		uint8_t _is_in_render_pass = 0;
 	};

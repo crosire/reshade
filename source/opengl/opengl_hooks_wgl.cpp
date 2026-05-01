@@ -170,7 +170,7 @@ public:
 		_init_effect_runtime = true;
 
 #if RESHADE_ADDON
-		const auto device = static_cast<wgl_device *>(get_device());
+		const auto device = static_cast<wgl_device *>(_device);
 
 		reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this, resize);
 
@@ -218,7 +218,7 @@ public:
 		_last_height = 0;
 
 #if RESHADE_ADDON
-		const auto device = static_cast<wgl_device *>(get_device());
+		const auto device = static_cast<wgl_device *>(_device);
 
 		if (device->_default_depth_format != reshade::api::format::unknown)
 		{

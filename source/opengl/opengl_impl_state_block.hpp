@@ -20,7 +20,7 @@ namespace reshade::opengl
 		void apply() const;
 
 	private:
-		device_impl *const _device_impl;
+		device_impl *const _device;
 
 		GLint _copy_read = 0;
 		GLint _copy_write = 0;

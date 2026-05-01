@@ -34,7 +34,4 @@ public:
 
 	using command_list_impl::_orig;
 	LONG _ref = 1;
-
-private:
-	D3D11Device *const _device;
 };

@@ -71,8 +71,8 @@ namespace reshade::d3d11
 		void end_debug_event() final { assert(false); }
 		void insert_debug_marker(const char *, const float[4]) final { assert(false); }
 
-	private:
-		device_impl *const _device_impl;
+	protected:
+		device_impl *const _device;
 	};
 
 	class device_context_impl : public api::api_object_impl<ID3D11DeviceContext *, api::command_queue, api::command_list>
@@ -158,8 +158,10 @@ namespace reshade::d3d11
 
 		uint64_t get_timestamp_frequency() const final;
 
+	protected:
+		device_impl *const _device;
+
 	private:
-		device_impl *const _device_impl;
 		com_ptr<ID3DUserDefinedAnnotation> _annotations;
 
 		com_ptr<ID3D11Buffer> _push_constants[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];

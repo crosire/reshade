@@ -51,8 +51,6 @@ private:
 	void on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region, DWORD flags);
 	void on_finish_present(HRESULT hr);
 
-	Direct3DDevice9 *const _device;
-
 	bool _is_initialized = false;
 	bool _was_still_drawing_last_frame = false;
 };

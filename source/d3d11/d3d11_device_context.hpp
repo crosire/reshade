@@ -196,6 +196,4 @@ private:
 	void invoke_bind_unordered_access_views_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11UnorderedAccessView *const *objects);
 	void invoke_bind_constant_buffers_event(reshade::api::shader_stage stage, UINT first, UINT count, ID3D11Buffer *const *objects, const UINT *first_constant = nullptr, const UINT *constant_count = nullptr);
 #endif
-
-	D3D11Device *const _device;
 };
