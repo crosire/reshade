@@ -631,6 +631,8 @@
     <ClCompile Include="source\input_windows.cpp" />
     <ClCompile Include="source\input_windows_xinput.cpp">
       <PreprocessorDefinitions>_WIN32_WINNT=_WIN32_WINNT_WIN7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='Win32'">_X86_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">_AMD64_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\opengl\opengl_hooks_ffp.cpp" />

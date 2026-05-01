@@ -278,7 +278,7 @@ if(WIN32)
   )
 endif()
 
-set_source_files_properties(source/input_windows_xinput.cpp PROPERTIES COMPILE_DEFINITIONS _WIN32_WINNT=_WIN32_WINNT_WIN7)
+set_source_files_properties(source/input_windows_xinput.cpp PROPERTIES COMPILE_DEFINITIONS "$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,_AMD64_,_X86_>;_WIN32_WINNT=_WIN32_WINNT_WIN7")
 set_source_files_properties(source/vulkan/vulkan_impl_device.cpp PROPERTIES COMPILE_DEFINITIONS VMA_IMPLEMENTATION)
 
 set_source_files_properties(examples/09-depth/generic_depth_addon.cpp PROPERTIES COMPILE_DEFINITIONS BUILTIN_ADDON)
