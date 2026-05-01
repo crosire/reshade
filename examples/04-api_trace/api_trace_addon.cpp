@@ -436,10 +436,10 @@ static void on_barrier(command_list *, uint32_t num_resources, const resource *r
 	}
 }
 
-static void on_begin_render_pass(command_list *, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds, render_pass_flags flags)
+static bool on_begin_render_pass(command_list *, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds, render_pass_flags flags)
 {
 	if (!s_do_capture)
-		return;
+		return false;
 
 	std::stringstream s;
 	s << "begin_render_pass(" << count << ", { ";
@@ -448,16 +448,18 @@ static void on_begin_render_pass(command_list *, uint32_t count, const render_pa
 	s << " }, " << (ds != nullptr ? (void *)ds->view.handle : 0) << ", " << std::hex << static_cast<uint32_t>(flags) << std::dec << ")";
 
 	reshade::log::message(reshade::log::level::info, s.str().c_str());
+	return false;
 }
-static void on_end_render_pass(command_list *)
+static bool on_end_render_pass(command_list *)
 {
 	if (!s_do_capture)
-		return;
+		return false;
 
 	std::stringstream s;
 	s << "end_render_pass()";
 
 	reshade::log::message(reshade::log::level::info, s.str().c_str());
+	return false;
 }
 static void on_bind_render_targets_and_depth_stencil(command_list *, uint32_t count, const resource_view *rtvs, resource_view dsv)
 {

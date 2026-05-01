@@ -810,10 +810,12 @@ static bool on_clear_depth_stencil(command_list *cmd_list, resource_view dsv, co
 
 	return false;
 }
-static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint32_t, const render_pass_render_target_desc *, const render_pass_depth_stencil_desc *depth_stencil_desc, render_pass_flags)
+static bool on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint32_t, const render_pass_render_target_desc *, const render_pass_depth_stencil_desc *depth_stencil_desc, render_pass_flags)
 {
 	if (depth_stencil_desc != nullptr && depth_stencil_desc->depth_load_op == render_pass_load_op::clear)
 	{
+		on_clear_depth_stencil(cmd_list, depth_stencil_desc->view, &depth_stencil_desc->clear_depth, nullptr, 0, nullptr);
+
 		// Prevent 'on_bind_depth_stencil' from copying depth buffer again
 		auto &state = *cmd_list->get_private_data<state_tracking>();
 		state.current_depth_stencil = { 0 };
@@ -822,6 +824,7 @@ static void on_begin_render_pass_with_depth_stencil(command_list *cmd_list, uint
 	// If render pass has depth store operation set to 'discard', any copy performed after the render pass will likely contain broken data, so can only hope that the depth buffer can be copied before that ...
 
 	on_bind_depth_stencil(cmd_list, 0, nullptr, depth_stencil_desc != nullptr ? depth_stencil_desc->view : resource_view {});
+	return false;
 }
 
 static void on_reset(command_list *cmd_list)
