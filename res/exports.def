@@ -85,6 +85,7 @@ EXPORTS
 
 	CompatValue PRIVATE
 	CompatString PRIVATE
+	DXGIDisableVBlankVirtualization PRIVATE
 	DXGIDumpJournal PRIVATE
 	DXGIDeclareAdapterRemovalSupport PRIVATE
 	DXGIGetDebugInterface1 PRIVATE
