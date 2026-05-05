@@ -2411,6 +2411,8 @@ auto reshade::vulkan::convert_descriptor_range_flags(api::descriptor_range_flags
 		result |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 	if ((value & api::descriptor_range_flags::data_static_while_set_at_execute) != 0)
 		result |= VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+	if ((value & api::descriptor_range_flags::partially_bound) != 0)
+		result |= VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
 
 	return result;
 }
@@ -2421,6 +2423,8 @@ auto reshade::vulkan::convert_descriptor_range_flags(VkDescriptorBindingFlags va
 		result |= api::descriptor_range_flags::descriptors_volatile | api::descriptor_range_flags::data_volatile;
 	if ((value & VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT) != 0)
 		result |= api::descriptor_range_flags::data_static_while_set_at_execute;
+	if ((value & VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) != 0)
+		result |= api::descriptor_range_flags::partially_bound;
 
 	return result;
 }

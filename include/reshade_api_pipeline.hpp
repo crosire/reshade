@@ -131,6 +131,7 @@ namespace reshade::api
 		data_volatile = 0x2,
 		data_static_while_set_at_execute = 0x4,
 		data_static = 0x8,
+		partially_bound = 0x10,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(descriptor_range_flags);
 
