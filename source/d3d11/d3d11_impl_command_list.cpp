@@ -170,7 +170,7 @@ void reshade::d3d11::device_context_impl::end_uav_overlap()
 		NvAPI_D3D11_EndUAVOverlap(_orig);
 }
 
-void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags)
+void reshade::d3d11::device_context_impl::begin_render_pass2(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags)
 {
 	assert(count <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
