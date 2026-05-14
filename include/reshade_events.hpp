@@ -893,7 +893,7 @@ namespace reshade
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/> (which indicates that no depth-stencil is used).
 		/// </remarks>
-		begin_render_pass = 101,
+		begin_render_pass,
 
 		/// <summary>
 		/// Called before:
@@ -910,7 +910,7 @@ namespace reshade
 		/// <remarks>
 		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// </remarks>
-		end_render_pass = 102,
+		end_render_pass,
 
 		/// <summary>
 		/// Called after:
@@ -925,7 +925,7 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv)</c></para>
 		/// </summary>
-		bind_render_targets_and_depth_stencil = 41,
+		bind_render_targets_and_depth_stencil,
 
 		/// <summary>
 		/// Called after:

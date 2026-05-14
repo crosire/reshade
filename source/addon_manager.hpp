@@ -182,6 +182,18 @@ namespace reshade
 		const std::vector<void *> &event_list = addon_event_list[static_cast<uint32_t>(ev)];
 		for (size_t cb = 0, count = event_list.size(); cb < count; ++cb)
 		{
+			if constexpr (
+				ev == addon_event::begin_render_pass ||
+				ev == addon_event::end_render_pass)
+			{
+				if (find_addon(event_list[cb])->api_version < 20)
+				{
+					// In older ABI versions these still had a void return type, so ignore and do not skip
+					reinterpret_cast<typename addon_event_traits<ev>::decl>(event_list[cb])(std::forward<Args>(args)...);
+					continue;
+				}
+			}
+
 			bool first_invocation = false;
 			if constexpr (
 				ev == addon_event::reshade_set_uniform_value ||

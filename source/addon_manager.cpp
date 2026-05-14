@@ -163,6 +163,7 @@ void reshade::load_addons()
 		info.name = "Generic Depth";
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.author = "crosire";
+		info.api_version = RESHADE_API_VERSION;
 		info.external = false;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
@@ -176,6 +177,7 @@ void reshade::load_addons()
 		info.name = "Effect Runtime Sync";
 		info.description = "Adds preset synchronization between different effect runtime instances, e.g. to have changes in a desktop window reflect in VR.";
 		info.author = "crosire";
+		info.api_version = RESHADE_API_VERSION;
 		info.external = false;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
@@ -440,6 +442,7 @@ bool ReShadeRegisterAddon(void *module, uint32_t api_version)
 	info.name = path.stem().u8string();
 	info.file = path.filename().u8string();
 	info.handle = module;
+	info.api_version = api_version;
 
 	DWORD version_dummy, version_size = GetFileVersionInfoSizeW(path.c_str(), &version_dummy);
 	std::vector<uint8_t> version_data(version_size);
