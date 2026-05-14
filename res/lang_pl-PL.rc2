@@ -14,7 +14,7 @@ BEGIN
 
 55975 "Dostępna jest aktualizacja! Wejdź na stronę %s i pobierz nową wersję (v%u.%u.%u)."
 37123 "Odwiedź stronę %s, aby uzyskać najnowsze informacje, aktualizacje, efekty i wziąć udział w dyskusjach."
-6954 "Kompiluję (%zu efekt/y w toku) ... Może to chwilę potrwać. Aplikacja może przez jakiś czas nie reagować."
+6954 "Kompiluję efekty (%zu w toku) ... Może to chwilę potrwać. Aplikacja może przez jakiś czas nie reagować."
 60691 "Brak dostępu do klawiatury lub myszy."
 36869 "Zamiast tego użyj kontrolera: wciśnij 'LB, RB i Start', aby otworzyć okno ustawień."
 16144 "ReShade zostało zainstalowane! Naciśnij klawisz '%s', aby rozpocząć samouczek."
