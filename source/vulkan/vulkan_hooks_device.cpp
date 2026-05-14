@@ -340,6 +340,23 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else
 	{
+#if VK_EXT_descriptor_indexing
+		if (const auto existing_descriptor_indexing_features = find_in_structure_chain<VkPhysicalDeviceDescriptorIndexingFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES))
+		{
+			descriptor_indexing_ext = existing_descriptor_indexing_features->descriptorBindingPartiallyBound ||
+				existing_descriptor_indexing_features->descriptorBindingUniformBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingSampledImageUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingStorageImageUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingStorageBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingUniformTexelBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingStorageTexelBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingUpdateUnusedWhilePending ||
+				existing_descriptor_indexing_features->descriptorBindingVariableDescriptorCount ||
+				existing_descriptor_indexing_features->runtimeDescriptorArray;
+		}
+#endif
+
 		if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
 		{
