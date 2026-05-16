@@ -556,15 +556,11 @@ bool reshade::runtime::on_init()
 	{
 		const input::window_handle window = get_hwnd();
 		if (window != nullptr && !_is_vr)
-		{
 			_input = input::register_window(window);
-			_primary_input_handler = _input.use_count() == 1;
-		}
 		else
-		{
 			_input.reset();
-			_primary_input_handler = _input_gamepad != nullptr;
-		}
+
+		_primary_input_handler = _input.use_count() == 1 || (_input == nullptr && _input_gamepad != nullptr);
 	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
