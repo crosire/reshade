@@ -3296,7 +3296,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 					range.static_samplers = &desc;
 				}
 
-				params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_static_samplers;
+				params[param_index].type = reshade::api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags;
 				params[param_index].descriptor_table_with_flags.count = sampler_count;
 				params[param_index].descriptor_table_with_flags.ranges = ranges_with_static_samplers.data();
 			}

@@ -581,6 +581,7 @@ reshade::api::resource_view_desc reshade::d3d11::device_impl::get_resource_view_
 	{
 		com_ptr<ID3D11Resource> resource;
 		object->GetResource(&resource);
+
 		D3D11_SHADER_RESOURCE_VIEW_DESC1 internal_desc;
 		object->GetDesc1(&internal_desc);
 
@@ -591,6 +592,7 @@ reshade::api::resource_view_desc reshade::d3d11::device_impl::get_resource_view_
 	{
 		com_ptr<ID3D11Resource> resource;
 		object->GetResource(&resource);
+
 		D3D11_SHADER_RESOURCE_VIEW_DESC internal_desc;
 		object->GetDesc(&internal_desc);
 
@@ -601,6 +603,7 @@ reshade::api::resource_view_desc reshade::d3d11::device_impl::get_resource_view_
 	{
 		com_ptr<ID3D11Resource> resource;
 		object->GetResource(&resource);
+
 		D3D11_UNORDERED_ACCESS_VIEW_DESC1 internal_desc;
 		object->GetDesc1(&internal_desc);
 
@@ -611,6 +614,7 @@ reshade::api::resource_view_desc reshade::d3d11::device_impl::get_resource_view_
 	{
 		com_ptr<ID3D11Resource> resource;
 		object->GetResource(&resource);
+
 		D3D11_UNORDERED_ACCESS_VIEW_DESC internal_desc;
 		object->GetDesc(&internal_desc);
 

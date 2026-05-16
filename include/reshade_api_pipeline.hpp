@@ -142,11 +142,10 @@ namespace reshade::api
 	{
 		push_constants = 1,
 		descriptor_table = 0,
-		descriptor_table_with_flags = 6,
+		descriptor_table_with_flags = 4,
 		push_descriptors = 2,
 		push_descriptors_with_ranges = 3,
-		push_descriptors_with_static_samplers = 5,
-		push_descriptors_with_ranges_and_flags = 7,
+		push_descriptors_with_ranges_and_flags = 5,
 	};
 
 	/// <summary>
@@ -266,7 +265,7 @@ namespace reshade::api
 			} descriptor_table;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_flags"/>, <see cref="pipeline_layout_param_type::push_descriptors_with_static_samplers"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges_and_flags"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_flags"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges_and_flags"/>.
 			/// </summary>
 			struct
 			{

@@ -1810,7 +1810,7 @@ namespace reshade
 		reshade_overlay_technique,
 
 #if RESHADE_ADDON
-		max = 103 // Last value used internally by ReShade to determine number of events in this enum
+		max = 101 // Last value used internally by ReShade to determine number of events in this enum
 #endif
 	};
 

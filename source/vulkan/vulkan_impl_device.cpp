@@ -1959,10 +1959,9 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
 			bool update_after_bind_pool = false;
 			const bool with_flags = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_flags || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
-			const bool with_static_samplers = with_flags || (params[i].type == api::pipeline_layout_param_type(4) || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers);
 			const uint32_t range_count = push_descriptors ? 1 : with_flags ? params[i].descriptor_table_with_flags.count : params[i].descriptor_table.count;
 			const api::descriptor_range *range = push_descriptors ? &params[i].push_descriptors : with_flags ? params[i].descriptor_table_with_flags.ranges : params[i].descriptor_table.ranges;
-			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_static_samplers || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
+			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
 
 			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
 			data.ranges.reserve(range_count);
@@ -1975,7 +1974,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 			internal_binding_flags.reserve(range_count);
 			internal_samplers.reserve(range_count);
 
-			for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_static_samplers ? static_cast<const api::descriptor_range_with_flags *>(range) + 1 : range + 1))
+			for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_flags ? static_cast<const api::descriptor_range_with_flags *>(range) + 1 : range + 1))
 			{
 				data.ranges.push_back(*static_cast<const api::descriptor_range *>(range));
 
@@ -1995,7 +1994,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 
 				offset += internal_binding.descriptorCount;
 
-				if (with_static_samplers && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers != nullptr)
+				if (with_flags && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers != nullptr)
 				{
 					if (range->array_size != 1 || range->count == UINT32_MAX)
 						goto exit_failure;
