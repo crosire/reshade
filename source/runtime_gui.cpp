@@ -50,18 +50,25 @@ static void parse_errors(const std::string_view errors, F &&callback)
 	{
 		const size_t pos_error = errors.find(": ", offset);
 		const size_t pos_error_line = errors.rfind('(', pos_error); // Paths can contain '(', but no ": ", so search backwards from the error location to find the line info
-		if (pos_error == std::string_view::npos || pos_error_line == std::string_view::npos || pos_error_line < offset)
+		if (pos_error == std::string_view::npos)
 			break;
 
 		const size_t pos_linefeed = errors.find('\n', pos_error);
 
+		if (pos_error_line != std::string_view::npos && pos_error_line >= offset)
+		{
+			const std::string_view error_file = errors.substr(offset, pos_error_line - offset);
+			const int error_line = static_cast<int>(std::strtol(errors.data() + pos_error_line + 1, nullptr, 10));
+			const std::string_view error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
+
+			callback(error_file, error_line, error_text);
+		}
+		else
+		{
+			callback(std::string_view(), 0, errors.substr(offset, pos_linefeed - offset));
+		}
+
 		next = pos_linefeed != std::string_view::npos ? pos_linefeed + 1 : std::string_view::npos;
-
-		const std::string_view error_file = errors.substr(offset, pos_error_line - offset);
-		int error_line = static_cast<int>(std::strtol(errors.data() + pos_error_line + 1, nullptr, 10));
-		const std::string_view error_text = errors.substr(pos_error + 2 /* skip space */, pos_linefeed - pos_error - 2);
-
-		callback(error_file, error_line, error_text);
 	}
 }
 
@@ -4138,7 +4145,13 @@ void reshade::runtime::draw_technique_editor()
 			{
 				if (ImGui::BeginTooltip())
 				{
-					ImGui::TextUnformatted(effect.errors.c_str(), effect.errors.c_str() + effect.errors.size());
+					parse_errors(effect.errors,
+						[](const std::string_view file, int line, const std::string_view message) {
+							if (file.empty())
+								ImGui::TextUnformatted(message.data(), message.data() + message.size());
+							else
+								ImGui::Text("%s(%d): %.*s", std::filesystem::path(file).filename().u8string().c_str(), line, message.size(), message.data());
+						});
 					ImGui::EndTooltip();
 				}
 			}
@@ -4161,6 +4174,8 @@ void reshade::runtime::draw_technique_editor()
 					std::unordered_map<std::string_view, std::string> file_errors_lookup;
 					parse_errors(effect.errors,
 						[&file_errors_lookup](const std::string_view file, int line, const std::string_view message) {
+							if (file.empty())
+								return;
 							file_errors_lookup[file] += std::string(file) + '(' + std::to_string(line) + "): " + std::string(message) + '\n';
 						});
 
@@ -4618,7 +4633,7 @@ void reshade::runtime::open_code_editor(editor_instance &instance) const
 	parse_errors(effect.errors,
 		[&instance](const std::string_view file, int line, const std::string_view message) {
 			// Ignore errors that aren't in the current source file
-			if (file != instance.file_path.u8string())
+			if (file.empty() || file != instance.file_path.u8string())
 				return;
 
 			instance.editor.add_error(line, message, message.find("error") == std::string::npos);
