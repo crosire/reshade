@@ -145,6 +145,7 @@ namespace reshade::api
 		descriptor_table_with_flags = 6,
 		push_descriptors = 2,
 		push_descriptors_with_ranges = 3,
+		push_descriptors_with_static_samplers = 5,
 		push_descriptors_with_ranges_and_flags = 7,
 	};
 
@@ -217,13 +218,13 @@ namespace reshade::api
 	struct descriptor_range_with_flags : public descriptor_range
 	{
 		/// <summary>
-		/// Optional array of sampler descriptions to statically embed into the descriptor table when the descriptor type is <see cref="descriptor_type::sampler"/> or <see cref="descriptor_type::sampler_with_resource_view"/>.
-		/// </summary>
-		const sampler_desc *static_samplers = nullptr;
-		/// <summary>
 		/// Optional flags specifying the volatility of the descriptors and data they reference.
 		/// </summary>
 		descriptor_range_flags flags = descriptor_range_flags::none;
+		/// <summary>
+		/// Optional array of sampler descriptions to statically embed into the descriptor table when the descriptor type is <see cref="descriptor_type::sampler"/> or <see cref="descriptor_type::sampler_with_resource_view"/>.
+		/// </summary>
+		const sampler_desc *static_samplers = nullptr;
 	};
 
 	/// <summary>
@@ -265,7 +266,7 @@ namespace reshade::api
 			} descriptor_table;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_flags"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges_and_flags"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table_with_flags"/>, <see cref="pipeline_layout_param_type::push_descriptors_with_static_samplers"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges_and_flags"/>.
 			/// </summary>
 			struct
 			{
