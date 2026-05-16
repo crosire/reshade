@@ -14,6 +14,8 @@
 #include "lockfree_linear_map.hpp"
 #include <algorithm> // std::fill_n, std::sort, std::unique
 
+#define vk device_impl->_dispatch_table
+
 extern thread_local bool g_in_dxgi_runtime;
 
 extern lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surfaces;
@@ -278,9 +280,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 		// Get back buffer images of old swap chain
 		uint32_t num_images = 0;
-		device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
+		vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
 		temp_mem<VkImage, 3> swapchain_images(num_images);
-		device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
+		vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
@@ -326,9 +328,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	// Get back buffer images of new swap chain
 	uint32_t num_images = 0;
-	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
+	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
 	temp_mem<VkImage, 3> swapchain_images(num_images);
-	device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
+	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
 
 	// Add swap chain images to the image list
 	for (uint32_t i = 0; i < num_images; ++i)
@@ -400,9 +402,9 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 
 		// Get back buffer images of old swap chain
 		uint32_t num_images = 0;
-		device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_images, nullptr);
+		vk.GetSwapchainImagesKHR(device, swapchain, &num_images, nullptr);
 		temp_mem<VkImage, 3> swapchain_images(num_images);
-		device_impl->_dispatch_table.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.p);
+		vk.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.p);
 
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
@@ -551,10 +553,15 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					// Signal them on the present queue again, so that the graphics queue waits for the generated frames too
 					submit_info.signalSemaphoreCount = submit_info.waitSemaphoreCount;
 					submit_info.pSignalSemaphores = submit_info.pWaitSemaphores;
-					device_impl->_dispatch_table.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+					vk.QueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
 					submit_info.signalSemaphoreCount = 0;
 					submit_info.pSignalSemaphores = nullptr;
 				}
+			}
+			else if (submit_info.pWaitSemaphores == present_info.pWaitSemaphores)
+			{
+				// Games doing present from compute may process the swap chain image on the compute queue before presenting, so ensure this work has completed before executing work on the graphics queue
+				queue_impl->wait_and_signal(&submit_info);
 			}
 
 			// This can deadlock on the GPU if the application submitted a semaphore wait to the graphics queue before this call, for which it submits the corresponding signal to the present queue only after this call

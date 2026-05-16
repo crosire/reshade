@@ -31,10 +31,22 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 			_immediate_cmd_list = nullptr;
 		}
 	}
+
+	// Always create queue synchronization semaphores, even for compute queues, e.g. for present from compute
+	for (int i = 0; i < std::size(_signal_semaphores); ++i)
+	{
+		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+		if (vk.CreateSemaphore(_device->_orig, &sem_create_info, nullptr, &_signal_semaphores[i]) != VK_SUCCESS)
+			return;
+	}
 }
 reshade::vulkan::command_queue_impl::~command_queue_impl()
 {
 	delete _immediate_cmd_list;
+
+	for (VkSemaphore semaphore : _signal_semaphores)
+		vk.DestroySemaphore(_device->_orig, semaphore, nullptr);
 
 	// Unregister queue from device
 	_device->_queues.erase(std::find(_device->_queues.begin(), _device->_queues.end(), this));
@@ -68,10 +80,10 @@ void reshade::vulkan::command_queue_impl::flush_immediate_command_list() const
 	VkSubmitInfo empty_semaphore_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	flush_immediate_command_list(&empty_semaphore_info);
 }
-void reshade::vulkan::command_queue_impl::flush_immediate_command_list(VkSubmitInfo *semaphore_info) const
+void reshade::vulkan::command_queue_impl::flush_immediate_command_list(VkSubmitInfo *wait_semaphore_info) const
 {
 	if (_immediate_cmd_list != nullptr)
-		_immediate_cmd_list->flush(semaphore_info);
+		_immediate_cmd_list->flush(wait_semaphore_info);
 }
 
 void reshade::vulkan::command_queue_impl::begin_debug_event(const char *label, const float color[4])
@@ -164,6 +176,27 @@ bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t valu
 	flush_immediate_command_list(&submit_info);
 
 	return vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) == VK_SUCCESS;
+}
+
+void reshade::vulkan::command_queue_impl::wait_and_signal(VkSubmitInfo *wait_semaphore_info)
+{
+	assert(wait_semaphore_info != nullptr && wait_semaphore_info->waitSemaphoreCount != 0);
+
+	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+	submit_info.waitSemaphoreCount = wait_semaphore_info->waitSemaphoreCount;
+	submit_info.pWaitSemaphores = wait_semaphore_info->pWaitSemaphores;
+	submit_info.pWaitDstStageMask = wait_semaphore_info->pWaitDstStageMask;
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &_signal_semaphores[_signal_index];
+
+	if (vk.QueueSubmit(_orig, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
+		return;
+
+	wait_semaphore_info->waitSemaphoreCount = submit_info.signalSemaphoreCount;
+	wait_semaphore_info->pWaitSemaphores = submit_info.pSignalSemaphores;
+	assert(wait_semaphore_info->pWaitDstStageMask != nullptr);
+
+	_signal_index = (_signal_index + 1) % std::size(_signal_semaphores);
 }
 
 uint64_t reshade::vulkan::command_queue_impl::get_timestamp_frequency() const

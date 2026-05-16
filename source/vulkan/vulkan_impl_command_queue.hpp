@@ -23,7 +23,7 @@ namespace reshade::vulkan
 		void wait_idle() const final;
 
 		void flush_immediate_command_list() const final;
-		void flush_immediate_command_list(VkSubmitInfo *semaphore_info) const;
+		void flush_immediate_command_list(VkSubmitInfo *wait_semaphore_info) const;
 
 		api::command_list *get_immediate_command_list() final { return _immediate_cmd_list; }
 
@@ -34,6 +34,8 @@ namespace reshade::vulkan
 		bool wait(api::fence fence, uint64_t value) final;
 		bool signal(api::fence fence, uint64_t value) final;
 
+		void wait_and_signal(VkSubmitInfo *wait_semaphore_info);
+
 		uint64_t get_timestamp_frequency() const final;
 
 		mutable std::recursive_mutex _mutex;
@@ -43,6 +45,8 @@ namespace reshade::vulkan
 
 	private:
 		command_list_immediate_impl *_immediate_cmd_list = nullptr;
+		VkSemaphore _signal_semaphores[8] = {};
+		uint32_t _signal_index = 0;
 
 		VkQueueFamilyProperties _queue_family_props;
 	};

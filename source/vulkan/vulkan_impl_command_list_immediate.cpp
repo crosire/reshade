@@ -33,7 +33,7 @@ reshade::vulkan::command_list_immediate_impl::command_list_immediate_impl(device
 			return;
 	}
 
-	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	for (int i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
 		// The validation layers expect the loader to have set the dispatch pointer, but this does not happen when calling down the layer chain from here, so fix it
 		*reinterpret_cast<void **>(_cmd_buffers[i]) = *reinterpret_cast<void **>(device->_orig);

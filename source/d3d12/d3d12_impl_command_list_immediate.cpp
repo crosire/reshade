@@ -15,7 +15,7 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 	_parent_queue(queue)
 {
 	// Create multiple command allocators to buffer for multiple frames
-	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	for (int i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
 		_fence_value[i] = i;
 
