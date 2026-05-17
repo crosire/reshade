@@ -146,6 +146,9 @@ namespace reshade::api
 		push_descriptors = 2,
 		push_descriptors_with_ranges = 3,
 		push_descriptors_with_ranges_and_flags = 5,
+
+		descriptor_table_with_static_samplers [[deprecated]] = descriptor_table_with_flags,
+		push_descriptors_with_static_samplers [[deprecated]] = push_descriptors_with_ranges_and_flags,
 	};
 
 	/// <summary>
@@ -225,6 +228,8 @@ namespace reshade::api
 		/// </summary>
 		const sampler_desc *static_samplers = nullptr;
 	};
+
+	using descriptor_range_with_static_samplers = descriptor_range_with_flags;
 
 	/// <summary>
 	/// Describes a single parameter in a pipeline layout.

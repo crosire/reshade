@@ -190,10 +190,10 @@ namespace reshade::api
 		/// </summary>
 		gpu_upload = 6,
 
-		gpu_only = default_,
-		cpu_to_gpu = upload,
-		gpu_to_cpu = readback,
-		cpu_only = scratch,
+		gpu_only   [[deprecated]] = default_,
+		cpu_to_gpu [[deprecated]] = upload,
+		gpu_to_cpu [[deprecated]] = readback,
+		cpu_only   [[deprecated]] = scratch,
 	};
 
 	/// <summary>
