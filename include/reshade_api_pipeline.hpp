@@ -147,8 +147,8 @@ namespace reshade::api
 		push_descriptors_with_ranges = 3,
 		push_descriptors_with_ranges_and_flags = 5,
 
-		descriptor_table_with_static_samplers [[deprecated]] = descriptor_table_with_flags,
-		push_descriptors_with_static_samplers [[deprecated]] = push_descriptors_with_ranges_and_flags,
+		descriptor_table_with_static_samplers [[deprecated("use 'pipeline_layout_param_type::descriptor_table_with_flags' instead")]] = descriptor_table_with_flags,
+		push_descriptors_with_static_samplers [[deprecated("use 'pipeline_layout_param_type::push_descriptors_with_ranges_and_flags' instead")]] = push_descriptors_with_ranges_and_flags,
 	};
 
 	/// <summary>

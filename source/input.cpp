@@ -121,7 +121,7 @@ std::string reshade::input::key_name(unsigned int keycode)
 	if (keycode == key_home && is_keyboard_layout_german())
 		return "Pos1";
 
-	static const char *keyboard_keys[256] = {
+	static const char *const keyboard_keys[256] = {
 		"", "Left Mouse", "Right Mouse", "Cancel", "Middle Mouse", "X1 Mouse", "X2 Mouse", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
 		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
 		"Space", "Page Up", "Page Down", "End", "Home", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",

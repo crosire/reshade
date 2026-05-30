@@ -403,6 +403,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// This may be called from within other API calls, e.g. <see cref="device::update_texture_region"/>, so be careful with synchronization primitives in the callback.
+		/// </remarks>
 		destroy_resource,
 
 		/// <summary>
@@ -496,6 +499,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// Is not called in D3D12 (since resource views are descriptor handles instead of objects there).
+		/// This may be called from within other API calls, e.g. <see cref="device::update_texture_region"/>, so be careful with synchronization primitives in the callback.
 		/// </remarks>
 		destroy_resource_view,
 
@@ -753,6 +757,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// Is not called in D3D9.
+		/// This may be called from within other API calls, e.g. <see cref="device::destroy_pipeline"/>, so be careful with synchronization primitives in the callback.
 		/// </remarks>
 		destroy_pipeline,
 

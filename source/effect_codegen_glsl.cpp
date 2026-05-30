@@ -700,7 +700,7 @@ protected:
 	{
 		assert(!name.empty());
 
-		static const std::unordered_set<std::string> s_reserverd_names = {
+		static const std::unordered_set<std::string> s_reserved_names = {
 			"common", "partition", "input", "output", "active", "filter", "superp", "invariant",
 			"attribute", "varying", "buffer", "resource", "coherent", "readonly", "writeonly",
 			"layout", "flat", "smooth", "lowp", "mediump", "highp", "precision", "patch", "subroutine",
@@ -727,7 +727,7 @@ protected:
 		};
 
 		// Escape reserved names so that they do not fail to compile
-		if (name.compare(0, 3, "gl_") == 0 || s_reserverd_names.count(name))
+		if (name.compare(0, 3, "gl_") == 0 || s_reserved_names.count(name))
 			// Append an underscore at start instead of the end, since another one may get added in 'define_name' when there is a suffix
 			// This is guaranteed to not clash with user defined names, since those starting with an underscore are filtered out in 'define_name'
 			name = '_' + name;
