@@ -5,7 +5,7 @@
 
 #include "d3d12_impl_type_convert.hpp"
 #include <cassert>
-#include <algorithm> // std::copy_n, std::fill_n
+#include <algorithm> // std::copy_n, std::fill_n, std::max
 
 auto reshade::d3d12::convert_format(api::format format) -> DXGI_FORMAT
 {
@@ -51,6 +51,26 @@ auto reshade::d3d12::convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::col
 	default:
 		assert(false);
 		return api::color_space::unknown;
+	}
+}
+
+void reshade::d3d12::convert_subresource_box(const reshade::api::subresource_box *box, const D3D12_RESOURCE_DESC &desc, uint32_t subresource, UINT &width, UINT &height, UINT &depth)
+{
+	if (box != nullptr)
+	{
+		width = box->width();
+		height = box->height();
+		depth = box->depth();
+	}
+	else
+	{
+		width = std::max(1u, static_cast<UINT>(desc.Width) >> (subresource % desc.MipLevels));
+		height = std::max(1u, desc.Height >> (subresource % desc.MipLevels));
+
+		if (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
+			depth = std::max(1u, static_cast<UINT>(desc.DepthOrArraySize) >> (subresource % desc.MipLevels));
+		else
+			depth = 1;
 	}
 }
 

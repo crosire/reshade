@@ -33,7 +33,7 @@ reshade::vulkan::command_queue_impl::command_queue_impl(device_impl *device, uin
 	}
 
 	// Always create queue synchronization semaphores, even for compute queues, e.g. for present from compute
-	for (int i = 0; i < std::size(_signal_semaphores); ++i)
+	for (unsigned int i = 0; i < std::size(_signal_semaphores); ++i)
 	{
 		VkSemaphoreCreateInfo sem_create_info { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
