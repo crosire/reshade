@@ -25,7 +25,7 @@ bool D3D12PipelineLibrary::check_and_upgrade_interface(REFIID riid)
 		riid == __uuidof(ID3D12DeviceChild))
 		return true;
 
-	static const IID iid_lookup[] = {
+	static constexpr IID iid_lookup[] = {
 		__uuidof(ID3D12PipelineLibrary),
 		__uuidof(ID3D12PipelineLibrary1),
 	};
