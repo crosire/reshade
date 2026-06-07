@@ -9,13 +9,13 @@
 
 reshade::opengl::swapchain_impl::swapchain_impl(device_impl *device, HDC hdc) :
 	api_object_impl(hdc),
-	_device_impl(device)
+	_device(device)
 {
 }
 
 reshade::api::device *reshade::opengl::swapchain_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void *reshade::opengl::swapchain_impl::get_hwnd() const

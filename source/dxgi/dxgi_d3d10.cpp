@@ -34,6 +34,18 @@ extern "C" BOOL    WINAPI CompatString(LPCSTR szName, ULONG *pSize, LPSTR lpData
 		return FALSE;
 }
 
+extern "C" HRESULT WINAPI DXGIDisableVBlankVirtualization()
+{
+	reshade::hooks::ensure_export_module_loaded();
+	assert(g_export_module_handle != nullptr);
+
+	const FARPROC proc = GetProcAddress(g_export_module_handle, "DXGIDisableVBlankVirtualization");
+	if (proc != nullptr)
+		return reinterpret_cast<decltype(&DXGIDisableVBlankVirtualization)>(proc)();
+	else
+		return E_NOTIMPL;
+}
+
 extern "C" HRESULT WINAPI DXGIDumpJournal(void *pfnCallback)
 {
 	reshade::hooks::ensure_export_module_loaded();

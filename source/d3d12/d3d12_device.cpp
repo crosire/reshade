@@ -1133,10 +1133,11 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreatePipelineLibrary(const void *pLibrar
 	assert(_interface_version >= 1);
 
 	const HRESULT hr = static_cast<ID3D12Device1 *>(_orig)->CreatePipelineLibrary(pLibraryBlob, BlobLength, riid, ppPipelineLibrary);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && ppPipelineLibrary != nullptr)
 	{
 #if RESHADE_ADDON >= 2
-		if (ppPipelineLibrary != nullptr)
+		if (reshade::has_addon_event<reshade::addon_event::init_pipeline>() ||
+			reshade::has_addon_event<reshade::addon_event::destroy_pipeline>())
 		{
 			const auto pipeline_library_proxy = new D3D12PipelineLibrary(this, static_cast<ID3D12PipelineLibrary *>(*ppPipelineLibrary));
 

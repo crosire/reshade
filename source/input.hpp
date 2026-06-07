@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include <mutex>
-#include <memory>
-#include <string>
 #include <cstdint>
+#include <string>
+#include <memory>
+#include <mutex>
 
 namespace reshade
 {
@@ -209,6 +209,8 @@ namespace reshade
 		static bool handle_window_message(const void *message_data);
 
 	private:
+		static bool is_keyboard_layout_german();
+
 		std::recursive_mutex _mutex;
 		window_handle _window;
 		bool _block_mouse = false;

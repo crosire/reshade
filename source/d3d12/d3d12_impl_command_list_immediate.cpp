@@ -15,13 +15,13 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 	_parent_queue(queue)
 {
 	// Create multiple command allocators to buffer for multiple frames
-	for (uint32_t i = 0; i < NUM_COMMAND_FRAMES; ++i)
+	for (int i = 0; i < NUM_COMMAND_FRAMES; ++i)
 	{
 		_fence_value[i] = i;
 
-		if (FAILED(_device_impl->_orig->CreateFence(_fence_value[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
+		if (FAILED(_device->_orig->CreateFence(_fence_value[i], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence[i]))))
 			return;
-		if (FAILED(_device_impl->_orig->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
+		if (FAILED(_device->_orig->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_cmd_alloc[i]))))
 			return;
 	}
 
@@ -31,7 +31,7 @@ reshade::d3d12::command_list_immediate_impl::command_list_immediate_impl(device_
 		return;
 
 	// Create and open the command list for recording
-	if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
+	if (SUCCEEDED(_device->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
 	{
 		_orig->SetName(L"ReShade immediate command list");
 		on_init();
@@ -107,13 +107,13 @@ void reshade::d3d12::command_list_immediate_impl::update_buffer_region(const voi
 {
 	s_last_immediate_command_list = this;
 
-	_device_impl->update_buffer_region(data, dest, dest_offset, size);
+	_device->update_buffer_region(data, dest, dest_offset, size);
 }
 void reshade::d3d12::command_list_immediate_impl::update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box)
 {
 	s_last_immediate_command_list = this;
 
-	_device_impl->update_texture_region(data, dest, dest_subresource, dest_box);
+	_device->update_texture_region(data, dest, dest_subresource, dest_box);
 }
 
 bool reshade::d3d12::command_list_immediate_impl::flush(bool wait)
@@ -139,7 +139,7 @@ bool reshade::d3d12::command_list_immediate_impl::flush(bool wait)
 
 		// A command list that failed to close can never be reset, so destroy it and create a new one
 		_orig->Release(); _orig = nullptr;
-		if (SUCCEEDED(_device_impl->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
+		if (SUCCEEDED(_device->_orig->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _cmd_alloc[_cmd_index].get(), nullptr, IID_PPV_ARGS(&_orig))))
 		{
 			_orig->SetName(L"ReShade immediate command list");
 			on_init();

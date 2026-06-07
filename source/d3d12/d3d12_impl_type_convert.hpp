@@ -17,6 +17,11 @@ namespace reshade::d3d12
 	static_assert(sizeof(D3D12_VIEWPORT) == sizeof(api::viewport));
 	static_assert(sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) == sizeof(api::descriptor_table));
 
+	struct resource_extra_data
+	{
+		D3D12_SUBRESOURCE_FOOTPRINT footprint;
+	};
+
 	struct pipeline_extra_data
 	{
 		D3D12_PRIMITIVE_TOPOLOGY topology;
@@ -43,25 +48,7 @@ namespace reshade::d3d12
 	auto convert_color_space(api::color_space type) -> DXGI_COLOR_SPACE_TYPE;
 	auto convert_color_space(DXGI_COLOR_SPACE_TYPE type) -> api::color_space;
 
-	inline void convert_subresource_box(const reshade::api::subresource_box *box, const D3D12_RESOURCE_DESC &desc, uint32_t subresource, UINT &width, UINT &height, UINT &depth)
-	{
-		if (box != nullptr)
-		{
-			width = box->width();
-			height = box->height();
-			depth = box->depth();
-		}
-		else
-		{
-			width = std::max(1u, static_cast<UINT>(desc.Width) >> (subresource % desc.MipLevels));
-			height = std::max(1u, desc.Height >> (subresource % desc.MipLevels));
-
-			if (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
-				depth = std::max(1u, static_cast<UINT>(desc.DepthOrArraySize) >> (subresource % desc.MipLevels));
-			else
-				depth = 1;
-		}
-	}
+	void convert_subresource_box(const reshade::api::subresource_box *box, const D3D12_RESOURCE_DESC &desc, uint32_t subresource, UINT &width, UINT &height, UINT &depth);
 
 	auto convert_access_to_usage(D3D12_BARRIER_ACCESS access) -> api::resource_usage;
 	auto convert_barrier_layout_to_usage(D3D12_BARRIER_LAYOUT layout) -> api::resource_usage;

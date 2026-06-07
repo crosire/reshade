@@ -340,6 +340,23 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	}
 	else
 	{
+#if VK_EXT_descriptor_indexing
+		if (const auto existing_descriptor_indexing_features = find_in_structure_chain<VkPhysicalDeviceDescriptorIndexingFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES))
+		{
+			descriptor_indexing_ext = existing_descriptor_indexing_features->descriptorBindingPartiallyBound ||
+				existing_descriptor_indexing_features->descriptorBindingUniformBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingSampledImageUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingStorageImageUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingStorageBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingUniformTexelBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingStorageTexelBufferUpdateAfterBind ||
+				existing_descriptor_indexing_features->descriptorBindingUpdateUnusedWhilePending ||
+				existing_descriptor_indexing_features->descriptorBindingVariableDescriptorCount ||
+				existing_descriptor_indexing_features->runtimeDescriptorArray;
+		}
+#endif
+
 		if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
 		{
@@ -1208,13 +1225,13 @@ VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreateInfo *pCre
 		reshade::vulkan::convert_resource_desc(desc, create_info);
 		pCreateInfo = &create_info;
 
-		if (const auto format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
+		// Remove format list info if format was overriden
+		if (const auto existing_format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
+				create_info.pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
 		{
-			// Remove format list info if format was overriden
-			if (std::find(format_list_info->pViewFormats, format_list_info->pViewFormats + format_list_info->viewFormatCount, create_info.format) == (format_list_info->pViewFormats + format_list_info->viewFormatCount))
+			if (std::find(existing_format_list_info->pViewFormats, existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount, create_info.format) == (existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount))
 				// This is evil, because writing into application memory, but it is what it is
-				const_cast<VkImageFormatListCreateInfo *>(format_list_info)->viewFormatCount = 0;
+				const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = 0;
 		}
 	}
 #endif
@@ -1362,6 +1379,10 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CreateGraphicsPipelines, device_impl);
 
 #if RESHADE_ADDON >= 2
+	// Disable custom allocator when pipeline may be overriden, so corresponding 'vkDestroyPipeline' is not called with mismatching callbacks
+	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
+		pAllocator = nullptr;
+
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
@@ -1585,8 +1606,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count });
 		}
 
-		if (pAllocator == nullptr && // Cannot replace pipeline if custom allocator is used, since corresponding 'vkDestroyPipeline' would be called with mismatching allocator callbacks
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
@@ -1629,6 +1649,10 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CreateComputePipelines, device_impl);
 
 #if RESHADE_ADDON >= 2
+	// Disable custom allocator when pipeline may be overriden, so corresponding 'vkDestroyPipeline' is not called with mismatching callbacks
+	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
+		pAllocator = nullptr;
+
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
@@ -1669,8 +1693,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 			{ reshade::api::pipeline_subobject_type::flags, 1, &flags }
 		};
 
-		if (pAllocator == nullptr && // Cannot replace pipeline if custom allocator is used, since corresponding 'vkDestroyPipeline' would be called with mismatching allocator callbacks
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			result = device_impl->create_pipeline(
 				create_info, pipelineCache,
@@ -1712,6 +1735,10 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CreateRayTracingPipelinesKHR, device_impl);
 
 #if RESHADE_ADDON >= 2
+	// Disable custom allocator when pipeline may be overriden, so corresponding 'vkDestroyPipeline' is not called with mismatching callbacks
+	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
+		pAllocator = nullptr;
+
 	VkResult result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
@@ -1857,8 +1884,7 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_attribute_size, 1, const_cast<uint32_t *>(&create_info.pLibraryInterface->maxPipelineRayHitAttributeSize) });
 		}
 
-		if (pAllocator == nullptr && // Cannot replace pipeline if custom allocator is used, since corresponding 'vkDestroyPipeline' would be called with mismatching allocator callbacks
-			reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
+		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
@@ -1908,6 +1934,12 @@ void     VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipeline, cons
 
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(device_impl, reshade::api::pipeline { (uint64_t)pipeline });
+
+	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
+	{
+		device_impl->destroy_pipeline(reshade::api::pipeline { (uint64_t)pipeline });
+		return;
+	}
 #endif
 
 	trampoline(device, pipeline, pAllocator);
@@ -1922,6 +1954,11 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	VkResult result = VK_SUCCESS;
 #if RESHADE_ADDON >= 2
+	// Disable custom allocator when pipeline layout may be overriden, so corresponding 'vkDestroyPipelineLayout' is not called with mismatching callbacks
+	if (reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>())
+		pAllocator = nullptr;
+
+	bool owns_set_layouts = false;
 	const uint32_t set_desc_count = pCreateInfo->setLayoutCount;
 	uint32_t param_count = set_desc_count + pCreateInfo->pushConstantRangeCount;
 
@@ -1983,14 +2020,12 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 	reshade::api::pipeline_layout_param *param_data = params.data();
 
-	bool registered_pipeline_layout = false;
-	if (pAllocator == nullptr && // Cannot replace pipeline layout if custom allocator is used, since corresponding 'vkDestroyPipelineLayout' would be called with mismatching allocator callbacks
-		reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, param_count, param_data))
+	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline_layout>(device_impl, param_count, param_data))
 	{
 		static_assert(sizeof(*pPipelineLayout) == sizeof(reshade::api::pipeline_layout));
 
 		result = device_impl->create_pipeline_layout(*pCreateInfo, param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
-		registered_pipeline_layout = result == VK_SUCCESS;
+		owns_set_layouts = true;
 	}
 	else
 #endif
@@ -2007,10 +2042,11 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	}
 
 #if RESHADE_ADDON >= 2
-	if (!registered_pipeline_layout)
+	if (!owns_set_layouts)
 	{
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout);
-	data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->register_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(*pPipelineLayout);
+		data.set_layouts.assign(pCreateInfo->pSetLayouts, pCreateInfo->pSetLayouts + pCreateInfo->setLayoutCount);
+		data.owns_set_layouts = false;
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::init_pipeline_layout>(device_impl, param_count, param_data, reshade::api::pipeline_layout { (uint64_t)*pPipelineLayout });
@@ -2029,19 +2065,14 @@ void     VKAPI_CALL vkDestroyPipelineLayout(VkDevice device, VkPipelineLayout pi
 #if RESHADE_ADDON >= 2
 	reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline_layout>(device_impl, reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
 
-	reshade::vulkan::object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> &data = *device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
-
-	// Clean up any samplers that may have been created when an add-on modified the creation of the pipeline layout
-	for (const VkSampler sampler : data.embedded_samplers)
-		device_impl->destroy_sampler({ (uint64_t)sampler });
-
-	const auto destroy_descriptor_set_layout = device_impl->_dispatch_table.DestroyDescriptorSetLayout;
-	assert(destroy_descriptor_set_layout != nullptr);
-	for (const VkDescriptorSetLayout set_layout : data.owned_set_layouts)
+	if (reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>())
 	{
-		device_impl->unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
-		destroy_descriptor_set_layout(device, set_layout, nullptr);
+		// Clean up any samplers and descriptor set layouts that may have been created when an add-on modified the creation of the pipeline layout
+		device_impl->destroy_pipeline_layout(reshade::api::pipeline_layout { (uint64_t)pipelineLayout });
+		return;
 	}
+
+	assert(!device_impl->get_private_data_for_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout)->owns_set_layouts);
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_PIPELINE_LAYOUT>(pipelineLayout);
 #endif

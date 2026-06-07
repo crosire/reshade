@@ -4,7 +4,6 @@
  */
 
 #include "input.hpp"
-#include <Windows.h>
 #include <Xinput.h>
 
 static_assert(

@@ -375,7 +375,7 @@ bool reshade::runtime::on_init()
 	const api::resource_desc back_buffer_desc = _device->get_resource_desc(_swapchain->get_back_buffer(0));
 
 	// Avoid initializing on very small swap chains (e.g. implicit swap chain in The Sims 4, which is not used to present in windowed mode)
-	if (back_buffer_desc.texture.width <= 16 && back_buffer_desc.texture.height <= 16)
+	if (back_buffer_desc.texture.width < 160 && back_buffer_desc.texture.height < 120)
 		return false;
 
 	_width = back_buffer_desc.texture.width;
@@ -556,15 +556,11 @@ bool reshade::runtime::on_init()
 	{
 		const input::window_handle window = get_hwnd();
 		if (window != nullptr && !_is_vr)
-		{
 			_input = input::register_window(window);
-			_primary_input_handler = _input.use_count() == 1;
-		}
 		else
-		{
 			_input.reset();
-			_primary_input_handler = _input_gamepad != nullptr;
-		}
+
+		_primary_input_handler = _input.use_count() == 1 || (_input == nullptr && _input_gamepad != nullptr);
 	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'

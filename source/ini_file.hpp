@@ -7,8 +7,8 @@
 
 #include <string>
 #include <vector>
-#include <filesystem>
 #include <unordered_map>
+#include <filesystem>
 
 extern std::filesystem::path g_reshade_dll_path;
 extern std::filesystem::path g_reshade_base_path;

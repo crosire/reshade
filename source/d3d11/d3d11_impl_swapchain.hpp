@@ -27,7 +27,7 @@ namespace reshade::d3d11
 
 		api::color_space get_color_space() const final;
 
-	private:
-		device_impl *const _device_impl;
+	protected:
+		device_impl *const _device;
 	};
 }

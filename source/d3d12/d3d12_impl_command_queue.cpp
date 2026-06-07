@@ -11,10 +11,10 @@ extern void encode_pix3blob(UINT64(&pix3blob)[64], const char *label, const floa
 
 reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D12CommandQueue *queue) :
 	api_object_impl(queue),
-	_device_impl(device)
+	_device(device)
 {
 	// Register queue to device (technically need to lock here, since queues may be created on multiple threads simultaneously via 'ID3D12Device::CreateCommandQueue', but it is unlikely an application actually does that)
-	_device_impl->_queues.push_back(this);
+	_device->_queues.push_back(this);
 
 	// Only create an immediate command list for graphics queues (since the implemented commands do not work on other queue types)
 	if (queue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT)
@@ -33,7 +33,7 @@ reshade::d3d12::command_queue_impl::command_queue_impl(device_impl *device, ID3D
 	// Create auto-reset event and fence for wait for idle synchronization
 	_wait_idle_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	if (_wait_idle_fence_event == nullptr ||
-		FAILED(_device_impl->_orig->CreateFence(_wait_idle_fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_wait_idle_fence))))
+		FAILED(_device->_orig->CreateFence(_wait_idle_fence_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_wait_idle_fence))))
 	{
 		log::message(log::level::error, "Failed to create wait for idle resources for queue %p!", _orig);
 	}
@@ -46,12 +46,12 @@ reshade::d3d12::command_queue_impl::~command_queue_impl()
 	delete _immediate_cmd_list;
 
 	// Unregister queue from device
-	_device_impl->_queues.erase(std::find(_device_impl->_queues.begin(), _device_impl->_queues.end(), this));
+	_device->_queues.erase(std::find(_device->_queues.begin(), _device->_queues.end(), this));
 }
 
 reshade::api::device *reshade::d3d12::command_queue_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 reshade::api::command_queue_type reshade::d3d12::command_queue_impl::get_type() const

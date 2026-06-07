@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
 #include <unordered_map>
-#include <cstdint>
 
 struct ImFont;
 struct ImDrawData;

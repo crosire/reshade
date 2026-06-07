@@ -31,7 +31,7 @@ namespace reshade::opengl
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags) final;
+		void begin_render_pass2(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags) final;
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
@@ -109,7 +109,7 @@ namespace reshade::opengl
 		unsigned int _default_fbo_height = 0;
 
 	private:
-		device_impl *const _device_impl;
+		device_impl *const _device;
 
 		std::vector<GLuint> _push_constants;
 		std::vector<GLuint> _push_constants_size;

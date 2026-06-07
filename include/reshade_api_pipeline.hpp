@@ -131,6 +131,7 @@ namespace reshade::api
 		data_volatile = 0x2,
 		data_static_while_set_at_execute = 0x4,
 		data_static = 0x8,
+		partially_bound = 0x10,
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(descriptor_range_flags);
 
@@ -141,10 +142,13 @@ namespace reshade::api
 	{
 		push_constants = 1,
 		descriptor_table = 0,
-		descriptor_table_with_flags = 6,
+		descriptor_table_with_flags = 4,
 		push_descriptors = 2,
 		push_descriptors_with_ranges = 3,
-		push_descriptors_with_ranges_and_flags = 7,
+		push_descriptors_with_ranges_and_flags = 5,
+
+		descriptor_table_with_static_samplers [[deprecated("use 'pipeline_layout_param_type::descriptor_table_with_flags' instead")]] = descriptor_table_with_flags,
+		push_descriptors_with_static_samplers [[deprecated("use 'pipeline_layout_param_type::push_descriptors_with_ranges_and_flags' instead")]] = push_descriptors_with_ranges_and_flags,
 	};
 
 	/// <summary>
@@ -216,14 +220,16 @@ namespace reshade::api
 	struct descriptor_range_with_flags : public descriptor_range
 	{
 		/// <summary>
-		/// Optional array of sampler descriptions to statically embed into the descriptor table when the descriptor type is <see cref="descriptor_type::sampler"/> or <see cref="descriptor_type::sampler_with_resource_view"/>.
-		/// </summary>
-		const sampler_desc *static_samplers = nullptr;
-		/// <summary>
 		/// Optional flags specifying the volatility of the descriptors and data they reference.
 		/// </summary>
 		descriptor_range_flags flags = descriptor_range_flags::none;
+		/// <summary>
+		/// Optional array of sampler descriptions to statically embed into the descriptor table when the descriptor type is <see cref="descriptor_type::sampler"/> or <see cref="descriptor_type::sampler_with_resource_view"/>.
+		/// </summary>
+		const sampler_desc *static_samplers = nullptr;
 	};
+
+	using descriptor_range_with_static_samplers = descriptor_range_with_flags;
 
 	/// <summary>
 	/// Describes a single parameter in a pipeline layout.

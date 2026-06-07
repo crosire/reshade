@@ -7,11 +7,11 @@
 #include "vulkan_impl_swapchain.hpp"
 #include "vulkan_impl_type_convert.hpp"
 
-#define vk _device_impl->_dispatch_table
+#define vk _device->_dispatch_table
 
 reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, VkSwapchainKHR swapchain, const VkSwapchainCreateInfoKHR &create_info, HWND hwnd) :
 	api_object_impl(swapchain),
-	_device_impl(device),
+	_device(device),
 	_create_info(create_info),
 	_hwnd(hwnd)
 {
@@ -22,7 +22,7 @@ reshade::vulkan::swapchain_impl::swapchain_impl(device_impl *device, VkSwapchain
 
 reshade::api::device *reshade::vulkan::swapchain_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void *reshade::vulkan::swapchain_impl::get_hwnd() const
@@ -34,13 +34,13 @@ reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t
 {
 	uint32_t num_images = index + 1;
 	temp_mem<VkImage, 3> swapchain_images(num_images);
-	return vk.GetSwapchainImagesKHR(_device_impl->_orig, _orig, &num_images, swapchain_images.p) >= VK_SUCCESS ? api::resource { (uint64_t)swapchain_images[index] } : api::resource {};
+	return vk.GetSwapchainImagesKHR(_device->_orig, _orig, &num_images, swapchain_images.p) >= VK_SUCCESS ? api::resource { (uint64_t)swapchain_images[index] } : api::resource {};
 }
 
 uint32_t reshade::vulkan::swapchain_impl::get_back_buffer_count() const
 {
 	uint32_t num_images = 0;
-	return vk.GetSwapchainImagesKHR(_device_impl->_orig, _orig, &num_images, nullptr) == VK_SUCCESS ? num_images : 0;
+	return vk.GetSwapchainImagesKHR(_device->_orig, _orig, &num_images, nullptr) == VK_SUCCESS ? num_images : 0;
 }
 
 uint32_t reshade::vulkan::swapchain_impl::get_current_back_buffer_index() const
@@ -51,9 +51,9 @@ uint32_t reshade::vulkan::swapchain_impl::get_current_back_buffer_index() const
 bool reshade::vulkan::swapchain_impl::check_color_space_support(api::color_space color_space) const
 {
 	uint32_t num_formats = 0;
-	vk.GetPhysicalDeviceSurfaceFormatsKHR(_device_impl->_physical_device, _create_info.surface, &num_formats, nullptr);
+	vk.GetPhysicalDeviceSurfaceFormatsKHR(_device->_physical_device, _create_info.surface, &num_formats, nullptr);
 	temp_mem<VkSurfaceFormatKHR> formats(num_formats);
-	vk.GetPhysicalDeviceSurfaceFormatsKHR(_device_impl->_physical_device, _create_info.surface, &num_formats, formats.p);
+	vk.GetPhysicalDeviceSurfaceFormatsKHR(_device->_physical_device, _create_info.surface, &num_formats, formats.p);
 
 	for (uint32_t i = 0; i < num_formats; ++i)
 		if (formats[i].format == _create_info.imageFormat && formats[i].colorSpace == convert_color_space(color_space))

@@ -21,7 +21,7 @@ namespace reshade::d3d12
 
 		void barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states) final;
 
-		void begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags) final;
+		void begin_render_pass2(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags) final;
 		void end_render_pass() final;
 		void bind_render_targets_and_depth_stencil(uint32_t count, const api::resource_view *rtvs, api::resource_view dsv) final;
 
@@ -77,10 +77,7 @@ namespace reshade::d3d12
 	protected:
 		void on_init();
 
-		device_impl *const _device_impl;
-		bool _has_commands = false;
-		bool _supports_ray_tracing = false;
-		bool _supports_render_passes = false;
+		device_impl *const _device;
 
 		// Currently bound root signature (graphics at index 0, compute at index 1)
 		ID3D12RootSignature *_current_root_signature[2] = {};
@@ -89,5 +86,11 @@ namespace reshade::d3d12
 #if RESHADE_ADDON >= 2
 		ID3D12DescriptorHeap *_previous_descriptor_heaps[2] = {};
 #endif
+
+		bool _has_commands = false;
+
+	private:
+		bool _supports_ray_tracing = false;
+		bool _supports_render_passes = false;
 	};
 }

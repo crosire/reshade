@@ -379,7 +379,11 @@ bool reshade::d3d12::device_impl::create_resource(const api::resource_desc &desc
 			return false;
 
 		if (placed_footprint.Footprint.Format != DXGI_FORMAT_UNKNOWN)
-			object->SetPrivateData(extra_data_guid, sizeof(placed_footprint.Footprint), &placed_footprint.Footprint);
+		{
+			resource_extra_data extra_data;
+			extra_data.footprint = placed_footprint.Footprint;
+			object->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
+		}
 
 		register_resource(object.get(), initial_state == api::resource_usage::acceleration_structure);
 
@@ -439,15 +443,15 @@ reshade::api::resource_desc reshade::d3d12::device_impl::get_resource_desc(api::
 	D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 	if (desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
-		D3D12_SUBRESOURCE_FOOTPRINT footprint;
-		UINT extra_data_size = sizeof(footprint);
-		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &footprint)))
+		resource_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (SUCCEEDED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 		{
 			desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			desc.Width = footprint.Width;
-			desc.Height = footprint.Height;
-			desc.DepthOrArraySize = static_cast<UINT16>(footprint.Depth);
-			desc.Format = footprint.Format;
+			desc.Width = extra_data.footprint.Width;
+			desc.Height = extra_data.footprint.Height;
+			desc.DepthOrArraySize = static_cast<UINT16>(extra_data.footprint.Depth);
+			desc.Format = extra_data.footprint.Format;
 		}
 	}
 
@@ -667,25 +671,27 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 
 	const D3D12_RESOURCE_DESC internal_desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
 	if (internal_desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{
 		if (subresource != 0)
 			return false;
 
-		UINT extra_data_size = sizeof(placed_footprint.Footprint);
-		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &placed_footprint.Footprint)))
+		resource_extra_data extra_data;
+		UINT extra_data_size = sizeof(extra_data);
+		if (FAILED(reinterpret_cast<ID3D12Resource *>(resource.handle)->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 			return false;
 
-		out_data->slice_pitch = placed_footprint.Footprint.Height;
+		out_data->row_pitch = extra_data.footprint.RowPitch;
+		out_data->slice_pitch = extra_data.footprint.RowPitch * extra_data.footprint.Height;
 	}
 	else
 	{
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_footprint;
 		_orig->GetCopyableFootprints(&internal_desc, subresource, 1, 0, &placed_footprint, &out_data->slice_pitch, nullptr, nullptr);
-	}
 
-	out_data->row_pitch = placed_footprint.Footprint.RowPitch;
-	out_data->slice_pitch *= placed_footprint.Footprint.RowPitch;
+		out_data->row_pitch = placed_footprint.Footprint.RowPitch;
+		out_data->slice_pitch *= placed_footprint.Footprint.RowPitch;
+	}
 
 	return SUCCEEDED(ID3D12Resource_Map(reinterpret_cast<ID3D12Resource *>(resource.handle),
 		subresource, access == api::map_access::write_only || access == api::map_access::write_discard ? &no_read : nullptr, &out_data->data));
@@ -1196,8 +1202,9 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			struct
 			{
 				D3D12_PIPELINE_STATE_STREAM_ROOT_SIGNATURE root_signature;
-				D3D12_PIPELINE_STATE_STREAM_MS as;
+				D3D12_PIPELINE_STATE_STREAM_AS as;
 				D3D12_PIPELINE_STATE_STREAM_MS ms;
+				D3D12_PIPELINE_STATE_STREAM_PS ps;
 				D3D12_PIPELINE_STATE_STREAM_BLEND_DESC blend_state;
 				D3D12_PIPELINE_STATE_STREAM_SAMPLE_MASK sample_mask;
 				D3D12_PIPELINE_STATE_STREAM_RASTERIZER rasterizer_state;
@@ -1213,6 +1220,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			reshade::d3d12::convert_shader_desc(as_desc, stream_data.as.data);
 			stream_data.ms.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
 			reshade::d3d12::convert_shader_desc(ms_desc, stream_data.ms.data);
+			stream_data.ps.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS;
+			reshade::d3d12::convert_shader_desc(ps_desc, stream_data.ps.data);
 			stream_data.blend_state.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
 			reshade::d3d12::convert_blend_desc(blend_desc, stream_data.blend_state.data);
 			stream_data.sample_mask.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
@@ -1232,7 +1241,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 
 			D3D12_PIPELINE_STATE_STREAM_DESC stream_desc;
 			stream_desc.pPipelineStateSubobjectStream = &stream_data;
-			stream_desc.SizeInBytes = sizeof(stream_desc);
+			stream_desc.SizeInBytes = sizeof(stream_data);
 
 			if (com_ptr<ID3D12PipelineState> pipeline;
 				SUCCEEDED(device2->CreatePipelineState(&stream_desc, IID_PPV_ARGS(&pipeline))))
@@ -1344,7 +1353,7 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
 			const bool with_flags = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_flags || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
 			const uint32_t range_count = push_descriptors ? 1 : with_flags ? params[i].descriptor_table_with_flags.count : params[i].descriptor_table.count;
-			const api::descriptor_range_with_flags *range = static_cast<const api::descriptor_range_with_flags *>(push_descriptors ? &params[i].push_descriptors : with_flags ? params[i].descriptor_table_with_flags.ranges : params[i].descriptor_table.ranges);
+			const api::descriptor_range *range = push_descriptors ? &params[i].push_descriptors : with_flags ? params[i].descriptor_table_with_flags.ranges : params[i].descriptor_table.ranges;
 			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
 
 			if (range_count == 0 || range->count == 0)
@@ -1381,67 +1390,66 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 				internal_param.ShaderVisibility = convert_shader_visibility(range->visibility);
 
 				global_visibility_mask |= range->visibility;
+				continue;
 			}
-			else
+
+			internal_ranges[i].reserve(range_count);
+
+			api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
+
+			for (uint32_t k = 0; k < range_count; ++k, range = (with_flags ? static_cast<const api::descriptor_range_with_flags *>(range) + 1 : range + 1))
 			{
-				internal_ranges[i].reserve(range_count);
+				assert(range->array_size <= 1);
 
-				api::shader_stage visibility_mask = static_cast<api::shader_stage>(0);
+				if (range->count == 0)
+					continue;
 
-				for (uint32_t k = 0; k < range_count; ++k, range = (with_flags ? range + 1 : reinterpret_cast<const api::descriptor_range_with_flags *>(reinterpret_cast<const api::descriptor_range *>(range) + 1)))
+				if (with_flags && range->type == api::descriptor_type::sampler && static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers != nullptr)
 				{
-					assert(range->array_size <= 1);
-
-					if (range->count == 0)
-						continue;
-
-					if (with_flags && range->type == api::descriptor_type::sampler && range->static_samplers != nullptr)
+					for (uint32_t j = 0; j < range->count; ++j)
 					{
-						for (uint32_t j = 0; j < range->count; ++j)
-						{
-							D3D12_STATIC_SAMPLER_DESC &internal_static_sampler = internal_static_samplers.emplace_back();
-							convert_sampler_desc(range->static_samplers[j], internal_static_sampler);
+						D3D12_STATIC_SAMPLER_DESC &internal_static_sampler = internal_static_samplers.emplace_back();
+						convert_sampler_desc(static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers[j], internal_static_sampler);
 
-							internal_static_sampler.ShaderRegister = range->dx_register_index + j;
-							internal_static_sampler.RegisterSpace = range->dx_register_space;
-							internal_static_sampler.ShaderVisibility = convert_shader_visibility(range->visibility);
-						}
-						continue;
+						internal_static_sampler.ShaderRegister = range->dx_register_index + j;
+						internal_static_sampler.RegisterSpace = range->dx_register_space;
+						internal_static_sampler.ShaderVisibility = convert_shader_visibility(range->visibility);
 					}
-
-					D3D12_DESCRIPTOR_RANGE1 &internal_range = internal_ranges[i].emplace_back();
-					internal_range.RangeType = convert_descriptor_type(range->type);
-					internal_range.NumDescriptors = range->count;
-					internal_range.BaseShaderRegister = range->dx_register_index;
-					internal_range.RegisterSpace = range->dx_register_space;
-					internal_range.Flags = with_flags ?
-						convert_descriptor_range_flags(range->flags) :
-						range->type == api::descriptor_type::sampler ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE;
-					internal_range.OffsetInDescriptorsFromTableStart = range->binding;
-
-					visibility_mask |= range->visibility;
-
-					// Cannot mix different descriptor heap types in a single descriptor table
-					if (convert_descriptor_type_to_heap_type(range->type) != heap_type)
-						return false;
-
-					if (range->count != UINT32_MAX) // Don't count unbounded ranges
-						set_ranges[i].second = std::max(set_ranges[i].second, range->binding + range->count);
+					continue;
 				}
 
-				if (internal_ranges[i].empty())
-					continue; // Parameter only contains static samplers
+				D3D12_DESCRIPTOR_RANGE1 &internal_range = internal_ranges[i].emplace_back();
+				internal_range.RangeType = convert_descriptor_type(range->type);
+				internal_range.NumDescriptors = range->count;
+				internal_range.BaseShaderRegister = range->dx_register_index;
+				internal_range.RegisterSpace = range->dx_register_space;
+				internal_range.Flags = with_flags ?
+					convert_descriptor_range_flags(static_cast<const api::descriptor_range_with_flags *>(range)->flags) :
+					range->type == api::descriptor_type::sampler ? D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE : D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE;
+				internal_range.OffsetInDescriptorsFromTableStart = range->binding;
 
-				D3D12_ROOT_PARAMETER1 &internal_param = add_internal_param(i);
-				internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-				internal_param.DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
-				internal_param.DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
-				internal_param.ShaderVisibility = convert_shader_visibility(visibility_mask);
+				visibility_mask |= range->visibility;
 
-				global_visibility_mask |= visibility_mask;
+				// Cannot mix different descriptor heap types in a single descriptor table
+				if (convert_descriptor_type_to_heap_type(range->type) != heap_type)
+					return false;
 
-				has_descriptor_tables = true;
+				if (range->count != UINT32_MAX) // Don't count unbounded ranges
+					set_ranges[i].second = std::max(set_ranges[i].second, range->binding + range->count);
 			}
+
+			if (internal_ranges[i].empty())
+				continue; // Parameter only contains static samplers
+
+			D3D12_ROOT_PARAMETER1 &internal_param = add_internal_param(i);
+			internal_param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			internal_param.DescriptorTable.NumDescriptorRanges = static_cast<uint32_t>(internal_ranges[i].size());
+			internal_param.DescriptorTable.pDescriptorRanges = internal_ranges[i].data();
+			internal_param.ShaderVisibility = convert_shader_visibility(visibility_mask);
+
+			global_visibility_mask |= visibility_mask;
+
+			has_descriptor_tables = true;
 		}
 		else
 		{

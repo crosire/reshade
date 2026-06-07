@@ -29,6 +29,7 @@ namespace reshade::d3d12
 
 	private:
 		ID3D12CommandQueue *const _parent_queue;
+
 		UINT32 _cmd_index = 0;
 		HANDLE _fence_event = nullptr;
 		UINT64 _fence_value[NUM_COMMAND_FRAMES] = {};

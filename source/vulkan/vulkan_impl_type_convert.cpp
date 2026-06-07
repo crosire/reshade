@@ -5,7 +5,7 @@
 
 #include "vulkan_hooks.hpp"
 #include "vulkan_impl_type_convert.hpp"
-#include <algorithm> // std::copy_n, std::fill_n, std::find_if
+#include <algorithm> // std::copy_n, std::fill_n, std::find_if, std::max
 
 auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *components) -> VkFormat
 {
@@ -1462,12 +1462,13 @@ reshade::api::resource_desc reshade::vulkan::convert_resource_desc(const VkBuffe
 	api::resource_desc desc = {};
 	desc.type = api::resource_type::buffer;
 	desc.buffer.size = create_info.size;
-	desc.buffer.stride = 0;
 
 	VkBufferUsageFlags2 usage = create_info.usage;
 	if (const auto usage_flags_info = find_in_structure_chain<VkBufferUsageFlags2CreateInfo>(
 			create_info.pNext, VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO))
+	{
 		usage = usage_flags_info->usage;
+	}
 	convert_buffer_usage_flags_to_usage(usage, desc.usage);
 
 #if VK_KHR_external_memory_win32
@@ -1522,9 +1523,9 @@ void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &
 		create_info.format = format;
 
 	create_info.subresourceRange.baseMipLevel = desc.texture.first_level;
-	create_info.subresourceRange.levelCount = desc.texture.level_count;
+	create_info.subresourceRange.levelCount = desc.texture.levels;
 	create_info.subresourceRange.baseArrayLayer = desc.texture.first_layer;
-	create_info.subresourceRange.layerCount = desc.texture.layer_count;
+	create_info.subresourceRange.layerCount = desc.texture.layers;
 }
 void reshade::vulkan::convert_resource_view_desc(const api::resource_view_desc &desc, VkBufferViewCreateInfo &create_info)
 {
@@ -1580,9 +1581,9 @@ reshade::api::resource_view_desc reshade::vulkan::convert_resource_view_desc(con
 
 	desc.format = convert_format(create_info.format, &create_info.components);
 	desc.texture.first_level = create_info.subresourceRange.baseMipLevel;
-	desc.texture.level_count = create_info.subresourceRange.levelCount;
+	desc.texture.levels = create_info.subresourceRange.levelCount;
 	desc.texture.first_layer = create_info.subresourceRange.baseArrayLayer;
-	desc.texture.layer_count = create_info.subresourceRange.layerCount;
+	desc.texture.layers = create_info.subresourceRange.layerCount;
 
 	return desc;
 }
@@ -2410,6 +2411,8 @@ auto reshade::vulkan::convert_descriptor_range_flags(api::descriptor_range_flags
 		result |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 	if ((value & api::descriptor_range_flags::data_static_while_set_at_execute) != 0)
 		result |= VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+	if ((value & api::descriptor_range_flags::partially_bound) != 0)
+		result |= VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;
 
 	return result;
 }
@@ -2420,6 +2423,8 @@ auto reshade::vulkan::convert_descriptor_range_flags(VkDescriptorBindingFlags va
 		result |= api::descriptor_range_flags::descriptors_volatile | api::descriptor_range_flags::data_volatile;
 	if ((value & VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT) != 0)
 		result |= api::descriptor_range_flags::data_static_while_set_at_execute;
+	if ((value & VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) != 0)
+		result |= api::descriptor_range_flags::partially_bound;
 
 	return result;
 }

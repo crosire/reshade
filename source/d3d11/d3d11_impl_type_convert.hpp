@@ -98,10 +98,10 @@ namespace reshade::d3d11
 	api::resource_view_desc convert_resource_view_desc(const D3D11_DEPTH_STENCIL_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D11_RENDER_TARGET_VIEW_DESC &internal_desc);
 	api::resource_view_desc convert_resource_view_desc(const D3D11_RENDER_TARGET_VIEW_DESC1 &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D11_SHADER_RESOURCE_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D11_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
-	api::resource_view_desc convert_resource_view_desc(const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(ID3D11Resource *resource, const D3D11_SHADER_RESOURCE_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(ID3D11Resource *resource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(ID3D11Resource *resource, const D3D11_UNORDERED_ACCESS_VIEW_DESC &internal_desc);
+	api::resource_view_desc convert_resource_view_desc(ID3D11Resource *resource, const D3D11_UNORDERED_ACCESS_VIEW_DESC1 &internal_desc);
 
 	void convert_input_element(const api::input_element &desc, D3D11_INPUT_ELEMENT_DESC &internal_desc);
 	api::input_element convert_input_element(const D3D11_INPUT_ELEMENT_DESC &internal_desc);

@@ -55,10 +55,9 @@ public:
 	bool check_and_upgrade_interface(REFIID riid);
 
 	using command_queue_impl::_orig;
+	using command_queue_impl::_device;
 	LONG _ref = 1;
 	unsigned short _interface_version = 0;
-
-	D3D12Device *const _device;
 
 private:
 	D3D12CommandQueueDownlevel *_downlevel = nullptr;

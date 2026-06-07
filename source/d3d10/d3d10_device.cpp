@@ -10,6 +10,7 @@
 #include "com_utils.hpp"
 #include "hook_manager.hpp"
 #include "addon_manager.hpp"
+#include <intrin.h> // _ReturnAddress
 
 using reshade::d3d10::to_handle;
 

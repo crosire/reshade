@@ -12,12 +12,11 @@
 #include "addon_manager.hpp"
 
 D3D12CommandQueue::D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
-	command_queue_impl(device, original),
-	_device(device)
+	command_queue_impl(device, original)
 {
 	assert(_orig != nullptr && _device != nullptr);
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this queue object
-	_device->AddRef();
+	static_cast<D3D12Device *>(_device)->AddRef();
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_command_queue>(this);
@@ -130,7 +129,7 @@ ULONG   STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	}
 
 	const auto orig = _orig;
-	const auto device = _device;
+	const auto device = static_cast<D3D12Device *>(_device);
 	const auto interface_version = _interface_version;
 #if RESHADE_VERBOSE_LOG
 	reshade::log::message(reshade::log::level::debug, "Destroying ID3D12CommandQueue%hu object %p (%p).", interface_version, this, orig);
@@ -165,7 +164,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::SetName(LPCWSTR Name)
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetDevice(REFIID riid, void **ppvDevice)
 {
-	return _device->QueryInterface(riid, ppvDevice);
+	return static_cast<D3D12Device *>(_device)->QueryInterface(riid, ppvDevice);
 }
 
 void    STDMETHODCALLTYPE D3D12CommandQueue::UpdateTileMappings(ID3D12Resource *pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE *pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE *pResourceRegionSizes, ID3D12Heap *pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS *pRangeFlags, const UINT *pHeapRangeStartOffsets, const UINT *pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags)

@@ -7,11 +7,11 @@
 #include "opengl_impl_device_context.hpp"
 #include "opengl_impl_type_convert.hpp"
 
-#define gl _device_impl->_dispatch_table
+#define gl _device->_dispatch_table
 
 reshade::opengl::device_context_impl::device_context_impl(device_impl *device, HGLRC hglrc) :
 	api_object_impl(hglrc),
-	_device_impl(device),
+	_device(device),
 	_default_fbo_width(device->_default_fbo_desc.texture.width),
 	_default_fbo_height(device->_default_fbo_desc.texture.height)
 {
@@ -42,7 +42,7 @@ reshade::opengl::device_context_impl::~device_context_impl()
 
 reshade::api::device *reshade::opengl::device_context_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void reshade::opengl::device_context_impl::flush_immediate_command_list() const

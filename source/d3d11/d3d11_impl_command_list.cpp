@@ -44,13 +44,13 @@ void reshade::d3d11::pipeline_impl::apply(ID3D11DeviceContext *ctx, api::pipelin
 
 reshade::d3d11::command_list_impl::command_list_impl(device_impl *device, ID3D11CommandList *cmd_list) :
 	api_object_impl(cmd_list),
-	_device_impl(device)
+	_device(device)
 {
 }
 
 reshade::api::device *reshade::d3d11::command_list_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states)
@@ -116,7 +116,7 @@ void reshade::d3d11::device_context_impl::barrier(uint32_t count, const api::res
 	}
 	if (transitions_away_from_unordered_access_usage != 0)
 	{
-		const D3D_FEATURE_LEVEL feature_level = _device_impl->_orig->GetFeatureLevel();
+		const D3D_FEATURE_LEVEL feature_level = _device->_orig->GetFeatureLevel();
 		const UINT max_uav_bindings =
 			feature_level >= D3D_FEATURE_LEVEL_11_1 ? D3D11_1_UAV_SLOT_COUNT :
 			feature_level == D3D_FEATURE_LEVEL_11_0 ? D3D11_PS_CS_UAV_REGISTER_COUNT :
@@ -170,7 +170,7 @@ void reshade::d3d11::device_context_impl::end_uav_overlap()
 		NvAPI_D3D11_EndUAVOverlap(_orig);
 }
 
-void reshade::d3d11::device_context_impl::begin_render_pass(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags)
+void reshade::d3d11::device_context_impl::begin_render_pass2(uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags)
 {
 	assert(count <= D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT);
 
@@ -519,7 +519,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 
 		_push_constants[push_constants_slot].reset();
 
-		if (FAILED(_device_impl->_orig->CreateBuffer(&desc, nullptr, &_push_constants[push_constants_slot])))
+		if (FAILED(_device->_orig->CreateBuffer(&desc, nullptr, &_push_constants[push_constants_slot])))
 		{
 			_push_constants_data[push_constants_slot].clear();
 
@@ -527,7 +527,7 @@ void reshade::d3d11::device_context_impl::push_constants(api::shader_stage stage
 			return;
 		}
 
-		_device_impl->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants[push_constants_slot].get()) }, "Push constants");
+		_device->set_resource_name({ reinterpret_cast<uintptr_t>(_push_constants[push_constants_slot].get()) }, "Push constants");
 	}
 
 	std::memcpy(_push_constants_data[push_constants_slot].data() + first, values, (count - first) * sizeof(uint32_t));
@@ -813,28 +813,28 @@ void reshade::d3d11::device_context_impl::query_acceleration_structures(uint32_t
 	assert(false);
 }
 
-void reshade::d3d11::device_context_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
+void reshade::d3d11::device_context_impl::update_buffer_region(const void *data, api::resource dst, uint64_t dst_offset, uint64_t size)
 {
-	assert(dest != 0);
+	assert(dst != 0);
 
 	if (UINT64_MAX == size)
 	{
 		D3D11_BUFFER_DESC desc;
-		reinterpret_cast<ID3D11Buffer *>(dest.handle)->GetDesc(&desc);
+		reinterpret_cast<ID3D11Buffer *>(dst.handle)->GetDesc(&desc);
 		size = desc.ByteWidth;
 	}
 
-	assert(dest_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
+	assert(dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());
 
-	const D3D11_BOX box = { static_cast<UINT>(dest_offset), 0, 0, static_cast<UINT>(dest_offset + size), 1, 1 };
+	const D3D11_BOX box = { static_cast<UINT>(dst_offset), 0, 0, static_cast<UINT>(dst_offset + size), 1, 1 };
 
-	_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dest.handle), 0, dest_offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
+	_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), 0, dst_offset != 0 ? &box : nullptr, data, static_cast<UINT>(size), 0);
 }
-void reshade::d3d11::device_context_impl::update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box)
+void reshade::d3d11::device_context_impl::update_texture_region(const api::subresource_data &data, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box)
 {
-	assert(dest != 0);
+	assert(dst != 0);
 
-	_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dest.handle), dest_subresource, reinterpret_cast<const D3D11_BOX *>(dest_box), data.data, data.row_pitch, data.slice_pitch);
+	_orig->UpdateSubresource(reinterpret_cast<ID3D11Resource *>(dst.handle), dst_subresource, reinterpret_cast<const D3D11_BOX *>(dst_box), data.data, data.row_pitch, data.slice_pitch);
 }
 
 void reshade::d3d11::device_context_impl::begin_debug_event(const char *label, const float[4])

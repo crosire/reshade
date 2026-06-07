@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <Windows.h>
 #include <sddl.h>
 #include <AclAPI.h>
@@ -100,38 +101,42 @@ int wmain(int argc, wchar_t *argv[])
 		return 0;
 	}
 
-	const wchar_t *name = wcsrchr(argv[1], L'\\');
-	if (name)
-		name++; // Path separator in the argument, skip to the file name part
-	else
-		name = argv[1]; // No path separator in the argument, this is a file name
+	// Attach to running process by PID
+	DWORD pid = wcstoul(argv[1], nullptr, 0);
 
-	wprintf(L"Waiting for a '%s' process to spawn ...\n", name);
-
-	DWORD pid = 0;
-
-	// Wait for a process with the target name to spawn
-	while (!pid)
+	if (pid == 0)
 	{
-		const scoped_handle snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		const wchar_t *name = wcsrchr(argv[1], L'\\');
+		if (name)
+			name++; // Path separator in the argument, skip to the file name part
+		else
+			name = argv[1]; // No path separator in the argument, this is a file name
 
-		PROCESSENTRY32W process = { sizeof(process) };
-		for (BOOL next = Process32FirstW(snapshot, &process); next; next = Process32NextW(snapshot, &process))
+		wprintf(L"Waiting for a '%s' process to spawn ...\n", name);
+
+		// Wait for a process with the target name to spawn
+		while (!pid)
 		{
-			if (_wcsicmp(process.szExeFile, name) == 0)
+			const scoped_handle snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+			PROCESSENTRY32W process = { sizeof(process) };
+			for (BOOL next = Process32FirstW(snapshot, &process); next; next = Process32NextW(snapshot, &process))
 			{
-				pid = process.th32ProcessID;
-				break;
+				if (_wcsicmp(process.szExeFile, name) == 0)
+				{
+					pid = process.th32ProcessID;
+					break;
+				}
 			}
+
+			Sleep(1); // Sleep a bit to not overburden the CPU
 		}
 
-		Sleep(1); // Sleep a bit to not overburden the CPU
+		wprintf(L"Found a matching process with PID %lu! Injecting ReShade ... ", pid);
+
+		// Wait just a little bit for the application to initialize
+		Sleep(50);
 	}
-
-	wprintf(L"Found a matching process with PID %lu! Injecting ReShade ... ", pid);
-
-	// Wait just a little bit for the application to initialize
-	Sleep(50);
 
 	// Open target application process
 	const scoped_handle remote_process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pid);

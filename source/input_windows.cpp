@@ -19,7 +19,7 @@ extern HANDLE g_exit_event;
 static std::shared_mutex s_windows_mutex;
 static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 static std::unordered_map<HWND, std::weak_ptr<reshade::input>> s_windows;
-static RECT s_last_clip_cursor = {};
+static RECT  s_last_clip_cursor = {};
 static POINT s_last_cursor_position = {};
 static std::atomic<bool> s_block_mouse = false;
 static std::atomic<bool> s_block_keyboard = false;
@@ -45,7 +45,7 @@ static_assert(
 	reshade::input::key_left_alt == VK_LMENU &&
 	reshade::input::key_right_alt == VK_RMENU);
 
-bool is_keyboard_layout_german()
+bool reshade::input::is_keyboard_layout_german()
 {
 	return LOBYTE(GetKeyboardLayout(0)) == LANG_GERMAN;
 }

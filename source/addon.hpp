@@ -39,6 +39,7 @@ namespace reshade
 			} number;
 			uint64_t value;
 		} version = {};
+		uint32_t api_version = 0;
 		bool external = true;
 
 		std::vector<std::pair<uint32_t, void *>> event_callbacks;

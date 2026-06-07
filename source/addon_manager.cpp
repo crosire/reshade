@@ -163,6 +163,7 @@ void reshade::load_addons()
 		info.name = "Generic Depth";
 		info.description = "Automatic depth buffer detection that works in the majority of games.";
 		info.author = "crosire";
+		info.api_version = RESHADE_API_VERSION;
 		info.external = false;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
@@ -176,6 +177,7 @@ void reshade::load_addons()
 		info.name = "Effect Runtime Sync";
 		info.description = "Adds preset synchronization between different effect runtime instances, e.g. to have changes in a desktop window reflect in VR.";
 		info.author = "crosire";
+		info.api_version = RESHADE_API_VERSION;
 		info.external = false;
 
 		if (std::find(disabled_addons.cbegin(), disabled_addons.cend(), info.name) == disabled_addons.cend())
@@ -440,6 +442,7 @@ bool ReShadeRegisterAddon(void *module, uint32_t api_version)
 	info.name = path.stem().u8string();
 	info.file = path.filename().u8string();
 	info.handle = module;
+	info.api_version = api_version;
 
 	DWORD version_dummy, version_size = GetFileVersionInfoSizeW(path.c_str(), &version_dummy);
 	std::vector<uint8_t> version_data(version_size);
@@ -623,7 +626,7 @@ void ReShadeRegisterOverlay(const char *title, void(*callback)(reshade::api::eff
 }
 void ReShadeRegisterOverlayForAddon(void *module, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
-	reshade::addon_info *const info = reshade::find_addon(module != nullptr ? module : static_cast<void *>(callback));
+	reshade::addon_info *const info = reshade::find_addon(module != nullptr ? module : reinterpret_cast<void *>(callback));
 	if (info == nullptr)
 	{
 		reshade::log::message(reshade::log::level::error, "Could not find associated add-on and therefore failed to register overlay with title \"%s\".", title);
@@ -641,7 +644,7 @@ void ReShadeRegisterOverlayForAddon(void *module, const char *title, void(*callb
 	info->overlay_callbacks.push_back(reshade::addon_info::overlay_callback { title, callback });
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Registered overlay with title \"%s\" and callback %p.", title, static_cast<void *>(callback));
+	reshade::log::message(reshade::log::level::debug, "Registered overlay with title \"%s\" and callback %p.", title, reinterpret_cast<void *>(callback));
 #endif
 }
 void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
@@ -650,7 +653,7 @@ void ReShadeUnregisterOverlay(const char *title, void(*callback)(reshade::api::e
 }
 void ReShadeUnregisterOverlayForAddon(void *module, const char *title, void(*callback)(reshade::api::effect_runtime *runtime))
 {
-	reshade::addon_info *const info = reshade::find_addon(module != nullptr ? module : static_cast<void *>(callback));
+	reshade::addon_info *const info = reshade::find_addon(module != nullptr ? module : reinterpret_cast<void *>(callback));
 	if (info == nullptr)
 		return; // Do not log an error here, since this may be called if an add-on failed to load
 
@@ -665,7 +668,7 @@ void ReShadeUnregisterOverlayForAddon(void *module, const char *title, void(*cal
 
 #if RESHADE_VERBOSE_LOG
 	// Log before removing from overlay list below, since pointer to title string may become invalid by the removal
-	reshade::log::message(reshade::log::level::debug, "Unregistered overlay with title \"%s\" and callback %p.", title, static_cast<void *>(callback));
+	reshade::log::message(reshade::log::level::debug, "Unregistered overlay with title \"%s\" and callback %p.", title, reinterpret_cast<void *>(callback));
 #endif
 
 	info->overlay_callbacks.erase(std::remove_if(info->overlay_callbacks.begin(), info->overlay_callbacks.end(),

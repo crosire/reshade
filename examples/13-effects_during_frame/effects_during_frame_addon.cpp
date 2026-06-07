@@ -63,12 +63,12 @@ static void on_destroy_effect_runtime(effect_runtime *runtime)
 }
 
 // Called after game has rendered a render pass, so check if it makes sense to render effects then (e.g. after main scene rendering, before UI rendering)
-static void on_end_render_pass(command_list *cmd_list)
+static bool on_end_render_pass(command_list *cmd_list)
 {
 	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
 
 	if (cmd_data.has_multiple_rtvs || cmd_data.current_main_rtv == 0)
-		return; // Ignore when game is rendering to multiple render targets simultaneously
+		return false; // Ignore when game is rendering to multiple render targets simultaneously
 
 	device *const device = cmd_list->get_device();
 	const auto data = device->get_private_data<device_data>();
@@ -98,13 +98,17 @@ static void on_end_render_pass(command_list *cmd_list)
 		// Re-apply state to the command list, as it may have been modified by the call to 'render_effects'
 		current_state->apply(cmd_list);
 	}
+
+	return false;
 }
 
-static void on_begin_render_pass(command_list *cmd_list, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *, render_pass_flags)
+static bool on_begin_render_pass(command_list *cmd_list, uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *, render_pass_flags)
 {
 	auto &cmd_data = *cmd_list->get_private_data<command_list_data>();
 	cmd_data.has_multiple_rtvs = count > 1;
 	cmd_data.current_main_rtv = (count != 0) ? rts[0].view : resource_view { 0 };
+
+	return false;
 }
 static void on_bind_render_targets_and_depth_stencil(command_list *cmd_list, uint32_t count, const resource_view *rtvs, resource_view)
 {

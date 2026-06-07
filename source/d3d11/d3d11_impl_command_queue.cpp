@@ -9,14 +9,14 @@
 
 reshade::d3d11::device_context_impl::device_context_impl(device_impl *device, ID3D11DeviceContext *context) :
 	api_object_impl(context),
-	_device_impl(device)
+	_device(device)
 {
 	context->QueryInterface(&_annotations);
 }
 
 reshade::api::device *reshade::d3d11::device_context_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 reshade::api::command_list *reshade::d3d11::device_context_impl::get_immediate_command_list()
@@ -36,7 +36,7 @@ void reshade::d3d11::device_context_impl::wait_idle() const
 	temp_query_desc.MiscFlags = 0;
 
 	com_ptr<ID3D11Query> temp_query;
-	if (SUCCEEDED(_device_impl->_orig->CreateQuery(&temp_query_desc, &temp_query)))
+	if (SUCCEEDED(_device->_orig->CreateQuery(&temp_query_desc, &temp_query)))
 	{
 		_orig->End(temp_query.get());
 		while (_orig->GetData(temp_query.get(), nullptr, 0, 0) == S_FALSE)
@@ -86,7 +86,7 @@ bool reshade::d3d11::device_context_impl::wait(api::fence fence, uint64_t value)
 		return false;
 	}
 
-	return _device_impl->wait(fence, value, UINT64_MAX);
+	return _device->wait(fence, value, UINT64_MAX);
 }
 bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t value)
 {
@@ -113,7 +113,7 @@ bool reshade::d3d11::device_context_impl::signal(api::fence fence, uint64_t valu
 		return false;
 	}
 
-	return _device_impl->signal(fence, value);
+	return _device->signal(fence, value);
 }
 
 uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
@@ -125,7 +125,7 @@ uint64_t reshade::d3d11::device_context_impl::get_timestamp_frequency() const
 	temp_query_desc.MiscFlags = 0;
 
 	com_ptr<ID3D11Query> temp_query;
-	if (SUCCEEDED(_device_impl->_orig->CreateQuery(&temp_query_desc, &temp_query)))
+	if (SUCCEEDED(_device->_orig->CreateQuery(&temp_query_desc, &temp_query)))
 	{
 		_orig->Begin(temp_query.get());
 		_orig->End(temp_query.get());

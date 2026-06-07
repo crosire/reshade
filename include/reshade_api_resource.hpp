@@ -190,10 +190,10 @@ namespace reshade::api
 		/// </summary>
 		gpu_upload = 6,
 
-		gpu_only = default_,
-		cpu_to_gpu = upload,
-		gpu_to_cpu = readback,
-		cpu_only = scratch,
+		gpu_only [[deprecated("use 'memory_heap::default_' instead")]] = default_,
+		cpu_to_gpu [[deprecated("use 'memory_heap::upload' instead")]] = upload,
+		gpu_to_cpu [[deprecated("use 'memory_heap::readback' instead")]] = readback,
+		cpu_only [[deprecated("use 'memory_heap::scratch' instead")]] = scratch,
 	};
 
 	/// <summary>
@@ -314,10 +314,14 @@ namespace reshade::api
 				/// Size of the buffer (in bytes).
 				/// </summary>
 				uint64_t size = 0;
-				/// <summary>
-				/// Structure stride for structured buffers (in bytes), otherwise zero.
-				/// </summary>
-				uint32_t stride = 0;
+
+				struct
+				{
+					/// <summary>
+					/// Structure stride for structured buffers (in bytes), otherwise zero.
+					/// </summary>
+					uint32_t stride = 0;
+				} structured;
 			} buffer;
 
 			/// <summary>
@@ -426,6 +430,8 @@ namespace reshade::api
 		resource_view_type type = resource_view_type::unknown;
 		/// <summary>
 		/// Format the view should reinterpret the resource data to (can be different than the format of the resource as long as they are compatible).
+		/// Set to <see cref="format::unknown"/> to indicate that a buffer view should be a structured buffer.
+		/// Set to <see cref="format::r32_typeless"/> to indicate that a buffer view should be raw / a byte address buffer.
 		/// </summary>
 		format format = format::unknown;
 
@@ -440,11 +446,30 @@ namespace reshade::api
 				/// Offset from the start of the buffer resource (in bytes).
 				/// </summary>
 				uint64_t offset = 0;
-				/// <summary>
-				/// Number of elements this view covers in the buffer resource (in bytes).
-				/// Set to -1 (UINT64_MAX) to indicate that the entire buffer resource should be used.
-				/// </summary>
-				uint64_t size = UINT64_MAX;
+
+				union
+				{
+					/// <summary>
+					/// Size of the view in the buffer resource (in bytes).
+					/// Set to -1 (UINT64_MAX) to indicate that the entire buffer resource should be used.
+					/// </summary>
+					uint64_t size = UINT64_MAX;
+
+					/// <summary>
+					/// Used instead of size when format is <see cref="format::unknown"/>.
+					/// </summary>
+					struct
+					{
+						/// <summary>
+						/// Number of elements this view covers for structured buffers.
+						/// </summary>
+						uint32_t count;
+						/// <summary>
+						/// Structure stride for structured buffers (in bytes).
+						/// </summary>
+						uint32_t stride;
+					} structured;
+				};
 			} buffer;
 
 			/// <summary>
@@ -460,7 +485,7 @@ namespace reshade::api
 				/// Maximum number of mipmap levels for the view of the texture.
 				/// Set to -1 (UINT32_MAX) to indicate that all mipmap levels down to the least detailed should be used.
 				/// </summary>
-				uint32_t level_count = UINT32_MAX;
+				uint32_t levels = UINT32_MAX;
 				/// <summary>
 				/// Index of the first array layer of the texture array to use. This value is ignored if the texture is not layered.
 				/// </summary>
@@ -469,7 +494,7 @@ namespace reshade::api
 				/// Maximum number of array layers for the view of the texture array. This value is ignored if the texture is not layered.
 				/// Set to -1 (UINT32_MAX) to indicate that all array layers should be used.
 				/// </summary>
-				uint32_t layer_count = UINT32_MAX;
+				uint32_t layers = UINT32_MAX;
 			} texture;
 		};
 	};
@@ -725,10 +750,12 @@ namespace reshade::api
 				uint32_t vertex_count = 0;
 				uint64_t vertex_stride = 0;
 				format vertex_format = api::format::unknown;
+
 				resource index_buffer = {};
 				uint64_t index_offset = 0;
 				uint32_t index_count = 0;
 				format index_format = api::format::unknown;
+
 				resource transform_buffer = {};
 				uint64_t transform_offset = 0;
 			} triangles;

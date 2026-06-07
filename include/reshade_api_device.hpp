@@ -582,7 +582,7 @@ namespace reshade::api
 		/// Creates a new fence synchronization object.
 		/// </summary>
 		/// <param name="initial_value">The initial value for the fence.</param>
-		/// <param name="flags">Fence creation options.</param>
+		/// <param name="flags">Additional parameters of the fence.</param>
 		/// <param name="out_fence">Pointer to a variable that is set to the handle of the created fence.</param>
 		/// <param name="shared_handle">Optional pointer to a variable of type <c>HANDLE</c> used when <paramref name="flags"/> contains <see cref="fence_flags::shared"/>. When that variable is a <see langword="nullptr"/>, it is set to the exported shared handle of the created fence. When that variable is a valid handle, the fence is imported from that shared handle.</param>
 		/// <returns><see langword="true"/> if the fence was successfully created, <see langword="false"/> otherwise (in this case <paramref name="out_fence"/> is set to zero).</returns>
@@ -633,7 +633,7 @@ namespace reshade::api
 		/// </summary>
 		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="type">Type of the acceleration structure.</param>
-		/// <param name="flags">Acceleration structure build options.</param>
+		/// <param name="flags">Additional parameters to the acceleration structure build operation.</param>
 		/// <param name="input_count">Number of build inputs.</param>
 		/// <param name="inputs">Pointer to the first element of an array of build inputs describing the geometry of the acceleration structure.</param>
 		/// <param name="out_size">Pointer to a variable that is set to the required buffer size for the acceleration structure.</param>
@@ -711,7 +711,7 @@ namespace reshade::api
 		/// <param name="count">Number of render target views to bind.</param>
 		/// <param name="rts">Pointer to the first element of an array of render target descriptions.</param>
 		/// <param name="ds">Optional pointer to a depth-stencil description, or <see langword="nullptr"/> to bind none.</param>
-		virtual void begin_render_pass(uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds = nullptr, render_pass_flags flags = render_pass_flags::none) = 0;
+		virtual void begin_render_pass(uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds = nullptr) { begin_render_pass2(count, rts, ds, render_pass_flags::none); }
 		/// <summary>
 		/// Ends a render pass.
 		/// This must be preceeded by a call to <see cref="begin_render_pass"/>.
@@ -1123,7 +1123,7 @@ namespace reshade::api
 		/// </remarks>
 		/// <seealso cref="device_caps::ray_tracing"/>
 		/// <param name="type">Type of the acceleration structure to build.</param>
-		/// <param name="flags">Acceleration structure build options.</param>
+		/// <param name="flags">Additional parameters to the acceleration structure build operation.</param>
 		/// <param name="input_count">Number of build inputs.</param>
 		/// <param name="inputs">Pointer to the first element of an array of build inputs describing the geometry of the acceleration structure to build.</param>
 		/// <param name="scratch">Buffer resource to use as scratch space during building.</param>
@@ -1168,6 +1168,15 @@ namespace reshade::api
 		/// <param name="dest_subresource">Index of the subresource to upload to (<c>level + (layer * levels)</c>).</param>
 		/// <param name="dest_box">Optional 3D box (or <see langword="nullptr"/> to reference the entire subresource) that defines the region in the <paramref name="resource"/> to upload to.</param>
 		virtual void update_texture_region(const subresource_data &data, resource dest, uint32_t dest_subresource, const subresource_box *dest_box = nullptr) = 0;
+
+		/// <summary>
+		/// Begins a render pass and binds render target and depth-stencil resource views.
+		/// </summary>
+		/// <param name="count">Number of render target views to bind.</param>
+		/// <param name="rts">Pointer to the first element of an array of render target descriptions.</param>
+		/// <param name="ds">Optional pointer to a depth-stencil description, or <see langword="nullptr"/> to bind none.</param>
+		/// <param name="flags">Additional parameters of the render pass.</param>
+		virtual void begin_render_pass2(uint32_t count, const render_pass_render_target_desc *rts, const render_pass_depth_stencil_desc *ds, render_pass_flags flags) = 0;
 	};
 
 	/// <summary>

@@ -403,6 +403,9 @@ namespace reshade
 		/// </list>
 		/// <para>Callback function signature: <c>void (api::device *device, api::resource resource)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// This may be called from within other API calls, e.g. <see cref="device::update_texture_region"/>, so be careful with synchronization primitives in the callback.
+		/// </remarks>
 		destroy_resource,
 
 		/// <summary>
@@ -496,6 +499,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// Is not called in D3D12 (since resource views are descriptor handles instead of objects there).
+		/// This may be called from within other API calls, e.g. <see cref="device::update_texture_region"/>, so be careful with synchronization primitives in the callback.
 		/// </remarks>
 		destroy_resource_view,
 
@@ -753,6 +757,7 @@ namespace reshade
 		/// </summary>
 		/// <remarks>
 		/// Is not called in D3D9.
+		/// This may be called from within other API calls, e.g. <see cref="device::destroy_pipeline"/>, so be careful with synchronization primitives in the callback.
 		/// </remarks>
 		destroy_pipeline,
 
@@ -878,7 +883,7 @@ namespace reshade
 		barrier,
 
 		/// <summary>
-		/// Called after:
+		/// Called before:
 		/// <list type="bullet">
 		/// <item><description>ID3D12GraphicsCommandList4::BeginRenderPass</description></item>
 		/// <item><description>vkCmdBeginRenderPass</description></item>
@@ -887,9 +892,10 @@ namespace reshade
 		/// <item><description>vkCmdNextSubpass2</description></item>
 		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags)</c></para>
 		/// </summary>
 		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
 		/// The depth-stencil description argument is optional and may be <see langword="nullptr"/> (which indicates that no depth-stencil is used).
 		/// </remarks>
 		begin_render_pass,
@@ -904,8 +910,11 @@ namespace reshade
 		/// <item><description>vkCmdNextSubpass2</description></item>
 		/// <item><description>vkCmdEndRendering</description></item>
 		/// </list>
-		/// <para>Callback function signature: <c>void (api::command_list *cmd_list)</c></para>
+		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list)</c></para>
 		/// </summary>
+		/// <remarks>
+		/// To prevent this command from being executed, return <see langword="true"/>, otherwise return <see langword="false"/>.
+		/// </remarks>
 		end_render_pass,
 
 		/// <summary>
@@ -1412,7 +1421,6 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::ClearDepthStencilView</description></item>
 		/// <item><description>ID3D11DeviceContext1::ClearView (for depth-stencil views)</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::ClearDepthStencilView</description></item>
-		/// <item><description>ID3D12GraphicsCommandList4::BeginRenderPass</description></item>
 		/// <item><description>glClear</description></item>
 		/// <item><description>glClearBufferfi</description></item>
 		/// <item><description>glClearBufferfv</description></item>
@@ -1420,9 +1428,6 @@ namespace reshade
 		/// <item><description>glClearNamedFramebufferfv</description></item>
 		/// <item><description>vkCmdClearDepthStencilImage</description></item>
 		/// <item><description>vkCmdClearAttachments</description></item>
-		/// <item><description>vkCmdBeginRenderPass</description></item>
-		/// <item><description>vkCmdBeginRenderPass2</description></item>
-		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *rects)</c></para>
 		/// </summary>
@@ -1442,15 +1447,11 @@ namespace reshade
 		/// <item><description>ID3D11DeviceContext::ClearRenderTargetView</description></item>
 		/// <item><description>ID3D11DeviceContext1::ClearView (for render target views)</description></item>
 		/// <item><description>ID3D12GraphicsCommandList::ClearRenderTargetView</description></item>
-		/// <item><description>ID3D12GraphicsCommandList4::BeginRenderPass</description></item>
 		/// <item><description>glClear</description></item>
 		/// <item><description>glClearBufferfv</description></item>
 		/// <item><description>glClearNamedFramebufferfv</description></item>
 		/// <item><description>vkCmdClearColorImage</description></item>
 		/// <item><description>vkCmdClearAttachments</description></item>
-		/// <item><description>vkCmdBeginRenderPass</description></item>
-		/// <item><description>vkCmdBeginRenderPass2</description></item>
-		/// <item><description>vkCmdBeginRendering</description></item>
 		/// </list>
 		/// <para>Callback function signature: <c>bool (api::command_list *cmd_list, api::resource_view rtv, const float color[4], uint32_t rect_count, const api::rect *rects)</c></para>
 		/// </summary>
@@ -1884,8 +1885,8 @@ namespace reshade
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::barrier, void, api::command_list *cmd_list, uint32_t count, const api::resource *resources, const api::resource_usage *old_states, const api::resource_usage *new_states);
 
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, void, api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags);
-	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_render_pass, void, api::command_list *cmd_list);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::begin_render_pass, bool, api::command_list *cmd_list, uint32_t count, const api::render_pass_render_target_desc *rts, const api::render_pass_depth_stencil_desc *ds, api::render_pass_flags flags);
+	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::end_render_pass, bool, api::command_list *cmd_list);
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_render_targets_and_depth_stencil, void, api::command_list *cmd_list, uint32_t count, const api::resource_view *rtvs, api::resource_view dsv);
 
 	RESHADE_DEFINE_ADDON_EVENT_TRAITS(addon_event::bind_pipeline, void, api::command_list *cmd_list, api::pipeline_stage stages, api::pipeline pipeline);

@@ -14,8 +14,7 @@
 using reshade::d3d12::to_handle;
 
 D3D12GraphicsCommandList::D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original) :
-	command_list_impl(device, original),
-	_device(device)
+	command_list_impl(device, original)
 {
 	assert(_orig != nullptr && _device != nullptr);
 
@@ -145,7 +144,7 @@ HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::SetName(LPCWSTR Name)
 
 HRESULT STDMETHODCALLTYPE D3D12GraphicsCommandList::GetDevice(REFIID riid, void **ppvDevice)
 {
-	return _device->QueryInterface(riid, ppvDevice);
+	return static_cast<D3D12Device *>(_device)->QueryInterface(riid, ppvDevice);
 }
 
 D3D12_COMMAND_LIST_TYPE STDMETHODCALLTYPE D3D12GraphicsCommandList::GetType()
@@ -639,7 +638,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootConstantBufferVie
 		return;
 
 	reshade::api::buffer_range buffer_range;
-	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+	if (!_device->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
 		return;
 	buffer_range.size = UINT64_MAX;
 
@@ -660,7 +659,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetGraphicsRootConstantBufferVi
 		return;
 
 	reshade::api::buffer_range buffer_range;
-	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
+	if (!_device->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset))
 		return;
 	buffer_range.size = UINT64_MAX;
 
@@ -682,7 +681,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SetComputeRootShaderResourceVie
 
 	reshade::api::buffer_range buffer_range;
 	bool acceleration_structure;
-	if (!_device_impl->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset, &acceleration_structure))
+	if (!_device->resolve_gpu_address(BufferLocation, &buffer_range.buffer, &buffer_range.offset, &acceleration_structure))
 		return;
 	buffer_range.size = UINT64_MAX;
 
@@ -751,7 +750,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetIndexBuffer(const D3D12_IN
 
 	if (pView != nullptr)
 	{
-		if (!_device_impl->resolve_gpu_address(pView->BufferLocation, &buffer, &offset))
+		if (!_device->resolve_gpu_address(pView->BufferLocation, &buffer, &offset))
 			return;
 		index_size = pView->Format == DXGI_FORMAT_R16_UINT ? 2 : 4;
 	}
@@ -774,7 +773,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::IASetVertexBuffers(UINT StartSl
 	{
 		if (pViews != nullptr)
 		{
-			if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
+			if (!_device->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
 				return;
 			strides[i] = pViews[i].StrideInBytes;
 		}
@@ -805,10 +804,10 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::SOSetTargets(UINT StartSlot, UI
 	{
 		if (pViews != nullptr && pViews[i].SizeInBytes != 0)
 		{
-			if (!_device_impl->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
+			if (!_device->resolve_gpu_address(pViews[i].BufferLocation, &buffers[i], &offsets[i]))
 				return;
 			max_sizes[i] = pViews[i].SizeInBytes;
-			if (!_device_impl->resolve_gpu_address(pViews[i].BufferFilledSizeLocation, &counter_buffers[i], &counter_offsets[i]))
+			if (!_device->resolve_gpu_address(pViews[i].BufferFilledSizeLocation, &counter_buffers[i], &counter_offsets[i]))
 				return;
 		}
 		else
@@ -855,7 +854,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearRenderTargetView(D3D12_CPU
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const UINT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON >= 2
-	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle);
+	ViewCPUHandle = _device->convert_to_original_cpu_descriptor_handle(ViewCPUHandle);
 #endif
 
 #if RESHADE_ADDON
@@ -867,7 +866,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewUint(D3
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::ClearUnorderedAccessViewFloat(D3D12_GPU_DESCRIPTOR_HANDLE ViewGPUHandleInCurrentHeap, D3D12_CPU_DESCRIPTOR_HANDLE ViewCPUHandle, ID3D12Resource *pResource, const FLOAT Values[4], UINT NumRects, const D3D12_RECT *pRects)
 {
 #if RESHADE_ADDON >= 2
-	ViewCPUHandle = _device_impl->convert_to_original_cpu_descriptor_handle(ViewCPUHandle);
+	ViewCPUHandle = _device->convert_to_original_cpu_descriptor_handle(ViewCPUHandle);
 #endif
 
 #if RESHADE_ADDON
@@ -1006,37 +1005,6 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	assert(_interface_version >= 4);
 
 #if RESHADE_ADDON
-	for (UINT i = 0; i < NumRenderTargets; ++i)
-	{
-		if (pRenderTargets[i].BeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR)
-		{
-			reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
-				this,
-				to_handle(pRenderTargets[i].cpuDescriptor),
-				pRenderTargets[i].BeginningAccess.Clear.ClearValue.Color,
-				0, nullptr);
-		}
-	}
-
-	if (pDepthStencil != nullptr)
-	{
-		const bool clear_depth = pDepthStencil->DepthBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-		const bool clear_stencil = pDepthStencil->StencilBeginningAccess.Type == D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR;
-		if (clear_depth || clear_stencil)
-		{
-			reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
-				this,
-				to_handle(pDepthStencil->cpuDescriptor),
-				clear_depth ? &pDepthStencil->DepthBeginningAccess.Clear.ClearValue.DepthStencil.Depth : nullptr,
-				clear_stencil ? &pDepthStencil->StencilBeginningAccess.Clear.ClearValue.DepthStencil.Stencil : nullptr,
-				0, nullptr);
-		}
-	}
-#endif
-
-	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
-
-#if RESHADE_ADDON
 	temp_mem<reshade::api::render_pass_render_target_desc, D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT> rts(NumRenderTargets);
 	for (UINT i = 0; i < NumRenderTargets; ++i)
 		rts[i] = reshade::d3d12::convert_render_pass_render_target_desc(pRenderTargets[i]);
@@ -1045,15 +1013,19 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::BeginRenderPass(UINT NumRenderT
 	if (pDepthStencil != nullptr)
 		ds = reshade::d3d12::convert_render_pass_depth_stencil_desc(*pDepthStencil);
 
-	reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargets, rts.p, pDepthStencil != nullptr ? &ds : nullptr, reshade::d3d12::convert_render_pass_flags(Flags));
+	if (reshade::invoke_addon_event<reshade::addon_event::begin_render_pass>(this, NumRenderTargets, rts.p, pDepthStencil != nullptr ? &ds : nullptr, reshade::d3d12::convert_render_pass_flags(Flags)))
+		return;
 #endif
+
+	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->BeginRenderPass(NumRenderTargets, pRenderTargets, pDepthStencil, Flags);
 }
 void STDMETHODCALLTYPE D3D12GraphicsCommandList::EndRenderPass()
 {
 	assert(_interface_version >= 4);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this);
+	if (reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(this))
+		return;
 #endif
 
 	static_cast<ID3D12GraphicsCommandList4 *>(_orig)->EndRenderPass();
@@ -1119,7 +1091,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::EmitRaytracingAccelerationStruc
 	{
 		reshade::api::resource buffer = {};
 		uint64_t offset = 0;
-		if (_device_impl->resolve_gpu_address(pDesc->DestBuffer, &buffer, &offset))
+		if (_device->resolve_gpu_address(pDesc->DestBuffer, &buffer, &offset))
 		{
 			if (const reshade::api::query_type query_type = reshade::d3d12::convert_acceleration_structure_post_build_info_type(pDesc->InfoType);
 				reshade::invoke_addon_event<reshade::addon_event::query_acceleration_structures>(

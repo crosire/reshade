@@ -1082,7 +1082,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 	const GLenum resource_target = resource.handle >> 40;
 	const GLenum resource_object = resource.handle & 0xFFFFFFFF;
-	if (resource_target == GL_FRAMEBUFFER_DEFAULT && _default_fbo_desc.texture.depth_or_layers == 2 && desc.texture.layer_count == 1)
+	if (resource_target == GL_FRAMEBUFFER_DEFAULT && _default_fbo_desc.texture.depth_or_layers == 2 && desc.texture.layers == 1)
 	{
 		*out_view = make_resource_view_handle(resource_target, desc.texture.first_layer == 0 ? GL_BACK_LEFT : GL_BACK_RIGHT);
 		return true;
@@ -1147,7 +1147,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		*out_view = make_resource_view_handle(target, resource_object);
 		return true;
 	}
-	else if (resource_target == GL_TEXTURE_CUBE_MAP && target == GL_TEXTURE_2D && desc.texture.layer_count == 1)
+	else if (resource_target == GL_TEXTURE_CUBE_MAP && target == GL_TEXTURE_2D && desc.texture.layers == 1)
 	{
 		// Cube map face is handled via special target
 		*out_view = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource_object);
@@ -1183,15 +1183,15 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 	else
 	{
 		// Number of levels and layers are clamped to those of the original texture (except for non-array textures where the number of layers has to be one)
-		GLuint num_layers = 1u;
+		GLuint layers = 1u;
 		if (desc.type == api::resource_view_type::texture_1d_array ||
 			desc.type == api::resource_view_type::texture_2d_array ||
 			desc.type == api::resource_view_type::texture_2d_multisample_array ||
 			desc.type == api::resource_view_type::texture_cube ||
 			desc.type == api::resource_view_type::texture_cube_array)
-			num_layers = desc.texture.layer_count;
+			layers = desc.texture.layers;
 
-		gl.TextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.level_count, desc.texture.first_layer, num_layers);
+		gl.TextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.levels, desc.texture.first_layer, layers);
 
 		register_resource_view(target, object, resource);
 
@@ -1479,6 +1479,12 @@ reshade::api::resource_view reshade::opengl::device_impl::get_framebuffer_attach
 			if (target == GL_TEXTURE)
 			{
 				gl.GetTextureParameteriv(object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&target));
+				if (target == GL_TEXTURE)
+				{
+					// Object does not have a texture target and is therefore likely no longer valid
+					assert(!gl.IsTexture(object));
+					return { 0 };
+				}
 
 				// Layered attachments are only valid for texture target types
 				GLint layered = GL_FALSE;

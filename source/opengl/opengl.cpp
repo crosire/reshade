@@ -270,15 +270,15 @@ public:
 			*min_level = _desc.texture.first_level;
 			*min_layer = _desc.texture.first_layer;
 
-			if (_desc.texture.level_count == UINT32_MAX)
+			if (_desc.texture.levels == UINT32_MAX)
 				*num_levels = device->get_resource_desc(_resource).texture.levels;
 			else
-				*num_levels = _desc.texture.level_count;
+				*num_levels = _desc.texture.levels;
 
-			if (_desc.texture.layer_count == UINT32_MAX)
+			if (_desc.texture.layers == UINT32_MAX)
 				*num_layers = device->get_resource_desc(_resource).texture.depth_or_layers;
 			else
-				*num_layers = _desc.texture.layer_count;
+				*num_layers = _desc.texture.layers;
 		}
 	}
 

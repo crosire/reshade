@@ -6,7 +6,7 @@
 #include "opengl_impl_device.hpp"
 #include "opengl_impl_state_block.hpp"
 
-#define gl _device_impl->_dispatch_table
+#define gl _device->_dispatch_table
 
 #define glEnableOrDisable(cap, enable) \
 	if (enable) { \
@@ -24,7 +24,7 @@
 	}
 
 reshade::opengl::state_block::state_block(device_impl *device) :
-	_device_impl(device)
+	_device(device)
 {
 }
 
@@ -74,7 +74,7 @@ void reshade::opengl::state_block::capture()
 
 	_srgb_enable = gl.IsEnabled(GL_FRAMEBUFFER_SRGB);
 
-	if (_device_impl->get_compatibility_context())
+	if (_device->get_compatibility_context())
 		_alpha_test = gl.IsEnabled(GL_ALPHA_TEST);
 
 	_sample_alpha_to_coverage = gl.IsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE);
@@ -190,7 +190,7 @@ void reshade::opengl::state_block::apply() const
 
 	glEnableOrDisable(GL_FRAMEBUFFER_SRGB, _srgb_enable);
 
-	if (_device_impl->get_compatibility_context())
+	if (_device->get_compatibility_context())
 		glEnableOrDisable(GL_ALPHA_TEST, _alpha_test);
 
 	glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, _sample_alpha_to_coverage);

@@ -9,7 +9,7 @@
 
 reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapChain *swapchain) :
 	api_object_impl(swapchain),
-	_device_impl(device)
+	_device(device)
 {
 #ifndef NDEBUG
 	DXGI_SWAP_CHAIN_DESC swap_desc = {};
@@ -21,7 +21,7 @@ reshade::d3d10::swapchain_impl::swapchain_impl(device_impl *device, IDXGISwapCha
 
 reshade::api::device *reshade::d3d10::swapchain_impl::get_device()
 {
-	return _device_impl;
+	return _device;
 }
 
 void *reshade::d3d10::swapchain_impl::get_hwnd() const

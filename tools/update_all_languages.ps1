@@ -1,4 +1,4 @@
-$env:Path += ".\gettext"
+$env:Path += ";.\gettext"
 
 if ((Get-Command "xgettext.exe" -ErrorAction SilentlyContinue) -eq $null) 
 { 
@@ -7,6 +7,7 @@ if ((Get-Command "xgettext.exe" -ErrorAction SilentlyContinue) -eq $null)
 }
 
 $languages = @(
+	"ar-SA",
 	"bg-BG",
 	"de-DE",
 	"en-US",
