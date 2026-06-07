@@ -73,12 +73,12 @@ namespace reshade::vulkan
 		void update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box) final;
 
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline) final;
-		VkResult create_pipeline(const VkGraphicsPipelineCreateInfo &original_create_info, VkPipelineCache pipeline_cache, api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline);
-		VkResult create_pipeline(const VkComputePipelineCreateInfo &original_create_info, VkPipelineCache pipeline_cache, api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline);
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkComputePipelineCreateInfo *orig_create_info);
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkGraphicsPipelineCreateInfo *orig_create_info);
 		void destroy_pipeline(api::pipeline pipeline) final;
 
-		bool create_pipeline_layout(const VkPipelineLayoutCreateInfo &original_create_info, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout);
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout) final;
+		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout, const VkPipelineLayoutCreateInfo *orig_create_info);
 		void destroy_pipeline_layout(api::pipeline_layout layout) final;
 
 		bool allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables) final;
@@ -160,36 +160,8 @@ namespace reshade::vulkan
 		const VkPhysicalDeviceFeatures _enabled_features;
 
 	private:
-		struct graphics_pipeline_desc
-		{
-			api::shader_desc vs_desc = {};
-			api::shader_desc hs_desc = {};
-			api::shader_desc ds_desc = {};
-			api::shader_desc gs_desc = {};
-			api::shader_desc ps_desc = {};
-			api::shader_desc as_desc = {};
-			api::shader_desc ms_desc = {};
-			api::pipeline_subobject input_layout_desc = {};
-			api::stream_output_desc stream_output_desc = {};
-			api::blend_desc blend_desc = {};
-			api::rasterizer_desc rasterizer_desc = {};
-			api::depth_stencil_desc depth_stencil_desc = {};
-			api::primitive_topology topology = api::primitive_topology::undefined;
-			api::format depth_stencil_format = api::format::unknown;
-			api::pipeline_subobject render_target_formats = {};
-			api::pipeline_subobject dynamic_states_subobject = {};
-			uint32_t sample_mask = UINT32_MAX;
-			uint32_t sample_count = 1;
-			uint32_t viewport_count = 1;
-			std::vector<api::pipeline> libraries;
-			api::pipeline_flags flags = api::pipeline_flags::none;
-		};
-
-		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, const VkPipelineShaderStageCreateInfo *original_stage_info, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
-		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
-		VkResult create_graphics_pipeline(const VkGraphicsPipelineCreateInfo *original_create_info, VkPipelineCache pipeline_cache, api::pipeline_layout layout, const graphics_pipeline_desc &desc, api::pipeline *out_pipeline);
+		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, const VkPipelineShaderStageCreateInfo *orig_stage_info, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
 		bool create_descriptor_set_layout(const api::pipeline_layout_param &param, VkDescriptorSetLayout *out_set_layout, std::vector<VkSampler> &embedded_samplers);
-		bool create_pipeline_layout_impl(const VkPipelineLayoutCreateInfo *original_create_info, uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout);
 
 		VmaAllocator _alloc = nullptr;
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;
