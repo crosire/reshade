@@ -160,7 +160,6 @@ namespace reshade::vulkan
 		const VkPhysicalDeviceFeatures _enabled_features;
 
 	private:
-		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, const VkPipelineShaderStageCreateInfo *orig_stage_info, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
 		bool create_descriptor_set_layout(const api::pipeline_layout_param &param, VkDescriptorSetLayout *out_set_layout, std::vector<VkSampler> &embedded_samplers);
 
 		VmaAllocator _alloc = nullptr;

@@ -1239,43 +1239,98 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	destroy_resource(intermediate);
 }
 
-static const void *sanitize_shader_stage_pnext_for_explicit_module(const void *pnext)
+struct pnext_link_restore
 {
-	const auto *base = static_cast<const VkBaseInStructure *>(pnext);
-	while (base != nullptr)
-	{
-		if (base->sType == VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
-		{
-			// Stripping an inline module create info from the middle of the chain would require cloning
-			// the prefix nodes, so drop the preserved chain instead of passing an invalid combination of
-			// explicit module handle plus inline module source to Vulkan.
-			return base == pnext ? base->pNext : nullptr;
-		}
+	VkBaseOutStructure *structure;
+	VkBaseOutStructure *pNext;
+};
 
-		base = base->pNext;
+template <typename T>
+static void append_to_structure_chain(const void *&chain, T *node, std::vector<pnext_link_restore> *restore_links = nullptr)
+{
+	node->pNext = nullptr;
+
+	if (chain == nullptr)
+	{
+		chain = node;
+		return;
 	}
 
-	return pnext;
+	auto *tail = const_cast<VkBaseOutStructure *>(reinterpret_cast<const VkBaseOutStructure *>(chain));
+	while (tail->pNext != nullptr)
+		tail = tail->pNext;
+
+	if (restore_links != nullptr)
+		restore_links->push_back({ tail, tail->pNext });
+
+	tail->pNext = reinterpret_cast<VkBaseOutStructure *>(node);
 }
 
-bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, const VkPipelineShaderStageCreateInfo *orig_stage_info, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
+template <typename T>
+static bool replace_in_structure_chain(const void *&chain, const T *original_node, T *replacement_node, std::vector<pnext_link_restore> *restore_links = nullptr)
 {
-	if (orig_stage_info != nullptr)
+	replacement_node->pNext = original_node->pNext;
+
+	if (chain == original_node)
 	{
-		stage_info = *orig_stage_info;
-		stage_info.stage = stage;
+		chain = replacement_node;
+		return true;
+	}
 
-		if (desc.entry_point != nullptr)
-			stage_info.pName = desc.entry_point;
+	auto *current = const_cast<VkBaseOutStructure *>(reinterpret_cast<const VkBaseOutStructure *>(chain));
+	while (current != nullptr && current->pNext != nullptr)
+	{
+		if (current->pNext == reinterpret_cast<VkBaseOutStructure *>(const_cast<T *>(original_node)))
+		{
+			if (restore_links != nullptr)
+				restore_links->push_back({ current, current->pNext });
 
-		stage_info.pNext = sanitize_shader_stage_pnext_for_explicit_module(stage_info.pNext);
+			current->pNext = reinterpret_cast<VkBaseOutStructure *>(replacement_node);
+			return true;
+		}
+
+		current = current->pNext;
+	}
+
+	return false;
+}
+
+static void restore_pnext_links(const std::vector<pnext_link_restore> &restore_links)
+{
+	for (const pnext_link_restore &restore : restore_links)
+		restore.structure->pNext = restore.pNext;
+}
+
+template <typename T>
+static T &replace_or_append_structure_chain_node(const void *&chain, VkStructureType type, T &node, std::vector<pnext_link_restore> &restore_links)
+{
+	if (const auto original_node = find_in_structure_chain<T>(chain, type))
+	{
+		node = *original_node;
+		replace_in_structure_chain(chain, original_node, &node, &restore_links);
 	}
 	else
 	{
-		stage_info = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-		stage_info.stage = stage;
-		stage_info.pName = desc.entry_point != nullptr ? desc.entry_point : "main";
+		node = { type };
+		append_to_structure_chain(chain, &node, &restore_links);
 	}
+
+	return node;
+}
+
+static bool setup_shader_stage_inline(VkShaderStageFlagBits stage, const reshade::api::shader_desc &desc, const VkPipelineShaderStageCreateInfo *orig_stage_info, VkPipelineShaderStageCreateInfo &stage_info, VkShaderModuleCreateInfo &module_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map, std::vector<pnext_link_restore> &restore_links)
+{
+	if (desc.code_size == 0 || desc.code == nullptr)
+		return false;
+
+	stage_info = orig_stage_info != nullptr ? *orig_stage_info : VkPipelineShaderStageCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	stage_info.stage = stage;
+	stage_info.module = VK_NULL_HANDLE;
+
+	if (desc.entry_point != nullptr)
+		stage_info.pName = desc.entry_point;
+	else if (stage_info.pName == nullptr)
+		stage_info.pName = "main";
 
 	if (desc.spec_constants != 0)
 	{
@@ -1291,17 +1346,15 @@ bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits st
 		stage_info.pSpecializationInfo = &spec_info;
 	}
 
-	VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-	create_info.codeSize = desc.code_size;
-	create_info.pCode = static_cast<const uint32_t *>(desc.code);
+	replace_or_append_structure_chain_node(stage_info.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, module_info, restore_links);
+	module_info.codeSize = desc.code_size;
+	module_info.pCode = static_cast<const uint32_t *>(desc.code);
 
-	return vk.CreateShaderModule(_orig, &create_info, nullptr, &stage_info.module) == VK_SUCCESS;
+	return true;
 }
 
 bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline)
 {
-	std::vector<VkShaderModule> shaders;
-
 	api::shader_desc vs_desc = {};
 	api::shader_desc hs_desc = {};
 	api::shader_desc ds_desc = {};
@@ -1487,47 +1540,48 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		const size_t max_shader_stage_count = raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size();
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
+		std::vector<VkShaderModuleCreateInfo> shader_module_info;
 		std::vector<VkSpecializationInfo> spec_info;
 		std::vector<std::vector<VkSpecializationMapEntry>> spec_map;
+		std::vector<pnext_link_restore> pnext_restore_links;
 		shader_stage_info.reserve(max_shader_stage_count);
+		shader_module_info.reserve(max_shader_stage_count);
 		spec_info.reserve(max_shader_stage_count);
 		spec_map.reserve(max_shader_stage_count);
 
+		const auto append_stage = [&](VkShaderStageFlagBits stage, const api::shader_desc &shader_desc) {
+			return setup_shader_stage_inline(stage, shader_desc, nullptr, shader_stage_info.emplace_back(), shader_module_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back(), pnext_restore_links);
+		};
+
 		for (const api::shader_desc &shader_desc : raygen_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc, nullptr, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : any_hit_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc, nullptr, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : closest_hit_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc, nullptr, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : miss_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc, nullptr, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : intersection_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc, nullptr, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : callable_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc, nullptr, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 
 		create_info.stageCount = static_cast<uint32_t>(shader_stage_info.size());
@@ -1653,9 +1707,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateRayTracingPipelinesKHR(_orig, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
-			for (const VkShaderModule shader : shaders)
-				vk.DestroyShaderModule(_orig, shader, nullptr);
-
 			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
@@ -1671,18 +1722,14 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	}
 
 exit_failure:
-	for (const VkShaderModule shader : shaders)
-		vk.DestroyShaderModule(_orig, shader, nullptr);
-
 	*out_pipeline = { 0 };
 	return false;
 }
 bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkComputePipelineCreateInfo *orig_create_info)
 {
-	std::vector<VkShaderModule> shaders;
-
 	api::shader_desc cs_desc = {};
 	api::pipeline_flags flags = api::pipeline_flags::none;
+	std::vector<pnext_link_restore> pnext_restore_links;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -1714,34 +1761,31 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		VkSpecializationInfo spec_info;
 		std::vector<VkSpecializationMapEntry> spec_map;
+		VkShaderModuleCreateInfo shader_module_info;
 		if (cs_desc.code_size != 0)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_COMPUTE_BIT, cs_desc, orig_create_info != nullptr ? &orig_create_info->stage : nullptr, create_info.stage, spec_info, spec_map))
+			if (!setup_shader_stage_inline(VK_SHADER_STAGE_COMPUTE_BIT, cs_desc, orig_create_info != nullptr ? &orig_create_info->stage : nullptr, create_info.stage, shader_module_info, spec_info, spec_map, pnext_restore_links))
 				goto exit_failure;
-			shaders.push_back(create_info.stage.module);
 		}
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateComputePipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
-			vk.DestroyShaderModule(_orig, create_info.stage.module, nullptr);
-
+			restore_pnext_links(pnext_restore_links);
 			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
+
 	}
 
 exit_failure:
-	for (const VkShaderModule shader : shaders)
-		vk.DestroyShaderModule(_orig, shader, nullptr);
-
+	restore_pnext_links(pnext_restore_links);
 	*out_pipeline = { 0 };
 	return false;
 }
 bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkGraphicsPipelineCreateInfo *orig_create_info)
 {
 	VkRenderPass render_pass = VK_NULL_HANDLE;
-	std::vector<VkShaderModule> shaders;
 
 	api::shader_desc vs_desc = {};
 	api::shader_desc hs_desc = {};
@@ -1764,6 +1808,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	uint32_t viewport_count = 1;
 	std::vector<api::pipeline> libraries;
 	api::pipeline_flags flags = api::pipeline_flags::none;
+	std::vector<pnext_link_restore> pnext_restore_links;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -1873,13 +1918,14 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		VkSpecializationInfo spec_info[6];
 		std::vector<VkSpecializationMapEntry> spec_map[6];
+		VkShaderModuleCreateInfo shader_module_info[6];
 
 		const auto append_stage = [&](VkShaderStageFlagBits stage, const api::shader_desc &shader_desc, const VkPipelineShaderStageCreateInfo *original_stage_info) {
 			if (shader_desc.code_size != 0)
 			{
-				if (!create_shader_module(stage, shader_desc, original_stage_info, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
+				if (!setup_shader_stage_inline(stage, shader_desc, original_stage_info, shader_stage_info[create_info.stageCount], shader_module_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount], pnext_restore_links))
 					return false;
-				shaders.push_back(shader_stage_info[create_info.stageCount++].module);
+				++create_info.stageCount;
 				return true;
 			}
 
@@ -1887,7 +1933,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 				shader_stage_info[create_info.stageCount++] = *original_stage_info;
 
 			return true;
-			};
+		};
 
 		const bool stage_setup_success = [&]() {
 			if (orig_create_info != nullptr)
@@ -1977,7 +2023,9 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			}();
 
 		if (!stage_setup_success)
+		{
 			goto exit_failure;
+		}
 
 		std::vector<VkDynamicState> dynamic_states;
 		// Always make scissor rectangles and viewports dynamic
@@ -1985,7 +2033,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dynamic_states);
 
-		VkPipelineDynamicStateCreateInfo dynamic_state_info { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+		VkPipelineDynamicStateCreateInfo dynamic_state_info = create_info.pDynamicState != nullptr ? *create_info.pDynamicState : VkPipelineDynamicStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
 		create_info.pDynamicState = &dynamic_state_info;
 		dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
 		dynamic_state_info.pDynamicStates = dynamic_states.data();
@@ -1993,17 +2041,19 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		std::vector<VkVertexInputBindingDescription> vertex_bindings;
 		std::vector<VkVertexInputAttributeDescription> vertex_attributes;
 		std::vector<VkVertexInputBindingDivisorDescription> vertex_binding_divisors;
+
 		convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_bindings, vertex_attributes, vertex_binding_divisors);
 
-		VkPipelineVertexInputDivisorStateCreateInfo vertex_input_divisor_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO };
-		vertex_input_divisor_state_info.vertexBindingDivisorCount = static_cast<uint32_t>(vertex_binding_divisors.size());
-		vertex_input_divisor_state_info.pVertexBindingDivisors = vertex_binding_divisors.data();
+		VkPipelineVertexInputDivisorStateCreateInfo vertex_input_divisor_state_info;
 
 		VkPipelineVertexInputStateCreateInfo vertex_input_state_info = create_info.pVertexInputState != nullptr ? *create_info.pVertexInputState : VkPipelineVertexInputStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-		vertex_input_state_info.pNext = nullptr;
 		create_info.pVertexInputState = &vertex_input_state_info;
 		if (!vertex_binding_divisors.empty())
-			vertex_input_state_info.pNext = &vertex_input_divisor_state_info;
+		{
+			replace_or_append_structure_chain_node(vertex_input_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO, vertex_input_divisor_state_info, pnext_restore_links);
+			vertex_input_divisor_state_info.vertexBindingDivisorCount = static_cast<uint32_t>(vertex_binding_divisors.size());
+			vertex_input_divisor_state_info.pVertexBindingDivisors = vertex_binding_divisors.data();
+		}
 		vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(vertex_bindings.size());
 		vertex_input_state_info.pVertexBindingDescriptions = vertex_bindings.data();
 		vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size());
@@ -2024,21 +2074,20 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		viewport_state_info.scissorCount = viewport_count;
 		viewport_state_info.viewportCount = viewport_count;
 
-		VkPipelineRasterizationStateCreateInfo rasterization_state_info = create_info.pRasterizationState != nullptr ? *create_info.pRasterizationState : VkPipelineRasterizationStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-		rasterization_state_info.pNext = nullptr;
-		create_info.pRasterizationState = &rasterization_state_info;
+		VkPipelineRasterizationStateCreateInfo rasterization_state_info;
+		{
+			rasterization_state_info = create_info.pRasterizationState != nullptr ? *create_info.pRasterizationState : VkPipelineRasterizationStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+			create_info.pRasterizationState = &rasterization_state_info;
+		}
 
 #if VK_EXT_conservative_rasterization
 		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info;
-		if (rasterizer_desc.conservative_rasterization != 0)
+		if (rasterizer_desc.conservative_rasterization != 0 || find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT) != nullptr)
 		{
-			if (!vk.EXT_conservative_rasterization)
+			if (rasterizer_desc.conservative_rasterization != 0 && !vk.EXT_conservative_rasterization)
 				goto exit_failure;
 
-			conservative_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
-			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
-
-			rasterization_state_info.pNext = &conservative_rasterization_info;
+			replace_or_append_structure_chain_node(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT, conservative_rasterization_info, pnext_restore_links);
 		}
 #endif
 
@@ -2050,10 +2099,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRasterizationStateStreamCreateInfoEXT stream_rasterization_info;
 		if (stream_output_desc.rasterized_stream != 0)
 		{
-			stream_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
-			stream_rasterization_info.pNext = rasterization_state_info.pNext;
-
-			rasterization_state_info.pNext = &stream_rasterization_info;
+			replace_or_append_structure_chain_node(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT, stream_rasterization_info, pnext_restore_links);
 
 			convert_stream_output_desc(stream_output_desc, rasterization_state_info);
 		}
@@ -2090,24 +2136,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRenderingCreateInfo dynamic_rendering_info;
 		if (create_info.renderPass == VK_NULL_HANDLE && vk.KHR_dynamic_rendering)
 		{
-			dynamic_rendering_info = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-			if (orig_create_info != nullptr)
-			{
-				if (const auto original_dynamic_rendering_info = find_in_structure_chain<VkPipelineRenderingCreateInfo>(orig_create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO))
-				{
-					dynamic_rendering_info = *original_dynamic_rendering_info;
-					if (reinterpret_cast<const void *>(original_dynamic_rendering_info) == orig_create_info->pNext)
-						dynamic_rendering_info.pNext = original_dynamic_rendering_info->pNext;
-				}
-				else
-				{
-					dynamic_rendering_info.pNext = create_info.pNext;
-				}
-			}
-			else
-			{
-				dynamic_rendering_info.pNext = create_info.pNext;
-			}
+			replace_or_append_structure_chain_node(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO, dynamic_rendering_info, pnext_restore_links);
 
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
 			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats.p;
@@ -2120,7 +2149,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			if (aspect_flags_from_format(depth_stencil_format_vk) & VK_IMAGE_ASPECT_STENCIL_BIT)
 				dynamic_rendering_info.stencilAttachmentFormat = depth_stencil_format_vk;
 
-			create_info.pNext = &dynamic_rendering_info;
 		}
 		else
 #endif
@@ -2200,52 +2228,31 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineLibraryCreateInfoKHR library_info;
 		if (!libraries.empty())
 		{
-			library_info = { VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
-			if (orig_create_info != nullptr)
-			{
-				if (const auto original_library_info = find_in_structure_chain<VkPipelineLibraryCreateInfoKHR>(orig_create_info->pNext, VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR))
-				{
-					library_info = *original_library_info;
-					if (reinterpret_cast<const void *>(original_library_info) == create_info.pNext)
-						library_info.pNext = original_library_info->pNext;
-				}
-				else
-				{
-					library_info.pNext = create_info.pNext;
-				}
-			}
-			else
-			{
-				library_info.pNext = create_info.pNext;
-			}
+			replace_or_append_structure_chain_node(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR, library_info, pnext_restore_links);
 
 			library_info.libraryCount = static_cast<uint32_t>(libraries.size());
 			library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
-
-			create_info.pNext = &library_info;
 		}
 #endif
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
+			restore_pnext_links(pnext_restore_links);
+
 			if (render_pass != VK_NULL_HANDLE)
 				vk.DestroyRenderPass(_orig, render_pass, nullptr);
-
-			for (const VkShaderModule shader : shaders)
-				vk.DestroyShaderModule(_orig, shader, nullptr);
 
 			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
+
 	}
 
 exit_failure:
+	restore_pnext_links(pnext_restore_links);
 	if (render_pass != VK_NULL_HANDLE)
 		vk.DestroyRenderPass(_orig, render_pass, nullptr);
-
-	for (const VkShaderModule shader : shaders)
-		vk.DestroyShaderModule(_orig, shader, nullptr);
 
 	*out_pipeline = { 0 };
 	return false;
