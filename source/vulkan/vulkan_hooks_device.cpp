@@ -1611,8 +1611,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
 			result = device_impl->create_pipeline(
-				create_info, pipelineCache,
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]));
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]), &create_info) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1696,8 +1695,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			result = device_impl->create_pipeline(
-				create_info, pipelineCache,
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]));
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]), &create_info) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -2024,7 +2022,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 	{
 		static_assert(sizeof(*pPipelineLayout) == sizeof(reshade::api::pipeline_layout));
 
-		result = device_impl->create_pipeline_layout(*pCreateInfo, param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+		result = device_impl->create_pipeline_layout(param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout), pCreateInfo) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		owns_set_layouts = true;
 	}
 	else
