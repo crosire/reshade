@@ -79,7 +79,8 @@ static bool invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					std::copy_n(begin_info->pClearValues[a].color.float32, 4, rt.clear_color);
 				}
 
-				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED && desc.initialLayout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED &&
+					desc.initialLayout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
 				{
 					VkImageMemoryBarrier &transition = transitions[num_transitions++];
 					transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
@@ -124,7 +125,10 @@ static bool invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 					ds.clear_stencil = static_cast<uint8_t>(begin_info->pClearValues[a].depthStencil.stencil);
 				}
 
-				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED && desc.initialLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+				if (desc.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED &&
+					desc.initialLayout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
+					desc.initialLayout != VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL &&
+					desc.initialLayout != VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL)
 				{
 					VkImageMemoryBarrier &transition = transitions[num_transitions++];
 					transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
