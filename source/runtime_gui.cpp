@@ -3427,7 +3427,7 @@ void reshade::runtime::draw_variable_editor()
 		ImGui::SetWindowPos(popup_pos);
 
 		bool global_modified = false, preset_modified = false;
-		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions[{}].size()) + 2) * ImGui::GetFrameHeightWithSpacing();
+		float popup_height = (std::max(_global_preprocessor_definitions.size(), _preset_preprocessor_definitions[{}].size()) + 3) * ImGui::GetFrameHeightWithSpacing();
 		popup_height = std::min(popup_height, ImGui::GetWindowViewport()->Size.y - popup_pos.y - 20.0f);
 		popup_height = std::max(popup_height, 42.0f); // Ensure window always has a minimum height
 		const float button_size = ImGui::GetFrameHeight();
@@ -3453,6 +3453,12 @@ void reshade::runtime::draw_variable_editor()
 			{
 				if (ImGui::BeginTabItem(type.name.c_str()))
 				{
+					ImGui::Dummy(ImVec2());
+					ImGui::SameLine(0, button_spacing);
+					ImGui::TextUnformatted(_("Name"));
+					ImGui::SameLine(content_region_width * 0.66666666f, button_spacing);
+					ImGui::TextUnformatted(_("Value"));
+
 					if (&type.modified == &preset_modified)
 						ImGui::BeginDisabled(!_auto_save_preset);
 

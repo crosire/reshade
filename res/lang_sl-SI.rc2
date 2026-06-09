@@ -170,6 +170,8 @@ BEGIN
 17289 "Uredi globalne predprocesorske definicije"
 2314 "Globalno"
 38344 "Trenutna prednastavitev"
+19882 "Ime"
+22129 "Vrednost"
 10646 "Ali res želite odstraniti predprocesorsko definicijo '%s'?"
 63179 "Uporabi"
 9813 "Ponastavi vse na privzeto"

@@ -170,6 +170,8 @@ BEGIN
 17289 "Editar definiciones globales del preprocesador"
 2314 "Global"
 38344 "Preset Actual"
+19882 "Nombre"
+22129 "Valor"
 10646 "¿Remover la definición del preprocesador '%s'?"
 63179 "Aplicar"
 9813 "Resetear todo"

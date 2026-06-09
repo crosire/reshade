@@ -170,6 +170,8 @@ BEGIN
 17289 "Edytuj globalne definicje preprocesora"
 2314 "Globalne"
 38344 "Obecny profil"
+19882 "Nazwa"
+22129 "Wartość"
 10646 "Czy na pewno chcesz usunąć definicję preprocesora '%s'?"
 63179 "Zatwierdź"
 9813 "Zresetuj wszystko do wartości domyślnych"
