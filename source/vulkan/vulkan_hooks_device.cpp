@@ -1610,10 +1610,8 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
 
-			assert(create_info.pNext == nullptr); // 'device_impl::create_pipeline' does not support extension structures apart from dynamic rendering
-
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]), &create_info) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -1697,7 +1695,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			result = device_impl->create_pipeline(
-				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i])) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]), &create_info) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
@@ -2026,7 +2024,7 @@ VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkPipelineLayo
 
 		assert(pCreateInfo->pNext == nullptr); // 'device_impl::create_pipeline_layout' does not support extension structures
 
-		result = device_impl->create_pipeline_layout(param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout)) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
+		result = device_impl->create_pipeline_layout(param_count, param_data, reinterpret_cast<reshade::api::pipeline_layout *>(pPipelineLayout), pCreateInfo) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		owns_set_layouts = true;
 	}
 	else

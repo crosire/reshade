@@ -4,6 +4,7 @@
  */
 
 #include "vulkan_impl_device.hpp"
+#include "vulkan_hooks.hpp"
 #include "vulkan_impl_command_queue.hpp"
 #include "vulkan_impl_type_convert.hpp"
 #include "dll_log.hpp"
@@ -1238,34 +1239,122 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	destroy_resource(intermediate);
 }
 
-bool reshade::vulkan::device_impl::create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map)
+struct pnext_link_restore
 {
-	spec_map.reserve(desc.spec_constants);
-	for (uint32_t i = 0; i < desc.spec_constants; ++i)
-		spec_map.push_back(VkSpecializationMapEntry { desc.spec_constant_ids[i], i * 4, sizeof(uint32_t) });
+	VkBaseOutStructure *structure;
+	VkBaseOutStructure *pNext;
+};
 
-	spec_info.mapEntryCount = desc.spec_constants;
-	spec_info.pMapEntries = spec_map.data();
-	spec_info.dataSize = desc.spec_constants * sizeof(uint32_t);
-	spec_info.pData = desc.spec_constant_values;
+template <typename T>
+static void append_to_structure_chain(const void *&chain, T *node, std::vector<pnext_link_restore> *restore_links = nullptr)
+{
+	node->pNext = nullptr;
 
-	stage_info = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	if (chain == nullptr)
+	{
+		chain = node;
+		return;
+	}
+
+	auto *tail = const_cast<VkBaseOutStructure *>(reinterpret_cast<const VkBaseOutStructure *>(chain));
+	while (tail->pNext != nullptr)
+		tail = tail->pNext;
+
+	if (restore_links != nullptr)
+		restore_links->push_back({ tail, tail->pNext });
+
+	tail->pNext = reinterpret_cast<VkBaseOutStructure *>(node);
+}
+
+template <typename T>
+static bool replace_in_structure_chain(const void *&chain, const T *original_node, T *replacement_node, std::vector<pnext_link_restore> *restore_links = nullptr)
+{
+	replacement_node->pNext = original_node->pNext;
+
+	if (chain == original_node)
+	{
+		chain = replacement_node;
+		return true;
+	}
+
+	auto *current = const_cast<VkBaseOutStructure *>(reinterpret_cast<const VkBaseOutStructure *>(chain));
+	while (current != nullptr && current->pNext != nullptr)
+	{
+		if (current->pNext == reinterpret_cast<VkBaseOutStructure *>(const_cast<T *>(original_node)))
+		{
+			if (restore_links != nullptr)
+				restore_links->push_back({ current, current->pNext });
+
+			current->pNext = reinterpret_cast<VkBaseOutStructure *>(replacement_node);
+			return true;
+		}
+
+		current = current->pNext;
+	}
+
+	return false;
+}
+
+static void restore_pnext_links(const std::vector<pnext_link_restore> &restore_links)
+{
+	for (const pnext_link_restore &restore : restore_links)
+		restore.structure->pNext = restore.pNext;
+}
+
+template <typename T>
+static T &replace_or_append_structure_chain_node(const void *&chain, VkStructureType type, T &node, std::vector<pnext_link_restore> &restore_links)
+{
+	if (const auto original_node = find_in_structure_chain<T>(chain, type))
+	{
+		node = *original_node;
+		replace_in_structure_chain(chain, original_node, &node, &restore_links);
+	}
+	else
+	{
+		node = { type };
+		append_to_structure_chain(chain, &node, &restore_links);
+	}
+
+	return node;
+}
+
+static bool setup_shader_stage_inline(VkShaderStageFlagBits stage, const reshade::api::shader_desc &desc, const VkPipelineShaderStageCreateInfo *orig_stage_info, VkPipelineShaderStageCreateInfo &stage_info, VkShaderModuleCreateInfo &module_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map, std::vector<pnext_link_restore> &restore_links)
+{
+	if (desc.code_size == 0 || desc.code == nullptr)
+		return false;
+
+	stage_info = orig_stage_info != nullptr ? *orig_stage_info : VkPipelineShaderStageCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 	stage_info.stage = stage;
-	stage_info.pName = desc.entry_point != nullptr ? desc.entry_point : "main";
-	stage_info.pSpecializationInfo = &spec_info;
+	stage_info.module = VK_NULL_HANDLE;
 
-	VkShaderModuleCreateInfo create_info { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-	create_info.codeSize = desc.code_size;
-	create_info.pCode = static_cast<const uint32_t *>(desc.code);
+	if (desc.entry_point != nullptr)
+		stage_info.pName = desc.entry_point;
+	else if (stage_info.pName == nullptr)
+		stage_info.pName = "main";
 
-	return vk.CreateShaderModule(_orig, &create_info, nullptr, &stage_info.module) == VK_SUCCESS;
+	if (desc.spec_constants != 0)
+	{
+		spec_map.reserve(desc.spec_constants);
+		for (uint32_t i = 0; i < desc.spec_constants; ++i)
+			spec_map.push_back(VkSpecializationMapEntry { desc.spec_constant_ids[i], i * 4, sizeof(uint32_t) });
+
+		spec_info.mapEntryCount = desc.spec_constants;
+		spec_info.pMapEntries = spec_map.data();
+		spec_info.dataSize = desc.spec_constants * sizeof(uint32_t);
+		spec_info.pData = desc.spec_constant_values;
+
+		stage_info.pSpecializationInfo = &spec_info;
+	}
+
+	replace_or_append_structure_chain_node(stage_info.pNext, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, module_info, restore_links);
+	module_info.codeSize = desc.code_size;
+	module_info.pCode = static_cast<const uint32_t *>(desc.code);
+
+	return true;
 }
 
 bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline)
 {
-	VkRenderPass render_pass = VK_NULL_HANDLE;
-	std::vector<VkShaderModule> shaders;
-
 	api::shader_desc vs_desc = {};
 	api::shader_desc hs_desc = {};
 	api::shader_desc ds_desc = {};
@@ -1451,47 +1540,48 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		const size_t max_shader_stage_count = raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size();
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
+		std::vector<VkShaderModuleCreateInfo> shader_module_info;
 		std::vector<VkSpecializationInfo> spec_info;
 		std::vector<std::vector<VkSpecializationMapEntry>> spec_map;
+		std::vector<pnext_link_restore> pnext_restore_links;
 		shader_stage_info.reserve(max_shader_stage_count);
+		shader_module_info.reserve(max_shader_stage_count);
 		spec_info.reserve(max_shader_stage_count);
 		spec_map.reserve(max_shader_stage_count);
 
+		const auto append_stage = [&](VkShaderStageFlagBits stage, const api::shader_desc &shader_desc) {
+			return setup_shader_stage_inline(stage, shader_desc, nullptr, shader_stage_info.emplace_back(), shader_module_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back(), pnext_restore_links);
+		};
+
 		for (const api::shader_desc &shader_desc : raygen_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : any_hit_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : closest_hit_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : miss_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_MISS_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : intersection_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 		for (const api::shader_desc &shader_desc : callable_desc)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc, shader_stage_info.emplace_back(), spec_info.emplace_back(), spec_map.emplace_back()))
+			if (!append_stage(VK_SHADER_STAGE_CALLABLE_BIT_KHR, shader_desc))
 				goto exit_failure;
-			shaders.push_back(shader_stage_info.back().module);
 		}
 
 		create_info.stageCount = static_cast<uint32_t>(shader_stage_info.size());
@@ -1617,9 +1707,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateRayTracingPipelinesKHR(_orig, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
-			for (const VkShaderModule shader : shaders)
-				vk.DestroyShaderModule(_orig, shader, nullptr);
-
 			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
@@ -1627,83 +1714,318 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 	}
 	else if (cs_desc.code_size != 0)
 	{
-		VkComputePipelineCreateInfo create_info { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
-		create_info.flags = convert_pipeline_flags(flags);
+		return create_pipeline(layout, subobject_count, subobjects, out_pipeline, static_cast<const VkComputePipelineCreateInfo *>(nullptr));
+	}
+	else
+	{
+		return create_pipeline(layout, subobject_count, subobjects, out_pipeline, static_cast<const VkGraphicsPipelineCreateInfo *>(nullptr));
+	}
+
+exit_failure:
+	*out_pipeline = { 0 };
+	return false;
+}
+bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkComputePipelineCreateInfo *orig_create_info)
+{
+	api::shader_desc cs_desc = {};
+	api::pipeline_flags flags = api::pipeline_flags::none;
+	std::vector<pnext_link_restore> pnext_restore_links;
+
+	for (uint32_t i = 0; i < subobject_count; ++i)
+	{
+		if (subobjects[i].count == 0)
+			continue;
+
+		switch (subobjects[i].type)
+		{
+		case api::pipeline_subobject_type::compute_shader:
+			assert(subobjects[i].count == 1);
+			cs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::flags:
+			assert(subobjects[i].count == 1);
+			flags = *static_cast<const api::pipeline_flags *>(subobjects[i].data);
+			break;
+		default:
+			assert(false);
+			goto exit_failure;
+		}
+	}
+
+	{
+		VkComputePipelineCreateInfo create_info = orig_create_info != nullptr ? *orig_create_info : VkComputePipelineCreateInfo { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 		create_info.layout = (VkPipelineLayout)layout.handle;
+
+		if (find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO) == nullptr)
+			create_info.flags = convert_pipeline_flags(flags);
 
 		VkSpecializationInfo spec_info;
 		std::vector<VkSpecializationMapEntry> spec_map;
+		VkShaderModuleCreateInfo shader_module_info;
 		if (cs_desc.code_size != 0)
 		{
-			if (!create_shader_module(VK_SHADER_STAGE_COMPUTE_BIT, cs_desc, create_info.stage, spec_info, spec_map))
+			if (!setup_shader_stage_inline(VK_SHADER_STAGE_COMPUTE_BIT, cs_desc, orig_create_info != nullptr ? &orig_create_info->stage : nullptr, create_info.stage, shader_module_info, spec_info, spec_map, pnext_restore_links))
 				goto exit_failure;
-			shaders.push_back(create_info.stage.module);
 		}
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateComputePipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
-			vk.DestroyShaderModule(_orig, create_info.stage.module, nullptr);
-
+			restore_pnext_links(pnext_restore_links);
 			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
+
 	}
-	else
+
+exit_failure:
+	restore_pnext_links(pnext_restore_links);
+	*out_pipeline = { 0 };
+	return false;
+}
+bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkGraphicsPipelineCreateInfo *orig_create_info)
+{
+	VkRenderPass render_pass = VK_NULL_HANDLE;
+
+	api::shader_desc vs_desc = {};
+	api::shader_desc hs_desc = {};
+	api::shader_desc ds_desc = {};
+	api::shader_desc gs_desc = {};
+	api::shader_desc ps_desc = {};
+	api::shader_desc as_desc = {};
+	api::shader_desc ms_desc = {};
+	api::pipeline_subobject input_layout_desc = {};
+	api::stream_output_desc stream_output_desc = {};
+	api::blend_desc blend_desc = {};
+	api::rasterizer_desc rasterizer_desc = {};
+	api::depth_stencil_desc depth_stencil_desc = {};
+	api::primitive_topology topology = api::primitive_topology::undefined;
+	api::format depth_stencil_format = api::format::unknown;
+	api::pipeline_subobject render_target_formats = {};
+	api::pipeline_subobject dynamic_states_subobject = {};
+	uint32_t sample_mask = UINT32_MAX;
+	uint32_t sample_count = 1;
+	uint32_t viewport_count = 1;
+	std::vector<api::pipeline> libraries;
+	api::pipeline_flags flags = api::pipeline_flags::none;
+	std::vector<pnext_link_restore> pnext_restore_links;
+
+	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
-		VkGraphicsPipelineCreateInfo create_info { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-		create_info.flags = convert_pipeline_flags(flags);
+		if (subobjects[i].count == 0)
+			continue;
+
+		switch (subobjects[i].type)
+		{
+		case api::pipeline_subobject_type::vertex_shader:
+			assert(subobjects[i].count == 1);
+			vs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::hull_shader:
+			assert(subobjects[i].count == 1);
+			hs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::domain_shader:
+			assert(subobjects[i].count == 1);
+			ds_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::geometry_shader:
+			assert(subobjects[i].count == 1);
+			gs_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::pixel_shader:
+			assert(subobjects[i].count == 1);
+			ps_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::input_layout:
+			input_layout_desc = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::stream_output_state:
+			assert(subobjects[i].count == 1);
+			stream_output_desc = *static_cast<const api::stream_output_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::blend_state:
+			assert(subobjects[i].count == 1);
+			blend_desc = *static_cast<const api::blend_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::rasterizer_state:
+			assert(subobjects[i].count == 1);
+			rasterizer_desc = *static_cast<const api::rasterizer_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::depth_stencil_state:
+			assert(subobjects[i].count == 1);
+			depth_stencil_desc = *static_cast<const api::depth_stencil_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::primitive_topology:
+			assert(subobjects[i].count == 1);
+			topology = *static_cast<const api::primitive_topology *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::depth_stencil_format:
+			assert(subobjects[i].count == 1);
+			depth_stencil_format = *static_cast<const api::format *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::render_target_formats:
+			assert(subobjects[i].count <= 8);
+			render_target_formats = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::sample_mask:
+			assert(subobjects[i].count == 1);
+			sample_mask = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::sample_count:
+			assert(subobjects[i].count == 1);
+			sample_count = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::viewport_count:
+			assert(subobjects[i].count == 1);
+			viewport_count = *static_cast<const uint32_t *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::dynamic_pipeline_states:
+			dynamic_states_subobject = subobjects[i];
+			break;
+		case api::pipeline_subobject_type::amplification_shader:
+			assert(subobjects[i].count == 1);
+			as_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::mesh_shader:
+			assert(subobjects[i].count == 1);
+			ms_desc = *static_cast<const api::shader_desc *>(subobjects[i].data);
+			break;
+		case api::pipeline_subobject_type::libraries:
+			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+				libraries.push_back(static_cast<const api::pipeline *>(subobjects[i].data)[k]);
+			break;
+		case api::pipeline_subobject_type::flags:
+			assert(subobjects[i].count == 1);
+			flags = *static_cast<const api::pipeline_flags *>(subobjects[i].data);
+			break;
+		default:
+			assert(false);
+			goto exit_failure;
+		}
+	}
+
+	{
+		VkGraphicsPipelineCreateInfo create_info = orig_create_info != nullptr ? *orig_create_info : VkGraphicsPipelineCreateInfo { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
 		create_info.layout = (VkPipelineLayout)layout.handle;
 
+		if (find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO) == nullptr)
+			create_info.flags = convert_pipeline_flags(flags);
+
 		VkPipelineShaderStageCreateInfo shader_stage_info[6];
+		create_info.stageCount = 0;
 		create_info.pStages = shader_stage_info;
 
 		VkSpecializationInfo spec_info[6];
 		std::vector<VkSpecializationMapEntry> spec_map[6];
-		if (vs_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_VERTEX_BIT, vs_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
-		if (hs_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, hs_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
-		if (ds_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, ds_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
-		if (gs_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_GEOMETRY_BIT, gs_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
-		if (ps_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_FRAGMENT_BIT, ps_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
+		VkShaderModuleCreateInfo shader_module_info[6];
+
+		const auto append_stage = [&](VkShaderStageFlagBits stage, const api::shader_desc &shader_desc, const VkPipelineShaderStageCreateInfo *original_stage_info) {
+			if (shader_desc.code_size != 0)
+			{
+				if (!setup_shader_stage_inline(stage, shader_desc, original_stage_info, shader_stage_info[create_info.stageCount], shader_module_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount], pnext_restore_links))
+					return false;
+				++create_info.stageCount;
+				return true;
+			}
+
+			if (original_stage_info != nullptr)
+				shader_stage_info[create_info.stageCount++] = *original_stage_info;
+
+			return true;
+		};
+
+		const bool stage_setup_success = [&]() {
+			if (orig_create_info != nullptr)
+			{
+				const auto get_shader_desc = [&](VkShaderStageFlagBits stage) -> const api::shader_desc *{
+					switch (stage)
+					{
+					case VK_SHADER_STAGE_VERTEX_BIT:
+						return &vs_desc;
+					case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:
+						return &hs_desc;
+					case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT:
+						return &ds_desc;
+					case VK_SHADER_STAGE_GEOMETRY_BIT:
+						return &gs_desc;
+					case VK_SHADER_STAGE_FRAGMENT_BIT:
+						return &ps_desc;
 #if VK_EXT_mesh_shader
-		if (as_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_TASK_BIT_EXT, as_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
-		if (ms_desc.code_size != 0)
-		{
-			if (!create_shader_module(VK_SHADER_STAGE_MESH_BIT_EXT, ms_desc, shader_stage_info[create_info.stageCount], spec_info[create_info.stageCount], spec_map[create_info.stageCount]))
-				goto exit_failure;
-			shaders.push_back(shader_stage_info[create_info.stageCount++].module);
-		}
+					case VK_SHADER_STAGE_TASK_BIT_EXT:
+						return &as_desc;
+					case VK_SHADER_STAGE_MESH_BIT_EXT:
+						return &ms_desc;
 #endif
+					default:
+						return nullptr;
+					}
+					};
+
+				VkShaderStageFlags present_stages = 0;
+
+				for (uint32_t i = 0; i < orig_create_info->stageCount; ++i)
+				{
+					const VkPipelineShaderStageCreateInfo &original_stage_info = orig_create_info->pStages[i];
+					const api::shader_desc *shader_desc = get_shader_desc(original_stage_info.stage);
+
+					if (shader_desc == nullptr)
+					{
+						shader_stage_info[create_info.stageCount++] = original_stage_info;
+						continue;
+					}
+
+					present_stages |= original_stage_info.stage;
+
+					if (!append_stage(original_stage_info.stage, *shader_desc, &original_stage_info))
+						return false;
+				}
+
+				// Add new added stages from addon
+				if ((present_stages & VK_SHADER_STAGE_VERTEX_BIT) == 0 && vs_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_VERTEX_BIT, vs_desc, nullptr))
+					return false;
+				if ((present_stages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT) == 0 && hs_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, hs_desc, nullptr))
+					return false;
+				if ((present_stages & VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT) == 0 && ds_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, ds_desc, nullptr))
+					return false;
+				if ((present_stages & VK_SHADER_STAGE_GEOMETRY_BIT) == 0 && gs_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_GEOMETRY_BIT, gs_desc, nullptr))
+					return false;
+				if ((present_stages & VK_SHADER_STAGE_FRAGMENT_BIT) == 0 && ps_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_FRAGMENT_BIT, ps_desc, nullptr))
+					return false;
+#if VK_EXT_mesh_shader
+				if ((present_stages & VK_SHADER_STAGE_TASK_BIT_EXT) == 0 && as_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_TASK_BIT_EXT, as_desc, nullptr))
+					return false;
+				if ((present_stages & VK_SHADER_STAGE_MESH_BIT_EXT) == 0 && ms_desc.code_size != 0 && !append_stage(VK_SHADER_STAGE_MESH_BIT_EXT, ms_desc, nullptr))
+					return false;
+#endif
+			}
+			else
+			{
+				if (!append_stage(VK_SHADER_STAGE_VERTEX_BIT, vs_desc, nullptr))
+					return false;
+				if (!append_stage(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, hs_desc, nullptr))
+					return false;
+				if (!append_stage(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, ds_desc, nullptr))
+					return false;
+				if (!append_stage(VK_SHADER_STAGE_GEOMETRY_BIT, gs_desc, nullptr))
+					return false;
+				if (!append_stage(VK_SHADER_STAGE_FRAGMENT_BIT, ps_desc, nullptr))
+					return false;
+#if VK_EXT_mesh_shader
+				if (!append_stage(VK_SHADER_STAGE_TASK_BIT_EXT, as_desc, nullptr))
+					return false;
+				if (!append_stage(VK_SHADER_STAGE_MESH_BIT_EXT, ms_desc, nullptr))
+					return false;
+#endif
+			}
+
+			return true;
+			}();
+
+		if (!stage_setup_success)
+		{
+			goto exit_failure;
+		}
 
 		std::vector<VkDynamicState> dynamic_states;
 		// Always make scissor rectangles and viewports dynamic
@@ -1711,7 +2033,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dynamic_states);
 
-		VkPipelineDynamicStateCreateInfo dynamic_state_info { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+		VkPipelineDynamicStateCreateInfo dynamic_state_info = create_info.pDynamicState != nullptr ? *create_info.pDynamicState : VkPipelineDynamicStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
 		create_info.pDynamicState = &dynamic_state_info;
 		dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
 		dynamic_state_info.pDynamicStates = dynamic_states.data();
@@ -1719,50 +2041,53 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		std::vector<VkVertexInputBindingDescription> vertex_bindings;
 		std::vector<VkVertexInputAttributeDescription> vertex_attributes;
 		std::vector<VkVertexInputBindingDivisorDescription> vertex_binding_divisors;
+
 		convert_input_layout_desc(input_layout_desc.count, static_cast<const api::input_element *>(input_layout_desc.data), vertex_bindings, vertex_attributes, vertex_binding_divisors);
 
-		VkPipelineVertexInputDivisorStateCreateInfo vertex_input_divisor_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO };
-		vertex_input_divisor_state_info.vertexBindingDivisorCount = static_cast<uint32_t>(vertex_binding_divisors.size());
-		vertex_input_divisor_state_info.pVertexBindingDivisors = vertex_binding_divisors.data();
+		VkPipelineVertexInputDivisorStateCreateInfo vertex_input_divisor_state_info;
 
-		VkPipelineVertexInputStateCreateInfo vertex_input_state_info { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+		VkPipelineVertexInputStateCreateInfo vertex_input_state_info = create_info.pVertexInputState != nullptr ? *create_info.pVertexInputState : VkPipelineVertexInputStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 		create_info.pVertexInputState = &vertex_input_state_info;
 		if (!vertex_binding_divisors.empty())
-			vertex_input_state_info.pNext = &vertex_input_divisor_state_info;
+		{
+			replace_or_append_structure_chain_node(vertex_input_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO, vertex_input_divisor_state_info, pnext_restore_links);
+			vertex_input_divisor_state_info.vertexBindingDivisorCount = static_cast<uint32_t>(vertex_binding_divisors.size());
+			vertex_input_divisor_state_info.pVertexBindingDivisors = vertex_binding_divisors.data();
+		}
 		vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(vertex_bindings.size());
 		vertex_input_state_info.pVertexBindingDescriptions = vertex_bindings.data();
 		vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size());
 		vertex_input_state_info.pVertexAttributeDescriptions = vertex_attributes.data();
 
-		VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+		VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = create_info.pInputAssemblyState != nullptr ? *create_info.pInputAssemblyState : VkPipelineInputAssemblyStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 		create_info.pInputAssemblyState = &input_assembly_state_info;
 		input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
 		input_assembly_state_info.topology = convert_primitive_topology(topology);
 
-		VkPipelineTessellationStateCreateInfo tessellation_state_info { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
+		VkPipelineTessellationStateCreateInfo tessellation_state_info = create_info.pTessellationState != nullptr ? *create_info.pTessellationState : VkPipelineTessellationStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
 		create_info.pTessellationState = &tessellation_state_info;
 		if (input_assembly_state_info.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST)
 			tessellation_state_info.patchControlPoints = static_cast<uint32_t>(topology) - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + 1;
 
-		VkPipelineViewportStateCreateInfo viewport_state_info { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+		VkPipelineViewportStateCreateInfo viewport_state_info = create_info.pViewportState != nullptr ? *create_info.pViewportState : VkPipelineViewportStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 		create_info.pViewportState = &viewport_state_info;
 		viewport_state_info.scissorCount = viewport_count;
 		viewport_state_info.viewportCount = viewport_count;
 
-		VkPipelineRasterizationStateCreateInfo rasterization_state_info { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-		create_info.pRasterizationState = &rasterization_state_info;
+		VkPipelineRasterizationStateCreateInfo rasterization_state_info;
+		{
+			rasterization_state_info = create_info.pRasterizationState != nullptr ? *create_info.pRasterizationState : VkPipelineRasterizationStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+			create_info.pRasterizationState = &rasterization_state_info;
+		}
 
 #if VK_EXT_conservative_rasterization
 		VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_info;
-		if (rasterizer_desc.conservative_rasterization != 0)
+		if (rasterizer_desc.conservative_rasterization != 0 || find_in_structure_chain<VkPipelineRasterizationConservativeStateCreateInfoEXT>(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT) != nullptr)
 		{
-			if (!vk.EXT_conservative_rasterization)
+			if (rasterizer_desc.conservative_rasterization != 0 && !vk.EXT_conservative_rasterization)
 				goto exit_failure;
 
-			conservative_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT };
-			conservative_rasterization_info.pNext = rasterization_state_info.pNext;
-
-			rasterization_state_info.pNext = &conservative_rasterization_info;
+			replace_or_append_structure_chain_node(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT, conservative_rasterization_info, pnext_restore_links);
 		}
 #endif
 
@@ -1774,16 +2099,13 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineRasterizationStateStreamCreateInfoEXT stream_rasterization_info;
 		if (stream_output_desc.rasterized_stream != 0)
 		{
-			stream_rasterization_info = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT };
-			stream_rasterization_info.pNext = rasterization_state_info.pNext;
-
-			rasterization_state_info.pNext = &stream_rasterization_info;
+			replace_or_append_structure_chain_node(rasterization_state_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT, stream_rasterization_info, pnext_restore_links);
 
 			convert_stream_output_desc(stream_output_desc, rasterization_state_info);
 		}
 #endif
 
-		VkPipelineMultisampleStateCreateInfo multisample_state_info { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+		VkPipelineMultisampleStateCreateInfo multisample_state_info = create_info.pMultisampleState != nullptr ? *create_info.pMultisampleState : VkPipelineMultisampleStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		create_info.pMultisampleState = &multisample_state_info;
 		multisample_state_info.rasterizationSamples = sample_count != 0 ? static_cast<VkSampleCountFlagBits>(sample_count) : VK_SAMPLE_COUNT_1_BIT;
 		multisample_state_info.sampleShadingEnable = VK_FALSE;
@@ -1791,14 +2113,14 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		multisample_state_info.alphaToOneEnable = VK_FALSE;
 		multisample_state_info.pSampleMask = &sample_mask;
 
-		VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info = create_info.pDepthStencilState != nullptr ? *create_info.pDepthStencilState : VkPipelineDepthStencilStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
 		create_info.pDepthStencilState = &depth_stencil_state_info;
 		convert_depth_stencil_desc(depth_stencil_desc, depth_stencil_state_info);
 		depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
 		depth_stencil_state_info.minDepthBounds = 0.0f;
 		depth_stencil_state_info.maxDepthBounds = 1.0f;
 
-		VkPipelineColorBlendStateCreateInfo color_blend_state_info { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		VkPipelineColorBlendStateCreateInfo color_blend_state_info = create_info.pColorBlendState != nullptr ? *create_info.pColorBlendState : VkPipelineColorBlendStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 		create_info.pColorBlendState = &color_blend_state_info;
 		color_blend_state_info.attachmentCount = 8;
 		temp_mem<VkPipelineColorBlendAttachmentState, 8> attachment_info(color_blend_state_info.attachmentCount);
@@ -1808,30 +2130,29 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		temp_mem<VkFormat, 8> attachment_formats(render_target_formats.count);
 		color_blend_state_info.attachmentCount = 0;
 		for (uint32_t i = 0; i < render_target_formats.count; ++i, ++color_blend_state_info.attachmentCount)
-		{
 			attachment_formats[i] = convert_format(static_cast<const api::format *>(render_target_formats.data)[i]);
-			assert(attachment_formats[i] != VK_FORMAT_UNDEFINED);
-		}
 
 #if VK_KHR_dynamic_rendering
 		VkPipelineRenderingCreateInfo dynamic_rendering_info;
-		if (vk.KHR_dynamic_rendering)
+		if (create_info.renderPass == VK_NULL_HANDLE && vk.KHR_dynamic_rendering)
 		{
-			dynamic_rendering_info = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-			dynamic_rendering_info.pNext = create_info.pNext;
+			replace_or_append_structure_chain_node(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO, dynamic_rendering_info, pnext_restore_links);
+
 			dynamic_rendering_info.colorAttachmentCount = color_blend_state_info.attachmentCount;
 			dynamic_rendering_info.pColorAttachmentFormats = attachment_formats.p;
 
 			const VkFormat depth_stencil_format_vk = convert_format(depth_stencil_format);
+			dynamic_rendering_info.depthAttachmentFormat = VK_FORMAT_UNDEFINED;
+			dynamic_rendering_info.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
 			if (aspect_flags_from_format(depth_stencil_format_vk) & VK_IMAGE_ASPECT_DEPTH_BIT)
 				dynamic_rendering_info.depthAttachmentFormat = depth_stencil_format_vk;
 			if (aspect_flags_from_format(depth_stencil_format_vk) & VK_IMAGE_ASPECT_STENCIL_BIT)
 				dynamic_rendering_info.stencilAttachmentFormat = depth_stencil_format_vk;
 
-			create_info.pNext = &dynamic_rendering_info;
 		}
 		else
 #endif
+		if (create_info.renderPass == VK_NULL_HANDLE)
 		{
 			const uint32_t max_attachments = color_blend_state_info.attachmentCount + 1;
 
@@ -1900,41 +2221,38 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 				goto exit_failure;
 
 			create_info.renderPass = render_pass;
+			create_info.subpass = 0;
 		}
 
 #if VK_KHR_pipeline_library
 		VkPipelineLibraryCreateInfoKHR library_info;
 		if (!libraries.empty())
 		{
-			library_info = { VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR };
-			library_info.pNext = create_info.pNext;
+			replace_or_append_structure_chain_node(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR, library_info, pnext_restore_links);
+
 			library_info.libraryCount = static_cast<uint32_t>(libraries.size());
 			library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
-
-			create_info.pNext = &library_info;
 		}
 #endif
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateGraphicsPipelines(_orig, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
+			restore_pnext_links(pnext_restore_links);
+
 			if (render_pass != VK_NULL_HANDLE)
 				vk.DestroyRenderPass(_orig, render_pass, nullptr);
-
-			for (const VkShaderModule shader : shaders)
-				vk.DestroyShaderModule(_orig, shader, nullptr);
 
 			*out_pipeline = { (uint64_t)object };
 			return true;
 		}
+
 	}
 
 exit_failure:
+	restore_pnext_links(pnext_restore_links);
 	if (render_pass != VK_NULL_HANDLE)
 		vk.DestroyRenderPass(_orig, render_pass, nullptr);
-
-	for (const VkShaderModule shader : shaders)
-		vk.DestroyShaderModule(_orig, shader, nullptr);
 
 	*out_pipeline = { 0 };
 	return false;
@@ -1944,156 +2262,255 @@ void reshade::vulkan::device_impl::destroy_pipeline(api::pipeline pipeline)
 	vk.DestroyPipeline(_orig, (VkPipeline)pipeline.handle, nullptr);
 }
 
+bool reshade::vulkan::device_impl::create_descriptor_set_layout(const api::pipeline_layout_param &param, VkDescriptorSetLayout *out_set_layout, std::vector<VkSampler> &embedded_samplers)
+{
+	assert(out_set_layout != nullptr);
+	assert(param.type != api::pipeline_layout_param_type::push_constants);
+	*out_set_layout = VK_NULL_HANDLE;
+
+	bool push_descriptors = (param.type == api::pipeline_layout_param_type::push_descriptors);
+	bool update_after_bind_pool = false;
+	const bool with_flags = (param.type == api::pipeline_layout_param_type::descriptor_table_with_flags || param.type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
+	const uint32_t range_count = push_descriptors ? 1 : with_flags ? param.descriptor_table_with_flags.count : param.descriptor_table.count;
+	const api::descriptor_range *range = push_descriptors ? &param.push_descriptors : with_flags ? param.descriptor_table_with_flags.ranges : param.descriptor_table.ranges;
+	push_descriptors |= (param.type == api::pipeline_layout_param_type::push_descriptors_with_ranges || param.type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
+
+	object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
+	data.num_descriptors = 0;
+	data.push_descriptors = push_descriptors;
+	data.ranges.reserve(range_count);
+	if (with_flags)
+	{
+		data.ranges_with_flags.reserve(range_count);
+		data.static_samplers.resize(range_count);
+	}
+	data.binding_to_offset.reserve(range_count);
+
+	std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
+	std::vector<VkDescriptorBindingFlags> internal_binding_flags;
+	std::vector<std::vector<VkSampler>> internal_samplers;
+	internal_bindings.reserve(range_count);
+	internal_binding_flags.reserve(range_count);
+	internal_samplers.reserve(range_count);
+
+	for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_flags ? static_cast<const api::descriptor_range_with_flags *>(range) + 1 : range + 1))
+	{
+		if (with_flags)
+		{
+			data.ranges_with_flags.push_back(*static_cast<const api::descriptor_range_with_flags *>(range));
+			data.ranges_with_flags.back().static_samplers = nullptr;
+		}
+		else
+			data.ranges.push_back(*range);
+
+		if (range->count == 0)
+			continue;
+
+		const uint32_t max_binding = (range->count == UINT32_MAX) ? range->binding : range->binding + (range->count - range->array_size);
+		if (max_binding >= data.binding_to_offset.size())
+			data.binding_to_offset.resize(max_binding + 1);
+		data.binding_to_offset[range->binding] = offset;
+
+		VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
+		internal_binding.binding = range->binding;
+		internal_binding.descriptorType = convert_descriptor_type(range->type);
+		internal_binding.descriptorCount = range->array_size;
+		internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
+
+		offset += internal_binding.descriptorCount;
+
+		if (with_flags && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers != nullptr)
+		{
+			if (range->array_size != 1 || range->count == UINT32_MAX)
+				return false;
+
+			data.static_samplers[k].assign(static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers, static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers + range->count);
+			data.ranges_with_flags.back().static_samplers = data.static_samplers[k].data();
+
+			std::vector<VkSampler> &internal_binding_samplers = internal_samplers.emplace_back();
+			internal_binding_samplers.resize(range->count);
+
+			for (uint32_t j = 0; j < range->count; ++j)
+			{
+				VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+				// Cannot have custom border color in immutable samplers
+				convert_sampler_desc(static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers[j], create_info);
+
+				if (vk.CreateSampler(_orig, &create_info, nullptr, &embedded_samplers.emplace_back()) != VK_SUCCESS)
+					return false;
+
+				internal_binding_samplers[j] = embedded_samplers.back();
+			}
+
+			internal_binding.pImmutableSamplers = internal_binding_samplers.data();
+		}
+
+		data.num_descriptors += internal_binding.descriptorCount;
+
+		VkDescriptorBindingFlags binding_flags = 0;
+#if VK_EXT_descriptor_indexing
+		if (with_flags && vk.EXT_descriptor_indexing)
+		{
+			binding_flags = convert_descriptor_range_flags(static_cast<const api::descriptor_range_with_flags *>(range)->flags);
+
+			if ((binding_flags & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) != 0)
+				update_after_bind_pool = true;
+		}
+#endif
+
+		if (range->count == UINT32_MAX)
+		{
+			internal_binding_flags.push_back(binding_flags | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
+			break; // Unbounded range must be the last binding
+		}
+		else
+		{
+			internal_binding_flags.push_back(binding_flags);
+		}
+
+		// Add additional bindings if the total descriptor count exceeds the array size of the binding
+		for (uint32_t j = 0; j < (range->count - range->array_size); ++j)
+		{
+			data.binding_to_offset[range->binding + 1 + j] = offset;
+
+			VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
+			additional_binding.binding = range->binding + 1 + j;
+			additional_binding.descriptorType = convert_descriptor_type(range->type);
+			additional_binding.descriptorCount = 1;
+			additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
+
+			offset += additional_binding.descriptorCount;
+			++data.num_descriptors;
+
+			internal_binding_flags.push_back(binding_flags);
+		}
+	}
+
+	VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
+	binding_flags_info.bindingCount = static_cast<uint32_t>(internal_binding_flags.size());
+	binding_flags_info.pBindingFlags = internal_binding_flags.data();
+
+	VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, &binding_flags_info };
+	create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
+	create_info.pBindings = internal_bindings.data();
+
+#if VK_KHR_push_descriptor
+	if (push_descriptors && vk.KHR_push_descriptor)
+		create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
+#endif
+#if VK_EXT_descriptor_indexing
+	if (update_after_bind_pool && vk.EXT_descriptor_indexing)
+		create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+#endif
+
+	if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, out_set_layout) == VK_SUCCESS)
+	{
+		register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(*out_set_layout, std::move(data));
+		return true;
+	}
+
+	return false;
+}
+
 bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout)
+{
+	return create_pipeline_layout(param_count, params, out_layout, nullptr);
+}
+bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout, const VkPipelineLayoutCreateInfo *orig_create_info)
 {
 	std::vector<VkPushConstantRange> push_constant_ranges;
 	std::vector<VkDescriptorSetLayout> set_layouts;
+	std::vector<VkDescriptorSetLayout> owned_set_layouts;
 	std::vector<VkSampler> embedded_samplers;
-	set_layouts.reserve(param_count);
 	push_constant_ranges.reserve(param_count);
+	set_layouts.reserve(param_count);
+	owned_set_layouts.reserve(param_count);
 
-	for (uint32_t i = 0; i < param_count; ++i)
+	for (uint32_t i = 0, set_index = 0; i < param_count; ++i)
 	{
-		if (params[i].type != api::pipeline_layout_param_type::push_constants)
-		{
-			bool push_descriptors = (params[i].type == api::pipeline_layout_param_type::push_descriptors);
-			bool update_after_bind_pool = false;
-			const bool with_flags = (params[i].type == api::pipeline_layout_param_type::descriptor_table_with_flags || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
-			const uint32_t range_count = push_descriptors ? 1 : with_flags ? params[i].descriptor_table_with_flags.count : params[i].descriptor_table.count;
-			const api::descriptor_range *range = push_descriptors ? &params[i].push_descriptors : with_flags ? params[i].descriptor_table_with_flags.ranges : params[i].descriptor_table.ranges;
-			push_descriptors |= (params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges || params[i].type == api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags);
-
-			object_data<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT> data;
-			data.ranges.reserve(range_count);
-			data.binding_to_offset.reserve(range_count);
-
-			std::vector<VkDescriptorSetLayoutBinding> internal_bindings;
-			std::vector<VkDescriptorBindingFlags> internal_binding_flags;
-			std::vector<std::vector<VkSampler>> internal_samplers;
-			internal_bindings.reserve(range_count);
-			internal_binding_flags.reserve(range_count);
-			internal_samplers.reserve(range_count);
-
-			for (uint32_t k = 0, offset = 0; k < range_count; ++k, range = (with_flags ? static_cast<const api::descriptor_range_with_flags *>(range) + 1 : range + 1))
-			{
-				data.ranges.push_back(*static_cast<const api::descriptor_range *>(range));
-
-				if (range->count == 0)
-					continue;
-
-				const uint32_t max_binding = (range->count == UINT32_MAX) ? range->binding : range->binding + (range->count - range->array_size);
-				if (max_binding >= data.binding_to_offset.size())
-					data.binding_to_offset.resize(max_binding + 1);
-				data.binding_to_offset[range->binding] = offset;
-
-				VkDescriptorSetLayoutBinding &internal_binding = internal_bindings.emplace_back();
-				internal_binding.binding = range->binding;
-				internal_binding.descriptorType = convert_descriptor_type(range->type);
-				internal_binding.descriptorCount = range->array_size;
-				internal_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
-
-				offset += internal_binding.descriptorCount;
-
-				if (with_flags && (range->type == api::descriptor_type::sampler || range->type == api::descriptor_type::sampler_with_resource_view) && static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers != nullptr)
-				{
-					if (range->array_size != 1 || range->count == UINT32_MAX)
-						goto exit_failure;
-
-					std::vector<VkSampler> &internal_binding_samplers = internal_samplers.emplace_back();
-					internal_binding_samplers.resize(range->count);
-
-					for (uint32_t j = 0; j < range->count; ++j)
-					{
-						VkSamplerCreateInfo create_info { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-						// Cannot have custom border color in immutable samplers
-						convert_sampler_desc(static_cast<const api::descriptor_range_with_flags *>(range)->static_samplers[j], create_info);
-
-						if (vk.CreateSampler(_orig, &create_info, nullptr, &embedded_samplers.emplace_back()) != VK_SUCCESS)
-							goto exit_failure;
-
-						internal_binding_samplers[j] = embedded_samplers.back();
-					}
-
-					internal_binding.pImmutableSamplers = internal_binding_samplers.data();
-				}
-
-				VkDescriptorBindingFlags binding_flags = 0;
-#if VK_EXT_descriptor_indexing
-				if (with_flags && vk.EXT_descriptor_indexing)
-				{
-					binding_flags = convert_descriptor_range_flags(static_cast<const api::descriptor_range_with_flags *>(range)->flags);
-
-					if ((binding_flags & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT) != 0)
-						update_after_bind_pool = true;
-				}
-#endif
-
-				if (range->count == UINT32_MAX)
-				{
-					internal_binding_flags.push_back(binding_flags | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT);
-					break; // Unbounded range must be the last binding
-				}
-				else
-				{
-					internal_binding_flags.push_back(binding_flags);
-				}
-
-				// Add additional bindings if the total descriptor count exceeds the array size of the binding
-				for (uint32_t j = 0; j < (range->count - range->array_size); ++j)
-				{
-					data.binding_to_offset[range->binding + 1 + j] = offset;
-
-					VkDescriptorSetLayoutBinding &additional_binding = internal_bindings.emplace_back();
-					additional_binding.binding = range->binding + 1 + j;
-					additional_binding.descriptorType = convert_descriptor_type(range->type);
-					additional_binding.descriptorCount = 1;
-					additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
-
-					offset += additional_binding.descriptorCount;
-
-					internal_binding_flags.push_back(binding_flags);
-				}
-			}
-
-			VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO };
-			binding_flags_info.bindingCount = static_cast<uint32_t>(internal_binding_flags.size());
-			binding_flags_info.pBindingFlags = internal_binding_flags.data();
-
-			VkDescriptorSetLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, &binding_flags_info };
-			create_info.bindingCount = static_cast<uint32_t>(internal_bindings.size());
-			create_info.pBindings = internal_bindings.data();
-
-#if VK_KHR_push_descriptor
-			if (push_descriptors && vk.KHR_push_descriptor)
-				create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT;
-#endif
-#if VK_EXT_descriptor_indexing
-			if (update_after_bind_pool && vk.EXT_descriptor_indexing)
-				create_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-#endif
-
-			if (vk.CreateDescriptorSetLayout(_orig, &create_info, nullptr, &set_layouts.emplace_back()) == VK_SUCCESS)
-			{
-				register_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layouts.back(), std::move(data));
-			}
-			else
-			{
-				goto exit_failure;
-			}
-		}
-		else
+		if (params[i].type == api::pipeline_layout_param_type::push_constants)
 		{
 			VkPushConstantRange &push_constant_range = push_constant_ranges.emplace_back();
 			push_constant_range.stageFlags = static_cast<VkShaderStageFlagBits>(params[i].push_constants.visibility);
 			push_constant_range.offset = params[i].push_constants.binding * 4;
 			push_constant_range.size = params[i].push_constants.count * 4;
+			continue;
 		}
+
+		bool reuse_original_set_layout = false;
+		VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+		const VkDescriptorSetLayout original_set_layout = orig_create_info != nullptr && set_index < orig_create_info->setLayoutCount ? orig_create_info->pSetLayouts[set_index] : VK_NULL_HANDLE;
+
+		if (original_set_layout != VK_NULL_HANDLE)
+		{
+			const auto original_set_layout_data = get_private_data_for_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(original_set_layout);
+
+			switch (params[i].type)
+			{
+			case api::pipeline_layout_param_type::descriptor_table:
+				if (!original_set_layout_data->push_descriptors &&
+					params[i].descriptor_table.count == original_set_layout_data->ranges.size() &&
+					params[i].descriptor_table.ranges == original_set_layout_data->ranges.data())
+				{
+					set_layout = original_set_layout;
+					reuse_original_set_layout = true;
+				}
+				break;
+			case api::pipeline_layout_param_type::descriptor_table_with_flags:
+				if (!original_set_layout_data->push_descriptors &&
+					params[i].descriptor_table_with_flags.count == original_set_layout_data->ranges_with_flags.size() &&
+					params[i].descriptor_table_with_flags.ranges == original_set_layout_data->ranges_with_flags.data())
+				{
+					set_layout = original_set_layout;
+					reuse_original_set_layout = true;
+				}
+				break;
+			case api::pipeline_layout_param_type::push_descriptors_with_ranges:
+				if (original_set_layout_data->push_descriptors &&
+					params[i].descriptor_table.count == original_set_layout_data->ranges.size() &&
+					params[i].descriptor_table.ranges == original_set_layout_data->ranges.data())
+				{
+					set_layout = original_set_layout;
+					reuse_original_set_layout = true;
+				}
+				break;
+			case api::pipeline_layout_param_type::push_descriptors_with_ranges_and_flags:
+				if (original_set_layout_data->push_descriptors &&
+					params[i].descriptor_table_with_flags.count == original_set_layout_data->ranges_with_flags.size() &&
+					params[i].descriptor_table_with_flags.ranges == original_set_layout_data->ranges_with_flags.data())
+				{
+					set_layout = original_set_layout;
+					reuse_original_set_layout = true;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+		else if (orig_create_info != nullptr &&
+			set_index < orig_create_info->setLayoutCount &&
+			params[i].type == api::pipeline_layout_param_type::push_descriptors &&
+			params[i].push_descriptors.count == 0)
+		{
+			set_layout = VK_NULL_HANDLE;
+			reuse_original_set_layout = true;
+		}
+
+		if (!reuse_original_set_layout && !create_descriptor_set_layout(params[i], &set_layout, embedded_samplers))
+			goto exit_failure;
+
+		if (!reuse_original_set_layout)
+			owned_set_layouts.push_back(set_layout);
+
+		set_layouts.push_back(set_layout);
+		++set_index;
 	}
 
 	{
-		VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+		VkPipelineLayoutCreateInfo create_info { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, orig_create_info != nullptr ? orig_create_info->pNext : nullptr };
+		create_info.flags = orig_create_info != nullptr ? orig_create_info->flags : 0;
 		create_info.setLayoutCount = static_cast<uint32_t>(set_layouts.size());
-		create_info.pSetLayouts =  set_layouts.data();
+		create_info.pSetLayouts = set_layouts.data();
 		create_info.pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size());
 		create_info.pPushConstantRanges = push_constant_ranges.data();
 
@@ -2101,6 +2518,7 @@ bool reshade::vulkan::device_impl::create_pipeline_layout(uint32_t param_count, 
 			vk.CreatePipelineLayout(_orig, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
 			object_data<VK_OBJECT_TYPE_PIPELINE_LAYOUT> data;
+			data.owned_set_layouts = std::move(owned_set_layouts);
 			data.embedded_samplers = std::move(embedded_samplers);
 			data.set_layouts = std::move(set_layouts);
 			data.owns_set_layouts = true;
@@ -2118,7 +2536,7 @@ exit_failure:
 		vk.DestroySampler(_orig, sampler, nullptr);
 	}
 
-	for (const VkDescriptorSetLayout set_layout : set_layouts)
+	for (const VkDescriptorSetLayout set_layout : owned_set_layouts)
 	{
 		unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
 
@@ -2142,7 +2560,7 @@ void reshade::vulkan::device_impl::destroy_pipeline_layout(api::pipeline_layout 
 
 	if (layout_data->owns_set_layouts)
 	{
-		for (const VkDescriptorSetLayout set_layout : layout_data->set_layouts)
+		for (const VkDescriptorSetLayout set_layout : layout_data->owned_set_layouts)
 		{
 			unregister_object<VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT>(set_layout);
 

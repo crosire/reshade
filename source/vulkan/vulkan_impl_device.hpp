@@ -73,9 +73,12 @@ namespace reshade::vulkan
 		void update_texture_region(const api::subresource_data &data, api::resource dest, uint32_t dest_subresource, const api::subresource_box *dest_box) final;
 
 		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline) final;
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkComputePipelineCreateInfo *orig_create_info);
+		bool create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkGraphicsPipelineCreateInfo *orig_create_info);
 		void destroy_pipeline(api::pipeline pipeline) final;
 
 		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout) final;
+		bool create_pipeline_layout(uint32_t param_count, const api::pipeline_layout_param *params, api::pipeline_layout *out_layout, const VkPipelineLayoutCreateInfo *orig_create_info);
 		void destroy_pipeline_layout(api::pipeline_layout layout) final;
 
 		bool allocate_descriptor_tables(uint32_t count, api::pipeline_layout layout, uint32_t layout_param, api::descriptor_table *out_tables) final;
@@ -157,7 +160,7 @@ namespace reshade::vulkan
 		const VkPhysicalDeviceFeatures _enabled_features;
 
 	private:
-		bool create_shader_module(VkShaderStageFlagBits stage, const api::shader_desc &desc, VkPipelineShaderStageCreateInfo &stage_info, VkSpecializationInfo &spec_info, std::vector<VkSpecializationMapEntry> &spec_map);
+		bool create_descriptor_set_layout(const api::pipeline_layout_param &param, VkDescriptorSetLayout *out_set_layout, std::vector<VkSampler> &embedded_samplers);
 
 		VmaAllocator _alloc = nullptr;
 		VkDescriptorPool _descriptor_pool = VK_NULL_HANDLE;

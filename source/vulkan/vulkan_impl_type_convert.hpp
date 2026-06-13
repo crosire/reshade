@@ -121,6 +121,7 @@ namespace reshade::vulkan
 
 		std::vector<VkSampler> embedded_samplers;
 		std::vector<VkDescriptorSetLayout> set_layouts;
+		std::vector<VkDescriptorSetLayout> owned_set_layouts;
 		bool owns_set_layouts;
 	};
 
