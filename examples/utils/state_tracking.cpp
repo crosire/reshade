@@ -124,7 +124,7 @@ static void on_bind_scissor_rects(command_list *cmd_list, uint32_t first, uint32
 		state.scissor_rects[i + first] = rects[i];
 }
 
-static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables)
+static void on_bind_descriptor_tables(command_list *cmd_list, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables, uint32_t dynamic_offset_count, const uint32_t *dynamic_offsets)
 {
 	auto &state = cmd_list->get_private_data<state_tracking>()->descriptor_tables[stages];
 

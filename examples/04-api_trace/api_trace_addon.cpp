@@ -585,7 +585,7 @@ static void on_push_descriptors(command_list *, shader_stage stages, pipeline_la
 
 	reshade::log::message(reshade::log::level::info, s.str().c_str());
 }
-static void on_bind_descriptor_tables(command_list *, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables)
+static void on_bind_descriptor_tables(command_list *, shader_stage stages, pipeline_layout layout, uint32_t first, uint32_t count, const descriptor_table *tables, uint32_t dynamic_offset_count, const uint32_t *dynamic_offsets)
 {
 	if (!s_do_capture)
 		return;
