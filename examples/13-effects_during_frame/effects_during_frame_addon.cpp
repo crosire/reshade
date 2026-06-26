@@ -82,7 +82,7 @@ static bool on_end_render_pass(command_list *cmd_list)
 		const resource_desc render_target_desc = device->get_resource_desc(device->get_resource_from_view(cmd_data.current_main_rtv));
 
 		if (render_target_desc.texture.width != width || render_target_desc.texture.height != height)
-			return;
+			return false;
 	}
 
 	// Render post-processing effects when a specific render pass is found (instead of at the end of the frame)
