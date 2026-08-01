@@ -726,10 +726,6 @@ auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> 
 		return api::format::b5g6r5_unorm;
 	case 24:
 	case 32:
-		// [reshade-SL 10bit] NVIDIA's DescribePixelFormat reports cColorBits=32 for
-		// R10G10B10A2 (not 30), so the 'case 30' path below never fires for it.
-		// Detect true 10-bit by the per-channel widths instead (verified: the SL
-		// viewer presents R10G10B10A2 with cRedBits=10, cRedShift=0).
 		if (pfd.cRedBits == 10 && pfd.cGreenBits == 10 && pfd.cBlueBits == 10)
 			return api::format::r10g10b10a2_unorm;
 		if (pfd.cRedBits == 11 && pfd.cGreenBits == 11 && pfd.cBlueBits == 10)
