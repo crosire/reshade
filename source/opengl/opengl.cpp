@@ -841,7 +841,7 @@ extern "C" void APIENTRY glEnable(GLenum cap)
 		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
 	{
 		uint32_t value = GL_TRUE;
-		reshade::api::dynamic_state state = { reshade::api::dynamic_state::unknown };
+		reshade::api::dynamic_state state = reshade::api::dynamic_state::unknown;
 		switch (cap)
 		{
 		case GL_ALPHA_TEST:

@@ -5,6 +5,7 @@
 
 #include "effect_lexer.hpp"
 #include <cassert>
+#include <charconv> // std::from_chars
 #include <string_view>
 #include <unordered_map> // Used for static lookup tables
 
@@ -96,7 +97,6 @@ static const std::unordered_map<tokenid, std::string_view> s_token_lookup = {
 	{ tokenid::int_literal, "integral literal" },
 	{ tokenid::uint_literal, "integral literal" },
 	{ tokenid::float_literal, "floating point literal" },
-	{ tokenid::double_literal, "floating point literal" },
 	{ tokenid::string_literal, "string literal" },
 	{ tokenid::namespace_, "namespace" },
 	{ tokenid::struct_, "struct" },
@@ -576,7 +576,7 @@ next_token:
 	tok.location = _cur_location;
 	tok.offset = input_offset();
 	tok.length = 1;
-	tok.literal_as_double = 0;
+	tok.literal_as_uint = 0;
 	tok.literal_as_string.clear();
 
 	assert(_cur <= _end);
@@ -1064,7 +1064,7 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 	// This routine handles both integer and floating point numbers
 	auto *const begin = _cur, *end = _cur;
 	int mantissa_size = 0, decimal_location = -1, radix = 10;
-	long long fraction = 0, exponent = 0;
+	long long mantissa = 0, exponent = 0;
 
 	// If a literal starts with '0' it is either an octal or hexadecimal ('0x') value
 	if (begin[0] == '0')
@@ -1109,16 +1109,15 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 			// Found a decimal character, as such convert current values
 			if (radix == 8)
 			{
+				mantissa = octal_to_decimal(mantissa);
 				radix = 10;
-				fraction = octal_to_decimal(fraction);
 			}
 
 			decimal_location = mantissa_size;
 			continue;
 		}
 
-		fraction *= radix;
-		fraction += c;
+		mantissa = mantissa * radix + c;
 	}
 
 	// Ignore additional digits that cannot affect the value
@@ -1129,7 +1128,6 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 	if (decimal_location < 0)
 	{
 		tok.id = tokenid::int_literal;
-		decimal_location = mantissa_size;
 	}
 	else
 	{
@@ -1141,50 +1139,52 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 	if (*end == 'E' || *end == 'e')
 	{
 		auto tmp = end + 1;
-		const bool negative = *tmp == '-';
 
-		if (negative || *tmp == '+')
+		const bool exponent_negative = *tmp == '-';
+		if (exponent_negative || *tmp == '+')
 			tmp++;
 
 		if (is_decimal_digit(*tmp))
 		{
-			end = tmp;
-
-			tok.id = tokenid::float_literal;
-
 			do {
-				exponent *= 10;
-				exponent += (*end++) - '0';
-			} while (is_decimal_digit(*end));
+				exponent = exponent * 10 + (*tmp++) - '0';
+			} while (is_decimal_digit(*tmp));
 
-			if (negative)
+			if (exponent_negative)
 				exponent = -exponent;
+
+			end = tmp;
+			tok.id = tokenid::float_literal;
 		}
 	}
 
 	// Various suffixes force specific literal types
-	if (*end == 'F' || *end == 'f')
-	{
-		end++; // Consume the suffix
-		tok.id = tokenid::float_literal;
-	}
-	else if (*end == 'L' || *end == 'l')
-	{
-		end++; // Consume the suffix
-		tok.id = tokenid::double_literal;
-	}
-	else if (tok.id == tokenid::int_literal && (*end == 'U' || *end == 'u')) // The 'u' suffix is only valid on integers and needs to be ignored otherwise
+	if ((*end == 'U' || *end == 'u') && tok.id == tokenid::int_literal) // The 'u' suffix is only valid on integers and needs to be ignored otherwise
 	{
 		end++; // Consume the suffix
 		tok.id = tokenid::uint_literal;
 	}
-
-	if (tok.id == tokenid::float_literal || tok.id == tokenid::double_literal)
+	else if (*end == 'F' || *end == 'f' || *end == 'L' || *end == 'l')
 	{
+		end++; // Consume the suffix
+		tok.id = tokenid::float_literal;
+	}
+
+	if (mantissa == 0)
+	{
+		tok.literal_as_uint = 0;
+	}
+	else if (tok.id == tokenid::int_literal || tok.id == tokenid::uint_literal)
+	{
+		// Limit the maximum value to what fits into our token structure
+		tok.literal_as_uint = static_cast<unsigned int>(mantissa & 0xFFFFFFFF);
+	}
+	else
+	{
+#if 0
 		exponent += decimal_location - mantissa_size;
 
 		const bool exponent_negative = exponent < 0;
-
 		if (exponent_negative)
 			exponent = -exponent;
 
@@ -1210,15 +1210,10 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 			if (exponent & 1)
 				e *= *d;
 
-		if (tok.id == tokenid::float_literal)
-			tok.literal_as_float = exponent_negative ? fraction / static_cast<float>(e) : fraction * static_cast<float>(e);
-		else
-			tok.literal_as_double = exponent_negative ? fraction / e : fraction * e;
-	}
-	else
-	{
-		// Limit the maximum value to what fits into our token structure
-		tok.literal_as_uint = static_cast<unsigned int>(fraction & 0xFFFFFFFF);
+		tok.literal_as_float = exponent_negative ? mantissa / static_cast<float>(e) : mantissa * static_cast<float>(e);
+#else
+		std::from_chars(begin, end, tok.literal_as_float);
+#endif
 	}
 
 	tok.length = end - begin;

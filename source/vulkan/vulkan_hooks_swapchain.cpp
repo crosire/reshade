@@ -67,7 +67,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			std::sort(format_list.begin(), format_list.end());
 			format_list.erase(std::unique(format_list.begin(), format_list.end()), format_list.end());
 
-			// This is evil, because writing into application memory, but eh =)
 			const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = static_cast<uint32_t>(format_list.size());
 			const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->pViewFormats = format_list.data();
 		}
@@ -257,13 +256,15 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		if (desc.sync_interval == 0)
 			create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
-		// Remove format list info if format was overriden
+		// Remove format list info if format was overridden
 		if (const auto existing_format_list_info = find_in_structure_chain<VkImageFormatListCreateInfo>(
 				create_info.pNext, VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO))
 		{
-			if (std::find(existing_format_list_info->pViewFormats, existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount, create_info.imageFormat) == (existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount))
-				// This is evil, because potentially writing into application memory, but it is what it is
+			if (const VkFormat *const formats_begin = existing_format_list_info->pViewFormats, *const formats_end = existing_format_list_info->pViewFormats + existing_format_list_info->viewFormatCount;
+				std::find(formats_begin, formats_end, create_info.imageFormat) == formats_end)
+			{
 				const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = 0;
+			}
 		}
 	}
 #endif

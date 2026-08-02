@@ -16,6 +16,15 @@ using VmaAllocation = void *;
 using VmaPool = void *;
 #endif
 
+template <typename T>
+inline const T *find_in_structure_chain(const void *structure_chain, VkStructureType type)
+{
+	const T *next = reinterpret_cast<const T *>(structure_chain);
+	while (next != nullptr && next->sType != type)
+		next = reinterpret_cast<const T *>(next->pNext);
+	return next;
+}
+
 namespace reshade::vulkan
 {
 	static_assert(sizeof(VkBuffer) == sizeof(api::resource));

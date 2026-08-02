@@ -1902,8 +1902,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 		for (const D3DVERTEXELEMENT9 *internal_element = pVertexElements; internal_element->Stream != 0xFF; ++internal_element)
 			desc.push_back(reshade::d3d9::convert_input_element(*internal_element));
 
+	reshade::api::dynamic_state dynamic_states[] = { reshade::api::dynamic_state::input_element_stride };
+
 	const reshade::api::pipeline_subobject subobjects[] = {
-		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(desc.size()), desc.data() }
+		{ reshade::api::pipeline_subobject_type::input_layout, static_cast<uint32_t>(desc.size()), desc.data() },
+		{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(std::size(dynamic_states)), dynamic_states }
 	};
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))

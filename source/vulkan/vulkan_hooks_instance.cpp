@@ -16,6 +16,22 @@
 lockfree_linear_map<VkSurfaceKHR, HWND, 16> g_vulkan_surfaces;
 lockfree_linear_map<void *, vulkan_instance, 16> g_vulkan_instances;
 
+struct VkLayerInstanceLink
+{
+	VkLayerInstanceLink *pNext;
+	PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
+	PFN_vkGetInstanceProcAddr pfnNextGetPhysicalDeviceProcAddr;
+};
+struct VkLayerInstanceCreateInfo
+{
+	VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
+	const void *pNext;
+	VkLayerFunction function;
+	union {
+		VkLayerInstanceLink *pLayerInfo;
+	} u;
+};
+
 VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkInstance *pInstance)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkCreateInstance(pCreateInfo = %p, pAllocator = %p, pInstance = %p) ...", pCreateInfo, pAllocator, pInstance);
@@ -23,22 +39,6 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	assert(pCreateInfo != nullptr && pInstance != nullptr);
 
 	// Look for layer link info if installed as a layer (provided by the Vulkan loader)
-	struct VkLayerInstanceLink
-	{
-		VkLayerInstanceLink *pNext;
-		PFN_vkGetInstanceProcAddr pfnNextGetInstanceProcAddr;
-		PFN_vkGetInstanceProcAddr pfnNextGetPhysicalDeviceProcAddr;
-	};
-	struct VkLayerInstanceCreateInfo
-	{
-		VkStructureType sType; // VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO
-		const void *pNext;
-		VkLayerFunction function;
-		union {
-			VkLayerInstanceLink *pLayerInfo;
-		} u;
-	};
-
 	const auto link_info = find_layer_info<VkLayerInstanceCreateInfo>(pCreateInfo->pNext, VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO, VK_LAYER_LINK_INFO);
 
 	// Get trampoline function pointers
@@ -123,10 +123,10 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 		enabled_extensions.push_back(pCreateInfo->ppEnabledExtensionNames[i]);
 
 	{
-		uint32_t num_extensions = 0;
-		enum_instance_extensions(nullptr, &num_extensions, nullptr);
-		std::vector<VkExtensionProperties> extensions(num_extensions);
-		enum_instance_extensions(nullptr, &num_extensions, extensions.data());
+		uint32_t num_instance_extensions = 0;
+		enum_instance_extensions(nullptr, &num_instance_extensions, nullptr);
+		std::vector<VkExtensionProperties> extensions(num_instance_extensions);
+		enum_instance_extensions(nullptr, &num_instance_extensions, extensions.data());
 
 		// Make sure the driver actually supports the requested extensions
 		const auto add_extension = [&extensions, &enabled_extensions](const char *name, bool required) {

@@ -21,13 +21,11 @@ inline T *find_layer_info(const void *structure_chain, VkStructureType type, VkL
 		next = reinterpret_cast<T *>(const_cast<void *>(next->pNext));
 	return next;
 }
-template <typename T>
-inline const T *find_in_structure_chain(const void *structure_chain, VkStructureType type)
+
+inline void append_to_structure_chain(void *structure_chain, void *new_structure)
 {
-	const T *next = reinterpret_cast<const T *>(structure_chain);
-	while (next != nullptr && next->sType != type)
-		next = reinterpret_cast<const T *>(next->pNext);
-	return next;
+	static_cast<VkBaseInStructure *>(new_structure)->pNext = static_cast<VkBaseInStructure *>(structure_chain)->pNext;
+	static_cast<VkBaseInStructure *>(structure_chain)->pNext = static_cast<const VkBaseInStructure *>(new_structure);
 }
 
 inline void *const dispatch_key_from_handle(const void *dispatch_handle)

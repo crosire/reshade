@@ -2826,8 +2826,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	return true;
 
 exit_failure:
-	_device->free_descriptor_tables(static_cast<uint32_t>(shader_resource_view_tables.size()), shader_resource_view_tables.data());
-	_device->free_descriptor_tables(static_cast<uint32_t>(unordered_access_view_tables.size()), unordered_access_view_tables.data());
+	destroy_effect(effect_index, false);
 
 	return false;
 }

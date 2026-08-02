@@ -404,7 +404,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		_orig->GetDesc(&desc);
 		g_in_dxgi_runtime = was_in_dxgi_runtime;
 
-		// Restore default parameters to tho original values, rather than leaving them at the last values potentially overriden by an add-on
+		// Restore default parameters to tho original values, rather than leaving them at the last values potentially overridden by an add-on
 		if (0 == BufferCount)
 			BufferCount = _orig_desc.BufferCount;
 		if (DXGI_FORMAT_UNKNOWN == NewFormat)
@@ -775,7 +775,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		_orig->GetFullscreenState(&fullscreen, nullptr);
 		g_in_dxgi_runtime = was_in_dxgi_runtime;
 
-		// Restore default parameters to tho original values, rather than leaving them at the last values potentially overriden by an add-on
+		// Restore default parameters to tho original values, rather than leaving them at the last values potentially overridden by an add-on
 		if (0 == BufferCount)
 			BufferCount = _orig_desc.BufferCount;
 		if (DXGI_FORMAT_UNKNOWN == NewFormat)

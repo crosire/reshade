@@ -1989,7 +1989,6 @@ void reshade::imgui::code_editor::colorize()
 		case reshadefx::tokenid::int_literal:
 		case reshadefx::tokenid::uint_literal:
 		case reshadefx::tokenid::float_literal:
-		case reshadefx::tokenid::double_literal:
 			col = color_number_literal;
 			break;
 		case reshadefx::tokenid::string_literal:

@@ -874,6 +874,7 @@ bool reshade::d3d10::device_impl::create_pipeline(api::pipeline_layout, uint32_t
 				for (uint32_t k = 0; k < subobjects[i].count; ++k)
 					if (const auto state = static_cast<const api::dynamic_state *>(subobjects[i].data)[k];
 						state != api::dynamic_state::primitive_topology &&
+						state != api::dynamic_state::input_element_stride &&
 						state != api::dynamic_state::blend_constant &&
 						state != api::dynamic_state::sample_mask &&
 						state != api::dynamic_state::front_stencil_reference_value &&

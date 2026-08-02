@@ -684,6 +684,16 @@ namespace ReShade.Setup
 				return;
 			}
 
+			if (peInfo.StackSize < 1024 * 1024)
+			{
+				UpdateStatus("Waiting for user confirmation ...");
+
+				Dispatcher.Invoke(() =>
+				{
+					MessageBox.Show(this, "The target application uses a small default stack size.\nIn order to use ReShade without crashing you'll have to patch the executable to increase the stack size from " + peInfo.StackSize + " bytes to at least 1 MB.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+				});
+			}
+
 			if (compatibilityIni != null && compatibilityIni.HasValue(executableName, "RenderApi"))
 			{
 				if (compatibilityIni.HasValue(executableName, "InstallTarget"))

@@ -1428,7 +1428,7 @@ static void draw_settings_overlay(effect_runtime *runtime)
 					clear_stats.clear_op == clear_op::fullscreen_draw ? " Fullscreen draw call" : "");
 			}
 
-			if (sorted_item_list.size() == 1 && !is_d3d12_or_vulkan)
+			if (!is_d3d12_or_vulkan)
 			{
 				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<int32_t>::max());
 					ImGui::Checkbox("    Choose last clear operation with high number of draw calls", &value))

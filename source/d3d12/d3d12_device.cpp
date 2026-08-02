@@ -2798,6 +2798,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 
 	std::vector<reshade::api::dynamic_state> dynamic_states = {
 		reshade::api::dynamic_state::primitive_topology,
+		reshade::api::dynamic_state::input_element_stride,
 		reshade::api::dynamic_state::blend_constant,
 		reshade::api::dynamic_state::front_stencil_reference_value,
 		reshade::api::dynamic_state::back_stencil_reference_value

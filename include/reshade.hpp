@@ -370,7 +370,7 @@ namespace reshade
 	}
 
 	/// <summary>
-	/// Creates a new effect runtime for an existing swapchain, for when it was not already hooked by ReShade (e.g. because the RESHADE_DISABLE_GRAPHICS_HOOK environment variable is set).
+	/// Creates a new effect runtime for an existing swap chain, for when it was not already hooked by ReShade (e.g. because the RESHADE_DISABLE_GRAPHICS_HOOK environment variable is set).
 	/// </summary>
 	/// <param name="api">Underlying graphics API used.</param>
 	/// <param name="device">'IDirect3DDevice9', 'ID3D10Device', 'ID3D11Device', 'ID3D12Device', 'HGLRC' or 'VkDevice', depending on the graphics API.</param>

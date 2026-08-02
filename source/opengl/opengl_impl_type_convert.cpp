@@ -726,6 +726,8 @@ auto reshade::opengl::convert_pixel_format(const PIXELFORMATDESCRIPTOR &pfd) -> 
 		return api::format::b5g6r5_unorm;
 	case 24:
 	case 32:
+		if (pfd.cRedBits == 10 && pfd.cGreenBits == 10 && pfd.cBlueBits == 10)
+			return api::format::r10g10b10a2_unorm;
 		if (pfd.cRedBits == 11 && pfd.cGreenBits == 11 && pfd.cBlueBits == 10)
 			return api::format::r11g11b10_float;
 		if (pfd.cAlphaBits != 0)

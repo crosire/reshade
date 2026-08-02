@@ -20,7 +20,7 @@ reshade::api::device *reshade::d3d9::swapchain_impl::get_device()
 
 void *reshade::d3d9::swapchain_impl::get_hwnd() const
 {
-	// Destination window may be temporarily overriden by 'hDestWindowOverride' parameter during present call
+	// Destination window may be temporarily overridden by 'hDestWindowOverride' parameter during present call
 	if (_hwnd != nullptr)
 		return _hwnd;
 

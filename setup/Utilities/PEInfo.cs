@@ -39,11 +39,17 @@ namespace ReShade.Setup.Utilities
 			public UInt32 SizeOfImage;
 		}
 
-		[StructLayout(LayoutKind.Sequential)]
+		[StructLayout(LayoutKind.Explicit)]
 		struct IMAGE_NT_HEADERS
 		{
+			[FieldOffset(0)]
 			public UInt32 Signature;
+			[FieldOffset(4)]
 			public IMAGE_FILE_HEADER FileHeader;
+			[FieldOffset(24)]
+			public IMAGE_OPTIONAL_HEADER32 OptionalHeader32;
+			[FieldOffset(24)]
+			public IMAGE_OPTIONAL_HEADER64 OptionalHeader64;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -56,6 +62,74 @@ namespace ReShade.Setup.Utilities
 			public UInt32 NumberOfSymbols;
 			public UInt16 SizeOfOptionalHeader;
 			public UInt16 Characteristics;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		struct IMAGE_OPTIONAL_HEADER32
+		{
+			public UInt16 Magic;
+			public Byte MajorLinkerVersion;
+			public Byte MinorLinkerVersion;
+			public UInt32 SizeOfCode;
+			public UInt32 SizeOfInitializedData;
+			public UInt32 SizeOfUninitializedData;
+			public UInt32 AddressOfEntryPoint;
+			public UInt32 BaseOfCode;
+			public UInt32 BaseOfData;
+			public UInt32 ImageBase;
+			public UInt32 SectionAlignment;
+			public UInt32 FileAlignment;
+			public UInt16 MajorOperatingSystemVersion;
+			public UInt16 MinorOperatingSystemVersion;
+			public UInt16 MajorImageVersion;
+			public UInt16 MinorImageVersion;
+			public UInt16 MajorSubsystemVersion;
+			public UInt16 MinorSubsystemVersion;
+			public UInt32 Win32VersionValue;
+			public UInt32 SizeOfImage;
+			public UInt32 SizeOfHeaders;
+			public UInt32 CheckSum;
+			public UInt16 Subsystem;
+			public UInt16 DllCharacteristics;
+			public UInt32 SizeOfStackReserve;
+			public UInt32 SizeOfStackCommit;
+			public UInt32 SizeOfHeapReserve;
+			public UInt32 SizeOfHeapCommit;
+			public UInt32 LoaderFlags;
+			public UInt32 NumberOfRvaAndSizes;
+		}
+		[StructLayout(LayoutKind.Sequential)]
+		struct IMAGE_OPTIONAL_HEADER64
+		{
+			public UInt16 Magic;
+			public Byte MajorLinkerVersion;
+			public Byte MinorLinkerVersion;
+			public UInt32 SizeOfCode;
+			public UInt32 SizeOfInitializedData;
+			public UInt32 SizeOfUninitializedData;
+			public UInt32 AddressOfEntryPoint;
+			public UInt32 BaseOfCode;
+			public UInt64 ImageBase;
+			public UInt32 SectionAlignment;
+			public UInt32 FileAlignment;
+			public UInt16 MajorOperatingSystemVersion;
+			public UInt16 MinorOperatingSystemVersion;
+			public UInt16 MajorImageVersion;
+			public UInt16 MinorImageVersion;
+			public UInt16 MajorSubsystemVersion;
+			public UInt16 MinorSubsystemVersion;
+			public UInt32 Win32VersionValue;
+			public UInt32 SizeOfImage;
+			public UInt32 SizeOfHeaders;
+			public UInt32 CheckSum;
+			public UInt16 Subsystem;
+			public UInt16 DllCharacteristics;
+			public UInt64 SizeOfStackReserve;
+			public UInt64 SizeOfStackCommit;
+			public UInt64 SizeOfHeapReserve;
+			public UInt64 SizeOfHeapCommit;
+			public UInt32 LoaderFlags;
+			public UInt32 NumberOfRvaAndSizes;
 		}
 
 		[StructLayout(LayoutKind.Explicit)]
@@ -131,7 +205,9 @@ namespace ReShade.Setup.Utilities
 					}
 				}
 
-				Type = ((IMAGE_NT_HEADERS*)image.FileHeader)->FileHeader.Machine;
+				var headers = (IMAGE_NT_HEADERS*)image.FileHeader;
+				Type = headers->FileHeader.Machine;
+				StackSize = Type == BinaryType.IMAGE_FILE_MACHINE_AMD64 ? headers->OptionalHeader64.SizeOfStackReserve : (ulong)headers->OptionalHeader32.SizeOfStackReserve;
 
 				UnMapAndLoad(ref image);
 			}
@@ -145,6 +221,11 @@ namespace ReShade.Setup.Utilities
 		}
 
 		public IEnumerable<string> Modules
+		{
+			get;
+		}
+
+		public ulong StackSize
 		{
 			get;
 		}

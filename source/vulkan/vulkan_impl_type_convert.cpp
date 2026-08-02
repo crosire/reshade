@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "vulkan_hooks.hpp"
 #include "vulkan_impl_type_convert.hpp"
+#include <cassert>
 #include <algorithm> // std::copy_n, std::fill_n, std::find_if, std::max
 
 auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *components) -> VkFormat
@@ -1646,6 +1646,9 @@ void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_
 		case api::dynamic_state::primitive_topology:
 			internal_states.push_back(VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY);
 			break;
+		case api::dynamic_state::input_element_stride:
+			internal_states.push_back(VK_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE);
+			break;
 		case api::dynamic_state::depth_enable:
 			internal_states.push_back(VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE);
 			break;
@@ -1730,6 +1733,8 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_BLEND_CONSTANTS:
 			states.push_back(api::dynamic_state::blend_constant);
 			break;
+		case VK_DYNAMIC_STATE_DEPTH_BOUNDS:
+			break;
 		case VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK:
 			states.push_back(api::dynamic_state::front_stencil_read_mask);
 			states.push_back(api::dynamic_state::back_stencil_read_mask);
@@ -1751,6 +1756,9 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY:
 			states.push_back(api::dynamic_state::primitive_topology);
 			break;
+		case VK_DYNAMIC_STATE_VERTEX_INPUT_BINDING_STRIDE:
+			states.push_back(api::dynamic_state::input_element_stride);
+			break;
 		case VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE:
 			states.push_back(api::dynamic_state::depth_enable);
 			break;
@@ -1760,6 +1768,8 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_DEPTH_COMPARE_OP:
 			states.push_back(api::dynamic_state::depth_func);
 			break;
+		case VK_DYNAMIC_STATE_DEPTH_BOUNDS_TEST_ENABLE:
+			break;
 		case VK_DYNAMIC_STATE_STENCIL_TEST_ENABLE:
 			states.push_back(api::dynamic_state::stencil_enable);
 			break;
@@ -1767,14 +1777,20 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 			states.push_back(api::dynamic_state::front_stencil_func);
 			states.push_back(api::dynamic_state::back_stencil_func);
 			break;
+		case VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE:
+			break;
 		case VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE:
 			states.push_back(api::dynamic_state::depth_bias);
 			states.push_back(api::dynamic_state::depth_bias_clamp);
 			states.push_back(api::dynamic_state::depth_bias_slope_scaled);
 			break;
+		case VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE:
+			break;
 #if VK_EXT_extended_dynamic_state2
 		case VK_DYNAMIC_STATE_LOGIC_OP_EXT:
 			states.push_back(api::dynamic_state::logic_op);
+			break;
+		case VK_DYNAMIC_STATE_DEPTH_CLAMP_ENABLE_EXT:
 			break;
 		case VK_DYNAMIC_STATE_POLYGON_MODE_EXT:
 			states.push_back(api::dynamic_state::fill_mode);

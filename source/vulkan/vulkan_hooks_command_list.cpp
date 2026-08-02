@@ -1202,7 +1202,7 @@ void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSubpassContent
 
 	if (cmd_impl->_is_in_render_pass & 0x80)
 	{
-		// Render pass was overriden by an add-on, so there are no subpasses
+		// Render pass was overridden by an add-on, so there are no subpasses
 		return;
 	}
 
@@ -1245,7 +1245,7 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	}
 	if (cmd_impl->_is_in_render_pass & 0x80)
 	{
-		// Render pass was overriden by an add-on, so need to end it the same way
+		// Render pass was overridden by an add-on, so need to end it the same way
 		cmd_impl->end_render_pass();
 		return;
 	}
@@ -1343,7 +1343,7 @@ void VKAPI_CALL vkCmdNextSubpass2(VkCommandBuffer commandBuffer, const VkSubpass
 
 	if (cmd_impl->_is_in_render_pass & 0x80)
 	{
-		// Render pass was overriden by an add-on, so there are no subpasses
+		// Render pass was overridden by an add-on, so there are no subpasses
 		return;
 	}
 
@@ -1387,7 +1387,7 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 	}
 	if (cmd_impl->_is_in_render_pass & 0x80)
 	{
-		// Render pass was overriden by an add-on, so need to end it the same way
+		// Render pass was overridden by an add-on, so need to end it the same way
 		cmd_impl->end_render_pass();
 		return;
 	}
@@ -1803,7 +1803,7 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 	}
 	if (cmd_impl->_is_in_render_pass & 0x80)
 	{
-		// Render pass was overriden by an add-on, so need to end it the same way
+		// Render pass was overridden by an add-on, so need to end it the same way
 		cmd_impl->end_render_pass();
 		return;
 	}

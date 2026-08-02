@@ -97,7 +97,6 @@ namespace reshadefx
 		int_literal,
 		uint_literal,
 		float_literal,
-		double_literal,
 		string_literal,
 
 		// keywords
@@ -270,7 +269,6 @@ namespace reshadefx
 			int literal_as_int;
 			unsigned int literal_as_uint;
 			float literal_as_float;
-			double literal_as_double;
 		};
 		std::string literal_as_string;
 

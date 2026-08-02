@@ -174,7 +174,7 @@ namespace reshade
 			"Event that is disabled with limited add-on support was used!");
 
 		if constexpr (
-			ev != addon_event::create_resource_view) // This is needed by the Generic Depth add-on so that view creation succeeds for resources where the format was overriden
+			ev != addon_event::create_resource_view) // This is needed by the Generic Depth add-on so that view creation succeeds for resources where the format was overridden
 		if (!addon_enabled)
 			return false;
 #endif

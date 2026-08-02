@@ -852,13 +852,6 @@ bool reshadefx::parser::parse_expression_unary(expression &exp)
 	{
 		exp.reset_to_rvalue_constant(location, _token.literal_as_float);
 	}
-	else if (accept(tokenid::double_literal))
-	{
-		// Convert double literal to float literal for now
-		warning(location, 5000, "double literal truncated to float literal");
-
-		exp.reset_to_rvalue_constant(location, static_cast<float>(_token.literal_as_double));
-	}
 	else if (accept(tokenid::string_literal))
 	{
 		std::string value = std::move(_token.literal_as_string);

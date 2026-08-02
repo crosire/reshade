@@ -656,7 +656,7 @@ extern "C" BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 	{
 		assert(lpPoint != nullptr);
 
-		// Update position in case it is not overriden via 'SetCursorPos'
+		// Update position in case it is not overridden via 'SetCursorPos'
 		s_last_cursor_position = *lpPoint;
 	}
 
