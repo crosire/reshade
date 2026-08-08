@@ -385,7 +385,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 			if ((stages & (api::shader_stage::all_compute | api::shader_stage::all_ray_tracing)) != 0)
 				_orig->SetComputeRootUnorderedAccessView(layout_param, view_address);
 			if ((stages & api::shader_stage::all_graphics) != 0)
-				_orig->SetGraphicsRootShaderResourceView(layout_param, view_address);
+				_orig->SetGraphicsRootUnorderedAccessView(layout_param, view_address);
 		}
 		return;
 	}

@@ -182,7 +182,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			// Find the first queue family which supports graphics and has at least one queue
 			if (pCreateInfo->pQueueCreateInfos[i].queueCount > 0 && (queue_families[queue_family_index].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 			{
-				if (pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0] < 1.0f)
+				if (pCreateInfo->pQueueCreateInfos[i].pQueuePriorities != nullptr && pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0] < 1.0f)
 					reshade::log::message(reshade::log::level::warning, "Vulkan queue used for rendering has a low priority (%f).", pCreateInfo->pQueueCreateInfos[i].pQueuePriorities[0]);
 
 				graphics_queue_family_index = queue_family_index;
