@@ -9,7 +9,7 @@
 
 class D3D11Device;
 
-class DECLSPEC_UUID("592F5E83-A17B-4EEB-A2BF-7568DA2A3728") D3D11CommandList final : public ID3D11CommandList, public reshade::d3d11::command_list_impl
+class DECLSPEC_UUID("EF948B70-4CD8-476B-AD25-2D7F3E521AA2") D3D11CommandList final : public ID3D11CommandList, public reshade::d3d11::command_list_impl
 {
 public:
 	D3D11CommandList(D3D11Device *device, ID3D11CommandList *original);

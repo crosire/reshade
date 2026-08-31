@@ -11,7 +11,7 @@ class Direct3DSwapChain9;
 class Direct3DDevice9On12;
 class Direct3DDepthStencilSurface9;
 
-class DECLSPEC_UUID("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE") Direct3DDevice9 final : public IDirect3DDevice9Ex, public reshade::d3d9::device_impl
+class DECLSPEC_UUID("0E213B30-E5D8-4B37-970D-051D7A2152D0") Direct3DDevice9 final : public IDirect3DDevice9Ex, public reshade::d3d9::device_impl
 {
 	friend class Direct3DSwapChain9;
 	friend class Direct3DDevice9On12;

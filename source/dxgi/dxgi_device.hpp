@@ -7,7 +7,7 @@
 
 #include <dxgi1_5.h>
 
-class DECLSPEC_UUID("CB285C3B-3677-4332-98C7-D6339B9782B1") DXGIDevice : public IDXGIDevice4
+class DECLSPEC_UUID("00B4A8A4-7FD7-4531-A8F0-A8F1CA7B04B6") DXGIDevice : public IDXGIDevice4
 {
 public:
 	DXGIDevice(IDXGIAdapter *adapter, IDXGIDevice1 *original);

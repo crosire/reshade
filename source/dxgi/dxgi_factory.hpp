@@ -7,7 +7,7 @@
 
 #include <dxgi1_6.h>
 
-class DECLSPEC_UUID("019778D4-A03A-7AF4-B889-E92362D20238") DXGIFactory final : public IDXGIFactory7
+class DECLSPEC_UUID("97AFEC42-2F1E-4819-9BE3-E1D56673B80C") DXGIFactory final : public IDXGIFactory7
 {
 public:
 	DXGIFactory(IDXGIFactory  *original);

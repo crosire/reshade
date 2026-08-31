@@ -9,7 +9,7 @@
 
 class D3D12Device;
 
-class DECLSPEC_UUID("918B5021-E085-430C-BA85-D9C0EFE6FAA0") D3D12DeviceDownlevel final : public ID3D12DeviceDownlevel
+class DECLSPEC_UUID("6C631B1A-4405-4E32-AF0C-6127BB31A7E9") D3D12DeviceDownlevel final : public ID3D12DeviceDownlevel
 {
 public:
 	D3D12DeviceDownlevel(D3D12Device *device, ID3D12DeviceDownlevel *original);

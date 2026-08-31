@@ -9,7 +9,7 @@
 
 class D3D12Device;
 
-class DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap final : public ID3D12DescriptorHeap
+class DECLSPEC_UUID("BAFD47C6-9535-4FAC-BFC7-4950E57961EA") D3D12DescriptorHeap final : public ID3D12DescriptorHeap
 {
 public:
 	D3D12DescriptorHeap(ID3D12Device *device, ID3D12DescriptorHeap *original);

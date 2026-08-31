@@ -9,7 +9,7 @@
 
 class Direct3DDevice9;
 
-class DECLSPEC_UUID("0F433AEB-B389-4589-81A7-9DB59F34CB55") Direct3DDepthStencilSurface9 final : public IDirect3DSurface9
+class DECLSPEC_UUID("C6A1D118-F6FA-4E46-A8AE-73C20BF25D87") Direct3DDepthStencilSurface9 final : public IDirect3DSurface9
 {
 public:
 	Direct3DDepthStencilSurface9(Direct3DDevice9 *device, IDirect3DSurface9 *original, const D3DSURFACE_DESC &desc);

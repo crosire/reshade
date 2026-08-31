@@ -9,7 +9,7 @@
 
 class Direct3DDevice9;
 
-class DECLSPEC_UUID("BC52FCE4-1EAC-40C8-84CF-863600BBAA01") Direct3DSwapChain9 final : public IDirect3DSwapChain9Ex, public reshade::d3d9::swapchain_impl
+class DECLSPEC_UUID("79A0ECDD-0A5A-4C7E-9699-43C6FE9D66C3") Direct3DSwapChain9 final : public IDirect3DSwapChain9Ex, public reshade::d3d9::swapchain_impl
 {
 	friend class Direct3DDevice9;
 

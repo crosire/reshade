@@ -13,7 +13,7 @@
 #include <delayimp.h> // Delay-load helpers
 
 // Export special symbol to identify modules as ReShade instances
-extern "C" __declspec(dllexport) const char *ReShadeVersion = VERSION_STRING_PRODUCT;
+extern "C" const char *ReShadeVersion = VERSION_STRING_PRODUCT;
 
 HANDLE g_exit_event = nullptr;
 HMODULE g_module_handle = nullptr;
@@ -196,19 +196,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 #endif
 				static_cast<unsigned int>(std::hash<std::string>()(g_target_executable_path.stem().u8string()) & 0xFFFFFFFF));
 
-			// Check if another ReShade instance was already loaded into the process
-			if (HMODULE modules[1024]; K32EnumProcessModules(GetCurrentProcess(), modules, sizeof(modules), &fdwReason)) // Use kernel32 variant which is available in DllMain
-			{
-				// Skip first module (the main application module)
-				for (DWORD i = 1; i < std::min<DWORD>(fdwReason / sizeof(HMODULE), std::size(modules)); ++i)
-				{
-					if (modules[i] != hModule && GetProcAddress(modules[i], "ReShadeVersion") != nullptr)
-					{
-						reshade::log::message(reshade::log::level::warning, "Another ReShade instance was already loaded from '%s'! Aborting initialization ...", get_module_path(modules[i]).u8string().c_str());
-						return FALSE; // Make the 'LoadLibrary' call that loaded this instance fail
-					}
-				}
-			}
+			reshade::log::message(reshade::log::level::warning, "MODIFIED ReShade build - add-on host only, no effects or overlay.");
 
 #ifndef NDEBUG
 			if (config.get("INSTALL", "DumpExceptions"))
@@ -332,7 +320,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
 						// On Windows 7 the d3d12on7 module is not in the system path, so register to hook any d3d12.dll loaded instead
 						reshade::hooks::register_module(get_target_path(is_windows7() && _wcsicmp(module_name.c_str(), L"d3d12") != 0 || (!export_module_path.empty() && is_dxgi), L"d3d12.dll"));
 
-						reshade::hooks::register_module(get_target_path(!export_module_path.empty() && is_d3d && !is_dxgi, L"dxgi.dll"));
+						// DXGI hooks are not registered: another ReShade-derived injector owns the swap chain in this
+						// configuration. Effects and the overlay are lost as a result;
+						// this fork exists only to host add-ons alongside that injector.
 					}
 
 					// Only register OpenGL hooks when module is not called any D3D module name

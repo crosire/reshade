@@ -9,7 +9,7 @@
 
 class D3D11Device;
 
-class DECLSPEC_UUID("27B0246B-2152-4D42-AD11-32489472238F") D3D11DeviceContext final : public ID3D11DeviceContext4, public reshade::d3d11::device_context_impl
+class DECLSPEC_UUID("1945944B-D23D-49E6-A2B2-9DBE9A66465E") D3D11DeviceContext final : public ID3D11DeviceContext4, public reshade::d3d11::device_context_impl
 {
 public:
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original);

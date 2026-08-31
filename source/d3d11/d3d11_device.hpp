@@ -11,7 +11,7 @@
 class D3D11On12Device;
 class D3D11DeviceContext;
 
-class DECLSPEC_UUID("72299288-2C68-4AD8-945D-2BFB5AA9C609") D3D11Device final : public DXGIDevice, public ID3D11Device5, public reshade::d3d11::device_impl
+class DECLSPEC_UUID("ED576018-A58A-4E1B-9EBA-62AD961B6C33") D3D11Device final : public DXGIDevice, public ID3D11Device5, public reshade::d3d11::device_impl
 {
 	friend class D3D11On12Device;
 	friend class D3D11DeviceContext;

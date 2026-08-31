@@ -8,7 +8,7 @@
 #include "dxgi/dxgi_device.hpp"
 #include "d3d10_impl_device.hpp"
 
-class DECLSPEC_UUID("88399375-734F-4892-A95F-70DD42CE7CDD") D3D10Device final : public DXGIDevice, public ID3D10Device1, public reshade::d3d10::device_impl
+class DECLSPEC_UUID("98911F55-E255-49D7-9C3C-A163EFDF23C9") D3D10Device final : public DXGIDevice, public ID3D10Device1, public reshade::d3d10::device_impl
 {
 public:
 	D3D10Device(IDXGIAdapter *adapter, IDXGIDevice1 *original_dxgi_device, ID3D10Device1 *original);

@@ -10,7 +10,7 @@
 class D3D12Device;
 class D3D12CommandQueueDownlevel;
 
-class DECLSPEC_UUID("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC") D3D12CommandQueue final : public ID3D12CommandQueue1, public reshade::d3d12::command_queue_impl
+class DECLSPEC_UUID("3D6C164D-727E-4C19-80DD-80CB60FB4AC3") D3D12CommandQueue final : public ID3D12CommandQueue1, public reshade::d3d12::command_queue_impl
 {
 	friend class D3D12CommandQueueDownlevel;
 

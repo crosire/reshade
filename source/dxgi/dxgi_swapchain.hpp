@@ -28,7 +28,7 @@ MIDL_INTERFACE("8C803E30-9E41-4DDF-B206-46F28E90E405") IDXGISwapChainTest : IUnk
 	virtual UINT    STDMETHODCALLTYPE GetBackBufferImplicitRotationCount() = 0;
 };
 
-class DECLSPEC_UUID("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8") DXGISwapChain final : public IDXGISwapChain4
+class DECLSPEC_UUID("B862A97B-4CC5-4388-9F1F-12CB9B0394F4") DXGISwapChain final : public IDXGISwapChain4
 {
 public:
 	DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain  *original);

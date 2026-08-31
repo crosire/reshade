@@ -9,7 +9,7 @@
 
 class D3D12DeviceDownlevel;
 
-class DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : public ID3D12Device15, public reshade::d3d12::device_impl
+class DECLSPEC_UUID("41302B30-5B92-4000-BB15-2476B7ACDE97") D3D12Device final : public ID3D12Device15, public reshade::d3d12::device_impl
 {
 	friend class D3D12DeviceDownlevel;
 

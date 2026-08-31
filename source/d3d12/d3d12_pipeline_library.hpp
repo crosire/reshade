@@ -9,7 +9,7 @@
 
 class D3D12Device;
 
-class DECLSPEC_UUID("2DCF7A2D-3824-4E6A-9F53-FE7C7D8B633D") D3D12PipelineLibrary final : public ID3D12PipelineLibrary1
+class DECLSPEC_UUID("566ED324-63E4-44FC-B969-33C0AA61301E") D3D12PipelineLibrary final : public ID3D12PipelineLibrary1
 {
 public:
 	D3D12PipelineLibrary(D3D12Device *device, ID3D12PipelineLibrary *original);

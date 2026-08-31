@@ -10,7 +10,7 @@
 
 class D3D12CommandQueue;
 
-class DECLSPEC_UUID("98CF28C0-F383-487E-A61E-3A638FEE29BD") D3D12CommandQueueDownlevel final : public ID3D12CommandQueueDownlevel, public reshade::d3d12::swapchain_d3d12on7_impl
+class DECLSPEC_UUID("F243D4CE-25C8-4014-ADC2-9C164748823A") D3D12CommandQueueDownlevel final : public ID3D12CommandQueueDownlevel, public reshade::d3d12::swapchain_d3d12on7_impl
 {
 public:
 	D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original);
