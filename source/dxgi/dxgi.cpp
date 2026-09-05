@@ -18,6 +18,39 @@ extern bool is_windows7();
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 extern thread_local bool g_in_dxgi_runtime;
 
+// Serializes access to the D3D11 immediate context for the duration of a swap chain creation.
+// Some applications (e.g. Frostbite games like Mass Effect: Andromeda) keep driving the immediate context from a worker thread
+// (e.g. polling queries via 'ID3D11DeviceContext::GetData') while the main thread is still inside 'IDXGIFactory::CreateSwapChain'.
+// The D3D11 debug layer reports this as a CORRUPTION severity message, and since ReShade initializes its effect runtime on that
+// same context during swap chain creation, the driver intermittently removes the device (DXGI_ERROR_DEVICE_REMOVED or
+// DXGI_ERROR_DRIVER_INTERNAL_ERROR). Turning on 'ID3D11Multithread' protection just for this window closes the race, and the
+// previous state is restored afterwards, so applications that never enable it see no change once the swap chain exists.
+struct d3d11_multithread_scope
+{
+	explicit d3d11_multithread_scope(reshade::api::device_api api, IUnknown *device)
+	{
+		if (api != reshade::api::device_api::d3d11 || device == nullptr)
+			return;
+		com_ptr<ID3D11Device> d3d11_device;
+		if (FAILED(device->QueryInterface(&d3d11_device)))
+			return;
+		com_ptr<ID3D11DeviceContext> immediate_context;
+		d3d11_device->GetImmediateContext(&immediate_context);
+		if (immediate_context == nullptr || FAILED(immediate_context->QueryInterface(&_multithread)))
+			return;
+		_was_protected = _multithread->SetMultithreadProtected(TRUE);
+	}
+	~d3d11_multithread_scope()
+	{
+		if (_multithread != nullptr && !_was_protected)
+			_multithread->SetMultithreadProtected(FALSE);
+	}
+
+private:
+	com_ptr<ID3D11Multithread> _multithread;
+	BOOL _was_protected = TRUE;
+};
+
 #if RESHADE_ADDON
 static auto floating_point_to_rational(float value) -> DXGI_RATIONAL
 {
@@ -426,6 +459,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain_Impl(IDXGIFactory *pFacto
 	UINT sync_interval = UINT_MAX;
 	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
+	const d3d11_multithread_scope multithread_scope(direct3d_version, pDevice);
+
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, ppSwapChain);
 	g_in_dxgi_runtime = false;
@@ -475,6 +510,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 	// Space Engineers 2 does not set any usage flags, change default to at least include render target output support
 	if (0 == desc.BufferUsage && direct3d_version == reshade::api::device_api::d3d12)
 		desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+
+	const d3d11_multithread_scope multithread_scope(direct3d_version, pDevice);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, hWnd, &desc, fullscreen_desc.Windowed ? nullptr : &fullscreen_desc, pRestrictToOutput, ppSwapChain);
@@ -527,6 +564,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 	// UWP applications cannot be set into fullscreen mode
 	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
 
+	const d3d11_multithread_scope multithread_scope(direct3d_version, pDevice);
+
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
 	g_in_dxgi_runtime = false;
@@ -577,6 +616,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition_Impl(IDXGI
 	UINT sync_interval = UINT_MAX;
 	// Composition swap chains cannot be set into fullscreen mode
 	const bool modified = dump_and_modify_swapchain_desc(direct3d_version, desc, sync_interval);
+
+	const d3d11_multithread_scope multithread_scope(direct3d_version, pDevice);
 
 	g_in_dxgi_runtime = true;
 	const HRESULT hr = trampoline(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
