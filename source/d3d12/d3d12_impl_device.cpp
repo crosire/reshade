@@ -115,10 +115,10 @@ reshade::d3d12::device_impl::~device_impl()
 
 #if RESHADE_ADDON >= 2
 	const auto gpu_view_heap = _descriptor_heaps[0];
-	unregister_descriptor_heap(gpu_view_heap);
+	unregister_descriptor_heap(gpu_view_heap, gpu_view_heap->_orig_base_gpu_handle.ptr);
 	delete gpu_view_heap;
 	const auto gpu_sampler_heap = _descriptor_heaps[1];
-	unregister_descriptor_heap(gpu_sampler_heap);
+	unregister_descriptor_heap(gpu_sampler_heap, gpu_sampler_heap->_orig_base_gpu_handle.ptr);
 	delete gpu_sampler_heap;
 
 	assert(_descriptor_heaps.empty());
@@ -2246,7 +2246,7 @@ void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *
 
 	_heap_gpu_ranges[beg_gpu_handle] = { end_gpu_handle, heap };
 }
-void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap *heap)
+void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap *heap, UINT64 base_gpu_handle)
 {
 	size_t num_heaps = _descriptor_heaps.size();
 
@@ -2271,7 +2271,7 @@ void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap
 
 	const std::unique_lock<std::shared_mutex> lock(_heap_gpu_ranges_mutex);
 
-	_heap_gpu_ranges.erase(heap->_orig_base_gpu_handle.ptr);
+	_heap_gpu_ranges.erase(base_gpu_handle);
 }
 
 void D3D12DescriptorHeap::initialize_descriptor_base_handle(size_t heap_index)

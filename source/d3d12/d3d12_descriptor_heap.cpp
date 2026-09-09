@@ -70,9 +70,8 @@ ULONG   STDMETHODCALLTYPE D3D12DescriptorHeap::Release()
 #if 0
 	reshade::log::message(reshade::log::level::debug, "Destroying ID3D12DescriptorHeap object %p (%p).", this, orig);
 #endif
-	delete this;
-
 	const ULONG ref_orig = orig->Release();
+	delete this;
 	if (ref_orig != 0) // Verify internal reference count
 		reshade::log::message(reshade::log::level::warning, "Reference count for ID3D12DescriptorHeap object %p (%p) is inconsistent (%lu).", this, orig, ref_orig);
 	return 0;

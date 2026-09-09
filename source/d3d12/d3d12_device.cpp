@@ -406,8 +406,9 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPT
 			{
 				register_descriptor_heap(descriptor_heap_proxy);
 
-				register_destruction_callback_d3dx(descriptor_heap_proxy, [this, descriptor_heap_proxy]() {
-					unregister_descriptor_heap(descriptor_heap_proxy);
+				const UINT64 base_gpu_handle = descriptor_heap_proxy->_orig_base_gpu_handle.ptr;
+				register_destruction_callback_d3dx(descriptor_heap_proxy, [device = com_ptr<D3D12Device>(this), descriptor_heap_proxy, base_gpu_handle]() {
+					device->unregister_descriptor_heap(descriptor_heap_proxy, base_gpu_handle);
 				});
 
 #if RESHADE_VERBOSE_LOG

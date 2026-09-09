@@ -146,7 +146,7 @@ namespace reshade::d3d12
 
 #if RESHADE_ADDON >= 2
 		void register_descriptor_heap(D3D12DescriptorHeap *heap);
-		void unregister_descriptor_heap(D3D12DescriptorHeap *heap);
+		void unregister_descriptor_heap(D3D12DescriptorHeap *heap, UINT64 base_gpu_handle);
 #endif
 
 	private:
