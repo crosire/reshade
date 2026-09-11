@@ -7,12 +7,13 @@
 
 #if RESHADE_ADDON >= 2
 
-class D3D12Device;
+#include "d3d12_device.hpp"
 
 class DECLSPEC_UUID("8628AD68-6047-4D27-9D87-3E5F386E0231") D3D12DescriptorHeap final : public ID3D12DescriptorHeap
 {
 public:
-	D3D12DescriptorHeap(ID3D12Device *device, ID3D12DescriptorHeap *original);
+	D3D12DescriptorHeap(D3D12Device *device, ID3D12DescriptorHeap *original);
+	~D3D12DescriptorHeap();
 
 	D3D12DescriptorHeap(const D3D12DescriptorHeap &) = delete;
 	D3D12DescriptorHeap &operator=(const D3D12DescriptorHeap &) = delete;
@@ -39,8 +40,6 @@ public:
 
 	bool check_and_upgrade_interface(REFIID riid);
 
-	void initialize_descriptor_base_handle(size_t heap_index);
-
 	ID3D12DescriptorHeap *_orig;
 	LONG _ref = 1;
 
@@ -49,7 +48,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE _internal_base_cpu_handle = { 0 };
 
 private:
-	ID3D12Device *const _device;
+	D3D12Device *const _device;
 };
 
 #endif
