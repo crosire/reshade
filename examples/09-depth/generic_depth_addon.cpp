@@ -37,6 +37,8 @@ enum class aspect_ratio_heuristic : unsigned int
 static bool s_disable_intz = false;
 // Enable or disable the creation of backup copies at clear operations on the selected depth-stencil
 static unsigned int s_preserve_depth_buffers = 0;
+// When not zero, the depth-buffer clear index is counted from the last clear instead of the first one
+static unsigned int s_count_from_last_clear = 0;
 // Choose impact of draw statistics in the detection heuristic
 static draw_stats_heuristic s_draw_stats_heuristic = draw_stats_heuristic::prefer_vertices;
 // Enable or disable the aspect ratio check from 'check_aspect_ratio' in the detection heuristic
@@ -190,9 +192,42 @@ struct depth_stencil_backup
 	uint32_t frame_height = 0;
 
 	// Set to zero for automatic detection, otherwise will use the clear operation at the specific index within a frame
-	uint32_t force_clear_index = 0;
+	// If counting from last clear is enabled this value is negative
+	int32_t force_clear_index = 0;
 	uint32_t current_clear_index = 0;
+
+	// Clear count of this depth-stencil of the previous frame
+	uint32_t last_clear_count = 0;
+
+	// Decode the real desired clear index
+	uint32_t get_force_clear_index() const;
+
+	// Encode a desired clear index from a real clear index
+	void set_force_clear_index(bool count_from_last_clear, uint32_t clear_index);
 };
+
+uint32_t depth_stencil_backup::get_force_clear_index() const
+{
+	if (force_clear_index >= 0)
+	{
+		return static_cast<uint32_t>(force_clear_index);
+	}
+
+	int32_t counted_from_last = -force_clear_index - 1;
+
+	return counted_from_last > static_cast<int32_t>(last_clear_count)
+		? 0
+		: static_cast<uint32_t>(last_clear_count - counted_from_last)
+	;
+}
+
+void depth_stencil_backup::set_force_clear_index(bool count_from_last_clear, uint32_t clear_index)
+{
+	force_clear_index = count_from_last_clear
+		? static_cast<int32_t>(last_clear_count - clear_index + 1) * -1
+		: clear_index
+	;
+}
 
 struct depth_stencil_resource
 {
@@ -427,14 +462,14 @@ static void on_clear_depth_impl(command_list *cmd_list, state_tracking &state, r
 				do_copy = current_stats.vertices >= state.best_copy_stats.vertices || (op == clear_op::fullscreen_draw && current_stats.drawcalls >= state.best_copy_stats.drawcalls);
 			}
 			else
-			if (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max())
+			if (depth_stencil_backup->force_clear_index == std::numeric_limits<int32_t>::max())
 			{
 				// Special case for Garry's Mod which chooses the last clear operation that has a high workload
 				do_copy = current_stats.vertices >= 5000;
 			}
 			else
 			{
-				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->force_clear_index - 1);
+				do_copy = (depth_stencil_backup->current_clear_index++) == (depth_stencil_backup->get_force_clear_index() - 1);
 			}
 
 			stats.clears.push_back({ current_stats, op, do_copy });
@@ -493,6 +528,7 @@ static void on_init_device(device *device)
 
 	reshade::get_config_value(nullptr, "DEPTH", "DisableINTZ", s_disable_intz);
 	reshade::get_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
+	reshade::get_config_value(nullptr, "DEPTH", "CountFromLastClear", s_count_from_last_clear);
 	reshade::get_config_value(nullptr, "DEPTH", "DrawStatsHeuristic", reinterpret_cast<unsigned int &>(s_draw_stats_heuristic));
 	reshade::get_config_value(nullptr, "DEPTH", "UseAspectRatioHeuristics", reinterpret_cast<unsigned int &>(s_aspect_ratio_heuristic));
 
@@ -908,6 +944,12 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 			info.last_frame_stats = frame_stats;
 			info.last_used_in_frame = device_data->frame_index;
 
+			// Save the last clear count on depth_stencil_backup
+			if (depth_stencil_backup *const depth_stencil_backup = device_data->find_depth_stencil_backup(depth_stencil))
+			{
+				depth_stencil_backup->last_clear_count = static_cast<uint32_t>(info.last_frame_stats.clears.size());
+			}
+
 			if (std::numeric_limits<uint64_t>::max() == info.first_used_in_frame)
 				info.first_used_in_frame = device_data->frame_index;
 		}
@@ -1252,6 +1294,18 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			s_preserve_depth_buffers = copy_before_fullscreen_draws ? 2 : 1;
 			reshade::set_config_value(nullptr, "DEPTH", "DepthCopyBeforeClears", s_preserve_depth_buffers);
 		}
+		if (bool count_from_last_clear = s_count_from_last_clear > 0;
+			ImGui::Checkbox("Count clear operations from the last one", &count_from_last_clear))
+		{
+			s_count_from_last_clear = count_from_last_clear ? 1 : 0;
+			reshade::set_config_value(nullptr, "DEPTH", "CountFromLastClear", s_count_from_last_clear);
+		}
+		ImGui::SetItemTooltip(
+			"Enable this when UI predictably has a set number of depth clears,"
+			"\nwhile the world may have multiple ones before the correct"
+			"\nsection depth is written. This should help with both the 3D"
+			"\nsky boxes and the GUI of Source games for example."
+		);
 	}
 
 	ImGui::Spacing();
@@ -1342,16 +1396,27 @@ static void draw_settings_overlay(effect_runtime *runtime)
 			if (depth_stencil_backup == nullptr || depth_stencil_backup->backup_texture == 0)
 				continue;
 
-			for (uint32_t clear_index = 1; clear_index <= static_cast<uint32_t>(info.last_frame_stats.clears.size()); ++clear_index)
+			uint32_t last_clear_count = static_cast<uint32_t>(info.last_frame_stats.clears.size());
+
+			// In case we've just turned off counting from last clear but depth_stencil_backup is still set to do that
+			// reset force_clear_index to 0
+			if (!s_count_from_last_clear && depth_stencil_backup->force_clear_index < 0)
+				depth_stencil_backup->force_clear_index = 0;
+
+			bool count_from_last_mismatch = (s_count_from_last_clear > 0) != (depth_stencil_backup->force_clear_index < 0);
+
+			for (uint32_t clear_index = 1; clear_index <= last_clear_count; ++clear_index)
 			{
 				const clear_stats &clear_stats = info.last_frame_stats.clears[clear_index - 1];
 
 				std::snprintf(label, std::size(label), "%c   CLEAR %2u", clear_stats.copied_during_frame ? '>' : ' ', clear_index);
 
-				if (bool value = (depth_stencil_backup->force_clear_index == clear_index);
-					ImGui::Checkbox(label, &value))
+				uint32_t force_clear_index_in = depth_stencil_backup->get_force_clear_index();
+
+				if (bool value = (force_clear_index_in == clear_index);
+					ImGui::Checkbox(label, &value) || (value && count_from_last_mismatch))
 				{
-					depth_stencil_backup->force_clear_index = value ? clear_index : 0;
+					depth_stencil_backup->set_force_clear_index(s_count_from_last_clear > 0, value ? clear_index : 0);
 					reshade::set_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
 				}
 
@@ -1365,11 +1430,14 @@ static void draw_settings_overlay(effect_runtime *runtime)
 
 			if (!is_d3d12_or_vulkan)
 			{
-				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<uint32_t>::max());
+				if (bool value = (depth_stencil_backup->force_clear_index == std::numeric_limits<int32_t>::max());
 					ImGui::Checkbox("    Choose last clear operation with high number of draw calls", &value))
 				{
-					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<uint32_t>::max() : 0;
+					depth_stencil_backup->force_clear_index = value ? std::numeric_limits<int32_t>::max() : 0;
 					reshade::set_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+
+					s_count_from_last_clear = 0;
+					reshade::set_config_value(nullptr, "DEPTH", "CountFromLastClear", s_count_from_last_clear);
 				}
 			}
 		}
