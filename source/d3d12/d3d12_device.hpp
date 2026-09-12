@@ -8,6 +8,7 @@
 #include "d3d12_impl_device.hpp"
 
 class D3D12DeviceDownlevel;
+class D3D12DeviceExt;
 
 class DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : public ID3D12Device15, public reshade::d3d12::device_impl
 {
@@ -166,5 +167,8 @@ public:
 	unsigned short _interface_version = 0;
 
 private:
+#if RESHADE_ADDON >= 2
+	D3D12DeviceExt *_device_ext = nullptr;
+#endif
 	D3D12DeviceDownlevel *_downlevel = nullptr;
 };
