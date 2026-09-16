@@ -694,9 +694,9 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 		case api::dynamic_state::blend_constant:
 			gl.BlendColor(
 				((values[i]      ) & 0xFF) / 255.0f,
-				((values[i] >>  4) & 0xFF) / 255.0f,
 				((values[i] >>  8) & 0xFF) / 255.0f,
-				((values[i] >> 12) & 0xFF) / 255.0f);
+				((values[i] >> 16) & 0xFF) / 255.0f,
+				((values[i] >> 24) & 0xFF) / 255.0f);
 			break;
 		case api::dynamic_state::render_target_write_mask:
 			gl.ColorMask(values[i] & 0x1, (values[i] >> 1) & 0x1, (values[i] >> 2) & 0x1, (values[i] >> 3) & 0x1);
