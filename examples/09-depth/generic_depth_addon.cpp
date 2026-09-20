@@ -1067,7 +1067,6 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				depth_stencil_backup->frame_width = frame_width;
 				depth_stencil_backup->frame_height = frame_height;
 
-
 				if (s_preserve_depth_buffers)
 				{
 					int64_t clear_index_raw = 0;
