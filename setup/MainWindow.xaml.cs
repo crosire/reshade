@@ -423,7 +423,7 @@ namespace ReShade.Setup
 					CurrentPage.Navigate(status);
 				}
 
-				AeroGlass.HideSystemMenu(this, true);
+				DWM.HideSystemMenu(this, true);
 			});
 
 			if (isHeadless)
@@ -446,7 +446,7 @@ namespace ReShade.Setup
 					Title += success ? " was successful!" : " was not successful!";
 				}
 
-				AeroGlass.HideSystemMenu(this, false);
+				DWM.HideSystemMenu(this, false);
 			});
 
 			if (isHeadless)
@@ -684,7 +684,7 @@ namespace ReShade.Setup
 				return;
 			}
 
-			if (peInfo.StackSize < 1024 * 1024)
+			if (peInfo.StackSize != 0 && peInfo.StackSize < 1000000 && !executableName.Equals("gamelaunchhelper.exe", StringComparison.OrdinalIgnoreCase))
 			{
 				UpdateStatus("Waiting for user confirmation ...");
 
@@ -1814,8 +1814,8 @@ In that event here are some steps you can try to resolve this:
 
 		void OnWindowInit(object sender, EventArgs e)
 		{
-			AeroGlass.HideIcon(this);
-			AeroGlass.HideSystemMenu(this, currentInfo.targetPath != null);
+			DWM.HideIcon(this);
+			DWM.HideSystemMenu(this, currentInfo.targetPath != null);
 		}
 
 		void OnNextButtonClick(object sender, RoutedEventArgs e)

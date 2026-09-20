@@ -222,9 +222,9 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			{
 				const float blend_constant[4] = {
 					((values[i]      ) & 0xFF) / 255.0f,
-					((values[i] >>  4) & 0xFF) / 255.0f,
 					((values[i] >>  8) & 0xFF) / 255.0f,
-					((values[i] >> 12) & 0xFF) / 255.0f
+					((values[i] >> 16) & 0xFF) / 255.0f,
+					((values[i] >> 24) & 0xFF) / 255.0f
 				};
 				_orig->OMSetBlendFactor(blend_constant);
 			}
@@ -494,7 +494,7 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		_orig->SetGraphicsRootDescriptorTable(layout_param, base_handle_gpu);
 	}
 }
-void reshade::d3d12::command_list_impl::bind_descriptor_tables2(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables, uint32_t dynamic_offset_count, const uint32_t *dynamic_offsets)
+void reshade::d3d12::command_list_impl::bind_descriptor_tables2(api::shader_stage stages, api::pipeline_layout layout, uint32_t first, uint32_t count, const api::descriptor_table *tables, uint32_t, const uint32_t *)
 {
 	assert(tables != nullptr || count == 0);
 

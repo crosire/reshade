@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -7,8 +8,9 @@ using System.Windows.Media.Imaging;
 
 namespace ReShade.Setup.Utilities
 {
-	public static class AeroGlass
+	public static class DWM
 	{
+		#region Win32 Imports
 		[StructLayout(LayoutKind.Sequential)]
 		struct MARGINS
 		{
@@ -35,12 +37,12 @@ namespace ReShade.Setup.Utilities
 		static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
 
 		[DllImport("user32.dll")]
+		static extern int SetWindowPos(IntPtr hwnd, IntPtr hwndInsertAfter, int x, int y, int width, int height, uint flags);
+
+		[DllImport("user32.dll")]
 		static extern int GetWindowLong(IntPtr hwnd, int index);
 		[DllImport("user32.dll")]
 		static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
-
-		[DllImport("user32.dll")]
-		static extern bool SetWindowPos(IntPtr hwnd, IntPtr hwndInsertAfter, int x, int y, int width, int height, uint flags);
 
 		[DllImport("user32.dll")]
 		static extern IntPtr SendMessage(IntPtr hwnd, uint msg, ulong wParam, ulong lParam);
@@ -50,8 +52,11 @@ namespace ReShade.Setup.Utilities
 
 		[DllImport("shell32.dll", SetLastError = false)]
 		static extern int SHGetStockIconInfo(uint siid, uint uFlags, ref SHSTOCKICONINFO psii);
+		#endregion
 
-		public static bool IsEnabled
+		public static bool IsDarkMode => Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) as int? == 0;
+
+		public static bool IsCompositionEnabled
 		{
 			get
 			{
@@ -110,7 +115,7 @@ namespace ReShade.Setup.Utilities
 		}
 		public static bool ExtendFrame(Window window, Thickness margin)
 		{
-			if (!IsEnabled)
+			if (!IsCompositionEnabled)
 			{
 				return false;
 			}

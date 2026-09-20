@@ -106,8 +106,8 @@ public:
 	unsigned short _interface_version = 0;
 
 private:
-	void on_init([[maybe_unused]] bool resize);
-	void on_reset([[maybe_unused]] bool resize);
+	void on_init(bool resize);
+	void on_reset(bool resize);
 	void on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params = nullptr);
 	void on_finish_present(HRESULT hr);
 

@@ -48,7 +48,6 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISw
 	DXGISwapChain *const swapchain_proxy = this;
 	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
-	reshade::create_effect_runtime(_impl, device);
 	on_init(false);
 }
 DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain1 *original) :
@@ -72,7 +71,6 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISw
 	DXGISwapChain *const swapchain_proxy = this;
 	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
-	reshade::create_effect_runtime(_impl, device->_immediate_context);
 	on_init(false);
 }
 DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISwapChain1 *original) :
@@ -101,13 +99,11 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D12CommandQueue *command_q
 	DXGISwapChain *const swapchain_proxy = this;
 	_orig->SetPrivateData(__uuidof(DXGISwapChain), sizeof(swapchain_proxy), &swapchain_proxy);
 
-	reshade::create_effect_runtime(_impl, command_queue);
 	on_init(false);
 }
 DXGISwapChain::~DXGISwapChain()
 {
 	on_reset(false);
-	reshade::destroy_effect_runtime(_impl);
 
 	// Remove pointer to this proxy object from the private data of the swap chain (in case the swap chain unexpectedly survives)
 	_orig->SetPrivateData(__uuidof(DXGISwapChain), 0, nullptr);
@@ -896,11 +892,30 @@ private:
 	BOOL was_protected = FALSE;
 };
 
-void DXGISwapChain::on_init([[maybe_unused]] bool resize)
+void DXGISwapChain::on_init(bool resize)
 {
 	assert(!_is_initialized);
 
+	reshade::api::command_queue *graphics_queue = nullptr;
+	switch (_direct3d_version)
+	{
+	case reshade::api::device_api::d3d10:
+		graphics_queue = static_cast<D3D10Device *>(static_cast<ID3D10Device *>(_direct3d_device));
+		break;
+	case reshade::api::device_api::d3d11:
+		graphics_queue = static_cast<D3D11Device *>(static_cast<ID3D11Device *>(_direct3d_device))->_immediate_context;
+		break;
+	case reshade::api::device_api::d3d12:
+		graphics_queue = static_cast<D3D12CommandQueue *>(_direct3d_command_queue);
+		break;
+	}
+
 	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == reshade::api::device_api::d3d12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
+
+	// Some games (like Mass Effect: Andromeda) use the D3D11 immediate device context in a worker thread while the main thread is creating a swap chain
+	// Since it is also accessed during effect runtime creation, this has to happen while multi-thread protection is enabled
+	if (!resize)
+		reshade::create_effect_runtime(_impl, graphics_queue);
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(_impl, resize);
@@ -925,20 +940,23 @@ void DXGISwapChain::on_init([[maybe_unused]] bool resize)
 
 	_is_initialized = true;
 }
-void DXGISwapChain::on_reset([[maybe_unused]] bool resize)
+void DXGISwapChain::on_reset(bool resize)
 {
-	if (!_is_initialized)
-		return;
-
 	const unique_direct3d_device_lock lock(_direct3d_device, _direct3d_version, _direct3d_version == reshade::api::device_api::d3d12 ? static_cast<D3D12CommandQueue *>(_direct3d_command_queue)->_mutex : _impl_mutex);
 
-	reshade::reset_effect_runtime(_impl);
+	if (_is_initialized)
+	{
+		reshade::reset_effect_runtime(_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl, resize);
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(_impl, resize);
 #endif
 
-	_is_initialized = false;
+		_is_initialized = false;
+	}
+
+	if (!resize)
+		reshade::destroy_effect_runtime(_impl);
 }
 
 void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params)

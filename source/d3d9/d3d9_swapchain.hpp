@@ -46,8 +46,8 @@ public:
 	bool _extended_interface = false;
 
 private:
-	void on_init([[maybe_unused]] bool resize);
-	void on_reset([[maybe_unused]] bool resize);
+	void on_init(bool resize);
+	void on_reset(bool resize);
 	void on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region, DWORD flags);
 	void on_finish_present(HRESULT hr);
 

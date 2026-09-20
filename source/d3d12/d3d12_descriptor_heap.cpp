@@ -10,11 +10,17 @@
 #include "dll_log.hpp"
 #include "com_utils.hpp"
 
-D3D12DescriptorHeap::D3D12DescriptorHeap(ID3D12Device *device, ID3D12DescriptorHeap *original) :
+D3D12DescriptorHeap::D3D12DescriptorHeap(D3D12Device *device, ID3D12DescriptorHeap *original) :
 	_orig(original),
 	_device(device)
 {
 	assert(_orig != nullptr && _device != nullptr);
+
+	_device->register_descriptor_heap(this);
+}
+D3D12DescriptorHeap::~D3D12DescriptorHeap()
+{
+	_device->unregister_descriptor_heap(this);
 }
 
 bool D3D12DescriptorHeap::check_and_upgrade_interface(REFIID riid)

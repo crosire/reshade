@@ -6,6 +6,7 @@ namespace ReShade.Setup.Utilities
 {
 	public unsafe class PEInfo
 	{
+		#region Win32 Imports
 		public enum BinaryType : UInt16
 		{
 			IMAGE_FILE_MACHINE_UNKNOWN = 0x0,
@@ -181,6 +182,7 @@ namespace ReShade.Setup.Utilities
 		static extern IntPtr LockResource([In] IntPtr hResData);
 		[DllImport("kernel32.dll", SetLastError = true)]
 		static extern UInt32 SizeofResource([In] IntPtr hModule, [In] IntPtr hResInfo);
+		#endregion
 
 		// Adapted from http://stackoverflow.com/a/4696857/2055880
 		public PEInfo(string path)

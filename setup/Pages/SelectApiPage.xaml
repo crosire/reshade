@@ -11,11 +11,11 @@
     <TextBlock DockPanel.Dock="Top">
       <StackPanel Orientation="Horizontal">
         <TextBlock x:Uid="PageTitle" Style="{StaticResource TitleStyle}">
-          Select the rendering API <TextBlock x:Name="AppName" x:FieldModifier="private" Text="the game or application" /> uses:
-        </TextBlock> 
+          Select the rendering API <TextBlock x:Name="AppName" x:FieldModifier="private" Text="the game or application" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TextBlock}}" /> uses:
+        </TextBlock>
       </StackPanel>
     </TextBlock>
-    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap" Style="{StaticResource TextStyle}">
+    <TextBlock x:Uid="PageDescription" DockPanel.Dock="Top" Margin="10,5" TextWrapping="Wrap">
       The preselected option is a guess based on a quick analysis of the executable.<LineBreak />If you do not know which rendering API the game uses, search for the game on <Hyperlink NavigateUri="https://www.pcgamingwiki.com/" RequestNavigate="OnHyperlinkNavigate">PCGamingWiki</Hyperlink> and look for a section with the title "API" on its page.
     </TextBlock>
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -28,7 +28,7 @@
               </ToolTip>
             </Image.ToolTip>
           </Image>
-          <Label Content="_9" FontSize="18" VerticalAlignment="Center" />
+          <Label Content="_9" FontSize="18" VerticalAlignment="Center" Foreground="#414141" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiDXGI" x:FieldModifier="private" VerticalContentAlignment="Center">
@@ -40,7 +40,7 @@
               </ToolTip>
             </Image.ToolTip>
           </Image>
-          <Label Content="_10/11/12" FontSize="18" VerticalAlignment="Center" />
+          <Label Content="_10/11/12" FontSize="18" VerticalAlignment="Center" Foreground="#414141" />
         </StackPanel>
       </RadioButton>
       <RadioButton x:Name="ApiOpenGL" x:FieldModifier="private" VerticalContentAlignment="Center">

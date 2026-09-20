@@ -2817,7 +2817,7 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 		index_buffer_desc.buffer.structured.stride = index_size;
 
 		if (index_buffer_size != 0 &&
-			device_impl::create_resource(index_buffer_desc, nullptr, reshade::api::resource_usage::index_buffer, &_primitive_up_vertex_buffer))
+			device_impl::create_resource(index_buffer_desc, nullptr, reshade::api::resource_usage::index_buffer, &_primitive_up_index_buffer))
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_resource>(
 				this,

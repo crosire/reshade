@@ -7,6 +7,7 @@ namespace ReShade.Setup.Utilities
 {
 	public class FileOpenDialog
 	{
+		#region Win32 Imports
 		[Flags]
 		enum FileOpenOptions : uint
 		{
@@ -120,6 +121,7 @@ namespace ReShade.Setup.Utilities
 		static extern void SHCreateShellItem(IntPtr pidlParent, IntPtr psfParent, IntPtr pidl, out IShellItem ppsi);
 		[DllImport("shell32.dll")]
 		static extern void SHILCreateFromPath([MarshalAs(UnmanagedType.LPWStr)] string pszPath, out IntPtr ppIdl, ref uint rgflnOut);
+		#endregion
 
 		public bool Multiselect
 		{

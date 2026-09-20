@@ -329,7 +329,8 @@ void reshade::runtime::load_config_gui(const ini_file &config)
 	config.get("STYLE", "EditorStyleIndex", _editor_style_index);
 	config.get("STYLE", "Font", _font_path);
 	config.get("STYLE", "FontSize", _font_size);
-	config.get("STYLE", "FontScale", _imgui_context->Style.FontScaleMain);
+	if (!config.get("STYLE", "FontScale", _imgui_context->Style.FontScaleMain) && _font_size == 13.0f)
+		_imgui_context->Style.FontScaleMain = 0.0f;
 	config.get("STYLE", "FPSScale", _fps_scale);
 	config.get("STYLE", "FrameRounding", imgui_style.FrameRounding);
 	config.get("STYLE", "GrabRounding", imgui_style.GrabRounding);
@@ -4688,8 +4689,8 @@ void reshade::runtime::draw_code_editor(editor_instance &instance)
 bool reshade::runtime::init_imgui_resources()
 {
 	// Adjust default font size based on the vertical resolution
-	if (_font_size == 13.0f && _imgui_context->Style.FontScaleMain == 1.0f)
-		_imgui_context->Style.FontScaleMain = _height >= 2160 ? 2.0f : _height >= 1440 ? 1.5f : 1.0f;
+	if (float &font_scale = _imgui_context->Style.FontScaleMain; font_scale == 0.0f)
+		font_scale = _height >= 2160 ? 2.0f : _height >= 1440 ? 1.5f : 1.0f;
 
 	const bool has_combined_sampler_and_view = _device->check_capability(api::device_caps::sampler_with_resource_view);
 

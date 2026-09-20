@@ -1,19 +1,77 @@
-﻿<Application xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ReShade.Setup.App" StartupUri="../MainWindow.xaml">
+﻿<Application xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ReShade.Setup"
+             xmlns:utils="clr-namespace:ReShade.Setup.Utilities"
+             x:Class="ReShade.Setup.App"
+             StartupUri="../MainWindow.xaml">
   <Application.Resources>
-    <Style x:Key="TextStyle" TargetType="TextBlock">
+    <!-- Text style -->
+    <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
+      <Style.Triggers>
+        <MultiDataTrigger>
+          <MultiDataTrigger.Conditions>
+            <Condition Binding="{Binding Source={x:Static utils:DWM.IsDarkMode}}" Value="True"/>
+            <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="{x:Null}"/>
+          </MultiDataTrigger.Conditions>
+          <Setter Property="Foreground" Value="WhiteSmoke" />
+        </MultiDataTrigger>
+      </Style.Triggers>
     </Style>
+
+    <local:MultiplyValueConverter x:Key="TitleFontSizeConverter" Ratio="1.3333333333333333" />
     <Style x:Key="TitleStyle" TargetType="TextBlock">
       <Setter Property="Margin" Value="10" />
       <Setter Property="Padding" Value="0" />
       <Setter Property="VerticalAlignment" Value="Top" />
-      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontSize" Value="{Binding Source={x:Static SystemFonts.MessageFontSize}, Converter={StaticResource TitleFontSizeConverter}}" />
       <Setter Property="Foreground" Value="#FF003399" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
           <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
         </DataTrigger>
+        <DataTrigger Binding="{Binding Source={x:Static utils:DWM.IsDarkMode}}" Value="True">
+          <Setter Property="Foreground" Value="WhiteSmoke" />
+        </DataTrigger>
       </Style.Triggers>
     </Style>
+    <Style x:Key="LabelStyle" TargetType="Label">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="{Binding Source={x:Static SystemFonts.MessageFontSize}, Converter={StaticResource TitleFontSizeConverter}}" />
+      <Setter Property="Foreground" Value="#FF003399" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Source={x:Static SystemParameters.HighContrast}}" Value="True">
+          <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.WindowTextBrushKey}}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Source={x:Static utils:DWM.IsDarkMode}}" Value="True">
+          <Setter Property="Foreground" Value="WhiteSmoke" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Background style -->
+    <Style TargetType="DockPanel">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Source={x:Static utils:DWM.IsDarkMode}}" Value="True">
+          <Setter Property="Background" Value="#202020" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="BottomPanelStyle" TargetType="DockPanel" BasedOn="{StaticResource {x:Type DockPanel}}">
+      <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" />
+    </Style>
+
+    <Style x:Key="ControlBackgroundStyle" TargetType="Control">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Source={x:Static utils:DWM.IsDarkMode}}" Value="True">
+          <Setter Property="Background" Value="#202020" />
+          <Setter Property="Foreground" Value="WhiteSmoke" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource ControlBackgroundStyle}" />
+    <Style TargetType="{x:Type ListBox}" BasedOn="{StaticResource ControlBackgroundStyle}" />
   </Application.Resources>
 </Application>

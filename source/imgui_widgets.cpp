@@ -613,7 +613,7 @@ bool reshade::imgui::list_with_buttons(const char *label, const std::string_view
 
 	ImGui::SetNextItemWidth(item_width);
 
-	if (ImGui::BeginCombo("", *v >= 0 && static_cast<size_t>(*v) < items.size() ? items[*v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
+	if (ImGui::BeginCombo("##value", *v >= 0 && static_cast<size_t>(*v) < items.size() ? items[*v].data() : nullptr, ImGuiComboFlags_NoArrowButton))
 	{
 		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
@@ -717,7 +717,7 @@ bool reshade::imgui::combo_with_buttons(const char *label, const std::string_vie
 
 	ImGui::SetNextItemWidth(item_width);
 
-	if (ImGui::BeginCombo("", *v >= 0 && static_cast<size_t>(*v) < items.size() ? items[*v].data() : nullptr, ImGuiComboFlags_None))
+	if (ImGui::BeginCombo("##value", *v >= 0 && static_cast<size_t>(*v) < items.size() ? items[*v].data() : nullptr, ImGuiComboFlags_None))
 	{
 		for (int i = 0; i < static_cast<int>(items.size()); ++i)
 		{
@@ -794,7 +794,7 @@ static bool drag_with_buttons(const char *label, T *v, int components, T v_speed
 		ImGui::PushID(c);
 		if (c > 0)
 			ImGui::SameLine(0, button_spacing);
-		res |= ImGui::DragScalar("", data_type, v + c, static_cast<float>(v_speed), &v_min, &v_max, format);
+		res |= ImGui::DragScalar("##value", data_type, v + c, static_cast<float>(v_speed), &v_min, &v_max, format);
 
 		ImGui::PopItemWidth();
 
@@ -912,7 +912,7 @@ static bool slider_with_buttons(const char *label, T *v, int components, T v_spe
 		ImGui::PushID(c);
 		if (c > 0)
 			ImGui::SameLine(0, button_spacing);
-		res |= ImGui::SliderScalar("", data_type, v + c, &v_min, &v_max, format);
+		res |= ImGui::SliderScalar("##value", data_type, v + c, &v_min, &v_max, format);
 
 		ImGui::PopItemWidth();
 
@@ -1015,7 +1015,7 @@ bool reshade::imgui::slider_for_alpha_value(const char *label, float *v)
 	ImGui::PushID(label);
 
 	ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - (button_spacing + button_size));
-	const bool res = ImGui::SliderFloat("", v, 0.0f, 1.0f);
+	const bool res = ImGui::SliderFloat("##value", v, 0.0f, 1.0f);
 
 	ImGui::SameLine(0, button_spacing);
 	ImGui::ColorButton("##preview", ImVec4(1.0f, 1.0f, 1.0f, *v), ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_NoPicker);

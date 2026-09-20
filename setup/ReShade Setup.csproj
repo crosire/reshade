@@ -71,7 +71,7 @@
     <Compile Include="Properties\App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Utilities\AeroGlass.cs" />
+    <Compile Include="Utilities\DWM.cs" />
     <Compile Include="Utilities\FileOpenDialog.cs" />
     <Compile Include="Utilities\IniFile.cs" />
     <Compile Include="Utilities\PEInfo.cs" />

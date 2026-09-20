@@ -30,7 +30,6 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 {
 	assert(_orig != nullptr && _device != nullptr);
 
-	reshade::create_effect_runtime(this, device);
 	on_init(false);
 
 	if (device->_implicit_swapchain != nullptr)
@@ -49,7 +48,6 @@ Direct3DSwapChain9::Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapCha
 Direct3DSwapChain9::~Direct3DSwapChain9()
 {
 	on_reset(false);
-	reshade::destroy_effect_runtime(this);
 }
 
 bool Direct3DSwapChain9::check_and_upgrade_interface(REFIID riid)
@@ -195,9 +193,12 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX 
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetDisplayModeEx(pMode, pRotation);
 }
 
-void Direct3DSwapChain9::on_init([[maybe_unused]] bool resize)
+void Direct3DSwapChain9::on_init(bool resize)
 {
 	assert(!_is_initialized);
+
+	if (!resize)
+		reshade::create_effect_runtime(this, _device);
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::init_swapchain>(this, resize);
@@ -222,23 +223,26 @@ void Direct3DSwapChain9::on_init([[maybe_unused]] bool resize)
 
 	_is_initialized = true;
 }
-void Direct3DSwapChain9::on_reset([[maybe_unused]] bool resize)
+void Direct3DSwapChain9::on_reset(bool resize)
 {
 	// May be called without a previous call to 'on_init' if a device reset had failed
-	if (!_is_initialized)
-		return;
-
-	reshade::reset_effect_runtime(this);
+	if (_is_initialized)
+	{
+		reshade::reset_effect_runtime(this);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(_device, to_handle(_back_buffer.get()));
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(_device, to_handle(_back_buffer.get()));
 
-	reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
+		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(this, resize);
 #endif
 
-	_back_buffer.reset();
+		_back_buffer.reset();
 
-	_is_initialized = false;
+		_is_initialized = false;
+	}
+
+	if (!resize)
+		reshade::destroy_effect_runtime(this);
 }
 
 void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] const RECT *dest_rect, HWND window_override, [[maybe_unused]] const RGNDATA *dirty_region, DWORD flags)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Data;
 using System.Runtime.InteropServices;
 
 namespace ReShade.Setup
@@ -16,6 +17,21 @@ namespace ReShade.Setup
 				// The 'DefaultDllImportSearchPaths' assembly attribute does not cover DLLs loaded by the WPF runtime, so force it to load from the system directory via native call
 				SetDefaultDllDirectories(0x00000800 /* LOAD_LIBRARY_SEARCH_SYSTEM32 */);
 			}
+		}
+	}
+
+	public class MultiplyValueConverter : IValueConverter
+	{
+		public double Ratio { get; set; }
+
+		public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+		{
+			return (double)value * Ratio;
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }
