@@ -1067,8 +1067,17 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 				depth_stencil_backup->frame_width = frame_width;
 				depth_stencil_backup->frame_height = frame_height;
 
+
 				if (s_preserve_depth_buffers)
-					reshade::get_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", depth_stencil_backup->force_clear_index);
+				{
+					int64_t clear_index_raw = 0;
+					reshade::get_config_value(nullptr, "DEPTH", "DepthCopyAtClearIndex", clear_index_raw);
+					depth_stencil_backup->force_clear_index = static_cast<int32_t>(std::clamp(
+						clear_index_raw,
+						static_cast<int64_t>(std::numeric_limits<int32_t>::min()),
+						static_cast<int64_t>(std::numeric_limits<int32_t>::max())
+					));
+				}
 				else
 					depth_stencil_backup->force_clear_index = 0;
 
