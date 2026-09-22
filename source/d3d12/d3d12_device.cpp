@@ -148,6 +148,23 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 	}
 #endif
 
+	// Proxy vkd3d interop device interfaces as well, since callers of these pass command lists created through the ReShade device, which vkd3d cannot resolve (e.g. optical flow in DXVK-NVAPI)
+	if (riid == IID_ID3D12DXVKInteropDevice ||
+		riid == IID_ID3D12DXVKInteropDevice1 ||
+		riid == IID_ID3D12DXVKInteropDevice2 ||
+		riid == IID_ID3D12DXVKInteropDevice3)
+	{
+		if (_interop_device == nullptr)
+		{
+			// Cannot take the adapter mutex here, since 'AddRef' in 'QueryInterface' below takes it too
+			const auto candidate = new D3D12DXVKInteropDevice(this);
+			if (InterlockedCompareExchangePointer(reinterpret_cast<void *volatile *>(&_interop_device), candidate, nullptr) != nullptr)
+				delete candidate;
+		}
+
+		return _interop_device->QueryInterface(riid, ppvObj);
+	}
+
 	// Special case for d3d12on7
 	if (riid == __uuidof(ID3D12DeviceDownlevel)) // {74EAEE3F-2F4B-476D-82BA-2B85CB49E310}
 	{
@@ -188,6 +205,9 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		_orig->Release();
 		return ref;
 	}
+
+	if (_interop_device != nullptr)
+		delete _interop_device;
 
 	if (_downlevel != nullptr)
 	{
