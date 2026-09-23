@@ -735,7 +735,7 @@ static bool on_draw_indexed(command_list *cmd_list, uint32_t indices, uint32_t i
 }
 static bool on_draw_indirect(command_list *cmd_list, indirect_command type, resource, uint64_t, uint32_t draw_count, uint32_t)
 {
-	if (type == indirect_command::dispatch)
+	if (type == indirect_command::dispatch || type == indirect_command::dispatch_rays)
 		return false;
 
 	auto &state = *cmd_list->get_private_data<state_tracking>();
@@ -755,6 +755,10 @@ static bool on_draw_indirect(command_list *cmd_list, indirect_command type, reso
 	stats.current.last_viewport = state.current_viewport;
 
 	return false;
+}
+static bool on_draw_indirect_mesh(command_list *cmd_list, uint32_t, uint32_t, uint32_t)
+{
+	return on_draw_indirect(cmd_list, indirect_command::dispatch_mesh, resource { 0 }, 0, 1, 0);
 }
 
 static void on_bind_viewport(command_list *cmd_list, uint32_t first, uint32_t count, const viewport *viewport)
@@ -1432,6 +1436,7 @@ void register_addon_depth()
 	reshade::register_event<reshade::addon_event::draw>(on_draw);
 	reshade::register_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::register_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
+	reshade::register_event<reshade::addon_event::dispatch_mesh>(on_draw_indirect_mesh);
 	reshade::register_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
 	reshade::register_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass_with_depth_stencil);
 	reshade::register_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_depth_stencil);
@@ -1467,6 +1472,7 @@ void unregister_addon_depth()
 	reshade::unregister_event<reshade::addon_event::draw>(on_draw);
 	reshade::unregister_event<reshade::addon_event::draw_indexed>(on_draw_indexed);
 	reshade::unregister_event<reshade::addon_event::draw_or_dispatch_indirect>(on_draw_indirect);
+	reshade::unregister_event<reshade::addon_event::dispatch_mesh>(on_draw_indirect_mesh);
 	reshade::unregister_event<reshade::addon_event::bind_viewports>(on_bind_viewport);
 	reshade::unregister_event<reshade::addon_event::begin_render_pass>(on_begin_render_pass_with_depth_stencil);
 	reshade::unregister_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(on_bind_depth_stencil);
