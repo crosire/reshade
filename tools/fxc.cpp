@@ -212,9 +212,9 @@ int main(int argc, char *argv[])
 	else if (generate_hlsl)
 		backend.reset(reshadefx::create_codegen_hlsl(shader_model, debug_info, spec_constants));
 	else if (generate_glsl)
-		backend.reset(reshadefx::create_codegen_glsl(vulkan_semantics, debug_info, spec_constants, invert_y_axis));
+		backend.reset(reshadefx::create_codegen_glsl(vulkan_semantics, debug_info, spec_constants, false, invert_y_axis));
 	else if (generate_spirv)
-		backend.reset(reshadefx::create_codegen_spirv(vulkan_semantics, debug_info, spec_constants, invert_y_axis));
+		backend.reset(reshadefx::create_codegen_spirv(vulkan_semantics, debug_info, spec_constants, false, invert_y_axis));
 	else
 		return 1;
 
