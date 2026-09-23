@@ -1088,7 +1088,10 @@ void     VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, const VkAl
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(DestroyBuffer, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)buffer });
+	const auto buffer_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>(buffer);
+	// Only invoke 'destroy_resource' event if the buffer was actually bound to memory, since otherwise there would have been no corresponding 'init_resource' event
+	if (buffer_data->memory != VK_NULL_HANDLE)
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)buffer });
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_BUFFER>(buffer);
 #endif
@@ -1207,7 +1210,10 @@ void     VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const VkAlloc
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(DestroyImage, device_impl);
 
 #if RESHADE_ADDON
-	reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
+	const auto image_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(image);
+	// Only invoke 'destroy_resource' event if the image was actually bound to memory, since otherwise there would have been no corresponding 'init_resource' event
+	if (image_data->memory != VK_NULL_HANDLE)
+		reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(device_impl, reshade::api::resource { (uint64_t)image });
 
 	destroy_default_view(device_impl, image);
 
