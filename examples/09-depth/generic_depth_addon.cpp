@@ -105,8 +105,8 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 	viewport current_viewport = {};
 	resource current_depth_stencil = { 0 };
 	std::unordered_map<resource, depth_stencil_frame_stats, resource_hash> stats_per_used_depth_stencil;
-	bool first_draw_since_bind = true;
 	draw_stats best_copy_stats;
+	bool first_draw_since_bind = true;
 
 	explicit state_tracking(bool is_queue) : is_queue(is_queue)
 	{
@@ -116,15 +116,17 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 
 	void reset()
 	{
-		best_copy_stats = { 0, 0 };
-		stats_per_used_depth_stencil.clear();
+		current_viewport = {};
 		current_depth_stencil = { 0 };
+		stats_per_used_depth_stencil.clear();
+		best_copy_stats = { 0, 0 };
+		first_draw_since_bind = true;
 	}
 	void reset_on_present()
 	{
 		assert(is_queue);
-		best_copy_stats = { 0, 0 };
 		stats_per_used_depth_stencil.clear();
+		best_copy_stats = { 0, 0 };
 	}
 
 	void merge(const state_tracking &source)
@@ -152,7 +154,7 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 			stats.clears.insert(stats.clears.end(), source_stats.clears.begin(), source_stats.clears.end());
 
 			stats.copied_during_frame |= source_stats.copied_during_frame;
-			stats.reversed_clear_value = source_stats.reversed_clear_value;
+			stats.reversed_clear_value |= source_stats.reversed_clear_value;
 		}
 	}
 };
