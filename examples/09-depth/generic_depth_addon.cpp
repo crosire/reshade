@@ -304,6 +304,9 @@ struct __declspec(uuid("e006e162-33ac-4b9f-b10f-0e15335c7bdb")) generic_depth_de
 		{
 			reshade::log::message(reshade::log::level::error, "Failed to create backup depth-stencil texture!");
 
+			if (api <= device_api::d3d12)
+				reinterpret_cast<IUnknown *>(depth_stencil.handle)->Release();
+
 			return nullptr;
 		}
 	}
@@ -1018,6 +1021,7 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 
 				data.using_backup_texture = false;
 				data.selected_depth_stencil = { 0 };
+				data.selected_shader_resource = { 0 };
 			}
 
 			// Create two-dimensional resource view to the first level and layer of the depth-stencil resource
