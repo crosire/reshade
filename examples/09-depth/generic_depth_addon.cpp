@@ -134,7 +134,7 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 		// Executing a command list in a different command list inherits state
 		current_depth_stencil = source.current_depth_stencil;
 
-		if (source.best_copy_stats.vertices >= best_copy_stats.vertices)
+		if (source.best_copy_stats > best_copy_stats)
 			best_copy_stats = source.best_copy_stats;
 
 		if (source.stats_per_used_depth_stencil.empty())
