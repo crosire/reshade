@@ -122,7 +122,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 	}
 
 #if RESHADE_ADDON >= 2
-	// Hook vkd3d device extension interfaces if they exist, to properly convert descriptor handles
+	// Proxy vkd3d device extension interfaces queried through the ReShade device, so that native callers remain untouched
 	if (riid == IID_ID3D12DeviceExt ||
 		riid == IID_ID3D12DeviceExt1 ||
 		riid == IID_ID3D12DeviceExt2 ||
@@ -130,21 +130,10 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == IID_ID3D12DeviceExt4 ||
 		riid == IID_ID3D12DeviceExt5)
 	{
-		const HRESULT hr = _orig->QueryInterface(riid, ppvObj);
-		if (SUCCEEDED(hr))
-		{
-			const auto device_ext = static_cast<IUnknown *>(*ppvObj);
+		if (_device_ext == nullptr)
+			_device_ext = new D3D12DeviceExt(this);
 
-			reshade::hooks::install("ID3D12DeviceExt::GetCudaTextureObject", reshade::hooks::vtable_from_instance(device_ext), 7, &ID3D12DeviceExt_GetCudaTextureObject);
-			reshade::hooks::install("ID3D12DeviceExt::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(device_ext), 8, &ID3D12DeviceExt_GetCudaSurfaceObject);
-
-			if (riid != IID_ID3D12DeviceExt && riid != IID_ID3D12DeviceExt1)
-			{
-				reshade::hooks::install("ID3D12DeviceExt2::GetCudaTextureObject", reshade::hooks::vtable_from_instance(device_ext), 14, &ID3D12DeviceExt2_GetCudaMergedTextureSamplerObject);
-				reshade::hooks::install("ID3D12DeviceExt2::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(device_ext), 15, &ID3D12DeviceExt2_GetCudaIndependentDescriptorObject);
-			}
-		}
-		return hr;
+		return _device_ext->QueryInterface(riid, ppvObj);
 	}
 #endif
 
@@ -188,6 +177,11 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		_orig->Release();
 		return ref;
 	}
+
+#if RESHADE_ADDON >= 2
+	if (_device_ext != nullptr)
+		delete _device_ext;
+#endif
 
 	if (_downlevel != nullptr)
 	{
