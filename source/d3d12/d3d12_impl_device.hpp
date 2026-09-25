@@ -121,6 +121,7 @@ namespace reshade::d3d12
 		}
 
 #if RESHADE_ADDON >= 2
+		bool is_internal_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 #endif
 		D3D12_CPU_DESCRIPTOR_HANDLE convert_to_original_cpu_descriptor_handle(api::descriptor_table set, D3D12_DESCRIPTOR_HEAP_TYPE *type = nullptr) const;
