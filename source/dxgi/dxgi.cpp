@@ -618,6 +618,27 @@ static bool use_dxgi_factory_vtable_hooks()
 	return false;
 }
 
+// Whether 'riid' is one of the 'IDXGIFactory' interfaces, which all derive from 'IDXGIFactory' and
+// can therefore be treated as one: proxied, and hooked in the vtable. A factory asked for by an
+// interface of its own is not one of them ('IDXGIFactoryMedia' is the only such interface), and
+// reading it as one crashes inside DXGI.
+static bool is_dxgi_factory_interface(REFIID riid)
+{
+	static constexpr IID iid_lookup[] = {
+		__uuidof(IDXGIFactory),  // {7B7166EC-21C7-44AE-B21A-C9AE321AE369}
+		__uuidof(IDXGIFactory1), // {770AAE78-F26F-4DBA-A829-253C83D1B387}
+		__uuidof(IDXGIFactory2), // {50C83A1C-E072-4C48-87B0-3630FA36A6D0}
+		__uuidof(IDXGIFactory3), // {25483823-CD46-4C7D-86CA-47AA95B837BD}
+		__uuidof(IDXGIFactory4), // {1BC6EA02-EF36-464F-BF0C-21CA39E5168A}
+		__uuidof(IDXGIFactory5), // {7632E1f5-EE65-4DCA-87FD-84CD75F8838D}
+		__uuidof(IDXGIFactory6), // {C1B6694F-FF09-44A9-B03C-77900A0A1D17}
+		__uuidof(IDXGIFactory7), // {A4966EED-76DB-44DA-84C1-EE9A7AFB20A8}
+	};
+
+	return std::find(std::begin(iid_lookup), std::end(iid_lookup), riid) != std::end(iid_lookup) ||
+		riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject);
+}
+
 extern "C" HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 #if RESHADE_VERBOSE_LOG
@@ -636,6 +657,15 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory1 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
+		return hr;
+	}
+
+	// A factory of its own ('IDXGIFactoryMedia') is not an 'IDXGIFactory': everything below reads
+	// the returned object as one, down to the proxy reading its private data, which crashed inside
+	// DXGI. Leave such a factory as it was returned.
+	if (!is_dxgi_factory_interface(riid))
+	{
+		reshade::log::message(reshade::log::level::warning, "Unknown interface %s in CreateDXGIFactory1.", reshade::log::iid_to_string(riid).c_str());
 		return hr;
 	}
 
@@ -733,6 +763,15 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	if (FAILED(hr))
 	{
 		reshade::log::message(reshade::log::level::warning, "CreateDXGIFactory2 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
+		return hr;
+	}
+
+	// A factory of its own ('IDXGIFactoryMedia') is not an 'IDXGIFactory2': everything below reads
+	// the returned object as one, down to the proxy reading its private data, which crashed inside
+	// DXGI. Leave such a factory as it was returned.
+	if (!is_dxgi_factory_interface(riid))
+	{
+		reshade::log::message(reshade::log::level::warning, "Unknown interface %s in CreateDXGIFactory2.", reshade::log::iid_to_string(riid).c_str());
 		return hr;
 	}
 
