@@ -561,6 +561,9 @@ bool reshade::runtime::on_init()
 			_input.reset();
 
 		_primary_input_handler = _input.use_count() == 1 || (_input == nullptr && _input_gamepad != nullptr);
+		_primary_input_handler_taken_over = false;
+		_last_input_frame_count = 0;
+		_last_input_frame_time = std::chrono::high_resolution_clock::now();
 	}
 
 	// Reset frame count to zero so effects are loaded in 'update_effects'
@@ -725,7 +728,27 @@ void reshade::runtime::on_present()
 	// Lock input so it cannot be modified by other threads while we are reading it here
 	std::unique_lock<std::recursive_mutex> input_lock;
 	if (_input != nullptr)
+	{
 		input_lock = _input->lock();
+
+		const uint64_t input_frame_count = _input->frame_count();
+		const auto current_time = std::chrono::high_resolution_clock::now();
+		if (_primary_input_handler)
+		{
+			if (_primary_input_handler_taken_over && input_frame_count != _last_input_frame_count)
+				_primary_input_handler = _primary_input_handler_taken_over = false;
+		}
+		else if (input_frame_count == _last_input_frame_count && (current_time - _last_input_frame_time) > std::chrono::seconds(1))
+		{
+			_primary_input_handler = _primary_input_handler_taken_over = true;
+		}
+
+		if (!_primary_input_handler && input_frame_count != _last_input_frame_count)
+		{
+			_last_input_frame_count = input_frame_count;
+			_last_input_frame_time = current_time;
+		}
+	}
 
 	update_effects();
 
@@ -941,7 +964,10 @@ void reshade::runtime::on_present()
 
 	// Update input status
 	if (_primary_input_handler && _input != nullptr)
+	{
 		_input->next_frame();
+		_last_input_frame_count = _input->frame_count();
+	}
 	if (_primary_input_handler && _input_gamepad != nullptr)
 		_input_gamepad->next_frame();
 
