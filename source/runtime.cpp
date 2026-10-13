@@ -2359,7 +2359,7 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		if (!_device->create_pipeline_layout(sampler_with_resource_view ? 3 : 4, layout_params, &permutation.layout))
 		{
 			log::message(log::level::error, "Failed to create pipeline layout for effect file '%s'!", effect.source_file.u8string().c_str());
-			return false;
+			goto exit_failure;
 		}
 	}
 
@@ -2826,6 +2826,23 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	return true;
 
 exit_failure:
+	for (const api::descriptor_table table : shader_resource_view_tables)
+		_device->free_descriptor_table(table);
+	for (const api::descriptor_table table : unordered_access_view_tables)
+		_device->free_descriptor_table(table);
+
+	for (technique &tech : _techniques)
+	{
+		if (tech.effect_index != effect_index)
+			continue;
+
+		for (technique::pass &pass : tech.permutations[permutation_index].passes)
+		{
+			pass.texture_table = {};
+			pass.storage_table = {};
+		}
+	}
+
 	destroy_effect(effect_index, false);
 
 	return false;
