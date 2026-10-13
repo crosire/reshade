@@ -1594,7 +1594,7 @@ bool reshade::d3d12::device_impl::allocate_descriptor_tables(uint32_t count, api
 					!_gpu_view_heap.allocate_static(total_count, base_handle, base_handle_gpu) :
 					!_gpu_sampler_heap.allocate_static(total_count, base_handle, base_handle_gpu))
 			{
-				free_descriptor_tables(count - i - 1, out_tables);
+				free_descriptor_tables(i, out_tables);
 				goto exit_failure;
 			}
 
