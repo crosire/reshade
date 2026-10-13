@@ -2598,13 +2598,19 @@ bool reshadefx::parser::parse_technique_pass(pass &info)
 			{
 				const sampler &sampler = _codegen->get_sampler(id);
 				if (std::find(std::begin(info.render_target_names), std::end(info.render_target_names), sampler.texture_name) != std::end(info.render_target_names))
+				{
+					parse_success = false;
 					error(pass_location, 3020, '\'' + sampler.texture_name + "': cannot sample from texture that is also used as render target in the same pass");
+				}
 			}
 			for (codegen::id id : ps_info.referenced_samplers)
 			{
 				const sampler &sampler = _codegen->get_sampler(id);
 				if (std::find(std::begin(info.render_target_names), std::end(info.render_target_names), sampler.texture_name) != std::end(info.render_target_names))
+				{
+					parse_success = false;
 					error(pass_location, 3020, '\'' + sampler.texture_name + "': cannot sample from texture that is also used as render target in the same pass");
+				}
 			}
 
 			if (!vs_info.referenced_storages.empty() || !ps_info.referenced_storages.empty())
