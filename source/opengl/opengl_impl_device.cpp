@@ -105,8 +105,11 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 					device_create_info.enabledExtensionCount = 1;
 					device_create_info.ppEnabledExtensionNames = &maintenance9_name;
 				}
-				else
 #endif
+				// With maintenance9 support, this memory-requirements query could use a queue-less device.
+				// However, Steam's Vulkan overlay intercepts vkCreateDevice and calls vkAllocateMemory during initialization,
+				// violating VUID-vkAllocateMemory-device-queuecount when no queues were created (observed to crash on NVIDIA).
+				// Always create one queue for overlay compatibility, even though this helper never submits commands.
 				{
 					queue_info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
 					queue_info.queueCount = 1;
