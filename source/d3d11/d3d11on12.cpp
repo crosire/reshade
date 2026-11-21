@@ -37,7 +37,12 @@ extern "C" HRESULT WINAPI D3D11On12CreateDevice(IUnknown *pDevice, UINT Flags, C
 	{
 		reshade::log::message(reshade::log::level::warning, "Skipping D3D11on12 device because it was created without a proxy Direct3D 12 device.");
 
-		return trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+		// Mark D3D11-on-12 as DXGI runtime work so nested internal D3D device
+		// creation is passed through unmodified, like the proxied-device path below.
+		g_in_dxgi_runtime = true;
+		const HRESULT hr = trampoline(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues, NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+		g_in_dxgi_runtime = false;
+		return hr;
 	}
 
 	temp_mem<IUnknown *> command_queues(NumQueues);
