@@ -328,7 +328,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 	if (_current_fullscreen_state >= 0)
 	{
 		if (pFullscreen != nullptr)
+		{
 			*pFullscreen = _current_fullscreen_state;
+		}
 
 		if (ppTarget != nullptr)
 		{
@@ -355,7 +357,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 #if RESHADE_ADDON
 	if (_is_desc_modified)
 	{
-		assert(pDesc != nullptr);
+		if (pDesc == nullptr)
+			return E_INVALIDARG;
 
 		*pDesc = _orig_desc;
 
@@ -486,7 +489,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 #if RESHADE_ADDON
 	if (_is_desc_modified)
 	{
-		assert(pDesc != nullptr);
+		if (pDesc == nullptr)
+			return E_INVALIDARG;
 
 		pDesc->Format = _orig_desc.BufferDesc.Format;
 		pDesc->Stereo = FALSE; // For now we don't carry this information
@@ -803,17 +807,20 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 #endif
 
 	// Need to extract the original command queue object from the proxies passed in
-	assert(ppPresentQueue != nullptr);
 	temp_mem<IUnknown *> present_queues(BufferCount);
-	for (UINT i = 0; i < BufferCount; ++i)
+	if (ppPresentQueue)
 	{
-		present_queues[i] = ppPresentQueue[i];
-		com_ptr<IUnknown> command_queue_proxy;
-		query_device(present_queues[i], command_queue_proxy);
+		for (UINT i = 0; i < BufferCount; ++i)
+		{
+			present_queues[i] = ppPresentQueue[i];
+			com_ptr<IUnknown> command_queue_proxy;
+			query_device(present_queues[i], command_queue_proxy);
+		}
+		ppPresentQueue = present_queues.p;
 	}
 
 	g_in_dxgi_runtime = true;
-	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, NewFormat, SwapChainFlags, pCreationNodeMask, present_queues.p);
+	const HRESULT hr = static_cast<IDXGISwapChain3 *>(_orig)->ResizeBuffers1(BufferCount, Width, Height, NewFormat, SwapChainFlags, pCreationNodeMask, ppPresentQueue);
 	g_in_dxgi_runtime = was_in_dxgi_runtime;
 	if (SUCCEEDED(hr))
 	{
