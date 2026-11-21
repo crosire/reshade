@@ -1839,13 +1839,26 @@ bool reshade::d3d12::device_impl::create_query_heap(api::query_type type, uint32
 			*out_heap = { reinterpret_cast<uintptr_t>(object.release()) };
 			return true;
 		}
+
+		return false;
+	}
+
+	D3D12_QUERY_HEAP_DESC internal_desc = {};
+	internal_desc.Type = convert_query_type_to_heap_type(type);
+	internal_desc.Count = count;
+
+	com_ptr<ID3D12Device15> device15;
+	if (SUCCEEDED(_orig->QueryInterface(&device15)))
+	{
+		if (com_ptr<ID3D12QueryHeap> object;
+			SUCCEEDED(device15->CreateQueryHeap1(&internal_desc, D3D12_QUERY_HEAP_FLAG_CPU_RESOLVE, IID_PPV_ARGS(&object))))
+		{
+			*out_heap = { reinterpret_cast<uintptr_t>(object.release()) };
+			return true;
+		}
 	}
 	else
 	{
-		D3D12_QUERY_HEAP_DESC internal_desc = {};
-		internal_desc.Type = convert_query_type_to_heap_type(type);
-		internal_desc.Count = count;
-
 		if (com_ptr<ID3D12QueryHeap> object;
 			SUCCEEDED(_orig->CreateQueryHeap(&internal_desc, IID_PPV_ARGS(&object))))
 		{
