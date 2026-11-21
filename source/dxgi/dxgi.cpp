@@ -640,11 +640,16 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 
 	// The returned factory should alway implement the 'IDXGIFactory' base interface
-	const auto factory = static_cast<IDXGIFactory *>(*ppFactory);
+	com_ptr<IDXGIFactory> factory;
+	if (FAILED(static_cast<IUnknown *>(*ppFactory)->QueryInterface(&factory)))
+	{
+		reshade::log::message(reshade::log::level::warning, "Unknown interface %s in CreateDXGIFactory1.", reshade::log::iid_to_string(riid).c_str());
+		return hr;
+	}
 
 	if (use_dxgi_factory_vtable_hooks())
 	{
-		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, &IDXGIFactory_CreateSwapChain);
+		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory.get()), 10, &IDXGIFactory_CreateSwapChain);
 
 		// Check for DXGI 1.2 support and install 'IDXGIFactory2' hooks if it exists
 		if (com_ptr<IDXGIFactory2> factory2;
@@ -657,7 +662,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 	else if (!g_in_dxgi_runtime)
 	{
-		const auto factory_proxy = new DXGIFactory(factory);
+		const auto factory_proxy = new DXGIFactory(factory.get());
 
 		// Upgrade to the actual interface version requested here
 		if (factory_proxy->check_and_upgrade_interface(riid))
@@ -681,7 +686,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	}
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory);
+	reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory.get());
 #endif
 
 	return hr;
@@ -737,21 +742,26 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	}
 
 	// The returned factory should alway implement the 'IDXGIFactory2' interface
-	const auto factory = static_cast<IDXGIFactory2 *>(*ppFactory);
+	com_ptr<IDXGIFactory2> factory;
+	if (FAILED(static_cast<IUnknown *>(*ppFactory)->QueryInterface(&factory)))
+	{
+		reshade::log::message(reshade::log::level::warning, "Unknown interface %s in CreateDXGIFactory2.", reshade::log::iid_to_string(riid).c_str());
+		return hr;
+	}
 
 	if (use_dxgi_factory_vtable_hooks())
 	{
-		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory), 10, &IDXGIFactory_CreateSwapChain);
+		reshade::hooks::install("IDXGIFactory::CreateSwapChain", reshade::hooks::vtable_from_instance(factory.get()), 10, &IDXGIFactory_CreateSwapChain);
 
 		{
-			reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", reshade::hooks::vtable_from_instance(factory), 15, &IDXGIFactory2_CreateSwapChainForHwnd);
-			reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", reshade::hooks::vtable_from_instance(factory), 16, &IDXGIFactory2_CreateSwapChainForCoreWindow);
-			reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", reshade::hooks::vtable_from_instance(factory), 24, &IDXGIFactory2_CreateSwapChainForComposition);
+			reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", reshade::hooks::vtable_from_instance(factory.get()), 15, &IDXGIFactory2_CreateSwapChainForHwnd);
+			reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", reshade::hooks::vtable_from_instance(factory.get()), 16, &IDXGIFactory2_CreateSwapChainForCoreWindow);
+			reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", reshade::hooks::vtable_from_instance(factory.get()), 24, &IDXGIFactory2_CreateSwapChainForComposition);
 		}
 	}
 	else if (!g_in_dxgi_runtime)
 	{
-		const auto factory_proxy = new DXGIFactory(factory);
+		const auto factory_proxy = new DXGIFactory(factory.get());
 
 		// Upgrade to the actual interface version requested here
 		if (factory_proxy->check_and_upgrade_interface(riid))
@@ -775,7 +785,7 @@ extern "C" HRESULT WINAPI CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppF
 	}
 
 #if RESHADE_VERBOSE_LOG
-	reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory);
+	reshade::log::message(reshade::log::level::debug, "Returning IDXGIFactory object %p.", factory.get());
 #endif
 
 	return hr;
