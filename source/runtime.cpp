@@ -2308,13 +2308,6 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 		}
 	}
 
-	// Create optional query heap for time measurements
-	if (permutation_index == 0 &&
-		!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>((permutation.module.techniques.size() + total_pass_count) * 2 * 4), &effect.query_heap))
-	{
-		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
-	}
-
 	std::vector<api::descriptor_table_update> descriptor_writes;
 	descriptor_writes.reserve(
 		static_cast<size_t>(cb_range.count) +
@@ -2361,6 +2354,13 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 			log::message(log::level::error, "Failed to create pipeline layout for effect file '%s'!", effect.source_file.u8string().c_str());
 			return false;
 		}
+	}
+
+	// Create optional query heap for time measurements
+	if (permutation_index == 0 &&
+		!_device->create_query_heap(api::query_type::timestamp, static_cast<uint32_t>((permutation.module.techniques.size() + total_pass_count) * 2 * 4), &effect.query_heap))
+	{
+		log::message(log::level::error, "Failed to create query heap for effect file '%s'!", effect.source_file.u8string().c_str());
 	}
 
 	// Create global constant buffer (except in D3D9, which does not have constant buffers)
@@ -2826,6 +2826,23 @@ bool reshade::runtime::create_effect(size_t effect_index, size_t permutation_ind
 	return true;
 
 exit_failure:
+	for (const api::descriptor_table table : shader_resource_view_tables)
+		_device->free_descriptor_table(table);
+	for (const api::descriptor_table table : unordered_access_view_tables)
+		_device->free_descriptor_table(table);
+
+	for (technique &tech : _techniques)
+	{
+		if (tech.effect_index != effect_index)
+			continue;
+
+		for (technique::pass &pass : tech.permutations[permutation_index].passes)
+		{
+			pass.texture_table = {};
+			pass.storage_table = {};
+		}
+	}
+
 	destroy_effect(effect_index, false);
 
 	return false;
