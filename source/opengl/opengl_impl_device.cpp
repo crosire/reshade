@@ -105,7 +105,9 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 					device_create_info.enabledExtensionCount = 1;
 					device_create_info.ppEnabledExtensionNames = &maintenance9_name;
 				}
-				else
+				// The Steam overlay Vulkan layer calls 'vkAllocateMemory' on device creation, even when the device was created with no queue, which is invalid
+				// Always create one queue when it is used to work around this
+				if (GetEnvironmentVariableW(L"SteamOverlayGameId", nullptr, 0) || !maintenance9_features.maintenance9)
 #endif
 				{
 					queue_info = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
