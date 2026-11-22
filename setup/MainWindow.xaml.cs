@@ -924,7 +924,7 @@ namespace ReShade.Setup
 				{
 					if (GetModuleProductName(currentInfo.modulePath) == "ReShade")
 					{
-						if (isHeadless)
+						if (isHeadless || File.GetAttributes(currentInfo.modulePath).HasFlag(FileAttributes.ReparsePoint))
 						{
 							UpdateStatusAndFinish(false, "Existing ReShade installation found. Please uninstall it first.");
 							return;
@@ -949,7 +949,7 @@ namespace ReShade.Setup
 
 				if (currentOperation == InstallOperation.Install && GetModuleProductName(conflictingModulePath) == "ReShade")
 				{
-					if (isHeadless)
+					if (isHeadless || File.GetAttributes(conflictingModulePath).HasFlag(FileAttributes.ReparsePoint))
 					{
 						UpdateStatusAndFinish(false, "Existing ReShade installation for another API found.\nMultiple simultaneous ReShade installations are not supported. Please uninstall the existing one first.");
 					}
