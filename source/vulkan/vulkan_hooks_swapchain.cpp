@@ -269,6 +269,16 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	}
 #endif
 
+	assert(!g_in_dxgi_runtime);
+	g_in_dxgi_runtime = true;
+	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
+	g_in_dxgi_runtime = false;
+	if (result < VK_SUCCESS)
+	{
+		reshade::log::message(reshade::log::level::warning, "vkCreateSwapchainKHR failed with error code %d.", static_cast<int>(result));
+		return result;
+	}
+
 	// Unregister object from old swap chain so that a call to 'vkDestroySwapchainKHR' won't reset the effect runtime again
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *swapchain_impl = nullptr;
 	if (create_info.oldSwapchain != VK_NULL_HANDLE)
@@ -299,16 +309,6 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 
 		device_impl->unregister_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, false>(swapchain_impl->_orig);
-	}
-
-	assert(!g_in_dxgi_runtime);
-	g_in_dxgi_runtime = true;
-	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
-	g_in_dxgi_runtime = false;
-	if (result < VK_SUCCESS)
-	{
-		reshade::log::message(reshade::log::level::warning, "vkCreateSwapchainKHR failed with error code %d.", static_cast<int>(result));
-		return result;
 	}
 
 	if (nullptr == swapchain_impl)
