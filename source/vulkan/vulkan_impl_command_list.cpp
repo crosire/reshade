@@ -416,7 +416,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetCullMode(_orig, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
 			break;
@@ -424,7 +424,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetFrontFace(_orig, values[i] != 0 ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE);
 			break;
@@ -432,7 +432,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetPrimitiveTopology(_orig, convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			break;
@@ -440,7 +440,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetDepthTestEnable(_orig, values[i]);
 			break;
@@ -448,7 +448,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetDepthWriteEnable(_orig, values[i]);
 			break;
@@ -456,7 +456,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetDepthCompareOp(_orig, convert_compare_op(static_cast<api::compare_op>(values[i])));
 			break;
@@ -464,7 +464,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.EXT_extended_dynamic_state)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetStencilTestEnable(_orig, values[i]);
 			break;
@@ -474,7 +474,7 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 			if (!vk.KHR_ray_tracing_pipeline)
 			{
 				assert(false);
-				return;
+				continue;
 			}
 			vk.CmdSetRayTracingPipelineStackSizeKHR(_orig, values[i]);
 			break;
