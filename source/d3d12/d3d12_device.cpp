@@ -5,9 +5,9 @@
 
 #include "d3d12_device.hpp"
 #include "d3d12_device_downlevel.hpp"
+#include "d3d12_device_extensions.hpp"
 #include "d3d12_command_list.hpp"
 #include "d3d12_command_queue.hpp"
-#include "d3d12_extensions.hpp"
 #include "d3d12_descriptor_heap.hpp"
 #include "d3d12_pipeline_library.hpp"
 #include "d3d12_resource.hpp"
@@ -121,6 +121,25 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
+	// Special case for d3d12on7
+	if (riid == __uuidof(ID3D12DeviceDownlevel)) // {74EAEE3F-2F4B-476D-82BA-2B85CB49E310}
+	{
+		if (nullptr == _downlevel)
+		{
+			// Not a 'com_ptr' since D3D12DeviceDownlevel will take ownership
+			ID3D12DeviceDownlevel *downlevel = nullptr;
+			if (SUCCEEDED(_orig->QueryInterface(&downlevel)))
+				_downlevel = new D3D12DeviceDownlevel(this, downlevel);
+		}
+
+		if (_downlevel == nullptr)
+			return E_NOINTERFACE;
+
+		_downlevel->AddRef();
+		*ppvObj = _downlevel;
+		return S_OK;
+	}
+
 #if RESHADE_ADDON >= 2
 	// Hook vkd3d device extension interfaces if they exist, to properly convert descriptor handles
 	if (riid == IID_ID3D12DeviceExt ||
@@ -130,39 +149,36 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == IID_ID3D12DeviceExt4 ||
 		riid == IID_ID3D12DeviceExt5)
 	{
-		const HRESULT hr = _orig->QueryInterface(riid, ppvObj);
-		if (SUCCEEDED(hr))
-		{
-			const auto device_ext = static_cast<IUnknown *>(*ppvObj);
+		IUnknown *vkd3d_ext = nullptr;
+		if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&vkd3d_ext))))
+			return E_NOINTERFACE;
 
-			reshade::hooks::install("ID3D12DeviceExt::GetCudaTextureObject", reshade::hooks::vtable_from_instance(device_ext), 7, &ID3D12DeviceExt_GetCudaTextureObject);
-			reshade::hooks::install("ID3D12DeviceExt::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(device_ext), 8, &ID3D12DeviceExt_GetCudaSurfaceObject);
+		if (nullptr == _vkd3d_ext)
+			_vkd3d_ext = new D3D12DeviceExt(this, vkd3d_ext);
+		vkd3d_ext->Release();
 
-			if (riid != IID_ID3D12DeviceExt && riid != IID_ID3D12DeviceExt1)
-			{
-				reshade::hooks::install("ID3D12DeviceExt2::GetCudaTextureObject", reshade::hooks::vtable_from_instance(device_ext), 14, &ID3D12DeviceExt2_GetCudaMergedTextureSamplerObject);
-				reshade::hooks::install("ID3D12DeviceExt2::GetCudaSurfaceObject", reshade::hooks::vtable_from_instance(device_ext), 15, &ID3D12DeviceExt2_GetCudaIndependentDescriptorObject);
-			}
-		}
-		return hr;
+		_vkd3d_ext->AddRef();
+		*ppvObj = _vkd3d_ext;
+		return S_OK;
+	}
+	if (riid == IID_ID3D12DXVKInteropDevice ||
+		riid == IID_ID3D12DXVKInteropDevice1 ||
+		riid == IID_ID3D12DXVKInteropDevice2 ||
+		riid == IID_ID3D12DXVKInteropDevice3)
+	{
+		IUnknown *dxvk_interop = nullptr;
+		if (FAILED(_orig->QueryInterface(riid, reinterpret_cast<void **>(&dxvk_interop))))
+			return E_NOINTERFACE;
+
+		if (nullptr == _dxvk_interop)
+			_dxvk_interop = new D3D12DXVKInteropDevice(this, dxvk_interop);
+		dxvk_interop->Release();
+
+		_dxvk_interop->AddRef();
+		*ppvObj = _dxvk_interop;
+		return S_OK;
 	}
 #endif
-
-	// Special case for d3d12on7
-	if (riid == __uuidof(ID3D12DeviceDownlevel)) // {74EAEE3F-2F4B-476D-82BA-2B85CB49E310}
-	{
-		if (_downlevel == nullptr)
-		{
-			// Not a 'com_ptr' since D3D12DeviceDownlevel will take ownership
-			ID3D12DeviceDownlevel *downlevel = nullptr;
-			if (SUCCEEDED(_orig->QueryInterface(&downlevel)))
-				_downlevel = new D3D12DeviceDownlevel(this, downlevel);
-		}
-
-		if (_downlevel != nullptr)
-			return _downlevel->QueryInterface(riid, ppvObj);
-		return E_NOINTERFACE;
-	}
 
 	// Unimplemented interfaces:
 	//   ID3D12DebugDevice  {3FEBD6DD-4973-4787-8194-E45F9E28923E}
@@ -195,6 +211,13 @@ ULONG   STDMETHODCALLTYPE D3D12Device::Release()
 		_downlevel->_orig->Release();
 		delete _downlevel;
 	}
+
+#if RESHADE_ADDON >= 2
+	if (_vkd3d_ext != nullptr)
+		delete _vkd3d_ext;
+	if (_dxvk_interop != nullptr)
+		delete _dxvk_interop;
+#endif
 
 	const auto orig = _orig;
 	const auto interface_version = _interface_version;
