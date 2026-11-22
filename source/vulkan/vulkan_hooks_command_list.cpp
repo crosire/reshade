@@ -1983,11 +1983,11 @@ void VKAPI_CALL vkCmdPushDescriptorSetWithTemplate(VkCommandBuffer commandBuffer
 	uint32_t max_descriptors = 0;
 	for (const VkDescriptorUpdateTemplateEntry &entry : template_data->entries)
 		max_descriptors = std::max(max_descriptors, entry.descriptorCount);
-	temp_mem<uint64_t> descriptors(max_descriptors * 2);
+	temp_mem<uint64_t> descriptors(max_descriptors * 3);
 
 	const auto shader_stages = reshade::vulkan::convert_shader_stages(template_data->bind_point);
 
-	for (uint32_t i = 0, j = 0; i < static_cast<uint32_t>(template_data->entries.size()); ++i, j = 0)
+	for (uint32_t i = 0; i < static_cast<uint32_t>(template_data->entries.size()); ++i)
 	{
 		const VkDescriptorUpdateTemplateEntry &entry = template_data->entries[i];
 
@@ -1999,38 +1999,51 @@ void VKAPI_CALL vkCmdPushDescriptorSetWithTemplate(VkCommandBuffer commandBuffer
 		update.type = reshade::vulkan::convert_descriptor_type(entry.descriptorType);
 		update.descriptors = descriptors.p;
 
-		const void *const base = static_cast<const uint8_t *>(pData) + entry.offset;
+		const uint8_t *const base = static_cast<const uint8_t *>(pData) + entry.offset;
 
 		switch (entry.descriptorType)
 		{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].sampler;
+			for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+				descriptors[k] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->sampler;
 			break;
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-			for (uint32_t k = 0; k < entry.descriptorCount; ++k, j += 2)
-				descriptors[j + 0] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].sampler,
-				descriptors[j + 1] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+			for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+				descriptors[k * 2 + 0] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->sampler,
+				descriptors[k * 2 + 1] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->imageView;
 			break;
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+			for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+				descriptors[k] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->imageView;
 			break;
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-			for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
-				descriptors[j] = (uint64_t)static_cast<const VkBufferView *>(base)[k];
+			for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+				descriptors[k] = (uint64_t)*reinterpret_cast<const VkBufferView *>(base + static_cast<size_t>(k) * entry.stride);
 			break;
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-			update.descriptors = static_cast<const VkDescriptorBufferInfo *>(base);
+			// Can reference application data directly if it is tightly packed
+			if (entry.stride == sizeof(VkDescriptorBufferInfo) || entry.descriptorCount <= 1)
+			{
+				update.descriptors = base;
+				break;
+			}
+			for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+				std::memcpy(descriptors.p + k * 3, base + static_cast<size_t>(k) * entry.stride, sizeof(VkDescriptorBufferInfo));
 			break;
 #if VK_KHR_acceleration_structure
 		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-			update.descriptors = static_cast<const VkAccelerationStructureKHR *>(base);
+			if (entry.stride == sizeof(VkAccelerationStructureKHR) || entry.descriptorCount <= 1)
+			{
+				update.descriptors = base;
+				break;
+			}
+			for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+				descriptors[k] = (uint64_t)*reinterpret_cast<const VkAccelerationStructureKHR *>(base + static_cast<size_t>(k) * entry.stride);
 			break;
 #endif
 		default:

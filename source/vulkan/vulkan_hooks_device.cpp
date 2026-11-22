@@ -2448,7 +2448,7 @@ void     VKAPI_CALL vkUpdateDescriptorSetWithTemplate(VkDevice device, VkDescrip
 		uint32_t max_descriptors = 0;
 		for (const VkDescriptorUpdateTemplateEntry &entry : template_data->entries)
 			max_descriptors += entry.descriptorCount;
-		temp_mem<uint64_t> descriptors(max_descriptors * 2);
+		temp_mem<uint64_t> descriptors(max_descriptors * 3);
 
 		for (uint32_t i = 0, j = 0; i < static_cast<uint32_t>(template_data->entries.size()); ++i)
 		{
@@ -2462,38 +2462,51 @@ void     VKAPI_CALL vkUpdateDescriptorSetWithTemplate(VkDevice device, VkDescrip
 			update.type = reshade::vulkan::convert_descriptor_type(entry.descriptorType);
 			update.descriptors = descriptors.p + j;
 
-			const void *const base = static_cast<const uint8_t *>(pData) + entry.offset;
+			const uint8_t *const base = static_cast<const uint8_t *>(pData) + entry.offset;
 
 			switch (entry.descriptorType)
 			{
 			case VK_DESCRIPTOR_TYPE_SAMPLER:
-				for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
-					descriptors[j] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].sampler;
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+					descriptors[j + k] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->sampler;
 				break;
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				for (uint32_t k = 0; k < entry.descriptorCount; ++k, j += 2)
-					descriptors[j + 0] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].sampler,
-					descriptors[j + 1] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+					descriptors[j + k * 2 + 0] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->sampler,
+					descriptors[j + k * 2 + 1] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->imageView;
 				break;
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-				for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
-					descriptors[j] = (uint64_t)static_cast<const VkDescriptorImageInfo *>(base)[k].imageView;
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+					descriptors[j + k] = (uint64_t)reinterpret_cast<const VkDescriptorImageInfo *>(base + static_cast<size_t>(k) * entry.stride)->imageView;
 				break;
 			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-				for (uint32_t k = 0; k < entry.descriptorCount; ++k, ++j)
-					descriptors[j] = (uint64_t)static_cast<const VkBufferView *>(base)[k];
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+					descriptors[j + k] = (uint64_t)*reinterpret_cast<const VkBufferView *>(base + static_cast<size_t>(k) * entry.stride);
 				break;
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-				update.descriptors = static_cast<const VkDescriptorBufferInfo *>(base);
+				// Can reference application data directly if it is tightly packed
+				if (entry.stride == sizeof(VkDescriptorBufferInfo) || entry.descriptorCount <= 1)
+				{
+					update.descriptors = base;
+					break;
+				}
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+					std::memcpy(descriptors.p + j + k * 3, base + static_cast<size_t>(k) * entry.stride, sizeof(VkDescriptorBufferInfo));
 				break;
 #if VK_KHR_acceleration_structure
 			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-				update.descriptors = static_cast<const VkAccelerationStructureKHR *>(base);
+				if (entry.stride == sizeof(VkAccelerationStructureKHR) || entry.descriptorCount <= 1)
+				{
+					update.descriptors = base;
+					break;
+				}
+				for (uint32_t k = 0; k < entry.descriptorCount; ++k)
+					descriptors[j + k] = (uint64_t)*reinterpret_cast<const VkAccelerationStructureKHR *>(base + static_cast<size_t>(k) * entry.stride);
 				break;
 #endif
 			default:
@@ -2501,6 +2514,8 @@ void     VKAPI_CALL vkUpdateDescriptorSetWithTemplate(VkDevice device, VkDescrip
 				update.descriptors = nullptr;
 				break;
 			}
+
+			j += entry.descriptorCount * 3;
 		}
 
 		if (reshade::invoke_addon_event<reshade::addon_event::update_descriptor_tables>(device_impl, static_cast<uint32_t>(template_data->entries.size()), updates.p))
