@@ -92,6 +92,7 @@ void reshade::d3d12::command_list_impl::barrier(uint32_t count, const api::resou
 		else if (old_states[i] == api::resource_usage::undefined && new_states[i] == api::resource_usage::general)
 		{
 			barriers[k].Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+			barriers[k].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 			barriers[k].Aliasing.pResourceBefore = nullptr;
 			barriers[k].Aliasing.pResourceAfter = reinterpret_cast<ID3D12Resource *>(resources[i].handle);
 		}
@@ -613,7 +614,7 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 		const uint64_t counter_offset = (counter_offsets != nullptr) ? counter_offsets[i] : 0;
 
 		views[i].BufferLocation = _device->get_resource_gpu_address(buffers[i]) + offset;
-		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[0] : 0;
+		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[i] : 0;
 		views[i].BufferFilledSizeLocation = _device->get_resource_gpu_address(counter_buffers[i]) + counter_offset;
 	}
 

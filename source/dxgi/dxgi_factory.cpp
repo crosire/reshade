@@ -20,7 +20,7 @@ DXGIFactory::DXGIFactory(IDXGIFactory  *original) :
 DXGIFactory::DXGIFactory(IDXGIFactory2 *original) :
 	DXGIFactory(static_cast<IDXGIFactory *>(original))
 {
-	_interface_version = 1;
+	_interface_version = 2;
 }
 DXGIFactory::~DXGIFactory()
 {

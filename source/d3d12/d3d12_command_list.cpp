@@ -1190,7 +1190,7 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::DispatchMesh(UINT ThreadGroupCo
 	assert(_interface_version >= 6);
 
 #if RESHADE_ADDON
-	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_mesh>(this, ThreadGroupCountX, ThreadGroupCountX, ThreadGroupCountZ))
+	if (reshade::invoke_addon_event<reshade::addon_event::dispatch_mesh>(this, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ))
 		return;
 #endif
 

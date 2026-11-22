@@ -1757,12 +1757,12 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 			update.type == api::descriptor_type::texture_unordered_access_view)
 		{
 #ifndef _WIN64
-			const UINT src_range_size = 1;
+			std::vector<UINT> src_range_sizes(update.count, 1);
 			std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> src_handles(update.count);
 			for (UINT k = 0; k < update.count; ++k)
 				src_handles[k] = { static_cast<SIZE_T>(static_cast<const uint64_t *>(update.descriptors)[k]) };
 
-			_orig->CopyDescriptors(1, &dst_range_start, &update.count, update.count, src_handles.data(), &src_range_size, heap_type);
+			_orig->CopyDescriptors(1, &dst_range_start, &update.count, update.count, src_handles.data(), src_range_sizes.data(), heap_type);
 #else
 			static_assert(
 				sizeof(D3D12_CPU_DESCRIPTOR_HANDLE) == sizeof(api::sampler) &&
@@ -1906,7 +1906,10 @@ bool reshade::d3d12::device_impl::get_query_heap_results(api::query_heap heap, a
 	const auto heap_object = reinterpret_cast<ID3D12QueryHeap *>(heap.handle);
 
 	com_ptr<ID3D12Device15> device15;
-	if (SUCCEEDED(_orig->QueryInterface(&device15)))
+	com_ptr<ID3D12QueryHeap> query_heap;
+	if (SUCCEEDED(_orig->QueryInterface(&device15)) &&
+		// Acceleration structure query heaps are buffer resources rather than query heaps
+		SUCCEEDED(heap_object->QueryInterface(&query_heap)))
 	{
 		if (stride != get_query_size(type).first)
 			return false;
@@ -2241,11 +2244,11 @@ void reshade::d3d12::device_impl::register_descriptor_heap(D3D12DescriptorHeap *
 	const auto it = _descriptor_heaps.push_back(heap);
 
 	// Generate a descriptor handle of the following format:
-	//   Bit  0 -  2: Heap type
-	//   Bit  3 -  3: Heap flags
-	//   Bit  4 - 27: Descriptor index
+	//   Bit  0 -  1: Heap type
+	//   Bit  2 -  2: Heap flags
+	//   Bit  3 - 27: Descriptor index
 	//   Bit 28 - 55: Heap index
-	//   Bit 56 - 64: Extra data
+	//   Bit 56 - 63: Extra data
 
 	heap->_orig_base_cpu_handle = heap->_orig->GetCPUDescriptorHandleForHeapStart();
 	heap->_internal_base_cpu_handle = { 0 };

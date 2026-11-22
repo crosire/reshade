@@ -3943,8 +3943,8 @@ void APIENTRY glBindBuffersBase(GLenum target, GLuint first, GLsizei count, cons
 			else
 			{
 				std::memset(buffer_handles.p, 0, count * sizeof(reshade::api::resource));
-				std::memset(offsets_64.p, 0, count * sizeof(reshade::api::resource));
-				std::memset(max_sizes_64.p, 0, count * sizeof(reshade::api::resource));
+				std::memset(offsets_64.p, 0, count * sizeof(uint64_t));
+				std::memset(max_sizes_64.p, 0, count * sizeof(uint64_t));
 			}
 
 			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_opengl_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p, nullptr, nullptr);
@@ -4006,8 +4006,8 @@ void APIENTRY glBindBuffersRange(GLenum target, GLuint first, GLsizei count, con
 			else
 			{
 				std::memset(buffer_handles.p, 0, count * sizeof(reshade::api::resource));
-				std::memset(offsets_64.p, 0, count * sizeof(reshade::api::resource));
-				std::memset(max_sizes_64.p, 0, count * sizeof(reshade::api::resource));
+				std::memset(offsets_64.p, 0, count * sizeof(uint64_t));
+				std::memset(max_sizes_64.p, 0, count * sizeof(uint64_t));
 			}
 
 			reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(g_opengl_context, first, count, buffer_handles.p, offsets_64.p, max_sizes_64.p, nullptr, nullptr);
@@ -4030,12 +4030,20 @@ void APIENTRY glBindTextures(GLuint first, GLsizei count, const GLuint *textures
 		{
 			for (GLsizei i = 0; i < count; ++i)
 			{
-				GLint target = GL_TEXTURE;
-				if (gl.VERSION_4_5)
-					gl.GetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
-
-				descriptor_data[i].view = reshade::opengl::make_resource_view_handle(target, textures[i]);
 				descriptor_data[i].sampler = { 0 };
+
+				if (textures[i] != 0)
+				{
+					GLint target = GL_TEXTURE;
+					if (gl.VERSION_4_5)
+						gl.GetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
+
+					descriptor_data[i].view = reshade::opengl::make_resource_view_handle(target, textures[i]);
+				}
+				else
+				{
+					descriptor_data[i].view = { 0 };
+				}
 			}
 		}
 		else
@@ -4067,11 +4075,18 @@ void APIENTRY glBindImageTextures(GLuint first, GLsizei count, const GLuint *tex
 		{
 			for (GLsizei i = 0; i < count; ++i)
 			{
-				GLint target = GL_TEXTURE;
-				if (gl.VERSION_4_5)
-					gl.GetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
+				if (textures[i] != 0)
+				{
+					GLint target = GL_TEXTURE;
+					if (gl.VERSION_4_5)
+						gl.GetTextureParameteriv(textures[i], GL_TEXTURE_TARGET, &target);
 
-				descriptor_data[i] = reshade::opengl::make_resource_view_handle(target, textures[i]);
+					descriptor_data[i] = reshade::opengl::make_resource_view_handle(target, textures[i]);
+				}
+				else
+				{
+					descriptor_data[i] = { 0 };
+				}
 			}
 		}
 		else

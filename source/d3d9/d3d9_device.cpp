@@ -1780,7 +1780,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 	if (reshade::has_addon_event<reshade::addon_event::bind_vertex_buffers>() ||
 		reshade::has_addon_event<reshade::addon_event::bind_index_buffer>())
 	{
-		const uint32_t vertex_buffer_size = NumVertices * VertexStreamZeroStride;
+		const uint32_t vertex_buffer_size = (MinVertexIndex + NumVertices) * VertexStreamZeroStride;
 		const uint32_t index_size = (IndexDataFormat == D3DFMT_INDEX32) ? 4 : 2;
 		const uint32_t index_buffer_size = index_count * index_size;
 

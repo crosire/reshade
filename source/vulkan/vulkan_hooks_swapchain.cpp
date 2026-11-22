@@ -458,7 +458,7 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		temp_mem<reshade::api::rect, 16> dirty_rects;
 
 		const auto present_regions = find_in_structure_chain<VkPresentRegionsKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR);
-		if (present_regions != nullptr)
+		if (present_regions != nullptr && present_regions->pRegions != nullptr)
 		{
 			assert(present_regions->swapchainCount == pPresentInfo->swapchainCount);
 

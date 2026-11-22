@@ -2800,7 +2800,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_PIPELINE_STA
 {
 	if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>() &&
 		!reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
-		(with_create_pipeline && !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
+		(!with_create_pipeline || !reshade::has_addon_event<reshade::addon_event::create_pipeline>()))
 		return false;
 
 	reshade::api::pipeline_layout layout = {};

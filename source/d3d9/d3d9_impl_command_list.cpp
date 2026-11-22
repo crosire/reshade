@@ -835,7 +835,7 @@ void reshade::d3d9::device_impl::clear_render_target_view(api::resource_view rtv
 
 #if 1
 	for (size_t i = 0; i < std::max(rect_count, 1u); ++i)
-		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull), reinterpret_cast<const RECT *>(rects + i * 4), D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
+		_orig->ColorFill(reinterpret_cast<IDirect3DSurface9 *>(rtv.handle & ~1ull), reinterpret_cast<const RECT *>(rects + i), D3DCOLOR_COLORVALUE(color[0], color[1], color[2], color[3]));
 #else
 	assert(rect_count == 0); // Clearing rectangles is not supported
 
