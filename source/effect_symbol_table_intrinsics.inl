@@ -1842,6 +1842,35 @@ IMPLEMENT_INTRINSIC_SPIRV(mul, 6, {
 		.add(args[0].base);
 	})
 
+// ret isfinite(x)
+DEFINE_INTRINSIC(isfinite, 0, bool, float)
+DEFINE_INTRINSIC(isfinite, 0, bool2, float2)
+DEFINE_INTRINSIC(isfinite, 0, bool3, float3)
+DEFINE_INTRINSIC(isfinite, 0, bool4, float4)
+IMPLEMENT_INTRINSIC_GLSL(isfinite, 0, {
+	if (args[0].type.rows > 1) {
+		_uses_componentwise_or = true;
+		code += "not(compOr(isinf(" + id_to_name(args[0].base) + "), isnan(" + id_to_name(args[0].base) + ")))";
+	}
+	else
+		code += "!(isinf(" + id_to_name(args[0].base) + ") || isnan(" + id_to_name(args[0].base) + "))";
+	})
+IMPLEMENT_INTRINSIC_HLSL(isfinite, 0, {
+	code += "isfinite(" + id_to_name(args[0].base) + ')';
+	})
+IMPLEMENT_INTRINSIC_SPIRV(isfinite, 0, {
+	const spv::Id isinf = add_instruction(spv::OpIsInf, convert_type(res_type))
+		.add(args[0].base);
+	const spv::Id isnan = add_instruction(spv::OpIsNan, convert_type(res_type))
+		.add(args[0].base);
+	const spv::Id isinf_or_isnan = add_instruction(spv::OpLogicalOr, convert_type(res_type))
+		.add(isinf)
+		.add(isnan);
+	return
+	add_instruction(spv::OpLogicalNot, convert_type(res_type))
+		.add(isinf_or_isnan);
+	})
+
 // ret isinf(x)
 DEFINE_INTRINSIC(isinf, 0, bool, float)
 DEFINE_INTRINSIC(isinf, 0, bool2, float2)
