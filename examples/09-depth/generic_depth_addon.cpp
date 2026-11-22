@@ -157,6 +157,18 @@ struct __declspec(uuid("43319e83-387c-448e-881c-7e68fc2e52c4")) state_tracking
 			stats.reversed_clear_value |= source_stats.reversed_clear_value;
 		}
 	}
+	void merge(state_tracking &&source)
+	{
+		if (!stats_per_used_depth_stencil.empty())
+		{
+			merge(static_cast<const state_tracking &>(source));
+			return;
+		}
+
+		current_depth_stencil = source.current_depth_stencil;
+		best_copy_stats = source.best_copy_stats;
+		stats_per_used_depth_stencil.swap(source.stats_per_used_depth_stencil);
+	}
 };
 
 struct __declspec(uuid("7c6363c7-f94e-437a-9160-141782c44a98")) generic_depth_data
@@ -897,7 +909,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 	for (command_queue *const queue : device_data->queues)
 	{
 		auto &state = *queue->get_private_data<state_tracking>();
-		queue_state.merge(state);
+		queue_state.merge(std::move(state));
 
 		state.reset_on_present();
 	}
@@ -912,7 +924,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 
 	device_data->frame_index++;
 
-	for (const auto &[depth_stencil, frame_stats] : queue_state.stats_per_used_depth_stencil)
+	for (auto &[depth_stencil, frame_stats] : queue_state.stats_per_used_depth_stencil)
 	{
 		if (const auto it = device_data->depth_stencil_resources.find(depth_stencil);
 			it != device_data->depth_stencil_resources.end()) // Otherwise resource was destroyed
@@ -920,7 +932,7 @@ static void on_present(command_queue *, swapchain *swapchain, const rect *, cons
 			depth_stencil_resource &info = it->second;
 
 			// Save to current list of depth-stencils on the device
-			info.last_frame_stats = frame_stats;
+			info.last_frame_stats = std::move(frame_stats);
 			info.last_used_in_frame = device_data->frame_index;
 
 			if (std::numeric_limits<uint64_t>::max() == info.first_used_in_frame)
@@ -1098,11 +1110,13 @@ static void on_begin_render_effects(effect_runtime *runtime, command_list *cmd_l
 					{
 						assert(device->check_capability(device_caps::resolve_depth_stencil));
 
-						cmd_list->barrier(selected_depth_stencil, old_state, resource_usage::resolve_source);
-						cmd_list->barrier(backup_texture, resource_usage::copy_dest, resource_usage::resolve_dest);
+						const resource resources[2] = { selected_depth_stencil, backup_texture };
+						const resource_usage state_old[2] = { old_state, resource_usage::copy_dest };
+						const resource_usage state_new[2] = { resource_usage::resolve_source,  resource_usage::resolve_dest };
+
+						cmd_list->barrier(2, resources, state_old, state_new);
 						cmd_list->resolve_texture_region(selected_depth_stencil, 0, nullptr, backup_texture, 0, 0, 0, 0, format_to_default_typed(selected_depth_stencil_info->desc.texture.format));
-						cmd_list->barrier(backup_texture, resource_usage::resolve_dest, resource_usage::copy_dest);
-						cmd_list->barrier(selected_depth_stencil, resource_usage::resolve_source, old_state);
+						cmd_list->barrier(2, resources, state_new, state_old);
 					}
 					else
 					{
@@ -1162,7 +1176,7 @@ static void on_finish_render_effects(effect_runtime *runtime, command_list *cmd_
 	}
 }
 
-static const char *const format_to_string(format format)
+static const char *format_to_string(format format)
 {
 	switch (format)
 	{
