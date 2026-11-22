@@ -104,6 +104,8 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 
 		if (device_proxy != device_proxy_existing)
 			delete device_proxy; // Delete instead of release to keep reference count untouched
+		else
+			InterlockedDecrement(&device_proxy->_ref); // Undo the reference added above, since the existing proxy is not returned
 	}
 
 	return hr;
