@@ -281,11 +281,15 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 			}
 			else
 			{
+				dst_box.right = dst_box.left;
+				dst_box.bottom = dst_box.top;
+				dst_box.back = dst_box.front;
+
 				const D3D12_RESOURCE_DESC desc = pSrc->pResource->GetDesc();
 
-				dst_box.right = dst_box.left + static_cast<UINT>(desc.Width);
-				dst_box.bottom = dst_box.top + desc.Height;
-				dst_box.back = dst_box.front + (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D ? desc.DepthOrArraySize : 1u);
+				dst_box.right += std::max(1u, static_cast<UINT>(desc.Width) >> (pSrc->SubresourceIndex % desc.MipLevels));
+				dst_box.bottom += std::max(1u, desc.Height >> (pSrc->SubresourceIndex % desc.MipLevels));
+				dst_box.back += (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D) ? std::max(1u, static_cast<UINT>(desc.DepthOrArraySize) >> (pSrc->SubresourceIndex % desc.MipLevels)) : 1u;
 			}
 		}
 

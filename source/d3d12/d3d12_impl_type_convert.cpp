@@ -66,11 +66,7 @@ void reshade::d3d12::convert_subresource_box(const reshade::api::subresource_box
 	{
 		width = std::max(1u, static_cast<UINT>(desc.Width) >> (subresource % desc.MipLevels));
 		height = std::max(1u, desc.Height >> (subresource % desc.MipLevels));
-
-		if (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
-			depth = std::max(1u, static_cast<UINT>(desc.DepthOrArraySize) >> (subresource % desc.MipLevels));
-		else
-			depth = 1;
+		depth = (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D) ? std::max(1u, static_cast<UINT>(desc.DepthOrArraySize) >> (subresource % desc.MipLevels)) : 1u;
 	}
 }
 

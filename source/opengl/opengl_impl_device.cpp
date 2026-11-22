@@ -1567,7 +1567,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 			GLint64 max_size = 0;
 			gl.GetNamedBufferParameteri64v(object, GL_BUFFER_SIZE, &max_size);
 #endif
-			size = max_size;
+			size = max_size - offset;
 			assert(size != 0);
 		}
 
@@ -1589,7 +1589,7 @@ bool reshade::opengl::device_impl::map_buffer_region(api::resource resource, uin
 			GLint64 max_size = 0;
 			gl.GetBufferParameteri64v(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
 #endif
-			size = max_size;
+			size = max_size - offset;
 			assert(size != 0);
 		}
 
@@ -1644,7 +1644,7 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	const api::resource_desc desc = get_resource_desc(resource);
 
 	const GLuint level = subresource % desc.texture.levels;
-	      GLuint layer = subresource / desc.texture.levels;
+	const GLuint layer = subresource / desc.texture.levels;
 
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (box != nullptr)
@@ -1732,26 +1732,27 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 	if (object != prev_binding)
 		gl.BindTexture(target, object);
 
-	GLenum level_target = target;
-	if (depth == 1 && (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY))
-	{
-		const GLuint face = layer % 6;
-		layer /= 6;
-		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-	}
-
 	GLenum type, format = convert_upload_format(desc.texture.format, type);
 
 	assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
-	if (box == nullptr)
+	// 'glGetTexImage' always downloads all layers of array textures, so a single layer (or any sub-region) can only be downloaded via 'glGetTextureSubImage'
+	const bool is_array_target = (target == GL_TEXTURE_1D_ARRAY || target == GL_TEXTURE_2D_ARRAY || target == GL_TEXTURE_CUBE_MAP_ARRAY);
+
+	if (box == nullptr && !is_array_target)
 	{
-		assert(layer == 0);
+		// Cube map faces have to be downloaded individually via their face target
+		GLenum level_target = target;
+		if (target == GL_TEXTURE_CUBE_MAP)
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + (layer % 6);
+		else
+			assert(layer == 0);
 
 		gl.GetTexImage(level_target, level, format, type, pixels);
 	}
 	else if (gl.VERSION_4_5)
 	{
+		// 'glGetTextureSubImage' addresses array layers (and cube map faces) via the y or z offset
 		switch (target)
 		{
 		case GL_TEXTURE_1D_ARRAY:
@@ -1830,7 +1831,7 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 			GLint64 max_size = 0;
 			gl.GetNamedBufferParameteri64v(object, GL_BUFFER_SIZE, &max_size);
 #endif
-			size = max_size;
+			size = max_size - dest_offset;
 		}
 
 		gl.NamedBufferSubData(object, static_cast<GLintptr>(dest_offset), static_cast<GLsizeiptr>(size), data);
@@ -1846,12 +1847,12 @@ void reshade::opengl::device_impl::update_buffer_region(const void *data, api::r
 		{
 #ifndef _WIN64
 			GLint max_size = 0;
-			gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
+			gl.GetBufferParameteriv(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
 #else
 			GLint64 max_size = 0;
-			gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
+			gl.GetBufferParameteri64v(GL_COPY_WRITE_BUFFER, GL_BUFFER_SIZE, &max_size);
 #endif
-			size = max_size;
+			size = max_size - dest_offset;
 		}
 
 		gl.BufferSubData(GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(dest_offset), static_cast<GLsizeiptr>(size), data);

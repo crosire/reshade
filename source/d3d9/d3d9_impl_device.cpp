@@ -1031,6 +1031,9 @@ void reshade::d3d9::device_impl::update_buffer_region(const void *data, api::res
 	if (data == nullptr)
 		return;
 
+	if (UINT64_MAX == size)
+		size = get_resource_desc(dst).buffer.size - dst_offset;
+
 	if (void *mapped_data;
 		map_buffer_region(dst, dst_offset, size, api::map_access::write_only, &mapped_data))
 	{

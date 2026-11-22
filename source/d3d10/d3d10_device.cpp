@@ -501,27 +501,27 @@ void    STDMETHODCALLTYPE D3D10Device::CopySubresourceRegion(ID3D10Resource *pDs
 						{
 							D3D10_TEXTURE1D_DESC desc;
 							static_cast<ID3D10Texture1D *>(pSrcResource)->GetDesc(&desc);
-							dst_box.right += desc.Width;
-							dst_box.bottom += 1;
-							dst_box.back += 1;
+							dst_box.right += std::max(1u, desc.Width >> (SrcSubresource % desc.MipLevels));
+							dst_box.bottom += 1u;
+							dst_box.back += 1u;
 						}
 						break;
 					case D3D10_RESOURCE_DIMENSION_TEXTURE2D:
 						{
 							D3D10_TEXTURE2D_DESC desc;
 							static_cast<ID3D10Texture2D *>(pSrcResource)->GetDesc(&desc);
-							dst_box.right += desc.Width;
-							dst_box.bottom += desc.Height;
-							dst_box.back += 1;
+							dst_box.right += std::max(1u, desc.Width >> (SrcSubresource % desc.MipLevels));
+							dst_box.bottom += std::max(1u, desc.Height >> (SrcSubresource % desc.MipLevels));
+							dst_box.back += 1u;
 						}
 						break;
 					case D3D10_RESOURCE_DIMENSION_TEXTURE3D:
 						{
 							D3D10_TEXTURE3D_DESC desc;
 							static_cast<ID3D10Texture3D *>(pSrcResource)->GetDesc(&desc);
-							dst_box.right += desc.Width;
-							dst_box.bottom += desc.Height;
-							dst_box.back += desc.Depth;
+							dst_box.right += std::max(1u, desc.Width >> (SrcSubresource % desc.MipLevels));
+							dst_box.bottom += std::max(1u, desc.Height >> (SrcSubresource % desc.MipLevels));
+							dst_box.back += std::max(1u, desc.Depth >> (SrcSubresource % desc.MipLevels));
 						}
 						break;
 					}

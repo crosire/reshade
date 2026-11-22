@@ -768,7 +768,7 @@ void reshade::vulkan::command_list_impl::copy_resource(api::resource src, api::r
 	}
 	else
 	{
-		for (uint32_t layer = 0; layer < desc.texture.depth_or_layers; ++layer)
+		for (uint32_t layer = 0; layer < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)); ++layer)
 		{
 			for (uint32_t level = 0; level < desc.texture.levels; ++level)
 			{
@@ -784,7 +784,7 @@ void reshade::vulkan::command_list_impl::copy_buffer_region(api::resource src, u
 	_has_commands = true;
 
 	if (UINT64_MAX == size)
-		size = _device->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)src.handle)->create_info.size;
+		size = _device->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)src.handle)->create_info.size - src_offset;
 
 	VkBufferCopy region;
 	region.srcOffset = src_offset;
@@ -1243,7 +1243,7 @@ void reshade::vulkan::command_list_impl::query_acceleration_structures(uint32_t 
 void reshade::vulkan::command_list_impl::update_buffer_region(const void *data, api::resource dest, uint64_t dest_offset, uint64_t size)
 {
 	if (UINT64_MAX == size)
-		size = _device->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)dest.handle)->create_info.size;
+		size = _device->get_private_data_for_object<VK_OBJECT_TYPE_BUFFER>((VkBuffer)dest.handle)->create_info.size - dest_offset;
 
 	_has_commands = true;
 

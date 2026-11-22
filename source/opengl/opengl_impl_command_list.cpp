@@ -1329,7 +1329,7 @@ void reshade::opengl::device_context_impl::copy_resource(api::resource src, api:
 	}
 	else
 	{
-		for (uint32_t layer = 0; layer < desc.texture.depth_or_layers; ++layer)
+		for (uint32_t layer = 0; layer < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)); ++layer)
 		{
 			for (uint32_t level = 0; level < desc.texture.levels; ++level)
 			{
@@ -1361,7 +1361,7 @@ void reshade::opengl::device_context_impl::copy_buffer_region(api::resource src,
 			GLint64 max_size = 0;
 			gl.GetNamedBufferParameteri64v(src_object, GL_BUFFER_SIZE, &max_size);
 #endif
-			size = max_size;
+			size = max_size - src_offset;
 		}
 
 		gl.CopyNamedBufferSubData(src_object, dst_object, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
@@ -1380,7 +1380,7 @@ void reshade::opengl::device_context_impl::copy_buffer_region(api::resource src,
 			GLint64 max_size = 0;
 			gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
 #endif
-			size = max_size;
+			size = max_size - src_offset;
 		}
 
 		gl.CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
@@ -1630,7 +1630,7 @@ void reshade::opengl::device_context_impl::copy_texture_region(api::resource src
 
 		gl.CopyImageSubData(
 			src_object, src_target, src_subresource % src_desc.texture.levels, src_region[0], src_region[1], src_region[2] + (src_subresource / src_desc.texture.levels),
-			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_region[0], dst_region[1], dst_region[2] + (dst_subresource / src_desc.texture.levels),
+			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_region[0], dst_region[1], dst_region[2] + (dst_subresource / dst_desc.texture.levels),
 			src_region[3], src_region[4], src_region[5]);
 	}
 	else
@@ -1805,7 +1805,7 @@ void reshade::opengl::device_context_impl::copy_texture_to_buffer(api::resource 
 			gl.BindTexture(src_target, src_object);
 
 		const GLuint level = src_subresource % src_desc.texture.levels;
-		      GLuint layer = src_subresource / src_desc.texture.levels;
+		const GLuint layer = src_subresource / src_desc.texture.levels;
 
 		if (src_box == nullptr)
 		{
@@ -1814,28 +1814,29 @@ void reshade::opengl::device_context_impl::copy_texture_to_buffer(api::resource 
 			depth  = (src_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
 		}
 
-		GLenum level_target = src_target;
-		if (depth == 1 && (src_target == GL_TEXTURE_CUBE_MAP || src_target == GL_TEXTURE_CUBE_MAP_ARRAY))
-		{
-			const GLuint face = layer % 6;
-			layer /= 6;
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		}
-
 		const auto row_pitch = api::format_row_pitch(src_desc.texture.format, row_length != 0 ? row_length : width);
 		const auto slice_pitch = api::format_slice_pitch(src_desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);
 		const auto total_image_size = depth * static_cast<size_t>(slice_pitch);
 
 		assert(total_image_size <= static_cast<size_t>(std::numeric_limits<GLsizei>::max()));
 
-		if (src_box == nullptr)
+		// 'glGetTexImage' always downloads all layers of array textures, so a single layer (or any sub-region) can only be downloaded via 'glGetTextureSubImage'
+		const bool is_array_target = (src_target == GL_TEXTURE_1D_ARRAY || src_target == GL_TEXTURE_2D_ARRAY || src_target == GL_TEXTURE_CUBE_MAP_ARRAY);
+
+		if (src_box == nullptr && !is_array_target)
 		{
-			assert(layer == 0);
+			// Cube map faces have to be downloaded individually via their face target
+			GLenum level_target = src_target;
+			if (src_target == GL_TEXTURE_CUBE_MAP)
+				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + (layer % 6);
+			else
+				assert(layer == 0);
 
 			gl.GetTexImage(level_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 		else if (gl.VERSION_4_5)
 		{
+			// 'glGetTextureSubImage' addresses array layers (and cube map faces) via the y or z offset
 			switch (src_target)
 			{
 			case GL_TEXTURE_1D_ARRAY:

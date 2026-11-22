@@ -519,7 +519,7 @@ void reshade::d3d10::device_impl::copy_buffer_region(api::resource src, uint64_t
 	{
 		D3D10_BUFFER_DESC desc;
 		reinterpret_cast<ID3D10Buffer *>(src.handle)->GetDesc(&desc);
-		size = desc.ByteWidth;
+		size = desc.ByteWidth - src_offset;
 	}
 
 	assert(src_offset <= std::numeric_limits<UINT>::max() && dst_offset <= std::numeric_limits<UINT>::max() && size <= std::numeric_limits<UINT>::max());

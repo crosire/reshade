@@ -704,7 +704,7 @@ void reshade::d3d12::command_list_impl::copy_buffer_region(api::resource src, ui
 	assert(src != 0 && dst != 0);
 
 	if (UINT64_MAX == size)
-		size = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width;
+		size = reinterpret_cast<ID3D12Resource *>(src.handle)->GetDesc().Width - src_offset;
 
 	_orig->CopyBufferRegion(reinterpret_cast<ID3D12Resource *>(dst.handle), dst_offset, reinterpret_cast<ID3D12Resource *>(src.handle), src_offset, size);
 }
@@ -855,7 +855,7 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 			src_rect.left = src_box->left;
 			src_rect.top = src_box->top;
 			src_rect.right = src_box->right;
-			src_rect.bottom = src_box->back;
+			src_rect.bottom = src_box->bottom;
 
 			assert((src_box->back - src_box->front) <= 1);
 		}
