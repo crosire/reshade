@@ -142,7 +142,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 
 	const HRESULT hr = _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
-	on_finish_present(hr);
+	on_finish_present(hr, dwFlags);
 
 	return hr;
 }
@@ -282,8 +282,11 @@ void Direct3DSwapChain9::on_present(const RECT *source_rect, [[maybe_unused]] co
 	}
 }
 
-void Direct3DSwapChain9::on_finish_present(HRESULT hr)
+void Direct3DSwapChain9::on_finish_present(HRESULT hr, DWORD flags)
 {
+	if ((flags & D3DPRESENT_DONOTFLIP) != 0)
+		return;
+
 	_was_still_drawing_last_frame = (hr == D3DERR_WASSTILLDRAWING);
 
 	// Ignore D3DERR_DEVICELOST, since it can frequently occur when minimizing out of exclusive fullscreen

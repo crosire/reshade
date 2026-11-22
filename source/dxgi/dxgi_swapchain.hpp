@@ -109,7 +109,7 @@ private:
 	void on_init(bool resize);
 	void on_reset(bool resize);
 	void on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_PARAMETERS *params = nullptr);
-	void on_finish_present(HRESULT hr);
+	void on_finish_present(HRESULT hr, UINT flags);
 
 	IUnknown *const _direct3d_device;
 	// The GOG Galaxy overlay scans the swap chain object memory for the D3D12 command queue, but fails if it cannot find at least two occurences of it.

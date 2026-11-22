@@ -283,7 +283,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 	const HRESULT hr = _orig->Present(SyncInterval, Flags);
 	g_in_dxgi_runtime = false;
 
-	on_finish_present(hr);
+	on_finish_present(hr, Flags);
 
 	return hr;
 }
@@ -580,7 +580,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	const HRESULT hr = static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 	g_in_dxgi_runtime = false;
 
-	on_finish_present(hr);
+	on_finish_present(hr, PresentFlags);
 
 	return hr;
 }
@@ -1050,8 +1050,11 @@ void DXGISwapChain::on_present(UINT flags, [[maybe_unused]] const DXGI_PRESENT_P
 	}
 }
 
-void DXGISwapChain::on_finish_present(HRESULT hr)
+void DXGISwapChain::on_finish_present(HRESULT hr, UINT flags)
 {
+	if ((flags & DXGI_PRESENT_TEST) != 0)
+		return;
+
 	_was_still_drawing_last_frame = (hr == DXGI_ERROR_WAS_STILL_DRAWING);
 
 	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
