@@ -874,7 +874,7 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 			const HDC prev_hdc = wglGetCurrentDC();
 			const HGLRC prev_hglrc = wglGetCurrentContext();
 
-			if (prev_hglrc != hglrc && !(prev_hglrc != nullptr && prev_hglrc == s_shared_contexts.at(hglrc)))
+			if (prev_hglrc != hglrc && !(prev_hglrc != nullptr && prev_hglrc == s_shared_contexts[hglrc]))
 			{
 				// In case the original was destroyed already, create a dummy window to get a valid context
 				dummy_window_handle = CreateWindow(TEXT("STATIC"), nullptr, 0, 0, 0, 0, 0, nullptr, nullptr, nullptr, 0);
@@ -917,15 +917,15 @@ extern "C" BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 				{
 					delete device;
 				}
-
-				// Restore previous device and render context
-				if (prev_hglrc != hglrc)
-					reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
 			}
 			else
 			{
 				reshade::log::message(reshade::log::level::warning, "Unable to make context current (error code %lu)! Leaking resources ...", GetLastError() & 0xFFFF);
 			}
+
+			// Restore previous device and render context
+			if (prev_hglrc != hglrc)
+				reshade::hooks::call(wglMakeCurrent)(prev_hdc, prev_hglrc);
 
 			if (dummy_window_handle != nullptr)
 				DestroyWindow(dummy_window_handle);
