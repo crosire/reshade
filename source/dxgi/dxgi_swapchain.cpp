@@ -804,15 +804,29 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			_is_desc_modified = false;
 		}
 	}
+
+	temp_mem<UINT> creation_node_masks(BufferCount);
+	if (nullptr != pCreationNodeMask)
+	{
+		for (UINT i = 0; i < BufferCount; ++i)
+		{
+			creation_node_masks[i] = pCreationNodeMask[i % _orig_desc.BufferCount];
+		}
+		pCreationNodeMask = creation_node_masks.p;
+	}
 #endif
 
 	// Need to extract the original command queue object from the proxies passed in
 	temp_mem<IUnknown *> present_queues(BufferCount);
-	if (ppPresentQueue)
+	if (nullptr != ppPresentQueue)
 	{
 		for (UINT i = 0; i < BufferCount; ++i)
 		{
+#if RESHADE_ADDON
+			present_queues[i] = ppPresentQueue[i % _orig_desc.BufferCount];
+#else
 			present_queues[i] = ppPresentQueue[i];
+#endif
 			com_ptr<IUnknown> command_queue_proxy;
 			query_device(present_queues[i], command_queue_proxy);
 		}
