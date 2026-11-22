@@ -278,9 +278,8 @@ bool reshade::vulkan::device_impl::check_capability(api::device_caps capability)
 #endif
 	}
 	case api::device_caps::resolve_depth_stencil:
-#if VK_KHR_dynamic_rendering
-		// VK_KHR_dynamic_rendering has VK_KHR_depth_stencil_resolve as a dependency
-		return vk.KHR_dynamic_rendering;
+#if VK_KHR_maintenance10
+		return vk.KHR_maintenance10;
 #else
 		return false;
 #endif

@@ -245,6 +245,9 @@ void     VKAPI_CALL vkCmdResolveImage2(VkCommandBuffer commandBuffer, const VkRe
 
 void     VKAPI_CALL vkCmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRenderingInfo);
 void     VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer);
+#if VK_KHR_maintenance10
+void     VKAPI_CALL vkCmdEndRendering2KHR(VkCommandBuffer commandBuffer, const VkRenderingEndInfoKHR *pRenderingEndInfo);
+#endif
 
 void     VKAPI_CALL vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets, const VkDeviceSize *pSizes, const VkDeviceSize *pStrides);
 

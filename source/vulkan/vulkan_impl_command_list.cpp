@@ -867,7 +867,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 	const auto dst_data = _device->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 
 	// Use aspect flags based on destination image rather than the 'format' argument, since the latter may be a color view format, even when the underlying data is in a depth or stencil format
-	const VkImageAspectFlags aspect_flags = aspect_flags_from_format(dst_data->create_info.format);
+	VkImageAspectFlags aspect_flags = aspect_flags_from_format(dst_data->create_info.format);
 	if ((aspect_flags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) == 0)
 	{
 		VkImageResolve region;
@@ -881,97 +881,52 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 			(VkImage)dst.handle, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1, &region);
 	}
-	else
+#if VK_KHR_maintenance10
+	else if (vk.KHR_maintenance10)
 	{
-#if VK_KHR_dynamic_rendering
-		if (!vk.KHR_dynamic_rendering || _is_in_render_pass ||
-			src_data->default_view == VK_NULL_HANDLE || dst_data->default_view == VK_NULL_HANDLE)
+		VkImageResolve2 region { VK_STRUCTURE_TYPE_IMAGE_RESOLVE_2 };
+		convert_subresource_box(src_subresource, src_box, src_data->create_info, region.srcSubresource, region.srcOffset, region.extent);
+		convert_subresource(dst_subresource, dst_data->create_info, region.dstSubresource);
+		region.dstSubresource.layerCount = region.srcSubresource.layerCount;
+		region.dstOffset = { static_cast<int32_t>(dst_x), static_cast<int32_t>(dst_y), static_cast<int32_t>(dst_z) };
+
+		VkPhysicalDeviceDepthStencilResolveProperties resolve_properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
+		VkPhysicalDeviceProperties2 properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_properties };
+		vk.GetPhysicalDeviceProperties2(_device->_physical_device, &properties);
+		if (resolve_properties.independentResolveNone)
 		{
-			assert(false);
-			return;
+			if (format == api::format::r24_unorm_x8_uint || format == api::format::r32_float_x8_uint)
+				aspect_flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+			if (format == api::format::x24_unorm_g8_uint || format == api::format::x32_float_g8_uint)
+				aspect_flags = VK_IMAGE_ASPECT_STENCIL_BIT;
 		}
 
-		VkRenderingInfo rendering_info { VK_STRUCTURE_TYPE_RENDERING_INFO };
+		region.srcSubresource.aspectMask = region.dstSubresource.aspectMask = aspect_flags;
 
-		assert(src_subresource == 0 && dst_subresource == 0);
-
-		if (src_box != nullptr)
+		VkResolveImageModeInfoKHR resolve_mode_info { VK_STRUCTURE_TYPE_RESOLVE_IMAGE_MODE_INFO_KHR };
+		if ((aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0)
 		{
-			rendering_info.renderArea.offset.x = static_cast<int32_t>(src_box->left);
-			rendering_info.renderArea.offset.y = static_cast<int32_t>(src_box->top);
-			assert(src_box->front == 0);
-
-			rendering_info.renderArea.extent.width = src_box->width();
-			rendering_info.renderArea.extent.height = src_box->height();
-			rendering_info.layerCount = src_box->depth();
-		}
-		else
-		{
-			rendering_info.renderArea.offset = { 0, 0 };
-
-			rendering_info.renderArea.extent.width = src_data->create_info.extent.width;
-			rendering_info.renderArea.extent.height = src_data->create_info.extent.height;
-			rendering_info.layerCount = src_data->create_info.arrayLayers;
-		}
-
-		assert(dst_x == static_cast<uint32_t>(rendering_info.renderArea.offset.x) && dst_y == static_cast<uint32_t>(rendering_info.renderArea.offset.y) && dst_z == 0);
-
-		VkRenderingAttachmentInfo depth_attachment { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-		depth_attachment.imageView = src_data->default_view;
-		depth_attachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depth_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
-		depth_attachment.resolveImageView = dst_data->default_view;
-		depth_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-		depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-		if ((aspect_flags & VK_IMAGE_ASPECT_DEPTH_BIT) != 0 && format != api::format::x24_unorm_g8_uint && format != api::format::x32_float_g8_uint)
-		{
-			VkPhysicalDeviceDepthStencilResolveProperties resolve_properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
-			VkPhysicalDeviceProperties2 properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_properties };
-			vk.GetPhysicalDeviceProperties2(_device->_physical_device, &properties);
-
 			// Prefer average depth resolve mode when supported
-			if (resolve_properties.supportedDepthResolveModes & VK_RESOLVE_MODE_AVERAGE_BIT)
-				depth_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-
-			rendering_info.pDepthAttachment = &depth_attachment;
+			resolve_mode_info.resolveMode =
+				(resolve_properties.supportedDepthResolveModes & VK_RESOLVE_MODE_AVERAGE_BIT) != 0 && ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) == 0 || resolve_properties.independentResolve) ?
+				VK_RESOLVE_MODE_AVERAGE_BIT : VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 		}
-
-		VkRenderingAttachmentInfo stencil_attachment = depth_attachment;
-		stencil_attachment.resolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
-
-		if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0 && format != api::format::r24_unorm_x8_uint && format != api::format::r32_float_x8_uint)
+		if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
 		{
-			rendering_info.pStencilAttachment = &stencil_attachment;
+			resolve_mode_info.stencilResolveMode = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 		}
 
-		// Transition state to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL (since it will be in 'resource_usage::resolve_source/dest' at this point)
-		VkImageMemoryBarrier barriers[2];
-		barriers[0] = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		barriers[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-		barriers[0].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barriers[0].image = (VkImage)src.handle;
-		barriers[0].subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, 1 };
-		barriers[1] = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		barriers[1].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		barriers[1].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barriers[1].image = (VkImage)dst.handle;
-		barriers[1].subresourceRange = { aspect_flags, 0, VK_REMAINING_MIP_LEVELS, 0, 1 };
-		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 2, barriers);
+		VkResolveImageInfo2 resolve_info { VK_STRUCTURE_TYPE_RESOLVE_IMAGE_INFO_2, &resolve_mode_info };
+		resolve_info.srcImage = (VkImage)src.handle;
+		resolve_info.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		resolve_info.dstImage = (VkImage)dst.handle;
+		resolve_info.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		resolve_info.regionCount = 1;
+		resolve_info.pRegions = &region;
 
-		vk.CmdBeginRendering(_orig, &rendering_info);
-		vk.CmdEndRendering(_orig);
-
-		std::swap(barriers[0].oldLayout, barriers[0].newLayout);
-		std::swap(barriers[1].oldLayout, barriers[1].newLayout);
-		vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 2, barriers);
-#endif
+		vk.CmdResolveImage2(_orig, &resolve_info);
 	}
+#endif
 }
 
 void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_view dsv, const float *depth, const uint8_t *stencil, uint32_t rect_count, const api::rect *)

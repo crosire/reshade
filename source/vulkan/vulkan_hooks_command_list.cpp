@@ -1816,6 +1816,42 @@ void VKAPI_CALL vkCmdEndRendering(VkCommandBuffer commandBuffer)
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdEndRendering, device_impl);
 	trampoline(commandBuffer);
 }
+#if VK_KHR_maintenance10
+void VKAPI_CALL vkCmdEndRendering2KHR(VkCommandBuffer commandBuffer, const VkRenderingEndInfoKHR *pRenderingEndInfo)
+{
+	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(commandBuffer));
+
+#if RESHADE_ADDON
+	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
+
+	assert(cmd_impl->_is_in_render_pass == 3 || cmd_impl->_is_in_render_pass & 0x80);
+
+	const bool skip_end_render_pass = reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
+
+	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
+	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
+
+	if (skip_end_render_pass)
+	{
+		assert(!cmd_impl->_is_in_render_pass);
+		return;
+	}
+	if (cmd_impl->_is_in_render_pass & 0x80)
+	{
+		// Render pass was overridden by an add-on, so need to end it the same way
+		cmd_impl->end_render_pass();
+		return;
+	}
+	else
+	{
+		cmd_impl->_is_in_render_pass = 0;
+	}
+#endif
+
+	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdEndRendering2KHR, device_impl);
+	trampoline(commandBuffer, pRenderingEndInfo);
+}
+#endif
 
 void VKAPI_CALL vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount, const VkBuffer *pBuffers, const VkDeviceSize *pOffsets, const VkDeviceSize *pSizes, const VkDeviceSize *pStrides)
 {

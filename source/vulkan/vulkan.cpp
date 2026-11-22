@@ -204,6 +204,10 @@ PFN_vkVoidFunction VKAPI_CALL vkGetDeviceProcAddr(VkDevice device, const char *p
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdBeginRendering, KHR);
 	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRendering, KHR);
 #endif
+
+#if VK_KHR_maintenance10
+	RESHADE_VULKAN_HOOK_PROC_OPTIONAL(CmdEndRendering2KHR, );
+#endif
 #endif
 
 #if RESHADE_ADDON >= 2

@@ -145,25 +145,29 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	struct
 	{
-		uint32_t host_query_reset : 1;
-		uint32_t timeline_semaphore : 1;
-		uint32_t buffer_device_address : 1;
-		uint32_t dynamic_rendering : 1;
-		uint32_t extended_dynamic_state : 1;
-		uint32_t push_descriptor : 1;
-		uint32_t host_image_copy : 1;
-		uint32_t custom_border_color : 1;
-		uint32_t conservative_rasterization : 1;
-		uint32_t ray_tracing : 1;
-		uint32_t descriptor_indexing : 1;
+		VkBool32 host_query_reset;
+		VkBool32 timeline_semaphore;
+		VkBool32 buffer_device_address;
+		VkBool32 dynamic_rendering;
+		VkBool32 extended_dynamic_state;
+		VkBool32 push_descriptor;
+		VkBool32 host_image_copy;
+		VkBool32 custom_border_color;
+		VkBool32 conservative_rasterization;
+		VkBool32 ray_tracing;
+		VkBool32 descriptor_indexing;
+		VkBool32 maintenance10;
 
 		VkPhysicalDeviceHostQueryResetFeatures host_query_reset_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES };
 		VkPhysicalDeviceTimelineSemaphoreFeatures timeline_semaphore_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES };
 		VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
 		VkPhysicalDevicePrivateDataFeatures private_data_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
 		VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
-		VkPhysicalDeviceMaintenance5Features maintenance5_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES };
+		VkPhysicalDeviceMaintenance5FeaturesKHR maintenance5_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR };
 		VkPhysicalDeviceHostImageCopyFeatures host_image_copy_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES };
+#if VK_KHR_maintenance10
+		VkPhysicalDeviceMaintenance10FeaturesKHR maintenance10_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_10_FEATURES_KHR };
+#endif
 	} ext = {};
 	std::vector<VkQueueFamilyProperties> queue_families;
 	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
@@ -285,6 +289,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		add_extension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, false);
 #endif
 
+#if VK_KHR_maintenance10
+		ext.maintenance10 = add_extension(VK_KHR_MAINTENANCE_10_EXTENSION_NAME, false);
+#endif
+
 		// Check if the device is used for presenting
 		if (std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
 				[](const char *name) { return std::strcmp(name, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0; }) == enabled_extensions.cend())
@@ -326,160 +334,131 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	else
 		create_info.pEnabledFeatures = &enabled_features;
 
-	if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
 	{
-		assert(instance.api_version >= VK_API_VERSION_1_2);
+		// These helpers can be used with feature structs that have a single boolean as the first member after 'pNext'
+		const auto check_bool_feature = [pCreateInfo](VkStructureType type, VkBool32 &flag) {
+			if (const auto existing_features = find_in_structure_chain<VkBaseInStructure>(pCreateInfo->pNext, type))
+			{
+				flag = *reinterpret_cast<const VkBool32 *>(existing_features + 1);
+			}
+			return flag;
+		};
+		const auto enable_bool_feature = [pCreateInfo, &create_info](VkStructureType type, void *temp_features) {
+			if (const auto existing_features = find_in_structure_chain<VkBaseInStructure>(pCreateInfo->pNext, type))
+			{
+				*const_cast<VkBool32 *>(reinterpret_cast<const VkBool32 *>(existing_features + 1)) = VK_TRUE;
+			}
+			else
+			{
+				append_to_structure_chain(&create_info, temp_features);
+				*reinterpret_cast<VkBool32 *>(static_cast<VkBaseInStructure *>(temp_features) + 1) = VK_TRUE;
+			}
+		};
 
-		ext.host_query_reset = existing_vulkan_12_features->hostQueryReset;
-		// Force enable timeline semaphore support (used for effect runtime present/graphics queue synchronization in case of present from compute, e.g. in Indiana Jones and the Great Circle and DOOM Eternal)
-		ext.timeline_semaphore = const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
-		ext.descriptor_indexing = existing_vulkan_12_features->descriptorIndexing;
-		ext.buffer_device_address = existing_vulkan_12_features->bufferDeviceAddress;
-	}
-	else
-	{
-		if (const auto existing_host_query_reset_features = find_in_structure_chain<VkPhysicalDeviceHostQueryResetFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES))
+		if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
 		{
-			ext.host_query_reset = existing_host_query_reset_features->hostQueryReset;
-		}
-		else if (ext.host_query_reset)
-		{
-			append_to_structure_chain(&create_info, &ext.host_query_reset_features);
-			ext.host_query_reset_features.hostQueryReset = VK_TRUE;
-		}
+			assert(instance.api_version >= VK_API_VERSION_1_2);
 
-		if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES))
-		{
-			ext.timeline_semaphore = const_cast<VkPhysicalDeviceTimelineSemaphoreFeatures *>(existing_timeline_semaphore_features)->timelineSemaphore = VK_TRUE;
-		}
-		else if (ext.timeline_semaphore)
-		{
-			append_to_structure_chain(&create_info, &ext.timeline_semaphore_features);
-			ext.timeline_semaphore_features.timelineSemaphore = VK_TRUE;
-		}
-
-		if (const auto existing_buffer_device_address_features = find_in_structure_chain<VkPhysicalDeviceBufferDeviceAddressFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES))
-		{
-			ext.buffer_device_address = existing_buffer_device_address_features->bufferDeviceAddress;
-		}
-		else if (ext.buffer_device_address)
-		{
-			append_to_structure_chain(&create_info, &ext.buffer_device_address_features);
-			ext.buffer_device_address_features.bufferDeviceAddress = VK_TRUE;
-		}
-
-		if (const auto existing_descriptor_indexing_features = find_in_structure_chain<VkPhysicalDeviceDescriptorIndexingFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES))
-		{
-			ext.descriptor_indexing = existing_descriptor_indexing_features->descriptorBindingPartiallyBound || existing_descriptor_indexing_features->descriptorBindingUniformBufferUpdateAfterBind || existing_descriptor_indexing_features->descriptorBindingSampledImageUpdateAfterBind || existing_descriptor_indexing_features->descriptorBindingStorageImageUpdateAfterBind || existing_descriptor_indexing_features->descriptorBindingStorageBufferUpdateAfterBind || existing_descriptor_indexing_features->descriptorBindingUniformTexelBufferUpdateAfterBind || existing_descriptor_indexing_features->descriptorBindingStorageTexelBufferUpdateAfterBind || existing_descriptor_indexing_features->descriptorBindingUpdateUnusedWhilePending || existing_descriptor_indexing_features->descriptorBindingVariableDescriptorCount || existing_descriptor_indexing_features->runtimeDescriptorArray ? 1 : 0;
-		}
-	}
-
-	if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
-	{
-		assert(instance.api_version >= VK_API_VERSION_1_3);
-
-		const_cast<VkPhysicalDeviceVulkan13Features *>(existing_vulkan_13_features)->privateData = VK_TRUE;
-
-		ext.dynamic_rendering = existing_vulkan_13_features->dynamicRendering;
-	}
-	else
-	{
-		if (const auto existing_private_data_features = find_in_structure_chain<VkPhysicalDevicePrivateDataFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES))
-		{
-			const_cast<VkPhysicalDevicePrivateDataFeatures *>(existing_private_data_features)->privateData = VK_TRUE;
+			ext.host_query_reset = existing_vulkan_12_features->hostQueryReset;
+			// Force enable timeline semaphore support (used for effect runtime present/graphics queue synchronization in case of present from compute, e.g. in Indiana Jones and the Great Circle and DOOM Eternal)
+			ext.timeline_semaphore = const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
+			ext.descriptor_indexing = existing_vulkan_12_features->descriptorIndexing;
+			ext.buffer_device_address = existing_vulkan_12_features->bufferDeviceAddress;
 		}
 		else
 		{
-			append_to_structure_chain(&create_info, &ext.private_data_features);
-			ext.private_data_features.privateData = VK_TRUE;
+			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES, ext.host_query_reset))
+				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES, &ext.host_query_reset_features);
+
+			if (ext.timeline_semaphore)
+			{
+				if (const auto existing_timeline_semaphore_features = find_in_structure_chain<VkPhysicalDeviceTimelineSemaphoreFeatures>(
+						pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES))
+					const_cast<VkPhysicalDeviceTimelineSemaphoreFeatures *>(existing_timeline_semaphore_features)->timelineSemaphore = VK_TRUE;
+				else
+					enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, &ext.timeline_semaphore_features);
+			}
+
+			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, ext.buffer_device_address))
+				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, &ext.buffer_device_address_features);
+
+			if (const auto existing_descriptor_indexing_features = find_in_structure_chain<VkPhysicalDeviceDescriptorIndexingFeatures>(
+					pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES))
+				ext.descriptor_indexing =
+					existing_descriptor_indexing_features->descriptorBindingPartiallyBound ||
+					existing_descriptor_indexing_features->descriptorBindingUniformBufferUpdateAfterBind ||
+					existing_descriptor_indexing_features->descriptorBindingSampledImageUpdateAfterBind ||
+					existing_descriptor_indexing_features->descriptorBindingStorageImageUpdateAfterBind ||
+					existing_descriptor_indexing_features->descriptorBindingStorageBufferUpdateAfterBind ||
+					existing_descriptor_indexing_features->descriptorBindingUniformTexelBufferUpdateAfterBind ||
+					existing_descriptor_indexing_features->descriptorBindingStorageTexelBufferUpdateAfterBind ||
+					existing_descriptor_indexing_features->descriptorBindingUpdateUnusedWhilePending ||
+					existing_descriptor_indexing_features->descriptorBindingVariableDescriptorCount ||
+					existing_descriptor_indexing_features->runtimeDescriptorArray ? 1 : 0;
 		}
 
-		if (const auto existing_dynamic_rendering_features = find_in_structure_chain<VkPhysicalDeviceDynamicRenderingFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES))
+		if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
 		{
-			ext.dynamic_rendering = existing_dynamic_rendering_features->dynamicRendering;
-		}
-		else if (ext.dynamic_rendering)
-		{
-			append_to_structure_chain(&create_info, &ext.dynamic_rendering_features);
-			ext.dynamic_rendering_features.dynamicRendering = VK_TRUE;
-		}
-	}
+			assert(instance.api_version >= VK_API_VERSION_1_3);
 
-	if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES))
-	{
-		assert(instance.api_version >= VK_API_VERSION_1_4);
+			const_cast<VkPhysicalDeviceVulkan13Features *>(existing_vulkan_13_features)->privateData = VK_TRUE;
 
-		const_cast<VkPhysicalDeviceVulkan14Features *>(existing_vulkan_14_features)->maintenance5 = VK_TRUE;
-		if (ext.push_descriptor)
-			const_cast<VkPhysicalDeviceVulkan14Features *>(existing_vulkan_14_features)->pushDescriptor = VK_TRUE;
-
-		ext.host_image_copy = existing_vulkan_14_features->hostImageCopy;
-	}
-	else
-	{
-		if (const auto existing_maintenance5_features = find_in_structure_chain<VkPhysicalDeviceMaintenance5Features>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES))
-		{
-			const_cast<VkPhysicalDeviceMaintenance5Features *>(existing_maintenance5_features)->maintenance5 = VK_TRUE;
+			ext.dynamic_rendering = existing_vulkan_13_features->dynamicRendering;
 		}
 		else
 		{
-			append_to_structure_chain(&create_info, &ext.maintenance5_features);
-			ext.maintenance5_features.maintenance5 = VK_TRUE;
+			enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES, &ext.private_data_features);
+
+			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, ext.dynamic_rendering))
+				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, &ext.dynamic_rendering_features);
 		}
 
-		if (const auto existing_host_image_copy_features = find_in_structure_chain<VkPhysicalDeviceHostImageCopyFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES))
+		if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES))
 		{
-			ext.host_image_copy = existing_host_image_copy_features->hostImageCopy;
-		}
-		else if (ext.host_image_copy)
-		{
-			append_to_structure_chain(&create_info, &ext.host_image_copy_features);
-			ext.host_image_copy_features.hostImageCopy = VK_TRUE;
-		}
-	}
+			assert(instance.api_version >= VK_API_VERSION_1_4);
 
-	// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
-	if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
-	{
-		const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModel = VK_TRUE;
-		const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
-	}
+			const_cast<VkPhysicalDeviceVulkan14Features *>(existing_vulkan_14_features)->maintenance5 = VK_TRUE;
+			if (ext.push_descriptor)
+				const_cast<VkPhysicalDeviceVulkan14Features *>(existing_vulkan_14_features)->pushDescriptor = VK_TRUE;
+
+			ext.host_image_copy = existing_vulkan_14_features->hostImageCopy;
+		}
+		else
+		{
+			enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR, &ext.maintenance5_features);
+
+			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES, ext.host_image_copy))
+				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES, &ext.host_image_copy_features);
+		}
+
+		// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
+		if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
+				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
+		{
+			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModel = VK_TRUE;
+			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
+		}
 
 #if VK_EXT_custom_border_color
-	if (const auto existing_custom_border_features = find_in_structure_chain<VkPhysicalDeviceCustomBorderColorFeaturesEXT>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT))
-	{
-		ext.custom_border_color = existing_custom_border_features->customBorderColors;
-	}
+		check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT, ext.custom_border_color);
 #endif
 
 #if VK_EXT_extended_dynamic_state
-	if (const auto existing_extended_dynamic_state_features = find_in_structure_chain<VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT))
-	{
-		ext.extended_dynamic_state = existing_extended_dynamic_state_features->extendedDynamicState;
-	}
+		check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, ext.extended_dynamic_state);
 #endif
 
 #if VK_KHR_acceleration_structure && VK_KHR_ray_tracing_pipeline
-	if (const auto existing_ray_tracing_features = find_in_structure_chain<VkPhysicalDeviceRayTracingPipelineFeaturesKHR>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR))
-	{
-		ext.ray_tracing = existing_ray_tracing_features->rayTracingPipeline;
-	}
+		check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR, ext.ray_tracing);
 #endif
+
+#if VK_KHR_maintenance10
+		if (ext.maintenance10)
+			enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_10_FEATURES_KHR, &ext.maintenance10_features);
+#endif
+	}
 	#pragma endregion
 
 	// Continue calling down the chain
@@ -559,6 +538,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 #if VK_KHR_acceleration_structure
 	device.dispatch_table.KHR_acceleration_structure &= ext.ray_tracing;
+#endif
+#if VK_KHR_maintenance10
+	device.dispatch_table.KHR_maintenance10 &= ext.maintenance10;
 #endif
 #if VK_EXT_host_query_reset
 	device.dispatch_table.EXT_host_query_reset &= ext.host_query_reset;
