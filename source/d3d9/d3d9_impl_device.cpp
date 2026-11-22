@@ -954,8 +954,9 @@ bool reshade::d3d9::device_impl::map_texture_region(api::resource resource, uint
 		break;
 	case D3DRTYPE_VOLUMETEXTURE:
 		{
+			D3DBOX d3d_box;
 			D3DLOCKED_BOX locked_box;
-			if (SUCCEEDED(IDirect3DVolumeTexture9_LockBox(static_cast<IDirect3DVolumeTexture9 *>(object), subresource, &locked_box, reinterpret_cast<const D3DBOX *>(box), convert_access_flags(access))))
+			if (SUCCEEDED(IDirect3DVolumeTexture9_LockBox(static_cast<IDirect3DVolumeTexture9 *>(object), subresource, &locked_box, convert_subresource_box(box, d3d_box), convert_access_flags(access))))
 			{
 				out_data->data = locked_box.pBits;
 				out_data->row_pitch = locked_box.RowPitch;

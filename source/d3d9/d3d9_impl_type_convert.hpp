@@ -16,7 +16,6 @@ constexpr D3DPOOL D3DPOOL_MANAGED_EX = D3DPOOL(6);
 
 namespace reshade::d3d9
 {
-	static_assert(sizeof(D3DBOX) == sizeof(api::subresource_box));
 	static_assert(sizeof(D3DRECT) == sizeof(api::rect));
 
 	struct sampler_impl
@@ -58,7 +57,7 @@ namespace reshade::d3d9
 	auto convert_format(api::format format, BOOL lockable = FALSE, BOOL shader_usage = FALSE) -> D3DFORMAT;
 	auto convert_format(D3DFORMAT d3d_format, BOOL *lockable = nullptr) -> api::format;
 
-	inline const RECT *convert_subresource_box_to_rect(const reshade::api::subresource_box *box, RECT &rect)
+	inline const RECT *convert_subresource_box_to_rect(const api::subresource_box *box, RECT &rect)
 	{
 		if (box == nullptr)
 			return nullptr;
@@ -71,6 +70,68 @@ namespace reshade::d3d9
 		assert(box->back == 1);
 
 		return &rect;
+	}
+	inline const api::subresource_box *convert_rect_to_subresource_box(const RECT *rect, api::subresource_box &box)
+	{
+		if (rect == nullptr)
+			return nullptr;
+
+		assert(rect->left >= 0 && rect->top >= 0 && rect->right >= 0 && rect->bottom >= 0);
+
+		box.left = static_cast<uint32_t>(rect->left);
+		box.top = static_cast<uint32_t>(rect->top);
+		box.front = 0;
+		box.right = static_cast<uint32_t>(rect->right);
+		box.bottom = static_cast<uint32_t>(rect->bottom);
+		box.back = 1;
+
+		return &box;
+	}
+	inline const api::subresource_box *convert_rect_to_subresource_box(const POINT *point, LONG width, LONG height, api::subresource_box &box)
+	{
+		if (point == nullptr)
+			return nullptr;
+
+		assert(point->x >= 0 && point->y >= 0 && width >= 0 && height >= 0);
+
+		box.left = static_cast<uint32_t>(point->x);
+		box.top = static_cast<uint32_t>(point->y);
+		box.front = 0;
+		box.right = static_cast<uint32_t>(point->x + width);
+		box.bottom = static_cast<uint32_t>(point->y + height);
+		box.back = 1;
+
+		return &box;
+	}
+
+	// The member ordering of 'D3DBOX' and 'api::subresource_box' is different
+	inline const D3DBOX *convert_subresource_box(const reshade::api::subresource_box *box, D3DBOX &d3d_box)
+	{
+		if (box == nullptr)
+			return nullptr;
+
+		d3d_box.Left = box->left;
+		d3d_box.Top = box->top;
+		d3d_box.Right = box->right;
+		d3d_box.Bottom = box->bottom;
+		d3d_box.Front = box->front;
+		d3d_box.Back = box->back;
+
+		return &d3d_box;
+	}
+	inline const reshade::api::subresource_box *convert_subresource_box(const D3DBOX *d3d_box, reshade::api::subresource_box &box)
+	{
+		if (d3d_box == nullptr)
+			return nullptr;
+
+		box.left = d3d_box->Left;
+		box.top = d3d_box->Top;
+		box.front = d3d_box->Front;
+		box.right = d3d_box->Right;
+		box.bottom = d3d_box->Bottom;
+		box.back = d3d_box->Back;
+
+		return &box;
 	}
 
 	void convert_memory_heap_to_d3d_pool(api::memory_heap heap, D3DPOOL &d3d_pool);

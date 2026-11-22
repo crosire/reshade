@@ -148,8 +148,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDepthStencilSurface9::ReleaseDC(HDC hdc)
 
 using reshade::d3d9::to_handle;
 
-extern const reshade::api::subresource_box *convert_rect_to_box(const RECT *rect, reshade::api::subresource_box &box);
-
 HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface, D3DLOCKED_RECT *pLockedRect, const RECT *pRect, DWORD Flags)
 {
 	const HRESULT hr = reshade::hooks::call(IDirect3DSurface9_LockRect, reshade::hooks::vtable_from_instance(pSurface) + 13)(pSurface, pLockedRect, pRect, Flags);
@@ -173,7 +171,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DSurface9_LockRect(IDirect3DSurface9 *pSurface
 				device_proxy,
 				resource,
 				subresource,
-				convert_rect_to_box(pRect, box),
+				reshade::d3d9::convert_rect_to_subresource_box(pRect, box),
 				reshade::d3d9::convert_access_flags(Flags),
 				&data);
 
@@ -211,6 +209,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3
 			const reshade::api::resource resource =
 				device_proxy->get_resource_from_view(to_handle(pVolume), &subresource);
 
+			reshade::api::subresource_box box;
 			reshade::api::subresource_data data;
 			data.data = pLockedVolume->pBits;
 			data.row_pitch = pLockedVolume->RowPitch;
@@ -220,7 +219,7 @@ HRESULT STDMETHODCALLTYPE IDirect3DVolume9_LockBox(IDirect3DVolume9 *pVolume, D3
 				device_proxy,
 				resource,
 				subresource,
-				reinterpret_cast<const reshade::api::subresource_box *>(pBox),
+				reshade::d3d9::convert_subresource_box(pBox, box),
 				reshade::d3d9::convert_access_flags(Flags),
 				&data);
 

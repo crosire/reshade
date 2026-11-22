@@ -21,39 +21,6 @@ extern thread_local bool g_in_dxgi_runtime;
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
 extern void dump_and_modify_present_parameters(D3DPRESENT_PARAMETERS &pp, D3DDISPLAYMODEEX &fullscreen_desc, IDirect3D9 *d3d, UINT adapter_index, HWND focus_window);
 
-const reshade::api::subresource_box *convert_rect_to_box(const RECT *rect, reshade::api::subresource_box &box)
-{
-	if (rect == nullptr)
-		return nullptr;
-
-	assert(rect->left >= 0 && rect->top >= 0 && rect->right >= 0 && rect->bottom >= 0);
-
-	box.left = static_cast<uint32_t>(rect->left);
-	box.top = static_cast<uint32_t>(rect->top);
-	box.front = 0;
-	box.right = static_cast<uint32_t>(rect->right);
-	box.bottom = static_cast<uint32_t>(rect->bottom);
-	box.back = 1;
-
-	return &box;
-}
-const reshade::api::subresource_box *convert_rect_to_box(const POINT *point, LONG width, LONG height, reshade::api::subresource_box &box)
-{
-	if (point == nullptr)
-		return nullptr;
-
-	assert(point->x >= 0 && point->y >= 0 && width >= 0 && height >= 0);
-
-	box.left = static_cast<uint32_t>(point->x);
-	box.top = static_cast<uint32_t>(point->y);
-	box.front = 0;
-	box.right = static_cast<uint32_t>(point->x + width);
-	box.bottom = static_cast<uint32_t>(point->y + height);
-	box.back = 1;
-
-	return &box;
-}
-
 Direct3DDevice9::Direct3DDevice9(IDirect3DDevice9   *original, bool use_software_rendering) :
 	device_impl(original),
 	_use_software_rendering(use_software_rendering)
@@ -1007,18 +974,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrc
 
 		if (pSrcRect != nullptr)
 		{
-			convert_rect_to_box(pDstPoint, pSrcRect->right - pSrcRect->left, pSrcRect->bottom - pSrcRect->top, dst_box);
+			reshade::d3d9::convert_rect_to_subresource_box(pDstPoint, pSrcRect->right - pSrcRect->left, pSrcRect->bottom - pSrcRect->top, dst_box);
 		}
 		else
 		{
 			D3DSURFACE_DESC desc;
 			pSrcSurface->GetDesc(&desc);
 
-			convert_rect_to_box(pDstPoint, desc.Width, desc.Height, dst_box);
+			reshade::d3d9::convert_rect_to_subresource_box(pDstPoint, desc.Width, desc.Height, dst_box);
 		}
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-				src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
+				src_resource, src_subresource, reshade::d3d9::convert_rect_to_subresource_box(pSrcRect, src_box),
 				dst_resource, dst_subresource, pDstPoint != nullptr ? &dst_box : nullptr, reshade::api::filter_mode::min_mag_mip_point))
 			return D3D_OK;
 	}
@@ -1101,15 +1068,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSrcSu
 		if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
 		{
 			if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
-					src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
-					dst_resource, dst_subresource, convert_rect_to_box(pDstRect, dst_box),
+					src_resource, src_subresource, reshade::d3d9::convert_rect_to_subresource_box(pSrcRect, src_box),
+					dst_resource, dst_subresource, reshade::d3d9::convert_rect_to_subresource_box(pDstRect, dst_box),
 					Filter == D3DTEXF_NONE || Filter == D3DTEXF_POINT ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear))
 				return D3D_OK;
 		}
 		else
 		{
 			if (reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this,
-					src_resource, src_subresource, convert_rect_to_box(pSrcRect, src_box),
+					src_resource, src_subresource, reshade::d3d9::convert_rect_to_subresource_box(pSrcRect, src_box),
 					dst_resource, dst_subresource, static_cast<uint32_t>(pDstRect != nullptr ? pDstRect->left : 0), static_cast<uint32_t>(pDstRect != nullptr ? pDstRect->top : 0), 0,
 					reshade::d3d9::convert_format(desc.Format)))
 				return D3D_OK;
