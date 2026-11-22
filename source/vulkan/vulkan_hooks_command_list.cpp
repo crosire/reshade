@@ -2115,8 +2115,12 @@ void VKAPI_CALL vkCmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCo
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
 	for (uint32_t i = 0; i < drawCount; ++i)
-		if (reshade::invoke_addon_event<reshade::addon_event::draw>(cmd_impl, pVertexInfo[i].vertexCount, instanceCount, pVertexInfo[i].firstVertex, firstInstance))
+	{
+		const VkMultiDrawInfoEXT *vertex_info = reinterpret_cast<const VkMultiDrawInfoEXT *>(reinterpret_cast<const uint8_t *>(pVertexInfo) + static_cast<size_t>(i) * stride);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw>(cmd_impl, vertex_info->vertexCount, instanceCount, vertex_info->firstVertex, firstInstance))
 			return;
+	}
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdDrawMultiEXT, device_impl);
@@ -2130,8 +2134,12 @@ void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
 	for (uint32_t i = 0; i < drawCount; ++i)
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(cmd_impl, pIndexInfo[i].indexCount, instanceCount, pIndexInfo[i].firstIndex, pVertexOffset != nullptr ? *pVertexOffset : pIndexInfo[i].vertexOffset, firstInstance))
+	{
+		const VkMultiDrawIndexedInfoEXT *index_info = reinterpret_cast<const VkMultiDrawIndexedInfoEXT *>(reinterpret_cast<const uint8_t *>(pIndexInfo) + static_cast<size_t>(i) * stride);
+
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(cmd_impl, index_info->indexCount, instanceCount, index_info->firstIndex, pVertexOffset != nullptr ? *pVertexOffset : index_info->vertexOffset, firstInstance))
 			return;
+	}
 #endif
 
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(CmdDrawMultiIndexedEXT, device_impl);
