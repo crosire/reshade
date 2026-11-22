@@ -332,7 +332,7 @@ void reshade::d3d9::device_impl::push_descriptors(api::shader_stage stages, api:
 			// See https://docs.microsoft.com/windows/win32/direct3d9/vertex-textures-in-vs-3-0
 			first += D3DVERTEXTEXTURESAMPLER0;
 			if ((first + count) > (D3DVERTEXTEXTURESAMPLER3 + 1)) // The vertex engine only contains four texture sampler stages
-				count = (D3DVERTEXTEXTURESAMPLER3 + 1) - first;
+				count = (first <= D3DVERTEXTEXTURESAMPLER3) ? (D3DVERTEXTEXTURESAMPLER3 + 1) - first : 0;
 		}
 
 		switch (update.type)
@@ -457,9 +457,10 @@ void reshade::d3d9::device_impl::draw_indexed(uint32_t index_count, uint32_t ins
 		if (SUCCEEDED(_orig->GetStreamSource(0, &stream, &offset, &stride)) && stream != nullptr)
 		{
 			D3DVERTEXBUFFER_DESC desc;
-			if (SUCCEEDED(stream->GetDesc(&desc)))
+			if (SUCCEEDED(stream->GetDesc(&desc)) && stride != 0 && offset < desc.Size)
 			{
-				vertex_count = ((desc.Size - offset) / stride) - vertex_offset;
+				vertex_count = (desc.Size - offset) / stride;
+				vertex_count = (vertex_offset < 0 || static_cast<UINT>(vertex_offset) < vertex_count) ? vertex_count - vertex_offset : 0;
 			}
 		}
 	}
