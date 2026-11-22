@@ -1110,14 +1110,12 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 		for (uint32_t i = 0; i < update.count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::sampler_with_resource_view *>(update.descriptors)[i];
-			if (descriptor.view == 0)
-				continue;
 
 			if (gl.VERSION_4_5)
 			{
 				gl.BindTextureUnit(first + i, descriptor.view.handle & 0xFFFFFFFF);
 			}
-			else
+			else if (descriptor.view != 0)
 			{
 				gl.ActiveTexture(GL_TEXTURE0 + first + i);
 				gl.BindTexture(descriptor.view.handle >> 40, descriptor.view.handle & 0xFFFFFFFF);
@@ -1131,14 +1129,12 @@ void reshade::opengl::device_context_impl::push_descriptors(api::shader_stage, a
 		for (uint32_t i = 0; i < update.count; ++i)
 		{
 			const auto &descriptor = static_cast<const api::resource_view *>(update.descriptors)[i];
-			if (descriptor == 0)
-				continue;
 
 			if (gl.VERSION_4_5)
 			{
 				gl.BindTextureUnit(first + i, descriptor.handle & 0xFFFFFFFF);
 			}
-			else
+			else if (descriptor != 0)
 			{
 				gl.ActiveTexture(GL_TEXTURE0 + first + i);
 				gl.BindTexture(descriptor.handle >> 40, descriptor.handle & 0xFFFFFFFF);
