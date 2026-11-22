@@ -1517,7 +1517,7 @@ extern "C" void APIENTRY glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 extern "C" void APIENTRY glVertex2d(GLdouble x, GLdouble y)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2d);
 	trampoline(x, y);
@@ -1525,7 +1525,7 @@ extern "C" void APIENTRY glVertex2d(GLdouble x, GLdouble y)
 extern "C" void APIENTRY glVertex2dv(const GLdouble *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2dv);
 	trampoline(v);
@@ -1533,7 +1533,7 @@ extern "C" void APIENTRY glVertex2dv(const GLdouble *v)
 extern "C" void APIENTRY glVertex2f(GLfloat x, GLfloat y)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2f);
 	trampoline(x, y);
@@ -1541,7 +1541,7 @@ extern "C" void APIENTRY glVertex2f(GLfloat x, GLfloat y)
 extern "C" void APIENTRY glVertex2fv(const GLfloat *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2fv);
 	trampoline(v);
@@ -1549,7 +1549,7 @@ extern "C" void APIENTRY glVertex2fv(const GLfloat *v)
 extern "C" void APIENTRY glVertex2i(GLint x, GLint y)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2i);
 	trampoline(x, y);
@@ -1557,7 +1557,7 @@ extern "C" void APIENTRY glVertex2i(GLint x, GLint y)
 extern "C" void APIENTRY glVertex2iv(const GLint *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2iv);
 	trampoline(v);
@@ -1565,7 +1565,7 @@ extern "C" void APIENTRY glVertex2iv(const GLint *v)
 extern "C" void APIENTRY glVertex2s(GLshort x, GLshort y)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2s);
 	trampoline(x, y);
@@ -1573,7 +1573,7 @@ extern "C" void APIENTRY glVertex2s(GLshort x, GLshort y)
 extern "C" void APIENTRY glVertex2sv(const GLshort *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 2;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex2sv);
 	trampoline(v);
@@ -1581,7 +1581,7 @@ extern "C" void APIENTRY glVertex2sv(const GLshort *v)
 extern "C" void APIENTRY glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3d);
 	trampoline(x, y, z);
@@ -1589,7 +1589,7 @@ extern "C" void APIENTRY glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 extern "C" void APIENTRY glVertex3dv(const GLdouble *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3dv);
 	trampoline(v);
@@ -1597,7 +1597,7 @@ extern "C" void APIENTRY glVertex3dv(const GLdouble *v)
 extern "C" void APIENTRY glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3f);
 	trampoline(x, y, z);
@@ -1605,7 +1605,7 @@ extern "C" void APIENTRY glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 extern "C" void APIENTRY glVertex3fv(const GLfloat *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3fv);
 	trampoline(v);
@@ -1613,7 +1613,7 @@ extern "C" void APIENTRY glVertex3fv(const GLfloat *v)
 extern "C" void APIENTRY glVertex3i(GLint x, GLint y, GLint z)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3i);
 	trampoline(x, y, z);
@@ -1621,7 +1621,7 @@ extern "C" void APIENTRY glVertex3i(GLint x, GLint y, GLint z)
 extern "C" void APIENTRY glVertex3iv(const GLint *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3iv);
 	trampoline(v);
@@ -1629,7 +1629,7 @@ extern "C" void APIENTRY glVertex3iv(const GLint *v)
 extern "C" void APIENTRY glVertex3s(GLshort x, GLshort y, GLshort z)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3s);
 	trampoline(x, y, z);
@@ -1637,7 +1637,7 @@ extern "C" void APIENTRY glVertex3s(GLshort x, GLshort y, GLshort z)
 extern "C" void APIENTRY glVertex3sv(const GLshort *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 3;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex3sv);
 	trampoline(v);
@@ -1645,7 +1645,7 @@ extern "C" void APIENTRY glVertex3sv(const GLshort *v)
 extern "C" void APIENTRY glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4d);
 	trampoline(x, y, z, w);
@@ -1653,7 +1653,7 @@ extern "C" void APIENTRY glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble
 extern "C" void APIENTRY glVertex4dv(const GLdouble *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4dv);
 	trampoline(v);
@@ -1661,7 +1661,7 @@ extern "C" void APIENTRY glVertex4dv(const GLdouble *v)
 extern "C" void APIENTRY glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4f);
 	trampoline(x, y, z, w);
@@ -1669,7 +1669,7 @@ extern "C" void APIENTRY glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 extern "C" void APIENTRY glVertex4fv(const GLfloat *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4fv);
 	trampoline(v);
@@ -1677,7 +1677,7 @@ extern "C" void APIENTRY glVertex4fv(const GLfloat *v)
 extern "C" void APIENTRY glVertex4i(GLint x, GLint y, GLint z, GLint w)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4i);
 	trampoline(x, y, z, w);
@@ -1685,7 +1685,7 @@ extern "C" void APIENTRY glVertex4i(GLint x, GLint y, GLint z, GLint w)
 extern "C" void APIENTRY glVertex4iv(const GLint *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4iv);
 	trampoline(v);
@@ -1693,7 +1693,7 @@ extern "C" void APIENTRY glVertex4iv(const GLint *v)
 extern "C" void APIENTRY glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4s);
 	trampoline(x, y, z, w);
@@ -1701,7 +1701,7 @@ extern "C" void APIENTRY glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 extern "C" void APIENTRY glVertex4sv(const GLshort *v)
 {
 	if (g_opengl_context)
-		g_opengl_context->_current_vertex_count += 4;
+		++g_opengl_context->_current_vertex_count;
 
 	static const auto trampoline = reshade::hooks::call(glVertex4sv);
 	trampoline(v);
