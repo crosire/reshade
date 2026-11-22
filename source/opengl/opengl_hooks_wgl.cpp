@@ -722,13 +722,13 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 		"Redirecting wglCreateContextAttribsARB(hdc = %p, hShareContext = %p, piAttribList = %p) ...",
 		hdc, hShareContext, piAttribList);
 
-	int attribs[8 * 2] = {};
-	int i = 0, major = 1, minor = 0, flags = 0, compatibility = false;
+	std::vector<int> attribs;
+	int major = 1, minor = 0, flags = 0, compatibility = false;
 
-	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5 * 2; attrib += 2)
+	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
-		attribs[i++] = attrib[0];
-		attribs[i++] = attrib[1];
+		attribs.push_back(attrib[0]);
+		attribs.push_back(attrib[1]);
 
 		switch (attrib[0])
 		{
@@ -768,10 +768,10 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 #endif
 
 	// This works because the specs specifically notes that "If an attribute is specified more than once, then the last value specified is used."
-	attribs[i++] = WGL_CONTEXT_FLAGS_ARB;
-	attribs[i++] = flags;
-	attribs[i++] = WGL_CONTEXT_PROFILE_MASK_ARB;
-	attribs[i++] = compatibility ? WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
+	attribs.push_back(WGL_CONTEXT_FLAGS_ARB);
+	attribs.push_back(flags);
+	attribs.push_back(WGL_CONTEXT_PROFILE_MASK_ARB);
+	attribs.push_back(compatibility ? WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
 
 	reshade::log::message(reshade::log::level::info, "Requesting %s OpenGL context for version %d.%d.", compatibility ? "compatibility" : "core", major, minor);
 
@@ -779,7 +779,7 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 	{
 		reshade::log::message(reshade::log::level::info, "> Replacing requested version with 4.3.");
 
-		for (int k = 0; k < i; k += 2)
+		for (size_t k = 0; k < attribs.size(); k += 2)
 		{
 			switch (attribs[k])
 			{
@@ -796,7 +796,10 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 		}
 	}
 
-	const HGLRC hglrc = reshade::hooks::call(wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
+	// Terminate attribute list
+	attribs.push_back(0);
+
+	const HGLRC hglrc = reshade::hooks::call(wglCreateContextAttribsARB)(hdc, hShareContext, attribs.data());
 	if (hglrc == nullptr)
 	{
 		reshade::log::message(reshade::log::level::warning, "wglCreateContextAttribsARB failed with error code %lu.", GetLastError() & 0xFFFF);
