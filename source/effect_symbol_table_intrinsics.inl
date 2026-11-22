@@ -1158,7 +1158,7 @@ DEFINE_INTRINSIC(round, 0, float2, float2)
 DEFINE_INTRINSIC(round, 0, float3, float3)
 DEFINE_INTRINSIC(round, 0, float4, float4)
 IMPLEMENT_INTRINSIC_GLSL(round, 0, {
-	code += "round(" + id_to_name(args[0].base) + ')';
+	code += "roundEven(" + id_to_name(args[0].base) + ')';
 	})
 IMPLEMENT_INTRINSIC_HLSL(round, 0, {
 	code += "round(" + id_to_name(args[0].base) + ')';
@@ -1167,7 +1167,7 @@ IMPLEMENT_INTRINSIC_SPIRV(round, 0, {
 	return
 	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
-		.add(spv::GLSLstd450Round)
+		.add(spv::GLSLstd450RoundEven)
 		.add(args[0].base);
 	})
 
