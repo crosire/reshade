@@ -1112,10 +1112,9 @@ bool reshade::vulkan::device_impl::map_texture_region(api::resource resource, ui
 
 	return false;
 }
-void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, uint32_t subresource)
+void reshade::vulkan::device_impl::unmap_texture_region(api::resource resource, uint32_t)
 {
-	if (subresource != 0)
-		return;
+	// The whole memory was mapped in 'map_texture_region' regardless of the subresource, so always unmap it
 
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)resource.handle);
 	if (resource_data == nullptr)
@@ -2532,7 +2531,7 @@ void reshade::vulkan::device_impl::free_descriptor_tables(uint32_t count, const 
 
 void reshade::vulkan::device_impl::get_descriptor_heap_offset(api::descriptor_table table, uint32_t binding, uint32_t array_offset, api::descriptor_heap *heap, uint32_t *offset) const
 {
-	assert(heap != nullptr && offset != nullptr);
+	assert(heap != nullptr);
 
 	*heap = { 0 };
 	if (offset != nullptr)

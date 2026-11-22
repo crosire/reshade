@@ -82,21 +82,26 @@ void reshade::d3d12::command_list_immediate_impl::query_acceleration_structures(
 	if (SUCCEEDED(heap_object->GetPrivateData(extra_data_guid, &extra_data_size, &extra_data)))
 	{
 		const uint32_t query_size = get_query_size(type).first;
+		// Clamp to the queries available in the heap
+		const uint32_t copy_count = first < extra_data.count ? std::min(count, extra_data.count - first) : 0;
+		if (copy_count == 0)
+			return;
 
-		for (uint32_t i = 0; i < std::min(count, extra_data.count); ++i)
+		D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
+		barrier.Transition.pResource = heap_object;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		_orig->ResourceBarrier(1, &barrier);
+
+		// Copy the results of all queries written by the post-build info emitted above in one go
+		_orig->CopyBufferRegion(extra_data.readback_resource, static_cast<UINT64>(first) * query_size, heap_object, static_cast<UINT64>(first) * query_size, static_cast<UINT64>(copy_count) * query_size);
+
+		std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
+		_orig->ResourceBarrier(1, &barrier);
+
+		for (uint32_t i = 0; i < copy_count; ++i)
 		{
-			D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-			barrier.Transition.pResource = heap_object;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-			_orig->ResourceBarrier(1, &barrier);
-
-			_orig->CopyBufferRegion(extra_data.readback_resource, static_cast<UINT64>(first) * query_size, heap_object, static_cast<UINT64>(first) * query_size, query_size);
-
-			std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter);
-			_orig->ResourceBarrier(1, &barrier);
-
 			extra_data.fences[first + i].second++;
 			_current_query_fences.push_back(extra_data.fences[first + i]);
 		}

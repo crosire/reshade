@@ -179,7 +179,8 @@ namespace reshade::d3d12
 		}
 		bool allocate_transient(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
 		{
-			if (_heap == nullptr)
+			// Allocations need to fit into the transient range, since they cannot wrap around
+			if (_heap == nullptr || count > transient_size)
 				return false;
 
 			const std::unique_lock<std::shared_mutex> lock(_mutex);
@@ -284,11 +285,11 @@ namespace reshade::d3d12
 
 	private:
 		com_ptr<ID3D12DescriptorHeap> _heap;
-		SIZE_T _increment_size;
-		SIZE_T _static_heap_base;
-		UINT64 _static_heap_base_gpu;
-		SIZE_T _transient_heap_base;
-		UINT64 _transient_heap_base_gpu;
+		SIZE_T _increment_size = 0;
+		SIZE_T _static_heap_base = 0;
+		UINT64 _static_heap_base_gpu = 0;
+		SIZE_T _transient_heap_base = 0;
+		UINT64 _transient_heap_base_gpu = 0;
 		SIZE_T _current_static_index = 0;
 		UINT64 _current_transient_tail = 0;
 		std::vector<std::pair<UINT64, UINT64>> _free_list;
