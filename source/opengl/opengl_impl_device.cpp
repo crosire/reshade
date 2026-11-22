@@ -1195,8 +1195,6 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 
 		gl.TextureView(object, target, resource_object, internal_format, desc.texture.first_level, desc.texture.levels, desc.texture.first_layer, layers);
 
-		register_resource_view(target, object, resource);
-
 		gl.BindTexture(target, object);
 		gl.TexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, texture_swizzle);
 	}
@@ -1210,6 +1208,9 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		gl.DeleteTextures(1, &object);
 		return false;
 	}
+
+	if (desc.type != reshade::api::resource_view_type::buffer)
+		register_resource_view(target, object, resource);
 
 	*out_view = make_resource_view_handle(target, object, true);
 	return true;
