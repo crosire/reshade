@@ -1316,22 +1316,33 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 	// Disable custom allocator when pipeline may be overridden, so corresponding 'vkDestroyPipeline' is not called with mismatching callbacks
 	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
 		pAllocator = nullptr;
+	else if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>())
+		return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
-	VkResult result = VK_SUCCESS;
+	VkResult combined_result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		const VkGraphicsPipelineCreateInfo &create_info = pCreateInfos[i];
+		VkGraphicsPipelineCreateInfo create_info = pCreateInfos[i];
 
-		reshade::api::pipeline_flags flags;
+		VkPipelineCreateFlags2 create_flags;
 		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(
 				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO))
 		{
-			flags = reshade::vulkan::convert_pipeline_flags(flags_info->flags);
+			create_flags = flags_info->flags;
 		}
 		else
 		{
-			flags = reshade::vulkan::convert_pipeline_flags(create_info.flags);
+			create_flags = create_info.flags;
 		}
+
+		// Pipelines are created one by one, so a derivative pipeline cannot reference its base pipeline by index into the batch
+		if ((create_flags & VK_PIPELINE_CREATE_2_DERIVATIVE_BIT) != 0 && create_info.basePipelineIndex >= 0)
+		{
+			create_info.basePipelineHandle = pPipelines[create_info.basePipelineIndex];
+			create_info.basePipelineIndex = -1;
+		}
+
+		reshade::api::pipeline_flags flags = reshade::vulkan::convert_pipeline_flags(create_flags);
 
 		reshade::api::shader_desc pixel_desc = {};
 		reshade::api::shader_desc vertex_desc = {};
@@ -1540,6 +1551,7 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::sample_count, 1, &sample_count });
 		}
 
+		VkResult result;
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
@@ -1552,26 +1564,32 @@ VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache p
 			result = trampoline(device, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
 		}
 
-		if (result >= VK_SUCCESS)
+		if (result == VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
 				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{
-#if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::warning, "vkCreateGraphicsPipelines failed with error code %d.", static_cast<int>(result));
-#endif
+			// Remaining pipelines are still created, unless early return was requested (errors take precedence over 'VK_PIPELINE_COMPILE_REQUIRED')
+			if ((result < VK_SUCCESS && combined_result > VK_SUCCESS) || combined_result == VK_SUCCESS)
+				combined_result = result;
 
-			for (uint32_t k = 0; k < i; ++k)
-				vkDestroyPipeline(device, pPipelines[k], pAllocator);
-			for (uint32_t k = 0; k < createInfoCount; ++k)
-				pPipelines[k] = VK_NULL_HANDLE;
-			break;
+			if ((create_flags & VK_PIPELINE_CREATE_2_EARLY_RETURN_ON_FAILURE_BIT) != 0)
+			{
+				for (uint32_t k = i + 1; k < createInfoCount; ++k)
+					pPipelines[k] = VK_NULL_HANDLE;
+				break;
+			}
 		}
 	}
 
-	return result;
+#if RESHADE_VERBOSE_LOG
+	if (combined_result < VK_SUCCESS)
+		reshade::log::message(reshade::log::level::warning, "vkCreateGraphicsPipelines failed with error code %d.", static_cast<int>(combined_result));
+#endif
+
+	return combined_result;
 #else
 	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 #endif
@@ -1585,22 +1603,33 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 	// Disable custom allocator when pipeline may be overridden, so corresponding 'vkDestroyPipeline' is not called with mismatching callbacks
 	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
 		pAllocator = nullptr;
+	else if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>())
+		return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
-	VkResult result = VK_SUCCESS;
+	VkResult combined_result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		const VkComputePipelineCreateInfo &create_info = pCreateInfos[i];
+		VkComputePipelineCreateInfo create_info = pCreateInfos[i];
 
-		reshade::api::pipeline_flags flags;
+		VkPipelineCreateFlags2 create_flags;
 		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(
 				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO))
 		{
-			flags = reshade::vulkan::convert_pipeline_flags(flags_info->flags);
+			create_flags = flags_info->flags;
 		}
 		else
 		{
-			flags = reshade::vulkan::convert_pipeline_flags(create_info.flags);
+			create_flags = create_info.flags;
 		}
+
+		// Pipelines are created one by one, so a derivative pipeline cannot reference its base pipeline by index into the batch
+		if ((create_flags & VK_PIPELINE_CREATE_2_DERIVATIVE_BIT) != 0 && create_info.basePipelineIndex >= 0)
+		{
+			create_info.basePipelineHandle = pPipelines[create_info.basePipelineIndex];
+			create_info.basePipelineIndex = -1;
+		}
+
+		reshade::api::pipeline_flags flags = reshade::vulkan::convert_pipeline_flags(create_flags);
 
 		assert(create_info.stage.stage == VK_SHADER_STAGE_COMPUTE_BIT);
 
@@ -1626,6 +1655,7 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 			{ reshade::api::pipeline_subobject_type::flags, 1, &flags }
 		};
 
+		VkResult result;
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 		{
 			result = device_impl->create_pipeline(
@@ -1636,26 +1666,32 @@ VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipelineCache pi
 			result = trampoline(device, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
 		}
 
-		if (result >= VK_SUCCESS)
+		if (result == VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
 				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(std::size(subobjects)), subobjects, reshade::api::pipeline { (uint64_t)pPipelines[i] });
 		}
 		else
 		{
-#if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::warning, "vkCreateComputePipelines failed with error code %d.", static_cast<int>(result));
-#endif
+			// Remaining pipelines are still created, unless early return was requested (errors take precedence over 'VK_PIPELINE_COMPILE_REQUIRED')
+			if ((result < VK_SUCCESS && combined_result > VK_SUCCESS) || combined_result == VK_SUCCESS)
+				combined_result = result;
 
-			for (uint32_t k = 0; k < i; ++k)
-				vkDestroyPipeline(device, pPipelines[k], pAllocator);
-			for (uint32_t k = 0; k < createInfoCount; ++k)
-				pPipelines[k] = VK_NULL_HANDLE;
-			break;
+			if ((create_flags & VK_PIPELINE_CREATE_2_EARLY_RETURN_ON_FAILURE_BIT) != 0)
+			{
+				for (uint32_t k = i + 1; k < createInfoCount; ++k)
+					pPipelines[k] = VK_NULL_HANDLE;
+				break;
+			}
 		}
 	}
 
-	return result;
+#if RESHADE_VERBOSE_LOG
+	if (combined_result < VK_SUCCESS)
+		reshade::log::message(reshade::log::level::warning, "vkCreateComputePipelines failed with error code %d.", static_cast<int>(combined_result));
+#endif
+
+	return combined_result;
 #else
 	return trampoline(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 #endif
@@ -1670,22 +1706,33 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 	// Disable custom allocator when pipeline may be overridden, so corresponding 'vkDestroyPipeline' is not called with mismatching callbacks
 	if (reshade::has_addon_event<reshade::addon_event::create_pipeline>())
 		pAllocator = nullptr;
+	else if (!reshade::has_addon_event<reshade::addon_event::init_pipeline>())
+		return trampoline(device, deferredOperation, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 
-	VkResult result = VK_SUCCESS;
+	VkResult combined_result = VK_SUCCESS;
 	for (uint32_t i = 0; i < createInfoCount; ++i)
 	{
-		const VkRayTracingPipelineCreateInfoKHR &create_info = pCreateInfos[i];
+		VkRayTracingPipelineCreateInfoKHR create_info = pCreateInfos[i];
 
-		reshade::api::pipeline_flags flags;
+		VkPipelineCreateFlags2 create_flags;
 		if (const auto flags_info = find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(
 				create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO))
 		{
-			flags = reshade::vulkan::convert_pipeline_flags(flags_info->flags);
+			create_flags = flags_info->flags;
 		}
 		else
 		{
-			flags = reshade::vulkan::convert_pipeline_flags(create_info.flags);
+			create_flags = create_info.flags;
 		}
+
+		// Pipelines are created one by one, so a derivative pipeline cannot reference its base pipeline by index into the batch
+		if ((create_flags & VK_PIPELINE_CREATE_2_DERIVATIVE_BIT) != 0 && create_info.basePipelineIndex >= 0)
+		{
+			create_info.basePipelineHandle = pPipelines[create_info.basePipelineIndex];
+			create_info.basePipelineIndex = -1;
+		}
+
+		reshade::api::pipeline_flags flags = reshade::vulkan::convert_pipeline_flags(create_flags);
 
 		std::vector<reshade::api::shader_desc> raygen_desc;
 		std::vector<reshade::api::shader_desc> any_hit_desc;
@@ -1798,9 +1845,10 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 			{ reshade::api::pipeline_subobject_type::any_hit_shader, static_cast<uint32_t>(any_hit_desc.size()), any_hit_desc.data() },
 			{ reshade::api::pipeline_subobject_type::closest_hit_shader, static_cast<uint32_t>(closest_hit_desc.size()), closest_hit_desc.data() },
 			{ reshade::api::pipeline_subobject_type::miss_shader, static_cast<uint32_t>(miss_desc.size()), miss_desc.data() },
+			{ reshade::api::pipeline_subobject_type::intersection_shader, static_cast<uint32_t>(intersection_desc.size()), intersection_desc.data() },
 			{ reshade::api::pipeline_subobject_type::callable_shader, static_cast<uint32_t>(callable_desc.size()), callable_desc.data() },
 			{ reshade::api::pipeline_subobject_type::shader_groups, static_cast<uint32_t>(shader_groups.size()), shader_groups.data() },
-			{ reshade::api::pipeline_subobject_type::max_recursion_depth, create_info.groupCount, const_cast<uint32_t *>(&create_info.maxPipelineRayRecursionDepth) },
+			{ reshade::api::pipeline_subobject_type::max_recursion_depth, 1, const_cast<uint32_t *>(&create_info.maxPipelineRayRecursionDepth) },
 			{ reshade::api::pipeline_subobject_type::flags, 1, &flags },
 			{ reshade::api::pipeline_subobject_type::dynamic_pipeline_states, static_cast<uint32_t>(dynamic_states.size()), dynamic_states.data() },
 		};
@@ -1816,40 +1864,49 @@ VkResult VKAPI_CALL vkCreateRayTracingPipelinesKHR(VkDevice device, VkDeferredOp
 			subobjects.push_back({ reshade::api::pipeline_subobject_type::max_attribute_size, 1, const_cast<uint32_t *>(&create_info.pLibraryInterface->maxPipelineRayHitAttributeSize) });
 		}
 
+		VkResult result;
 		if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data()))
 		{
 			static_assert(sizeof(*pPipelines) == sizeof(reshade::api::pipeline));
-
-			assert(deferredOperation == VK_NULL_HANDLE);
 
 			result = device_impl->create_pipeline(
 				reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reinterpret_cast<reshade::api::pipeline *>(&pPipelines[i]), &create_info) ? VK_SUCCESS : VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		else
 		{
-			result = trampoline(device, deferredOperation, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
+			// Create pipeline synchronously even if a deferred operation was requested, since events need the finished pipeline
+			result = trampoline(device, VK_NULL_HANDLE, pipelineCache, 1, &create_info, pAllocator, &pPipelines[i]);
 		}
 
-		if (result >= VK_SUCCESS)
+		if (result == VK_SUCCESS)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(
 				device_impl, reshade::api::pipeline_layout { (uint64_t)create_info.layout }, static_cast<uint32_t>(subobjects.size()), subobjects.data(), reshade::api::pipeline {(uint64_t)pPipelines[i]});
 		}
 		else
 		{
-#if RESHADE_VERBOSE_LOG
-			reshade::log::message(reshade::log::level::warning, "vkCreateRayTracingPipelinesKHR failed with error code %d.", static_cast<int>(result));
-#endif
+			// Remaining pipelines are still created, unless early return was requested (errors take precedence over 'VK_PIPELINE_COMPILE_REQUIRED' or 'VK_OPERATION_NOT_DEFERRED_KHR')
+			if ((result < VK_SUCCESS && combined_result > VK_SUCCESS) || combined_result == VK_SUCCESS)
+				combined_result = result;
 
-			for (uint32_t k = 0; k < i; ++k)
-				vkDestroyPipeline(device, pPipelines[k], pAllocator);
-			for (uint32_t k = 0; k < createInfoCount; ++k)
-				pPipelines[k] = VK_NULL_HANDLE;
-			break;
+			if ((create_flags & VK_PIPELINE_CREATE_2_EARLY_RETURN_ON_FAILURE_BIT) != 0)
+			{
+				for (uint32_t k = i + 1; k < createInfoCount; ++k)
+					pPipelines[k] = VK_NULL_HANDLE;
+				break;
+			}
 		}
 	}
 
-	return result;
+	if (deferredOperation != VK_NULL_HANDLE && combined_result == VK_SUCCESS)
+		combined_result = VK_OPERATION_NOT_DEFERRED_KHR;
+
+#if RESHADE_VERBOSE_LOG
+	if (combined_result < VK_SUCCESS)
+		reshade::log::message(reshade::log::level::warning, "vkCreateRayTracingPipelinesKHR failed with error code %d.", static_cast<int>(combined_result));
+#endif
+
+	return combined_result;
 #else
 	return trampoline(device, deferredOperation, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
 #endif
