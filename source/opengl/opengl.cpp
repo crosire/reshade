@@ -3500,7 +3500,8 @@ void APIENTRY glViewportIndexedfv(GLuint index, const GLfloat *v)
 	trampoline(index, v);
 
 #if RESHADE_ADDON
-	if (g_opengl_context)
+	if (g_opengl_context &&
+		reshade::has_addon_event<reshade::addon_event::bind_viewports>())
 	{
 		const reshade::api::viewport viewport_data = { v[0], v[1], v[2], v[3], 0.0f, 1.0f };
 

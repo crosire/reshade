@@ -954,16 +954,15 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					if (levels == 0)
 					{
 						// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
-						gl.GetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &levels);
-						for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+						GLint max_level = 0;
+						gl.GetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &max_level);
+						for (levels = 1; levels <= max_level; ++levels)
 						{
+							GLint level_w = 0;
 							// Check if this mipmap level does exist
-							gl.GetTextureLevelParameteriv(object, level, GL_TEXTURE_WIDTH, &level_w);
+							gl.GetTextureLevelParameteriv(object, levels, GL_TEXTURE_WIDTH, &level_w);
 							if (0 == level_w)
-							{
-								levels = level;
 								break;
-							}
 						}
 					}
 				}
@@ -992,15 +991,14 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
 					if (levels == 0)
 					{
-						gl.GetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &levels);
-						for (GLsizei level = 1, level_w = 0; level < levels; ++level)
+						GLint max_level = 0;
+						gl.GetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &max_level);
+						for (levels = 1; levels <= max_level; ++levels)
 						{
-							gl.GetTexLevelParameteriv(level_target, level, GL_TEXTURE_WIDTH, &level_w);
+							GLint level_w = 0;
+							gl.GetTexLevelParameteriv(level_target, levels, GL_TEXTURE_WIDTH, &level_w);
 							if (0 == level_w)
-							{
-								levels = level;
 								break;
-							}
 						}
 					}
 				}
@@ -1916,7 +1914,7 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	const api::resource_desc desc = get_resource_desc(dst);
 
 	const GLuint level = dst_subresource % desc.texture.levels;
-	      GLuint layer = dst_subresource / desc.texture.levels;
+	const GLuint layer = dst_subresource / desc.texture.levels;
 
 	GLuint xoffset, yoffset, zoffset, width, height, depth;
 	if (dst_box != nullptr)
@@ -1937,12 +1935,8 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	}
 
 	GLenum level_target = target;
-	if (depth == 1 && (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY))
-	{
-		const GLuint face = layer % 6;
-		layer /= 6;
-		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-	}
+	if (depth == 1 && target == GL_TEXTURE_CUBE_MAP)
+		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + (layer % 6);
 
 	GLenum type, format = convert_upload_format(desc.texture.format, type);
 
@@ -1962,11 +1956,24 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	if (!packed_data_layout)
 	{
 		temp_pixels.resize(total_image_size);
-		uint8_t *dst_pixels = temp_pixels.data();
+
+		const size_t row_size = std::min(row_pitch, data.row_pitch);
+		// Block compressed formats have a row of blocks, rather than a row of pixels
+		const size_t num_rows = api::format_slice_pitch(desc.texture.format, 1, height);
 
 		for (size_t z = 0; z < depth; ++z)
-			for (size_t y = 0; y < height; ++y, dst_pixels += row_pitch)
-				std::memcpy(dst_pixels, pixels + z * data.slice_pitch + y * data.row_pitch, row_pitch);
+		{
+			const auto dst_slice = temp_pixels.data() + z * slice_pitch;
+			const auto src_slice = pixels + z * data.slice_pitch;
+
+			for (size_t y = 0; y < num_rows; ++y)
+			{
+				std::memcpy(
+					dst_slice + y * row_pitch,
+					src_slice + y * data.row_pitch,
+					row_size);
+			}
+		}
 
 		pixels = temp_pixels.data();
 	}

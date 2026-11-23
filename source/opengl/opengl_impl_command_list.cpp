@@ -1495,7 +1495,7 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 			gl.BindTexture(dst_target, dst_object);
 
 		const GLuint level = dst_subresource % dst_desc.texture.levels;
-		      GLuint layer = dst_subresource / dst_desc.texture.levels;
+		const GLuint layer = dst_subresource / dst_desc.texture.levels;
 
 		if (dst_box == nullptr)
 		{
@@ -1505,12 +1505,8 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 		}
 
 		GLenum level_target = dst_target;
-		if (depth == 1 && (dst_target == GL_TEXTURE_CUBE_MAP || dst_target == GL_TEXTURE_CUBE_MAP_ARRAY))
-		{
-			const GLuint face = layer % 6;
-			layer /= 6;
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		}
+		if (depth == 1 && dst_target == GL_TEXTURE_CUBE_MAP)
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + (layer % 6);
 
 		const auto row_pitch = api::format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : width);
 		const auto slice_pitch = api::format_slice_pitch(dst_desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);

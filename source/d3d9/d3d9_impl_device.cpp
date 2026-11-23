@@ -1132,18 +1132,22 @@ void reshade::d3d9::device_impl::update_texture_region(const api::subresource_da
 		}
 		else
 		{
-			const size_t row_size = std::min(mapped_data.row_pitch, data.row_pitch);
+			size_t row_size = api::format_row_pitch(desc.texture.format, width);
+			row_size = std::min(row_size, static_cast<size_t>(std::min(mapped_data.row_pitch, data.row_pitch)));
+			// Block compressed formats have a row of blocks, rather than a row of pixels
+			const size_t num_rows = api::format_slice_pitch(desc.texture.format, 1, height);
 
 			for (size_t z = 0; z < depth; ++z)
 			{
 				const auto dst_slice = static_cast<uint8_t *>(mapped_data.data) + z * mapped_data.slice_pitch;
 				const auto src_slice = static_cast<const uint8_t *>(data.data) + z * data.slice_pitch;
 
-				for (size_t y = 0; y < height; ++y)
+				for (size_t y = 0; y < num_rows; ++y)
 				{
 					std::memcpy(
 						dst_slice + y * mapped_data.row_pitch,
-						src_slice + y * data.row_pitch, row_size);
+						src_slice + y * data.row_pitch,
+						row_size);
 				}
 			}
 		}
@@ -1359,17 +1363,7 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 		}
 	}
 
-	if (FAILED(_orig->BeginStateBlock()))
-		goto exit_failure;
-
-	_orig->SetVertexShader(vertex_shader.get());
-	_orig->SetPixelShader(pixel_shader.get());
-
-	if (input_layout != nullptr)
-	{
-		_orig->SetVertexDeclaration(input_layout.get());
-	}
-	else
+	if (input_layout == nullptr)
 	{
 		// Resize vertex buffer which holds vertex indices when necessary
 		D3DVERTEXBUFFER_DESC default_input_stream_desc;
@@ -1407,7 +1401,21 @@ bool reshade::d3d9::device_impl::create_pipeline(api::pipeline_layout, uint32_t 
 				goto exit_failure;
 			}
 		}
+	}
 
+	// Start recording state block
+	if (FAILED(_orig->BeginStateBlock()))
+		goto exit_failure;
+
+	_orig->SetVertexShader(vertex_shader.get());
+	_orig->SetPixelShader(pixel_shader.get());
+
+	if (input_layout != nullptr)
+	{
+		_orig->SetVertexDeclaration(input_layout.get());
+	}
+	else
+	{
 		// Setup default input (so that vertex shaders can get the vertex IDs)
 		_orig->SetStreamSource(0, _default_input_stream.get(), 0, sizeof(float));
 		_orig->SetVertexDeclaration(_default_input_layout.get());
