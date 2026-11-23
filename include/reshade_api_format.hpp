@@ -527,7 +527,7 @@ namespace reshade::api
 			return  8 * width;
 		if (value <= format::x24_unorm_g8_uint || value == format::l16a16_unorm)
 			return  4 * width;
-		if (value <= format::r16_sint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm || value == format::l8a8_unorm || value == format::l16_unorm)
+		if (value <= format::r16_sint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm || value == format::b4g4r4a4_unorm || value == format::a4b4g4r4_unorm || value == format::l8a8_unorm || value == format::l16_unorm)
 			return  2 * width;
 		if (value <= format::a8_unorm || value == format::l8_unorm)
 			return  1 * width;
