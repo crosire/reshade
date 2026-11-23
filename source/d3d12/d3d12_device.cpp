@@ -725,29 +725,26 @@ void    STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRan
 					copies[num_copies].source_binding = 0;
 					copies[num_copies].source_array_offset = 0;
 
-					if (src_count <= (dst_count - dst_offset))
+					if ((src_count - src_offset) <= (dst_count - dst_offset))
 					{
-						copies[num_copies].count = src_count;
+						// Copy the rest of the source range and continue with the next one
+						copies[num_copies].count = src_count - src_offset;
 
 						src_range += 1;
 						src_offset = 0;
-						dst_offset += src_count;
+						dst_offset += copies[num_copies].count;
 					}
 					else
 					{
-						copies[num_copies].count = 1;
+						// Fill the rest of the destination range and continue in the same source range
+						copies[num_copies].count = dst_count - dst_offset;
 
-						src_offset += 1;
-						dst_offset += 1;
-
-						if (src_offset >= src_count)
-						{
-							src_range += 1;
-							src_offset = 0;
-						}
+						src_offset += copies[num_copies].count;
+						dst_offset = dst_count;
 					}
 
-					num_copies++;
+					if (copies[num_copies].count != 0)
+						num_copies++;
 				}
 			}
 
