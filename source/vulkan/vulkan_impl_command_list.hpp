@@ -94,6 +94,7 @@ namespace reshade::vulkan
 		uint32_t current_subpass = std::numeric_limits<uint32_t>::max();
 		VkRenderPass current_render_pass = VK_NULL_HANDLE;
 		VkFramebuffer current_framebuffer = VK_NULL_HANDLE;
+		std::vector<VkImageView> current_imageless_attachments;
 		VkImageView current_color_attachments[8] = {};
 		VkImageView current_depth_stencil_attachment = VK_NULL_HANDLE;
 #endif

@@ -30,8 +30,13 @@ static bool invoke_begin_render_pass_event(const reshade::vulkan::device_impl *d
 				find_in_structure_chain<VkRenderPassAttachmentBeginInfo>(
 					begin_info, VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO))
 		{
-			attachments = attachment_begin_info->pAttachments;
-			assert(subpass.num_color_attachments <= attachment_begin_info->attachmentCount);
+			// These are only provided at the beginning of the render pass, so need to remember them for subsequent subpasses
+			cmd_impl->current_imageless_attachments.assign(attachment_begin_info->pAttachments, attachment_begin_info->pAttachments + attachment_begin_info->attachmentCount);
+		}
+
+		if (!cmd_impl->current_imageless_attachments.empty())
+		{
+			attachments = cmd_impl->current_imageless_attachments.data();
 		}
 		else
 		{
@@ -245,13 +250,17 @@ VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 #if RESHADE_ADDON
 	const auto cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-	if (cmd_impl->current_render_pass != VK_NULL_HANDLE)
+	if (cmd_impl->_is_in_render_pass)
 	{
 		reshade::invoke_addon_event<reshade::addon_event::end_render_pass>(cmd_impl);
 
 		cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 		cmd_impl->current_render_pass = VK_NULL_HANDLE;
 		cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+		cmd_impl->current_imageless_attachments.clear();
+
+		std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
+		cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
 
 		cmd_impl->_is_in_render_pass = 0;
 	}
@@ -816,26 +825,21 @@ void VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage imag
 	{
 		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		transition.oldLayout = imageLayout;
-		transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.image = image;
-		transition.subresourceRange.baseMipLevel = std::numeric_limits<uint32_t>::max();
-		transition.subresourceRange.baseArrayLayer = std::numeric_limits<uint32_t>::max();
-
+		temp_mem<VkImageMemoryBarrier> transitions(rangeCount);
 		for (uint32_t i = 0; i < rangeCount; ++i)
 		{
-			transition.subresourceRange.aspectMask |= pRanges[i].aspectMask;
-			transition.subresourceRange.baseMipLevel = std::min(transition.subresourceRange.baseMipLevel, pRanges[i].baseMipLevel);
-			transition.subresourceRange.levelCount = std::max(transition.subresourceRange.levelCount, pRanges[i].levelCount);
-			transition.subresourceRange.baseArrayLayer = std::min(transition.subresourceRange.baseArrayLayer, pRanges[i].baseArrayLayer);
-			transition.subresourceRange.layerCount = std::max(transition.subresourceRange.layerCount, pRanges[i].layerCount);
+			VkImageMemoryBarrier &transition = transitions[i];
+			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			transition.oldLayout = imageLayout;
+			transition.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.image = image;
+			transition.subresourceRange = pRanges[i];
 		}
 
 		// The 'clear_render_target_view' event assumes the resource to be in 'resource_usage::render_target' state, so need to transition here
-		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, rangeCount, transitions.p);
 
 		const VkImageView default_view = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(image)->default_view;
 		assert(default_view != VK_NULL_HANDLE); // A default view is created for every image that can potentially be cleared, see 'create_default_view' in vulkan_hooks_device.cpp
@@ -843,8 +847,9 @@ void VKAPI_CALL vkCmdClearColorImage(VkCommandBuffer commandBuffer, VkImage imag
 		const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(cmd_impl, reshade::api::resource_view { (uint64_t)default_view }, pColor->float32, 0, nullptr);
 
 		// Revert back to previous state
-		std::swap(transition.oldLayout, transition.newLayout);
-		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		for (uint32_t i = 0; i < rangeCount; ++i)
+			std::swap(transitions[i].oldLayout, transitions[i].newLayout);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, rangeCount, transitions.p);
 
 		if (skip)
 			return;
@@ -863,26 +868,40 @@ void VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkIma
 	{
 		reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
-		VkImageMemoryBarrier transition { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		transition.oldLayout = imageLayout;
-		transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		transition.image = image;
-		transition.subresourceRange.baseMipLevel = std::numeric_limits<uint32_t>::max();
-		transition.subresourceRange.baseArrayLayer = std::numeric_limits<uint32_t>::max();
-
+		VkImageAspectFlags aspect_mask = 0;
+		uint32_t num_transitions = 0;
+		temp_mem<VkImageMemoryBarrier> transitions(rangeCount);
 		for (uint32_t i = 0; i < rangeCount; ++i)
 		{
-			transition.subresourceRange.aspectMask |= pRanges[i].aspectMask;
-			transition.subresourceRange.baseMipLevel = std::min(transition.subresourceRange.baseMipLevel, pRanges[i].baseMipLevel);
-			transition.subresourceRange.levelCount = std::max(transition.subresourceRange.levelCount, pRanges[i].levelCount);
-			transition.subresourceRange.baseArrayLayer = std::min(transition.subresourceRange.baseArrayLayer, pRanges[i].baseArrayLayer);
-			transition.subresourceRange.layerCount = std::max(transition.subresourceRange.layerCount, pRanges[i].layerCount);
+			aspect_mask |= pRanges[i].aspectMask;
+
+			// Depth and stencil aspect of the same subresources may be specified in separate ranges, but have to be transitioned together without the 'separateDepthStencilLayouts' feature
+			const auto existing_transition = std::find_if(transitions.p, transitions.p + num_transitions,
+				[&range = pRanges[i]](const VkImageMemoryBarrier &transition) {
+					return
+						transition.subresourceRange.baseMipLevel == range.baseMipLevel &&
+						transition.subresourceRange.levelCount == range.levelCount &&
+						transition.subresourceRange.baseArrayLayer == range.baseArrayLayer &&
+						transition.subresourceRange.layerCount == range.layerCount;
+				});
+			if (existing_transition != transitions.p + num_transitions)
+			{
+				existing_transition->subresourceRange.aspectMask |= pRanges[i].aspectMask;
+				continue;
+			}
+
+			VkImageMemoryBarrier &transition = transitions[num_transitions++];
+			transition = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			transition.oldLayout = imageLayout;
+			transition.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			transition.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			transition.image = image;
+			transition.subresourceRange = pRanges[i];
 		}
 
 		// The 'clear_depth_stencil_view' event assumes the resource to be in 'resource_usage::depth_stencil' state, so need to transition here
-		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
 
 		const VkImageView default_view = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(image)->default_view;
 		assert(default_view != VK_NULL_HANDLE); // A default view is created for every image that can potentially be cleared, see 'create_default_view' in vulkan_hooks_device.cpp
@@ -890,13 +909,14 @@ void VKAPI_CALL vkCmdClearDepthStencilImage(VkCommandBuffer commandBuffer, VkIma
 		const bool skip = reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 			cmd_impl,
 			reshade::api::resource_view { (uint64_t)default_view },
-			transition.subresourceRange.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ? &pDepthStencil->depth : nullptr,
-			transition.subresourceRange.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT ? reinterpret_cast<const uint8_t *>(&pDepthStencil->stencil) : nullptr,
+			aspect_mask & VK_IMAGE_ASPECT_DEPTH_BIT ? &pDepthStencil->depth : nullptr,
+			aspect_mask & VK_IMAGE_ASPECT_STENCIL_BIT ? reinterpret_cast<const uint8_t *>(&pDepthStencil->stencil) : nullptr,
 			0, nullptr);
 
 		// Revert back to previous state
-		std::swap(transition.oldLayout, transition.newLayout);
-		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &transition);
+		for (uint32_t i = 0; i < num_transitions; ++i)
+			std::swap(transitions[i].oldLayout, transitions[i].newLayout);
+		device_impl->_dispatch_table.CmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, num_transitions, transitions.p);
 
 		if (skip)
 			return;
@@ -934,10 +954,10 @@ void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
 
 			if (clear_attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				assert(clear_attachment.colorAttachment < 8);
-				assert(cmd_impl->current_color_attachments[clear_attachment.colorAttachment] != VK_NULL_HANDLE);
-
-				if (reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
+				// Attachment may be unused or unknown at this point
+				if (clear_attachment.colorAttachment < 8 &&
+					cmd_impl->current_color_attachments[clear_attachment.colorAttachment] != VK_NULL_HANDLE &&
+					reshade::invoke_addon_event<reshade::addon_event::clear_render_target_view>(
 						cmd_impl,
 						reshade::api::resource_view { (uint64_t)cmd_impl->current_color_attachments[clear_attachment.colorAttachment] },
 						clear_attachment.clearValue.color.float32,
@@ -946,9 +966,8 @@ void VKAPI_CALL vkCmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t at
 			}
 			else if (clear_attachment.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 			{
-				assert(cmd_impl->current_depth_stencil_attachment != VK_NULL_HANDLE);
-
-				if (reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
+				if (cmd_impl->current_depth_stencil_attachment != VK_NULL_HANDLE &&
+					reshade::invoke_addon_event<reshade::addon_event::clear_depth_stencil_view>(
 						cmd_impl,
 						reshade::api::resource_view { (uint64_t)cmd_impl->current_depth_stencil_attachment },
 						clear_attachment.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ? &clear_attachment.clearValue.depthStencil.depth : nullptr,
@@ -1234,6 +1253,7 @@ void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 	cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 	cmd_impl->current_render_pass = VK_NULL_HANDLE;
 	cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+	cmd_impl->current_imageless_attachments.clear();
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
@@ -1376,6 +1396,7 @@ void VKAPI_CALL vkCmdEndRenderPass2(VkCommandBuffer commandBuffer, const VkSubpa
 	cmd_impl->current_subpass = std::numeric_limits<uint32_t>::max();
 	cmd_impl->current_render_pass = VK_NULL_HANDLE;
 	cmd_impl->current_framebuffer = VK_NULL_HANDLE;
+	cmd_impl->current_imageless_attachments.clear();
 
 	std::memset(cmd_impl->current_color_attachments, 0, sizeof(cmd_impl->current_color_attachments));
 	cmd_impl->current_depth_stencil_attachment = VK_NULL_HANDLE;
