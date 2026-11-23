@@ -720,7 +720,7 @@ IMPLEMENT_INTRINSIC_SPIRV(clamp, 2, {
 	return
 	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
-		.add(spv::GLSLstd450FClamp)
+		.add(spv::GLSLstd450NClamp)
 		.add(args[0].base)
 		.add(args[1].base)
 		.add(args[2].base);
@@ -744,7 +744,7 @@ IMPLEMENT_INTRINSIC_SPIRV(saturate, 0, {
 	return
 	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
-		.add(spv::GLSLstd450FClamp)
+		.add(spv::GLSLstd450NClamp)
 		.add(args[0].base)
 		.add(constant_zero)
 		.add(constant_one);
@@ -1204,7 +1204,7 @@ IMPLEMENT_INTRINSIC_SPIRV(min, 1, {
 	return
 	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
-		.add(spv::GLSLstd450FMin)
+		.add(spv::GLSLstd450NMin)
 		.add(args[0].base)
 		.add(args[1].base);
 	})
@@ -1242,7 +1242,7 @@ IMPLEMENT_INTRINSIC_SPIRV(max, 1, {
 	return
 	add_instruction(spv::OpExtInst, convert_type(res_type))
 		.add(_glsl_ext)
-		.add(spv::GLSLstd450FMax)
+		.add(spv::GLSLstd450NMax)
 		.add(args[0].base)
 		.add(args[1].base);
 	})
