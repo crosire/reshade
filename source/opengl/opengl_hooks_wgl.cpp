@@ -762,16 +762,7 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 
 	if (major < 3 || (major == 3 && minor < 2))
 		compatibility = true;
-
-#ifndef NDEBUG
-	flags |= WGL_CONTEXT_DEBUG_BIT_ARB;
-#endif
-
-	// This works because the specs specifically notes that "If an attribute is specified more than once, then the last value specified is used."
-	attribs.push_back(WGL_CONTEXT_FLAGS_ARB);
-	attribs.push_back(flags);
-	attribs.push_back(WGL_CONTEXT_PROFILE_MASK_ARB);
-	attribs.push_back(compatibility ? WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
+	const bool legacy_context = compatibility;
 
 	reshade::log::message(reshade::log::level::info, "Requesting %s OpenGL context for version %d.%d.", compatibility ? "compatibility" : "core", major, minor);
 
@@ -779,22 +770,24 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 	{
 		reshade::log::message(reshade::log::level::info, "> Replacing requested version with 4.3.");
 
-		for (size_t k = 0; k < attribs.size(); k += 2)
-		{
-			switch (attribs[k])
-			{
-			case WGL_CONTEXT_MAJOR_VERSION_ARB:
-				attribs[k + 1] = 4;
-				break;
-			case WGL_CONTEXT_MINOR_VERSION_ARB:
-				attribs[k + 1] = 3;
-				break;
-			case WGL_CONTEXT_PROFILE_MASK_ARB:
-				attribs[k + 1] = WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
-				break;
-			}
-		}
+		major = 4;
+		minor = 3;
+		compatibility = true;
 	}
+
+#ifndef NDEBUG
+	flags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+#endif
+
+	// This works because the specs specifically notes that "If an attribute is specified more than once, then the last value specified is used."
+	attribs.push_back(WGL_CONTEXT_MAJOR_VERSION_ARB);
+	attribs.push_back(major);
+	attribs.push_back(WGL_CONTEXT_MINOR_VERSION_ARB);
+	attribs.push_back(minor);
+	attribs.push_back(WGL_CONTEXT_FLAGS_ARB);
+	attribs.push_back(flags);
+	attribs.push_back(WGL_CONTEXT_PROFILE_MASK_ARB);
+	attribs.push_back(compatibility ? WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
 
 	// Terminate attribute list
 	attribs.push_back(0);
@@ -808,7 +801,7 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
 
-		if (compatibility)
+		if (legacy_context)
 			s_legacy_contexts.emplace(hglrc);
 
 		s_shared_contexts[hglrc] = hShareContext;
