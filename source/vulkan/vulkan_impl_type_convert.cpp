@@ -207,10 +207,10 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 	case api::format::r32g32b32a32_float:
 		return VK_FORMAT_R32G32B32A32_SFLOAT;
 
-	case api::format::r9g9b9e5:
-		return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
-	case api::format::r11g11b10_float:
-		return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+	case api::format::b4g4r4a4_unorm:
+		return VK_FORMAT_A4R4G4B4_UNORM_PACK16;
+	case api::format::a4b4g4r4_unorm:
+		return VK_FORMAT_A4B4G4R4_UNORM_PACK16;
 	case api::format::b5g6r5_unorm:
 		return VK_FORMAT_R5G6B5_UNORM_PACK16;
 	case api::format::b5g5r5x1_unorm:
@@ -219,10 +219,10 @@ auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *com
 		[[fallthrough]];
 	case api::format::b5g5r5a1_unorm:
 		return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
-	case api::format::b4g4r4a4_unorm:
-		return VK_FORMAT_A4R4G4B4_UNORM_PACK16;
-	case api::format::a4b4g4r4_unorm:
-		return VK_FORMAT_A4B4G4R4_UNORM_PACK16;
+	case api::format::r9g9b9e5:
+		return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+	case api::format::r11g11b10_float:
+		return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 
 	case api::format::s8_uint:
 		return VK_FORMAT_S8_UINT;
@@ -488,10 +488,10 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 	case VK_FORMAT_R32G32B32A32_SFLOAT:
 		return api::format::r32g32b32a32_float;
 
-	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
-		return api::format::r9g9b9e5;
-	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
-		return api::format::r11g11b10_float;
+	case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
+		return api::format::b4g4r4a4_unorm;
+	case VK_FORMAT_A4B4G4R4_UNORM_PACK16:
+		return api::format::a4b4g4r4_unorm;
 	case VK_FORMAT_R5G6B5_UNORM_PACK16:
 		return api::format::b5g6r5_unorm;
 	case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
@@ -502,10 +502,10 @@ auto reshade::vulkan::convert_format(VkFormat vk_format, const VkComponentMappin
 			components->a == VK_COMPONENT_SWIZZLE_ONE)
 			return api::format::b5g5r5x1_unorm;
 		return api::format::b5g5r5a1_unorm;
-	case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
-		return api::format::b4g4r4a4_unorm;
-	case VK_FORMAT_A4B4G4R4_UNORM_PACK16:
-		return api::format::a4b4g4r4_unorm;
+	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+		return api::format::r9g9b9e5;
+	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+		return api::format::r11g11b10_float;
 
 	case VK_FORMAT_D16_UNORM:
 		return api::format::d16_unorm;

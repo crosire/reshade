@@ -120,13 +120,13 @@ namespace reshade::api
 		r32g32b32a32_uint = 3,
 		r32g32b32a32_sint = 4,
 
-		r9g9b9e5 = 67,
-		r11g11b10_float = 26,
+		b4g4r4a4_unorm = 115,
+		a4b4g4r4_unorm = 191,
 		b5g6r5_unorm = 85,
 		b5g5r5a1_unorm = 86,
 		b5g5r5x1_unorm = 0x424757B5,
-		b4g4r4a4_unorm = 115,
-		a4b4g4r4_unorm = 191,
+		r9g9b9e5 = 67,
+		r11g11b10_float = 26,
 
 		// Depth-stencil formats
 
@@ -527,7 +527,7 @@ namespace reshade::api
 			return  8 * width;
 		if (value <= format::x24_unorm_g8_uint || value == format::l16a16_unorm)
 			return  4 * width;
-		if (value <= format::r16_sint || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm || value == format::b4g4r4a4_unorm || value == format::a4b4g4r4_unorm || value == format::l8a8_unorm || value == format::l16_unorm)
+		if (value <= format::r16_sint || value == format::b4g4r4a4_unorm || value == format::a4b4g4r4_unorm || value == format::b5g6r5_unorm || value == format::b5g5r5a1_unorm || value == format::b5g5r5x1_unorm || value == format::l8a8_unorm || value == format::l16_unorm)
 			return  2 * width;
 		if (value <= format::a8_unorm || value == format::l8_unorm)
 			return  1 * width;
