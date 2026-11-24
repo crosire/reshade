@@ -180,7 +180,7 @@ bool reshade::d3d11::device_impl::check_format_support(api::format format, api::
 	if ((usage & api::resource_usage::unordered_access) != 0 && (support & D3D11_FORMAT_SUPPORT_TYPED_UNORDERED_ACCESS_VIEW) == 0)
 		return false;
 
-	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0 && (support & D3D10_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
+	if ((usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0 && (support & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE) == 0)
 		return false;
 
 	return true;

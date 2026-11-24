@@ -64,6 +64,7 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, res
 		if (usage == D3D11_USAGE_IMMUTABLE)
 			break;
 		usage = (flags & api::resource_flags::immutable) != 0 ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DEFAULT;
+		cpu_access_flags = 0;
 		break;
 	case api::memory_heap::upload:
 		usage = D3D11_USAGE_DYNAMIC;
@@ -980,7 +981,7 @@ reshade::api::resource_view_desc reshade::d3d11::convert_resource_view_desc(ID3D
 		{
 			desc.buffer.structured.count = internal_desc.BufferEx.NumElements;
 			desc.buffer.structured.stride = get_structure_byte_stride(resource);
-			if (desc.buffer.structured.count != 0)
+			if (desc.buffer.structured.stride != 0)
 				desc.buffer.offset *= desc.buffer.structured.stride;
 		}
 		else

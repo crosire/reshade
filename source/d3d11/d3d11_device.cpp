@@ -1572,6 +1572,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
+		internal_desc.ForcedSampleCount = pRasterizerDesc->ForcedSampleCount;
 		pRasterizerDesc = &internal_desc;
 	}
 #endif
@@ -1969,6 +1970,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
 		reshade::d3d11::convert_rasterizer_desc(desc, internal_desc);
+		internal_desc.ForcedSampleCount = pRasterizerDesc->ForcedSampleCount;
 		pRasterizerDesc = &internal_desc;
 	}
 #endif

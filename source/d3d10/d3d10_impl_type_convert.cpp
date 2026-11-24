@@ -29,6 +29,7 @@ static void convert_memory_heap_to_d3d_usage(reshade::api::memory_heap heap, res
 		if (usage == D3D10_USAGE_IMMUTABLE)
 			break;
 		usage = (flags & api::resource_flags::immutable) != 0 ? D3D10_USAGE_IMMUTABLE : D3D10_USAGE_DEFAULT;
+		cpu_access_flags = 0;
 		break;
 	case api::memory_heap::upload:
 		usage = D3D10_USAGE_DYNAMIC;
