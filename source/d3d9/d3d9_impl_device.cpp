@@ -1571,6 +1571,7 @@ bool reshade::d3d9::device_impl::create_pipeline_layout(uint32_t param_count, co
 			merged_range.binding = params[i].push_constants.binding;
 			merged_range.dx_register_index = params[i].push_constants.dx_register_index;
 			merged_range.dx_register_space = params[i].push_constants.dx_register_space;
+			merged_range.visibility = params[i].push_constants.visibility;
 			merged_range.type = api::descriptor_type::constant_buffer;
 			if (merged_range.dx_register_space != 0)
 				return false;

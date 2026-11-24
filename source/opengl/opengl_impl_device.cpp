@@ -2374,6 +2374,7 @@ bool reshade::opengl::device_impl::create_pipeline_layout(uint32_t param_count, 
 			break;
 		case api::pipeline_layout_param_type::push_constants:
 			merged_range.binding = params[i].push_constants.binding;
+			merged_range.visibility = params[i].push_constants.visibility;
 			merged_range.type = api::descriptor_type::constant_buffer;
 			break;
 		default:
@@ -2486,6 +2487,7 @@ void reshade::opengl::device_impl::copy_descriptor_tables(uint32_t count, const 
 			std::memcpy(&dst_table_impl->descriptors[dst_binding * 2], &src_table_impl->descriptors[src_binding * 2], copy.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
+		case api::descriptor_type::shader_storage_buffer:
 			std::memcpy(&dst_table_impl->descriptors[dst_binding * 3], &src_table_impl->descriptors[src_binding * 3], copy.count * sizeof(uint64_t) * 3);
 			break;
 		default:
@@ -2524,6 +2526,7 @@ void reshade::opengl::device_impl::update_descriptor_tables(uint32_t count, cons
 			std::memcpy(&table_impl->descriptors[update_binding * 2], update.descriptors, update.count * sizeof(uint64_t) * 2);
 			break;
 		case api::descriptor_type::constant_buffer:
+		case api::descriptor_type::shader_storage_buffer:
 			std::memcpy(&table_impl->descriptors[update_binding * 3], update.descriptors, update.count * sizeof(uint64_t) * 3);
 			break;
 		default:

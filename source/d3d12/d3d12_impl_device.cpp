@@ -1408,6 +1408,8 @@ bool reshade::d3d12::device_impl::create_pipeline_layout(uint32_t param_count, c
 						internal_static_sampler.RegisterSpace = range->dx_register_space;
 						internal_static_sampler.ShaderVisibility = convert_shader_visibility(range->visibility);
 					}
+
+					global_visibility_mask |= range->visibility;
 					continue;
 				}
 
