@@ -13,9 +13,9 @@
 
 D3D12CommandQueueDownlevel::D3D12CommandQueueDownlevel(D3D12CommandQueue *queue, ID3D12CommandQueueDownlevel *original) :
 	swapchain_d3d12on7_impl(queue->_device, original),
-	_parent_queue(queue)
+	_parent(queue)
 {
-	assert(_orig != nullptr && _parent_queue != nullptr);
+	assert(_orig != nullptr && _parent != nullptr);
 	assert(!_back_buffers.empty());
 
 	reshade::create_effect_runtime(this, queue);
@@ -48,15 +48,15 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::QueryInterface(REFIID riid
 		return S_OK;
 	}
 
-	return _parent_queue->QueryInterface(riid, ppvObj);
+	return _parent->QueryInterface(riid, ppvObj);
 }
 ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::AddRef()
 {
-	return _parent_queue->AddRef();
+	return _parent->AddRef();
 }
 ULONG   STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Release()
 {
-	return _parent_queue->Release();
+	return _parent->Release();
 }
 
 HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsCommandList *pOpenCommandList, ID3D12Resource *pSourceTex2D, HWND hWindow, D3D12_DOWNLEVEL_PRESENT_FLAGS Flags)
@@ -64,7 +64,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	assert(pSourceTex2D != nullptr);
 
 	// Synchronize access to this command queue while events are invoked and the immediate command list may be accessed
-	std::unique_lock<std::recursive_mutex> lock(_parent_queue->_mutex);
+	std::unique_lock<std::recursive_mutex> lock(_parent->_mutex);
 
 	_hwnd = hWindow;
 	_swap_index = (_swap_index + 1) % static_cast<UINT>(_back_buffers.size());
@@ -107,12 +107,12 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 	if (_back_buffers[0] != nullptr)
 	{
 #if RESHADE_ADDON
-		reshade::invoke_addon_event<reshade::addon_event::present>(_parent_queue, this, nullptr, nullptr, 0, nullptr);
+		reshade::invoke_addon_event<reshade::addon_event::present>(_parent, this, nullptr, nullptr, 0, nullptr);
 #endif
 
 		reshade::present_effect_runtime(this);
 
-		_parent_queue->flush_immediate_command_list();
+		_parent->flush_immediate_command_list();
 	}
 
 	lock.unlock();
@@ -127,7 +127,7 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 #if RESHADE_ADDON
 	if (SUCCEEDED(hr) && _back_buffers[0] != nullptr)
 	{
-		reshade::invoke_addon_event<reshade::addon_event::finish_present>(_parent_queue, this);
+		reshade::invoke_addon_event<reshade::addon_event::finish_present>(_parent, this);
 	}
 #endif
 

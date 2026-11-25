@@ -10,14 +10,14 @@
 DXGIDevice::DXGIDevice(IDXGIAdapter *adapter, IDXGIDevice1 *original) :
 	_orig(original),
 	_interface_version(1),
-	_parent_adapter(adapter)
+	_parent(adapter)
 {
-	assert(_orig != nullptr && _parent_adapter != nullptr);
-	_parent_adapter->AddRef();
+	assert(_orig != nullptr && _parent != nullptr);
+	_parent->AddRef();
 }
 DXGIDevice::~DXGIDevice()
 {
-	_parent_adapter->Release();
+	_parent->Release();
 }
 
 bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
@@ -61,12 +61,12 @@ bool DXGIDevice::check_and_upgrade_interface(REFIID riid)
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetParent(REFIID riid, void **ppParent)
 {
-	return _parent_adapter->QueryInterface(riid, ppParent);
+	return _parent->QueryInterface(riid, ppParent);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetAdapter(IDXGIAdapter **pAdapter)
 {
-	return _parent_adapter->QueryInterface(pAdapter);
+	return _parent->QueryInterface(pAdapter);
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::CreateSurface(const DXGI_SURFACE_DESC *pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE *pSharedResource, IDXGISurface **ppSurface)
 {

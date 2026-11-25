@@ -9,10 +9,10 @@
 
 DXGIAdapter::DXGIAdapter(IDXGIFactory *factory, IDXGIAdapter  *original) :
 	_orig(original),
-	_parent_factory(factory)
+	_parent(factory)
 {
-	assert(_orig != nullptr && _parent_factory != nullptr);
-	_parent_factory->AddRef();
+	assert(_orig != nullptr && _parent != nullptr);
+	_parent->AddRef();
 
 	// Add proxy object to the private data of the adapter, so that it can be retrieved again when only the original adapter is available
 	DXGIAdapter *const adapter_proxy = this;
@@ -28,7 +28,7 @@ DXGIAdapter::~DXGIAdapter()
 	// Remove pointer to this proxy object from the private data of the adapter
 	_orig->SetPrivateData(__uuidof(DXGIAdapter), 0, nullptr);
 
-	_parent_factory->Release();
+	_parent->Release();
 }
 
 bool DXGIAdapter::check_and_upgrade_interface(REFIID riid)
@@ -133,7 +133,7 @@ HRESULT STDMETHODCALLTYPE DXGIAdapter::GetPrivateData(REFGUID Name, UINT *pDataS
 }
 HRESULT STDMETHODCALLTYPE DXGIAdapter::GetParent(REFIID riid, void **ppParent)
 {
-	return _parent_factory->QueryInterface(riid, ppParent);
+	return _parent->QueryInterface(riid, ppParent);
 }
 
 HRESULT STDMETHODCALLTYPE DXGIAdapter::EnumOutputs(UINT Output, IDXGIOutput **ppOutput)

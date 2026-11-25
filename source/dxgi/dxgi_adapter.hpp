@@ -58,5 +58,5 @@ public:
 	unsigned short _interface_version = 0;
 
 private:
-	IDXGIFactory *const _parent_factory;
+	IDXGIFactory *const _parent;
 };

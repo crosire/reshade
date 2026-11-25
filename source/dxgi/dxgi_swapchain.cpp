@@ -22,13 +22,10 @@ extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_
 extern bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &desc, UINT &sync_interval, DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc, HWND window);
 #endif
 
-extern reshade::api::device_api query_device(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
+extern reshade::api::device_api get_device_proxy_d3dx(IUnknown *&device, com_ptr<IUnknown> &device_proxy);
 
 // Needs to be set whenever a DXGI call can end up in 'CDXGISwapChain::EnsureChildDeviceInternal', to avoid hooking internal D3D device creation
 thread_local bool g_in_dxgi_runtime = false;
-
-// SpecialK uses this private data GUID to track the current swap chain color space, so do the same
-inline constexpr GUID SKID_SwapChainColorSpace = { 0x18b57e4, 0x1493, 0x4953, { 0xad, 0xf2, 0xde, 0x6d, 0x99, 0xcc, 0x5, 0xe5 } }; // {018B57E4-1493-4953-ADF2-DE6D99CC05E5}
 
 DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISwapChain  *original) :
 	_orig(original),
@@ -36,11 +33,11 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D10Device *device, IDXGISw
 	_direct3d_device(static_cast<ID3D10Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(reshade::api::device_api::d3d10),
-	_parent_factory(factory),
+	_parent(factory),
 	_impl(new reshade::d3d10::swapchain_impl(device, original))
 {
-	assert(_orig != nullptr && _direct3d_device != nullptr && _parent_factory != nullptr);
-	_parent_factory->AddRef();
+	assert(_orig != nullptr && _direct3d_device != nullptr && _parent != nullptr);
+	_parent->AddRef();
 	// Explicitly add a reference to the device, to ensure it stays valid for the lifetime of this swap chain object
 	_direct3d_device->AddRef();
 
@@ -61,11 +58,11 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D11Device *device, IDXGISw
 	_direct3d_device(static_cast<ID3D11Device *>(device)),
 	_direct3d_command_queue(nullptr),
 	_direct3d_version(reshade::api::device_api::d3d11),
-	_parent_factory(factory),
+	_parent(factory),
 	_impl(new reshade::d3d11::swapchain_impl(device, original))
 {
-	assert(_orig != nullptr && _direct3d_device != nullptr && _parent_factory != nullptr);
-	_parent_factory->AddRef();
+	assert(_orig != nullptr && _direct3d_device != nullptr && _parent != nullptr);
+	_parent->AddRef();
 	_direct3d_device->AddRef();
 
 	DXGISwapChain *const swapchain_proxy = this;
@@ -84,11 +81,11 @@ DXGISwapChain::DXGISwapChain(IDXGIFactory *factory, D3D12CommandQueue *command_q
 	_direct3d_device(static_cast<ID3D12Device *>(static_cast<D3D12Device *>(command_queue->_device))), // Get the device instead of the command queue, so that 'IDXGISwapChain::GetDevice' works
 	_direct3d_command_queue(command_queue),
 	_direct3d_version(reshade::api::device_api::d3d12),
-	_parent_factory(factory),
+	_parent(factory),
 	_impl(new reshade::d3d12::swapchain_impl(command_queue->_device, original))
 {
-	assert(_orig != nullptr && _direct3d_device != nullptr && _direct3d_command_queue != nullptr && _parent_factory != nullptr);
-	_parent_factory->AddRef();
+	assert(_orig != nullptr && _direct3d_device != nullptr && _direct3d_command_queue != nullptr && _parent != nullptr);
+	_parent->AddRef();
 	_direct3d_device->AddRef();
 	// Add reference to command queue as well to ensure it is kept alive for the lifetime of the effect runtime
 	_direct3d_command_queue->AddRef();
@@ -126,7 +123,7 @@ DXGISwapChain::~DXGISwapChain()
 	if (_direct3d_command_queue != nullptr)
 		_direct3d_command_queue->Release();
 	_direct3d_device->Release();
-	_parent_factory->Release();
+	_parent->Release();
 }
 
 bool DXGISwapChain::check_and_upgrade_interface(REFIID riid)
@@ -243,7 +240,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDat
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetParent(REFIID riid, void **ppParent)
 {
-	return _parent_factory->QueryInterface(riid, ppParent);
+	return _parent->QueryInterface(riid, ppParent);
 }
 
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
@@ -398,8 +395,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 
-	// Handle update of the swap chain description
 #if RESHADE_ADDON
+	// Handle update of the swap chain description
 	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
 	const bool prev_is_desc_modified = _is_desc_modified;
 	{
@@ -671,29 +668,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetColorSpace1(DXGI_COLOR_SPACE_TYPE Co
 {
 	assert(_interface_version >= 3);
 
-#if RESHADE_VERBOSE_LOG
-	const char *color_space_string = nullptr;
-	switch (ColorSpace)
-	{
-	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709:
-		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709";
-		break;
-	case DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709:
-		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709";
-		break;
-	case DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020:
-		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020";
-		break;
-	case DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020:
-		color_space_string = "DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020";
-		break;
-	}
-
-	if (color_space_string != nullptr)
-		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %s) ...", color_space_string);
-	else
-#endif
-		reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
+	reshade::log::message(reshade::log::level::info, "Redirecting IDXGISwapChain3::SetColorSpace1(ColorSpace = %d) ...", static_cast<int>(ColorSpace));
 
 #if RESHADE_ADDON
 	// Skip if an add-on modified the back buffer format, since color space change may fail in that case and cause some games to crash
@@ -752,8 +727,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	const bool was_in_dxgi_runtime = g_in_dxgi_runtime;
 
-	// Handle update of the swap chain description
 #if RESHADE_ADDON
+	// Handle update of the swap chain description
 	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
 	const bool prev_is_desc_modified = _is_desc_modified;
 	{
@@ -820,7 +795,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			present_queues[i] = ppPresentQueue[i];
 #endif
 			com_ptr<IUnknown> command_queue_proxy;
-			query_device(present_queues[i], command_queue_proxy);
+			get_device_proxy_d3dx(present_queues[i], command_queue_proxy);
 		}
 		ppPresentQueue = present_queues.p;
 	}

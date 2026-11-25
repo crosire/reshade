@@ -598,11 +598,6 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 			// Initial data upload requires the image to be transferable to
 			if (create_info.usage == 0 || initial_data != nullptr)
 				create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-#if VK_EXT_host_image_copy
-			// Only use host image copy for host-coherent images
-			if (desc.heap == api::memory_heap::upload && (desc.usage & api::resource_usage::copy_dest) != 0 && vk.EXT_host_image_copy)
-				create_info.usage |= VK_IMAGE_USAGE_HOST_TRANSFER_BIT;
-#endif
 			// Default view creation for resolving requires image to have a usage usable for view creation
 			if (desc.heap != api::memory_heap::unknown && !is_shared && (desc.usage & (api::resource_usage::resolve_source | api::resource_usage::resolve_dest)) != 0)
 				create_info.usage |= (aspect_flags_from_format(create_info.format) & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0 ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -1174,6 +1169,10 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	if (data.data == nullptr)
 		return;
 
+	const auto immediate_command_list = get_immediate_command_list();
+	if (immediate_command_list == nullptr)
+		return; // No point in creating upload buffer when it cannot be uploaded
+
 	const auto resource_data = get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>((VkImage)dst.handle);
 	if (resource_data == nullptr)
 		return;
@@ -1189,24 +1188,6 @@ void reshade::vulkan::device_impl::update_texture_region(const api::subresource_
 	const bool packed_data_layout =
 		(row_pitch == data.row_pitch || region.imageExtent.height == 1) &&
 		(slice_pitch == data.slice_pitch || region.imageExtent.depth == 1);
-
-#if VK_EXT_host_image_copy
-	if (vk.EXT_host_image_copy && (resource_data->create_info.usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT) != 0 && packed_data_layout)
-	{
-		VkCopyMemoryToImageInfo copy_info { VK_STRUCTURE_TYPE_COPY_MEMORY_TO_IMAGE_INFO };
-		copy_info.dstImage = (VkImage)dst.handle;
-		copy_info.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		copy_info.regionCount = 1;
-		copy_info.pRegions = &region;
-
-		vk.CopyMemoryToImage(_orig, &copy_info);
-		return;
-	}
-#endif
-
-	const auto immediate_command_list = get_immediate_command_list();
-	if (immediate_command_list == nullptr)
-		return; // No point in creating upload buffer when it cannot be uploaded
 
 	// Allocate host memory for upload
 	api::resource intermediate;

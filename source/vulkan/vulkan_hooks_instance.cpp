@@ -68,6 +68,15 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	if (trampoline == nullptr || get_instance_proc_addr == nullptr) // Unable to resolve next 'vkCreateInstance' function in the call chain
 		return VK_ERROR_INITIALIZATION_FAILED;
 
+#ifdef _WIN32
+	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
+	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
+#else
+	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc_addr(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties"));
+#endif
+	if (enum_instance_extensions == nullptr)
+		return VK_ERROR_INITIALIZATION_FAILED;
+
 	reshade::log::message(reshade::log::level::info, "> Dumping enabled instance extensions:");
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->ppEnabledExtensionNames[i]);
@@ -108,20 +117,6 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	}
 #endif
 
-#ifdef _WIN32
-	// 'vkEnumerateInstanceExtensionProperties' is not included in the next 'vkGetInstanceProcAddr' from the call chain, so use global one instead
-	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(GetProcAddress(GetModuleHandleW(L"vulkan-1.dll"), "vkEnumerateInstanceExtensionProperties"));
-#else
-	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc_addr(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties"));
-#endif
-	if (enum_instance_extensions == nullptr)
-	{
-#if RESHADE_ADDON >= 2
-		reshade::unload_addons();
-#endif
-		return VK_ERROR_INITIALIZATION_FAILED;
-	}
-
 	std::vector<const char *> enabled_extensions;
 	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
@@ -144,13 +139,9 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 			}
 
 			if (required)
-			{
 				reshade::log::message(reshade::log::level::error, "Required extension \"%s\" is not supported on this instance. Initialization failed.", name);
-			}
 			else
-			{
 				reshade::log::message(reshade::log::level::warning, "Optional extension \"%s\" is not supported on this instance.", name);
-			}
 
 			return false;
 		};
@@ -244,7 +235,6 @@ VkResult VKAPI_CALL vkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Su
 	return VK_SUCCESS;
 }
 #endif
-#if VK_KHR_surface
 void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, const VkAllocationCallbacks *pAllocator)
 {
 	reshade::log::message(reshade::log::level::info, "Redirecting vkDestroySurfaceKHR(instance = %p, surface = %p, pAllocator = %p) ...", instance, surface, pAllocator);
@@ -254,7 +244,6 @@ void     VKAPI_CALL vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surfac
 	RESHADE_VULKAN_GET_INSTANCE_DISPATCH_PTR(DestroySurfaceKHR, instance);
 	trampoline(instance, surface, pAllocator);
 }
-#endif
 
 extern "C" const char *ReShadeVersion;
 

@@ -98,6 +98,7 @@ void    STDMETHODCALLTYPE D3D11On12Device::AcquireWrappedResources(ID3D11Resourc
 HRESULT STDMETHODCALLTYPE D3D11On12Device::GetD3D12Device(REFIID riid, void **ppvDevice)
 {
 	assert(_interface_version >= 1);
+
 	return _parent_device_12->QueryInterface(riid, ppvDevice);
 }
 
@@ -109,10 +110,12 @@ HRESULT STDMETHODCALLTYPE D3D11On12Device::UnwrapUnderlyingResource(ID3D11Resour
 		pCommandQueue = command_queue_proxy->_orig;
 
 	assert(_interface_version >= 2);
+
 	return static_cast<ID3D11On12Device2 *>(_orig)->UnwrapUnderlyingResource(pResource11, pCommandQueue, riid, ppvResource12);
 }
 HRESULT STDMETHODCALLTYPE D3D11On12Device::ReturnUnderlyingResource(ID3D11Resource *pResource11, UINT NumSync, UINT64 *pSignalValues, ID3D12Fence **ppFences)
 {
 	assert(_interface_version >= 2);
+
 	return static_cast<ID3D11On12Device2 *>(_orig)->ReturnUnderlyingResource(pResource11, NumSync, pSignalValues, ppFences);
 }

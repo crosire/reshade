@@ -1228,7 +1228,7 @@ namespace reshade::api
 		occlusion = 0,
 		/// <summary>
 		/// Zero if no samples passed, one if at least one sample passed the depth and stencil tests between beginning and end of the query.
-		/// Data is a 64-bit unsigned integer value.
+		/// Data is a 32-bit (D3D9/D3D10/D3D11) or 64-bit unsigned integer value.
 		/// </summary>
 		binary_occlusion = 1,
 		/// <summary>

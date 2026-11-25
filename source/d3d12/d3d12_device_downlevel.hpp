@@ -29,5 +29,5 @@ public:
 	ID3D12DeviceDownlevel *_orig;
 
 private:
-	D3D12Device *const _parent_device;
+	D3D12Device *const _parent;
 };
