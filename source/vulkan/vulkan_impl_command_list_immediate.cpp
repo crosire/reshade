@@ -143,6 +143,9 @@ void reshade::vulkan::command_list_immediate_impl::push_descriptors(api::shader_
 	write.descriptorCount = update.count;
 	write.descriptorType = convert_descriptor_type(update.type);
 
+#if VK_KHR_acceleration_structure
+	VkWriteDescriptorSetAccelerationStructureKHR as_info { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
+#endif
 	temp_mem<VkDescriptorImageInfo> image_info(update.count);
 	switch (update.type)
 	{
@@ -184,6 +187,13 @@ void reshade::vulkan::command_list_immediate_impl::push_descriptors(api::shader_
 	case api::descriptor_type::shader_storage_buffer_with_dynamic_offset:
 		write.pBufferInfo = reinterpret_cast<const VkDescriptorBufferInfo *>(update.descriptors);
 		break;
+#if VK_KHR_acceleration_structure
+	case api::descriptor_type::acceleration_structure:
+		write.pNext = &as_info;
+		as_info.accelerationStructureCount = update.count;
+		as_info.pAccelerationStructures = static_cast<const VkAccelerationStructureKHR *>(update.descriptors);
+		break;
+#endif
 	default:
 		assert(false);
 		break;
