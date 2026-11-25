@@ -347,7 +347,7 @@ void reshade::opengl::device_context_impl::update_current_window_height(api::res
 				gl.BindTexture(target, object);
 
 			GLenum level_target = target;
-			if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+			if (target == GL_TEXTURE_CUBE_MAP)
 				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
 			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_HEIGHT, &height);

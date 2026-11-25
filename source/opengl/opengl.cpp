@@ -205,7 +205,7 @@ public:
 	static bool is_texture_uninitialized(GLenum target)
 	{
 		GLint exists = 0;
-		gl.GetTexLevelParameteriv(target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : target, 0, GL_TEXTURE_WIDTH, &exists);
+		gl.GetTexLevelParameteriv(target == GL_TEXTURE_CUBE_MAP ? GL_TEXTURE_CUBE_MAP_POSITIVE_X : target, 0, GL_TEXTURE_WIDTH, &exists);
 		return 0 == exists;
 	}
 

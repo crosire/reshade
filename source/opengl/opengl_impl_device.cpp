@@ -733,6 +733,8 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 			switch (target)
 			{
 			case GL_TEXTURE_1D:
+				gl.TexStorageMem1DEXT(target, levels, internal_format, desc.texture.width, mem, 0);
+				break;
 			case GL_TEXTURE_1D_ARRAY:
 				gl.TexStorageMem2DEXT(target, levels, internal_format, desc.texture.width, depth_or_layers, mem, 0);
 				break;
@@ -747,7 +749,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				break;
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
 				assert((depth_or_layers % 6) == 0);
-				depth_or_layers /= 6;
 				[[fallthrough]];
 			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_3D:
@@ -782,7 +783,6 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 				break;
 			case GL_TEXTURE_CUBE_MAP_ARRAY:
 				assert((depth_or_layers % 6) == 0);
-				depth_or_layers /= 6;
 				[[fallthrough]];
 			case GL_TEXTURE_2D_ARRAY:
 			case GL_TEXTURE_3D:
@@ -978,7 +978,7 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 					gl.BindTexture(target, object);
 
 				GLenum level_target = target;
-				if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+				if (target == GL_TEXTURE_CUBE_MAP)
 					level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
 				gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_WIDTH, &width);
@@ -1148,7 +1148,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		*out_view = make_resource_view_handle(target, resource_object);
 		return true;
 	}
-	else if (resource_target == GL_TEXTURE_CUBE_MAP && target == GL_TEXTURE_2D && desc.texture.layers == 1)
+	else if (resource_target == GL_TEXTURE_CUBE_MAP && target == GL_TEXTURE_2D && desc.texture.first_level == 0 && desc.texture.layers == 1)
 	{
 		// Cube map face is handled via special target
 		*out_view = make_resource_view_handle(GL_TEXTURE_CUBE_MAP_POSITIVE_X + desc.texture.first_layer, resource_object);
@@ -1266,7 +1266,7 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 				gl.BindTexture(target, object);
 
 			GLenum level_target = target;
-			if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY)
+			if (target == GL_TEXTURE_CUBE_MAP)
 				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
 			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);

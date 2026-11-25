@@ -1800,7 +1800,9 @@ reshade::api::resource_desc reshade::opengl::convert_resource_desc(GLenum target
 	if (target == GL_TEXTURE_CUBE_MAP || target == GL_TEXTURE_CUBE_MAP_ARRAY ||
 		target == GL_PROXY_TEXTURE_CUBE_MAP || target == GL_PROXY_TEXTURE_CUBE_MAP_ARRAY)
 	{
-		desc.texture.depth_or_layers *= 6;
+		// Depth of cube map arrays already is the number of faces
+		if (target == GL_TEXTURE_CUBE_MAP || target == GL_PROXY_TEXTURE_CUBE_MAP)
+			desc.texture.depth_or_layers *= 6;
 		desc.flags |= api::resource_flags::cube_compatible;
 	}
 
