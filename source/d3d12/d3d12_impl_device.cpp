@@ -1247,14 +1247,11 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			if (com_ptr<ID3D12PipelineState> pipeline;
 				SUCCEEDED(device2->CreatePipelineState(&stream_desc, IID_PPV_ARGS(&pipeline))))
 			{
-				if (topology != api::primitive_topology::undefined)
-				{
-					pipeline_extra_data extra_data;
-					extra_data.topology = convert_primitive_topology(topology);
-					std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
+				pipeline_extra_data extra_data;
+				extra_data.topology = convert_primitive_topology(topology);
+				std::copy_n(blend_desc.blend_constant, 4, extra_data.blend_constant);
 
-					pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
-				}
+				pipeline->SetPrivateData(extra_data_guid, sizeof(extra_data), &extra_data);
 
 				*out_pipeline = to_handle(pipeline.release());
 				return true;
