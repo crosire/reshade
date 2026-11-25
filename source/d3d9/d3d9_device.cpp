@@ -1881,9 +1881,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexDeclaration(const D3DVERT
 
 	if (reshade::invoke_addon_event<reshade::addon_event::create_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects))
 	{
-		internal_desc.reserve(desc.size());
+		internal_desc.reserve(desc.size() + 1);
 		for (size_t i = 0; i < desc.size(); ++i)
 			reshade::d3d9::convert_input_element(desc[i], internal_desc.emplace_back());
+		internal_desc.push_back(D3DDECL_END());
 
 		pVertexElements = internal_desc.data();
 	}
