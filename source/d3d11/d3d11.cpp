@@ -42,7 +42,8 @@ extern "C" HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, 
 		pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, ppImmediateContext);
 
 	com_ptr<DXGIAdapter> adapter_proxy;
-	if (pAdapter && SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
+	if (pAdapter &&
+		SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
 		pAdapter = adapter_proxy->_orig;
 
 #ifndef NDEBUG

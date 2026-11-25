@@ -31,7 +31,8 @@ extern "C" HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVE
 		pAdapter, MinimumFeatureLevel, reshade::log::iid_to_string(riid).c_str(), ppDevice);
 
 	com_ptr<DXGIAdapter> adapter_proxy;
-	if (pAdapter && SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
+	if (pAdapter &&
+		SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
 		pAdapter = adapter_proxy->_orig;
 
 #if RESHADE_ADDON >= 2

@@ -18,6 +18,7 @@
 			factory, dxgiDevice , d2dDevice); \
 		\
 		if (com_ptr<DXGIDevice> device_proxy; \
+			dxgiDevice && \
 			SUCCEEDED(dxgiDevice->QueryInterface(&device_proxy))) \
 			dxgiDevice = device_proxy->_orig; \
 		\
@@ -46,6 +47,7 @@ extern "C" HRESULT WINAPI D2D1CreateDevice(IDXGIDevice *dxgiDevice, CONST D2D1_C
 
 	// Get original DXGI device and pass that into D2D1 (since D2D1 does not work properly when a wrapped device is passed to it)
 	if (com_ptr<DXGIDevice> device_proxy;
+		dxgiDevice && \
 		SUCCEEDED(dxgiDevice->QueryInterface(&device_proxy)))
 		dxgiDevice = device_proxy->_orig;
 

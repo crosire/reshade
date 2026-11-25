@@ -80,7 +80,8 @@ extern "C" HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter,
 		pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
 	com_ptr<DXGIAdapter> adapter_proxy;
-	if (pAdapter && SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
+	if (pAdapter &&
+		SUCCEEDED(pAdapter->QueryInterface(&adapter_proxy)))
 		pAdapter = adapter_proxy->_orig;
 
 #ifndef NDEBUG

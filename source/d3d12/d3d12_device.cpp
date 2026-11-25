@@ -504,7 +504,7 @@ void    STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONS
 void    STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
 #if RESHADE_ADDON
-	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
+	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN, D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 	auto usage = reshade::api::resource_usage::shader_resource;
 	const bool acceleration_structure = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
@@ -1040,6 +1040,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::MakeResident(UINT NumObjects, ID3D12Pagea
 	temp_mem<ID3D12Pageable *> objects(NumObjects);
 	for (UINT i = 0; i < NumObjects; ++i)
 	{
+		assert(ppObjects != nullptr && ppObjects[i] != nullptr);
+
 		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
 			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
 			objects[i] = descriptor_heap_proxy->_orig;
@@ -1057,6 +1059,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::Evict(UINT NumObjects, ID3D12Pageable *co
 	temp_mem<ID3D12Pageable *> objects(NumObjects);
 	for (UINT i = 0; i < NumObjects; ++i)
 	{
+		assert(ppObjects != nullptr && ppObjects[i] != nullptr);
+
 		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
 			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
 			objects[i] = descriptor_heap_proxy->_orig;
@@ -1192,6 +1196,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::SetResidencyPriority(UINT NumObjects, ID3
 	temp_mem<ID3D12Pageable *> objects(NumObjects);
 	for (UINT i = 0; i < NumObjects; ++i)
 	{
+		assert(ppObjects != nullptr && ppObjects[i] != nullptr);
+
 		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
 			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
 			objects[i] = descriptor_heap_proxy->_orig;
@@ -1250,6 +1256,8 @@ HRESULT STDMETHODCALLTYPE D3D12Device::EnqueueMakeResident(D3D12_RESIDENCY_FLAGS
 	temp_mem<ID3D12Pageable *> objects(NumObjects);
 	for (UINT i = 0; i < NumObjects; ++i)
 	{
+		assert(ppObjects != nullptr && ppObjects[i] != nullptr);
+
 		if (com_ptr<D3D12DescriptorHeap> descriptor_heap_proxy;
 			SUCCEEDED(ppObjects[i]->QueryInterface(&descriptor_heap_proxy)))
 			objects[i] = descriptor_heap_proxy->_orig;
@@ -1996,7 +2004,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::TryCreateShaderResourceView(ID3D12Resourc
 	assert(_interface_version >= 15);
 
 #if RESHADE_ADDON
-	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN };
+	D3D12_SHADER_RESOURCE_VIEW_DESC internal_desc = (pDesc != nullptr) ? *pDesc : D3D12_SHADER_RESOURCE_VIEW_DESC { DXGI_FORMAT_UNKNOWN, D3D12_SRV_DIMENSION_UNKNOWN, D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING };
 	auto desc = reshade::d3d12::convert_resource_view_desc(internal_desc);
 	auto usage = reshade::api::resource_usage::shader_resource;
 	const bool acceleration_structure = internal_desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;

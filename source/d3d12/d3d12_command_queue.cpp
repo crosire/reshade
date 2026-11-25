@@ -183,7 +183,7 @@ void    STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommand
 	temp_mem<ID3D12CommandList *> command_lists(NumCommandLists);
 	for (UINT i = 0; i < NumCommandLists; ++i)
 	{
-		assert(ppCommandLists[i] != nullptr);
+		assert(ppCommandLists != nullptr && ppCommandLists[i] != nullptr);
 
 		if (com_ptr<D3D12GraphicsCommandList> command_list_proxy;
 			SUCCEEDED(ppCommandLists[i]->QueryInterface(&command_list_proxy)))
