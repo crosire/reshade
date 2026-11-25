@@ -164,6 +164,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		VkPhysicalDeviceBufferDeviceAddressFeatures buffer_device_address_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES };
 		VkPhysicalDevicePrivateDataFeatures private_data_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIVATE_DATA_FEATURES };
 		VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
+#if VK_EXT_extended_dynamic_state
+		VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT };
+#endif
 		VkPhysicalDeviceMaintenance5FeaturesKHR maintenance5_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR };
 		VkPhysicalDeviceHostImageCopyFeatures host_image_copy_features { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES };
 #if VK_KHR_maintenance10
@@ -375,6 +378,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES, ext.host_query_reset))
 				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES, &ext.host_query_reset_features);
 
+			ext.timeline_semaphore |= instance.api_version >= VK_API_VERSION_1_2;
 			if (ext.timeline_semaphore)
 				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES, &ext.timeline_semaphore_features);
 
@@ -403,6 +407,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			const_cast<VkPhysicalDeviceVulkan13Features *>(existing_vulkan_13_features)->privateData = VK_TRUE;
 			ext.dynamic_rendering = existing_vulkan_13_features->dynamicRendering;
+			ext.extended_dynamic_state = VK_TRUE;
 		}
 		else
 		{
@@ -410,6 +415,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, ext.dynamic_rendering))
 				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES, &ext.dynamic_rendering_features);
+
+			ext.extended_dynamic_state |= instance.api_version >= VK_API_VERSION_1_3;
+			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, ext.extended_dynamic_state))
+				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, &ext.extended_dynamic_state_features);
 		}
 
 		if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
@@ -444,8 +453,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT, ext.custom_border_color);
 #endif
 
-#if VK_EXT_extended_dynamic_state
-		check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, ext.extended_dynamic_state);
+#if VK_EXT_conservative_rasterization
+		ext.conservative_rasterization = std::find_if(enabled_extensions.cbegin(), enabled_extensions.cend(),
+			[](const char *name) { return std::strcmp(name, VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME) == 0; }) != enabled_extensions.cend();
 #endif
 
 #if VK_KHR_acceleration_structure && VK_KHR_ray_tracing_pipeline
