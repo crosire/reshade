@@ -80,9 +80,8 @@ reshade::d3d12::device_impl::device_impl(ID3D12Device *device) :
 	// Make some space in the descriptor heap array, so that it is unlikely to need reallocation
 	_descriptor_heaps.reserve(4096);
 
-	new D3D12DescriptorHeap(static_cast<D3D12Device *>(this), _gpu_view_heap.get());
-	new D3D12DescriptorHeap(static_cast<D3D12Device *>(this), _gpu_sampler_heap.get());
-	assert(_descriptor_heaps.size() == 2);
+	// Reserve the first index, so that the descriptor handles generated in 'register_descriptor_heap' can never be zero
+	_descriptor_heaps.push_back(nullptr);
 #endif
 
 	// Create mipmap generation states used in 'command_list::generate_mipmaps' implementation
@@ -111,9 +110,7 @@ reshade::d3d12::device_impl::~device_impl()
 	assert(_queues.empty()); // All queues should have been unregistered and destroyed by the application at this point
 
 #if RESHADE_ADDON >= 2
-	delete _descriptor_heaps[0];
-	delete _descriptor_heaps[1];
-	assert(_descriptor_heaps.empty());
+	assert(_descriptor_heaps.size() == 1); // All descriptor heaps should have been unregistered and destroyed by the application at this point
 #endif
 }
 
@@ -1642,6 +1639,16 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 	if ((table.handle & 0xF000000000000000ull) == 0xF000000000000000ull)
 	{
 		const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
+
+		// A null handle does not refer to a descriptor heap (the first index is reserved)
+		if (heap_index == 0)
+		{
+			*heap = { 0 };
+			if (offset != nullptr)
+				*offset = binding;
+			return;
+		}
+
 		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
 		*heap = to_handle(_descriptor_heaps[heap_index]->_orig);
@@ -1683,7 +1690,9 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 			return;
 		}
 	}
-#else
+#endif
+
+	// The descriptor heaps used for internal descriptor tables are not registered, so check those separately
 	if (_gpu_view_heap.contains(handle_gpu))
 	{
 		*heap = to_handle(_gpu_view_heap.get());
@@ -1706,7 +1715,6 @@ void reshade::d3d12::device_impl::get_descriptor_heap_offset(api::descriptor_tab
 		}
 		return;
 	}
-#endif
 
 	assert(false);
 
@@ -2322,7 +2330,7 @@ void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap
 		}
 	}
 
-	while (num_heaps != 0)
+	while (num_heaps > 1) // Keep the reserved first index
 	{
 		if (_descriptor_heaps[num_heaps - 1] == nullptr)
 			num_heaps--;
@@ -2342,6 +2350,11 @@ void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap
 D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
 	const size_t heap_index = (handle.ptr >> heap_index_start) & 0xFFFFFFF;
+
+	// A null handle does not refer to a descriptor heap (the first index is reserved)
+	if (heap_index == 0)
+		return { 0 };
+
 	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
 	return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (handle.ptr & (((1ull << heap_index_start) - 1) ^ 0x7)) };
@@ -2383,9 +2396,12 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 				*type = heap_impl->_orig->GetDesc().Type;
 
 			handle.ptr = heap_impl->_orig_base_cpu_handle.ptr + static_cast<SIZE_T>(handle_gpu.ptr - heap_impl->_orig_base_gpu_handle.ptr);
+			return handle;
 		}
 	}
-#else
+#endif
+
+	// The descriptor heaps used for internal descriptor tables are not registered, so check those separately
 	if (_gpu_view_heap.contains(handle_gpu))
 	{
 		if (type != nullptr)
@@ -2398,7 +2414,6 @@ D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu
 			*type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 		_gpu_sampler_heap.convert_handle(handle_gpu, handle);
 	}
-#endif
 
 	assert(handle.ptr != 0);
 	return handle;
@@ -2411,6 +2426,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_gpu
 	if ((table.handle & 0xF000000000000000ull) == 0xF000000000000000ull)
 	{
 		const size_t heap_index = (table.handle >> heap_index_start) & 0xFFFFFFF;
+
+		// A null handle does not refer to a descriptor heap (the first index is reserved)
+		if (heap_index == 0)
+			return { 0 };
+
 		assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
 
 		return { _descriptor_heaps[heap_index]->_orig_base_gpu_handle.ptr + (table.handle & (((1ull << heap_index_start) - 1) ^ 0x7)) };

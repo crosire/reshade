@@ -462,10 +462,11 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		return;
 	}
 
-	if (_current_descriptor_heaps[0] != _device->_gpu_sampler_heap.get() ||
-		_current_descriptor_heaps[1] != _device->_gpu_view_heap.get())
+	// Both descriptor heaps are set at once, so the one that was not allocated from above has to exist at this point too (setting it later would change the descriptor heaps and invalidate descriptor tables that were already set)
+	ID3D12DescriptorHeap *const heaps[2] = { _device->_gpu_sampler_heap.get_or_create(), _device->_gpu_view_heap.get_or_create() };
+	if (_current_descriptor_heaps[0] != heaps[0] ||
+		_current_descriptor_heaps[1] != heaps[1])
 	{
-		ID3D12DescriptorHeap *const heaps[2] = { _device->_gpu_sampler_heap.get(), _device->_gpu_view_heap.get() };
 		std::copy_n(heaps, 2, _current_descriptor_heaps);
 		_orig->SetDescriptorHeaps(2, heaps);
 	}
@@ -1061,10 +1062,11 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 			base_handle = _device->offset_descriptor_handle(base_handle, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV))
 		_device->_orig->CreateUnorderedAccessView(nullptr, nullptr, &uav_desc, base_handle);
 
-	if (_current_descriptor_heaps[0] != _device->_gpu_sampler_heap.get() ||
-		_current_descriptor_heaps[1] != _device->_gpu_view_heap.get())
+	// Both descriptor heaps are set at once, so the one that was not allocated from above has to exist at this point too (setting it later would change the descriptor heaps and invalidate descriptor tables that were already set)
+	ID3D12DescriptorHeap *const heaps[2] = { _device->_gpu_sampler_heap.get_or_create(), _device->_gpu_view_heap.get_or_create() };
+	if (_current_descriptor_heaps[0] != heaps[0] ||
+		_current_descriptor_heaps[1] != heaps[1])
 	{
-		ID3D12DescriptorHeap *const heaps[2] = { _device->_gpu_sampler_heap.get(), _device->_gpu_view_heap.get() };
 		std::copy_n(heaps, 2, _current_descriptor_heaps);
 		_orig->SetDescriptorHeaps(2, heaps);
 	}
