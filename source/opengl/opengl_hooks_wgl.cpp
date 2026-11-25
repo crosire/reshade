@@ -256,12 +256,19 @@ public:
 		}
 
 		// Ensure effect runtime references the same context as this swap chain
-		if (g_opengl_context != _last_context || _init_effect_runtime)
+		if (g_opengl_context != _last_context)
+		{
+			reshade::reset_effect_runtime(this);
+			reshade::destroy_effect_runtime(this);
+
+			_last_context = g_opengl_context;
+			_init_effect_runtime = true;
+		}
+		if (_init_effect_runtime)
 		{
 			reshade::create_effect_runtime(this, _last_context);
 			reshade::init_effect_runtime(this);
 
-			_last_context = g_opengl_context;
 			_init_effect_runtime = false;
 		}
 
@@ -804,18 +811,11 @@ HGLRC            WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext,
 		if (legacy_context)
 			s_legacy_contexts.emplace(hglrc);
 
+		// Find the root share context
+		for (auto it = s_shared_contexts.find(hShareContext); it != s_shared_contexts.end() && it->second != nullptr; it = s_shared_contexts.find(hShareContext))
+			hShareContext = it->second;
+
 		s_shared_contexts[hglrc] = hShareContext;
-
-		if (hShareContext != nullptr)
-		{
-			// Find the root share context
-			auto it = s_shared_contexts.find(hShareContext);
-
-			while (it != s_shared_contexts.end() && it->second != nullptr)
-			{
-				it = s_shared_contexts.find(s_shared_contexts.at(hglrc) = it->second);
-			}
-		}
 	}
 
 #if RESHADE_VERBOSE_LOG
@@ -972,6 +972,10 @@ extern "C" BOOL  WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	{ const std::unique_lock<std::shared_mutex> lock(s_global_mutex);
 
+		// Find the root share context
+		for (auto it = s_shared_contexts.find(hglrc1); it != s_shared_contexts.end() && it->second != nullptr; it = s_shared_contexts.find(hglrc1))
+			hglrc1 = it->second;
+
 		s_shared_contexts[hglrc2] = hglrc1;
 	}
 
@@ -984,8 +988,9 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	reshade::log::message(reshade::log::level::info, "Redirecting wglMakeCurrent(hdc = %p, hglrc = %p) ...", hdc, hglrc);
 #endif
 
-	HGLRC shared_hglrc = hglrc;
+	const HDC prev_hdc = wglGetCurrentDC();
 	const HGLRC prev_hglrc = wglGetCurrentContext();
+	HGLRC shared_hglrc = hglrc;
 
 	static const auto trampoline = reshade::hooks::call(wglMakeCurrent);
 	if (!trampoline(hdc, hglrc))
@@ -996,7 +1001,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return FALSE;
 	}
 
-	if (hglrc == prev_hglrc)
+	if (hdc == prev_hdc && hglrc == prev_hglrc)
 	{
 		// Nothing has changed, so there is nothing more to do
 		return TRUE;
@@ -1028,7 +1033,7 @@ extern "C" BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		g_opengl_context = it->second;
 
 		assert(g_opengl_context != nullptr);
-		device = static_cast<wgl_device *>(g_opengl_context);
+		device = static_cast<wgl_device *>(g_opengl_context->get_device());
 	}
 	else
 	{
