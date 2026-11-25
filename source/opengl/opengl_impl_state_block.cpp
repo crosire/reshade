@@ -103,7 +103,7 @@ void reshade::opengl::state_block::capture()
 
 	gl.GetIntegeri_v(GL_SAMPLE_MASK_VALUE, 0, &_sample_mask);
 
-	gl.GetIntegerv(GL_POLYGON_MODE, &_polygon_mode);
+	gl.GetIntegerv(GL_POLYGON_MODE, _polygon_mode);
 	_cull_enable = gl.IsEnabled(GL_CULL_FACE);
 	gl.GetIntegerv(GL_CULL_FACE_MODE, &_cull_mode);
 	gl.GetIntegerv(GL_FRONT_FACE, &_front_face);
@@ -214,7 +214,7 @@ void reshade::opengl::state_block::apply() const
 
 	gl.SampleMaski(0, _sample_mask);
 
-	gl.PolygonMode(GL_FRONT_AND_BACK, _polygon_mode);
+	gl.PolygonMode(GL_FRONT_AND_BACK, _polygon_mode[0]);
 	glEnableOrDisable(GL_CULL_FACE, _cull_enable);
 	gl.CullFace(_cull_mode);
 	gl.FrontFace(_front_face);
