@@ -673,11 +673,11 @@ auto reshade::vulkan::convert_access_to_usage(VkAccessFlags2 flags) -> api::reso
 		result |= api::resource_usage::vertex_buffer;
 	if ((flags & VK_ACCESS_UNIFORM_READ_BIT) != 0)
 		result |= api::resource_usage::constant_buffer;
-	if ((flags & VK_ACCESS_SHADER_READ_BIT) != 0)
+	if ((flags & (VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT)) != 0)
 		result |= api::resource_usage::shader_resource;
-	if ((flags & VK_ACCESS_SHADER_WRITE_BIT) != 0)
+	if ((flags & (VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT)) != 0)
 		result |= api::resource_usage::unordered_access;
-	if ((flags & (VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)) != 0)
+	if ((flags & (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)) != 0)
 		result |= api::resource_usage::render_target;
 	if ((flags & VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT) != 0)
 		result |= api::resource_usage::depth_stencil_read;
@@ -830,9 +830,9 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 		result |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	if ((state & api::resource_usage::render_target) != 0)
 		result |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer)) != 0)
+	if ((state & (api::resource_usage::shader_resource_pixel | api::resource_usage::constant_buffer | api::resource_usage::unordered_access)) != 0)
 		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer)) != 0)
+	if ((state & (api::resource_usage::shader_resource_non_pixel | api::resource_usage::constant_buffer | api::resource_usage::unordered_access)) != 0)
 	{
 		result |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 		if (enabled_features.tessellationShader)
@@ -845,8 +845,6 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 			result |= VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
 #endif
 	}
-	if ((state & api::resource_usage::unordered_access) != 0)
-		result |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if ((state & (api::resource_usage::copy_dest | api::resource_usage::copy_source | api::resource_usage::resolve_dest | api::resource_usage::resolve_source)) != 0)
 		result |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 #if VK_KHR_acceleration_structure
@@ -860,14 +858,12 @@ auto reshade::vulkan::convert_usage_to_pipeline_stage(api::resource_usage state,
 void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usage, VkImageUsageFlags &image_flags)
 {
 	if ((usage & api::resource_usage::depth_stencil) != 0)
-		// Add transfer destination usage as well to support clearing via 'vkCmdClearDepthStencilImage'
-		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		image_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
 	if ((usage & api::resource_usage::render_target) != 0)
-		// Add transfer destination usage as well to support clearing via 'vkCmdClearColorImage'
-		image_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		image_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -881,7 +877,9 @@ void reshade::vulkan::convert_usage_to_image_usage_flags(api::resource_usage usa
 	else
 		image_flags &= ~VK_IMAGE_USAGE_STORAGE_BIT;
 
-	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0)
+	if ((usage & (api::resource_usage::copy_dest | api::resource_usage::resolve_dest)) != 0 ||
+		// Add transfer destination usage as well to support clearing via 'vkCmdClearColorImage' or 'vkCmdClearDepthStencilImage'
+		((usage & (api::resource_usage::depth_stencil | api::resource_usage::render_target)) != 0 && (image_flags & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) == 0))
 		image_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	else
 		image_flags &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;

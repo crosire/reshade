@@ -838,6 +838,9 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 		{
 			convert_usage_to_image_usage_flags(usage_type, usage_info.usage);
 
+			// Ensure view usage is a subset of the image usage
+			usage_info.usage &= resource_data->create_info.usage;
+
 			create_info.pNext = &usage_info;
 		}
 
