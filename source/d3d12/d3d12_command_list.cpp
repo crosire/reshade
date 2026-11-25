@@ -267,7 +267,8 @@ void STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegion(const D3D12_T
 	if (pSrc->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX && pDst->Type == D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX &&
 		reshade::has_addon_event<reshade::addon_event::copy_texture_region>())
 	{
-		const bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
+		// Destination region is only the whole subresource if the entire source subresource is copied to the origin
+		const bool use_dst_box = pSrcBox != nullptr || DstX != 0 || DstY != 0 || DstZ != 0;
 		reshade::api::subresource_box dst_box;
 
 		if (use_dst_box)
@@ -1414,7 +1415,8 @@ void   STDMETHODCALLTYPE D3D12GraphicsCommandList::CopyTextureRegions(UINT NumCo
 				{
 					const D3D12_TEXTURE_COPY_REGION &copy_region = copy_desc.pCopyRegions[k];
 
-					const bool use_dst_box = copy_region.DestX != 0 || copy_region.DestY != 0 || copy_region.DestZ != 0;
+					// Destination region is only the whole subresource if the entire source subresource is copied to the origin
+					const bool use_dst_box = copy_region.pSourceBox != nullptr || copy_region.DestX != 0 || copy_region.DestY != 0 || copy_region.DestZ != 0;
 					reshade::api::subresource_box dst_box;
 
 					if (use_dst_box)

@@ -615,7 +615,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resour
 		}
 		else
 		{
-			const bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
+			// Destination region is only the whole subresource if the entire source subresource is copied to the origin
+			const bool use_dst_box = pSrcBox != nullptr || DstX != 0 || DstY != 0 || DstZ != 0;
 			reshade::api::subresource_box dst_box;
 
 			if (use_dst_box)
@@ -1175,7 +1176,8 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resou
 		}
 		else
 		{
-			const bool use_dst_box = DstX != 0 || DstY != 0 || DstZ != 0;
+			// Destination region is only the whole subresource if the entire source subresource is copied to the origin
+			const bool use_dst_box = pSrcBox != nullptr || DstX != 0 || DstY != 0 || DstZ != 0;
 			reshade::api::subresource_box dst_box;
 
 			if (use_dst_box)
