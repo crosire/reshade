@@ -1434,7 +1434,9 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, uint32_t subobject_count, const api::pipeline_subobject *subobjects, api::pipeline *out_pipeline, const VkRayTracingPipelineCreateInfoKHR *orig_create_info)
 {
 	std::vector<VkShaderModule> temp_shader_modules;
+	std::vector<pnext_link_restore> pnext_restore_links;
 
+	api::pipeline_subobject dynamic_states_subobject = {};
 	std::vector<api::shader_desc> raygen_desc;
 	std::vector<api::shader_desc> any_hit_desc;
 	std::vector<api::shader_desc> closest_hit_desc;
@@ -1455,6 +1457,9 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		switch (subobjects[i].type)
 		{
+		case api::pipeline_subobject_type::dynamic_pipeline_states:
+			dynamic_states_subobject = subobjects[i];
+			break;
 		case api::pipeline_subobject_type::raygen_shader:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
 				raygen_desc.push_back(static_cast<const api::shader_desc *>(subobjects[i].data)[k]);
@@ -1523,7 +1528,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		std::vector<VkShaderModuleCreateInfo> shader_module_info;
 		std::vector<VkSpecializationInfo> spec_info;
 		std::vector<std::vector<VkSpecializationMapEntry>> spec_map;
-		std::vector<pnext_link_restore> pnext_restore_links;
 		shader_stage_info.reserve(max_shader_stage_count);
 		shader_module_info.reserve(max_shader_stage_count);
 		spec_info.reserve(max_shader_stage_count);
@@ -1687,17 +1691,29 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			library_info.libraryCount = static_cast<uint32_t>(libraries.size());
 			library_info.pLibraries = reinterpret_cast<const VkPipeline *>(libraries.data());
 
+			create_info.pLibraryInfo = &library_info;
+		}
+		if (!libraries.empty() || (flags & api::pipeline_flags::library) != 0)
+		{
 			interface_info = { VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR };
 			interface_info.maxPipelineRayPayloadSize = max_payload_size;
 			interface_info.maxPipelineRayHitAttributeSize = max_attribute_size;
 
-			create_info.pLibraryInfo = &library_info;
 			create_info.pLibraryInterface = &interface_info;
 		}
+
+		std::vector<VkDynamicState> dynamic_states;
+		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dynamic_states);
+
+		VkPipelineDynamicStateCreateInfo dynamic_state_info = create_info.pDynamicState != nullptr ? *create_info.pDynamicState : VkPipelineDynamicStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+		create_info.pDynamicState = &dynamic_state_info;
+		dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
+		dynamic_state_info.pDynamicStates = dynamic_states.data();
 
 		if (VkPipeline object = VK_NULL_HANDLE;
 			vk.CreateRayTracingPipelinesKHR(_orig, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &create_info, nullptr, &object) == VK_SUCCESS)
 		{
+			restore_pnext_links(pnext_restore_links);
 			for (const VkShaderModule module : temp_shader_modules)
 				vk.DestroyShaderModule(_orig, module, nullptr);
 
@@ -1708,6 +1724,7 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 #endif
 
 exit_failure:
+	restore_pnext_links(pnext_restore_links);
 	for (const VkShaderModule module : temp_shader_modules)
 		vk.DestroyShaderModule(_orig, module, nullptr);
 
@@ -2041,9 +2058,12 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		}
 
 		std::vector<VkDynamicState> dynamic_states;
-		// Always make scissor rectangles and viewports dynamic
-		dynamic_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
-		dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+		if (orig_create_info == nullptr)
+		{
+			// Always make scissor rectangles and viewports dynamic
+			dynamic_states.push_back(VK_DYNAMIC_STATE_SCISSOR);
+			dynamic_states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+		}
 		convert_dynamic_states(dynamic_states_subobject.count, static_cast<const api::dynamic_state *>(dynamic_states_subobject.data), dynamic_states);
 
 		VkPipelineDynamicStateCreateInfo dynamic_state_info = create_info.pDynamicState != nullptr ? *create_info.pDynamicState : VkPipelineDynamicStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
@@ -2074,7 +2094,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = create_info.pInputAssemblyState != nullptr ? *create_info.pInputAssemblyState : VkPipelineInputAssemblyStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 		create_info.pInputAssemblyState = &input_assembly_state_info;
-		input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
 		input_assembly_state_info.topology = convert_primitive_topology(topology);
 
 		VkPipelineTessellationStateCreateInfo tessellation_state_info = create_info.pTessellationState != nullptr ? *create_info.pTessellationState : VkPipelineTessellationStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO };
@@ -2084,8 +2103,9 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 
 		VkPipelineViewportStateCreateInfo viewport_state_info = create_info.pViewportState != nullptr ? *create_info.pViewportState : VkPipelineViewportStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 		create_info.pViewportState = &viewport_state_info;
-		viewport_state_info.scissorCount = viewport_count;
-		viewport_state_info.viewportCount = viewport_count;
+		// Counts have to be zero if they are dynamic too
+		viewport_state_info.scissorCount = std::find(dynamic_states.begin(), dynamic_states.end(), VK_DYNAMIC_STATE_SCISSOR_WITH_COUNT) == dynamic_states.end() ? viewport_count : 0;
+		viewport_state_info.viewportCount = std::find(dynamic_states.begin(), dynamic_states.end(), VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT) == dynamic_states.end() ? viewport_count : 0;
 
 		VkPipelineRasterizationStateCreateInfo rasterization_state_info;
 		{
@@ -2105,7 +2125,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 #endif
 
 		convert_rasterizer_desc(rasterizer_desc, rasterization_state_info);
-		rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
 		rasterization_state_info.lineWidth = 1.0f;
 
 #if VK_EXT_transform_feedback
@@ -2121,9 +2140,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		VkPipelineMultisampleStateCreateInfo multisample_state_info = create_info.pMultisampleState != nullptr ? *create_info.pMultisampleState : VkPipelineMultisampleStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 		create_info.pMultisampleState = &multisample_state_info;
 		multisample_state_info.rasterizationSamples = sample_count != 0 ? static_cast<VkSampleCountFlagBits>(sample_count) : VK_SAMPLE_COUNT_1_BIT;
-		multisample_state_info.sampleShadingEnable = VK_FALSE;
-		multisample_state_info.minSampleShading = 0.0f;
-		multisample_state_info.alphaToOneEnable = VK_FALSE;
 		multisample_state_info.pSampleMask = &sample_mask;
 
 		VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info = create_info.pDepthStencilState != nullptr ? *create_info.pDepthStencilState : VkPipelineDepthStencilStateCreateInfo { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
