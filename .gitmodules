@@ -34,3 +34,6 @@
 	path = deps/jxl_simple_lossless
 	url = https://github.com/kampidh/simple-lossless-encoder.git
 	branch = headers-and-color-profile
+[submodule "stb_image_resize"]
+	path = deps/stb_image_resize
+	url = https://github.com/nothings/stb_image_resize
