@@ -1282,9 +1282,11 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 	{
 	case VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK:
 	case VK_BORDER_COLOR_INT_TRANSPARENT_BLACK:
+		std::fill_n(desc.border_color, 4, 0.0f);
 		break;
 	case VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK:
 	case VK_BORDER_COLOR_INT_OPAQUE_BLACK:
+		std::fill_n(desc.border_color, 3, 0.0f);
 		desc.border_color[3] = 1.0f;
 		break;
 	case VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE:
@@ -1293,13 +1295,13 @@ reshade::api::sampler_desc reshade::vulkan::convert_sampler_desc(const VkSampler
 		break;
 #if VK_EXT_custom_border_color
 	case VK_BORDER_COLOR_FLOAT_CUSTOM_EXT:
-		assert(border_color_info != nullptr);
-		std::copy_n(border_color_info->customBorderColor.float32, 4, desc.border_color);
+		if (border_color_info != nullptr)
+			std::copy_n(border_color_info->customBorderColor.float32, 4, desc.border_color);
 		break;
 	case VK_BORDER_COLOR_INT_CUSTOM_EXT:
-		assert(border_color_info != nullptr);
-		for (int i = 0; i < 4; ++i)
-			desc.border_color[i] = static_cast<float>(border_color_info->customBorderColor.int32[i]);
+		if (border_color_info != nullptr)
+			for (int i = 0; i < 4; ++i)
+				desc.border_color[i] = static_cast<float>(border_color_info->customBorderColor.int32[i]);
 		break;
 #endif
 	}
