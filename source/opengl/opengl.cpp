@@ -2458,7 +2458,7 @@ void APIENTRY glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean tran
 }
 void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
 {
-	static const auto trampoline = reshade::hooks::call(glUniformMatrix3x4fv);
+	static const auto trampoline = reshade::hooks::call(glUniformMatrix4x3fv);
 	trampoline(location, count, transpose, value);
 
 #if RESHADE_ADDON >= 2
