@@ -58,7 +58,7 @@ void reshade::opengl::device_context_impl::wait_idle() const
 bool reshade::opengl::device_context_impl::wait(api::fence fence, uint64_t value)
 {
 #if GL_EXT_semaphore
-	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	if ((fence.handle >> 40) == 0xFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
 			return false;
@@ -85,7 +85,7 @@ bool reshade::opengl::device_context_impl::wait(api::fence fence, uint64_t value
 bool reshade::opengl::device_context_impl::signal(api::fence fence, uint64_t value)
 {
 #if GL_EXT_semaphore
-	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	if ((fence.handle >> 40) == 0xFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
 			return false;

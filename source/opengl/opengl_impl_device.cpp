@@ -2645,7 +2645,7 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 
 		gl.ImportSemaphoreWin32HandleEXT(object, shared_handle_type, *shared_handle);
 
-		*out_fence = { (0xFFFFFFFFull << 40) | object };
+		*out_fence = { (0xFFFFFFull << 40) | object };
 		return true;
 #else
 		return false;
@@ -2662,7 +2662,7 @@ bool reshade::opengl::device_impl::create_fence(uint64_t initial_value, api::fen
 void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 {
 #if GL_EXT_semaphore
-	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	if ((fence.handle >> 40) == 0xFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
 			return;
@@ -2688,7 +2688,7 @@ void reshade::opengl::device_impl::destroy_fence(api::fence fence)
 uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fence) const
 {
 #if GL_EXT_semaphore
-	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	if ((fence.handle >> 40) == 0xFFFFFF)
 	{
 		if (!gl.EXT_semaphore)
 			return 0;
@@ -2719,7 +2719,7 @@ uint64_t reshade::opengl::device_impl::get_completed_fence_value(api::fence fenc
 bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64_t timeout)
 {
 #if GL_EXT_semaphore
-	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	if ((fence.handle >> 40) == 0xFFFFFF)
 		return false;
 #endif
 
@@ -2737,7 +2737,7 @@ bool reshade::opengl::device_impl::wait(api::fence fence, uint64_t value, uint64
 bool reshade::opengl::device_impl::signal(api::fence fence, uint64_t value)
 {
 #if GL_EXT_semaphore
-	if ((fence.handle >> 40) == 0xFFFFFFFF)
+	if ((fence.handle >> 40) == 0xFFFFFF)
 		return false;
 #endif
 
