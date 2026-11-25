@@ -82,9 +82,14 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueueDownlevel::Present(ID3D12GraphicsComm
 
 		// Reduce number of back buffers if less are used than predicted
 		if (const auto it = std::find(_back_buffers.begin(), _back_buffers.end(), pSourceTex2D); it != _back_buffers.end())
+		{
 			_back_buffers.erase(it);
+			_swap_index %= static_cast<UINT>(_back_buffers.size());
+		}
 		else
+		{
 			_back_buffers[_swap_index] = pSourceTex2D;
+		}
 
 		// Do not initialize before all back buffers have been set
 		// The first to be set is at index 1 due to the addition above, so it is sufficient to check the last to be set, which will be at index 0
