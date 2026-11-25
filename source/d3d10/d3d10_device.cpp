@@ -801,7 +801,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateBuffer(const D3D10_BUFFER_DESC *pDe
 	{
 		reshade::d3d10::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
-		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(&initial_data);
+		pInitialData = reinterpret_cast<const D3D10_SUBRESOURCE_DATA *>(initial_data.data());
 	}
 #endif
 

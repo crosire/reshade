@@ -250,7 +250,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBuffer(const D3D11_BUFFER_DESC *pDe
 	{
 		reshade::d3d11::convert_resource_desc(desc, internal_desc);
 		pDesc = &internal_desc;
-		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(&initial_data);
+		pInitialData = reinterpret_cast<const D3D11_SUBRESOURCE_DATA *>(initial_data.data());
 	}
 #endif
 
