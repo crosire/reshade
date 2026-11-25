@@ -633,7 +633,7 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 		const uint64_t counter_offset = (counter_offsets != nullptr) ? counter_offsets[i] : 0;
 
 		views[i].BufferLocation = _device->get_resource_gpu_address(buffers[i]) + offset;
-		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[i] : 0;
+		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[i] : reinterpret_cast<ID3D12Resource *>(buffers[i].handle)->GetDesc().Width - offset;
 		views[i].BufferFilledSizeLocation = (counter_buffers != nullptr && counter_buffers[i] != 0) ? _device->get_resource_gpu_address(counter_buffers[i]) + counter_offset : 0;
 	}
 

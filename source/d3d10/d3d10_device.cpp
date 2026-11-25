@@ -397,7 +397,7 @@ void    STDMETHODCALLTYPE D3D10Device::SOSetTargets(UINT NumBuffers, ID3D10Buffe
 
 	temp_mem<uint64_t, D3D10_SO_BUFFER_SLOT_COUNT> offsets_64(NumBuffers);
 	for (UINT i = 0; i < NumBuffers; ++i)
-		offsets_64[i] = pOffsets[i];
+		offsets_64[i] = (pOffsets != nullptr && pOffsets[i] != UINT_MAX) ? pOffsets[i] : UINT64_MAX; // Append by default
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, NumBuffers, buffer_handles, offsets_64.p, nullptr, nullptr, nullptr);
 #endif
@@ -764,6 +764,7 @@ void    STDMETHODCALLTYPE D3D10Device::ClearState()
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_index_buffer>(this, reshade::api::resource {}, 0, 0);
 	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(this, 0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, reinterpret_cast<const reshade::api::resource *>(null_objects), reinterpret_cast<const uint64_t *>(null_objects), reinterpret_cast<const uint32_t *>(null_objects));
+	reshade::invoke_addon_event<reshade::addon_event::bind_stream_output_buffers>(this, 0, D3D10_SO_BUFFER_SLOT_COUNT, reinterpret_cast<const reshade::api::resource *>(null_objects), reinterpret_cast<const uint64_t *>(null_objects), nullptr, nullptr, nullptr);
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_render_targets_and_depth_stencil>(this, D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<const reshade::api::resource_view *>(null_objects), reshade::api::resource_view {});
 
