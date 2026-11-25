@@ -851,6 +851,8 @@ extern "C" void APIENTRY glEnable(GLenum cap)
 			state = reshade::api::dynamic_state::blend_enable;
 			break;
 		case GL_CULL_FACE:
+			gl.GetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&value));
+			value = static_cast<uint32_t>(reshade::opengl::convert_cull_mode(value));
 			state = reshade::api::dynamic_state::cull_mode;
 			break;
 		case GL_DEPTH_CLAMP:
@@ -953,7 +955,9 @@ extern "C" void APIENTRY glCullFace(GLenum mode)
 
 #if RESHADE_ADDON >= 2
 	if (g_opengl_context &&
-		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>())
+		reshade::has_addon_event<reshade::addon_event::bind_pipeline_states>() &&
+		// The cull mode has no effect until enabled (see 'glEnable')
+		gl.IsEnabled(GL_CULL_FACE))
 	{
 		const reshade::api::dynamic_state states[1] = { reshade::api::dynamic_state::cull_mode };
 		const uint32_t values[1] = { static_cast<uint32_t>(reshade::opengl::convert_cull_mode(mode)) };

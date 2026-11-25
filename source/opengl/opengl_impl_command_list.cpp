@@ -575,7 +575,7 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 		case api::dynamic_state::primitive_topology:
 			_current_prim_mode = static_cast<GLenum>(convert_primitive_topology(static_cast<api::primitive_topology>(values[i])));
 			if (_current_prim_mode == GL_PATCHES)
-				gl.PatchParameteri(GL_PATCH_VERTICES, values[i] - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp));
+				gl.PatchParameteri(GL_PATCH_VERTICES, values[i] - static_cast<uint32_t>(api::primitive_topology::patch_list_01_cp) + 1);
 			break;
 		case api::dynamic_state::alpha_to_coverage_enable:
 			glEnableOrDisable(GL_SAMPLE_ALPHA_TO_COVERAGE, values[i]);
@@ -705,7 +705,15 @@ void reshade::opengl::device_context_impl::bind_pipeline_states(uint32_t count, 
 			gl.PolygonMode(GL_FRONT_AND_BACK, convert_fill_mode(static_cast<api::fill_mode>(values[i])));
 			break;
 		case api::dynamic_state::cull_mode:
-			glEnableOrDisable(GL_CULL_FACE, convert_cull_mode(static_cast<api::cull_mode>(values[i])));
+			if (const GLenum cull_mode = convert_cull_mode(static_cast<api::cull_mode>(values[i])))
+			{
+				gl.Enable(GL_CULL_FACE);
+				gl.CullFace(cull_mode);
+			}
+			else
+			{
+				gl.Disable(GL_CULL_FACE);
+			}
 			break;
 		case api::dynamic_state::front_counter_clockwise:
 			gl.FrontFace(values[i] ? GL_CCW : GL_CW);
