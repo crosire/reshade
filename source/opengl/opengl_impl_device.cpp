@@ -948,27 +948,30 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 				gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_SAMPLES, &samples);
 
-				// Rectangle and multisample textures do not have mipmaps
-				if (target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_2D_MULTISAMPLE && target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
+				// Buffer, rectangle and multisample textures do not have mipmaps
+				if (target != GL_TEXTURE_BUFFER)
 				{
-					gl.GetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
-					if (levels == 0)
+					if (target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_2D_MULTISAMPLE && target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
 					{
-						// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
-						GLint max_level = 0;
-						gl.GetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &max_level);
-						for (levels = 1; levels <= max_level; ++levels)
+						gl.GetTextureParameteriv(object, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+						if (levels == 0)
 						{
-							GLint level_w = 0;
-							// Check if this mipmap level does exist
-							gl.GetTextureLevelParameteriv(object, levels, GL_TEXTURE_WIDTH, &level_w);
-							if (0 == level_w)
-								break;
+							// If number of mipmap levels is not immutable, need to walk through the mipmap chain and check how many actually exist
+							GLint max_level = 0;
+							gl.GetTextureParameteriv(object, GL_TEXTURE_MAX_LEVEL, &max_level);
+							for (levels = 1; levels <= max_level; ++levels)
+							{
+								GLint level_w = 0;
+								// Check if this mipmap level does exist
+								gl.GetTextureLevelParameteriv(object, levels, GL_TEXTURE_WIDTH, &level_w);
+								if (0 == level_w)
+									break;
+							}
 						}
 					}
-				}
 
-				gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+					gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+				}
 			}
 			else
 			{
@@ -987,24 +990,27 @@ reshade::api::resource_desc reshade::opengl::device_impl::get_resource_desc(api:
 				gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
 				gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_SAMPLES, &samples);
 
-				if (target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_2D_MULTISAMPLE && target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
+				if (target != GL_TEXTURE_BUFFER)
 				{
-					gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
-					if (levels == 0)
+					if (target != GL_TEXTURE_RECTANGLE && target != GL_TEXTURE_2D_MULTISAMPLE && target != GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
 					{
-						GLint max_level = 0;
-						gl.GetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &max_level);
-						for (levels = 1; levels <= max_level; ++levels)
+						gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, &levels);
+						if (levels == 0)
 						{
-							GLint level_w = 0;
-							gl.GetTexLevelParameteriv(level_target, levels, GL_TEXTURE_WIDTH, &level_w);
-							if (0 == level_w)
-								break;
+							GLint max_level = 0;
+							gl.GetTexParameteriv(target, GL_TEXTURE_MAX_LEVEL, &max_level);
+							for (levels = 1; levels <= max_level; ++levels)
+							{
+								GLint level_w = 0;
+								gl.GetTexLevelParameteriv(level_target, levels, GL_TEXTURE_WIDTH, &level_w);
+								if (0 == level_w)
+									break;
+							}
 						}
 					}
-				}
 
-				gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+					gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+				}
 
 				if (object != prev_binding)
 					gl.BindTexture(target, prev_binding);
@@ -1289,7 +1295,8 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 		if (gl.VERSION_4_5)
 		{
 			gl.GetTextureLevelParameteriv(object, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-			gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+			if (target != GL_TEXTURE_BUFFER)
+				gl.GetTextureParameteriv(object, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 		}
 		else
 		{
@@ -1303,7 +1310,8 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 				level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
 
 			gl.GetTexLevelParameteriv(level_target, 0, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-			gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
+			if (target != GL_TEXTURE_BUFFER)
+				gl.GetTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, swizzle_mask);
 
 			if (object != prev_binding)
 				gl.BindTexture(target, prev_binding);
