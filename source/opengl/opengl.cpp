@@ -56,7 +56,7 @@ public:
 		if (object == 0)
 			gl.GetIntegerv(reshade::opengl::get_binding_for_target(target), reinterpret_cast<GLint *>(&_object));
 
-		_desc = reshade::opengl::convert_resource_desc(target, levels, samples, internal_format, width, height, depth, swizzle_mask);
+		_desc = reshade::opengl::convert_resource_desc(_target, levels, samples, internal_format, width, height, depth, swizzle_mask);
 	}
 	explicit opengl_init_resource(const reshade::api::resource_desc &desc) :
 		_target(GL_NONE), _object(0), _desc(desc)
@@ -2762,8 +2762,14 @@ void APIENTRY glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint src
 			if ((mask & flag) != flag)
 				continue;
 
-			reshade::api::resource src = device->get_resource_from_view(device->get_framebuffer_attachment(src_fbo, flag, 0));
-			reshade::api::resource dst = device->get_resource_from_view(device->get_framebuffer_attachment(dst_fbo, flag, 0));
+			const reshade::api::resource_view src_view = device->get_framebuffer_attachment(src_fbo, flag, 0);
+			const reshade::api::resource_view dst_view = device->get_framebuffer_attachment(dst_fbo, flag, 0);
+			// Buffers that do not exist in both framebuffers are ignored
+			if (src_view == 0 || dst_view == 0)
+				continue;
+
+			const reshade::api::resource src = device->get_resource_from_view(src_view);
+			const reshade::api::resource dst = device->get_resource_from_view(dst_view);
 
 			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
@@ -3585,11 +3591,15 @@ void APIENTRY glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboo
 	if (g_opengl_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		GLint target = GL_TEXTURE;
-		if (gl.VERSION_4_5)
-			gl.GetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
+		reshade::api::resource_view descriptor_data = { 0 };
+		if (texture != 0)
+		{
+			GLint target = GL_TEXTURE;
+			if (gl.VERSION_4_5)
+				gl.GetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
 
-		const reshade::api::resource_view descriptor_data = reshade::opengl::make_resource_view_handle(target, texture);
+			descriptor_data = reshade::opengl::make_resource_view_handle(target, texture);
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_opengl_context,
@@ -3780,7 +3790,7 @@ void APIENTRY glDispatchComputeIndirect(GLintptr indirect)
 			if (reshade::invoke_addon_event<reshade::addon_event::draw_or_dispatch_indirect>(
 					g_opengl_context,
 					reshade::api::indirect_command::dispatch,
-					reshade::opengl::make_resource_handle(GL_DISPATCH_INDIRECT_BUFFER, indirect_buffer_binding),
+					reshade::opengl::make_resource_handle(GL_BUFFER, indirect_buffer_binding),
 					indirect,
 					1,
 					0))
@@ -4488,6 +4498,8 @@ void APIENTRY glNamedRenderbufferStorage(GLuint renderbuffer, GLenum internalfor
 	static const auto trampoline = reshade::hooks::call(glNamedRenderbufferStorage);
 
 #if RESHADE_ADDON
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, GL_NONE);
+
 	if (g_opengl_context)
 	{
 		opengl_init_resource resource(GL_RENDERBUFFER, renderbuffer, 1, 1, internalformat, width, height, 1);
@@ -4504,6 +4516,8 @@ void APIENTRY glNamedRenderbufferStorageMultisample(GLuint renderbuffer, GLsizei
 	static const auto trampoline = reshade::hooks::call(glNamedRenderbufferStorageMultisample);
 
 #if RESHADE_ADDON
+	internalformat = reshade::opengl::convert_sized_internal_format(internalformat, GL_NONE);
+
 	if (g_opengl_context)
 	{
 		opengl_init_resource resource(GL_RENDERBUFFER, renderbuffer, 1, samples, internalformat, width, height, 1);
@@ -4646,8 +4660,14 @@ void APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer, GLuint drawFramebuf
 			if ((mask & flag) != flag)
 				continue;
 
-			reshade::api::resource src = device->get_resource_from_view(device->get_framebuffer_attachment(readFramebuffer, flag, 0));
-			reshade::api::resource dst = device->get_resource_from_view(device->get_framebuffer_attachment(drawFramebuffer, flag, 0));
+			const reshade::api::resource_view src_view = device->get_framebuffer_attachment(readFramebuffer, flag, 0);
+			const reshade::api::resource_view dst_view = device->get_framebuffer_attachment(drawFramebuffer, flag, 0);
+			// Buffers that do not exist in both framebuffers are ignored
+			if (src_view == 0 || dst_view == 0)
+				continue;
+
+			const reshade::api::resource src = device->get_resource_from_view(src_view);
+			const reshade::api::resource dst = device->get_resource_from_view(dst_view);
 
 			if (device->get_resource_desc(src).texture.samples <= 1)
 			{
@@ -4698,13 +4718,14 @@ void APIENTRY glBindTextureUnit(GLuint unit, GLuint texture)
 	if (g_opengl_context &&
 		reshade::has_addon_event<reshade::addon_event::push_descriptors>())
 	{
-		GLint target = GL_TEXTURE;
-		gl.GetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
+		reshade::api::sampler_with_resource_view descriptor_data = {};
+		if (texture != 0)
+		{
+			GLint target = GL_TEXTURE;
+			gl.GetTextureParameteriv(texture, GL_TEXTURE_TARGET, &target);
 
-		reshade::api::sampler_with_resource_view descriptor_data = {
-			reshade::api::sampler { 0 },
-			reshade::opengl::make_resource_view_handle(target, texture)
-		};
+			descriptor_data.view = reshade::opengl::make_resource_view_handle(target, texture);
+		}
 
 		reshade::invoke_addon_event<reshade::addon_event::push_descriptors>(
 			g_opengl_context,
