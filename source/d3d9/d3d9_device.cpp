@@ -1471,14 +1471,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetRenderState(D3DRENDERSTATETYPE Sta
 			{
 				com_ptr<IDirect3DSurface9> surface;
 				_orig->GetDepthStencilSurface(&surface);
-				com_ptr<IDirect3DBaseTexture9> texture;
-				_orig->GetTexture(0, &texture);
+				if (surface != nullptr)
+				{
+					com_ptr<IDirect3DBaseTexture9> texture;
+					_orig->GetTexture(0, &texture);
 
-				uint32_t src_subresource;
-				const reshade::api::resource src_resource = get_resource_from_view(to_handle(surface.get()), &src_subresource);
-				const reshade::api::resource dst_resource = to_handle(texture.get());
+					uint32_t src_subresource;
+					const reshade::api::resource src_resource = get_resource_from_view(to_handle(surface.get()), &src_subresource);
+					const reshade::api::resource dst_resource = to_handle(texture.get());
 
-				reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, 0, 0, 0, 0, reshade::api::format::unknown);
+					reshade::invoke_addon_event<reshade::addon_event::resolve_texture_region>(this, src_resource, src_subresource, nullptr, dst_resource, 0, 0, 0, 0, reshade::api::format::unknown);
+				}
 				return hr;
 			}
 			if (Value == MAKEFOURCC('A', '2', 'M', '0') || Value == MAKEFOURCC('A', '2', 'M', '1'))

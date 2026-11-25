@@ -410,9 +410,12 @@ void reshade::d3d12::command_list_impl::push_descriptors(api::shader_stage stage
 		{
 			const auto &view_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
 
-			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-			view_desc.BufferLocation = _device->get_resource_gpu_address(view_range.buffer) + view_range.offset;
-			view_desc.SizeInBytes = static_cast<UINT>(view_range.size == UINT64_MAX ? reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetDesc().Width - view_range.offset : view_range.size);
+			D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc = {}; // Zero-initialized description creates a null descriptor
+			if (view_range.buffer != 0)
+			{
+				view_desc.BufferLocation = _device->get_resource_gpu_address(view_range.buffer) + view_range.offset;
+				view_desc.SizeInBytes = static_cast<UINT>(view_range.size == UINT64_MAX ? reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetDesc().Width - view_range.offset : view_range.size);
+			}
 
 			_device->_orig->CreateConstantBufferView(&view_desc, base_handle);
 		}
@@ -594,6 +597,13 @@ void reshade::d3d12::command_list_impl::bind_vertex_buffers(uint32_t first, uint
 	temp_mem<D3D12_VERTEX_BUFFER_VIEW, D3D12_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT> views(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		// Buffer handles may be zero to unbind a slot
+		if (buffers[i] == 0)
+		{
+			views[i] = {};
+			continue;
+		}
+
 		const uint64_t offset = (offsets != nullptr ? offsets[i] : 0);
 
 		views[i].BufferLocation = _device->get_resource_gpu_address(buffers[i]) + offset;
@@ -610,12 +620,18 @@ void reshade::d3d12::command_list_impl::bind_stream_output_buffers(uint32_t firs
 	temp_mem<D3D12_STREAM_OUTPUT_BUFFER_VIEW, D3D12_SO_BUFFER_SLOT_COUNT> views(count);
 	for (uint32_t i = 0; i < count; ++i)
 	{
+		if (buffers[i] == 0)
+		{
+			views[i] = {};
+			continue;
+		}
+
 		const uint64_t offset = (offsets != nullptr) ? offsets[i] : 0;
 		const uint64_t counter_offset = (counter_offsets != nullptr) ? counter_offsets[i] : 0;
 
 		views[i].BufferLocation = _device->get_resource_gpu_address(buffers[i]) + offset;
 		views[i].SizeInBytes = (max_sizes != nullptr && max_sizes[i] != UINT64_MAX) ? max_sizes[i] : 0;
-		views[i].BufferFilledSizeLocation = _device->get_resource_gpu_address(counter_buffers[i]) + counter_offset;
+		views[i].BufferFilledSizeLocation = (counter_buffers != nullptr && counter_buffers[i] != 0) ? _device->get_resource_gpu_address(counter_buffers[i]) + counter_offset : 0;
 	}
 
 	_orig->SOSetTargets(first, count, views.p);

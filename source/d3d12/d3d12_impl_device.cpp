@@ -1744,9 +1744,12 @@ void reshade::d3d12::device_impl::update_descriptor_tables(uint32_t count, const
 			{
 				const auto &view_range = static_cast<const api::buffer_range *>(update.descriptors)[k];
 
-				D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc;
-				view_desc.BufferLocation = get_resource_gpu_address(view_range.buffer) + view_range.offset;
-				view_desc.SizeInBytes = static_cast<UINT>(view_range.size == UINT64_MAX ? reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetDesc().Width - view_range.offset : view_range.size);
+				D3D12_CONSTANT_BUFFER_VIEW_DESC view_desc = {}; // Zero-initialized description creates a null descriptor
+				if (view_range.buffer != 0)
+				{
+					view_desc.BufferLocation = get_resource_gpu_address(view_range.buffer) + view_range.offset;
+					view_desc.SizeInBytes = static_cast<UINT>(view_range.size == UINT64_MAX ? reinterpret_cast<ID3D12Resource *>(view_range.buffer.handle)->GetDesc().Width - view_range.offset : view_range.size);
+				}
 
 				_orig->CreateConstantBufferView(&view_desc, dst_range_start);
 			}
