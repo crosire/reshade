@@ -39,6 +39,7 @@ namespace reshade::opengl
 		GLint _read_fbo = 0;
 		GLint _draw_fbo = 0;
 		GLint _viewport[4] = {};
+		GLdouble _depth_range[2] = {};
 		GLint _read_buffer = 0;
 		GLint _draw_buffers[8] = {};
 

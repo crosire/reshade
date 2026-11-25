@@ -65,6 +65,7 @@ void reshade::opengl::state_block::capture()
 	gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &_draw_fbo);
 
 	gl.GetIntegerv(GL_VIEWPORT, _viewport);
+	gl.GetDoublev(GL_DEPTH_RANGE, _depth_range);
 
 	gl.GetIntegerv(GL_READ_BUFFER, &_read_buffer);
 	for (GLuint i = 0; i < 8; i++)
@@ -176,6 +177,7 @@ void reshade::opengl::state_block::apply() const
 	gl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, _draw_fbo);
 
 	gl.Viewport(_viewport[0], _viewport[1], _viewport[2], _viewport[3]);
+	gl.DepthRange(_depth_range[0], _depth_range[1]);
 
 	gl.ReadBuffer(_read_buffer);
 
