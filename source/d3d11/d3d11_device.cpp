@@ -1050,7 +1050,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState(const D3D11_BLEND_DESC *
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
 			// Do not register destruction callback for default blend state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
-			std::memcmp(pBlendStateDesc, &default_blend_desc, sizeof(D3D11_BLEND_DESC)) != 0)
+			// Compare the description of the created object, since the runtime ignores some fields and returns the same object for equivalent descriptions (other render targets are the same as the first when independent blending is disabled)
+			(pipeline->GetDesc(&internal_desc), std::memcmp(&internal_desc, &default_blend_desc, offsetof(D3D11_BLEND_DESC, RenderTarget[1])) != 0))
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1118,8 +1119,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilState(const D3D11_DEPTH
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
-			// Do not register destruction callback for default blend state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
-			std::memcmp(pDepthStencilDesc, &default_depth_stencil_desc, sizeof(D3D11_DEPTH_STENCIL_DESC)) != 0)
+			// Do not register destruction callback for default depth-stencil state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
+			// Compare the description of the created object, since the runtime ignores some fields and returns the same object for equivalent descriptions
+			(pipeline->GetDesc(&internal_desc), std::memcmp(&internal_desc, &default_depth_stencil_desc, sizeof(D3D11_DEPTH_STENCIL_DESC)) != 0))
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1190,7 +1192,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState(const D3D11_RASTERI
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
 			// Do not register destruction callback for default rasterizer state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
-			std::memcmp(pRasterizerDesc, &default_rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC)) != 0)
+			(pipeline->GetDesc(&internal_desc), std::memcmp(&internal_desc, &default_rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC)) != 0))
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1511,7 +1513,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
 			// Do not register destruction callback for default blend state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
-			std::memcmp(pBlendStateDesc, &default_blend_desc, sizeof(D3D11_BLEND_DESC1)) != 0)
+			// Compare the description of the created object, since the runtime ignores some fields and returns the same object for equivalent descriptions (other render targets are the same as the first when independent blending is disabled)
+			(pipeline->GetDesc1(&internal_desc), std::memcmp(&internal_desc, &default_blend_desc, offsetof(D3D11_BLEND_DESC1, RenderTarget[1])) != 0))
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1587,7 +1590,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTER
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
 			// Do not register destruction callback for default rasterizer state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
-			std::memcmp(pRasterizerDesc, &default_rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC1)) != 0)
+			(pipeline->GetDesc1(&internal_desc), std::memcmp(&internal_desc, &default_rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC1)) != 0))
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
@@ -1979,13 +1982,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTER
 	if (SUCCEEDED(hr))
 	{
 #if RESHADE_ADDON
-		ID3D11RasterizerState1 *const pipeline = *ppRasterizerState;
+		ID3D11RasterizerState2 *const pipeline = *ppRasterizerState;
 
 		reshade::invoke_addon_event<reshade::addon_event::init_pipeline>(this, _global_pipeline_layout, static_cast<uint32_t>(std::size(subobjects)), subobjects, to_handle(pipeline));
 
 		if (reshade::has_addon_event<reshade::addon_event::destroy_pipeline>() &&
 			// Do not register destruction callback for default rasterizer state, since it is only destroyed during final device release, after 'destroy_device' event has already been called
-			std::memcmp(pRasterizerDesc, &default_rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC2)) != 0)
+			(pipeline->GetDesc2(&internal_desc), std::memcmp(&internal_desc, &default_rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC2)) != 0))
 		{
 			register_destruction_callback_d3dx(pipeline, [this, pipeline]() {
 				reshade::invoke_addon_event<reshade::addon_event::destroy_pipeline>(this, to_handle(pipeline));
