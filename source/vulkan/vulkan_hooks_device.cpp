@@ -372,6 +372,10 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 			ext.timeline_semaphore = const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->timelineSemaphore = VK_TRUE;
 			ext.descriptor_indexing = existing_vulkan_12_features->descriptorIndexing;
 			ext.buffer_device_address = existing_vulkan_12_features->bufferDeviceAddress;
+
+			// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
+			if (existing_vulkan_12_features->vulkanMemoryModel)
+				const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
 		}
 		else
 		{
@@ -398,6 +402,13 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, ext.buffer_device_address))
 				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES, &ext.buffer_device_address_features);
+
+			if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
+					pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
+			{
+				if (existing_memory_model_features->vulkanMemoryModel)
+					const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
+			}
 		}
 
 		if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
@@ -439,14 +450,6 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			if (check_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES, ext.host_image_copy))
 				enable_bool_feature(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES, &ext.host_image_copy_features);
-		}
-
-		// Enable Vulkan memory model device scope if it is not, since it is required by atomics in generated SPIR-V code for effects
-		if (const auto existing_memory_model_features = find_in_structure_chain<VkPhysicalDeviceVulkanMemoryModelFeatures>(
-				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES))
-		{
-			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModel = VK_TRUE;
-			const_cast<VkPhysicalDeviceVulkanMemoryModelFeatures *>(existing_memory_model_features)->vulkanMemoryModelDeviceScope = VK_TRUE;
 		}
 
 #if VK_EXT_custom_border_color
