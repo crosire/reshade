@@ -397,6 +397,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
 	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
+	const bool prev_is_desc_modified = _is_desc_modified;
 	{
 		g_in_dxgi_runtime = true;
 		DXGI_SWAP_CHAIN_DESC desc = {};
@@ -443,6 +444,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 #if RESHADE_ADDON
 		_orig_desc = prev_orig_desc;
+		_is_desc_modified = prev_is_desc_modified;
 #endif
 
 		reshade::log::message(reshade::log::level::warning, "IDXGISwapChain::ResizeBuffers failed with error code DXGI_ERROR_INVALID_CALL.");
@@ -452,6 +454,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 #if RESHADE_ADDON
 		_orig_desc = prev_orig_desc;
+		_is_desc_modified = prev_is_desc_modified;
 #endif
 
 		reshade::log::message(reshade::log::level::error, "IDXGISwapChain::ResizeBuffers failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
@@ -764,6 +767,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	// Handle update of the swap chain description
 #if RESHADE_ADDON
 	const DXGI_SWAP_CHAIN_DESC prev_orig_desc = _orig_desc;
+	const bool prev_is_desc_modified = _is_desc_modified;
 	{
 		g_in_dxgi_runtime = true;
 		HWND hwnd = nullptr;
@@ -844,6 +848,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 #if RESHADE_ADDON
 		_orig_desc = prev_orig_desc;
+		_is_desc_modified = prev_is_desc_modified;
 #endif
 
 		reshade::log::message(reshade::log::level::warning, "IDXGISwapChain3::ResizeBuffers1 failed with error code DXGI_ERROR_INVALID_CALL.");
@@ -853,6 +858,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 #if RESHADE_ADDON
 		_orig_desc = prev_orig_desc;
+		_is_desc_modified = prev_is_desc_modified;
 #endif
 
 		reshade::log::message(reshade::log::level::error, "IDXGISwapChain3::ResizeBuffers1 failed with error code %s!", reshade::log::hr_to_string(hr).c_str());
