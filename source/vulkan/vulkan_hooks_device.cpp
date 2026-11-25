@@ -2841,6 +2841,10 @@ VkResult VKAPI_CALL vkCreateAccelerationStructureKHR(VkDevice device, const VkAc
 	}
 
 #if RESHADE_ADDON
+	reshade::vulkan::object_data<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR> &data = *device_impl->register_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>(*pAccelerationStructure);
+	data.create_info = create_info;
+	data.create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
+
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		device_impl, reshade::api::resource { (uint64_t)create_info.buffer }, reshade::api::resource_usage::acceleration_structure, desc, reshade::api::resource_view { (uint64_t)*pAccelerationStructure });
 #endif
@@ -2857,6 +2861,8 @@ void     VKAPI_CALL vkDestroyAccelerationStructureKHR(VkDevice device, VkAcceler
 
 #if RESHADE_ADDON
 	reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device_impl, reshade::api::resource_view { (uint64_t)accelerationStructure });
+
+	device_impl->unregister_object<VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR>(accelerationStructure);
 #endif
 
 	trampoline(device, accelerationStructure, pAllocator);

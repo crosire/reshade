@@ -2854,6 +2854,10 @@ void reshade::vulkan::device_impl::set_resource_view_name(api::resource_view vie
 
 	VkDebugUtilsObjectNameInfoEXT name_info { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
 	name_info.objectType = data->create_info.sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO ? VK_OBJECT_TYPE_IMAGE_VIEW : VK_OBJECT_TYPE_BUFFER_VIEW;
+#if VK_KHR_acceleration_structure
+	if (data->create_info.sType == VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR)
+		name_info.objectType = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR;
+#endif
 	name_info.objectHandle = view.handle;
 	name_info.pObjectName = name;
 
