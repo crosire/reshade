@@ -2050,42 +2050,7 @@ bool reshade::d3d12::device_impl::signal(api::fence fence, uint64_t value)
 void reshade::d3d12::device_impl::get_acceleration_structure_size(api::acceleration_structure_type type, api::acceleration_structure_build_flags flags, uint32_t input_count, const api::acceleration_structure_build_input *inputs, uint64_t *out_size, uint64_t *out_build_scratch_size, uint64_t *out_update_scratch_size) const
 {
 	com_ptr<ID3D12Device5> device5;
-	if (SUCCEEDED(_orig->QueryInterface(&device5)))
-	{
-		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc;
-		desc.Type = convert_acceleration_structure_type(type);
-		desc.Flags = convert_acceleration_structure_build_flags(flags, api::acceleration_structure_build_mode::build);
-		desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-
-		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
-		if (type == api::acceleration_structure_type::top_level)
-		{
-			assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
-
-			desc.NumDescs = inputs->instances.count;
-			desc.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
-			desc.InstanceDescs = get_resource_gpu_address(inputs->instances.buffer) + inputs->instances.offset;
-		}
-		else
-		{
-			for (uint32_t i = 0; i < input_count; ++i)
-				convert_acceleration_structure_build_input(inputs[i], geometries[i]);
-
-			desc.NumDescs = static_cast<UINT>(geometries.size());
-			desc.pGeometryDescs = geometries.data();
-		}
-
-		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
-		device5->GetRaytracingAccelerationStructurePrebuildInfo(&desc, &info);
-
-		if (out_size != nullptr)
-			*out_size = info.ResultDataMaxSizeInBytes;
-		if (out_build_scratch_size != nullptr)
-			*out_build_scratch_size = info.ScratchDataSizeInBytes;
-		if (out_update_scratch_size != nullptr)
-			*out_update_scratch_size = info.UpdateScratchDataSizeInBytes;
-	}
-	else
+	if (FAILED(_orig->QueryInterface(&device5)))
 	{
 		if (out_size != nullptr)
 			*out_size = 0;
@@ -2093,7 +2058,41 @@ void reshade::d3d12::device_impl::get_acceleration_structure_size(api::accelerat
 			*out_build_scratch_size = 0;
 		if (out_update_scratch_size != nullptr)
 			*out_update_scratch_size = 0;
+		return;
 	}
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS desc = {};
+	desc.Type = convert_acceleration_structure_type(type);
+	desc.Flags = convert_acceleration_structure_build_flags(flags, api::acceleration_structure_build_mode::build);
+	desc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+
+	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries(input_count);
+	if (type == api::acceleration_structure_type::top_level)
+	{
+		assert(input_count == 1 && inputs->type == api::acceleration_structure_build_input_type::instances);
+
+		desc.NumDescs = inputs->instances.count;
+		desc.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
+		desc.InstanceDescs = inputs->instances.gpu_address;
+	}
+	else
+	{
+		for (uint32_t i = 0; i < input_count; ++i)
+			convert_acceleration_structure_build_input(inputs[i], geometries[i]);
+
+		desc.NumDescs = static_cast<UINT>(geometries.size());
+		desc.pGeometryDescs = geometries.data();
+	}
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO info = {};
+	device5->GetRaytracingAccelerationStructurePrebuildInfo(&desc, &info);
+
+	if (out_size != nullptr)
+		*out_size = info.ResultDataMaxSizeInBytes;
+	if (out_build_scratch_size != nullptr)
+		*out_build_scratch_size = info.ScratchDataSizeInBytes;
+	if (out_update_scratch_size != nullptr)
+		*out_update_scratch_size = info.UpdateScratchDataSizeInBytes;
 }
 
 bool reshade::d3d12::device_impl::get_pipeline_shader_group_handles(api::pipeline pipeline, uint32_t first, uint32_t count, void *out_handles)

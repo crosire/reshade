@@ -1210,27 +1210,7 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 	std::vector<VkAccelerationStructureGeometryKHR> geometries(input_count, { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR });
 	std::vector<VkAccelerationStructureBuildRangeInfoKHR> range_infos(input_count);
 	for (uint32_t i = 0; i < input_count; ++i)
-	{
-		const api::acceleration_structure_build_input &input = inputs[i];
-		VkAccelerationStructureGeometryKHR &geometry = geometries[i];
-
-		convert_acceleration_structure_build_input(input, geometry, range_infos[i]);
-
-		switch (geometry.geometryType)
-		{
-		case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-			geometry.geometry.triangles.vertexData.deviceAddress += _device->get_resource_gpu_address(input.triangles.vertex_buffer);
-			geometry.geometry.triangles.indexData.deviceAddress += _device->get_resource_gpu_address(input.triangles.index_buffer);
-			geometry.geometry.triangles.transformData.deviceAddress += _device->get_resource_gpu_address(input.triangles.transform_buffer);
-			break;
-		case VK_GEOMETRY_TYPE_AABBS_KHR:
-			geometry.geometry.aabbs.data.deviceAddress += _device->get_resource_gpu_address(input.aabbs.buffer);
-			break;
-		case VK_GEOMETRY_TYPE_INSTANCES_KHR:
-			geometry.geometry.instances.data.deviceAddress += _device->get_resource_gpu_address(input.instances.buffer);
-			break;
-		}
-	}
+		convert_acceleration_structure_build_input(inputs[i], geometries[i], range_infos[i]);
 
 	VkAccelerationStructureBuildGeometryInfoKHR build_info { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR };
 	build_info.type = convert_acceleration_structure_type(type);

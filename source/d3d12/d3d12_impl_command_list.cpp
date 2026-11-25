@@ -1188,7 +1188,7 @@ void reshade::d3d12::command_list_impl::build_acceleration_structure(api::accele
 
 		desc.Inputs.NumDescs = inputs->instances.count;
 		desc.Inputs.DescsLayout = inputs->instances.array_of_pointers ? D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS : D3D12_ELEMENTS_LAYOUT_ARRAY;
-		desc.Inputs.InstanceDescs = _device->get_resource_gpu_address(inputs->instances.buffer) + inputs->instances.offset;
+		desc.Inputs.InstanceDescs = inputs->instances.gpu_address;
 	}
 	else
 	{

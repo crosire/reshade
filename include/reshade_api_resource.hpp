@@ -729,9 +729,9 @@ namespace reshade::api
 	struct acceleration_structure_build_input
 	{
 		constexpr acceleration_structure_build_input() : triangles() {}
-		constexpr acceleration_structure_build_input(resource vertex_buffer, uint64_t vertex_offset, uint32_t vertex_count, uint64_t vertex_stride, format vertex_format, resource index_buffer, uint64_t index_offset, uint32_t index_count, format index_format, uint64_t transform_address = 0) : type(acceleration_structure_build_input_type::triangles), triangles({ vertex_buffer, vertex_offset, vertex_count, vertex_stride, vertex_format, index_buffer, index_offset, index_count, index_format, transform_address }) {}
-		constexpr acceleration_structure_build_input(resource aabb_buffer, uint64_t aabb_offset, uint32_t aabb_count, uint64_t aabb_stride) : type(acceleration_structure_build_input_type::aabbs), aabbs({ aabb_buffer, aabb_offset, aabb_count, aabb_stride }) {}
-		constexpr acceleration_structure_build_input(resource instance_buffer, uint64_t instance_offset, uint32_t instance_count, bool array_of_pointers = false) : type(acceleration_structure_build_input_type::instances), instances({ instance_buffer, instance_offset, instance_count, array_of_pointers }) {}
+		constexpr acceleration_structure_build_input(uint64_t vertex_offset, uint32_t vertex_count, uint64_t vertex_stride, format vertex_format, uint64_t index_offset, uint32_t index_count, format index_format, uint64_t transform_address = 0) : type(acceleration_structure_build_input_type::triangles), triangles({ vertex_offset, vertex_count, vertex_stride, vertex_format, index_offset, index_count, index_format, transform_address }) {}
+		constexpr acceleration_structure_build_input(uint64_t aabb_offset, uint32_t aabb_count, uint64_t aabb_stride) : type(acceleration_structure_build_input_type::aabbs), aabbs({ aabb_offset, aabb_count, aabb_stride }) {}
+		constexpr acceleration_structure_build_input(uint64_t instance_offset, uint32_t instance_count, bool array_of_pointers = false) : type(acceleration_structure_build_input_type::instances), instances({ instance_offset, instance_count, array_of_pointers }) {}
 
 		/// <summary>
 		/// Type of the acceleration structure build input.
@@ -745,19 +745,16 @@ namespace reshade::api
 			/// </summary>
 			struct
 			{
-				resource vertex_buffer = {};
-				uint64_t vertex_offset = 0;
+				uint64_t vertex_gpu_address = 0;
 				uint32_t vertex_count = 0;
 				uint64_t vertex_stride = 0;
 				format vertex_format = api::format::unknown;
 
-				resource index_buffer = {};
-				uint64_t index_offset = 0;
+				uint64_t index_gpu_address = 0;
 				uint32_t index_count = 0;
 				format index_format = api::format::unknown;
 
-				resource transform_buffer = {};
-				uint64_t transform_offset = 0;
+				uint64_t transform_gpu_address = 0;
 			} triangles;
 
 			/// <summary>
@@ -765,8 +762,7 @@ namespace reshade::api
 			/// </summary>
 			struct
 			{
-				resource buffer = {};
-				uint64_t offset = 0;
+				uint64_t gpu_address = 0;
 				uint32_t count = 0;
 				uint64_t stride = 0;
 			} aabbs;
@@ -776,8 +772,7 @@ namespace reshade::api
 			/// </summary>
 			struct
 			{
-				resource buffer = {};
-				uint64_t offset = 0;
+				uint64_t gpu_address = 0;
 				uint32_t count = 0;
 				bool array_of_pointers = false;
 			} instances;
