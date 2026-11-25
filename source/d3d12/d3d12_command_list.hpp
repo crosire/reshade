@@ -9,7 +9,7 @@
 
 class D3D12Device;
 
-class DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList final : public ID3D12GraphicsCommandList10, public reshade::d3d12::command_list_impl
+class DECLSPEC_UUID("479B29E3-9A2C-11D0-B696-00A0C903487A") D3D12GraphicsCommandList final : public ID3D12GraphicsCommandList12, public reshade::d3d12::command_list_impl
 {
 public:
 	D3D12GraphicsCommandList(D3D12Device *device, ID3D12GraphicsCommandList *original);
@@ -130,6 +130,22 @@ public:
 	#pragma region ID3D12GraphicsCommandList10
 	void   STDMETHODCALLTYPE SetProgram(const D3D12_SET_PROGRAM_DESC *pDesc) override;
 	void   STDMETHODCALLTYPE DispatchGraph(const D3D12_DISPATCH_GRAPH_DESC *pDesc) override;
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList11
+	void   STDMETHODCALLTYPE WaitBarrier(UINT NumBarrierGroups, const D3D12_BARRIER_GROUP *pBarrierGroups, UINT NumFences, ID3D12Fence *const *ppFences, const UINT64 *pFenceValues) override;
+	void   STDMETHODCALLTYPE SignalBarrier(UINT NumBarrierGroups, const D3D12_BARRIER_GROUP *pBarrierGroups, ID3D12Fence *pFence, UINT64 FenceValue) override;
+	#pragma endregion
+	#pragma region ID3D12GraphicsCommandList12
+	void   STDMETHODCALLTYPE CopyBufferRegions(UINT NumRegions, ID3D12Resource *const *ppDestBuffers, const UINT64 *pDestOffsets, ID3D12Resource *const *ppSourceBuffers, const UINT64 *pSourceOffsets, const UINT64 *pSizes) override;
+	void   STDMETHODCALLTYPE CopyTextureRegions(UINT NumCopyDescs, const D3D12_TEXTURE_COPY_DESC *pCopyDescs) override;
+	void   STDMETHODCALLTYPE CopyResources(UINT NumSourceDestPairs, ID3D12Resource *const *ppDestResources, ID3D12Resource *const *ppSourceResources) override;
+	void   STDMETHODCALLTYPE CopyTilesAsync(ID3D12Resource *pTiledResource, const D3D12_TILED_RESOURCE_COORDINATE *pTileRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pTileRegionSize, ID3D12Resource *pBuffer, UINT64 BufferOffset, D3D12_TILE_COPY_FLAGS Flags) override;
+	void   STDMETHODCALLTYPE ResolveSubresourceRegionAsync(ID3D12Resource *pDestResource, UINT DestSubresource, UINT DestX, UINT DestY, ID3D12Resource *pSourceResource, UINT SourceSubresource, const D3D12_RECT *pSourceRect, DXGI_FORMAT Format, D3D12_RESOLVE_MODE ResolveMode) override;
+	void   STDMETHODCALLTYPE ResolveQueryDataAsync(ID3D12QueryHeap *pQueryHeap, D3D12_QUERY_TYPE Type, UINT StartIndex, UINT NumQueries, ID3D12Resource *pDestBuffer, UINT64 DestOffset) override;
+	void   STDMETHODCALLTYPE ClearBoundDepthStencilView(D3D12_CLEAR_FLAGS ClearFlags, FLOAT Depth, UINT8 Stencil, UINT NumRegions, const D3D12_BOX *pRegions) override;
+	void   STDMETHODCALLTYPE ClearBoundRenderTargetViews(UINT RenderTargetMask, const D3D12_CLEAR_DATA *pClearValues, const UINT *pNumRegions, const D3D12_BOX *const *ppRegions) override;
+	void   STDMETHODCALLTYPE ClearTextureSubresources(UINT NumClearDescs, const D3D12_CLEAR_TEXTURE_DESC *pClearDescs) override;
+	void   STDMETHODCALLTYPE FillBuffers(UINT NumFillDescs, const D3D12_FILL_BUFFER_DESC *pFillDescs) override;
 	#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);

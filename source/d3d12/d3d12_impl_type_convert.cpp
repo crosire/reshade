@@ -462,6 +462,11 @@ void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12
 	// D3D12_RESOURCE_DESC1 is a superset of D3D12_RESOURCE_DESC
 	convert_resource_desc(desc, reinterpret_cast<D3D12_RESOURCE_DESC &>(internal_desc), heap_props, heap_flags);
 }
+void reshade::d3d12::convert_resource_desc(const api::resource_desc &desc, D3D12_RESOURCE_DESC2 &internal_desc, D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS &heap_flags)
+{
+	// D3D12_RESOURCE_DESC2 is a superset of D3D12_RESOURCE_DESC
+	convert_resource_desc(desc, reinterpret_cast<D3D12_RESOURCE_DESC &>(internal_desc), heap_props, heap_flags);
+}
 reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
 {
 	api::resource_desc desc = {};
@@ -563,6 +568,11 @@ reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RE
 reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC1 &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
 {
 	// D3D12_RESOURCE_DESC1 is a superset of D3D12_RESOURCE_DESC
+	return convert_resource_desc(reinterpret_cast<const D3D12_RESOURCE_DESC &>(internal_desc), heap_props, heap_flags);
+}
+reshade::api::resource_desc reshade::d3d12::convert_resource_desc(const D3D12_RESOURCE_DESC2 &internal_desc, const D3D12_HEAP_PROPERTIES &heap_props, D3D12_HEAP_FLAGS heap_flags)
+{
+	// D3D12_RESOURCE_DESC2 is a superset of D3D12_RESOURCE_DESC
 	return convert_resource_desc(reinterpret_cast<const D3D12_RESOURCE_DESC &>(internal_desc), heap_props, heap_flags);
 }
 

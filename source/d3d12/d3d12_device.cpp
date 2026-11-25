@@ -76,6 +76,7 @@ bool D3D12Device::check_and_upgrade_interface(REFIID riid)
 		__uuidof(ID3D12Device13), // {14EECFFC-4DF8-40F7-A118-5C816F45695E}
 		__uuidof(ID3D12Device14), // {5F6E592D-D895-44C2-8E4A-88AD4926D323}
 		__uuidof(ID3D12Device15), // {76CFF76F-1E9b-4450-8CDC-34F1AF788E5B}
+		__uuidof(ID3D12Device16), // {B34A50DD-E102-428F-82A0-82294A27BBE6}
 	};
 
 	for (unsigned short version = 0; version < std::size(iid_lookup); ++version)
@@ -2325,6 +2326,162 @@ HRESULT STDMETHODCALLTYPE D3D12Device::ResolveQueryData(ID3D12QueryHeap *pQueryH
 #endif
 
 	return static_cast<ID3D12Device15 *>(_orig)->ResolveQueryData(pQueryHeap, Type, StartIndex, NumQueries, pResolved);
+}
+
+HRESULT STDMETHODCALLTYPE D3D12Device::GetTextureLayoutCount(const D3D12_TEXTURE_LAYOUT_FILTER *pFilter, UINT *pNumGuids)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->GetTextureLayoutCount(pFilter, pNumGuids);
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::GetTextureLayouts(const D3D12_TEXTURE_LAYOUT_FILTER *pFilter, UINT NumGuids, GUID *pGuids)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->GetTextureLayouts(pFilter, NumGuids, pGuids);
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource4(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC2 *pResourceDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, UINT32 NumCastableFormats, const DXGI_FORMAT *pCastableFormats, REFIID riidResource, void **ppvResource)
+{
+	assert(_interface_version >= 16);
+
+	if (pHeapProperties == nullptr || pResourceDesc == nullptr)
+		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return static_cast<ID3D12Device16 *>(_orig)->CreateCommittedResource4(pHeapProperties, HeapFlags, pResourceDesc, InitialLayout, pOptimizedClearValue, pProtectedSession, NumCastableFormats, pCastableFormats, riidResource, ppvResource);
+
+#if RESHADE_ADDON
+	auto heap_props = *pHeapProperties;
+
+	D3D12_RESOURCE_DESC2 internal_desc = *pResourceDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_props, HeapFlags);
+	assert(desc.heap != reshade::api::memory_heap::unknown);
+	const auto initial_state = reshade::d3d12::convert_barrier_layout_to_usage(InitialLayout);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
+	{
+		reshade::d3d12::convert_resource_desc(desc, internal_desc, heap_props, HeapFlags);
+		pHeapProperties = &heap_props;
+		pResourceDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
+	}
+#endif
+
+	const HRESULT hr = static_cast<ID3D12Device16 *>(_orig)->CreateCommittedResource4(pHeapProperties, HeapFlags, pResourceDesc, InitialLayout, pOptimizedClearValue, pProtectedSession, NumCastableFormats, pCastableFormats, riidResource, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+		if (riidResource == __uuidof(ID3D12Resource) ||
+			riidResource == __uuidof(ID3D12Resource1) ||
+			riidResource == __uuidof(ID3D12Resource2) ||
+			riidResource == __uuidof(ID3D12Resource3))
+		{
+			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+
+			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, &ID3D12Resource_GetDevice);
+
+#if RESHADE_ADDON
+			invoke_init_resource_event(desc, initial_state, resource);
+#endif
+		}
+#if RESHADE_VERBOSE_LOG
+		else
+		{
+			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device16::CreateCommittedResource4.", reshade::log::iid_to_string(riidResource).c_str());
+		}
+#endif
+	}
+#if RESHADE_VERBOSE_LOG
+	else
+	{
+		reshade::log::message(reshade::log::level::warning, "ID3D12Device16::CreateCommittedResource4 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
+	}
+#endif
+
+	return hr;
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource3(ID3D12Heap *pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC2 *pResourceDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE *pOptimizedClearValue, UINT32 NumCastableFormats, const DXGI_FORMAT *pCastableFormats, REFIID riid, void **ppvResource)
+{
+	assert(_interface_version >= 16);
+
+	if (pHeap == nullptr || pResourceDesc == nullptr)
+		return E_INVALIDARG;
+	if (ppvResource == nullptr) // This can happen when application only wants to validate input parameters
+		return static_cast<ID3D12Device16 *>(_orig)->CreatePlacedResource3(pHeap, HeapOffset, pResourceDesc, InitialLayout, pOptimizedClearValue, NumCastableFormats, pCastableFormats, riid, ppvResource);
+
+#if RESHADE_ADDON
+	const auto heap_desc = pHeap->GetDesc();
+
+	D3D12_RESOURCE_DESC2 internal_desc = *pResourceDesc;
+	auto desc = reshade::d3d12::convert_resource_desc(internal_desc, heap_desc.Properties, heap_desc.Flags);
+	assert(desc.heap != reshade::api::memory_heap::unknown);
+	const auto initial_state = reshade::d3d12::convert_barrier_layout_to_usage(InitialLayout);
+
+	if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(this, desc, nullptr, initial_state))
+	{
+		reshade::d3d12::convert_resource_desc(desc, internal_desc);
+		pResourceDesc = &internal_desc;
+		pOptimizedClearValue = nullptr;
+	}
+#endif
+
+	const HRESULT hr = static_cast<ID3D12Device16 *>(_orig)->CreatePlacedResource3(pHeap, HeapOffset, pResourceDesc, InitialLayout, pOptimizedClearValue, NumCastableFormats, pCastableFormats, riid, ppvResource);
+	if (SUCCEEDED(hr))
+	{
+		if (riid == __uuidof(ID3D12Resource) ||
+			riid == __uuidof(ID3D12Resource1) ||
+			riid == __uuidof(ID3D12Resource2) ||
+			riid == __uuidof(ID3D12Resource3))
+		{
+			const auto resource = static_cast<ID3D12Resource *>(*ppvResource);
+
+			reshade::hooks::install("ID3D12Resource::GetDevice", reshade::hooks::vtable_from_instance(resource), 7, &ID3D12Resource_GetDevice);
+
+#if RESHADE_ADDON
+			invoke_init_resource_event(desc, initial_state, resource);
+#endif
+		}
+#if RESHADE_VERBOSE_LOG
+		else
+		{
+			reshade::log::message(reshade::log::level::warning, "Unknown interface %s in ID3D12Device16::CreatePlacedResource3.", reshade::log::iid_to_string(riid).c_str());
+		}
+#endif
+	}
+#if RESHADE_VERBOSE_LOG
+	else
+	{
+		reshade::log::message(reshade::log::level::warning, "ID3D12Device16::CreatePlacedResource3 failed with error code %s.", reshade::log::hr_to_string(hr).c_str());
+	}
+#endif
+
+	return hr;
+}
+D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo4(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC2 *pResourceDescs, const UINT32 *pNumCastableFormats, const DXGI_FORMAT *const *ppCastableFormats, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->GetResourceAllocationInfo4(visibleMask, numResourceDescs, pResourceDescs, pNumCastableFormats, ppCastableFormats, pResourceAllocationInfo1);
+}
+void    STDMETHODCALLTYPE D3D12Device::GetCopyableFootprints2(const D3D12_RESOURCE_DESC2 *pResourceDesc, UINT FirstSubresource, UINT NumSubresources, UINT64 BaseOffset, D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts, UINT *pNumRows, UINT64 *pRowSizeInBytes, UINT64 *pTotalBytes)
+{
+	assert(_interface_version >= 16);
+	static_cast<ID3D12Device16 *>(_orig)->GetCopyableFootprints2(pResourceDesc, FirstSubresource, NumSubresources, BaseOffset, pLayouts, pNumRows, pRowSizeInBytes, pTotalBytes);
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::GetRowMajorTextureLayoutInfo(const D3D12_RESOURCE_DESC2 *pResourceDesc, UINT FirstSubresource, UINT NumSubresources, D3D12_ROW_MAJOR_TEXTURE_LAYOUT_INFO *pLayoutInfo)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->GetRowMajorTextureLayoutInfo(pResourceDesc, FirstSubresource, NumSubresources, pLayoutInfo);
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::CreateShaderCacheSession1(const D3D12_SHADER_CACHE_SESSION_DESC1 *pDesc, REFIID riid, void **ppvSession)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->CreateShaderCacheSession1(pDesc, riid, ppvSession);
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::DeleteShaderCache(const D3D12_SHADER_CACHE_SESSION_DESC1 *pDesc)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->DeleteShaderCache(pDesc);
+}
+HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport1(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize, UINT SDKVersion)
+{
+	assert(_interface_version >= 16);
+	return static_cast<ID3D12Device16 *>(_orig)->CheckFeatureSupport1(Feature, pFeatureSupportData, FeatureSupportDataSize, SDKVersion);
 }
 
 #if RESHADE_ADDON

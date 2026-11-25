@@ -11,7 +11,7 @@ class D3D12DeviceDownlevel;
 class D3D12DeviceExt;
 class D3D12DXVKInteropDevice;
 
-class DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : public ID3D12Device15, public reshade::d3d12::device_impl
+class DECLSPEC_UUID("2523AFF4-978B-4939-BA16-8EE876A4CB2A") D3D12Device final : public ID3D12Device16, public reshade::d3d12::device_impl
 {
 	friend class D3D12DeviceDownlevel;
 	friend class D3D12DescriptorHeap;
@@ -149,6 +149,18 @@ public:
 	HRESULT STDMETHODCALLTYPE TryCreateSamplerFeedbackUnorderedAccessView(ID3D12Resource *pTargetedResource, ID3D12Resource *pFeedbackResource, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor) override;
 	HRESULT STDMETHODCALLTYPE CreateQueryHeap1(const D3D12_QUERY_HEAP_DESC *pDesc, D3D12_QUERY_HEAP_FLAGS Flags, REFIID riid, void **ppvHeap) override;
 	HRESULT STDMETHODCALLTYPE ResolveQueryData(ID3D12QueryHeap *pQueryHeap, D3D12_QUERY_TYPE Type, UINT StartIndex, UINT NumQueries, void *pResolvedQueryData) override;
+	#pragma endregion
+	#pragma region ID3D12Device16
+	HRESULT STDMETHODCALLTYPE GetTextureLayoutCount(const D3D12_TEXTURE_LAYOUT_FILTER *pFilter, UINT *pNumGuids) override;
+	HRESULT STDMETHODCALLTYPE GetTextureLayouts(const D3D12_TEXTURE_LAYOUT_FILTER *pFilter, UINT NumGuids, GUID *pGuids) override;
+	HRESULT STDMETHODCALLTYPE CreateCommittedResource4(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC2 *pResourceDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE *pOptimizedClearValue, ID3D12ProtectedResourceSession *pProtectedSession, UINT32 NumCastableFormats, const DXGI_FORMAT *pCastableFormats, REFIID riidResource, void **ppvResource) override;
+	HRESULT STDMETHODCALLTYPE CreatePlacedResource3(ID3D12Heap *pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC2 *pResourceDesc, D3D12_BARRIER_LAYOUT InitialLayout, const D3D12_CLEAR_VALUE *pOptimizedClearValue, UINT32 NumCastableFormats, const DXGI_FORMAT *pCastableFormats, REFIID riid, void **ppvResource) override;
+	D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE GetResourceAllocationInfo4(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC2 *pResourceDescs, const UINT32 *pNumCastableFormats, const DXGI_FORMAT *const *ppCastableFormats, D3D12_RESOURCE_ALLOCATION_INFO1 *pResourceAllocationInfo1) override;
+	void    STDMETHODCALLTYPE GetCopyableFootprints2(const D3D12_RESOURCE_DESC2 *pResourceDesc, UINT FirstSubresource, UINT NumSubresources,UINT64 BaseOffset, D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts, UINT *pNumRows, UINT64 *pRowSizeInBytes, UINT64 *pTotalBytes) override;
+	HRESULT STDMETHODCALLTYPE GetRowMajorTextureLayoutInfo(const D3D12_RESOURCE_DESC2 *pResourceDesc, UINT FirstSubresource, UINT NumSubresources, D3D12_ROW_MAJOR_TEXTURE_LAYOUT_INFO *pLayoutInfo) override;
+	HRESULT STDMETHODCALLTYPE CreateShaderCacheSession1(const D3D12_SHADER_CACHE_SESSION_DESC1 *pDesc, REFIID riid, void **ppvSession) override;
+	HRESULT STDMETHODCALLTYPE DeleteShaderCache(const D3D12_SHADER_CACHE_SESSION_DESC1 *pDesc) override;
+	HRESULT STDMETHODCALLTYPE CheckFeatureSupport1(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize, UINT SDKVersion) override;
 	#pragma endregion
 
 	bool check_and_upgrade_interface(REFIID riid);
