@@ -115,7 +115,12 @@ VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo *pCreateInfo, co
 	const auto enum_instance_extensions = reinterpret_cast<PFN_vkEnumerateInstanceExtensionProperties>(get_instance_proc_addr(VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties"));
 #endif
 	if (enum_instance_extensions == nullptr)
+	{
+#if RESHADE_ADDON >= 2
+		reshade::unload_addons();
+#endif
 		return VK_ERROR_INITIALIZATION_FAILED;
+	}
 
 	std::vector<const char *> enabled_extensions;
 	enabled_extensions.reserve(pCreateInfo->enabledExtensionCount);
