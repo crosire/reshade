@@ -1261,6 +1261,7 @@ void reshade::vulkan::command_list_impl::query_acceleration_structures(uint32_t 
 		type == api::query_type::acceleration_structure_serialization_size ||
 		type == api::query_type::acceleration_structure_bottom_level_acceleration_structure_pointers);
 
+	vk.CmdResetQueryPool(_orig, (VkQueryPool)heap.handle, first, count);
 	vk.CmdWriteAccelerationStructuresPropertiesKHR(_orig, count, reinterpret_cast<const VkAccelerationStructureKHR *>(acceleration_structures), convert_query_type(type), (VkQueryPool)heap.handle, first);
 #else
 	assert(false);
