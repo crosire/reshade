@@ -3090,22 +3090,22 @@ void APIENTRY glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintpt
 	trampoline(readTarget, writeTarget, readOffset, writeOffset, size);
 }
 
-void APIENTRY glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+void APIENTRY glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount)
 {
 #if RESHADE_ADDON
 	if (g_opengl_context)
 	{
 		update_current_primitive_topology(mode);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_opengl_context, primcount, count, first, 0))
+		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_opengl_context, count, instancecount, first, 0))
 			return;
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstanced);
-	trampoline(mode, first, count, primcount);
+	trampoline(mode, first, count, instancecount);
 }
-void APIENTRY glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+void APIENTRY glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount)
 {
 #if RESHADE_ADDON
 	if (g_opengl_context)
@@ -3116,13 +3116,13 @@ void APIENTRY glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, c
 		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
 		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, primcount, count, offset, 0, 0))
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, count, instancecount, offset, 0, 0))
 			return;
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstanced);
-	trampoline(mode, count, type, indices, primcount);
+	trampoline(mode, count, type, indices, instancecount);
 }
 #endif
 
@@ -3219,7 +3219,7 @@ void APIENTRY glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint en
 	static const auto trampoline = reshade::hooks::call(glDrawRangeElementsBaseVertex);
 	trampoline(mode, start, end, count, type, indices, basevertex);
 }
-void APIENTRY glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
+void APIENTRY glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex)
 {
 #if RESHADE_ADDON
 	if (g_opengl_context)
@@ -3230,13 +3230,13 @@ void APIENTRY glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLen
 		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
 		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, primcount, count, offset, basevertex, 0))
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, count, instancecount, offset, basevertex, 0))
 			return;
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertex);
-	trampoline(mode, count, type, indices, primcount, basevertex);
+	trampoline(mode, count, type, indices, instancecount, basevertex);
 }
 void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
 {
@@ -3267,14 +3267,14 @@ void APIENTRY glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, G
 struct DrawArraysIndirectCommand
 {
 	GLuint count;
-	GLuint primcount;
+	GLuint instancecount;
 	GLuint first;
 	GLuint baseinstance;
 };
 struct DrawElementsIndirectCommand
 {
 	GLuint count;
-	GLuint primcount;
+	GLuint instancecount;
 	GLuint firstindex;
 	GLuint basevertex;
 	GLuint baseinstance;
@@ -3304,7 +3304,7 @@ void APIENTRY glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 		{
 			// Redirect to non-indirect draw call so proper event is invoked
 			const auto cmd = static_cast<const DrawArraysIndirectCommand *>(indirect);
-			glDrawArraysInstancedBaseInstance(mode, cmd->first, cmd->count, cmd->primcount, cmd->baseinstance);
+			glDrawArraysInstancedBaseInstance(mode, cmd->first, cmd->count, cmd->instancecount, cmd->baseinstance);
 			return;
 		}
 	}
@@ -3342,7 +3342,7 @@ void APIENTRY glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *ind
 				cmd->count,
 				type,
 				reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(static_cast<size_t>(cmd->firstindex) * reshade::opengl::get_index_type_size(type))),
-				cmd->primcount,
+				cmd->instancecount,
 				cmd->basevertex,
 				cmd->baseinstance);
 			return;
@@ -3601,22 +3601,22 @@ void APIENTRY glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboo
 #endif
 }
 
-void APIENTRY glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
+void APIENTRY glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance)
 {
 #if RESHADE_ADDON
 	if (g_opengl_context)
 	{
 		update_current_primitive_topology(mode);
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_opengl_context, primcount, count, first, baseinstance))
+		if (reshade::invoke_addon_event<reshade::addon_event::draw>(g_opengl_context, count, instancecount, first, baseinstance))
 			return;
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawArraysInstancedBaseInstance);
-	trampoline(mode, first, count, primcount, baseinstance);
+	trampoline(mode, first, count, instancecount, baseinstance);
 }
-void APIENTRY glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
+void APIENTRY glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLuint baseinstance)
 {
 #if RESHADE_ADDON
 	if (g_opengl_context)
@@ -3627,15 +3627,15 @@ void APIENTRY glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GL
 		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
 		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, primcount, count, offset, 0, baseinstance))
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, count, instancecount, offset, 0, baseinstance))
 			return;
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseInstance);
-	trampoline(mode, count, type, indices, primcount, baseinstance);
+	trampoline(mode, count, type, indices, instancecount, baseinstance);
 }
-void APIENTRY glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
+void APIENTRY glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance)
 {
 #if RESHADE_ADDON
 	if (g_opengl_context)
@@ -3646,13 +3646,13 @@ void APIENTRY glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei
 		gl.GetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &index_buffer_binding);
 		const uint32_t offset = (index_buffer_binding != 0) ? static_cast<uint32_t>(reinterpret_cast<uintptr_t>(indices) / reshade::opengl::get_index_type_size(type)) : 0;
 
-		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, primcount, count, offset, basevertex, baseinstance))
+		if (reshade::invoke_addon_event<reshade::addon_event::draw_indexed>(g_opengl_context, count, instancecount, offset, basevertex, baseinstance))
 			return;
 	}
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glDrawElementsInstancedBaseVertexBaseInstance);
-	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
+	trampoline(mode, count, type, indices, instancecount, basevertex, baseinstance);
 }
 #endif
 
@@ -3823,7 +3823,7 @@ void APIENTRY glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsiz
 			for (GLsizei i = 0; i < drawcount; ++i)
 			{
 				const auto cmd = reinterpret_cast<const DrawArraysIndirectCommand *>(static_cast<const uint8_t *>(indirect) + i * (stride != 0 ? stride : sizeof(DrawArraysIndirectCommand)));
-				glDrawArraysInstancedBaseInstance(mode, cmd->first, cmd->count, cmd->primcount, cmd->baseinstance);
+				glDrawArraysInstancedBaseInstance(mode, cmd->first, cmd->count, cmd->instancecount, cmd->baseinstance);
 			}
 			return;
 		}
@@ -3864,7 +3864,7 @@ void APIENTRY glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *
 					cmd->count,
 					type,
 					reinterpret_cast<const GLvoid *>(static_cast<uintptr_t>(static_cast<size_t>(cmd->firstindex) * reshade::opengl::get_index_type_size(type))),
-					cmd->primcount,
+					cmd->instancecount,
 					cmd->basevertex,
 					cmd->baseinstance);
 			}
