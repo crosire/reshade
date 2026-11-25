@@ -1777,9 +1777,9 @@ void VKAPI_CALL vkCmdBeginRendering(VkCommandBuffer commandBuffer, const VkRende
 	for (uint32_t i = 0; i < pRenderingInfo->colorAttachmentCount && i < 8; ++i)
 		cmd_impl->current_color_attachments[i] = pRenderingInfo->pColorAttachments[i].imageView;
 
-	if (pRenderingInfo->pDepthAttachment != nullptr)
+	if (pRenderingInfo->pDepthAttachment != nullptr && pRenderingInfo->pDepthAttachment->imageView != VK_NULL_HANDLE)
 		cmd_impl->current_depth_stencil_attachment = pRenderingInfo->pDepthAttachment->imageView;
-	else if (pRenderingInfo->pStencilAttachment != nullptr)
+	else if (pRenderingInfo->pStencilAttachment != nullptr && pRenderingInfo->pStencilAttachment->imageView != VK_NULL_HANDLE)
 		cmd_impl->current_depth_stencil_attachment = pRenderingInfo->pStencilAttachment->imageView;
 
 	cmd_impl->_is_in_render_pass = 3;

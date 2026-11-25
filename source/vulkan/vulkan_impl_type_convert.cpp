@@ -2582,7 +2582,7 @@ void reshade::vulkan::convert_render_pass_depth_stencil_desc(const api::render_p
 reshade::api::render_pass_depth_stencil_desc reshade::vulkan::convert_render_pass_depth_stencil_desc(const VkRenderingAttachmentInfo *depth_attachment_info, const VkRenderingAttachmentInfo *stencil_attachment_info)
 {
 	api::render_pass_depth_stencil_desc desc;
-	if (depth_attachment_info != nullptr)
+	if (depth_attachment_info != nullptr && depth_attachment_info->imageView != VK_NULL_HANDLE)
 	{
 		desc.view = { (uint64_t)depth_attachment_info->imageView };
 		desc.depth_load_op = convert_render_pass_load_op(depth_attachment_info->loadOp);
@@ -2595,9 +2595,9 @@ reshade::api::render_pass_depth_stencil_desc reshade::vulkan::convert_render_pas
 		desc.depth_store_op = api::render_pass_store_op::discard;
 		desc.clear_depth = 0.0f;
 	}
-	if (stencil_attachment_info != nullptr)
+	if (stencil_attachment_info != nullptr && stencil_attachment_info->imageView != VK_NULL_HANDLE)
 	{
-		assert(depth_attachment_info == nullptr || depth_attachment_info->imageView == stencil_attachment_info->imageView);
+		assert(depth_attachment_info == nullptr || depth_attachment_info->imageView == VK_NULL_HANDLE || depth_attachment_info->imageView == stencil_attachment_info->imageView);
 
 		desc.view = { (uint64_t)stencil_attachment_info->imageView };
 		desc.stencil_load_op = convert_render_pass_load_op(stencil_attachment_info->loadOp);
