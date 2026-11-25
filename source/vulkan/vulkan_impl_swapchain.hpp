@@ -32,6 +32,7 @@ namespace reshade::vulkan
 
 		VkSwapchainCreateInfoKHR _create_info = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 		HWND _hwnd = nullptr;
+		std::vector<VkImage> _back_buffers;
 		uint32_t _swap_index = 0;
 	};
 
@@ -45,6 +46,7 @@ namespace reshade::vulkan
 
 		using swapchain_impl::_create_info;
 		using swapchain_impl::_hwnd;
+		using swapchain_impl::_back_buffers;
 		using swapchain_impl::_swap_index;
 
 #if VK_EXT_full_screen_exclusive

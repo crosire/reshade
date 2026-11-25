@@ -268,6 +268,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		}
 	}
 
+	// Ensure all swap chain images have their memory bound immediately, since default views are created for them below
+	create_info.flags &= ~VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_KHR;
+
 	assert(!g_in_dxgi_runtime);
 	g_in_dxgi_runtime = true;
 	const VkResult result = trampoline(device, &create_info, pAllocator, pSwapchain);
@@ -288,25 +291,11 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		// Reuse the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 		reshade::reset_effect_runtime(swapchain_impl);
 
-		// Get back buffer images of old swap chain
-		uint32_t num_images = 0;
-		vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
-		temp_mem<VkImage, 3> swapchain_images(num_images);
-		vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
 #endif
 
-		for (uint32_t i = 0; i < num_images; ++i)
-		{
-#if RESHADE_ADDON
-			destroy_default_view(device_impl, swapchain_images[i]);
-#endif
-
-			device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
-		}
-
+		// The back buffer images could still be used after the swap chain was retired, so they are only cleaned up in 'vkDestroySwapchainKHR'
 		device_impl->unregister_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, false>(swapchain_impl->_orig);
 	}
 
@@ -329,13 +318,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	// Get back buffer images of new swap chain
 	uint32_t num_images = 0;
 	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
-	temp_mem<VkImage, 3> swapchain_images(num_images);
-	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_images.p);
+	swapchain_impl->_back_buffers.resize(num_images);
+	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_impl->_back_buffers.data());
 
 	// Add swap chain images to the image list
 	for (uint32_t i = 0; i < num_images; ++i)
 	{
-		reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &image_data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &image_data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_impl->_back_buffers[i]);
 		image_data.create_info = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		image_data.create_info.imageType = VK_IMAGE_TYPE_2D;
 		image_data.create_info.format = create_info.imageFormat;
@@ -363,7 +352,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	// Create default views for swap chain images (do this after the 'init_swapchain' event, so that the images are known to add-ons)
 	for (uint32_t i = 0; i < num_images; ++i)
-		create_default_view(device_impl, swapchain_images[i]);
+		create_default_view(device_impl, swapchain_impl->_back_buffers[i]);
 
 #if VK_EXT_full_screen_exclusive
 	if (fullscreen_info.fullScreenExclusive != VK_FULL_SCREEN_EXCLUSIVE_DEFAULT_EXT)
@@ -400,26 +389,26 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	{
 		reshade::reset_effect_runtime(swapchain_impl);
 
-		// Get back buffer images of old swap chain
-		uint32_t num_images = 0;
-		vk.GetSwapchainImagesKHR(device, swapchain, &num_images, nullptr);
-		temp_mem<VkImage, 3> swapchain_images(num_images);
-		vk.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.p);
-
 #if RESHADE_ADDON
 		reshade::invoke_addon_event<reshade::addon_event::destroy_swapchain>(swapchain_impl, false);
 #endif
 
-		for (uint32_t i = 0; i < num_images; ++i)
-		{
+		reshade::destroy_effect_runtime(swapchain_impl);
+	}
+
+	// Get back buffer images of old swap chain
+	uint32_t num_images = 0;
+	vk.GetSwapchainImagesKHR(device, swapchain, &num_images, nullptr);
+	temp_mem<VkImage, 3> swapchain_images(num_images);
+	vk.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.p);
+
+	for (uint32_t i = 0; i < num_images; ++i)
+	{
 #if RESHADE_ADDON
-			destroy_default_view(device_impl, swapchain_images[i]);
+		destroy_default_view(device_impl, swapchain_images[i]);
 #endif
 
-			device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
-		}
-
-		reshade::destroy_effect_runtime(swapchain_impl);
+		device_impl->unregister_object<VK_OBJECT_TYPE_IMAGE>(swapchain_images[i]);
 	}
 
 	device_impl->unregister_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, false>(swapchain);
@@ -446,7 +435,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 	{
-		reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
+		reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pPresentInfo->pSwapchains[i]);
+		if (swapchain_impl == nullptr)
+			continue;
 
 		// 'vkAcquireNextImageKHR' may be called for the next frame before this frame was presented (e.g. in DOOM Eternal), so correct swap index must be obtained from the present info
 		swapchain_impl->_swap_index = pPresentInfo->pImageIndices[i];
@@ -585,7 +576,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 	{
 		for (uint32_t i = 0; i < pPresentInfo->swapchainCount; ++i)
 		{
-			reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(pPresentInfo->pSwapchains[i]);
+			reshade::vulkan::swapchain_impl *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(pPresentInfo->pSwapchains[i]);
+			if (swapchain_impl == nullptr)
+				continue;
 
 			reshade::invoke_addon_event<reshade::addon_event::finish_present>(queue_impl, swapchain_impl);
 		}

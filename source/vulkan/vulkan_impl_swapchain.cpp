@@ -32,15 +32,12 @@ void *reshade::vulkan::swapchain_impl::get_hwnd() const
 
 reshade::api::resource reshade::vulkan::swapchain_impl::get_back_buffer(uint32_t index)
 {
-	uint32_t num_images = index + 1;
-	temp_mem<VkImage, 3> swapchain_images(num_images);
-	return vk.GetSwapchainImagesKHR(_device->_orig, _orig, &num_images, swapchain_images.p) >= VK_SUCCESS ? api::resource { (uint64_t)swapchain_images[index] } : api::resource {};
+	return index < _back_buffers.size() ? api::resource { (uint64_t)_back_buffers[index] } : api::resource {};
 }
 
 uint32_t reshade::vulkan::swapchain_impl::get_back_buffer_count() const
 {
-	uint32_t num_images = 0;
-	return vk.GetSwapchainImagesKHR(_device->_orig, _orig, &num_images, nullptr) == VK_SUCCESS ? num_images : 0;
+	return static_cast<uint32_t>(_back_buffers.size());
 }
 
 uint32_t reshade::vulkan::swapchain_impl::get_current_back_buffer_index() const
