@@ -395,6 +395,7 @@ static void init_swapchain_proxy(IDXGIFactory *factory, reshade::api::device_api
 #if RESHADE_ADDON
 		swapchain_proxy->_sync_interval = sync_interval;
 		swapchain_proxy->_orig_desc = orig_desc;
+		swapchain_proxy->_orig_desc.Windowed = -1;
 		swapchain_proxy->_is_desc_modified = desc_modified;
 #endif
 
@@ -495,7 +496,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 
 	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
-			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
+			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, DXGI_MODE_SCALING_UNSPECIFIED },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
 			pDesc->BufferCount,

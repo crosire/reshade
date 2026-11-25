@@ -209,7 +209,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #endif
 
 	std::vector<VkFormat> format_list;
-	VkImageFormatListCreateInfo format_list_info;
+	VkImageFormatListCreateInfo format_list_info { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO, create_info.pNext };
 	std::vector<uint32_t> queue_family_list;
 
 	// Only have to enable additional features if there is a graphics queue, since ReShade will not run otherwise
@@ -224,7 +224,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 		format_list.push_back(reshade::vulkan::convert_format(reshade::api::format_to_default_typed(reshade::vulkan::convert_format(create_info.imageFormat), 1)));
 
 		// Only have to make format mutable if they are actually different
-		if (format_list[0] != format_list[1])
+		const bool mutable_format = format_list[0] != format_list[1];
+		if (mutable_format)
 			create_info.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
 
 		// Patch the format list in the create info of the application
@@ -242,10 +243,8 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->viewFormatCount = static_cast<uint32_t>(format_list.size());
 			const_cast<VkImageFormatListCreateInfo *>(existing_format_list_info)->pViewFormats = format_list.data();
 		}
-		else if (format_list[0] != format_list[1])
+		else if (mutable_format)
 		{
-			format_list_info = { VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO };
-			format_list_info.pNext = create_info.pNext;
 			format_list_info.viewFormatCount = static_cast<uint32_t>(format_list.size());
 			format_list_info.pViewFormats = format_list.data();
 

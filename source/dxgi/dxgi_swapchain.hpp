@@ -130,8 +130,7 @@ private:
 #if RESHADE_ADDON
 public:
 	UINT _sync_interval = UINT_MAX;
-	BOOL _current_fullscreen_state = -1;
 	bool _is_desc_modified = false;
-	DXGI_SWAP_CHAIN_DESC _orig_desc = {};
+	DXGI_SWAP_CHAIN_DESC _orig_desc = { {}, {}, 0, 0, nullptr, -1 }; // Fullscreen state is -1 while not overriden by an add-on through the 'set_fullscreen_state' event
 #endif
 };
