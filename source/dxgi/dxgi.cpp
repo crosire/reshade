@@ -77,7 +77,11 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 		internal_desc.BufferDesc.Height = desc.back_buffer.texture.height;
 		internal_desc.BufferDesc.RefreshRate = floating_point_to_rational(desc.fullscreen_refresh_rate);
 		internal_desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
-		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
+		if (desc.back_buffer.texture.samples != internal_desc.SampleDesc.Count)
+		{
+			internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
+			internal_desc.SampleDesc.Quality = 0;
+		}
 
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
@@ -159,7 +163,11 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 		internal_desc.Height = desc.back_buffer.texture.height;
 		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
 		internal_desc.Stereo = desc.back_buffer.texture.depth_or_layers > 1;
-		internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
+		if (desc.back_buffer.texture.samples != internal_desc.SampleDesc.Count)
+		{
+			internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
+			internal_desc.SampleDesc.Quality = 0;
+		}
 
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
