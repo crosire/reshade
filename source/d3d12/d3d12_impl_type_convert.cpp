@@ -1760,9 +1760,10 @@ auto reshade::d3d12::get_query_size(api::query_type type) -> std::pair<uint32_t,
 	{
 	default:
 	case api::query_type::occlusion:
-	case api::query_type::binary_occlusion:
 	case api::query_type::timestamp:
 		return std::make_pair<uint32_t, uint32_t>(sizeof(UINT64), 0u);
+	case api::query_type::binary_occlusion:
+		return std::make_pair<uint32_t, uint32_t>(sizeof(UINT32), 0u);
 	case api::query_type::pipeline_statistics:
 		return std::make_pair<uint32_t, uint32_t>(sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS), 0u);
 	case api::query_type::stream_output_statistics_0:

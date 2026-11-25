@@ -78,10 +78,7 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC &i
 		internal_desc.BufferDesc.RefreshRate = floating_point_to_rational(desc.fullscreen_refresh_rate);
 		internal_desc.BufferDesc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
 		if (desc.back_buffer.texture.samples != internal_desc.SampleDesc.Count)
-		{
-			internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
-			internal_desc.SampleDesc.Quality = 0;
-		}
+			internal_desc.SampleDesc = { desc.back_buffer.texture.samples, 0 };
 
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
@@ -164,10 +161,7 @@ bool modify_swapchain_desc(reshade::api::device_api api, DXGI_SWAP_CHAIN_DESC1 &
 		internal_desc.Format = static_cast<DXGI_FORMAT>(desc.back_buffer.texture.format);
 		internal_desc.Stereo = desc.back_buffer.texture.depth_or_layers > 1;
 		if (desc.back_buffer.texture.samples != internal_desc.SampleDesc.Count)
-		{
-			internal_desc.SampleDesc.Count = desc.back_buffer.texture.samples;
-			internal_desc.SampleDesc.Quality = 0;
-		}
+			internal_desc.SampleDesc = { desc.back_buffer.texture.samples, 0 };
 
 		if ((desc.back_buffer.usage & reshade::api::resource_usage::shader_resource) != 0)
 			internal_desc.BufferUsage |= DXGI_USAGE_SHADER_INPUT;
@@ -474,7 +468,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 	UINT sync_interval = UINT_MAX;
-	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc = {};
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreen_desc = { DXGI_RATIONAL { 0, 1 } };
 	if (pFullscreenDesc != nullptr)
 		fullscreen_desc = *pFullscreenDesc;
 	else
@@ -496,7 +490,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd_Impl(IDXGIFactory
 
 	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
-			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, DXGI_MODE_SCALING_UNSPECIFIED },
+			{ pDesc->Width, pDesc->Height, pFullscreenDesc != nullptr ? pFullscreenDesc->RefreshRate : DXGI_RATIONAL { 0, 1 }, pDesc->Format },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
 			pDesc->BufferCount,
@@ -547,7 +541,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow_Impl(IDXGIF
 
 	init_swapchain_proxy(pFactory, direct3d_version, device_proxy, *ppSwapChain, desc.BufferUsage, sync_interval,
 		DXGI_SWAP_CHAIN_DESC {
-			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL {}, pDesc->Format, DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED, pDesc->Scaling == DXGI_SCALING_ASPECT_RATIO_STRETCH ? DXGI_MODE_SCALING_CENTERED : DXGI_MODE_SCALING_STRETCHED },
+			{ pDesc->Width, pDesc->Height, DXGI_RATIONAL { 0, 1 }, pDesc->Format },
 			pDesc->SampleDesc,
 			pDesc->BufferUsage,
 			pDesc->BufferCount,
