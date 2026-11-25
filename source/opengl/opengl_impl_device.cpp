@@ -1212,8 +1212,7 @@ bool reshade::opengl::device_impl::create_resource_view(api::resource resource, 
 		return false;
 	}
 
-	if (desc.type != reshade::api::resource_view_type::buffer)
-		register_resource_view(target, object, resource);
+	register_resource_view(target, object, resource);
 
 	*out_view = make_resource_view_handle(target, object, true);
 	return true;
@@ -1225,7 +1224,7 @@ void reshade::opengl::device_impl::destroy_resource_view(api::resource_view view
 	{
 		destroy_resource({ view.handle });
 
-		_texture_view_lookup.erase(view.handle & 0xFFFFFFFF);
+		unregister_resource_view(view.handle & 0xFFFFFFFF);
 	}
 
 	// Force all framebuffers to be destroyed, to ensure they are recreated even if a resource view handle is reused
@@ -1340,10 +1339,14 @@ reshade::api::format reshade::opengl::device_impl::get_resource_format(GLenum ta
 
 void reshade::opengl::device_impl::register_resource_view(GLenum target, GLuint object, api::resource resource)
 {
-	if (target != GL_TEXTURE_BUFFER)
-	{
-		_texture_view_lookup[object] = resource;
-	}
+	if (target == GL_TEXTURE_BUFFER)
+		return;
+
+	_texture_view_lookup[object] = resource;
+}
+void reshade::opengl::device_impl::unregister_resource_view(GLuint object)
+{
+	_texture_view_lookup.erase(object);
 }
 
 reshade::api::resource reshade::opengl::device_impl::get_resource_from_view(api::resource_view view) const

@@ -317,10 +317,6 @@ private:
 
 static void destroy_resource_or_view(GLenum target, GLuint object)
 {
-	if (!reshade::has_addon_event<reshade::addon_event::destroy_resource>() &&
-		!reshade::has_addon_event<reshade::addon_event::destroy_resource_view>())
-		return;
-
 	const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
 	if (target != GL_BUFFER)
@@ -340,6 +336,9 @@ static void destroy_resource_or_view(GLenum target, GLuint object)
 				reshade::invoke_addon_event<reshade::addon_event::destroy_resource_view>(device, reshade::opengl::make_resource_view_handle(face_target, object));
 			}
 		}
+
+		if (target != GL_RENDERBUFFER)
+			device->unregister_resource_view(object);
 	}
 
 	if (target != GL_TEXTURE_BUFFER)

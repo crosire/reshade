@@ -47,6 +47,7 @@ namespace reshade::opengl
 		api::format get_resource_format(GLenum target, GLuint object) const;
 
 		void register_resource_view(GLenum target, GLuint object, api::resource resource);
+		void unregister_resource_view(GLuint object);
 
 		api::resource get_resource_from_view(api::resource_view view) const final;
 		api::resource_view_desc get_resource_view_desc(api::resource_view view) const final;
