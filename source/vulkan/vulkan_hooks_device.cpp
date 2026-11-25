@@ -2210,8 +2210,10 @@ VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, const VkDescrip
 			data.num_descriptors += binding.descriptorCount;
 		}
 
-		for (size_t i = 1; i < data.binding_to_offset.size(); ++i)
-			data.binding_to_offset[i] += data.binding_to_offset[i - 1];
+		// Convert descriptor counts to the offset of the first descriptor in each binding
+		uint32_t offset = 0;
+		for (uint32_t &binding_offset : data.binding_to_offset)
+			offset += std::exchange(binding_offset, offset);
 
 		if (!has_static_samplers_or_flags)
 		{
@@ -2332,7 +2334,7 @@ VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const VkDescriptor
 		{
 			pool_data->next_set = 0;
 		}
-		if (pool_data->next_offset >= pool_data->max_descriptors)
+		if (pool_data->next_offset > pool_data->max_descriptors)
 		{
 			// Out of pool memory, simply wrap around
 			data->offset = 0;
