@@ -548,13 +548,15 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 
 static void update_current_input_layout(GLuint vertex_array_binding = 0)
 {
-	if (g_opengl_context->_current_vao_dirty &&
-		reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
+	if (g_opengl_context->_current_vao_dirty)
 	{
 		// Changing the vertex array binding also changes the vertex and index buffer bindings, so force an update of those next
 		g_opengl_context->_current_vbo_dirty = true;
 		g_opengl_context->_current_ibo_dirty = true;
 		g_opengl_context->_current_vao_dirty = false;
+
+		if (!reshade::has_addon_event<reshade::addon_event::bind_pipeline>())
+			return;
 
 		if (vertex_array_binding == 0)
 			gl.GetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&vertex_array_binding));
