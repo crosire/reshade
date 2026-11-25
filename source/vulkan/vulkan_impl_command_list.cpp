@@ -151,10 +151,6 @@ void reshade::vulkan::command_list_impl::begin_render_pass2(uint32_t count, cons
 			hash_combine(hash, rts[i].view.handle);
 			hash_combine(hash, rts[i].load_op);
 			hash_combine(hash, rts[i].store_op);
-			hash_combine(hash, rts[i].clear_color[0]);
-			hash_combine(hash, rts[i].clear_color[1]);
-			hash_combine(hash, rts[i].clear_color[2]);
-			hash_combine(hash, rts[i].clear_color[3]);
 		}
 		if (ds != nullptr)
 		{
@@ -163,8 +159,6 @@ void reshade::vulkan::command_list_impl::begin_render_pass2(uint32_t count, cons
 			hash_combine(hash, ds->depth_store_op);
 			hash_combine(hash, ds->stencil_load_op);
 			hash_combine(hash, ds->stencil_store_op);
-			hash_combine(hash, ds->clear_depth);
-			hash_combine(hash, ds->clear_stencil);
 		}
 
 		const uint32_t max_attachments = count + 1;
