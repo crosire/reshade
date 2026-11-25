@@ -205,8 +205,9 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 #if VK_EXT_full_screen_exclusive
 	// Optionally change fullscreen state
 	VkSurfaceFullScreenExclusiveInfoEXT fullscreen_info;
-	if (const auto existing_fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(
-			pCreateInfo->pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT))
+	const auto existing_fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(
+			pCreateInfo->pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT);
+	if (existing_fullscreen_info)
 	{
 		fullscreen_info = *existing_fullscreen_info;
 
@@ -239,7 +240,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			{
 				fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_ALLOWED_EXT;
 
-				create_info.pNext = &fullscreen_info;
+				if (existing_fullscreen_info != nullptr)
+					const_cast<VkSurfaceFullScreenExclusiveInfoEXT *>(existing_fullscreen_info)->fullScreenExclusive = fullscreen_info.fullScreenExclusive;
+				else
+					create_info.pNext = &fullscreen_info;
 			}
 		}
 		else
@@ -248,7 +252,10 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 			{
 				fullscreen_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
 
-				create_info.pNext = &fullscreen_info;
+				if (existing_fullscreen_info != nullptr)
+					const_cast<VkSurfaceFullScreenExclusiveInfoEXT *>(existing_fullscreen_info)->fullScreenExclusive = fullscreen_info.fullScreenExclusive;
+				else
+					create_info.pNext = &fullscreen_info;
 			}
 		}
 #endif
