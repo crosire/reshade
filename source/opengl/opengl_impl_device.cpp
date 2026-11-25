@@ -2297,9 +2297,8 @@ void reshade::opengl::device_impl::destroy_pipeline(api::pipeline pipeline)
 
 	gl.DeleteProgram(impl->program);
 
-	if (!impl->input_elements.empty())
-		// Force all vertex array objects to be destroyed, to ensure they are recreated with the right vertex attributes when the object name is reused
-		_vao_lookup_version++;
+	// Force all vertex array objects to be destroyed, to ensure they are recreated with the right vertex attributes when the pipeline handle is reused
+	_vao_lookup_version++;
 
 	delete impl;
 }
