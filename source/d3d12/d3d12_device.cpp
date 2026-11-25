@@ -18,6 +18,7 @@
 #include "addon_manager.hpp"
 #include <cwchar> // std::wcslen
 #include <algorithm> // std::find_if
+#include <unordered_map>
 #include <utf8/unchecked.h>
 
 using reshade::d3d12::to_handle;
@@ -2438,6 +2439,16 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 
 	std::vector<reshade::api::pipeline_subobject> subobjects;
 
+	// Keep track of shaders exported under a different name, since hit groups import them via that name
+	std::unordered_map<std::string, std::string> renamed_exports;
+	const auto get_import_name = [&renamed_exports](LPCWSTR name_wide) {
+		std::string name;
+		utf8::unchecked::utf16to8(name_wide, name_wide + std::wcslen(name_wide), std::back_inserter(name));
+		if (const auto it = renamed_exports.find(name); it != renamed_exports.end())
+			return it->second;
+		return name;
+	};
+
 	for (UINT i = 0; i < internal_desc.NumSubobjects; ++i)
 	{
 		const D3D12_STATE_SUBOBJECT &subobject = internal_desc.pSubobjects[i];
@@ -2500,23 +2511,40 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 							};
 
 							const auto function_info = reinterpret_cast<const rdat_function_info *>(rdat_part + 4 + record_index * (record_stride / sizeof(uint32_t)));
+							const char *const record_name = string_table + function_info->unmangled_name;
 
 							// Filter exports if any are defined
-							if (desc.NumExports != 0 &&
-								std::find_if(desc.pExports, desc.pExports + desc.NumExports,
-									[record_name = string_table + function_info->unmangled_name](const D3D12_EXPORT_DESC &e) {
-										std::string name;
-										// If the 'ExportToRename' field is non-null, 'Name' refers to the new name to use for it when exported
-										const LPCWSTR name_wide = (e.ExportToRename != nullptr) ? e.ExportToRename : e.Name;
-										utf8::unchecked::utf16to8(name_wide, name_wide + std::wcslen(name_wide), std::back_inserter(name));
-										return name == record_name;
-									}) == desc.pExports + desc.NumExports)
+							bool exported = desc.NumExports == 0;
+
+							for (UINT export_index = 0; export_index < desc.NumExports; ++export_index)
+							{
+								const D3D12_EXPORT_DESC &e = desc.pExports[export_index];
+
+								// If the 'ExportToRename' field is non-null, 'Name' refers to the new name to use for it when exported
+								const LPCWSTR name_wide = (e.ExportToRename != nullptr) ? e.ExportToRename : e.Name;
+
+								std::string name;
+								utf8::unchecked::utf16to8(name_wide, name_wide + std::wcslen(name_wide), std::back_inserter(name));
+								if (name != record_name)
+									continue;
+
+								exported = true;
+
+								if (e.ExportToRename == nullptr)
+									continue;
+
+								std::string new_name;
+								utf8::unchecked::utf16to8(e.Name, e.Name + std::wcslen(e.Name), std::back_inserter(new_name));
+								renamed_exports.emplace(std::move(new_name), std::move(name));
+							}
+
+							if (!exported)
 								continue;
 
 							reshade::api::shader_desc shader_desc;
 							shader_desc.code = desc.DXILLibrary.pShaderBytecode;
 							shader_desc.code_size = desc.DXILLibrary.BytecodeLength;
-							shader_desc.entry_point = string_table + function_info->unmangled_name;
+							shader_desc.entry_point = record_name;
 
 							switch (static_cast<D3D12_SHADER_VERSION_TYPE>(function_info->shader_kind))
 							{
@@ -2536,7 +2564,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 								domain_desc.push_back(shader_desc);
 								break;
 							case D3D12_SHVER_COMPUTE_SHADER:
-								geometry_desc.push_back(shader_desc);
+								compute_desc.push_back(shader_desc);
 								break;
 							case D3D12_SHVER_RAY_GENERATION_SHADER:
 								shader_groups.push_back({ reshade::api::shader_group_type::raygen, static_cast<uint32_t>(raygen_desc.size()) });
@@ -2611,32 +2639,38 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 
 			if (desc.AnyHitShaderImport != nullptr)
 			{
-				std::string any_hit_name;
-				utf8::unchecked::utf16to8(desc.AnyHitShaderImport, desc.AnyHitShaderImport + std::wcslen(desc.AnyHitShaderImport), std::back_inserter(any_hit_name));
 				if (const auto it = std::find_if(any_hit_desc.begin(), any_hit_desc.end(),
-						[&any_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == any_hit_name; });
+						[name = get_import_name(desc.AnyHitShaderImport)](const reshade::api::shader_desc &shader) {
+							return shader.entry_point == name;
+						});
 					it != any_hit_desc.end())
+				{
 					shader_group.hit_group.any_hit_shader_index = static_cast<uint32_t>(std::distance(any_hit_desc.begin(), it));
+				}
 			}
 
 			if (desc.ClosestHitShaderImport != nullptr)
 			{
-				std::string closest_hit_name;
-				utf8::unchecked::utf16to8(desc.ClosestHitShaderImport, desc.ClosestHitShaderImport + std::wcslen(desc.ClosestHitShaderImport), std::back_inserter(closest_hit_name));
 				if (const auto it = std::find_if(closest_hit_desc.begin(), closest_hit_desc.end(),
-						[&closest_hit_name](const reshade::api::shader_desc &shader) { return shader.entry_point == closest_hit_name; });
+						[name = get_import_name(desc.ClosestHitShaderImport)](const reshade::api::shader_desc &shader) {
+							return shader.entry_point == name;
+						});
 					it != closest_hit_desc.end())
+				{
 					shader_group.hit_group.closest_hit_shader_index = static_cast<uint32_t>(std::distance(closest_hit_desc.begin(), it));
+				}
 			}
 
 			if (desc.IntersectionShaderImport != nullptr)
 			{
-				std::string intersection_name;
-				utf8::unchecked::utf16to8(desc.IntersectionShaderImport, desc.IntersectionShaderImport + std::wcslen(desc.IntersectionShaderImport), std::back_inserter(intersection_name));
 				if (const auto it = std::find_if(intersection_desc.begin(), intersection_desc.end(),
-						[&intersection_name](const reshade::api::shader_desc &shader) { return shader.entry_point == intersection_name; });
+						[name = get_import_name(desc.IntersectionShaderImport)](const reshade::api::shader_desc &shader) {
+							return shader.entry_point == name;
+						});
 					it != intersection_desc.end())
+				{
 					shader_group.hit_group.intersection_shader_index = static_cast<uint32_t>(std::distance(intersection_desc.begin(), it));
+				}
 			}
 			break;
 		}
@@ -2751,6 +2785,8 @@ bool D3D12Device::invoke_create_and_init_pipeline_event(const D3D12_STATE_OBJECT
 		subobjects.push_back({ reshade::api::pipeline_subobject_type::closest_hit_shader, static_cast<uint32_t>(closest_hit_desc.size()), closest_hit_desc.data() });
 	if (!miss_desc.empty())
 		subobjects.push_back({ reshade::api::pipeline_subobject_type::miss_shader, static_cast<uint32_t>(miss_desc.size()), miss_desc.data() });
+	if (!intersection_desc.empty())
+		subobjects.push_back({ reshade::api::pipeline_subobject_type::intersection_shader, static_cast<uint32_t>(intersection_desc.size()), intersection_desc.data() });
 	if (!callable_desc.empty())
 		subobjects.push_back({ reshade::api::pipeline_subobject_type::callable_shader, static_cast<uint32_t>(callable_desc.size()), callable_desc.data() });
 	if (!mesh_desc.empty())
@@ -3134,7 +3170,11 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 				blob_size,
 				uint32_t('R') | (uint32_t('T') << 8) | (uint32_t('S') << 16) | (uint32_t('0') << 24)))))
 	{
-		const bool has_pipeline_layout_event = reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>() || reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>();
+		const bool has_pipeline_layout_event =
+			reshade::has_addon_event<reshade::addon_event::create_pipeline_layout>() ||
+			reshade::has_addon_event<reshade::addon_event::init_pipeline_layout>() ||
+			// Modifying static samplers requires recreating the entire pipeline layout, so need to know about all parameters
+			reshade::has_addon_event<reshade::addon_event::create_sampler>();
 
 		const uint32_t version = part[0];
 		flags = static_cast<D3D12_ROOT_SIGNATURE_FLAGS>(part[5]);
@@ -3285,10 +3325,7 @@ bool D3D12Device::invoke_create_and_init_pipeline_layout_event(UINT node_mask, c
 					break;
 				}
 			}
-		}
 
-		if (has_pipeline_layout_event || reshade::has_addon_event<reshade::addon_event::create_sampler>())
-		{
 			const uint32_t sampler_count = part[3];
 			const uint32_t sampler_offset = part[4];
 
