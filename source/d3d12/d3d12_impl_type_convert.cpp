@@ -1543,13 +1543,11 @@ auto reshade::d3d12::convert_blend_factor(api::blend_factor value) -> D3D12_BLEN
 	case api::blend_factor::one_minus_dest_alpha:
 		return D3D12_BLEND_INV_DEST_ALPHA;
 	case api::blend_factor::constant_alpha:
-		assert(false);
-		[[fallthrough]];
+		return D3D12_BLEND_ALPHA_FACTOR;
 	case api::blend_factor::constant_color:
 		return D3D12_BLEND_BLEND_FACTOR;
 	case api::blend_factor::one_minus_constant_alpha:
-		assert(false);
-		[[fallthrough]];
+		return D3D12_BLEND_INV_ALPHA_FACTOR;
 	case api::blend_factor::one_minus_constant_color:
 		return D3D12_BLEND_INV_BLEND_FACTOR;
 	case api::blend_factor::source_alpha_saturate:
@@ -1605,6 +1603,10 @@ auto reshade::d3d12::convert_blend_factor(D3D12_BLEND value) -> api::blend_facto
 		return api::blend_factor::source1_alpha;
 	case D3D12_BLEND_INV_SRC1_ALPHA:
 		return api::blend_factor::one_minus_source1_alpha;
+	case D3D12_BLEND_ALPHA_FACTOR:
+		return api::blend_factor::constant_alpha;
+	case D3D12_BLEND_INV_ALPHA_FACTOR:
+		return api::blend_factor::one_minus_constant_alpha;
 	}
 }
 auto reshade::d3d12::convert_fill_mode(api::fill_mode value) -> D3D12_FILL_MODE
