@@ -26,7 +26,6 @@ extern void create_default_view(reshade::vulkan::device_impl *device_impl, VkIma
 extern void destroy_default_view(reshade::vulkan::device_impl *device_impl, VkImage image);
 #endif
 
-#if VK_KHR_swapchain
 static std::string format_to_string(VkFormat format)
 {
 	switch (format)
@@ -124,7 +123,7 @@ static void dump_and_modify_swapchain_desc(VkSwapchainCreateInfoKHR &create_info
 #if VK_EXT_full_screen_exclusive
 	// Optionally change fullscreen state
 	const auto existing_fullscreen_info = find_in_structure_chain<VkSurfaceFullScreenExclusiveInfoEXT>(
-			create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT);
+		create_info.pNext, VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT);
 	if (existing_fullscreen_info)
 	{
 		fullscreen_info = *existing_fullscreen_info;
@@ -152,6 +151,11 @@ static void dump_and_modify_swapchain_desc(VkSwapchainCreateInfoKHR &create_info
 		create_info.presentMode = static_cast<VkPresentModeKHR>(desc.present_mode);
 		create_info.flags = static_cast<uint32_t>(desc.present_flags);
 
+		if (desc.sync_interval == 0)
+			create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+		else if (desc.sync_interval != UINT32_MAX)
+			create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
 #if VK_EXT_full_screen_exclusive
 		if (desc.fullscreen_state)
 		{
@@ -178,11 +182,6 @@ static void dump_and_modify_swapchain_desc(VkSwapchainCreateInfoKHR &create_info
 			}
 		}
 #endif
-
-		if (desc.sync_interval == 0)
-			create_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-		else if (desc.sync_interval != UINT32_MAX)
-			create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	}
 #endif
 }
@@ -285,7 +284,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 	if (create_info.oldSwapchain != VK_NULL_HANDLE)
 		swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(create_info.oldSwapchain);
 
-	if (nullptr != swapchain_impl)
+	if (nullptr == swapchain_impl)
+	{
+		swapchain_impl = new reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(device_impl, *pSwapchain, create_info, hwnd);
+
+		reshade::create_effect_runtime(swapchain_impl, device_impl->_primary_graphics_queue);
+	}
+	else
 	{
 		// Reuse the existing effect runtime if this swap chain was not created from scratch, but reset it before initializing again below
 		reshade::reset_effect_runtime(swapchain_impl);
@@ -296,16 +301,7 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 		// The back buffer images could still be used after the swap chain was retired, so they are only cleaned up in 'vkDestroySwapchainKHR'
 		device_impl->unregister_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, false>(swapchain_impl->_orig);
-	}
 
-	if (nullptr == swapchain_impl)
-	{
-		swapchain_impl = new reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(device_impl, *pSwapchain, create_info, hwnd);
-
-		reshade::create_effect_runtime(swapchain_impl, device_impl->_primary_graphics_queue);
-	}
-	else
-	{
 		swapchain_impl->_orig = *pSwapchain;
 		swapchain_impl->_create_info = create_info;
 		swapchain_impl->_create_info.pNext = nullptr; // Clear out structure chain pointer, since it becomes invalid once leaving the current scope
@@ -314,13 +310,13 @@ VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreat
 
 	device_impl->register_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR>(swapchain_impl->_orig, swapchain_impl);
 
-	// Get back buffer images of new swap chain
+	// Get back buffer images of the new swap chain
 	uint32_t num_images = 0;
 	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, nullptr);
 	swapchain_impl->_back_buffers.resize(num_images);
 	vk.GetSwapchainImagesKHR(device, swapchain_impl->_orig, &num_images, swapchain_impl->_back_buffers.data());
 
-	// Add swap chain images to the image list
+	// Register swap chain images
 	for (uint32_t i = 0; i < num_images; ++i)
 	{
 		reshade::vulkan::object_data<VK_OBJECT_TYPE_IMAGE> &image_data = *device_impl->register_object<VK_OBJECT_TYPE_IMAGE>(swapchain_impl->_back_buffers[i]);
@@ -382,7 +378,6 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 	reshade::vulkan::device_impl *const device_impl = g_vulkan_devices.at(dispatch_key_from_handle(device));
 	RESHADE_VULKAN_GET_DEVICE_DISPATCH_PTR(DestroySwapchainKHR, device_impl);
 
-	// Remove swap chain from global list
 	reshade::vulkan::object_data<VK_OBJECT_TYPE_SWAPCHAIN_KHR> *const swapchain_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_SWAPCHAIN_KHR, true>(swapchain);
 	if (swapchain_impl != nullptr)
 	{
@@ -395,11 +390,11 @@ void     VKAPI_CALL vkDestroySwapchainKHR(VkDevice device, VkSwapchainKHR swapch
 		reshade::destroy_effect_runtime(swapchain_impl);
 	}
 
-	// Get back buffer images of old swap chain
+	// Get back buffer images of the old swap chain
 	uint32_t num_images = 0;
 	vk.GetSwapchainImagesKHR(device, swapchain, &num_images, nullptr);
-	temp_mem<VkImage, 3> swapchain_images(num_images);
-	vk.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.p);
+	std::vector<VkImage> swapchain_images(num_images);
+	vk.GetSwapchainImagesKHR(device, swapchain, &num_images, swapchain_images.data());
 
 	for (uint32_t i = 0; i < num_images; ++i)
 	{
@@ -442,6 +437,26 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		swapchain_impl->_swap_index = pPresentInfo->pImageIndices[i];
 
 #if RESHADE_ADDON
+#if VK_KHR_display_swapchain
+		reshade::api::rect source_rect, dest_rect;
+
+		const auto display_present_info = find_in_structure_chain<VkDisplayPresentInfoKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR);
+		if (display_present_info != nullptr)
+		{
+			source_rect = {
+				display_present_info->srcRect.offset.x,
+				display_present_info->srcRect.offset.y,
+				display_present_info->srcRect.offset.x + static_cast<int32_t>(display_present_info->srcRect.extent.width),
+				display_present_info->srcRect.offset.y + static_cast<int32_t>(display_present_info->srcRect.extent.height)
+			};
+			dest_rect = {
+				display_present_info->dstRect.offset.x,
+				display_present_info->dstRect.offset.y,
+				display_present_info->dstRect.offset.x + static_cast<int32_t>(display_present_info->dstRect.extent.width),
+				display_present_info->dstRect.offset.y + static_cast<int32_t>(display_present_info->dstRect.extent.height)
+			};
+		}
+#endif
 #if VK_KHR_incremental_present
 		uint32_t dirty_rect_count = 0;
 		temp_mem<reshade::api::rect, 16> dirty_rects;
@@ -469,35 +484,13 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		}
 #endif
 
-#if VK_KHR_display_swapchain
-		reshade::api::rect source_rect, dest_rect;
-
-		const auto display_present_info = find_in_structure_chain<VkDisplayPresentInfoKHR>(pPresentInfo->pNext, VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR);
-		if (display_present_info != nullptr)
-		{
-			source_rect = {
-				display_present_info->srcRect.offset.x,
-				display_present_info->srcRect.offset.y,
-				display_present_info->srcRect.offset.x + static_cast<int32_t>(display_present_info->srcRect.extent.width),
-				display_present_info->srcRect.offset.y + static_cast<int32_t>(display_present_info->srcRect.extent.height)
-			};
-			dest_rect = {
-				display_present_info->dstRect.offset.x,
-				display_present_info->dstRect.offset.y,
-				display_present_info->dstRect.offset.x + static_cast<int32_t>(display_present_info->dstRect.extent.width),
-				display_present_info->dstRect.offset.y + static_cast<int32_t>(display_present_info->dstRect.extent.height)
-			};
-		}
-
 		reshade::invoke_addon_event<reshade::addon_event::present>(
 			queue_impl,
 			swapchain_impl,
+#if VK_KHR_display_swapchain
 			display_present_info != nullptr ? &source_rect : nullptr,
 			display_present_info != nullptr ? &dest_rect : nullptr,
 #else
-		reshade::invoke_addon_event<reshade::addon_event::present>(
-			queue_impl,
-			swapchain_impl,
 			nullptr,
 			nullptr,
 #endif
@@ -527,11 +520,12 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 		// If the application is presenting with a different queue than rendering, synchronize these two queues
 		if (present_from_secondary_queue)
 		{
-			if (const auto present_config = find_in_structure_chain<VkBaseInStructure>(
-					pPresentInfo, static_cast<VkStructureType>(1000613000) /* VK_STRUCTURE_TYPE_SET_PRESENT_CONFIG_NV */))
+#if VK_NV_present_metering
+			if (const auto present_config = find_in_structure_chain<VkSetPresentConfigNV>(
+					pPresentInfo, VK_STRUCTURE_TYPE_SET_PRESENT_CONFIG_NV))
 			{
 				assert(queue_impl->present_batch <= 1);
-				queue_impl->present_batch = *reinterpret_cast<const uint32_t *>(present_config + 1);
+				queue_impl->present_batch = present_config->numFramesPerBatch;
 			}
 			else if (queue_impl->present_batch > 1)
 			{
@@ -548,7 +542,9 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 					submit_info.pSignalSemaphores = nullptr;
 				}
 			}
-			else if (submit_info.pWaitSemaphores == present_info.pWaitSemaphores)
+			else
+#endif
+			if (submit_info.pWaitSemaphores == present_info.pWaitSemaphores)
 			{
 				// Games doing present from compute may process the swap chain image on the compute queue before presenting, so ensure this work has completed before executing work on the graphics queue
 				queue_impl->wait_and_signal(&submit_info);
@@ -590,7 +586,6 @@ VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR *pPr
 
 	return result;
 }
-#endif
 
 #if VK_EXT_full_screen_exclusive
 VkResult VKAPI_CALL vkAcquireFullScreenExclusiveModeEXT(VkDevice device, VkSwapchainKHR swapchain)

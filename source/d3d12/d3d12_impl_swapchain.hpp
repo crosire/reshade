@@ -61,3 +61,6 @@ namespace reshade::d3d12
 		UINT _swap_index = 0;
 	};
 }
+
+// SpecialK uses this private data GUID to track the current swap chain color space, so do the same
+inline constexpr GUID SKID_SwapChainColorSpace = { 0x18b57e4, 0x1493, 0x4953, { 0xad, 0xf2, 0xde, 0x6d, 0x99, 0xcc, 0x5, 0xe5 } }; // {018B57E4-1493-4953-ADF2-DE6D99CC05E5}

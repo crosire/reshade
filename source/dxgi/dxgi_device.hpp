@@ -49,5 +49,5 @@ public:
 	unsigned short _interface_version = 0;
 
 private:
-	IDXGIAdapter *const _parent_adapter;
+	IDXGIAdapter *const _parent;
 };

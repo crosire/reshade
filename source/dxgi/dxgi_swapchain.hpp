@@ -120,7 +120,7 @@ private:
 	IUnknown *const _direct3d_command_queue, *_direct3d_command_queue_per_back_buffer[DXGI_MAX_SWAP_CHAIN_BUFFERS] = {};
 	const reshade::api::device_api _direct3d_version;
 
-	IDXGIFactory *const _parent_factory;
+	IDXGIFactory *const _parent;
 
 	std::recursive_mutex _impl_mutex;
 	reshade::api::swapchain *const _impl;

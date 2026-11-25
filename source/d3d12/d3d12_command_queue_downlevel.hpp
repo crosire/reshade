@@ -31,5 +31,5 @@ public:
 	using swapchain_d3d12on7_impl::_orig;
 
 private:
-	D3D12CommandQueue *const _parent_queue;
+	D3D12CommandQueue *const _parent;
 };
