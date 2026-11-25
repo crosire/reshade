@@ -1130,7 +1130,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurface(UINT Widt
 			this,
 			desc,
 			nullptr,
-			reshade::api::resource_usage::render_target,
+			reshade::api::resource_usage::general,
 			reshade::api::resource { reinterpret_cast<uintptr_t>(surface) });
 		reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 			this,
