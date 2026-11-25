@@ -162,14 +162,11 @@ bool reshade::vulkan::command_queue_impl::signal(api::fence fence, uint64_t valu
 {
 	const VkSemaphore signal_semaphore = (VkSemaphore)fence.handle;
 
-	const VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
 	VkTimelineSemaphoreSubmitInfo signal_semaphore_info { VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO };
 	signal_semaphore_info.signalSemaphoreValueCount = 1;
 	signal_semaphore_info.pSignalSemaphoreValues = &value;
 
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO, &signal_semaphore_info };
-	submit_info.pWaitDstStageMask = &wait_stage;
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = &signal_semaphore;
 

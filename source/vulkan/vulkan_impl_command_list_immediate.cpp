@@ -255,6 +255,8 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_sema
 		return false;
 	}
 
+	VkTimelineSemaphoreSubmitInfo timeline_semaphore_info { VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO };
+
 	VkSubmitInfo submit_info { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &_orig;
@@ -264,6 +266,17 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_sema
 		submit_info.waitSemaphoreCount = wait_semaphore_info->waitSemaphoreCount;
 		submit_info.pWaitSemaphores = wait_semaphore_info->pWaitSemaphores;
 		submit_info.pWaitDstStageMask = wait_semaphore_info->pWaitDstStageMask;
+
+		// Any of the semaphores to wait on may be a timeline semaphore, so need to pass on the values to wait for too
+		if (const auto existing_timeline_semaphore_info = find_in_structure_chain<VkTimelineSemaphoreSubmitInfo>(
+				wait_semaphore_info->pNext, VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO);
+			existing_timeline_semaphore_info != nullptr && wait_semaphore_info->waitSemaphoreCount != 0)
+		{
+			timeline_semaphore_info.waitSemaphoreValueCount = existing_timeline_semaphore_info->waitSemaphoreValueCount;
+			timeline_semaphore_info.pWaitSemaphoreValues = existing_timeline_semaphore_info->pWaitSemaphoreValues;
+
+			submit_info.pNext = &timeline_semaphore_info;
+		}
 
 		if (wait_semaphore_info->waitSemaphoreCount != 0 ||
 			wait_semaphore_info->signalSemaphoreCount != 0) // Handle case where this is called from 'command_queue_impl::signal'
@@ -291,7 +304,8 @@ bool reshade::vulkan::command_list_immediate_impl::flush(VkSubmitInfo *wait_sema
 		// The next queue submit should therefore wait on the semaphore that was signaled by this submit
 		wait_semaphore_info->waitSemaphoreCount = submit_info.signalSemaphoreCount;
 		wait_semaphore_info->pWaitSemaphores = submit_info.pSignalSemaphores;
-		assert(wait_semaphore_info->pWaitDstStageMask != nullptr || wait_semaphore_info->waitSemaphoreCount == 0);
+		static constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+		wait_semaphore_info->pWaitDstStageMask = &wait_stage;
 
 		// Continue with next command buffer now that the current one was submitted
 		_cmd_index = (_cmd_index + 1) % NUM_COMMAND_FRAMES;
