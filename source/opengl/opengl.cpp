@@ -1887,20 +1887,16 @@ void APIENTRY glShaderSource(GLuint shader, GLsizei count, const GLchar *const *
 		if (count == 1)
 		{
 			combined_source_ptr = *string;
-			combined_source_length = (length != nullptr) ? *length : static_cast<GLint>(std::strlen(combined_source_ptr));
-		}
-		else if (length != nullptr)
-		{
-			for (GLsizei i = 0; i < count; ++i)
-				combined_source.append(string[i], length[i]);
-
-			combined_source_ptr = combined_source.data();
-			combined_source_length = static_cast<GLint>(combined_source.size());
+			// A negative length indicates that the string is null-terminated
+			combined_source_length = (length != nullptr && *length >= 0) ? *length : static_cast<GLint>(std::strlen(combined_source_ptr));
 		}
 		else
 		{
 			for (GLsizei i = 0; i < count; ++i)
-				combined_source.append(string[i]);
+				if (length != nullptr && length[i] >= 0)
+					combined_source.append(string[i], length[i]);
+				else
+					combined_source.append(string[i]);
 
 			combined_source_ptr = combined_source.data();
 			combined_source_length = static_cast<GLint>(combined_source.size());
