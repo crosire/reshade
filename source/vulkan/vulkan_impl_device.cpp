@@ -1521,7 +1521,12 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		create_info.maxPipelineRayRecursionDepth = max_recursion_depth;
 
 		if (find_in_structure_chain<VkPipelineCreateFlags2CreateInfo>(create_info.pNext, VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO) == nullptr)
-			create_info.flags = convert_pipeline_flags(flags);
+			// Keep original flags that have to match those of any linked libraries
+			create_info.flags = convert_pipeline_flags(flags) | (create_info.flags & (
+				VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_ANY_HIT_SHADERS_BIT_KHR |
+				VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_CLOSEST_HIT_SHADERS_BIT_KHR |
+				VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_MISS_SHADERS_BIT_KHR |
+				VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_INTERSECTION_SHADERS_BIT_KHR));
 
 		const size_t max_shader_stage_count = raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size() + callable_desc.size();
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info;
@@ -1585,11 +1590,6 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 		std::vector<VkRayTracingShaderGroupCreateInfoKHR> group_infos;
 		group_infos.reserve(shader_groups.size());
 
-		bool any_null_any_hit = false;
-		bool any_null_closest_hit = false;
-		bool any_null_miss = false;
-		bool any_null_intersection = false;
-
 		for (const api::shader_group &shader_group : shader_groups)
 		{
 			VkRayTracingShaderGroupCreateInfoKHR &group_info = group_infos.emplace_back(VkRayTracingShaderGroupCreateInfoKHR { VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR });
@@ -1598,41 +1598,21 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			switch (shader_group.type)
 			{
 			case api::shader_group_type::raygen:
-				if (shader_group.raygen.shader_index != UINT32_MAX)
-				{
-					group_info.generalShader = shader_group.raygen.shader_index;
-				}
-				else
-				{
-					group_info.generalShader = VK_SHADER_UNUSED_KHR;
-				}
+				group_info.generalShader = (shader_group.raygen.shader_index != UINT32_MAX) ? shader_group.raygen.shader_index : VK_SHADER_UNUSED_KHR;
 				group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
 				group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
 				group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
 				break;
 			case api::shader_group_type::miss:
-				if (shader_group.miss.shader_index != UINT32_MAX)
-				{
-					group_info.generalShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size()) + shader_group.miss.shader_index;
-				}
-				else
-				{
-					group_info.generalShader = VK_SHADER_UNUSED_KHR;
-					any_null_miss = true;
-				}
+				group_info.generalShader = (shader_group.miss.shader_index != UINT32_MAX) ?
+					static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size()) + shader_group.miss.shader_index : VK_SHADER_UNUSED_KHR;
 				group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
 				group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
 				group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
 				break;
 			case api::shader_group_type::callable:
-				if (shader_group.callable.shader_index != UINT32_MAX)
-				{
-					group_info.generalShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size()) + shader_group.callable.shader_index;
-				}
-				else
-				{
-					group_info.generalShader = VK_SHADER_UNUSED_KHR;
-				}
+				group_info.generalShader = (shader_group.callable.shader_index != UINT32_MAX) ?
+					static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size() + intersection_desc.size()) + shader_group.callable.shader_index : VK_SHADER_UNUSED_KHR;
 				group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
 				group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
 				group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
@@ -1640,48 +1620,18 @@ bool reshade::vulkan::device_impl::create_pipeline(api::pipeline_layout layout, 
 			case api::shader_group_type::hit_group_triangles:
 			case api::shader_group_type::hit_group_aabbs:
 				group_info.generalShader = VK_SHADER_UNUSED_KHR;
-				if (shader_group.hit_group.any_hit_shader_index != UINT32_MAX)
-				{
-					group_info.anyHitShader = static_cast<uint32_t>(raygen_desc.size()) + shader_group.hit_group.any_hit_shader_index;
-				}
-				else
-				{
-					group_info.anyHitShader = VK_SHADER_UNUSED_KHR;
-					any_null_any_hit = true;
-				}
-				if (shader_group.hit_group.closest_hit_shader_index != UINT32_MAX)
-				{
-					group_info.closestHitShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size()) + shader_group.hit_group.closest_hit_shader_index;
-				}
-				else
-				{
-					group_info.closestHitShader = VK_SHADER_UNUSED_KHR;
-					any_null_closest_hit = true;
-				}
-				if (shader_group.hit_group.intersection_shader_index != UINT32_MAX && shader_group.type != api::shader_group_type::hit_group_triangles)
-				{
-					group_info.intersectionShader = static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size()) + shader_group.hit_group.intersection_shader_index;
-				}
-				else
-				{
-					group_info.intersectionShader = VK_SHADER_UNUSED_KHR;
-					any_null_intersection = true;
-				}
+				group_info.anyHitShader = (shader_group.hit_group.any_hit_shader_index != UINT32_MAX) ?
+					static_cast<uint32_t>(raygen_desc.size()) + shader_group.hit_group.any_hit_shader_index : VK_SHADER_UNUSED_KHR;
+				group_info.closestHitShader = (shader_group.hit_group.closest_hit_shader_index != UINT32_MAX) ?
+					static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size()) + shader_group.hit_group.closest_hit_shader_index : VK_SHADER_UNUSED_KHR;
+				group_info.intersectionShader = (shader_group.hit_group.intersection_shader_index != UINT32_MAX && shader_group.type != api::shader_group_type::hit_group_triangles) ?
+					static_cast<uint32_t>(raygen_desc.size() + any_hit_desc.size() + closest_hit_desc.size() + miss_desc.size()) + shader_group.hit_group.intersection_shader_index : VK_SHADER_UNUSED_KHR;
 				break;
 			}
 		}
 
 		create_info.groupCount = static_cast<uint32_t>(group_infos.size());
 		create_info.pGroups = group_infos.data();
-
-		if (!any_null_any_hit)
-			create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_ANY_HIT_SHADERS_BIT_KHR;
-		if (!any_null_closest_hit)
-			create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_CLOSEST_HIT_SHADERS_BIT_KHR;
-		if (!any_null_miss)
-			create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_MISS_SHADERS_BIT_KHR;
-		if (!any_null_intersection)
-			create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_INTERSECTION_SHADERS_BIT_KHR;
 
 		VkPipelineLibraryCreateInfoKHR library_info;
 		VkRayTracingPipelineInterfaceCreateInfoKHR interface_info;
