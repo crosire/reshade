@@ -360,8 +360,11 @@ bool reshade::d3d9::device_impl::create_resource(const api::resource_desc &desc,
 
 					if (initial_data != nullptr)
 					{
+						levels = IDirect3DCubeTexture9_GetLevelCount(reinterpret_cast<IDirect3DCubeTexture9 *>(out_resource->handle));
+
+						// Only the first level of each face is uploaded if the number of levels was chosen automatically
 						for (uint32_t subresource = 0; subresource < static_cast<uint32_t>(desc.texture.depth_or_layers) * (desc.texture.levels == 0 ? 1u : static_cast<uint32_t>(desc.texture.levels)); ++subresource)
-							update_texture_region(initial_data[subresource], *out_resource, subresource, nullptr);
+							update_texture_region(initial_data[subresource], *out_resource, desc.texture.levels == 0 ? subresource * levels : subresource, nullptr);
 					}
 					return true;
 				}

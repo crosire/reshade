@@ -800,8 +800,9 @@ bool reshade::opengl::device_impl::create_resource(const api::resource_desc &des
 
 		if (initial_data != nullptr && status == GL_NO_ERROR)
 		{
+			// Only the first level of each layer is uploaded if the number of levels was chosen automatically
 			for (uint32_t subresource = 0; subresource < (desc.type == api::resource_type::texture_3d ? 1u : static_cast<uint32_t>(desc.texture.depth_or_layers)) * (desc.texture.levels == 0 ? 1u : static_cast<uint32_t>(desc.texture.levels)); ++subresource)
-				update_texture_region(initial_data[subresource], make_resource_handle(target, object), subresource, nullptr);
+				update_texture_region(initial_data[subresource], make_resource_handle(target, object), desc.texture.levels == 0 ? subresource * levels : subresource, nullptr);
 
 			if (desc.texture.levels == 0 && (desc.flags & api::resource_flags::generate_mipmaps) != 0)
 				gl.GenerateMipmap(target);
