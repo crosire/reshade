@@ -1400,18 +1400,18 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 	GLint prev_unpack_swap = GL_FALSE;
 	GLint prev_unpack_alignment = 0;
 	GLint prev_unpack_row_length = 0;
-	GLint prev_unpack_image_height = 0;
-	GLint prev_unpack_skip_rows = 0;
+	GLint prev_unpack_slice_height = 0;
 	GLint prev_unpack_skip_pixels = 0;
-	GLint prev_unpack_skip_images = 0;
+	GLint prev_unpack_skip_rows = 0;
+	GLint prev_unpack_skip_slices = 0;
 	gl.GetIntegerv(GL_UNPACK_LSB_FIRST, &prev_unpack_lsb);
 	gl.GetIntegerv(GL_UNPACK_SWAP_BYTES, &prev_unpack_swap);
 	gl.GetIntegerv(GL_UNPACK_ALIGNMENT, &prev_unpack_alignment);
 	gl.GetIntegerv(GL_UNPACK_ROW_LENGTH, &prev_unpack_row_length);
-	gl.GetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &prev_unpack_image_height);
-	gl.GetIntegerv(GL_UNPACK_SKIP_ROWS, &prev_unpack_skip_rows);
+	gl.GetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &prev_unpack_slice_height);
 	gl.GetIntegerv(GL_UNPACK_SKIP_PIXELS, &prev_unpack_skip_pixels);
-	gl.GetIntegerv(GL_UNPACK_SKIP_IMAGES, &prev_unpack_skip_images);
+	gl.GetIntegerv(GL_UNPACK_SKIP_ROWS, &prev_unpack_skip_rows);
+	gl.GetIntegerv(GL_UNPACK_SKIP_IMAGES, &prev_unpack_skip_slices);
 
 	GLuint prev_unpack_binding = 0;
 	gl.GetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, reinterpret_cast<GLint *>(&prev_unpack_binding));
@@ -1425,8 +1425,8 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 	gl.PixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	gl.PixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
 	gl.PixelStorei(GL_UNPACK_IMAGE_HEIGHT, slice_height);
-	gl.PixelStorei(GL_UNPACK_SKIP_ROWS, 0);
 	gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	gl.PixelStorei(GL_UNPACK_SKIP_ROWS, 0);
 	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, 0);
 
 	const api::resource_desc dst_desc = _device->get_resource_desc(dst);
@@ -1570,10 +1570,10 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 	gl.PixelStorei(GL_UNPACK_SWAP_BYTES, prev_unpack_swap);
 	gl.PixelStorei(GL_UNPACK_ALIGNMENT, prev_unpack_alignment);
 	gl.PixelStorei(GL_UNPACK_ROW_LENGTH, prev_unpack_row_length);
-	gl.PixelStorei(GL_UNPACK_IMAGE_HEIGHT, prev_unpack_image_height);
-	gl.PixelStorei(GL_UNPACK_SKIP_ROWS, prev_unpack_skip_rows);
+	gl.PixelStorei(GL_UNPACK_IMAGE_HEIGHT, prev_unpack_slice_height);
 	gl.PixelStorei(GL_UNPACK_SKIP_PIXELS, prev_unpack_skip_pixels);
-	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_images);
+	gl.PixelStorei(GL_UNPACK_SKIP_ROWS, prev_unpack_skip_rows);
+	gl.PixelStorei(GL_UNPACK_SKIP_IMAGES, prev_unpack_skip_slices);
 }
 void reshade::opengl::device_context_impl::copy_texture_region(api::resource src, uint32_t src_subresource, const api::subresource_box *src_box, api::resource dst, uint32_t dst_subresource, const api::subresource_box *dst_box, api::filter_mode filter)
 {

@@ -84,6 +84,7 @@ public:
 	{
 		const auto device = static_cast<reshade::opengl::device_impl *>(g_opengl_context->get_device());
 
+		_initial_data.data = nullptr;
 		reshade::api::subresource_data *const data = convert_mapped_subresource(format, type, pixels, _desc.texture.width, _desc.texture.height, _desc.texture.depth_or_layers);
 
 		if (reshade::invoke_addon_event<reshade::addon_event::create_resource>(device, _desc, data, reshade::api::resource_usage::general))
@@ -168,6 +169,13 @@ public:
 		if (_target != GL_NONE && ((_desc.type != reshade::api::resource_type::texture_3d && _desc.texture.depth_or_layers != 1) || _desc.texture.levels > 1))
 			return nullptr; // Currently only a single subresource data element is passed to 'create_resource' and 'init_resource' (see '_initial_data'), so cannot handle textures with multiple subresources
 
+		GLint unpack_binding = 0;
+		gl.GetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &unpack_binding);
+		if (0 != unpack_binding)
+			return nullptr;
+
+		GLint alignment = 4;
+		gl.GetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
 		GLint row_length = 0;
 		gl.GetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
 		GLint slice_height = 0;
@@ -184,20 +192,26 @@ public:
 			return nullptr;
 
 		_initial_data.row_pitch = reshade::api::format_row_pitch(pixels_format, width);
+		const uint32_t pixel_size = _initial_data.row_pitch / width;
+
+		// Rows of uncompressed data are padded to the unpack alignment
+		if (!reshade::api::format_is_block_compressed(pixels_format))
+			_initial_data.row_pitch = (_initial_data.row_pitch + alignment - 1) & ~static_cast<uint32_t>(alignment - 1);
+
 		_initial_data.slice_pitch = reshade::api::format_slice_pitch(pixels_format, _initial_data.row_pitch, height);
 
+		GLint skip_pixels = 0;
+		gl.GetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
 		GLint skip_rows = 0;
 		gl.GetIntegerv(GL_UNPACK_SKIP_ROWS, &skip_rows);
 		GLint skip_slices = 0;
 		gl.GetIntegerv(GL_UNPACK_SKIP_IMAGES, &skip_slices);
-		GLint skip_pixels = 0;
-		gl.GetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
 
 		_initial_data.data =
 			static_cast<uint8_t *>(const_cast<void *>(pixels)) +
+			skip_pixels * static_cast<size_t>(pixel_size) +
 			skip_rows   * static_cast<size_t>(_initial_data.row_pitch) +
-			skip_slices * static_cast<size_t>(_initial_data.slice_pitch) +
-			skip_pixels * static_cast<size_t>(_initial_data.row_pitch / width);
+			skip_slices * static_cast<size_t>(_initial_data.slice_pitch);
 
 		return &_initial_data;
 	}
