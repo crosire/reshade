@@ -5,7 +5,7 @@
 
 #include "vulkan_impl_type_convert.hpp"
 #include <cassert>
-#include <algorithm> // std::copy_n, std::fill_n, std::find_if, std::max
+#include <algorithm> // std::copy_n, std::fill_n, std::find_if, std::max, std::sort, std::unique
 
 auto reshade::vulkan::convert_format(api::format format, VkComponentMapping *components) -> VkFormat
 {
@@ -1712,6 +1712,10 @@ void reshade::vulkan::convert_dynamic_states(uint32_t count, const api::dynamic_
 			break;
 		}
 	}
+
+	// Remove duplicates
+	std::sort(internal_states.begin(), internal_states.end());
+	internal_states.erase(std::unique(internal_states.begin(), internal_states.end()), internal_states.end());
 }
 std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states(const VkPipelineDynamicStateCreateInfo *create_info)
 {
@@ -1780,9 +1784,6 @@ std::vector<reshade::api::dynamic_state> reshade::vulkan::convert_dynamic_states
 		case VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE:
 			break;
 		case VK_DYNAMIC_STATE_DEPTH_BIAS_ENABLE:
-			states.push_back(api::dynamic_state::depth_bias);
-			states.push_back(api::dynamic_state::depth_bias_clamp);
-			states.push_back(api::dynamic_state::depth_bias_slope_scaled);
 			break;
 		case VK_DYNAMIC_STATE_PRIMITIVE_RESTART_ENABLE:
 			break;
@@ -2036,9 +2037,12 @@ reshade::api::rasterizer_desc reshade::vulkan::convert_rasterizer_desc(const VkP
 		desc.fill_mode = convert_fill_mode(create_info->polygonMode);
 		desc.cull_mode = convert_cull_mode(create_info->cullMode);
 		desc.front_counter_clockwise = create_info->frontFace == VK_FRONT_FACE_COUNTER_CLOCKWISE;
-		desc.depth_bias = create_info->depthBiasConstantFactor;
-		desc.depth_bias_clamp = create_info->depthBiasClamp;
-		desc.slope_scaled_depth_bias = create_info->depthBiasSlopeFactor;
+		if (create_info->depthBiasEnable)
+		{
+			desc.depth_bias = create_info->depthBiasConstantFactor;
+			desc.depth_bias_clamp = create_info->depthBiasClamp;
+			desc.slope_scaled_depth_bias = create_info->depthBiasSlopeFactor;
+		}
 		desc.depth_clip_enable = !create_info->depthClampEnable;
 		desc.scissor_enable = true;
 

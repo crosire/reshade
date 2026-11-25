@@ -843,6 +843,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 	uint32_t max_recursion_depth = 1;
 	api::pipeline_flags flags = api::pipeline_flags::none;
 	bool ray_tracing = false;
+	bool dynamic_depth_bias = false;
 
 	for (uint32_t i = 0; i < subobject_count; ++i)
 	{
@@ -921,6 +922,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			break;
 		case api::pipeline_subobject_type::dynamic_pipeline_states:
 			for (uint32_t k = 0; k < subobjects[i].count; ++k)
+			{
 				if (const auto state = static_cast<const api::dynamic_state *>(subobjects[i].data)[k];
 					state != api::dynamic_state::primitive_topology &&
 					state != api::dynamic_state::input_element_stride &&
@@ -932,6 +934,9 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 					state != api::dynamic_state::depth_bias_slope_scaled &&
 					state != api::dynamic_state::ray_tracing_pipeline_stack_size)
 					goto exit_failure;
+				else if (state == api::dynamic_state::depth_bias || state == api::dynamic_state::depth_bias_clamp || state == api::dynamic_state::depth_bias_slope_scaled)
+					dynamic_depth_bias = true;
+			}
 			break;
 		case api::pipeline_subobject_type::max_vertex_count:
 			assert(subobjects[i].count == 1);
@@ -1205,6 +1210,7 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 				D3D12_PIPELINE_STATE_STREAM_RENDER_TARGET_FORMATS render_target_formats;
 				D3D12_PIPELINE_STATE_STREAM_DEPTH_STENCIL_FORMAT depth_stencil_format;
 				D3D12_PIPELINE_STATE_STREAM_SAMPLE_DESC sample_desc;
+				D3D12_PIPELINE_STATE_STREAM_FLAGS flags;
 			} stream_data = {};
 
 			stream_data.root_signature.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
@@ -1231,6 +1237,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 			stream_data.depth_stencil_format.data = reshade::d3d12::convert_format(depth_stencil_format);
 			stream_data.sample_desc.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC;
 			stream_data.sample_desc.data.Count = sample_count;
+			stream_data.flags.type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS;
+			stream_data.flags.data = dynamic_depth_bias ? D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS : D3D12_PIPELINE_STATE_FLAG_NONE;
 
 			D3D12_PIPELINE_STATE_STREAM_DESC stream_desc;
 			stream_desc.pPipelineStateSubobjectStream = &stream_data;
@@ -1282,6 +1290,8 @@ bool reshade::d3d12::device_impl::create_pipeline(api::pipeline_layout layout, u
 		internal_desc.DSVFormat = reshade::d3d12::convert_format(depth_stencil_format);
 
 		internal_desc.SampleDesc.Count = sample_count;
+
+		internal_desc.Flags = dynamic_depth_bias ? D3D12_PIPELINE_STATE_FLAG_DYNAMIC_DEPTH_BIAS : D3D12_PIPELINE_STATE_FLAG_NONE;
 
 		if (com_ptr<ID3D12PipelineState> pipeline;
 			SUCCEEDED(_orig->CreateGraphicsPipelineState(&internal_desc, IID_PPV_ARGS(&pipeline))))

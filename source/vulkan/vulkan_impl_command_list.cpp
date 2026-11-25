@@ -393,6 +393,20 @@ void reshade::vulkan::command_list_impl::bind_pipeline_states(uint32_t count, co
 				vk.CmdSetBlendConstants(_orig, blend_constant);
 			}
 			break;
+		case api::dynamic_state::depth_bias:
+			if (i + 2 < count &&
+				states[i + 1] == api::dynamic_state::depth_bias_clamp &&
+				states[i + 2] == api::dynamic_state::depth_bias_slope_scaled)
+			{
+				vk.CmdSetDepthBias(_orig, *reinterpret_cast<const float *>(&values[i]), *reinterpret_cast<const float *>(&values[i + 1]), *reinterpret_cast<const float *>(&values[i + 2]));
+				i += 2;
+				break;
+			}
+			[[fallthrough]];
+		case api::dynamic_state::depth_bias_clamp:
+		case api::dynamic_state::depth_bias_slope_scaled:
+			assert(false); // Cannot set depth bias states individually
+			break;
 		case api::dynamic_state::front_stencil_read_mask:
 			vk.CmdSetStencilCompareMask(_orig, VK_STENCIL_FACE_FRONT_BIT, values[i]);
 			break;

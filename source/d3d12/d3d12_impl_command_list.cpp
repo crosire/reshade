@@ -238,16 +238,19 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 				if (SUCCEEDED(_orig->QueryInterface(&cmd_list8)))
 				{
 					cmd_list8->OMSetFrontAndBackStencilRef(values[i], values[i + 1]);
-					i += 1;
-					break;
 				}
+				else
+				{
+					assert(values[i] == values[i + 1]); // Separate reference values are not supported
+					_orig->OMSetStencilRef(values[i]);
+				}
+				i += 1;
 			}
 			else
 			{
 				_orig->OMSetStencilRef(values[i]);
-				break;
 			}
-			[[fallthrough]];
+			break;
 		case api::dynamic_state::back_stencil_reference_value:
 			assert(false);
 			break;
@@ -267,7 +270,7 @@ void reshade::d3d12::command_list_impl::bind_pipeline_states(uint32_t count, con
 			[[fallthrough]];
 		case api::dynamic_state::depth_bias_clamp:
 		case api::dynamic_state::depth_bias_slope_scaled:
-			assert(false);
+			assert(false); // Cannot set depth bias states individually
 			break;
 		case api::dynamic_state::ray_tracing_pipeline_stack_size:
 			// ID3D12StateObjectProperties *props = ...;
