@@ -43,7 +43,8 @@ namespace reshade::opengl
 		bool create_resource_view(api::resource resource, api::resource_usage usage_type, const api::resource_view_desc &desc, api::resource_view *out_view) final;
 		void destroy_resource_view(api::resource_view view) final;
 
-		api::format get_resource_format(GLenum target, GLenum object) const;
+		uint64_t get_buffer_size(GLuint object) const;
+		api::format get_resource_format(GLenum target, GLuint object) const;
 
 		void register_resource_view(GLenum target, GLuint object, api::resource resource);
 

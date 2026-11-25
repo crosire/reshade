@@ -1354,38 +1354,17 @@ void reshade::opengl::device_context_impl::copy_buffer_region(api::resource src,
 	assert(src_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) &&
 		   dst_offset <= static_cast<uint64_t>(std::numeric_limits<GLintptr>::max()) && (size == UINT64_MAX || size <= static_cast<uint64_t>(std::numeric_limits<GLsizeiptr>::max())));
 
+	if (UINT64_MAX == size)
+		size = _device->get_buffer_size(src_object) - src_offset;
+
 	if (gl.VERSION_4_5)
 	{
-		if (UINT64_MAX == size)
-		{
-#ifndef _WIN64
-			GLint max_size = 0;
-			gl.GetNamedBufferParameteriv(src_object, GL_BUFFER_SIZE, &max_size);
-#else
-			GLint64 max_size = 0;
-			gl.GetNamedBufferParameteri64v(src_object, GL_BUFFER_SIZE, &max_size);
-#endif
-			size = max_size - src_offset;
-		}
-
 		gl.CopyNamedBufferSubData(src_object, dst_object, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 	}
 	else
 	{
 		gl.BindBuffer(GL_COPY_READ_BUFFER, src_object);
 		gl.BindBuffer(GL_COPY_WRITE_BUFFER, dst_object);
-
-		if (UINT64_MAX == size)
-		{
-#ifndef _WIN64
-			GLint max_size = 0;
-			gl.GetBufferParameteriv(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
-#else
-			GLint64 max_size = 0;
-			gl.GetBufferParameteri64v(GL_COPY_READ_BUFFER, GL_BUFFER_SIZE, &max_size);
-#endif
-			size = max_size - src_offset;
-		}
 
 		gl.CopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, static_cast<GLintptr>(src_offset), static_cast<GLintptr>(dst_offset), static_cast<GLsizeiptr>(size));
 	}
