@@ -770,22 +770,6 @@ void    STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource(ID3D11Resource *
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::CopyStructureCount(ID3D11Buffer *pDstBuffer, UINT DstAlignedByteOffset, ID3D11UnorderedAccessView *pSrcView)
 {
-#if RESHADE_ADDON >= 2
-	assert(pSrcView != nullptr);
-
-	if (reshade::has_addon_event<reshade::addon_event::copy_buffer_region>())
-	{
-		D3D11_UNORDERED_ACCESS_VIEW_DESC desc;
-		pSrcView->GetDesc(&desc);
-		com_ptr<ID3D11Resource> src;
-		pSrcView->GetResource(&src);
-
-		if (desc.ViewDimension == D3D11_UAV_DIMENSION_BUFFER &&
-			reshade::invoke_addon_event<reshade::addon_event::copy_buffer_region>(this, to_handle(src.get()), desc.Buffer.FirstElement, to_handle(pDstBuffer), DstAlignedByteOffset, desc.Buffer.NumElements))
-			return;
-	}
-#endif
-
 	_orig->CopyStructureCount(pDstBuffer, DstAlignedByteOffset, pSrcView);
 }
 void    STDMETHODCALLTYPE D3D11DeviceContext::ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4])
