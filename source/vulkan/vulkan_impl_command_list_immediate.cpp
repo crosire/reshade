@@ -200,7 +200,7 @@ void reshade::vulkan::command_list_immediate_impl::push_descriptors(api::shader_
 
 	if (vk.AllocateDescriptorSets(_device->_orig, &alloc_info, &write.dstSet) != VK_SUCCESS)
 	{
-		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", static_cast<unsigned int>(update.type), update.count);
+		log::message(log::level::error, "Failed to allocate %u transient descriptor handle(s) of type %u!", update.count, static_cast<unsigned int>(update.type));
 		return;
 	}
 
