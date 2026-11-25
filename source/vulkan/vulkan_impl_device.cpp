@@ -41,19 +41,26 @@ reshade::vulkan::device_impl::device_impl(
 		functions.vkCreateImage = dispatch_table.CreateImage;
 		functions.vkDestroyImage = dispatch_table.DestroyImage;
 		functions.vkCmdCopyBuffer = dispatch_table.CmdCopyBuffer;
-#if VMA_VULKAN_VERSION >= 1001000
+#if VMA_DEDICATED_ALLOCATION || VMA_VULKAN_VERSION >= 1001000
 		functions.vkGetBufferMemoryRequirements2KHR = dispatch_table.GetBufferMemoryRequirements2;
 		functions.vkGetImageMemoryRequirements2KHR = dispatch_table.GetImageMemoryRequirements2;
+#endif
+#if VMA_BIND_MEMORY2 || VMA_VULKAN_VERSION >= 1001000
 		functions.vkBindBufferMemory2KHR = dispatch_table.BindBufferMemory2;
 		functions.vkBindImageMemory2KHR = dispatch_table.BindImageMemory2;
+#endif
+#if VMA_GET_PHYSICAL_DEVICE_PROPERTIES2
 		functions.vkGetPhysicalDeviceMemoryProperties2KHR = dispatch_table.GetPhysicalDeviceMemoryProperties2;
 #endif
-#if VMA_VULKAN_VERSION >= 1003000
+#if VMA_KHR_MAINTENANCE4 || VMA_VULKAN_VERSION >= 1003000
 		functions.vkGetDeviceBufferMemoryRequirements = dispatch_table.GetDeviceBufferMemoryRequirements;
 		functions.vkGetDeviceImageMemoryRequirements = dispatch_table.GetDeviceImageMemoryRequirements;
 #endif
 #if VMA_EXTERNAL_MEMORY_WIN32 && VK_KHR_external_memory_win32
 		functions.vkGetMemoryWin32HandleKHR = dispatch_table.GetMemoryWin32HandleKHR;
+#endif
+#if VMA_GET_PHYSICAL_DEVICE_PROPERTIES2
+		functions.vkGetPhysicalDeviceProperties2KHR = dispatch_table.GetPhysicalDeviceProperties2;
 #endif
 
 		VmaAllocatorCreateInfo create_info = {};
@@ -68,6 +75,8 @@ reshade::vulkan::device_impl::device_impl(
 		if (vk.KHR_buffer_device_address)
 			create_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 #endif
+		if (vk.KHR_maintenance5)
+			create_info.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT;
 #if VMA_EXTERNAL_MEMORY_WIN32 && VK_KHR_external_memory_win32
 		if (vk.KHR_external_memory_win32)
 			create_info.flags |= VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT;
@@ -518,6 +527,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 							reqs, dedicated_allocation, prefers_dedicated_allocation,
 							object, VK_NULL_HANDLE,
 							VmaBufferImageUsage(create_info, _alloc->m_UseKhrMaintenance5),
+							nullptr,
 							alloc_info,
 							VMA_SUBALLOCATION_TYPE_BUFFER,
 							1, &allocation) != VK_SUCCESS ||
@@ -630,7 +640,8 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 					if (_alloc->AllocateMemory(
 							reqs, dedicated_allocation, prefers_dedicated_allocation,
 							VK_NULL_HANDLE, object,
-							VmaBufferImageUsage(create_info),
+							VmaBufferImageUsage(create_info, false),
+							nullptr,
 							alloc_info,
 							create_info.tiling == VK_IMAGE_TILING_OPTIMAL ? VMA_SUBALLOCATION_TYPE_IMAGE_OPTIMAL : VMA_SUBALLOCATION_TYPE_IMAGE_LINEAR,
 							1, &allocation) != VK_SUCCESS ||
