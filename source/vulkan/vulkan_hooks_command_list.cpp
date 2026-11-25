@@ -1888,14 +1888,14 @@ void VKAPI_CALL vkCmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t 
 	reshade::vulkan::command_list_impl *const cmd_impl = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_COMMAND_BUFFER>(commandBuffer);
 
 	temp_mem<uint32_t> strides_32(bindingCount);
-	for (uint32_t i = 0; i < bindingCount; ++i)
+	for (uint32_t i = 0; i < bindingCount && pStrides != nullptr; ++i)
 	{
 		assert(pStrides[i] <= std::numeric_limits<uint32_t>::max());
 		strides_32[i] = static_cast<uint32_t>(pStrides[i]);
 	}
 
 	reshade::invoke_addon_event<reshade::addon_event::bind_vertex_buffers>(
-		cmd_impl, firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource *>(pBuffers), pOffsets, strides_32.p);
+		cmd_impl, firstBinding, bindingCount, reinterpret_cast<const reshade::api::resource *>(pBuffers), pOffsets, pStrides != nullptr ? strides_32.p : nullptr);
 #endif
 }
 
