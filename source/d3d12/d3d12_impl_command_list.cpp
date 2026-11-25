@@ -898,7 +898,10 @@ void reshade::d3d12::command_list_impl::resolve_texture_region(api::resource src
 		case api::format::b8g8r8a8_unorm_srgb:
 		case api::format::b8g8r8x8_unorm:
 		case api::format::b8g8r8x8_unorm_srgb:
+		case api::format::b5g6r5_unorm:
+		case api::format::b5g5r5a1_unorm:
 		case api::format::r10g10b10a2_unorm:
+		case api::format::r11g11b10_float:
 		case api::format::r16_unorm:
 		case api::format::r16_snorm:
 		case api::format::r16_float:
@@ -1025,8 +1028,9 @@ void reshade::d3d12::command_list_impl::generate_mipmaps(api::resource_view srv)
 	const D3D12_RESOURCE_DESC desc = reinterpret_cast<ID3D12Resource *>(resource.handle)->GetDesc();
 	const api::resource_view_desc view_desc = _device->get_resource_view_desc(srv);
 
-	const uint32_t levels = std::min(view_desc.texture.levels, static_cast<uint32_t>(desc.MipLevels));
-	if (levels == 1)
+	assert(view_desc.texture.first_level < desc.MipLevels);
+	const uint32_t levels = std::min(view_desc.texture.levels, desc.MipLevels - view_desc.texture.first_level);
+	if (levels <= 1)
 		return; // There are no mipmaps to generate
 
 	const uint32_t multiple_of_6_remainder = (levels - 1) % 6;

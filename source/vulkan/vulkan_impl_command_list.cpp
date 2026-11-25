@@ -832,7 +832,10 @@ void reshade::vulkan::command_list_impl::copy_texture_region(api::resource src, 
 		(src_data->create_info.format == dst_data->create_info.format) ||
 		(api::format_row_pitch(convert_format(src_data->create_info.format), 1) == api::format_row_pitch(convert_format(dst_data->create_info.format), 1));
 	const bool copy_region_compatible =
-		(src_box == nullptr && dst_box == nullptr && std::memcmp(&src_data->create_info.extent, &dst_data->create_info.extent, sizeof(VkExtent3D)) == 0) ||
+		(src_box == nullptr && dst_box == nullptr &&
+			std::max(1u, src_data->create_info.extent.width  >> (src_subresource % src_data->create_info.mipLevels)) == std::max(1u, dst_data->create_info.extent.width  >> (dst_subresource % dst_data->create_info.mipLevels)) &&
+			std::max(1u, src_data->create_info.extent.height >> (src_subresource % src_data->create_info.mipLevels)) == std::max(1u, dst_data->create_info.extent.height >> (dst_subresource % dst_data->create_info.mipLevels)) &&
+			std::max(1u, src_data->create_info.extent.depth  >> (src_subresource % src_data->create_info.mipLevels)) == std::max(1u, dst_data->create_info.extent.depth  >> (dst_subresource % dst_data->create_info.mipLevels))) ||
 		(src_box != nullptr && dst_box != nullptr && src_box->width() == dst_box->width() && src_box->height() == dst_box->height() && src_box->depth() == dst_box->depth());
 
 	if (format_compatible && copy_region_compatible)
@@ -972,10 +975,14 @@ void reshade::vulkan::command_list_impl::clear_depth_stencil_view(api::resource_
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.image = view_data->create_info.image;
 	barrier.subresourceRange = view_data->create_info.subresourceRange;
-	barrier.subresourceRange.aspectMask &= clear_flags;
+	// Both aspects have to be transitioned together without the 'separateDepthStencilLayouts' feature
+	barrier.subresourceRange.aspectMask = aspect_flags_from_format(view_data->create_info.format);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-	vk.CmdClearDepthStencilImage(_orig, view_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &barrier.subresourceRange);
+	VkImageSubresourceRange clear_range = view_data->create_info.subresourceRange;
+	clear_range.aspectMask &= clear_flags;
+
+	vk.CmdClearDepthStencilImage(_orig, view_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &clear_range);
 
 	std::swap(barrier.oldLayout, barrier.newLayout);
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
@@ -1050,15 +1057,9 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 	barrier.subresourceRange = view_data->create_info.subresourceRange;
 	vk.CmdPipelineBarrier(_orig, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-	int32_t width = view_data->image_extent.width >> view_data->create_info.subresourceRange.baseMipLevel;
-	int32_t height = view_data->image_extent.height >> view_data->create_info.subresourceRange.baseMipLevel;
-	const int32_t depth = view_data->image_extent.depth;
-
-	barrier.subresourceRange.layerCount = std::min(barrier.subresourceRange.layerCount, view_data->create_info.subresourceRange.layerCount - barrier.subresourceRange.baseArrayLayer);
-
-	for (uint32_t level = view_data->create_info.subresourceRange.baseMipLevel + 1; level < view_data->create_info.subresourceRange.baseMipLevel + view_data->create_info.subresourceRange.levelCount; ++level, width /= 2, height /= 2)
+	for (uint32_t level = 1; level < view_data->create_info.subresourceRange.levelCount; ++level)
 	{
-		barrier.subresourceRange.baseMipLevel = level;
+		barrier.subresourceRange.baseMipLevel = view_data->create_info.subresourceRange.baseMipLevel + level;
 		barrier.subresourceRange.levelCount = 1;
 
 		barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
@@ -1069,11 +1070,19 @@ void reshade::vulkan::command_list_impl::generate_mipmaps(api::resource_view srv
 
 		VkImageBlit blit;
 		blit.srcOffsets[0] = { 0, 0, 0 };
-		blit.srcOffsets[1] = { width, height, depth };
-		blit.srcSubresource = { barrier.subresourceRange.aspectMask, level - 1, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
+		blit.srcOffsets[1] = {
+			static_cast<int32_t>(std::max(1u, view_data->image_extent.width  >> (level - 1))),
+			static_cast<int32_t>(std::max(1u, view_data->image_extent.height >> (level - 1))),
+			static_cast<int32_t>(std::max(1u, view_data->image_extent.depth  >> (level - 1)))
+		};
+		blit.srcSubresource = { barrier.subresourceRange.aspectMask, view_data->create_info.subresourceRange.baseMipLevel + level - 1, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
 		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, depth };
-		blit.dstSubresource = { barrier.subresourceRange.aspectMask, level, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
+		blit.dstOffsets[1] = {
+			static_cast<int32_t>(std::max(1u, view_data->image_extent.width  >> (level))),
+			static_cast<int32_t>(std::max(1u, view_data->image_extent.height >> (level))),
+			static_cast<int32_t>(std::max(1u, view_data->image_extent.depth  >> (level)))
+		};
+		blit.dstSubresource = { barrier.subresourceRange.aspectMask, view_data->create_info.subresourceRange.baseMipLevel + level, barrier.subresourceRange.baseArrayLayer, barrier.subresourceRange.layerCount };
 		vk.CmdBlitImage(_orig, view_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, view_data->create_info.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
 		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;

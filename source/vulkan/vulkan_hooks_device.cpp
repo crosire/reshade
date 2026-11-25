@@ -1241,10 +1241,13 @@ VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageViewCreateIn
 	const auto resource_data = device_impl->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(create_info.image);
 	// Update subresource range to the actual dimensions of the image
 	if (create_info.subresourceRange.levelCount == VK_REMAINING_MIP_LEVELS)
-		data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels;
+		data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels - create_info.subresourceRange.baseMipLevel;
 	if (create_info.subresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS)
-		data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
-	data.image_extent = resource_data->create_info.extent;
+		// Base layer of views of a 3D image may refer to depth slices, rather than array layers
+		data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers - (resource_data->create_info.imageType != VK_IMAGE_TYPE_3D ? create_info.subresourceRange.baseArrayLayer : 0);
+	data.image_extent.width  = std::max(1u, resource_data->create_info.extent.width  >> create_info.subresourceRange.baseMipLevel);
+	data.image_extent.height = std::max(1u, resource_data->create_info.extent.height >> create_info.subresourceRange.baseMipLevel);
+	data.image_extent.depth  = std::max(1u, resource_data->create_info.extent.depth  >> create_info.subresourceRange.baseMipLevel);
 
 	reshade::invoke_addon_event<reshade::addon_event::init_resource_view>(
 		device_impl, reshade::api::resource { (uint64_t)create_info.image }, reshade::api::resource_usage::undefined, desc, reshade::api::resource_view { (uint64_t)*pView });

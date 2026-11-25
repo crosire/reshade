@@ -674,7 +674,7 @@ bool reshade::d3d12::device_impl::map_texture_region(api::resource resource, uin
 			return false;
 
 		out_data->row_pitch = extra_data.footprint.RowPitch;
-		out_data->slice_pitch = extra_data.footprint.RowPitch * extra_data.footprint.Height;
+		out_data->slice_pitch = api::format_slice_pitch(convert_format(extra_data.footprint.Format), extra_data.footprint.RowPitch, extra_data.footprint.Height);
 	}
 	else
 	{

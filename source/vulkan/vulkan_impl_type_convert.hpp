@@ -71,7 +71,7 @@ namespace reshade::vulkan
 		using Handle = VkImageView;
 
 		VkImageViewCreateInfo create_info;
-		// Keep track of image extent to avoid common extra lookup of view
+		// Keep track of base mipmap level extent to avoid common extra lookup of view
 		VkExtent3D image_extent;
 	};
 

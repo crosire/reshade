@@ -1998,28 +1998,32 @@ void reshade::opengl::device_context_impl::generate_mipmaps(api::resource_view s
 		{
 			GLuint levels = 0;
 			gl.GetTexParameteriv(target, GL_TEXTURE_IMMUTABLE_LEVELS, reinterpret_cast<GLint *>(&levels));
-			GLuint base_level_width = 0;
-			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_level_width));
-			GLuint base_level_height = 0;
-			gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&base_level_height));
-
-			// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
-			gl.UseProgram(_device->_mipmap_program);
-
-			for (GLuint level = 1; level < levels; ++level)
+			// This is zero for textures with mutable storage
+			if (levels != 0)
 			{
-				const GLuint width = std::max(1u, base_level_width >> level);
-				const GLuint height = std::max(1u, base_level_height >> level);
+				GLuint base_level_width = 0;
+				gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_WIDTH, reinterpret_cast<GLint *>(&base_level_width));
+				GLuint base_level_height = 0;
+				gl.GetTexLevelParameteriv(target, 0, GL_TEXTURE_HEIGHT, reinterpret_cast<GLint *>(&base_level_height));
 
-				gl.Uniform1i(0 /* src_level */, static_cast<GLint>(level - 1));
-				gl.BindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
+				// Use custom mipmap generation implementation because 'glGenerateMipmap' generates shifted results
+				gl.UseProgram(_device->_mipmap_program);
 
-				gl.DispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+				for (GLuint level = 1; level < levels; ++level)
+				{
+					const GLuint width = std::max(1u, base_level_width >> level);
+					const GLuint height = std::max(1u, base_level_height >> level);
 
-				// Ensure next iteration reads the data written by this iteration
-				gl.MemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+					gl.Uniform1i(0 /* src_level */, static_cast<GLint>(level - 1));
+					gl.BindImageTexture(1 /* dest */, object, level, GL_FALSE, 0, GL_WRITE_ONLY, internal_format);
+
+					gl.DispatchCompute((width + 7) / 8, (height + 7) / 8, 1);
+
+					// Ensure next iteration reads the data written by this iteration
+					gl.MemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+				}
+				return;
 			}
-			return;
 		}
 	}
 

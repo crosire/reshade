@@ -849,10 +849,13 @@ bool reshade::vulkan::device_impl::create_resource_view(api::resource resource, 
 
 			// Update subresource range to the actual dimensions of the image
 			if (create_info.subresourceRange.levelCount == VK_REMAINING_MIP_LEVELS)
-				data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels;
+				data.create_info.subresourceRange.levelCount = resource_data->create_info.mipLevels - create_info.subresourceRange.baseMipLevel;
 			if (create_info.subresourceRange.layerCount == VK_REMAINING_ARRAY_LAYERS)
-				data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers;
-			data.image_extent = resource_data->create_info.extent;
+				// Base layer of views of a 3D image may refer to depth slices, rather than array layers
+				data.create_info.subresourceRange.layerCount = resource_data->create_info.arrayLayers - (resource_data->create_info.imageType != VK_IMAGE_TYPE_3D ? create_info.subresourceRange.baseArrayLayer : 0);
+			data.image_extent.width  = std::max(1u, resource_data->create_info.extent.width  >> create_info.subresourceRange.baseMipLevel);
+			data.image_extent.height = std::max(1u, resource_data->create_info.extent.height >> create_info.subresourceRange.baseMipLevel);
+			data.image_extent.depth  = std::max(1u, resource_data->create_info.extent.depth  >> create_info.subresourceRange.baseMipLevel);
 
 			register_object<VK_OBJECT_TYPE_IMAGE_VIEW>(image_view, std::move(data));
 

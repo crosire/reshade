@@ -722,12 +722,18 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			if (src_box != nullptr)
 			{
-				vertices[0][3] = static_cast<float>(src_box->left) * 2.0f / dst_desc.Width;
-				vertices[0][4] = static_cast<float>(src_box->top) * 2.0f / dst_desc.Height;
-				vertices[1][3] = static_cast<float>(src_box->right) * 2.0f / dst_desc.Width;
-				vertices[1][4] = static_cast<float>(src_box->top) * 2.0f / dst_desc.Height;
-				vertices[2][3] = static_cast<float>(src_box->left) * 2.0f / dst_desc.Width;
-				vertices[2][4] = static_cast<float>(src_box->bottom) * 2.0f / dst_desc.Height;
+				const float tu_left = static_cast<float>(src_box->left) / src_desc.Width;
+				const float tv_top = static_cast<float>(src_box->top) / src_desc.Height;
+				const float tu_right = static_cast<float>(src_box->right) / src_desc.Width;
+				const float tv_bottom = static_cast<float>(src_box->bottom) / src_desc.Height;
+
+				// Triangle is twice as large as the target, so need to extrapolate coordinates accordingly
+				vertices[0][3] = tu_left;
+				vertices[0][4] = tv_top;
+				vertices[1][3] = 2.0f * tu_right - tu_left;
+				vertices[1][4] = tv_top;
+				vertices[2][3] = tu_left;
+				vertices[2][4] = 2.0f * tv_bottom - tv_top;
 			}
 
 			_orig->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, vertices, sizeof(vertices[0]));
@@ -738,7 +744,7 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 			_orig->SetFVF(D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXCOORDSIZE3(0));
 
 			float vertices[4][6] = {
-				// x      y      z      tx     ty     tz
+				// x      y      z      tu     tv     tw
 				{ -1.0f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f },
 				{  1.0f,  1.0f,  0.0f,  1.0f,  0.0f,  0.0f },
 				{ -1.0f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f },
@@ -753,14 +759,19 @@ void reshade::d3d9::device_impl::copy_texture_region(api::resource src, uint32_t
 
 			if (src_box != nullptr)
 			{
-				vertices[0][3] = static_cast<float>(src_box->left) / dst_desc.Width;
-				vertices[0][4] = static_cast<float>(src_box->top) / dst_desc.Height;
-				vertices[1][3] = static_cast<float>(src_box->right) / dst_desc.Width;
-				vertices[1][4] = static_cast<float>(src_box->top) / dst_desc.Height;
-				vertices[2][3] = static_cast<float>(src_box->left) / dst_desc.Width;
-				vertices[2][4] = static_cast<float>(src_box->bottom) / dst_desc.Height;
-				vertices[3][3] = static_cast<float>(src_box->right) / dst_desc.Width;
-				vertices[3][4] = static_cast<float>(src_box->bottom) / dst_desc.Height;
+				const float tu_left = static_cast<float>(src_box->left) / src_desc.Width;
+				const float tv_top = static_cast<float>(src_box->top) / src_desc.Height;
+				const float tu_right = static_cast<float>(src_box->right) / src_desc.Width;
+				const float tv_bottom = static_cast<float>(src_box->bottom) / src_desc.Height;
+
+				vertices[0][3] = tu_left;
+				vertices[0][4] = tv_top;
+				vertices[1][3] = tu_right;
+				vertices[1][4] = tv_top;
+				vertices[2][3] = tu_left;
+				vertices[2][4] = tv_bottom;
+				vertices[3][3] = tu_right;
+				vertices[3][4] = tv_bottom;
 			}
 
 			for (int i = 0; i < 4; ++i)
