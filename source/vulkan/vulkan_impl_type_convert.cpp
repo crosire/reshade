@@ -2741,11 +2741,11 @@ void reshade::vulkan::convert_acceleration_structure_build_input(const api::acce
 		geometry.geometry.triangles.vertexFormat = convert_format(build_input.triangles.vertex_format);
 		geometry.geometry.triangles.vertexData.deviceAddress = build_input.triangles.vertex_offset;
 		geometry.geometry.triangles.vertexStride = build_input.triangles.vertex_stride;
-		geometry.geometry.triangles.maxVertex = build_input.triangles.vertex_count;
+		geometry.geometry.triangles.maxVertex = build_input.triangles.vertex_count != 0 ? build_input.triangles.vertex_count - 1 : 0;
 		geometry.geometry.triangles.indexType = build_input.triangles.index_format == api::format::r8_uint ? VK_INDEX_TYPE_UINT8 : build_input.triangles.index_format == api::format::r16_uint ? VK_INDEX_TYPE_UINT16 : build_input.triangles.index_format == api::format::r32_uint ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_NONE_KHR;
 		geometry.geometry.triangles.indexData.deviceAddress = build_input.triangles.index_offset;
 		geometry.geometry.triangles.transformData.deviceAddress = build_input.triangles.transform_offset;
-		range_info.primitiveCount = geometry.geometry.triangles.indexData.deviceAddress != 0 ? build_input.triangles.index_count / 3 : build_input.triangles.vertex_count / 3;
+		range_info.primitiveCount = build_input.triangles.index_count != 0 ? build_input.triangles.index_count / 3 : build_input.triangles.vertex_count / 3;
 		break;
 	case VK_GEOMETRY_TYPE_AABBS_KHR:
 		geometry.geometry.aabbs = { VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR };
@@ -2775,22 +2775,23 @@ reshade::api::acceleration_structure_build_input reshade::vulkan::convert_accele
 	switch (geometry.geometryType)
 	{
 	case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-		build_input.triangles.vertex_offset = geometry.geometry.triangles.vertexData.deviceAddress + range_info.primitiveOffset + range_info.firstVertex * geometry.geometry.triangles.vertexStride;
-		build_input.triangles.vertex_count = geometry.geometry.triangles.indexData.deviceAddress == 0 ? range_info.primitiveCount * 3 : geometry.geometry.triangles.maxVertex;
+		// Primitive offset applies to the index data for indexed geometry and to the vertex data otherwise
+		build_input.triangles.vertex_offset = geometry.geometry.triangles.vertexData.deviceAddress + (geometry.geometry.triangles.indexData.deviceAddress == 0 ? range_info.primitiveOffset : 0) + range_info.firstVertex * geometry.geometry.triangles.vertexStride;
+		build_input.triangles.vertex_count = geometry.geometry.triangles.indexData.deviceAddress == 0 ? range_info.primitiveCount * 3 : geometry.geometry.triangles.maxVertex + 1;
 		build_input.triangles.vertex_stride = geometry.geometry.triangles.vertexStride;
 		build_input.triangles.vertex_format = convert_format(geometry.geometry.triangles.vertexFormat);
-		build_input.triangles.index_offset = geometry.geometry.triangles.indexData.deviceAddress;
+		build_input.triangles.index_offset = geometry.geometry.triangles.indexData.deviceAddress != 0 ? geometry.geometry.triangles.indexData.deviceAddress + range_info.primitiveOffset : 0;
 		build_input.triangles.index_count = geometry.geometry.triangles.indexData.deviceAddress != 0 ? range_info.primitiveCount * 3 : 0;
 		build_input.triangles.index_format = geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT8 ? api::format::r8_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT16 ? api::format::r16_uint : geometry.geometry.triangles.indexType == VK_INDEX_TYPE_UINT32 ? api::format::r32_uint : api::format::unknown;
 		build_input.triangles.transform_offset = geometry.geometry.triangles.transformData.deviceAddress + range_info.transformOffset;
 		break;
 	case VK_GEOMETRY_TYPE_AABBS_KHR:
-		build_input.aabbs.offset = geometry.geometry.aabbs.data.deviceAddress;
+		build_input.aabbs.offset = geometry.geometry.aabbs.data.deviceAddress + range_info.primitiveOffset;
 		build_input.aabbs.count = range_info.primitiveCount;
 		build_input.aabbs.stride = geometry.geometry.aabbs.stride;
 		break;
 	case VK_GEOMETRY_TYPE_INSTANCES_KHR:
-		build_input.instances.offset = geometry.geometry.instances.data.deviceAddress;
+		build_input.instances.offset = geometry.geometry.instances.data.deviceAddress + range_info.primitiveOffset;
 		build_input.instances.count = range_info.primitiveCount;
 		build_input.instances.array_of_pointers = geometry.geometry.instances.arrayOfPointers != VK_FALSE;
 		break;

@@ -1219,15 +1219,15 @@ void reshade::vulkan::command_list_impl::build_acceleration_structure(api::accel
 		switch (geometry.geometryType)
 		{
 		case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
-			geometry.geometry.triangles.vertexData.deviceAddress = _device->get_resource_gpu_address(input.triangles.vertex_buffer);
-			geometry.geometry.triangles.indexData.deviceAddress = _device->get_resource_gpu_address(input.triangles.index_buffer);
-			geometry.geometry.triangles.transformData.deviceAddress = _device->get_resource_gpu_address(input.triangles.transform_buffer);
+			geometry.geometry.triangles.vertexData.deviceAddress += _device->get_resource_gpu_address(input.triangles.vertex_buffer);
+			geometry.geometry.triangles.indexData.deviceAddress += _device->get_resource_gpu_address(input.triangles.index_buffer);
+			geometry.geometry.triangles.transformData.deviceAddress += _device->get_resource_gpu_address(input.triangles.transform_buffer);
 			break;
 		case VK_GEOMETRY_TYPE_AABBS_KHR:
-			geometry.geometry.aabbs.data.deviceAddress = _device->get_resource_gpu_address(input.aabbs.buffer);
+			geometry.geometry.aabbs.data.deviceAddress += _device->get_resource_gpu_address(input.aabbs.buffer);
 			break;
 		case VK_GEOMETRY_TYPE_INSTANCES_KHR:
-			geometry.geometry.instances.data.deviceAddress = _device->get_resource_gpu_address(input.instances.buffer);
+			geometry.geometry.instances.data.deviceAddress += _device->get_resource_gpu_address(input.instances.buffer);
 			break;
 		}
 	}
