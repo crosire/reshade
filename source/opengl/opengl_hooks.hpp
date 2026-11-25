@@ -234,8 +234,8 @@ extern "C" void APIENTRY glUniformMatrix2x4fv(GLint location, GLsizei count, GLb
 extern "C" void APIENTRY glUniformMatrix4x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 extern "C" void APIENTRY glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 extern "C" void APIENTRY glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
-extern "C" void APIENTRY glUnmapBuffer(GLenum target);
-extern "C" void APIENTRY glUnmapNamedBuffer(GLuint buffer);
+extern "C" auto APIENTRY glUnmapBuffer(GLenum target) -> GLboolean;
+extern "C" auto APIENTRY glUnmapNamedBuffer(GLuint buffer) -> GLboolean;
 extern "C" void APIENTRY glUseProgram(GLuint program);
 extern "C" void APIENTRY glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
 extern "C" void APIENTRY glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);

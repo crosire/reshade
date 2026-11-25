@@ -1720,7 +1720,7 @@ auto APIENTRY glMapBuffer(GLenum target, GLenum access) -> void *
 
 	return result;
 }
-void APIENTRY glUnmapBuffer(GLenum target)
+auto APIENTRY glUnmapBuffer(GLenum target) -> GLboolean
 {
 #if RESHADE_ADDON >= 2
 	if (g_opengl_context &&
@@ -1738,7 +1738,7 @@ void APIENTRY glUnmapBuffer(GLenum target)
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glUnmapBuffer);
-	trampoline(target);
+	return trampoline(target);
 }
 
 void APIENTRY glBindBuffer(GLenum target, GLuint buffer)
@@ -4450,7 +4450,7 @@ auto APIENTRY glMapNamedBufferRange(GLuint buffer, GLintptr offset, GLsizeiptr l
 
 	return result;
 }
-void APIENTRY glUnmapNamedBuffer(GLuint buffer)
+auto APIENTRY glUnmapNamedBuffer(GLuint buffer) -> GLboolean
 {
 #if RESHADE_ADDON >= 2
 	if (g_opengl_context &&
@@ -4465,7 +4465,7 @@ void APIENTRY glUnmapNamedBuffer(GLuint buffer)
 #endif
 
 	static const auto trampoline = reshade::hooks::call(glUnmapNamedBuffer);
-	trampoline(buffer);
+	return trampoline(buffer);
 }
 
 void APIENTRY glCopyNamedBufferSubData(GLuint readBuffer, GLuint writeBuffer, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size)
