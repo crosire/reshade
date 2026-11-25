@@ -2207,7 +2207,10 @@ bool reshade::opengl::device_impl::create_pipeline(api::pipeline_layout, uint32_
 			}
 
 			gl.DeleteProgram(impl->program);
-			goto exit_failure;
+			delete impl;
+
+			*out_pipeline = { 0 };
+			return false;
 		}
 	}
 	else
