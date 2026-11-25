@@ -1627,6 +1627,20 @@ auto reshade::opengl::convert_access_flags(reshade::api::map_access flags) -> GL
 }
 reshade::api::map_access reshade::opengl::convert_access_flags(GLbitfield flags)
 {
+	// Enum values used by 'glMapBuffer' and 'glMapNamedBuffer'
+
+	switch (flags)
+	{
+	case GL_READ_ONLY:
+		return reshade::api::map_access::read_only;
+	case GL_WRITE_ONLY:
+		return reshade::api::map_access::write_only;
+	case GL_READ_WRITE:
+		return reshade::api::map_access::read_write;
+	}
+
+	// Flags used by 'glMapBufferRange' and 'glMapNamedBufferRange'
+
 	if ((flags & (GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT)) != 0)
 		return reshade::api::map_access::write_discard;
 
