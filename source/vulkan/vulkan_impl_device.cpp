@@ -433,6 +433,7 @@ bool reshade::vulkan::device_impl::create_resource(const api::resource_desc &des
 		break;
 	case api::memory_heap::readback:
 		alloc_info.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+		alloc_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 		break;
 	case api::memory_heap::scratch:
 		alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
