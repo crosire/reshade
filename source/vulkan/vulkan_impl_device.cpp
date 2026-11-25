@@ -86,6 +86,10 @@ reshade::vulkan::device_impl::device_impl(
 
 		VkDescriptorPoolCreateInfo create_info { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+#if VK_EXT_descriptor_indexing
+		if (vk.EXT_descriptor_indexing)
+			create_info.flags |= VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+#endif
 		create_info.maxSets = 512;
 		create_info.poolSizeCount = std::size(pool_sizes);
 		create_info.pPoolSizes = pool_sizes;
@@ -2357,6 +2361,9 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(const api::pipel
 
 		data.num_descriptors += internal_binding.descriptorCount;
 
+		// Keep copy of this pointer, since adding additional bindings below may invalidate the binding reference
+		const VkSampler *const immutable_samplers = internal_binding.pImmutableSamplers;
+
 		VkDescriptorBindingFlags binding_flags = 0;
 #if VK_EXT_descriptor_indexing
 		if (with_flags && vk.EXT_descriptor_indexing)
@@ -2388,6 +2395,8 @@ bool reshade::vulkan::device_impl::create_descriptor_set_layout(const api::pipel
 			additional_binding.descriptorType = convert_descriptor_type(range->type);
 			additional_binding.descriptorCount = 1;
 			additional_binding.stageFlags = static_cast<VkShaderStageFlags>(range->visibility);
+			if (immutable_samplers != nullptr)
+				additional_binding.pImmutableSamplers = immutable_samplers + 1 + j;
 
 			offset += additional_binding.descriptorCount;
 			++data.num_descriptors;
