@@ -183,10 +183,10 @@ void reshade::vulkan::command_list_impl::begin_render_pass2(uint32_t count, cons
 			VkSubpassDependency subdep = {};
 			subdep.srcSubpass = VK_SUBPASS_EXTERNAL;
 			subdep.dstSubpass = 0;
-			subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subdep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 			subdep.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-			subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subdep.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			subdep.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
 			VkSubpassDescription subpass = {};
 			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -234,7 +234,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass2(uint32_t count, cons
 					VkAttachmentDescription &attach_desc = attach_descs[attach_ref.attachment];
 					attach_desc.flags = 0;
 					attach_desc.format = view_data->create_info.format;
-					attach_desc.samples = VK_SAMPLE_COUNT_1_BIT;
+					attach_desc.samples = _device->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image)->create_info.samples;
 					attach_desc.loadOp = convert_render_pass_load_op(rts[i].load_op);
 					attach_desc.storeOp = convert_render_pass_store_op(rts[i].store_op);
 					attach_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -275,7 +275,7 @@ void reshade::vulkan::command_list_impl::begin_render_pass2(uint32_t count, cons
 					VkAttachmentDescription &attach_desc = attach_descs[attach_ref.attachment];
 					attach_desc.flags = 0;
 					attach_desc.format = view_data->create_info.format;
-					attach_desc.samples = VK_SAMPLE_COUNT_1_BIT;
+					attach_desc.samples = _device->get_private_data_for_object<VK_OBJECT_TYPE_IMAGE>(view_data->create_info.image)->create_info.samples;
 					attach_desc.loadOp = convert_render_pass_load_op(ds->depth_load_op);
 					attach_desc.storeOp = convert_render_pass_store_op(ds->depth_store_op);
 					attach_desc.stencilLoadOp = convert_render_pass_load_op(ds->stencil_load_op);
