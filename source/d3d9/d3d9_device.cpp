@@ -2626,7 +2626,7 @@ void Direct3DDevice9::on_init()
 void Direct3DDevice9::on_reset()
 {
 #if RESHADE_ADDON >= 2
-	resize_primitive_up_buffers(0, 0, D3DFMT_UNKNOWN);
+	resize_primitive_up_buffers(0, 0, 0);
 #endif
 
 	reset_auto_depth_stencil();
@@ -2637,8 +2637,12 @@ void Direct3DDevice9::on_reset()
 
 	for (DWORD i = 0; i < _caps.MaxSimultaneousTextures; ++i)
 		_orig->SetTexture(i, nullptr);
+	_orig->SetTexture(D3DVERTEXTEXTURESAMPLER0, nullptr);
+	_orig->SetTexture(D3DVERTEXTEXTURESAMPLER1, nullptr);
+	_orig->SetTexture(D3DVERTEXTEXTURESAMPLER2, nullptr);
+	_orig->SetTexture(D3DVERTEXTEXTURESAMPLER3, nullptr);
 	for (DWORD i = 0; i < _caps.MaxStreams; ++i)
-		_orig->SetStreamSource(0, nullptr, 0, 0);
+		_orig->SetStreamSource(i, nullptr, 0, 0);
 	_orig->SetIndices(nullptr);
 
 	// It is not allowed to unset the first render target, so simply create a temporary dummy to replace the current one with
@@ -2756,6 +2760,7 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 		{
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, _primitive_up_vertex_buffer);
 			device_impl::destroy_resource(_primitive_up_vertex_buffer);
+			_primitive_up_vertex_buffer = {};
 		}
 
 		vertex_buffer_desc.buffer.size = vertex_buffer_size;
@@ -2776,12 +2781,13 @@ void Direct3DDevice9::resize_primitive_up_buffers(UINT vertex_buffer_size, UINT 
 	if (_primitive_up_index_buffer != 0)
 		index_buffer_desc = device_impl::get_resource_desc(_primitive_up_index_buffer);
 
-	if (reset || index_buffer_size > index_buffer_desc.buffer.size || index_size != index_buffer_desc.buffer.structured.stride)
+	if (reset || (index_buffer_size != 0 && (index_buffer_size > index_buffer_desc.buffer.size || index_size != index_buffer_desc.buffer.structured.stride)))
 	{
 		if (_primitive_up_index_buffer != 0)
 		{
 			reshade::invoke_addon_event<reshade::addon_event::destroy_resource>(this, _primitive_up_index_buffer);
 			device_impl::destroy_resource(_primitive_up_index_buffer);
+			_primitive_up_index_buffer = {};
 		}
 
 		index_buffer_desc.buffer.size = index_buffer_size;
