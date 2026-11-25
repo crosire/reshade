@@ -1811,7 +1811,10 @@ void reshade::opengl::device_context_impl::copy_texture_to_buffer(api::resource 
 			else
 				assert(layer == 0);
 
-			gl.GetTexImage(level_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+				gl.GetTexImage(level_target, level, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			else
+				gl.GetCompressedTexImage(level_target, level, reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 		else if (gl.VERSION_4_5)
 		{
@@ -1828,7 +1831,10 @@ void reshade::opengl::device_context_impl::copy_texture_to_buffer(api::resource 
 				break;
 			}
 
-			gl.GetTextureSubImage(src_object, level, xoffset, yoffset, zoffset, width, height, depth, format, type, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+				gl.GetTextureSubImage(src_object, level, xoffset, yoffset, zoffset, width, height, depth, format, type, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
+			else
+				gl.GetCompressedTextureSubImage(src_object, level, xoffset, yoffset, zoffset, width, height, depth, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(dst_offset)));
 		}
 
 		if (src_object != prev_binding)

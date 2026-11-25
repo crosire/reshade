@@ -1752,7 +1752,10 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 		else
 			assert(layer == 0);
 
-		gl.GetTexImage(level_target, level, format, type, pixels);
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			gl.GetTexImage(level_target, level, format, type, pixels);
+		else
+			gl.GetCompressedTexImage(level_target, level, pixels);
 	}
 	else if (gl.VERSION_4_5)
 	{
@@ -1769,7 +1772,10 @@ bool reshade::opengl::device_impl::map_texture_region(api::resource resource, ui
 			break;
 		}
 
-		gl.GetTextureSubImage(object, level, xoffset, yoffset, zoffset, width, height, depth, format, type, static_cast<GLsizei>(total_image_size), pixels);
+		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+			gl.GetTextureSubImage(object, level, xoffset, yoffset, zoffset, width, height, depth, format, type, static_cast<GLsizei>(total_image_size), pixels);
+		else
+			gl.GetCompressedTextureSubImage(object, level, xoffset, yoffset, zoffset, width, height, depth, static_cast<GLsizei>(total_image_size), pixels);
 	}
 
 	// Restore previous state from application
