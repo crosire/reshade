@@ -432,6 +432,9 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 		assert(buffer_ranges[i].offset <= std::numeric_limits<UINT>::max() && (buffer_ranges[i].offset % (16 * 16)) == 0);
 		first_constant[i] = static_cast<UINT>(buffer_ranges[i].offset / 16);
 
+		if (buffer_ranges[i].offset != 0)
+			whole_range = false;
+
 		if (buffer_ranges[i].size != UINT64_MAX)
 		{
 			whole_range = false;
@@ -444,7 +447,9 @@ void reshade::d3d11::device_context_impl::bind_constant_buffers(api::shader_stag
 			{
 				D3D11_BUFFER_DESC desc;
 				buffer_ptrs[i]->GetDesc(&desc);
-				constant_count[i] = desc.ByteWidth / 16;
+				assert(buffer_ranges[i].offset < desc.ByteWidth);
+				// Number of constants has to be a multiple of 16 and is limited to the maximum constant buffer size
+				constant_count[i] = std::min((static_cast<UINT>((desc.ByteWidth - buffer_ranges[i].offset) / 16) + 15u) & ~15u, static_cast<UINT>(D3D11_REQ_CONSTANT_BUFFER_ELEMENT_COUNT));
 			}
 			else
 			{
