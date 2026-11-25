@@ -1299,7 +1299,8 @@ bool reshade::d3d10::device_impl::wait(api::fence fence, uint64_t value, uint64_
 	if (com_ptr<IDXGIKeyedMutex> keyed_mutex;
 		SUCCEEDED(reinterpret_cast<IUnknown *>(fence.handle)->QueryInterface(&keyed_mutex)))
 	{
-		return SUCCEEDED(keyed_mutex->AcquireSync(value, timeout_ms));
+		// May return 'WAIT_TIMEOUT' or 'WAIT_ABANDONED', which are not caught by the 'SUCCEEDED' macro
+		return keyed_mutex->AcquireSync(value, timeout_ms) == S_OK;
 	}
 
 	return false;
