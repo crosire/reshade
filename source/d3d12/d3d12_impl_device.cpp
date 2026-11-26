@@ -2338,7 +2338,10 @@ void reshade::d3d12::device_impl::unregister_descriptor_heap(D3D12DescriptorHeap
 D3D12_CPU_DESCRIPTOR_HANDLE reshade::d3d12::device_impl::convert_to_original_cpu_descriptor_handle(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
 	const size_t heap_index = (handle.ptr >> heap_index_start) & 0xFFFFFFF;
-	assert(heap_index < _descriptor_heaps.size() && _descriptor_heaps[heap_index] != nullptr);
+	// Handles that do not come from a descriptor heap created through ReShade (e.g. native vkd3d-proton handles passed to the
+	// ID3D12DeviceExt CUDA interop functions by code that runs on the underlying device) cannot be converted, so pass them through unchanged
+	if (heap_index >= _descriptor_heaps.size() || _descriptor_heaps[heap_index] == nullptr)
+		return handle;
 
 	return { _descriptor_heaps[heap_index]->_orig_base_cpu_handle.ptr + (handle.ptr & (((1ull << heap_index_start) - 1) ^ 0x7)) };
 }
