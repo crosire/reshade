@@ -1491,9 +1491,10 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 			depth  = (dst_desc.type == api::resource_type::texture_3d ? std::max(1u, depth >> level) : 1u);
 		}
 
+		// Cube map faces have to be uploaded individually via their face target
 		GLenum level_target = dst_target;
-		if (depth == 1 && dst_target == GL_TEXTURE_CUBE_MAP)
-			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + (layer % 6);
+		if (dst_target == GL_TEXTURE_CUBE_MAP)
+			level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer + zoffset;
 
 		const auto row_pitch = api::format_row_pitch(dst_desc.texture.format, row_length != 0 ? row_length : width);
 		const auto slice_pitch = api::format_slice_pitch(dst_desc.texture.format, row_pitch, slice_height != 0 ? slice_height : height);
@@ -1520,13 +1521,16 @@ void reshade::opengl::device_context_impl::copy_buffer_to_texture(api::resource 
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 		case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 		case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-				gl.TexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
-			else
-				gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset)));
+			// Upload multiple cube map faces one after another (depth is 1 for all other targets)
+			for (GLuint z = 0; z < depth; ++z)
+			{
+				if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+					gl.TexSubImage2D(level_target + z, level, xoffset, yoffset, width, height, format, type, reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset + static_cast<size_t>(z) * slice_pitch)));
+				else
+					gl.CompressedTexSubImage2D(level_target + z, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(slice_pitch), reinterpret_cast<void *>(static_cast<uintptr_t>(src_offset + static_cast<size_t>(z) * slice_pitch)));
+			}
 			break;
 		case GL_TEXTURE_2D_ARRAY:
-		case GL_TEXTURE_CUBE_MAP:
 		case GL_TEXTURE_CUBE_MAP_ARRAY:
 			zoffset += layer;
 			[[fallthrough]];
@@ -1607,9 +1611,12 @@ void reshade::opengl::device_context_impl::copy_texture_region(api::resource src
 			src_region[5] -= src_box->front;
 		}
 
+		src_region[src_target == GL_TEXTURE_1D_ARRAY ? 1 : 2] += src_subresource / src_desc.texture.levels;
+		dst_region[dst_target == GL_TEXTURE_1D_ARRAY ? 1 : 2] += dst_subresource / dst_desc.texture.levels;
+
 		gl.CopyImageSubData(
-			src_object, src_target, src_subresource % src_desc.texture.levels, src_region[0], src_region[1], src_region[2] + (src_subresource / src_desc.texture.levels),
-			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_region[0], dst_region[1], dst_region[2] + (dst_subresource / dst_desc.texture.levels),
+			src_object, src_target, src_subresource % src_desc.texture.levels, src_region[0], src_region[1], src_region[2],
+			dst_object, dst_target, dst_subresource % dst_desc.texture.levels, dst_region[0], dst_region[1], dst_region[2],
 			src_region[3], src_region[4], src_region[5]);
 	}
 	else

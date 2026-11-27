@@ -1931,9 +1931,10 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 		depth   = (desc.type == api::resource_type::texture_3d ? std::max(1u, static_cast<uint32_t>(desc.texture.depth_or_layers) >> level) : 1u);
 	}
 
+	// Cube map faces have to be uploaded individually via their face target
 	GLenum level_target = target;
-	if (depth == 1 && target == GL_TEXTURE_CUBE_MAP)
-		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + (layer % 6);
+	if (target == GL_TEXTURE_CUBE_MAP)
+		level_target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer + zoffset;
 
 	GLenum type, format = convert_upload_format(desc.texture.format, type);
 
@@ -1994,13 +1995,16 @@ void reshade::opengl::device_impl::update_texture_region(const api::subresource_
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
 	case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
 	case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-		if (type != GL_COMPRESSED_TEXTURE_FORMATS)
-			gl.TexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, type, pixels);
-		else
-			gl.CompressedTexSubImage2D(level_target, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(total_image_size), pixels);
+		// Upload multiple cube map faces one after another (depth is 1 for all other targets)
+		for (GLuint z = 0; z < depth; ++z)
+		{
+			if (type != GL_COMPRESSED_TEXTURE_FORMATS)
+				gl.TexSubImage2D(level_target + z, level, xoffset, yoffset, width, height, format, type, pixels + static_cast<size_t>(z) * slice_pitch);
+			else
+				gl.CompressedTexSubImage2D(level_target + z, level, xoffset, yoffset, width, height, format, static_cast<GLsizei>(slice_pitch), pixels + static_cast<size_t>(z) * slice_pitch);
+		}
 		break;
 	case GL_TEXTURE_2D_ARRAY:
-	case GL_TEXTURE_CUBE_MAP:
 	case GL_TEXTURE_CUBE_MAP_ARRAY:
 		zoffset += layer;
 		[[fallthrough]];
