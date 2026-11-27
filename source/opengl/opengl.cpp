@@ -441,7 +441,8 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 			gl.GetTextureParameteriv(dst_object, GL_TEXTURE_TARGET, reinterpret_cast<GLint *>(&dst_target));
 	}
 
-	reshade::api::resource src = reshade::opengl::make_resource_handle(src_target, src_object);
+	reshade::api::resource src = reshade::opengl::make_resource_handle(src_target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && src_target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z ? GL_TEXTURE_CUBE_MAP : src_target, src_object);
+
 	// Check if this is actually referencing the default framebuffer, or really an attachment of a framebuffer object
 	if (src_target == GL_FRAMEBUFFER_DEFAULT && (src_object >= GL_COLOR_ATTACHMENT0 && src_object <= GL_COLOR_ATTACHMENT31))
 	{
@@ -451,7 +452,12 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		src = device->get_resource_from_view(device->get_framebuffer_attachment(src_fbo, GL_COLOR, src_object - GL_COLOR_ATTACHMENT0));
 	}
 
-	reshade::api::resource dst = reshade::opengl::make_resource_handle(dst_target, dst_object);
+	uint32_t src_subresource = src_level;
+	if (src_target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && src_target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+		src_subresource += (src_target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * device->get_resource_desc(src).texture.levels;
+
+	reshade::api::resource dst = reshade::opengl::make_resource_handle(dst_target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && dst_target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z ? GL_TEXTURE_CUBE_MAP : dst_target, dst_object);
+
 	if (dst_target == GL_FRAMEBUFFER_DEFAULT && (dst_object >= GL_COLOR_ATTACHMENT0 && dst_object <= GL_COLOR_ATTACHMENT31))
 	{
 		GLint dst_fbo = 0;
@@ -459,6 +465,10 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 
 		dst = device->get_resource_from_view(device->get_framebuffer_attachment(dst_fbo, GL_COLOR, dst_object - GL_COLOR_ATTACHMENT0));
 	}
+
+	uint32_t dst_subresource = dst_level;
+	if (dst_target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && dst_target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+		dst_subresource += (dst_target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * device->get_resource_desc(dst).texture.levels;
 
 	assert(x >= 0 && y >= 0 && z >= 0 && xoffset >= 0 && yoffset >= 0 && zoffset >= 0 && width >= 0 && height >= 0 && depth >= 0);
 
@@ -479,7 +489,7 @@ static bool copy_texture_region(GLenum src_target, GLuint src_object, GLint src_
 		static_cast<uint32_t>(zoffset + depth)
 	};
 
-	return reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_opengl_context, src, src_level, &src_box, dst, dst_level, &dst_box,
+	return reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(g_opengl_context, src, src_subresource, &src_box, dst, dst_subresource, &dst_box,
 		(filter == GL_NONE || filter == GL_NEAREST) ? reshade::api::filter_mode::min_mag_mip_point : reshade::api::filter_mode::min_mag_mip_linear);
 }
 static bool update_buffer_region(GLenum target, GLuint object, GLintptr offset, GLsizeiptr size, const void *data)
@@ -520,9 +530,9 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 
 	const reshade::api::resource_desc desc = device->get_resource_desc(dst);
 
-	GLuint subresource = level;
+	uint32_t dst_subresource = level;
 	if (target >= GL_TEXTURE_CUBE_MAP_POSITIVE_X && target <= GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-		subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * desc.texture.levels;
+		dst_subresource += (target - GL_TEXTURE_CUBE_MAP_POSITIVE_X) * desc.texture.levels;
 
 	assert(xoffset >= 0 && yoffset >= 0 && zoffset >= 0 && width >= 0 && height >= 0 && depth >= 0);
 
@@ -544,7 +554,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 		if (!data)
 			return false;
 
-		return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(device, *data, dst, subresource, &dst_box);
+		return reshade::invoke_addon_event<reshade::addon_event::update_texture_region>(device, *data, dst, dst_subresource, &dst_box);
 	}
 	else
 	{
@@ -555,7 +565,7 @@ static bool update_texture_region(GLenum target, GLuint object, GLint level, GLi
 		GLint slice_height = 0;
 		gl.GetIntegerv(GL_UNPACK_IMAGE_HEIGHT, &slice_height);
 
-		return reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(g_opengl_context, src, reinterpret_cast<uintptr_t>(pixels), row_length, slice_height, dst, subresource, &dst_box);
+		return reshade::invoke_addon_event<reshade::addon_event::copy_buffer_to_texture>(g_opengl_context, src, reinterpret_cast<uintptr_t>(pixels), row_length, slice_height, dst, dst_subresource, &dst_box);
 	}
 }
 
