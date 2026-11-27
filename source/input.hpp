@@ -189,6 +189,7 @@ namespace reshade
 		/// This updates input state to e.g. track whether a key was pressed this frame or before.
 		/// </summary>
 		void next_frame();
+		uint64_t frame_count() const { return _frame_count; }
 
 		/// <summary>
 		/// Generates a human-friendly text representation of the specified <paramref name="keycode"/>.

@@ -264,6 +264,9 @@ namespace reshade
 		bool _ignore_shortcuts = false;
 		bool _force_shortcut_modifiers = true;
 		bool _primary_input_handler = false;
+		bool _primary_input_handler_taken_over = false;
+		uint64_t _last_input_frame_count = 0;
+		std::chrono::high_resolution_clock::time_point _last_input_frame_time;
 		std::shared_ptr<class input> _input;
 		std::shared_ptr<class input_gamepad> _input_gamepad;
 
