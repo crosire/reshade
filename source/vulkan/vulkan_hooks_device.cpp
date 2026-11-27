@@ -123,12 +123,20 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 	const auto enum_queue_families = instance.dispatch_table.GetPhysicalDeviceQueueFamilyProperties;
 	const auto enum_device_extensions = instance.dispatch_table.EnumerateDeviceExtensionProperties;
-	if (enum_queue_families == nullptr || enum_device_extensions == nullptr)
+	if (instance.dispatch_table.GetPhysicalDeviceProperties == nullptr || enum_queue_families == nullptr || enum_device_extensions == nullptr)
 		return VK_ERROR_INITIALIZATION_FAILED;
 
 	reshade::log::message(reshade::log::level::info, "> Dumping enabled device extensions:");
 	for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
 		reshade::log::message(reshade::log::level::info, "  %s", pCreateInfo->ppEnabledExtensionNames[i]);
+
+	// The instance API version is the highest the application targets, but the device may only support a lower one (see https://docs.vulkan.org/refpages/latest/refpages/source/VkApplicationInfo.html#_description)
+	uint32_t api_version = instance.api_version;
+	{
+		VkPhysicalDeviceProperties device_props = {};
+		instance.dispatch_table.GetPhysicalDeviceProperties(physicalDevice, &device_props);
+		api_version = std::min(api_version, device_props.apiVersion);
+	}
 
 	std::vector<VkQueueFamilyProperties> queue_families;
 	uint32_t graphics_queue_family_index = std::numeric_limits<uint32_t>::max();
@@ -243,7 +251,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		enabled_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
 		// Enable extensions that ReShade requires
-		if (instance.api_version < VK_API_VERSION_1_2)
+		if (api_version < VK_API_VERSION_1_2)
 		{
 #if VK_EXT_host_query_reset
 			ext.host_query_reset =
@@ -255,7 +263,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 		}
 
-		if (instance.api_version < VK_API_VERSION_1_3)
+		if (api_version < VK_API_VERSION_1_3)
 		{
 #if VK_EXT_private_data
 			if (!add_extension(VK_EXT_PRIVATE_DATA_EXTENSION_NAME, true))
@@ -275,7 +283,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 		}
 
-		if (instance.api_version < VK_API_VERSION_1_4)
+		if (api_version < VK_API_VERSION_1_4)
 		{
 #if VK_KHR_maintenance5
 			ext.maintenance5 =
@@ -365,7 +373,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		if (const auto existing_vulkan_12_features = find_in_structure_chain<VkPhysicalDeviceVulkan12Features>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES))
 		{
-			assert(instance.api_version >= VK_API_VERSION_1_2);
+			assert(api_version >= VK_API_VERSION_1_2);
 
 			// Support for 'hostQueryReset' and 'timelineSemaphore' is mandatory in Vulkan 1.2 (see https://docs.vulkan.org/spec/latest/chapters/features.html#features-requirements)
 			ext.host_query_reset = const_cast<VkPhysicalDeviceVulkan12Features *>(existing_vulkan_12_features)->hostQueryReset = VK_TRUE;
@@ -382,7 +390,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		{
 			use_bool_feature(ext.host_query_reset_features, ext.host_query_reset);
 
-			ext.timeline_semaphore |= instance.api_version >= VK_API_VERSION_1_2;
+			ext.timeline_semaphore |= api_version >= VK_API_VERSION_1_2;
 			if (ext.timeline_semaphore)
 				force_bool_feature(ext.timeline_semaphore_features);
 
@@ -413,7 +421,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		if (const auto existing_vulkan_13_features = find_in_structure_chain<VkPhysicalDeviceVulkan13Features>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES))
 		{
-			assert(instance.api_version >= VK_API_VERSION_1_3);
+			assert(api_version >= VK_API_VERSION_1_3);
 
 			// Support for 'privateData' and 'dynamicRendering' is mandatory in Vulkan 1.3 (see https://docs.vulkan.org/spec/latest/chapters/features.html#features-requirements)
 			const_cast<VkPhysicalDeviceVulkan13Features *>(existing_vulkan_13_features)->privateData = VK_TRUE;
@@ -426,7 +434,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 
 			use_bool_feature(ext.dynamic_rendering_features, ext.dynamic_rendering);
 
-			ext.extended_dynamic_state |= instance.api_version >= VK_API_VERSION_1_3;
+			ext.extended_dynamic_state |= api_version >= VK_API_VERSION_1_3;
 #if VK_EXT_extended_dynamic_state
 			use_bool_feature(ext.extended_dynamic_state_features, ext.extended_dynamic_state);
 #endif
@@ -435,7 +443,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		if (const auto existing_vulkan_14_features = find_in_structure_chain<VkPhysicalDeviceVulkan14Features>(
 				pCreateInfo->pNext, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES))
 		{
-			assert(instance.api_version >= VK_API_VERSION_1_4);
+			assert(api_version >= VK_API_VERSION_1_4);
 
 			// Support for 'maintenance5' and 'pushDescriptor' is mandatory in Vulkan 1.4 (see https://docs.vulkan.org/spec/latest/chapters/features.html#features-requirements)
 			ext.maintenance5 = const_cast<VkPhysicalDeviceVulkan14Features *>(existing_vulkan_14_features)->maintenance5 = VK_TRUE;
@@ -573,7 +581,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 	vk.KHR_maintenance10 = ext.maintenance10;
 #endif
 
-	if (instance.api_version < VK_API_VERSION_1_2)
+	if (api_version < VK_API_VERSION_1_2)
 	{
 		vk.VERSION_1_2 = 0;
 
@@ -600,7 +608,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 	}
 
-	if (instance.api_version < VK_API_VERSION_1_3)
+	if (api_version < VK_API_VERSION_1_3)
 	{
 		vk.VERSION_1_3 = 0;
 
@@ -643,7 +651,7 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 #endif
 	}
 
-	if (instance.api_version < VK_API_VERSION_1_4)
+	if (api_version < VK_API_VERSION_1_4)
 	{
 		vk.VERSION_1_4 = 0;
 
@@ -659,9 +667,9 @@ VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevi
 		device.handle,
 		physicalDevice,
 		instance.handle,
-		instance.api_version,
 		device.dispatch_table,
-		enabled_features);
+		enabled_features,
+		api_version);
 
 	if (!g_vulkan_devices.emplace(dispatch_key_from_handle(device.handle), device_impl))
 	{

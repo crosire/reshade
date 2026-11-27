@@ -36,8 +36,9 @@ namespace reshade::vulkan
 			VkDevice device,
 			VkPhysicalDevice physical_device,
 			VkInstance instance,
-			uint32_t api_version,
-			const GladVulkanContext &dispatch_table, const VkPhysicalDeviceFeatures &enabled_features);
+			const GladVulkanContext &dispatch_table,
+			const VkPhysicalDeviceFeatures &enabled_features,
+			uint32_t api_version = VK_API_VERSION_1_1);
 		~device_impl();
 
 		api::device_api get_api() const final { return api::device_api::vulkan; }
@@ -159,6 +160,7 @@ namespace reshade::vulkan
 
 		const GladVulkanContext _dispatch_table;
 		const VkPhysicalDeviceFeatures _enabled_features;
+		const uint32_t _api_version;
 
 	private:
 		bool create_descriptor_set_layout(const api::pipeline_layout_param &param, VkDescriptorSetLayout *out_set_layout, std::vector<VkSampler> &embedded_samplers);

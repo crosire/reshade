@@ -16,12 +16,14 @@ reshade::vulkan::device_impl::device_impl(
 	VkDevice device,
 	VkPhysicalDevice physical_device,
 	VkInstance instance,
-	uint32_t api_version,
-	const GladVulkanContext &dispatch_table, const VkPhysicalDeviceFeatures &enabled_features) :
+	const GladVulkanContext &dispatch_table,
+	const VkPhysicalDeviceFeatures &enabled_features,
+	uint32_t api_version) :
 	api_object_impl(device),
 	_physical_device(physical_device),
 	_dispatch_table(dispatch_table),
-	_enabled_features(enabled_features)
+	_enabled_features(enabled_features),
+	_api_version(api_version)
 {
 	{	VmaVulkanFunctions functions;
 		functions.vkGetPhysicalDeviceProperties = dispatch_table.GetPhysicalDeviceProperties;
@@ -136,9 +138,8 @@ reshade::vulkan::device_impl::~device_impl()
 
 bool reshade::vulkan::device_impl::get_property(api::device_properties property, void *data) const
 {
-	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 	VkPhysicalDeviceIDProperties device_id_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
-	device_props.pNext = &device_id_props;
+	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &device_id_props };
 #if VK_KHR_ray_tracing_pipeline
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_tracing_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 	device_id_props.pNext = &ray_tracing_props;
@@ -148,27 +149,10 @@ bool reshade::vulkan::device_impl::get_property(api::device_properties property,
 	switch (property)
 	{
 	case api::device_properties::api_version:
-		// First check the API version the instance was created with
-		if (!_dispatch_table.VERSION_1_2)
-		{
-			*static_cast<uint32_t *>(data) = (1 << 12) | (1 << 8);
-			return true;
-		}
-		if (!_dispatch_table.VERSION_1_3)
-		{
-			*static_cast<uint32_t *>(data) = (1 << 12) | (2 << 8);
-			return true;
-		}
-		if (!_dispatch_table.VERSION_1_4)
-		{
-			*static_cast<uint32_t *>(data) = (1 << 12) | (3 << 8);
-			return true;
-		}
-
-		// Fall back to reporting the highest API version supported by the physical device
+		assert(_api_version <= device_props.properties.apiVersion);
 		*static_cast<uint32_t *>(data) =
-			VK_API_VERSION_MAJOR(device_props.properties.apiVersion) << 12 |
-			VK_API_VERSION_MINOR(device_props.properties.apiVersion) <<  8;
+			VK_API_VERSION_MAJOR(_api_version) << 12 |
+			VK_API_VERSION_MINOR(_api_version) <<  8;
 		return true;
 	case api::device_properties::driver_version:
 	{

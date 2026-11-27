@@ -65,10 +65,9 @@ static GLuint64 get_resource_import_size(const reshade::api::resource_desc &desc
 			VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 			for (uint32_t i = 0; i < num_physical_devices; ++i)
 			{
-				VkPhysicalDeviceProperties2 props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 				VkPhysicalDeviceIDProperties device_id_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES };
-				props.pNext = &device_id_props;
-				vk.GetPhysicalDeviceProperties2(physical_devices[i], &props);
+				VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &device_id_props };
+				vk.GetPhysicalDeviceProperties2(physical_devices[i], &device_props);
 
 				if (device_id_props.deviceLUIDValid && std::memcmp(device_id_props.deviceLUID, device_luid, 8) == 0)
 				{

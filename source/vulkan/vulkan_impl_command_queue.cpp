@@ -201,8 +201,8 @@ uint64_t reshade::vulkan::command_queue_impl::get_timestamp_frequency() const
 	if (_queue_family_props.timestampValidBits == 0)
 		return 0;
 
-	VkPhysicalDeviceProperties device_props = {};
-	vk.GetPhysicalDeviceProperties(_device->_physical_device, &device_props);
+	VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+	vk.GetPhysicalDeviceProperties2(_device->_physical_device, &device_props);
 
-	return static_cast<uint64_t>(1000000000ull / device_props.limits.timestampPeriod);
+	return static_cast<uint64_t>(1000000000ull / device_props.properties.limits.timestampPeriod);
 }

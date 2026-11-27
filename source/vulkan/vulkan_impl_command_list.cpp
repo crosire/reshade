@@ -911,10 +911,10 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		region.dstSubresource.layerCount = region.srcSubresource.layerCount;
 		region.dstOffset = { static_cast<int32_t>(dst_x), static_cast<int32_t>(dst_y), static_cast<int32_t>(dst_z) };
 
-		VkPhysicalDeviceDepthStencilResolveProperties resolve_properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
-		VkPhysicalDeviceProperties2 properties { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_properties };
-		vk.GetPhysicalDeviceProperties2(_device->_physical_device, &properties);
-		if (resolve_properties.independentResolveNone)
+		VkPhysicalDeviceDepthStencilResolveProperties resolve_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES };
+		VkPhysicalDeviceProperties2 device_props { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &resolve_props };
+		vk.GetPhysicalDeviceProperties2(_device->_physical_device, &device_props);
+		if (resolve_props.independentResolveNone)
 		{
 			if (format == api::format::r24_unorm_x8_uint || format == api::format::r32_float_x8_uint)
 				aspect_flags = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -929,7 +929,7 @@ void reshade::vulkan::command_list_impl::resolve_texture_region(api::resource sr
 		{
 			// Prefer average depth resolve mode when supported
 			resolve_mode_info.resolveMode =
-				(resolve_properties.supportedDepthResolveModes & VK_RESOLVE_MODE_AVERAGE_BIT) != 0 && ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) == 0 || resolve_properties.independentResolve) ?
+				(resolve_props.supportedDepthResolveModes & VK_RESOLVE_MODE_AVERAGE_BIT) != 0 && ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) == 0 || resolve_props.independentResolve) ?
 				VK_RESOLVE_MODE_AVERAGE_BIT : VK_RESOLVE_MODE_SAMPLE_ZERO_BIT;
 		}
 		if ((aspect_flags & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
