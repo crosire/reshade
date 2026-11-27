@@ -986,7 +986,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSrc
 
 		if (reshade::invoke_addon_event<reshade::addon_event::copy_texture_region>(this,
 				src_resource, src_subresource, reshade::d3d9::convert_rect_to_subresource_box(pSrcRect, src_box),
-				dst_resource, dst_subresource, pDstPoint != nullptr ? &dst_box : nullptr, reshade::api::filter_mode::min_mag_mip_point))
+				dst_resource, dst_subresource, pSrcRect != nullptr || pDstPoint != nullptr ? &dst_box : nullptr, reshade::api::filter_mode::min_mag_mip_point))
 			return D3D_OK;
 	}
 #endif
