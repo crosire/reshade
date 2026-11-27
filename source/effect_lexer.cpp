@@ -1181,7 +1181,7 @@ void reshadefx::lexer::parse_numeric_literal(token &tok) const
 	}
 	else
 	{
-#if 0
+#if !defined(__cpp_lib_to_chars)
 		exponent += decimal_location - mantissa_size;
 
 		const bool exponent_negative = exponent < 0;
