@@ -113,24 +113,10 @@ namespace reshade::d3d12
 	class descriptor_heap_gpu
 	{
 	public:
-		explicit descriptor_heap_gpu(ID3D12Device *device, UINT node_mask = 0)
+		explicit descriptor_heap_gpu(ID3D12Device *device, UINT node_mask = 0) :
+			_device(device), _node_mask(node_mask)
 		{
-			// Manage all descriptors in a single heap, to avoid costly descriptor heap switches during rendering
-			// The lower portion of the heap is reserved for static bindings, the upper portion for transient bindings (which change frequently and are managed like a ring buffer)
-			D3D12_DESCRIPTOR_HEAP_DESC desc;
-			desc.Type = type;
-			desc.NumDescriptors = static_size + transient_size;
-			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			desc.NodeMask = node_mask;
-
-			if (FAILED(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_heap))))
-				return;
-
 			_increment_size = device->GetDescriptorHandleIncrementSize(type);
-			_static_heap_base = _heap->GetCPUDescriptorHandleForHeapStart().ptr;
-			_static_heap_base_gpu = _heap->GetGPUDescriptorHandleForHeapStart().ptr;
-			_transient_heap_base = _static_heap_base + static_size * _increment_size;
-			_transient_heap_base_gpu = _static_heap_base_gpu + static_size * _increment_size;
 		}
 		~descriptor_heap_gpu()
 		{
@@ -139,10 +125,11 @@ namespace reshade::d3d12
 
 		bool allocate_static(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
 		{
-			if (_heap == nullptr)
-				return false;
-
 			const std::unique_lock<std::shared_mutex> lock(_mutex);
+
+			// The heap is only created once it is needed for the first time
+			if (_heap == nullptr && !allocate_heap())
+				return false;
 
 			// First try to allocate from the list of freed blocks
 			for (auto block = _free_list.begin(); block != _free_list.end(); ++block)
@@ -180,10 +167,14 @@ namespace reshade::d3d12
 		bool allocate_transient(UINT count, D3D12_CPU_DESCRIPTOR_HANDLE &base_handle, D3D12_GPU_DESCRIPTOR_HANDLE &base_handle_gpu)
 		{
 			// Allocations need to fit into the transient range, since they cannot wrap around
-			if (_heap == nullptr || count > transient_size)
+			if (count > transient_size)
 				return false;
 
 			const std::unique_lock<std::shared_mutex> lock(_mutex);
+
+			// The heap is only created once it is needed for the first time
+			if (_heap == nullptr && !allocate_heap())
+				return false;
 
 			SIZE_T index = static_cast<SIZE_T>(_current_transient_tail % transient_size);
 
@@ -202,13 +193,13 @@ namespace reshade::d3d12
 
 		void free(D3D12_GPU_DESCRIPTOR_HANDLE base_handle_gpu)
 		{
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
+
 			// Ensure this handle falls into the static range of this heap
 			if (base_handle_gpu.ptr < _static_heap_base_gpu || base_handle_gpu.ptr >= _transient_heap_base_gpu)
 				return;
 
 			UINT count = 1;
-
-			const std::unique_lock<std::shared_mutex> lock(_mutex);
 
 			// Find the number of descriptors allocated for this base handle
 			for (auto it = _count_list.begin(); it != _count_list.end(); ++it)
@@ -264,12 +255,17 @@ namespace reshade::d3d12
 
 		bool contains(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu) const
 		{
+			// The heap may be created on another thread at the same time, so need to synchronize access to its base handles
+			const std::shared_lock<std::shared_mutex> lock(_mutex);
+
 			return handle_gpu.ptr >= _static_heap_base_gpu && handle_gpu.ptr < _transient_heap_base_gpu;
 		}
 
 		bool convert_handle(D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu, D3D12_CPU_DESCRIPTOR_HANDLE &out_handle_cpu) const
 		{
-			if (contains(handle_gpu))
+			const std::shared_lock<std::shared_mutex> lock(_mutex);
+
+			if (handle_gpu.ptr >= _static_heap_base_gpu && handle_gpu.ptr < _transient_heap_base_gpu)
 			{
 				out_handle_cpu.ptr = _static_heap_base + static_cast<SIZE_T>(handle_gpu.ptr - _static_heap_base_gpu);
 				return true;
@@ -282,8 +278,40 @@ namespace reshade::d3d12
 		}
 
 		ID3D12DescriptorHeap *get() const { assert(_heap != nullptr); return _heap.get(); }
+		ID3D12DescriptorHeap *get_or_create()
+		{
+			const std::unique_lock<std::shared_mutex> lock(_mutex);
+
+			if (_heap == nullptr)
+				allocate_heap();
+
+			return _heap.get();
+		}
 
 	private:
+		bool allocate_heap()
+		{
+			// Manage all descriptors in a single heap, to avoid costly descriptor heap switches during rendering
+			// The lower portion of the heap is reserved for static bindings, the upper portion for transient bindings (which change frequently and are managed like a ring buffer)
+			D3D12_DESCRIPTOR_HEAP_DESC desc;
+			desc.Type = type;
+			desc.NumDescriptors = static_size + transient_size;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			desc.NodeMask = _node_mask;
+
+			if (FAILED(_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_heap))))
+				return false;
+
+			_static_heap_base = _heap->GetCPUDescriptorHandleForHeapStart().ptr;
+			_static_heap_base_gpu = _heap->GetGPUDescriptorHandleForHeapStart().ptr;
+			_transient_heap_base = _static_heap_base + static_size * _increment_size;
+			_transient_heap_base_gpu = _static_heap_base_gpu + static_size * _increment_size;
+
+			return true;
+		}
+
+		ID3D12Device *const _device;
+		const UINT _node_mask;
 		com_ptr<ID3D12DescriptorHeap> _heap;
 		SIZE_T _increment_size = 0;
 		SIZE_T _static_heap_base = 0;
@@ -294,6 +322,6 @@ namespace reshade::d3d12
 		UINT64 _current_transient_tail = 0;
 		std::vector<std::pair<UINT64, UINT64>> _free_list;
 		std::vector<std::pair<UINT64, UINT32>> _count_list;
-		std::shared_mutex _mutex;
+		mutable std::shared_mutex _mutex;
 	};
 }
